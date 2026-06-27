@@ -26,7 +26,6 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { entrylist_items, entrylist_of, entrylist_page, entrylist_rows, entrylist_showing } from '@src/paraglide/messages';
 
-	// Props with default values
 	let {
 		currentPage = $bindable(),
 		pagesCount = 1,
@@ -37,7 +36,6 @@
 		onUpdateRowsPerPage
 	} = $props();
 
-	// Derived pagesCount if not provided
 	const computedPagesCount = $derived.by(() => {
 		if (pagesCount && pagesCount > 0) {
 			return pagesCount;
@@ -51,11 +49,9 @@
 	const isFirstPage = $derived(currentPage === 1);
 	const isLastPage = $derived(currentPage === computedPagesCount);
 
-	// Calculate start and end item numbers for the current page
 	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
 	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
 
-	// Go to page - IMMEDIATE
 	function goToPage(page: number) {
 		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
 			currentPage = page;
@@ -63,11 +59,8 @@
 		}
 	}
 
-	// Update rows per page with immediate reset to page 1
 	function updateRowsPerPage(rows: number) {
-		// Immediately update the bound value to ensure UI consistency
 		rowsPerPage = rows;
-		// Call the callback to handle the change
 		onUpdateRowsPerPage?.(rows);
 	}
 
@@ -75,9 +68,81 @@
 		'h-8 w-9 rounded-none p-0! min-w-0 text-surface-600 hover:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-700';
 </script>
 
-<!-- Pagination info -->
+<!-- Mobile-only layout -->
+<div class="flex w-full items-center gap-2 md:hidden">
+	<nav
+		class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-900"
+		aria-label="Table pagination"
+	>
+		<Button
+			variant="ghost"
+			size="sm"
+			onclick={() => goToPage(currentPage - 1)}
+			disabled={isFirstPage}
+			type="button"
+			aria-label="Go to previous page"
+			class="table-pagination-mobile-nav-btn"
+		>
+			<iconify-icon icon="mdi:chevron-left" width="20" aria-hidden="true"></iconify-icon>
+		</Button>
+
+		<span
+			class="flex min-w-[3rem] items-center justify-center border-x border-surface-200 px-2 font-mono text-xs font-semibold tabular-nums text-surface-800 dark:border-surface-800 dark:text-surface-100"
+			aria-hidden="true"
+		>
+			{currentPage}/{computedPagesCount}
+		</span>
+
+		<Button
+			variant="ghost"
+			size="sm"
+			onclick={() => goToPage(currentPage + 1)}
+			disabled={isLastPage}
+			type="button"
+			aria-label="Go to next page"
+			class="table-pagination-mobile-nav-btn"
+		>
+			<iconify-icon icon="mdi:chevron-right" width="20" aria-hidden="true"></iconify-icon>
+		</Button>
+	</nav>
+
+	<p
+		class="m-0 min-w-0 flex-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400"
+		role="status"
+		aria-live="polite"
+	>
+		{#if totalItems > 0}
+			<span class="tabular-nums text-surface-700 dark:text-surface-200">{startItem}–{endItem}</span>
+			<span class="text-surface-400 dark:text-surface-500"> / {totalItems}</span>
+		{:else}
+			0 / 0
+		{/if}
+	</p>
+
+	<label class="relative inline-flex h-9 shrink-0 items-center">
+		<span class="sr-only">{entrylist_rows()}</span>
+		<select
+			bind:value={rowsPerPage}
+			onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
+			aria-label="Select number of rows per page"
+			class="h-full cursor-pointer appearance-none rounded-lg border border-surface-200 bg-surface-50 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-700 dark:border-surface-800 dark:bg-surface-900 dark:text-surface-200"
+		>
+			{#each rowsPerPageOptions as pageSize (pageSize)}
+				<option value={pageSize}>{pageSize} {entrylist_rows()}</option>
+			{/each}
+		</select>
+		<iconify-icon
+			icon="mdi:chevron-down"
+			width="14"
+			class="pointer-events-none absolute inset-e-2 text-surface-400"
+			aria-hidden="true"
+		></iconify-icon>
+	</label>
+</div>
+
+<!-- Desktop layout (unchanged) -->
 <div
-	class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 dark:text-surface-400 md:text-sm"
+	class="hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 md:flex dark:text-surface-400 md:text-sm"
 	role="status"
 	aria-live="polite"
 >
@@ -88,7 +153,7 @@
 		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
 	</span>
 
-	<span class="hidden h-3 w-px bg-surface-300 dark:bg-surface-600 sm:inline-block" aria-hidden="true"></span>
+	<span class="hidden h-3 w-px bg-surface-300 sm:inline-block dark:bg-surface-600" aria-hidden="true"></span>
 
 	<span aria-label="Current items shown">
 		{#if totalItems > 0}
@@ -105,10 +170,8 @@
 	</span>
 </div>
 
-<!-- Pagination controls -->
-<nav class="flex items-center" aria-label="Table pagination">
+<nav class="hidden items-center md:flex" aria-label="Table pagination">
 	<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-300 dark:border-surface-600">
-		<!-- First page button -->
 		<SystemTooltip title="First Page">
 			<Button
 				variant="ghost"
@@ -123,7 +186,6 @@
 			</Button>
 		</SystemTooltip>
 
-		<!-- Previous page button -->
 		<SystemTooltip title="Previous Page">
 			<Button
 				variant="ghost"
@@ -138,7 +200,6 @@
 			</Button>
 		</SystemTooltip>
 
-		<!-- Rows per page select dropdown -->
 		<SystemTooltip title="Rows per page">
 			<select
 				bind:value={rowsPerPage}
@@ -155,7 +216,6 @@
 			</select>
 		</SystemTooltip>
 
-		<!-- Next page button -->
 		<SystemTooltip title="Next Page">
 			<Button
 				variant="ghost"
@@ -170,7 +230,6 @@
 			</Button>
 		</SystemTooltip>
 
-		<!-- Last page button -->
 		<SystemTooltip title="Last Page">
 			<Button
 				variant="ghost"
@@ -186,3 +245,16 @@
 		</SystemTooltip>
 	</div>
 </nav>
+
+<style>
+	:global(.table-pagination-mobile-nav-btn) {
+		display: inline-flex !important;
+		width: 2.25rem !important;
+		min-width: 2.25rem !important;
+		height: 100% !important;
+		align-items: center;
+		justify-content: center;
+		padding: 0 !important;
+		border-radius: 0 !important;
+	}
+</style>

@@ -15,6 +15,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Badge from '@components/ui/badge.svelte';
   import { fade } from "svelte/transition";
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
@@ -311,18 +312,18 @@
   }
 </script>
 
-<div class="media-details-container flex flex-col md:flex-row gap-6 max-h-[90vh] overflow-hidden text-surface-900 dark:text-surface-100 p-4">
-  <!-- Left Side: Asset Preview -->
-  <div class="preview-section flex-1 flex flex-col justify-center items-center bg-surface-100/50 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800 rounded-2xl p-4 min-h-75 md:min-h-125 relative">
+<div class="flex w-full min-w-0 max-w-none flex-col gap-4 overflow-hidden text-surface-900 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100">
+  <!-- Asset preview -->
+  <div class="flex min-h-0 shrink-0 flex-col items-center justify-center rounded-xl border border-surface-200 bg-surface-50 p-3 sm:p-4 lg:min-h-[18rem] lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40">
     {#if file.type === 'image'}
       <div
-        class="preview-image-box w-full h-full flex items-center justify-center rounded overflow-hidden relative"
-        style:background-color={file.metadata?.dominantColor || 'transparent'}
+        class="media-checkerboard flex max-h-[min(42dvh,16rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+        style:background-color={file.metadata?.dominantColor || undefined}
       >
         <img
           src={mediaUrl(file)}
           alt={file.filename}
-          class="max-w-full max-h-105 object-contain rounded shadow-lg"
+          class="max-h-full max-w-full object-contain"
           style:object-position={file.metadata?.focalPoint ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%` : 'center'}
         />
       </div>
@@ -330,35 +331,35 @@
       <video
         src={mediaUrl(file)}
         controls
-        class="max-w-full max-h-105 rounded shadow-lg"
+        class="max-h-[min(42dvh,16rem)] w-full max-w-full rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
       >
         <track kind="captions" />
       </video>
     {:else if file.type === 'audio'}
-      <div class="audio-preview flex flex-col items-center gap-4 w-full max-w-sm">
-        <div class="audio-icon-box bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 p-6 rounded-full">
-          <iconify-icon icon="mdi:music-note" width="48"></iconify-icon>
+      <div class="flex w-full max-w-sm flex-col items-center gap-4 py-4">
+        <div class="rounded-full border border-surface-200 bg-surface-100 p-5 text-primary-500 dark:border-surface-700 dark:bg-surface-800">
+          <iconify-icon icon="mdi:music-note" width="40"></iconify-icon>
         </div>
         <audio src={mediaUrl(file)} controls class="w-full"></audio>
       </div>
     {:else}
-      <div class="file-fallback flex flex-col items-center gap-4">
-        <div class="file-icon-box bg-surface-200 dark:bg-surface-800 text-surface-500 p-8 rounded-2xl border border-surface-300 dark:border-surface-700">
-          <iconify-icon icon="mdi:file-document-outline" width="64"></iconify-icon>
+      <div class="flex flex-col items-center gap-3 py-6">
+        <div class="rounded-xl border border-surface-200 bg-surface-100 p-6 text-surface-500 dark:border-surface-700 dark:bg-surface-800">
+          <iconify-icon icon="mdi:file-document-outline" width="48"></iconify-icon>
         </div>
-        <span class="font-mono text-sm opacity-60">{formatMime(file.mimeType)}</span>
+        <span class="font-mono text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400">{formatMime(file.mimeType)}</span>
       </div>
     {/if}
 
-    <div class="mt-4 flex gap-2">
+    <div class="mt-3 flex w-full justify-center sm:mt-4">
       <Button
-        variant="tertiary"
+        variant="surface"
         size="sm"
         href={mediaUrl(file)}
         download={file.filename}
         target="_blank"
         rel="noopener noreferrer"
-        class="text-xs"
+        class="h-9 gap-1.5"
       >
         <iconify-icon icon="mdi:download-outline" width="16"></iconify-icon>
         <span>Download Original</span>
@@ -366,106 +367,116 @@
     </div>
   </div>
 
-  <!-- Right Side: Details & Tabbed Management -->
-  <div class="details-section flex-1 flex flex-col overflow-hidden">
-    <!-- Header -->
-    <div class="modal-header flex items-start justify-between border-b border-surface-200 dark:border-surface-800 pb-4 mb-4">
-      <div>
-        <h2 class="h4 font-bold text-ellipsis overflow-hidden max-w-[320px] whitespace-nowrap" title={file.filename}>
+  <!-- Details panel -->
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div class="mb-3 flex shrink-0 items-start justify-between gap-3 border-b border-surface-200 pb-3 dark:border-surface-800">
+      <div class="min-w-0 flex-1">
+        <h2 class="truncate text-base font-semibold text-surface-800 sm:text-lg dark:text-surface-100" title={file.filename}>
           {file.filename}
         </h2>
-        <p class="text-xs opacity-60 font-mono mt-1">{file._id}</p>
+        <p class="mt-1 truncate font-mono text-[10px] text-surface-500 sm:text-[11px] dark:text-surface-400">{file._id}</p>
       </div>
-      <Button variant="ghost" onclick={close} aria-label="Close modal" class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800">
-        <iconify-icon icon="mdi:close" width="20"></iconify-icon>
+      <Button variant="ghost" onclick={close} aria-label="Close modal" class="h-9 w-9 min-w-9 shrink-0 p-0!">
+        <iconify-icon icon="mdi:close" width="18"></iconify-icon>
       </Button>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="tabs-container flex border-b border-surface-200 dark:border-surface-800 mb-4 text-sm font-semibold">
-      <button
-        onclick={() => activeTab = 'info'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'info' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
-        aria-label="info-tags-tab"
-      >
-        Info & Tags
-      </button>
-      <button
-        onclick={() => activeTab = 'versions'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'versions' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
-        aria-label="versions-tab"
-      >
-        Versions ({file.versions?.length || 0})
-      </button>
-      <button
-        onclick={() => activeTab = 'references'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'references' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
-        aria-label="usage-tab"
-      >
-        Usage
-      </button>
-      <button
-        onclick={() => activeTab = 'share'}
-        class="px-4 py-2 border-b-2 transition-all {activeTab === 'share' ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent opacity-60 hover:opacity-100'}"
-        aria-label="share-links-tab"
-      >
-        Share Links ({file.metadata?.sharedLinks?.length || 0})
-      </button>
+    <div class="-mx-1 mb-3 flex shrink-0 gap-1 overflow-x-auto border-b border-surface-200 px-1 pb-px text-sm dark:border-surface-800">
+      {#each [
+        { id: 'info', label: 'Info & Tags' },
+        { id: 'versions', label: `Versions (${file.versions?.length || 0})` },
+        { id: 'references', label: 'Usage' },
+        { id: 'share', label: `Share (${file.metadata?.sharedLinks?.length || 0})` }
+      ] as tab (tab.id)}
+        <button
+          type="button"
+          onclick={() => (activeTab = tab.id as typeof activeTab)}
+          class="shrink-0 border-b-2 px-3 py-2 font-medium transition-colors {activeTab === tab.id
+            ? 'border-primary-500 text-surface-800 dark:text-surface-100'
+            : 'border-transparent text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+          aria-label="{tab.label}-tab"
+          aria-selected={activeTab === tab.id}
+          role="tab"
+        >
+          {tab.label}
+        </button>
+      {/each}
     </div>
 
-    <!-- Tab Contents (Scrollable) -->
-    <div class="tab-content flex-1 overflow-y-auto pe-1">
+    <div class="min-h-0 flex-1 overflow-y-auto pe-1">
       {#if activeTab === 'info'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <!-- Metadata Table -->
-          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded p-4 font-mono text-xs flex flex-col gap-2">
-            <div class="flex justify-between"><span class="opacity-60">Mime-Type:</span><span>{file.mimeType}</span></div>
-            <div class="flex justify-between"><span class="opacity-60">File Size:</span><span>{formatBytes(file.size)}</span></div>
-            {#if file.width && file.height}
-              <div class="flex justify-between"><span class="opacity-60">Dimensions:</span><span>{file.width} x {file.height} px</span></div>
-            {/if}
-            <div class="flex justify-between"><span class="opacity-60">Folder:</span><span>{file.folder || 'global'}</span></div>
-            <div class="flex justify-between"><span class="opacity-60">Created:</span><span>{new Date(file.createdAt).toLocaleString()}</span></div>
-            <div class="flex justify-between"><span class="opacity-60">Updated:</span><span>{new Date(file.updatedAt).toLocaleString()}</span></div>
+          <div class="rounded-lg border border-surface-200 bg-surface-50 p-3 font-mono text-xs dark:border-surface-800 dark:bg-surface-900/60">
+            <dl class="space-y-2">
+              <div class="flex items-start justify-between gap-4">
+                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Mime-Type</dt>
+                <dd class="text-end text-surface-800 dark:text-surface-100">{file.mimeType}</dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="shrink-0 text-surface-500 dark:text-surface-400">File Size</dt>
+                <dd class="text-end tabular-nums text-surface-800 dark:text-surface-100">{formatBytes(file.size)}</dd>
+              </div>
+              {#if file.width && file.height}
+                <div class="flex items-start justify-between gap-4">
+                  <dt class="shrink-0 text-surface-500 dark:text-surface-400">Dimensions</dt>
+                  <dd class="text-end tabular-nums text-surface-800 dark:text-surface-100">{file.width} × {file.height} px</dd>
+                </div>
+              {/if}
+              <div class="flex items-start justify-between gap-4">
+                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Folder</dt>
+                <dd class="text-end text-surface-800 dark:text-surface-100">{file.folder || 'global'}</dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Created</dt>
+                <dd class="text-end text-surface-800 dark:text-surface-100">{new Date(file.createdAt).toLocaleString()}</dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Updated</dt>
+                <dd class="text-end text-surface-800 dark:text-surface-100">{new Date(file.updatedAt).toLocaleString()}</dd>
+              </div>
+            </dl>
           </div>
 
-          <!-- Tags Area -->
-          <div class="tags-section">
-            <h3 class="font-bold text-sm mb-2">Asset Tags</h3>
+          <div>
+            <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Asset Tags</h3>
 
-            <div class="flex flex-wrap gap-1.5 mb-3">
+            <div class="mb-3 flex flex-wrap gap-1.5">
               {#each file.metadata?.tags || [] as tag}
-                <span class="tag-badge bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-600 dark:text-primary-600 border border-tertiary-500 dark:border-primary-500/20 px-2 py-0.5 rounded text-xs flex items-center gap-1">
+                <Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
                   <span>{tag}</span>
                   <button
+                    type="button"
                     onclick={() => handleRemoveTag(tag)}
-                    class="hover:text-error-500"
-                    aria-label={`remove-tag-${tag}`}
+                    class="rounded-full p-0.5 text-surface-500 hover:text-error-500"
+                    aria-label="Remove tag {tag}"
                   >
-                    <iconify-icon icon="mdi:close-circle" width="12"></iconify-icon>
+                    <iconify-icon icon="mdi:close" width="12"></iconify-icon>
                   </button>
-                </span>
+                </Badge>
               {:else}
-                <span class="text-xs opacity-60">No tags added yet.</span>
+                <span class="text-xs text-surface-500 dark:text-surface-400">No tags added yet.</span>
               {/each}
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex items-center gap-2">
               <Input
                 type="text"
                 bind:value={newTagInput}
                 onkeydown={handleAddTag}
-                label="Add tag..."
-                inputClass="text-sm py-1.5 h-9"
+                placeholder="Add tag…"
+                aria-label="Add tag"
+                inputClass="h-9 text-sm"
+                class="min-w-0 flex-1"
                 disabled={isSavingTags}
-                aria-label="add-tag"
-                class="flex-1"
               />
-              <Button variant="tertiary"
+              <Button
+                variant="surface"
+                size="sm"
                 onclick={handleAddTag}
                 disabled={isSavingTags || !newTagInput.trim()}
-                aria-label="add-tag-button"
-               class="text-xs py-1.5 px-3">
+                aria-label="Add tag"
+                class="h-9 shrink-0 px-3"
+              >
                 Add
               </Button>
             </div>
@@ -474,12 +485,11 @@
 
       {:else if activeTab === 'versions'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <!-- Upload New Version -->
-          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded p-4 flex flex-col items-center gap-3">
-            <iconify-icon icon="mdi:cloud-upload-outline" width="32" class="opacity-60"></iconify-icon>
-            <div class="text-center">
-              <h4 class="font-bold text-sm">Replace or Update File</h4>
-              <p class="text-xs opacity-60 mt-0.5">Upload a new file. The current name will be preserved, and the old version will be stored in history.</p>
+          <div class="flex flex-col items-center gap-3 rounded-lg border border-surface-200 bg-surface-50 p-4 text-center dark:border-surface-800 dark:bg-surface-900/60">
+            <iconify-icon icon="mdi:cloud-upload-outline" width="28" class="text-surface-400"></iconify-icon>
+            <div>
+              <h4 class="text-sm font-semibold text-surface-800 dark:text-surface-100">Replace or Update File</h4>
+              <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Upload a new file. The current name is preserved and the old version is stored in history.</p>
             </div>
 
             <input
@@ -487,16 +497,19 @@
               bind:this={fileInputEl}
               onchange={handleVersionUpload}
               class="hidden"
-              aria-label="upload-new-version"
+              aria-label="Upload new version"
             />
-            <Button variant="tertiary"
+            <Button
+              variant="surface"
+              size="sm"
               onclick={triggerFileInput}
               disabled={isUploadingVersion}
-              aria-label="upload-new-version-button"
-             class="text-xs px-4">
+              aria-label="Upload new version"
+              class="h-9 gap-1.5"
+            >
               {#if isUploadingVersion}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
-                <span>Uploading...</span>
+                <span>Uploading…</span>
               {:else}
                 <iconify-icon icon="mdi:upload" width="16"></iconify-icon>
                 <span>Upload New Version</span>
@@ -504,58 +517,54 @@
             </Button>
           </div>
 
-          <!-- Version History -->
-          <div class="history-list">
-            <h3 class="font-bold text-sm mb-2">Version History</h3>
+          <div>
+            <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Version History</h3>
             <div class="flex flex-col gap-2">
-              <!-- Current Active Version -->
-              <div class="version-item bg-tertiary-500 dark:bg-primary-500/5 border border-tertiary-500 dark:border-primary-500/20 rounded p-3 flex justify-between items-center text-xs">
-                <div class="flex items-center gap-3">
-                  <div class="version-badge bg-tertiary-500 dark:bg-primary-500 text-white font-bold px-2 py-0.5 rounded text-[10px]">
-                    ACTIVE
-                  </div>
-                  <div>
-                    <p class="font-semibold">{file.filename}</p>
-                    <p class="opacity-60 mt-0.5 font-mono">Current • {formatBytes(file.size)} • {new Date(file.updatedAt).toLocaleString()}</p>
+              <div class="flex flex-col gap-3 rounded-lg border border-primary-500/20 bg-primary-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex min-w-0 items-center gap-3">
+                  <Badge variant="primary" size="sm">Active</Badge>
+                  <div class="min-w-0">
+                    <p class="truncate text-xs font-semibold text-surface-800 dark:text-surface-100">{file.filename}</p>
+                    <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Current · {formatBytes(file.size)} · {new Date(file.updatedAt).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
-              <!-- History versions -->
               {#each file.versions || [] as ver}
-                <div class="version-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex justify-between items-center text-xs">
-                  <div class="flex items-center gap-3">
-                    <div class="version-badge bg-surface-300 dark:bg-surface-700 text-surface-800 dark:text-surface-200 font-bold px-2 py-0.5 rounded text-[10px]">
-                      v{ver.versionNumber}
-                    </div>
-                    <div>
-                      <p class="font-semibold text-ellipsis max-w-50 overflow-hidden whitespace-nowrap" title={ver.filename}>{ver.filename}</p>
-                      <p class="opacity-60 mt-0.5 font-mono">
-                        {formatBytes(ver.size)} • {new Date(ver.updatedAt).toLocaleString()}
+                <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
+                  <div class="flex min-w-0 items-center gap-3">
+                    <Badge variant="surface" size="sm">v{ver.versionNumber}</Badge>
+                    <div class="min-w-0">
+                      <p class="truncate text-xs font-semibold text-surface-800 dark:text-surface-100" title={ver.filename}>{ver.filename}</p>
+                      <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
+                        {formatBytes(ver.size)} · {new Date(ver.updatedAt).toLocaleString()}
                         {#if ver.updatedBy}
-                          • by {ver.updatedBy}
+                          · {ver.updatedBy}
                         {/if}
                       </p>
                     </div>
                   </div>
 
-                  <div class="flex gap-2">
+                  <div class="flex shrink-0 gap-2 self-end sm:self-auto">
                     <Button
                       variant="ghost"
                       size="sm"
                       href={mediaUrl({ url: ver.path } as any)}
                       download={ver.filename}
-                      title="Download Version"
-                      aria-label="Download Version"
-                      class="p-0! min-w-0 bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-750"
+                      title="Download version"
+                      aria-label="Download version"
+                      class="h-8 w-8 min-w-8 p-0!"
                     >
                       <iconify-icon icon="mdi:download-outline" width="14"></iconify-icon>
                     </Button>
-                    <Button variant="surface"
+                    <Button
+                      variant="surface"
+                      size="sm"
                       onclick={() => handleRestoreVersion(ver.versionNumber)}
                       disabled={isRestoringVersion}
-                      aria-label="restore-version"
-                     class="text-[10px] py-1 px-2.5 flex items-center gap-1">
+                      aria-label="Restore version"
+                      class="h-8 px-3"
+                    >
                       Restore
                     </Button>
                   </div>
@@ -568,37 +577,37 @@
       {:else if activeTab === 'references'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           {#if isScanningRefs}
-            <div class="flex flex-col items-center justify-center p-8 gap-3">
-              <iconify-icon icon="mdi:loading" class="animate-spin text-tertiary-500 dark:text-primary-500" width="32"></iconify-icon>
-              <span class="text-xs opacity-60">Scanning collections for usage references...</span>
+            <div class="flex flex-col items-center justify-center gap-3 p-8">
+              <iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="28"></iconify-icon>
+              <span class="text-xs text-surface-500 dark:text-surface-400">Scanning collections for usage references…</span>
             </div>
           {:else}
-            <div class="references-list">
-              <h3 class="font-bold text-sm mb-2">Usage Scanner</h3>
-              <p class="text-xs opacity-60 mb-4">Lists all content entries where this media asset is referenced.</p>
+            <div>
+              <h3 class="mb-1 text-sm font-semibold text-surface-800 dark:text-surface-100">Usage Scanner</h3>
+              <p class="mb-4 text-xs text-surface-500 dark:text-surface-400">Lists all content entries where this media asset is referenced.</p>
 
               <div class="flex flex-col gap-2">
                 {#each references as ref}
-                  <div class="reference-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex justify-between items-center text-xs">
-                    <div>
-                      <span class="font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-[10px]">{ref.collection}</span>
-                      <p class="font-semibold mt-0.5">Field: <span class="font-mono">{ref.field}</span></p>
-                      <p class="opacity-60 mt-0.5 font-mono">Entry ID: {ref.entryId}</p>
+                  <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
+                    <div class="min-w-0">
+                      <span class="text-[10px] font-semibold uppercase tracking-wide text-primary-500">{ref.collection}</span>
+                      <p class="mt-0.5 text-xs font-medium text-surface-800 dark:text-surface-100">Field: <span class="font-mono">{ref.field}</span></p>
+                      <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Entry ID: {ref.entryId}</p>
                     </div>
 
                     <Button
-                      variant="tertiary"
+                      variant="surface"
                       size="sm"
                       href="/content/{ref.collection}/{ref.entryId}"
-                      class="text-[10px] py-1 px-2.5"
+                      class="h-8 shrink-0 self-end px-3 sm:self-auto"
                     >
                       Go to Entry
                     </Button>
                   </div>
                 {:else}
-                  <div class="bg-surface-50 dark:bg-surface-900/40 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded p-6 text-center">
-                    <iconify-icon icon="mdi:link-variant-off" width="32" class="opacity-40 mb-2"></iconify-icon>
-                    <p class="text-xs opacity-60">This asset is not referenced in any collections.</p>
+                  <div class="rounded-lg border border-dashed border-surface-200 p-6 text-center dark:border-surface-800">
+                    <iconify-icon icon="mdi:link-variant-off" width="28" class="mb-2 text-surface-400"></iconify-icon>
+                    <p class="text-xs text-surface-500 dark:text-surface-400">This asset is not referenced in any collections.</p>
                   </div>
                 {/each}
               </div>
@@ -608,17 +617,16 @@
 
       {:else if activeTab === 'share'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <!-- Generate Share Link Form -->
-          <div class="bg-surface-100 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800 rounded p-4 flex flex-col gap-3 text-xs">
-            <h4 class="font-bold text-sm">Create Expiring Public Link</h4>
+          <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-900/60">
+            <h4 class="text-sm font-semibold text-surface-800 dark:text-surface-100">Create Expiring Public Link</h4>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Select
                 bind:value={expiryHoursValue}
                 onchange={handleExpiryChange}
-                label="Expiration (Hours)"
+                label="Expiration"
                 size="sm"
-                placeholder="Select expiration..."
+                placeholder="Select expiration…"
                 options={[
                   { value: '1', label: '1 Hour' },
                   { value: '24', label: '24 Hours (1 Day)' },
@@ -629,21 +637,24 @@
               <Input
                 type="password"
                 bind:value={sharePassword}
-                label="Password (Optional)"
-                inputClass="text-xs py-1.5 h-9"
-                placeholder="Set password..."
-                aria-label="share-password"
+                label="Password (optional)"
+                inputClass="h-9 text-sm"
+                placeholder="Set password…"
+                aria-label="Share password"
               />
             </div>
 
-            <Button variant="tertiary"
+            <Button
+              variant="surface"
+              size="sm"
               onclick={handleGenerateShareLink}
               disabled={isCreatingShare}
-              aria-label="generate-sharing-link"
-             class="text-xs py-1.5 w-full mt-2">
+              aria-label="Generate sharing link"
+              class="h-9 w-full gap-1.5"
+            >
               {#if isCreatingShare}
                 <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
-                <span>Generating...</span>
+                <span>Generating…</span>
               {:else}
                 <iconify-icon icon="mdi:link-variant" width="16"></iconify-icon>
                 <span>Generate Sharing Link</span>
@@ -651,58 +662,65 @@
             </Button>
           </div>
 
-          <!-- Existing Share Links -->
-          <div class="shares-list">
-            <h3 class="font-bold text-sm mb-2">Active Sharing Links</h3>
+          <div>
+            <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Active Sharing Links</h3>
             <div class="flex flex-col gap-2">
               {#each file.metadata?.sharedLinks || [] as link}
                 {const expired = isExpired(link.expiry)}
-                <div class="share-item bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded p-3 flex flex-col gap-2 text-xs">
-                  <div class="flex justify-between items-center">
-                    <div class="flex gap-2 items-center">
-                      <span class="status-dot h-2.5 w-2.5 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"></span>
-                      <span class="font-mono text-[10px]">{expired ? 'EXPIRED' : 'ACTIVE'}</span>
+                <div class="flex flex-col gap-2 rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-900/60">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                      <span class="h-2 w-2 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"></span>
+                      <span class="font-mono text-[10px] uppercase text-surface-600 dark:text-surface-300">{expired ? 'Expired' : 'Active'}</span>
                       {#if link.passwordHash}
-                        <iconify-icon icon="mdi:lock" width="14" class="text-warning-500" title="Password Protected"></iconify-icon>
+                        <iconify-icon icon="mdi:lock" width="14" class="text-warning-500" title="Password protected"></iconify-icon>
                       {/if}
                     </div>
-                    <span class="opacity-60 text-[10px]">Downloads: {link.downloadCount || 0}</span>
+                    <span class="font-mono text-[10px] text-surface-500 dark:text-surface-400">Downloads: {link.downloadCount || 0}</span>
                   </div>
 
-                  <div class="flex gap-2">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <Input
                       type="text"
                       value={getShareLinkUrl(link.token)}
                       readonly
-                      label="Share link URL"
-                      inputClass="text-[10px] py-1 font-mono flex-1 bg-surface-200 dark:bg-surface-950"
-                      aria-label="share-link-url"
-                      class="flex-1"
+                      label="Share URL"
+                      inputClass="h-9 text-[11px] font-mono"
+                      aria-label="Share link URL"
+                      class="min-w-0 flex-1"
                     />
-                    <Button variant="primary"
-                      onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
-                      title="Copy Share Link"
-                      aria-label="copy-share-link"
-                     class="text-[10px] py-1 px-2.5">
-                      Copy
-                    </Button>
-                    <Button variant="error"
-                      onclick={() => handleRevokeShareLink(link.token)}
-                      title="Revoke Share Link"
-                      aria-label="revoke-share-link"
-                     class="text-[10px] py-1 px-2.5">
-                      Revoke
-                    </Button>
+                    <div class="flex shrink-0 gap-2 self-stretch sm:self-auto">
+                      <Button
+                        variant="surface"
+                        size="sm"
+                        onclick={() => copyToClipboard(getShareLinkUrl(link.token))}
+                        title="Copy share link"
+                        aria-label="Copy share link"
+                        class="h-9 flex-1 px-3 sm:flex-none"
+                      >
+                        Copy
+                      </Button>
+                      <Button
+                        variant="error"
+                        size="sm"
+                        onclick={() => handleRevokeShareLink(link.token)}
+                        title="Revoke share link"
+                        aria-label="Revoke share link"
+                        class="h-9 flex-1 px-3 sm:flex-none"
+                      >
+                        Revoke
+                      </Button>
+                    </div>
                   </div>
 
                   {#if link.expiry}
-                    <div class="text-[10px] opacity-60">
+                    <div class="font-mono text-[10px] text-surface-500 dark:text-surface-400">
                       Expires: {new Date(link.expiry).toLocaleString()}
                     </div>
                   {/if}
                 </div>
               {:else}
-                <div class="text-xs opacity-60 py-4 text-center">No active share links.</div>
+                <div class="py-4 text-center text-xs text-surface-500 dark:text-surface-400">No active share links.</div>
               {/each}
             </div>
           </div>
@@ -713,40 +731,27 @@
 </div>
 
 <style>
-  .media-details-container {
-    width: 850px;
-    max-width: 100%;
-  }
+	.media-checkerboard {
+		background-color: var(--color-surface-100);
+		background-image:
+			linear-gradient(45deg, var(--color-surface-200) 25%, transparent 25%),
+			linear-gradient(-45deg, var(--color-surface-200) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, var(--color-surface-200) 75%),
+			linear-gradient(-45deg, transparent 75%, var(--color-surface-200) 75%);
+		background-size: 12px 12px;
+		background-position:
+			0 0,
+			0 6px,
+			6px -6px,
+			-6px 0;
+	}
 
-  .preview-section {
-    max-height: 480px;
-  }
-
-  .tabs-container {
-    gap: 0.5rem;
-  }
-
-  .animate-spin {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
-  /* Scrollbar styling for smooth UX */
-  .tab-content::-webkit-scrollbar {
-    width: 6px;
-  }
-  .tab-content::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .tab-content::-webkit-scrollbar-thumb {
-    background: rgba(156, 163, 175, 0.3);
-    border-radius: 9999px;
-  }
-  .tab-content::-webkit-scrollbar-thumb:hover {
-    background: rgba(156, 163, 175, 0.5);
-  }
+	:global(.dark) .media-checkerboard {
+		background-color: var(--color-surface-900);
+		background-image:
+			linear-gradient(45deg, var(--color-surface-800) 25%, transparent 25%),
+			linear-gradient(-45deg, var(--color-surface-800) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, var(--color-surface-800) 75%),
+			linear-gradient(-45deg, transparent 75%, var(--color-surface-800) 75%);
+	}
 </style>

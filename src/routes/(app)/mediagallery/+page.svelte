@@ -324,7 +324,8 @@ async function handleCreateFolder() {
 async function handleOpenFileDetails(file: any) {
 	modalState.trigger(MediaDetailsModal as any, {
 		file,
-		modalClasses: "max-w-4xl w-full",
+		size: 'xl',
+		modalClasses: 'w-full max-w-4xl max-md:max-w-none',
 		onUpdate: (updatedFile: any) => {
 			const index = files.findIndex((f) => f._id === updatedFile._id);
 			if (index !== -1) {
@@ -442,14 +443,16 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 
 			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-				<label for="media-type-filter" class="sr-only">Filter by media type</label>
-				<Select
-					id="media-type-filter"
-					bind:value={selectedMediaType}
-					options={mediaTypeOptions}
-					placeholder="Type"
-					class="w-full sm:w-36"
-				/>
+				{#if view === 'grid'}
+					<label for="media-type-filter" class="sr-only">Filter by media type</label>
+					<Select
+						id="media-type-filter"
+						bind:value={selectedMediaType}
+						options={mediaTypeOptions}
+						placeholder="Type"
+						class="w-full sm:w-36"
+					/>
+				{/if}
 
 				<div class="flex h-10 items-center gap-0.5" role="group" aria-label="View mode">
 					<Button
@@ -478,17 +481,19 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					</Button>
 				</div>
 
-				<Button
-					variant={isSelectionMode ? 'surface' : 'ghost'}
-					color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
-					onclick={() => (isSelectionMode = !isSelectionMode)}
-					aria-label="Toggle selection mode"
-					aria-pressed={isSelectionMode}
-					class="h-10 text-sm"
-				>
-					<span class="sm:hidden">{isSelectionMode ? 'Done' : 'Select'}</span>
-					<span class="hidden sm:inline">{isSelectionMode ? 'Exit Selection' : 'Select'}</span>
-				</Button>
+				{#if view === 'grid'}
+					<Button
+						variant={isSelectionMode ? 'surface' : 'ghost'}
+						color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
+						onclick={() => (isSelectionMode = !isSelectionMode)}
+						aria-label="Toggle selection mode"
+						aria-pressed={isSelectionMode}
+						class="h-10 text-sm"
+					>
+						<span class="sm:hidden">{isSelectionMode ? 'Done' : 'Select'}</span>
+						<span class="hidden sm:inline">{isSelectionMode ? 'Exit Selection' : 'Select'}</span>
+					</Button>
+				{/if}
 			</div>
 			</div>
 		</div>
@@ -546,6 +551,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
 					ondeleteImage={handleDeleteImage}
+					onUpdateImage={handleUpdateImage}
 				/>
 			{/if}
 		</div>
