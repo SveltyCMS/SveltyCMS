@@ -152,13 +152,13 @@ const updates = await marketplace.checkUpdates([
 
 ## Extension Types
 
-| Type          | Install Path    | Example                           | Migration Status |
-| ------------- | --------------- | --------------------------------- | ---------------- |
-| `widget`      | `src/widgets/`  | Star rating, testimonial carousel | Core in repo → custom to marketplace |
-| `plugin`      | `src/plugins/`  | Stripe, PageSpeed, Sitemap        | In repo → phased migration |
-| `theme`       | `src/themes/`   | Dark Corporate, Minimal Blog      | Marketplace-only (target) |
-| `dashboard`   | `src/dashboards/` | Analytics, activity feed        | Marketplace-only (planned) |
-| `extension`   | `src/extensions/` | Slack webhook, GA, webhooks    | Marketplace-only (planned) |
+| Type        | Install Path      | Example                           | Migration Status                     |
+| ----------- | ----------------- | --------------------------------- | ------------------------------------ |
+| `widget`    | `src/widgets/`    | Star rating, testimonial carousel | Core in repo → custom to marketplace |
+| `plugin`    | `src/plugins/`    | Stripe, PageSpeed, Sitemap        | In repo → phased migration           |
+| `theme`     | `src/themes/`     | Dark Corporate, Minimal Blog      | Marketplace-only (target)            |
+| `dashboard` | `src/dashboards/` | Analytics, activity feed          | Marketplace-only (planned)           |
+| `extension` | `src/extensions/` | Slack webhook, GA, webhooks       | Marketplace-only (planned)           |
 
 > [!NOTE]
 > **Phased Migration**: Widgets, plugins, themes, dashboards, and extensions will gradually move from the GitHub monorepo to `marketplace.sveltycms.com`. Core widgets (checkbox, input, rich-text, etc.) remain in the repo as the essential building blocks. Community and premium extensions become marketplace-exclusive for discovery, licensing, and distribution.
@@ -188,12 +188,12 @@ As extensions migrate from the monorepo to `marketplace.sveltycms.com`, their co
 
 ### Migration Phases
 
-| Phase | Scope | Status |
-| ----- | ----- | ------ |
+| Phase       | Scope                                                                                                                       | Status                  |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
 | **Phase 1** | Core widgets stay in repo (checkbox, input, rich-text, etc.); all widget `.mdx` files follow `{name}/{name}.mdx` convention | ✅ Complete (June 2026) |
-| **Phase 2** | Custom widgets move to marketplace; leave **doc stubs** in repo referencing marketplace URLs | 🏗️ In Progress |
-| **Phase 3** | Plugins move to marketplace; doc stubs remain | 🚀 Planned |
-| **Phase 4** | Themes, dashboards, extensions — marketplace-only with federated docs | 🚀 Planned |
+| **Phase 2** | Custom widgets move to marketplace; leave **doc stubs** in repo referencing marketplace URLs                                | 🏗️ In Progress          |
+| **Phase 3** | Plugins move to marketplace; doc stubs remain                                                                               | 🚀 Planned              |
+| **Phase 4** | Themes, dashboards, extensions — marketplace-only with federated docs                                                       | 🚀 Planned              |
 
 ### Doc Stub Pattern
 
@@ -250,20 +250,20 @@ flowchart LR
 
 The marketplace package schema includes a `documentation` field for serving the full `.mdx` content:
 
-| Field | Type | Description |
-| ----- | ---- | ----------- |
-| `documentation` | `string` | Full `.mdx` content (markdown) |
-| `documentation_url` | `string` | URL to hosted documentation |
+| Field               | Type     | Description                    |
+| ------------------- | -------- | ------------------------------ |
+| `documentation`     | `string` | Full `.mdx` content (markdown) |
+| `documentation_url` | `string` | URL to hosted documentation    |
 
 This field is exposed via `GET /api/packages/{slug}` and is ingested at build time by the docs pipeline. Cached with a 30-minute TTL, matching the marketplace client cache duration.
 
 ### llms-full.txt Coverage Guarantee
 
-| Source | Mechanism | Latency |
-| ------ | --------- | ------- |
-| Local `.mdx` (repo docs + core widgets) | Filesystem scan at build | <1ms |
-| Stub → Marketplace fetch | `GET /api/packages/{slug}` at build | ~200ms per package (parallelized) |
-| Cached marketplace docs | In-memory, 30-min TTL | <0.1ms |
+| Source                                  | Mechanism                           | Latency                           |
+| --------------------------------------- | ----------------------------------- | --------------------------------- |
+| Local `.mdx` (repo docs + core widgets) | Filesystem scan at build            | <1ms                              |
+| Stub → Marketplace fetch                | `GET /api/packages/{slug}` at build | ~200ms per package (parallelized) |
+| Cached marketplace docs                 | In-memory, 30-min TTL               | <0.1ms                            |
 
 The federation layer ensures **0% documentation loss** during migration — every extension, whether local or marketplace-hosted, appears in `llms-full.txt` for AI agents and RAG pipelines.
 
