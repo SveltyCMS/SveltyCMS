@@ -331,7 +331,15 @@ async function handleOpenFileDetails(file: any) {
 			if (index !== -1) {
 				files[index] = updatedFile;
 			}
-		}
+		},
+		onEdit: (f: MediaImage) => {
+			modalState.close();
+			handleEditImage(f);
+		},
+		onDelete: (f: MediaBase | MediaImage) => {
+			modalState.close();
+			handleDeleteImage(f);
+		},
 	});
 }
 

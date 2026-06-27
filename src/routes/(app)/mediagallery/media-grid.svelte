@@ -220,65 +220,69 @@ Features:
           </div>
         {/if}
 
-        <button
-          class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-[8px] text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
-          onclick={() => handleItemClick(file)}
-          onkeydown={(e) => handleKeyDown(e, file)}
-          aria-label="Preview {file.filename}"
-        >
-          {#if file.type === "image" && !failedImages.has(fileId)}
-            <div
-              class="h-full w-full transition-colors duration-500"
-              style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
-            >
-              {#if file.metadata?.placeholder}
-                <img
-                  src={file.metadata.placeholder as string}
-                  alt=""
-                  class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
-                  aria-hidden="true"
-                />
-              {/if}
-
-              <img
-                src={file.url}
-                alt=""
-                class="relative h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                style:object-position={file.metadata?.focalPoint
-                  ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
-                  : "center"}
-                loading="lazy"
-                onerror={() => failedImages.add(fileId)}
-                onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
-              />
-            </div>
-          {:else}
-            <div class="flex h-full w-full items-center justify-center bg-surface-100/80 dark:bg-surface-800/80">
-              <iconify-icon
-                icon={file.type === "image" ? "mdi:image-off-outline" : getFileIcon(file)}
-                width={36}
-                class="text-surface-400 dark:text-surface-500"
-              ></iconify-icon>
-            </div>
-          {/if}
-
-          <!-- Hover filename -->
-          <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+        <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-[8px]">
+          <button
+            type="button"
+            class="relative h-full w-full text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+            onclick={() => handleItemClick(file)}
+            onkeydown={(e) => handleKeyDown(e, file)}
+            aria-label="Preview {file.filename}"
           >
-            <p class="truncate text-[11px] font-medium leading-tight text-white" title={file.filename}>
-              {file.filename}
-            </p>
-          </div>
+            {#if file.type === "image" && !failedImages.has(fileId)}
+              <div
+                class="h-full w-full transition-colors duration-500"
+                style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
+              >
+                {#if file.metadata?.placeholder}
+                  <img
+                    src={file.metadata.placeholder as string}
+                    alt=""
+                    class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
+                    aria-hidden="true"
+                  />
+                {/if}
 
-          <!-- Action dock (hover) — info, edit, tag, delete -->
+                <img
+                  src={file.url}
+                  alt=""
+                  class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02]"
+                  style:object-position={file.metadata?.focalPoint
+                    ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+                    : "center"}
+                  loading="lazy"
+                  onerror={() => failedImages.add(fileId)}
+                  onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
+                />
+              </div>
+            {:else}
+              <div class="flex h-full w-full items-center justify-center bg-surface-100/80 dark:bg-surface-800/80">
+                <iconify-icon
+                  icon={file.type === "image" ? "mdi:image-off-outline" : getFileIcon(file)}
+                  width={36}
+                  class="text-surface-400 dark:text-surface-500"
+                ></iconify-icon>
+              </div>
+            {/if}
+
+            <!-- Filename: always on mobile; hover on desktop -->
+            <div
+              class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            >
+              <p class="truncate text-[11px] font-medium leading-tight text-white" title={file.filename}>
+                {file.filename}
+              </p>
+            </div>
+          </button>
+
+          <!-- Action dock: always visible on mobile; hover-only on sm+ -->
           <div
-            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            data-testid="media-grid-actions"
           >
             <MediaGridActionTooltip
               theme="light"
               ariaLabel="Details for {file.filename}"
-              class={actionBtnClass}
+              class="{actionBtnClass} hidden sm:flex"
               onclick={(e) => e.stopPropagation()}
             >
               {#snippet children()}
@@ -352,7 +356,7 @@ Features:
               {/snippet}
             </MediaGridActionTooltip>
           </div>
-        </button>
+        </div>
 
         <div class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-200 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-800">
           <span class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 sm:text-[11px] dark:text-surface-400">

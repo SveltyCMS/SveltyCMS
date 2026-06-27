@@ -25,10 +25,14 @@
   let {
     file = $bindable(null),
     onUpdate = () => {},
+    onEdit = undefined,
+    onDelete = undefined,
     close = () => {},
   }: {
     file: any;
     onUpdate?: (updatedFile: any) => void;
+    onEdit?: (file: any) => void;
+    onDelete?: (file: any) => void;
     close?: () => void;
   } = $props();
 
@@ -351,7 +355,7 @@
       </div>
     {/if}
 
-    <div class="mt-3 flex w-full justify-center sm:mt-4">
+    <div class="mt-3 flex w-full flex-col items-stretch gap-2 sm:mt-4 sm:items-center">
       <Button
         variant="surface"
         size="sm"
@@ -359,11 +363,55 @@
         download={file.filename}
         target="_blank"
         rel="noopener noreferrer"
-        class="h-9 gap-1.5"
+        class="h-9 w-full gap-1.5 sm:w-auto"
       >
         <iconify-icon icon="mdi:download-outline" width="16"></iconify-icon>
         <span>Download Original</span>
       </Button>
+
+      {#if onEdit || onDelete}
+        <div
+          class="grid w-full grid-cols-2 gap-2 sm:hidden"
+          data-testid="media-details-mobile-actions"
+          role="toolbar"
+          aria-label="Asset actions"
+        >
+          {#if onEdit && file.type === 'image'}
+            <Button
+              variant="surface"
+              size="sm"
+              class="h-9 gap-1.5"
+              onclick={() => onEdit?.(file)}
+              aria-label="Edit {file.filename}"
+            >
+              <iconify-icon icon="mdi:pencil" width="16"></iconify-icon>
+              <span>Edit</span>
+            </Button>
+          {/if}
+          <Button
+            variant="surface"
+            size="sm"
+            class="h-9 gap-1.5 {onEdit && file.type === 'image' ? '' : 'col-span-2'}"
+            onclick={() => (activeTab = 'info')}
+            aria-label="Manage tags for {file.filename}"
+          >
+            <iconify-icon icon="mdi:tag-outline" width="16"></iconify-icon>
+            <span>Tags</span>
+          </Button>
+          {#if onDelete}
+            <Button
+              variant="ghost"
+              size="sm"
+              class="col-span-2 h-9 gap-1.5 text-error-600 hover:bg-error-500/10 dark:text-error-400"
+              onclick={() => onDelete?.(file)}
+              aria-label="Delete {file.filename}"
+            >
+              <iconify-icon icon="mdi:trash-can-outline" width="16"></iconify-icon>
+              <span>Delete</span>
+            </Button>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
 
