@@ -263,6 +263,7 @@ import {
   invalidateCollectionCache,
   withCache,
 } from "./mongodb-cache-utils";
+import { cacheService } from "@src/databases/cache/cache-service";
 import { createDatabaseError, generateId } from "./mongodb-utils";
 
 // Define the model type for dependency injection.
