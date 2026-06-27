@@ -255,7 +255,7 @@ jobs:
           docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
             mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
             db = db.getSiblingDB("sveltycms_test");
-            db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_test" }] });
+            db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "dbOwner", db: "sveltycms_test" }] });
             print("MongoDB test user created for sveltycms_test");
           ' || echo "MongoDB user may already exist"
 
