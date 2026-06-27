@@ -9,6 +9,12 @@ import { loginAsAdmin } from "../../helpers/auth";
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
+    await page.goto("/dashboard");
+    const resetBtn = page.getByRole("button", { name: /reset all widgets/i });
+    if (await resetBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await resetBtn.click();
+      await page.waitForTimeout(500);
+    }
   });
 
   test("page loads with dashboard shell", async ({ page }) => {
