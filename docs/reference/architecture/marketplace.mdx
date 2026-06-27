@@ -1,16 +1,18 @@
 ---
 path: "docs/reference/architecture/marketplace.mdx"
 title: "Marketplace System"
-description: "SveltyCMS Marketplace — hosted plugin/widget discovery, license management, one-click installation, and update checking via marketplace.sveltycms.com."
+description: "SveltyCMS Marketplace — hosted plugin/widget discovery, license management, one-click installation, and update checking via marketplace.sveltycms.com. Phased migration of extensions from the monorepo to the marketplace with federated documentation generation."
 order: 32
 icon: "mdi:store"
 author: "SveltyCMS Team"
 created: "2026-06-20"
-updated: "2026-06-20"
+updated: "2026-06-27"
 tags:
   - "marketplace"
   - "plugins"
   - "widgets"
+  - "themes"
+  - "dashboards"
   - "ecosystem"
 ---
 
@@ -148,14 +150,18 @@ const updates = await marketplace.checkUpdates([
 // → [{ id: "sitemap", version: "1.1.0", ... }]
 ```
 
-## Plugin Types
+## Extension Types
 
-| Type          | Install Path   | Example                           |
-| ------------- | -------------- | --------------------------------- |
-| `widget`      | `src/widgets/` | Star rating, testimonial carousel |
-| `plugin`      | `src/plugins/` | Stripe, PageSpeed, Sitemap        |
-| `theme`       | `src/themes/`  | Dark Corporate, Minimal Blog      |
-| `integration` | Config-based   | Slack webhook, Google Analytics   |
+| Type          | Install Path    | Example                           | Migration Status |
+| ------------- | --------------- | --------------------------------- | ---------------- |
+| `widget`      | `src/widgets/`  | Star rating, testimonial carousel | Core in repo → custom to marketplace |
+| `plugin`      | `src/plugins/`  | Stripe, PageSpeed, Sitemap        | In repo → phased migration |
+| `theme`       | `src/themes/`   | Dark Corporate, Minimal Blog      | Marketplace-only (target) |
+| `dashboard`   | `src/dashboards/` | Analytics, activity feed        | Marketplace-only (planned) |
+| `extension`   | `src/extensions/` | Slack webhook, GA, webhooks    | Marketplace-only (planned) |
+
+> [!NOTE]
+> **Phased Migration**: Widgets, plugins, themes, dashboards, and extensions will gradually move from the GitHub monorepo to `marketplace.sveltycms.com`. Core widgets (checkbox, input, rich-text, etc.) remain in the repo as the essential building blocks. Community and premium extensions become marketplace-exclusive for discovery, licensing, and distribution.
 
 ## License Tiers
 
@@ -176,9 +182,95 @@ const updates = await marketplace.checkUpdates([
 
 The marketplace client is **offline-resilient**: if marketplace.sveltycms.com is unreachable, it serves cached listings and degrades gracefully.
 
+## Phased Migration & Documentation Federation
+
+As extensions migrate from the monorepo to `marketplace.sveltycms.com`, their co-located `.mdx` documentation leaves the local source tree. This creates a challenge for `docs.sveltycms.com`, which generates `llms-full.txt` and subset variants (`llms-api.txt`, `llms-dev.txt`, `llms-guides.txt`) by scanning local `{name}/{name}.mdx` files.
+
+### Migration Phases
+
+| Phase | Scope | Status |
+| ----- | ----- | ------ |
+| **Phase 1** | Core widgets stay in repo (checkbox, input, rich-text, etc.); all widget `.mdx` files follow `{name}/{name}.mdx` convention | ✅ Complete (June 2026) |
+| **Phase 2** | Custom widgets move to marketplace; leave **doc stubs** in repo referencing marketplace URLs | 🏗️ In Progress |
+| **Phase 3** | Plugins move to marketplace; doc stubs remain | 🚀 Planned |
+| **Phase 4** | Themes, dashboards, extensions — marketplace-only with federated docs | 🚀 Planned |
+
+### Doc Stub Pattern
+
+During migration, each removed extension leaves a lightweight `.mdx` stub in its original path that redirects readers to the marketplace:
+
+```markdown
+---
+title: "Remote Video Widget"
+redirect: "https://marketplace.sveltycms.com/packages/remote-video"
+---
+
+# Remote Video Widget
+
+This widget has moved to the [SveltyCMS Marketplace](https://marketplace.sveltycms.com/packages/remote-video).
+```
+
+The docs pipeline detects `redirect` frontmatter and fetches the full documentation from the marketplace API.
+
+### Federation Architecture
+
+```mermaid
+flowchart LR
+    subgraph Local["GitHub Repo"]
+        DOCS[docs/ directory]
+        CORE_WIDGETS[src/widgets/core/**/*.mdx]
+        STUBS["Stub .mdx files<br/>(redirect frontmatter)"]
+    end
+
+    subgraph Remote
+        MP["marketplace.sveltycms.com"]
+        MP_DOCS["GET /api/packages/{slug}<br/>→ documentation field"]
+    end
+
+    subgraph Pipeline["docs.sveltycms.com"]
+        SCANNER["Local .mdx scanner"]
+        FEDERATOR["Federation layer<br/>detects redirect stubs"]
+        MERGE["Concatenation"]
+    end
+
+    DOCS --> SCANNER
+    CORE_WIDGETS --> SCANNER
+    STUBS --> SCANNER
+    SCANNER --> MERGE
+    FEDERATOR -->|"fetch remote .mdx"| MP_DOCS
+    MP_DOCS -->|"returns markdown"| FEDERATOR
+    FEDERATOR --> MERGE
+
+    MERGE --> LLMS["llms-full.txt"]
+    MERGE --> API["llms-api.txt"]
+    MERGE --> DEV["llms-dev.txt"]
+```
+
+### Marketplace API — Documentation Endpoint
+
+The marketplace package schema includes a `documentation` field for serving the full `.mdx` content:
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `documentation` | `string` | Full `.mdx` content (markdown) |
+| `documentation_url` | `string` | URL to hosted documentation |
+
+This field is exposed via `GET /api/packages/{slug}` and is ingested at build time by the docs pipeline. Cached with a 30-minute TTL, matching the marketplace client cache duration.
+
+### llms-full.txt Coverage Guarantee
+
+| Source | Mechanism | Latency |
+| ------ | --------- | ------- |
+| Local `.mdx` (repo docs + core widgets) | Filesystem scan at build | <1ms |
+| Stub → Marketplace fetch | `GET /api/packages/{slug}` at build | ~200ms per package (parallelized) |
+| Cached marketplace docs | In-memory, 30-min TTL | <0.1ms |
+
+The federation layer ensures **0% documentation loss** during migration — every extension, whether local or marketplace-hosted, appears in `llms-full.txt` for AI agents and RAG pipelines.
+
 ## Related
 
 - [AI Integration & Hosted Knowledge](../../development/ai-integration.mdx) — AI widget scaffolder and behavioral learning
 - [Behavioral Learning Engine](./behavioral-learning.mdx) — Learns from usage patterns
 - [Plugin Architecture](../../development/plugins/architecture.mdx) — Building plugins for SveltyCMS
 - [Widget Development](../../development/widgets/index.mdx) — Building custom widgets
+- [Project Roadmap](../../project/roadmap-2026.mdx) — Migration timeline and milestones
