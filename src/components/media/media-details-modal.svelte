@@ -314,14 +314,41 @@
     if (!expiry) return false;
     return new Date() > new Date(expiry);
   }
+
+  const tabs = $derived([
+    { id: 'info' as const, label: 'Info & Tags', shortLabel: 'Info' },
+    { id: 'versions' as const, label: `Versions (${file.versions?.length || 0})`, shortLabel: `Ver. (${file.versions?.length || 0})` },
+    { id: 'references' as const, label: 'Usage', shortLabel: 'Usage' },
+    { id: 'share' as const, label: `Share (${file.metadata?.sharedLinks?.length || 0})`, shortLabel: `Share (${file.metadata?.sharedLinks?.length || 0})` },
+  ]);
 </script>
 
-<div class="flex w-full min-w-0 max-w-none flex-col gap-4 overflow-hidden text-surface-900 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100">
+<div
+  class="media-details-modal flex w-full min-w-0 max-w-none flex-col gap-0 overflow-hidden text-surface-900 max-md:px-4 max-md:pb-4 md:gap-4 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100"
+  data-testid="media-details-modal"
+>
+  <!-- Mobile header: filename + close (sticky, full-bleed background) -->
+  <div
+    class="sticky top-0 z-10 -mx-4 flex shrink-0 items-center justify-between gap-3 border-b border-surface-200 bg-surface-100/95 px-4 py-3 backdrop-blur-sm md:hidden dark:border-surface-800 dark:bg-surface-900/95"
+  >
+    <div class="min-w-0 flex-1">
+      <h2 class="truncate text-base font-semibold text-surface-800 dark:text-surface-100" title={file.filename}>
+        {file.filename}
+      </h2>
+      <p class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400">{file._id}</p>
+    </div>
+    <Button variant="ghost" onclick={close} aria-label="Close modal" class="h-9 w-9 min-w-9 shrink-0 p-0!">
+      <iconify-icon icon="mdi:close" width="18"></iconify-icon>
+    </Button>
+  </div>
+
   <!-- Asset preview -->
-  <div class="flex min-h-0 shrink-0 flex-col items-center justify-center rounded-xl border border-surface-200 bg-surface-50 p-3 sm:p-4 lg:min-h-[18rem] lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40">
+  <div
+    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-200 bg-surface-50 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-[18rem] lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40"
+  >
     {#if file.type === 'image'}
       <div
-        class="media-checkerboard flex max-h-[min(42dvh,16rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+        class="media-checkerboard flex max-h-[min(30dvh,11rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
         style:background-color={file.metadata?.dominantColor || undefined}
       >
         <img
@@ -335,7 +362,7 @@
       <video
         src={mediaUrl(file)}
         controls
-        class="max-h-[min(42dvh,16rem)] w-full max-w-full rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+        class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
       >
         <track kind="captions" />
       </video>
@@ -371,7 +398,7 @@
 
       {#if onEdit || onDelete}
         <div
-          class="grid w-full grid-cols-2 gap-2 sm:hidden"
+          class="flex w-full gap-1.5 md:hidden"
           data-testid="media-details-mobile-actions"
           role="toolbar"
           aria-label="Asset actions"
@@ -380,7 +407,7 @@
             <Button
               variant="surface"
               size="sm"
-              class="h-9 gap-1.5"
+              class="h-9 min-w-0 flex-1 gap-1.5"
               onclick={() => onEdit?.(file)}
               aria-label="Edit {file.filename}"
             >
@@ -391,7 +418,7 @@
           <Button
             variant="surface"
             size="sm"
-            class="h-9 gap-1.5 {onEdit && file.type === 'image' ? '' : 'col-span-2'}"
+            class="h-9 min-w-0 flex-1 gap-1.5"
             onclick={() => (activeTab = 'info')}
             aria-label="Manage tags for {file.filename}"
           >
@@ -402,7 +429,7 @@
             <Button
               variant="ghost"
               size="sm"
-              class="col-span-2 h-9 gap-1.5 text-error-600 hover:bg-error-500/10 dark:text-error-400"
+              class="h-9 min-w-0 flex-1 gap-1.5 text-error-600 hover:bg-error-500/10 dark:text-error-400"
               onclick={() => onDelete?.(file)}
               aria-label="Delete {file.filename}"
             >
@@ -416,8 +443,8 @@
   </div>
 
   <!-- Details panel -->
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <div class="mb-3 flex shrink-0 items-start justify-between gap-3 border-b border-surface-200 pb-3 dark:border-surface-800">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:pt-3">
+    <div class="mb-3 hidden shrink-0 items-start justify-between gap-3 border-b border-surface-200 pb-3 md:flex dark:border-surface-800">
       <div class="min-w-0 flex-1">
         <h2 class="truncate text-base font-semibold text-surface-800 sm:text-lg dark:text-surface-100" title={file.filename}>
           {file.filename}
@@ -429,58 +456,58 @@
       </Button>
     </div>
 
-    <div class="-mx-1 mb-3 flex shrink-0 gap-1 overflow-x-auto border-b border-surface-200 px-1 pb-px text-sm dark:border-surface-800">
-      {#each [
-        { id: 'info', label: 'Info & Tags' },
-        { id: 'versions', label: `Versions (${file.versions?.length || 0})` },
-        { id: 'references', label: 'Usage' },
-        { id: 'share', label: `Share (${file.metadata?.sharedLinks?.length || 0})` }
-      ] as tab (tab.id)}
+    <div
+      class="mb-3 grid shrink-0 grid-cols-4 gap-0 border-b border-surface-200 text-[11px] dark:border-surface-800 md:mb-3 md:flex md:gap-1 md:overflow-x-auto md:px-1 md:text-sm"
+      role="tablist"
+      aria-label="Media details sections"
+    >
+      {#each tabs as tab (tab.id)}
         <button
           type="button"
-          onclick={() => (activeTab = tab.id as typeof activeTab)}
-          class="shrink-0 border-b-2 px-3 py-2 font-medium transition-colors {activeTab === tab.id
+          onclick={() => (activeTab = tab.id)}
+          class="min-w-0 border-b-2 px-1 py-2.5 text-center font-medium leading-tight transition-colors md:shrink-0 md:px-3 md:py-2 md:text-start {activeTab === tab.id
             ? 'border-primary-500 text-surface-800 dark:text-surface-100'
             : 'border-transparent text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
-          aria-label="{tab.label}-tab"
+          aria-label="{tab.label} tab"
           aria-selected={activeTab === tab.id}
           role="tab"
         >
-          {tab.label}
+          <span class="md:hidden">{tab.shortLabel}</span>
+          <span class="hidden md:inline">{tab.label}</span>
         </button>
       {/each}
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto pe-1">
+    <div class="min-h-0 flex-1 overflow-y-auto pe-0 sm:pe-1">
       {#if activeTab === 'info'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           <div class="rounded-lg border border-surface-200 bg-surface-50 p-3 font-mono text-xs dark:border-surface-800 dark:bg-surface-900/60">
-            <dl class="space-y-2">
-              <div class="flex items-start justify-between gap-4">
-                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Mime-Type</dt>
-                <dd class="text-end text-surface-800 dark:text-surface-100">{file.mimeType}</dd>
+            <dl class="space-y-2.5">
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="text-surface-500 dark:text-surface-400">Mime-Type</dt>
+                <dd class="min-w-0 text-end break-all text-surface-800 dark:text-surface-100">{file.mimeType}</dd>
               </div>
-              <div class="flex items-start justify-between gap-4">
-                <dt class="shrink-0 text-surface-500 dark:text-surface-400">File Size</dt>
-                <dd class="text-end tabular-nums text-surface-800 dark:text-surface-100">{formatBytes(file.size)}</dd>
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="text-surface-500 dark:text-surface-400">File Size</dt>
+                <dd class="min-w-0 text-end tabular-nums text-surface-800 dark:text-surface-100">{formatBytes(file.size)}</dd>
               </div>
               {#if file.width && file.height}
-                <div class="flex items-start justify-between gap-4">
-                  <dt class="shrink-0 text-surface-500 dark:text-surface-400">Dimensions</dt>
-                  <dd class="text-end tabular-nums text-surface-800 dark:text-surface-100">{file.width} × {file.height} px</dd>
+                <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                  <dt class="text-surface-500 dark:text-surface-400">Dimensions</dt>
+                  <dd class="min-w-0 text-end tabular-nums text-surface-800 dark:text-surface-100">{file.width} × {file.height} px</dd>
                 </div>
               {/if}
-              <div class="flex items-start justify-between gap-4">
-                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Folder</dt>
-                <dd class="text-end text-surface-800 dark:text-surface-100">{file.folder || 'global'}</dd>
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="text-surface-500 dark:text-surface-400">Folder</dt>
+                <dd class="min-w-0 text-end break-all text-surface-800 dark:text-surface-100">{file.folder || 'global'}</dd>
               </div>
-              <div class="flex items-start justify-between gap-4">
-                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Created</dt>
-                <dd class="text-end text-surface-800 dark:text-surface-100">{new Date(file.createdAt).toLocaleString()}</dd>
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="text-surface-500 dark:text-surface-400">Created</dt>
+                <dd class="min-w-0 text-end text-surface-800 dark:text-surface-100">{new Date(file.createdAt).toLocaleString()}</dd>
               </div>
-              <div class="flex items-start justify-between gap-4">
-                <dt class="shrink-0 text-surface-500 dark:text-surface-400">Updated</dt>
-                <dd class="text-end text-surface-800 dark:text-surface-100">{new Date(file.updatedAt).toLocaleString()}</dd>
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="text-surface-500 dark:text-surface-400">Updated</dt>
+                <dd class="min-w-0 text-end text-surface-800 dark:text-surface-100">{new Date(file.updatedAt).toLocaleString()}</dd>
               </div>
             </dl>
           </div>
@@ -653,7 +680,7 @@
                     </Button>
                   </div>
                 {:else}
-                  <div class="rounded-lg border border-dashed border-surface-200 p-6 text-center dark:border-surface-800">
+                  <div class="rounded-lg border border-dashed border-surface-200 p-4 dark:border-surface-800 sm:p-6 sm:text-center">
                     <iconify-icon icon="mdi:link-variant-off" width="28" class="mb-2 text-surface-400"></iconify-icon>
                     <p class="text-xs text-surface-500 dark:text-surface-400">This asset is not referenced in any collections.</p>
                   </div>

@@ -325,7 +325,10 @@ async function handleOpenFileDetails(file: any) {
 	modalState.trigger(MediaDetailsModal as any, {
 		file,
 		size: 'xl',
-		modalClasses: 'w-full max-w-4xl max-md:max-w-none',
+		dialogClass: 'max-md:p-0',
+		contentClass: 'max-md:overflow-hidden max-md:p-0',
+		modalClasses:
+			'w-full max-w-4xl max-md:max-w-none max-md:max-h-[100dvh] max-md:rounded-none max-md:border-0 max-md:shadow-none',
 		onUpdate: (updatedFile: any) => {
 			const index = files.findIndex((f) => f._id === updatedFile._id);
 			if (index !== -1) {

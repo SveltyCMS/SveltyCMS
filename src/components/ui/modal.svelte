@@ -15,7 +15,10 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 - `closeOnEsc` (boolean): Allow Escape to close (default: true).
 - `closeOnOuterClick` (boolean): Allow backdrop click to close (default: true).
 - `onopen` / `onclose` (function): Lifecycle callbacks.
-- `class` (string): Additional CSS classes.
+- `class` (string): Additional CSS classes on the card shell.
+- `dialogClass` (string): Additional CSS classes on the `<dialog>` element.
+- `contentClass` (string): Additional CSS classes on the scrollable body.
+- `headerClass` (string): Additional CSS classes on the header bar.
 
 ### Features:
 - native `<dialog>` with backdrop blur and fade animation
@@ -37,6 +40,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'editor' | 'fullscreen';
 		color?: 'surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error';
 		class?: string;
+		dialogClass?: string;
+		contentClass?: string;
+		headerClass?: string;
 		header?: Snippet;
 		footer?: Snippet;
 		children?: Snippet;
@@ -53,6 +59,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		size = 'md',
 		color = 'surface',
 		class: className,
+		dialogClass,
+		contentClass,
+		headerClass,
 		header,
 		footer,
 		children,
@@ -115,6 +124,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				: isEditorShell
 					? 'open:flex m-auto max-md:m-0 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-hidden p-0 max-md:p-0'
 					: 'open:flex m-auto items-center justify-center overflow-visible p-4 sm:p-6 lg:p-8',
+			dialogClass,
 		)}
 		{...dialog.dialogAria}
 		{...rest}
@@ -136,7 +146,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		>
 			<!-- Header -->
 			{#if header || title}
-				<header class="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-700 shrink-0">
+				<header class={cn('flex items-center justify-between border-b border-surface-200 p-4 shrink-0 dark:border-surface-700', headerClass)}>
 					{#if header}
 						{@render header()}
 					{:else}
@@ -160,6 +170,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			<div class={cn(
 				'flex-1 min-h-0',
 				isExpandedBody ? 'flex h-full flex-col overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
+				contentClass,
 			)}>
 				{#if children}
 					{@render children()}

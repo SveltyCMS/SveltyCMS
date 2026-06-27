@@ -11,6 +11,7 @@ Features:
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -30,7 +31,6 @@ Features:
 	} = $props();
 
 	let newTagInput = $state('');
-	let tagInputRef = $state<HTMLInputElement | null>(null);
 	let isGenerating = $state(false);
 	let isSaving = $state(false);
 
@@ -105,7 +105,6 @@ Features:
 				onUpdate(result.data);
 			}
 			newTagInput = '';
-			tagInputRef?.blur();
 			toast.success('Tag added!');
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to add tag';
@@ -241,13 +240,16 @@ Features:
 	<Modal
 		bind:open={show}
 		size="lg"
-		class="tag-editor-modal w-full max-w-xl max-md:max-w-none"
+		dialogClass="tag-editor-dialog max-md:flex-col max-md:justify-end max-md:items-stretch max-md:p-0"
+		headerClass="max-md:px-4 max-md:py-3"
+		contentClass="max-md:flex-none max-md:overflow-y-auto max-md:p-0 md:p-5"
+		class="tag-editor-modal w-full max-w-lg max-md:m-0 max-md:h-auto max-md:max-h-[90dvh] max-md:w-full max-md:max-w-none max-md:shrink-0 max-md:rounded-none max-md:border-0 max-md:border-t max-md:shadow-2xl"
 		onclose={close}
 	>
 		{#snippet header()}
-			<div class="flex min-w-0 flex-1 items-center gap-3">
+			<div class="flex min-w-0 flex-1 items-center gap-3 pe-1">
 				<div
-					class="media-checkerboard tag-editor-thumb flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700"
+					class="media-checkerboard flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-200 md:h-12 md:w-12 dark:border-surface-700"
 				>
 					<img src={getImageUrl(activeFile)} alt="" class="h-full w-full object-cover" />
 				</div>
@@ -256,7 +258,7 @@ Features:
 						Manage Tags
 					</p>
 					<p
-						class="truncate text-sm font-semibold text-surface-900 dark:text-surface-50"
+						class="truncate text-sm font-semibold text-surface-900 md:text-base dark:text-surface-50"
 						title={activeFile.filename}
 					>
 						{activeFile.filename}
@@ -273,13 +275,20 @@ Features:
 		{/snippet}
 
 		{#snippet children()}
-			<div class="tag-editor-body -mx-4 flex max-h-[min(72dvh,34rem)] flex-col overflow-y-auto sm:-mx-6">
-				<section class="tag-editor-section tag-editor-section--accent">
-					<div class="tag-editor-section-head">
+			<div
+				class="tag-editor-body flex flex-col max-md:px-4 max-md:pt-4 max-md:pb-5 md:max-h-[min(68dvh,30rem)] md:overflow-y-auto"
+				data-testid="tag-editor-body"
+			>
+				<!-- AI / Pending -->
+				<section class="flex flex-col gap-2.5 border-b border-surface-200 pb-3 md:gap-3 md:pb-4 dark:border-surface-800">
+					<div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
 						<div class="min-w-0">
-							<h3 class="flex items-center gap-1.5 text-sm font-semibold text-surface-900 dark:text-surface-50">
-								<iconify-icon icon="mdi:robot-outline" width="17" class="text-primary-500"></iconify-icon>
-								AI / Pending
+							<h3 class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-surface-800 dark:text-surface-100">
+								<iconify-icon icon="mdi:robot-outline" width="16" class="shrink-0 text-primary-500"></iconify-icon>
+								<span>AI / Pending</span>
+								{#if pendingCount > 0}
+									<Badge variant="primary" preset="tonal" size="sm">{pendingCount}</Badge>
+								{/if}
 							</h3>
 							<p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
 								Review suggestions before saving to the asset.
@@ -292,26 +301,26 @@ Features:
 								onclick={handleAITagging}
 								disabled={isGenerating}
 								aria-label="Generate AI tags"
-								class="h-9 shrink-0 gap-1.5 px-3"
+								class="h-10 w-full gap-1.5 md:h-9 md:w-auto md:shrink-0 md:px-3"
 							>
 								{#if isGenerating}
-									<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
+									<iconify-icon icon="mdi:loading" width="15" class="animate-spin"></iconify-icon>
 								{:else}
-									<iconify-icon icon="mdi:magic-staff" width="16"></iconify-icon>
+									<iconify-icon icon="mdi:magic-staff" width="15"></iconify-icon>
 								{/if}
-								<span class="hidden sm:inline">Generate</span>
+								<span>Generate</span>
 							</Button>
 						{/if}
 					</div>
 
-					<div class="tag-editor-tags">
+					<div class="flex min-h-6 flex-wrap gap-1.5">
 						{#if pendingCount > 0}
 							{#each activeFile.metadata!.aiTags! as tag, i (tag)}
 								{#if editingTag?.type === 'ai' && editingTag.index === i}
 									<input
 										type="text"
 										bind:value={editingTag.value}
-										class="tag-editor-edit-input"
+										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'ai');
 											if (e.key === 'Escape') editingTag = null;
@@ -320,10 +329,10 @@ Features:
 										aria-label="Edit AI tag"
 									/>
 								{:else}
-									<Badge variant="primary" preset="tonal" size="sm" class="tag-editor-chip">
+									<Badge variant="primary" preset="tonal" size="sm" class="gap-1 pe-1">
 										<button
 											type="button"
-											class="max-w-[9rem] truncate"
+											class="max-w-[8.5rem] truncate"
 											onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
 											aria-label="Edit tag {tag}"
 										>
@@ -331,7 +340,7 @@ Features:
 										</button>
 										<button
 											type="button"
-											class="tag-editor-chip-remove"
+											class="rounded-full p-0.5 text-surface-500 hover:text-error-500"
 											onclick={() => removeTag(tag, 'ai')}
 											aria-label="Remove tag {tag}"
 										>
@@ -341,32 +350,30 @@ Features:
 								{/if}
 							{/each}
 						{:else}
-							<div class="tag-editor-empty">
-								<iconify-icon icon="mdi:tag-off-outline" width="22" class="text-surface-400"></iconify-icon>
-								<p>No pending tags yet.</p>
-							</div>
+							<span class="text-xs text-surface-500 dark:text-surface-400">No pending tags yet.</span>
 						{/if}
 					</div>
 
-					<div class="tag-editor-input-pill">
-						<input
-							bind:this={tagInputRef}
+					<div class="flex items-center gap-2">
+						<Input
 							type="text"
 							bind:value={newTagInput}
 							placeholder="Add tag…"
-							class="tag-editor-input"
 							aria-label="Add tag manually"
+							inputClass="h-10 text-sm md:h-9"
+							class="min-w-0 flex-1"
 							onkeydown={handleTagInputKeydown}
 						/>
-						<button
-							type="button"
-							class="tag-editor-input-confirm"
+						<Button
+							variant="surface"
+							size="sm"
 							onclick={addManualTag}
 							disabled={!newTagInput.trim()}
 							aria-label="Add tag"
+							class="h-10 shrink-0 px-4 md:h-9 md:px-3"
 						>
-							<iconify-icon icon="mdi:check-bold" width="16"></iconify-icon>
-						</button>
+							Add
+						</Button>
 					</div>
 
 					{#if pendingCount > 0}
@@ -376,7 +383,7 @@ Features:
 							onclick={saveAITags}
 							disabled={isSaving}
 							aria-label="Save all tags to media"
-							class="h-10 w-full gap-1.5"
+							class="h-10 w-full gap-1.5 md:h-9"
 						>
 							{#if isSaving}
 								<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
@@ -388,27 +395,30 @@ Features:
 					{/if}
 				</section>
 
-				<section class="tag-editor-section">
-					<div class="tag-editor-section-head">
-						<div>
-							<h3 class="text-sm font-semibold text-surface-900 dark:text-surface-50">Saved Tags</h3>
+				<!-- Saved Tags -->
+				<section class="flex flex-col gap-2.5 pt-3 md:gap-3 md:pt-4">
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<h3 class="flex items-center gap-1.5 text-sm font-semibold text-surface-800 dark:text-surface-100">
+								<span>Saved Tags</span>
+								{#if savedCount > 0}
+									<Badge variant="surface" preset="tonal" size="sm">{savedCount}</Badge>
+								{/if}
+							</h3>
 							<p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
 								Published on this asset in the gallery.
 							</p>
 						</div>
-						{#if savedCount > 0}
-							<span class="tag-editor-count">{savedCount}</span>
-						{/if}
 					</div>
 
-					<div class="tag-editor-tags">
+					<div class="flex min-h-6 flex-wrap gap-1.5">
 						{#if savedCount > 0}
 							{#each activeFile.metadata!.tags! as tag, i (tag)}
 								{#if editingTag?.type === 'user' && editingTag.index === i}
 									<input
 										type="text"
 										bind:value={editingTag.value}
-										class="tag-editor-edit-input"
+										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'user');
 											if (e.key === 'Escape') editingTag = null;
@@ -417,10 +427,10 @@ Features:
 										aria-label="Edit saved tag"
 									/>
 								{:else}
-									<Badge variant="surface" preset="tonal" size="sm" class="tag-editor-chip">
+									<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
 										<button
 											type="button"
-											class="max-w-[9rem] truncate"
+											class="max-w-[8.5rem] truncate"
 											onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
 											aria-label="Edit tag {tag}"
 										>
@@ -428,7 +438,7 @@ Features:
 										</button>
 										<button
 											type="button"
-											class="tag-editor-chip-remove"
+											class="rounded-full p-0.5 text-surface-500 hover:text-error-500"
 											onclick={() => removeTag(tag, 'user')}
 											aria-label="Remove tag {tag}"
 										>
@@ -438,10 +448,7 @@ Features:
 								{/if}
 							{/each}
 						{:else}
-							<div class="tag-editor-empty">
-								<iconify-icon icon="mdi:bookmark-outline" width="22" class="text-surface-400"></iconify-icon>
-								<p>No saved tags on this file.</p>
-							</div>
+							<span class="text-xs text-surface-500 dark:text-surface-400">No saved tags on this file.</span>
 						{/if}
 					</div>
 				</section>
@@ -451,19 +458,24 @@ Features:
 {/if}
 
 <style>
-	:global(.tag-editor-modal) {
-		overflow: hidden;
-	}
+	/* Mobile: full-width bottom sheet, height fits content — no viewport stretch */
+	@media (max-width: 767px) {
+		:global(dialog.tag-editor-dialog[open]) {
+			display: flex;
+			flex-direction: column;
+			justify-content: flex-end;
+			align-items: stretch;
+			padding: 0;
+		}
 
-	.tag-editor-thumb {
-		width: 3.25rem;
-		height: 3.25rem;
-	}
-
-	@media (min-width: 640px) {
-		.tag-editor-thumb {
-			width: 3.75rem;
-			height: 3.75rem;
+		:global(dialog.tag-editor-dialog > [data-dialog-content].tag-editor-modal) {
+			width: 100%;
+			max-width: 100%;
+			margin: 0;
+			height: auto;
+			min-height: 0;
+			max-height: 90dvh;
+			flex: 0 1 auto;
 		}
 	}
 
@@ -489,203 +501,5 @@ Features:
 			linear-gradient(-45deg, var(--color-surface-800) 25%, transparent 25%),
 			linear-gradient(45deg, transparent 75%, var(--color-surface-800) 75%),
 			linear-gradient(-45deg, transparent 75%, var(--color-surface-800) 75%);
-	}
-
-	.tag-editor-section {
-		display: flex;
-		flex-direction: column;
-		gap: 0.875rem;
-		padding: 1rem 1rem 1.125rem;
-		border-top: 1px solid var(--color-surface-200);
-	}
-
-	:global(.dark) .tag-editor-section {
-		border-top-color: var(--color-surface-800);
-	}
-
-	.tag-editor-section--accent {
-		border-top: none;
-		background: linear-gradient(
-			180deg,
-			color-mix(in srgb, var(--color-primary-500) 8%, transparent) 0%,
-			transparent 100%
-		);
-	}
-
-	.tag-editor-section-head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-
-	.tag-editor-count {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 1.5rem;
-		height: 1.5rem;
-		padding-inline: 0.375rem;
-		font-size: 0.6875rem;
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-		color: var(--color-surface-700);
-		background: var(--color-surface-200);
-		border-radius: 9999px;
-	}
-
-	:global(.dark) .tag-editor-count {
-		color: var(--color-surface-200);
-		background: var(--color-surface-800);
-	}
-
-	.tag-editor-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		min-height: 2rem;
-	}
-
-	:global(.tag-editor-chip) {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.125rem;
-		max-width: 100%;
-	}
-
-	.tag-editor-chip-remove {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.125rem;
-		color: var(--color-surface-500);
-		border-radius: 9999px;
-		transition: color 0.15s ease;
-	}
-
-	.tag-editor-chip-remove:hover {
-		color: var(--color-error-500);
-	}
-
-	.tag-editor-empty {
-		display: flex;
-		width: 100%;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.375rem;
-		padding: 1.25rem 0.75rem;
-		text-align: center;
-		border: 1px dashed var(--color-surface-300);
-		border-radius: 0.625rem;
-	}
-
-	:global(.dark) .tag-editor-empty {
-		border-color: var(--color-surface-700);
-	}
-
-	.tag-editor-empty p {
-		margin: 0;
-		font-size: 0.75rem;
-		color: var(--color-surface-500);
-	}
-
-	.tag-editor-input-pill {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		height: 2.5rem;
-		padding: 0.1875rem 0.1875rem 0.1875rem 0.875rem;
-		background: var(--color-surface-50);
-		border: 1px solid var(--color-surface-300);
-		border-radius: 9999px;
-		transition:
-			border-color 0.15s ease,
-			box-shadow 0.15s ease;
-	}
-
-	:global(.dark) .tag-editor-input-pill {
-		background: var(--color-surface-900);
-		border-color: var(--color-surface-700);
-	}
-
-	.tag-editor-input-pill:focus-within {
-		border-color: color-mix(in srgb, var(--color-primary-500) 55%, var(--color-surface-300));
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-500) 18%, transparent);
-	}
-
-	.tag-editor-input {
-		flex: 1 1 auto;
-		min-width: 0;
-		height: 100%;
-		padding: 0;
-		font-size: 0.8125rem;
-		color: var(--color-surface-900);
-		background: transparent;
-		border: none;
-		outline: none;
-	}
-
-	:global(.dark) .tag-editor-input {
-		color: var(--color-surface-50);
-	}
-
-	.tag-editor-input::placeholder {
-		color: var(--color-surface-500);
-	}
-
-	.tag-editor-input-confirm {
-		display: inline-flex;
-		flex-shrink: 0;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		color: white;
-		cursor: pointer;
-		background: var(--color-primary-500);
-		border: none;
-		border-radius: 9999px;
-		transition:
-			transform 0.1s ease,
-			opacity 0.15s ease,
-			background 0.15s ease;
-	}
-
-	.tag-editor-input-confirm:hover:not(:disabled) {
-		background: var(--color-primary-600);
-	}
-
-	.tag-editor-input-confirm:active:not(:disabled) {
-		transform: scale(0.94);
-	}
-
-	.tag-editor-input-confirm:disabled {
-		cursor: not-allowed;
-		opacity: 0.38;
-	}
-
-	.tag-editor-edit-input {
-		height: 1.75rem;
-		width: 7rem;
-		padding-inline: 0.5rem;
-		font-size: 0.75rem;
-		color: var(--color-surface-900);
-		background: var(--color-surface-50);
-		border: 1px solid var(--color-surface-300);
-		border-radius: 0.375rem;
-		outline: none;
-	}
-
-	:global(.dark) .tag-editor-edit-input {
-		color: var(--color-surface-50);
-		background: var(--color-surface-900);
-		border-color: var(--color-surface-700);
-	}
-
-	.tag-editor-edit-input:focus-visible {
-		border-color: var(--color-primary-500);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-500) 20%, transparent);
 	}
 </style>
