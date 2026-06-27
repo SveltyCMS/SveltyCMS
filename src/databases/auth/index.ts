@@ -685,7 +685,7 @@ export class Auth {
           });
         }
 
-        await this.db.auth.updateUserAttributes(user._id, updates);
+        await this.db.auth.updateUserAttributes(user._id, updates, options);
         logger.warn("Password authentication failed", {
           email,
           failedAttempts,
@@ -695,10 +695,14 @@ export class Auth {
 
       // --- SUCCESS: RESET LOCKOUT STATE ---
       if (user.failedAttempts || user.lockoutUntil) {
-        await this.db.auth.updateUserAttributes(user._id, {
-          failedAttempts: 0,
-          lockoutUntil: null,
-        });
+        await this.db.auth.updateUserAttributes(
+          user._id,
+          {
+            failedAttempts: 0,
+            lockoutUntil: null,
+          },
+          options,
+        );
       }
 
       const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
