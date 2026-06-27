@@ -9,10 +9,6 @@
  * - SHA256 checksums
  */
 
-import { createRequire } from "node:module";
-
-const nodeRequire = createRequire(import.meta.url);
-
 // --- Types & Constants ---
 
 const IS_TEST =
@@ -49,17 +45,26 @@ export const ENCRYPTION_CONFIG = {
 // --- Note: Worker pool removed — hashPassword/verifyPassword now use
 // nodeRequire("argon2") directly to bypass Vite's SSR module runner.
 
-// Use createRequire for argon2 to bypass Vite's ESM loader entirely
-const _loadArgon2 = () => nodeRequire("argon2");
+// Use createRequire for argon2 to bypass Vite's ESM loader entirely.
+// Dynamically imported to avoid Vite browser externalization errors.
+async function _loadArgon2() {
+  const { createRequire } = await import("node:module");
+  const nodeRequire = createRequire(import.meta.url);
+  return nodeRequire("argon2");
+}
 
 export async function hashPassword(password: string): Promise<string> {
-  const argon2 = _loadArgon2();
+  const argon2 = await _loadArgon2();
   return argon2.hash(Buffer.from(password, "utf8"), ARGON2_CONFIG);
 }
 
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  const argon2 = _loadArgon2();
-  return argon2.verify(hash, Buffer.from(password, "utf8"));
+  try {
+    const argon2 = await _loadArgon2();
+    return await argon2.verify(hash, Buffer.from(password, "utf8"));
+  } catch {
+    return false;
+  }
 }
 
 // --- Encryption Utilities ---

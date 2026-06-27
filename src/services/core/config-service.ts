@@ -7,7 +7,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
-import { createChecksum } from "@utils/security";
+import { createChecksum } from "@utils/security/credential-hash";
 import { logger } from "@utils/logger";
 
 interface ConfigEntity {

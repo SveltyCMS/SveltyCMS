@@ -104,6 +104,7 @@ const handleHyperTurbo: Handle = async ({ event, resolve }) => {
 const passThrough: Handle = ({ event, resolve }) => resolve(event);
 
 let handleSecurity: Handle = passThrough,
+  handleRateLimit: Handle = passThrough,
   handleUserPreferences: Handle = passThrough,
   handleAuthentication: Handle = passThrough,
   handleAuthorization: Handle = passThrough,
@@ -124,6 +125,8 @@ async function ensureFullMiddleware() {
 
   const security = await import("./hooks/handle-security");
   handleSecurity = security.handleSecurity;
+  const rateLimit = await import("./hooks/handle-rate-limit");
+  handleRateLimit = rateLimit.handleRateLimit;
   const preferences = await import("./hooks/handle-user-preferences");
   handleUserPreferences = preferences.handleUserPreferences;
   const auth = await import("./hooks/handle-authentication");
@@ -376,6 +379,7 @@ const getPipeline = () => {
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
         wrapHandle("test-isolation", () => handleTestIsolation),
         wrapHandle("security", () => handleSecurity),
+        wrapHandle("rate-limit", () => handleRateLimit),
         wrapHandle("system-state", () => handleSystemState),
         // 🚀 Turbo GET: Right after security gates but BEFORE auth/authz.
         // Serves pre-encoded cached responses with pre-computed session auth,

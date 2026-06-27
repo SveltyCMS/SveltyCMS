@@ -77,6 +77,44 @@ graph TB
 
 ---
 
+## 🛡️ Published-Reference Protection (Media Integrity Gate)
+
+As of June 2026, the media system prevents mutation of assets referenced by published content entries. This protects against broken references on live pages.
+
+### How It Works
+
+1. **Service Layer** (`media-service.server.ts`): `getPublishedReferences()` scans all collection schemas for entries with `status: "publish"` that reference a given media ID (by ID, path, URL, or embedded object reference).
+
+2. **Handler Layer** (`handlers/media.ts`): A `checkMediaNotReferencedByPublishedContent()` helper is called in all 6 mutation handlers before performing the operation. Returns **409 Conflict** with details identifying which content entries reference the asset.
+
+3. **UI Layer** (`media-grid.svelte`, `media-table.svelte`, `virtual-media-grid.svelte`): Edit/delete buttons are disabled with contextual tooltip "Referenced by published content". A lock badge appears at the top-left of affected media cards.
+
+4. **Server Load** (`+page.server.ts`): Batched `Promise.allSettled` pre-checks all visible media items for published references before rendering.
+
+### Gated Operations
+
+| Handler         | HTTP Method                       | Response     |
+| --------------- | --------------------------------- | ------------ |
+| Direct delete   | `DELETE /api/media/:id`           | 409 Conflict |
+| POST delete     | `POST /api/media/delete`          | 409 Conflict |
+| Manipulate      | `POST /api/media/manipulate`      | 409 Conflict |
+| Version create  | `POST /api/media/version`         | 409 Conflict |
+| Version upload  | `POST /api/media/version/upload`  | 409 Conflict |
+| Version restore | `POST /api/media/version/restore` | 409 Conflict |
+
+### Error Response Format
+
+```json
+{
+  "error": {
+    "message": "Cannot modify asset: referenced by published content - \"Blog Post\" in \"Posts\" (featuredImage) and 2 more",
+    "code": "MEDIA_REFERENCED_BY_PUBLISHED_CONTENT"
+  }
+}
+```
+
+---
+
 ## 🚀 The Media Pipeline (4-Stage Workflow)
 
 SveltyCMS employs a high-performance ingestion and delivery pipeline designed for massive scale and resilience.

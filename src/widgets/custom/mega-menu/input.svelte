@@ -257,7 +257,7 @@ Interactive menu builder with add/edit/reorder capabilities
 								</button>
 							{/if}
 
-							{#if item.children.length > 0 && (field as any).defaults?.enableExpandCollapse !== false}
+							{#if (item.children?.length ?? 0) > 0 && (field as any).defaults?.enableExpandCollapse !== false}
 								<Button variant="surface"
 									type="button"
 									onclick={() => toggleExpanded(item)}
@@ -266,7 +266,7 @@ Interactive menu builder with add/edit/reorder capabilities
 								>
 									<iconify-icon icon="mdi:chevron-down" width="16" class="chevron transition-transform duration-200"></iconify-icon>
 								</Button>
-							{:else if item.children.length === 0}
+							{:else if !item.children || item.children.length === 0}
 								<div class="spacer w-8"></div>
 							{/if}
 						</div>
@@ -275,7 +275,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							<span class=" truncate font-medium text-surface-900 dark:text-surface-100">
 								{(item._fields as any)?.title?.[lang] || (item._fields as any)?.title?.en || 'Untitled Item'}
 							</span>
-							{#if item.children.length > 0}
+							{#if item.children?.length > 0}
 								<span class=" ms-2 text-xs text-surface-500 dark:text-surface-50">({item.children.length} children)</span>
 							{/if}
 						</div>
@@ -302,7 +302,7 @@ Interactive menu builder with add/edit/reorder capabilities
 						</div>
 					</div>
 
-					{#if item.children.length > 0 && item._expanded !== false}
+					{#if item.children?.length > 0 && item._expanded !== false}
 						<div class="ms-8 border-s-2 border-surface-200 ps-4 dark:text-surface-50">
 							<MegaMenuInput bind:value={item.children} {field} {error} />
 						</div>

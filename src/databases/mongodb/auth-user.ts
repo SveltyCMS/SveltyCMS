@@ -114,7 +114,7 @@ export class UserAdapter {
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/security");
+        const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 
@@ -153,7 +153,7 @@ export class UserAdapter {
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/security");
+        const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 

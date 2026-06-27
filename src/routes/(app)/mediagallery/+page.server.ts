@@ -186,6 +186,23 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     logger.info(`Fetched ${processedMedia.length} media items for folder ${folderId || "root"}`);
     logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
 
+    // 🚀 Check which media items are referenced by published content
+    // Uses batch checking to avoid N+1 queries per collection
+    const mediaService = new MediaService(dbAdapter);
+    const publishedRefResults = await Promise.allSettled(
+      processedMedia.map((item) =>
+        mediaService.isReferencedByPublishedContent(item._id as string, null),
+      ),
+    );
+    const publishedMediaIds: string[] = [];
+    for (let i = 0; i < publishedRefResults.length; i++) {
+      const result = publishedRefResults[i];
+      if (result.status === "fulfilled" && result.value.referenced) {
+        publishedMediaIds.push(processedMedia[i]._id as string);
+      }
+    }
+    logger.info(`Found ${publishedMediaIds.length} media items referenced by published content`);
+
     const returnData = {
       user: {
         // Ensure user data is serializable
@@ -196,6 +213,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       media: processedMedia, // Use the processed and filtered media
       systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component
       currentFolder: currentFolder as SystemVirtualFolder | null, // The specific folder object for the current view
+      publishedMediaIds, // IDs of media items referenced by published content
     };
 
     return returnData;

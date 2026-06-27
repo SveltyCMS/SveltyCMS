@@ -76,6 +76,8 @@ const pipeline = [
 > **2026-06-05 Consolidation**: `handleSecurityHeaders` and `handleStaticAssetCaching` are now inlined into `handleTurboPipeline`'s post-resolve phase, reducing Promise chain depth by 2 hooks. `handleTurboGet` moved earlier — right after security gates, before auth/authz — maximizing its cache-hit fast-path coverage.
 >
 > **2026-06-14 Performance Optimizations**: `HOOK_TIMING_ENABLED` gate added to `wrapHandle` — per-request `performance.now()` + `traceSpan` + Map writes are now disabled in production and under `SVELTY_BENCHMARK_SUITE`, saving measurable per-hook overhead. `handleFnRef()` resolved once at pipeline build time instead of per-request. `handleAuditLogging` converted to true fire-and-forget with context captured before `await resolve(event)` — audit logging no longer blocks the mutation response. `handleTurboGet` and `handleApiRequests` now serve pre-compressed (br/gzip) wire bytes on cache HITs, avoiding re-stringify and re-compress on every repeated request. Compression metrics (avg sizes, ratios) captured by the benchmark harness for matrix trend tracking. See [Cache System](./cache-system.mdx) for pre-compression details.
+>
+> **2026-06-27 Security Hardening**: `handleRateLimit` wired into the pipeline between `handleSecurity` and `handleSystemState` — per-IP sliding window rate limiting with adaptive cost multipliers. Rate limiting now gates BEFORE authentication, preventing brute-force attacks. Test secret comparison hardened with `crypto.subtle.timingSafeEqual`. API CSP tightened (`style-src 'unsafe-inline'` removed). Honeypot routes return empty `200 OK` with no JSON body leak.
 
 ### handleHyperTurbo - Benchmark Auth (Security-Gated)
 

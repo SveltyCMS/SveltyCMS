@@ -21,9 +21,9 @@ This document details the comprehensive security measures implemented across all
 
 ## 🛡️ Security Status Overview
 
-**Implementation Status: ✅ 10/10 Major Security Fixes Fully Implemented**
+**Implementation Status: ✅ 11/11 Major Security Fixes Fully Implemented**
 
-All critical security vulnerabilities identified in the widget system have been addressed with proper validation, sanitization, and security controls.
+All critical security vulnerabilities identified in the widget system have been addressed with proper validation, sanitization, and security controls. The latest addition prevents mutation of media assets referenced by published content.
 
 > [!IMPORTANT]
 > **Centralized Dispatcher Gating**: As of April 2026, all widget-specific API endpoints (e.g., `/api/media`, `/api/collections/[name]/aggregations`) are centrally gated by the **Fail-Closed API Dispatcher**. This ensures that even if an individual widget resolver lacks an internal check, the request is blocked unless the user possesses the required granular Permission ID (e.g., `media:read`, `collections:read`).
@@ -528,6 +528,62 @@ function addValidatedFiles(files: MediaFile[]) {
 - **Safe Defaults**: Falls back to empty array on validation failure
 - **Audit Trail**: All security events tracked in development mode
 
+### 11. Media Asset Publish-State Gating ✅
+
+**Files**:
+
+- `src/utils/media/media-service.server.ts` — `getPublishedReferences()` / `isReferencedByPublishedContent()`
+- `src/services/sdk/namespaces/media-namespace.ts` — SDK layer exposure
+- `src/routes/api/[...path]/handlers/media.ts` — Handler-level gate checks
+- `src/routes/(app)/mediagallery/` — UI-layer disabled states (grid, table, virtual grid)
+
+**Vulnerability**: Media assets referenced by published content entries could be deleted or edited, causing broken references on published pages.
+
+**Implementation** (4-Layer Defense-in-Depth):
+
+```
+// Layer 1 — Service: Queries collection_* tables for entries with status="publish"
+// that reference the given mediaId (by ID, path, URL, or embedded object)
+const refs = await mediaService.getPublishedReferences(mediaId, tenantId);
+// Returns: [{ collectionId, collectionName, entryId, entryName, fieldName }]
+
+// Layer 2 — Handler: 409 Conflict before any mutation
+await checkMediaNotReferencedByPublishedContent(cms, mediaId, tenantId);
+// Throws AppError with detailed references summary
+
+// Layer 3 — UI: Disabled edit/delete buttons + tooltip + lock badge
+// See media-grid.svelte: disabled={isPublishedReferenced}
+
+// Layer 4 — Server Load: Batched pre-check for all visible media items
+const results = await Promise.allSettled(
+  processedMedia.map((item) =>
+    mediaService.isReferencedByPublishedContent(item._id, tenantId)
+  )
+);
+```
+
+**Protection Against**:
+
+- Broken references on published pages after media deletion
+- Orphaned media mutations affecting live content
+- UI confusion — clear "Referenced by published content" feedback
+
+**Gated Mutation Handlers**:
+| Handler | Operation | Status |
+|---|---|---|
+| `handleDeleteRoutes` | Direct asset deletion | 409 Conflict |
+| `handleMediaPostDelete` | POST-based deletion | 409 Conflict |
+| `handleMediaManipulate` | Image manipulation | 409 Conflict |
+| `handleMediaVersionCreate` | New version creation | 409 Conflict |
+| `handleMediaVersionUpload` | Version file upload | 409 Conflict |
+| `handleMediaVersionRestore` | Version restoration | 409 Conflict |
+
+**UI Indicators**:
+
+- Edit button: `disabled` + tooltip "Referenced by published content"
+- Delete button: `disabled` + tooltip "Referenced by published content"
+- Card badge: Lock icon + "Published" label at top-left
+
 ---
 
 ## 🔍 Security Testing
@@ -615,6 +671,13 @@ Use this checklist when creating new widgets:
 - [ ] Rate limiting considerations
 - [ ] Regex complexity limits
 - [ ] Resource consumption limits
+
+### Media Integrity
+
+- [ ] Published-reference gate for asset mutations
+- [ ] Check all collection entries with status="publish" before delete/edit
+- [ ] UI disabled state with contextual tooltip
+- [ ] Batched pre-check on server load
 
 ---
 

@@ -345,12 +345,12 @@ From the 2026 roadmap, prioritize these for parity/leadership (implemented featu
 - [x] **SAML 2.0 / Enterprise SSO**: Lightweight integration via @node-saml/node-saml (zero DB dependencies) for enterprise identity providers (Okta, Azure).
 - [x] **Edge Computing & Multi-Region**: Native support for edge-optimized data fetching and multi-region replication.
 - [x] **BuzzForm Visual Builder (v1.5)**: Production-ready drag-and-drop form/collection builder with real-time preview.
-- [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), and hardened directory traversal.
+- [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), hardened directory traversal, and **published-reference gating** (409 Conflict on mutation of assets used by published content, with batched pre-check across all collection schemas).
 - [x] **OpenAPI 3.1.0**: Dynamic specification export for automated SDK generation and documentation.
 - [x] **99.9% Self-Healing Cache**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
 - [x] **High-Performance Local API**: Zero-latency server-side CRUD bridge with full widget logic parity. **Achieved <0.05ms average latency for core operations.**
 - [x] **Enterprise Performance Auditing**: 20+ standardized benchmarks with high-fidelity ASCII telemetry. **Includes 1,000-collection stress audits.**
-- [x] **4-Layer Defense-in-Depth Security**: Cookie prefix hardening, setup completion gating, handler-level admin verification, media permission checks, centralized permission guards, and timing-safe test secret comparison. **849 unit tests, 51 new security tests, 0 regressions.**
+- [x] **4-Layer Defense-in-Depth Security**: Cookie prefix hardening, setup completion gating, handler-level admin verification, media permission checks, centralized permission guards, timing-safe test secret comparison (`crypto.subtle.timingSafeEqual`), per-IP rate limiter wired into middleware pipeline (adaptive cost 0.8x–2.0x), API CSP tightened (`style-src 'unsafe-inline'` removed), silent honeypot tarpit (empty `200 OK`, no JSON leak). **849 unit tests, 51 new security tests, 0 regressions.**
 - [x] **Hardened Relation Token Engine**: Resolved field property access bugs and implemented high-performance Bearer token validation with multi-tenant isolation.
 - [x] **Sub-Millisecond Content Scanner**: Implemented Persistent Mtime Tree (Dirty Bits), Batch Cache Retrieval (`getMany`), and Worker Thread Pooling.
 - [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
@@ -365,6 +365,7 @@ From the 2026 roadmap, prioritize these for parity/leadership (implemented featu
 - [x] **Adaptive Job Scheduler**: Background job runner executing scheduled publishing, status transitions with exponential retries and audit integration.
 - [x] **Per-Field Content Localization**: Record<Locale, string> field storage with inline locale switchers and one-click AI translation.
 - [x] **Crypto-Chained Audit Logs**: SHA-256 hash chain across audit entries with chain verification and per-content viewer.
+- [x] **CI Audit Blocking**: `bun audit --severity=high` now blocks PRs on high-severity CVEs (removed `|| true` fallback).
 - [x] **Zero-Dependency Full-Text Search**: DB-native FTS (PostgreSQL tsvector, MariaDB FULLTEXT, SQLite FTS5, MongoDB $text) — zero npm dependencies.
 - [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
 - [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.

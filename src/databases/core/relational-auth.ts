@@ -160,7 +160,7 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         let password = userData.password;
         if (password && !password.startsWith("$argon2")) {
-          const { hashPassword } = await import("@src/utils/security");
+          const { hashPassword } = await import("@src/utils/security/crypto");
           password = await hashPassword(password);
         }
 

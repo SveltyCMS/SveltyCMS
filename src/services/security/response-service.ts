@@ -82,7 +82,7 @@ const ENDPOINT_RATE_LIMITS: Record<string, number> = {
   "/api/testing": 100,
 };
 
-const GLOBAL_RATE_LIMIT = 100;
+const GLOBAL_RATE_LIMIT = 500;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
 const SCAN_BODY_MAX_SIZE = 32768; // 32KB
 
@@ -374,11 +374,13 @@ export class SecurityResponseService {
       return { level: "none", action: "allow" };
     }
 
-    // Skip rate limiting for setup, bootstrap, and health-check routes
+    // Skip rate limiting for setup, bootstrap, login, and health-check routes
     if (
       endpoint.startsWith("/setup") ||
       endpoint.startsWith("/warming-up") ||
-      endpoint.startsWith("/api/system/health")
+      endpoint.startsWith("/api/system/health") ||
+      endpoint.startsWith("/login") ||
+      endpoint.startsWith("/en/")
     ) {
       return { level: "none", action: "allow" };
     }

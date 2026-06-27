@@ -22,6 +22,16 @@ This document is the **living roadmap** — only in-progress and planned work. C
 
 ## ✅ Recently Completed (June 2026)
 
+- **Login Redirect Loop Fix** — Fixed an initialization issue in `content-registry.svelte.ts` where missing `nodeType` attributes caused the system to falsely report zero collections, triggering a fallback redirect to the collection builder loop for non-admin users.
+- **Dynamic Conditional Authentication UI** — The `/login` route now performs a debounced backend check on email input, rendering Passkey, Magic Link, and OAuth buttons _only_ if they are active and enabled for that specific user.
+- **Unified Authentication Profile Management** — Added Passkey, Magic Link, and OAuth toggles to the `/user` profile page alongside 2FA, allowing users self-serve management of all authentication methods.
+- **Rate Limiter Wired Into Pipeline** — `handleRateLimit` now active between security and system-state in the middleware pipeline. Per-IP sliding window token bucket with adaptive cost multipliers prevents brute-force and DoS attacks.
+- **Timing-Safe Test Secret** — Test secret comparison hardened from `===` to `crypto.subtle.timingSafeEqual`, preventing timing side-channel leakage.
+- **API CSP Tightened** — Removed `style-src 'unsafe-inline'` from API Content Security Policy. API responses now use `style-src 'self'` exclusively.
+- **Silent Honeypot Tarpit** — Honeypot routes return empty `200 OK` with `Content-Length: 0` and `text/plain` — no JSON structure or server info leaked.
+- **Media Published-Reference Gating** — 4-layer defense-in-depth preventing mutation of media assets referenced by published content. Service layer (`getPublishedReferences`), handler layer (6 mutation gates returning 409 Conflict), UI layer (disabled buttons + lock badge + tooltip), server load (batched pre-check).
+- **CI Audit Hardening** — `bun audit --severity=high` now blocking on high-severity CVEs (removed `|| true` fallback in CI pipeline).
+- **MegaMenu Null Safety** — Optional chaining guards on `item.children?.length` preventing TypeError crashes on uninitialized menu data.
 - **Content System Consolidation** — 16→9 files (engine.server.ts + loader.server.ts + unified facades). Single scanner, single init coordinator, unified `refreshContent({ mode })`, dead code removed (~200 lines), `contentSystemBase` de-duplicated. 20 new reconciliation unit tests.
 - **Media System Optimization** — 17→14 files. Duplicate MIME tables merged into `media-utils.ts` (65-type DB + reverse lookup). `sharing.ts` wired into media handler (replaced inline crypto with `createLink`/`validateLink`). `slim-sniffer.server.ts` wired as binary MIME fallback in upload flow. 40 new unit tests (sharing, MIME utils, binary sniffer).
 - **Smart Importer v2.1** — 5-step visual wizard (`/config/migration`), unified `import-runner` orchestration, SSE streaming import, delta/PII Pro gates, full CMS media parity (`saveResizedImages`), background job queue (500+ entries).

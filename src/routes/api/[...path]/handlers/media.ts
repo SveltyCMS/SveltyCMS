@@ -42,6 +42,48 @@ function isFileLike(value: unknown): value is File {
   );
 }
 
+/**
+ * 🛡️ PUBLISH-STATE GATE: Prevents mutation of media assets referenced by published content.
+ * Queries the MediaService to check if this media ID is referenced in any published entry.
+ * Throws AppError(409) with details if the media is currently in use by published content.
+ */
+async function checkMediaNotReferencedByPublishedContent(
+  cms: LocalCMS,
+  mediaId: string,
+  tenantId: DatabaseId,
+): Promise<void> {
+  // Fast path: if no mediaId, skip check (let downstream handler error with 400)
+  if (!mediaId) return;
+
+  let publishedRefs: any[] = [];
+
+  // Use getPublishedReferences if available on the SDK namespace
+  if (typeof cms.media.getPublishedReferences === "function") {
+    publishedRefs = await cms.media.getPublishedReferences(mediaId, {
+      tenantId,
+    });
+  } else {
+    // Fallback: use standard references and filter for published status
+    const result = await cms.media.references(mediaId, { tenantId });
+    if (result.success && Array.isArray(result.data)) {
+      publishedRefs = result.data.filter((r: any) => r.status === "publish");
+    }
+  }
+
+  if (publishedRefs.length > 0) {
+    const detailSummary = publishedRefs
+      .slice(0, 3)
+      .map((r: any) => `"${r.entryName}" in "${r.collectionName}" (${r.fieldName})`)
+      .join(", ");
+    const remainder = publishedRefs.length > 3 ? ` and ${publishedRefs.length - 3} more` : "";
+    throw new AppError(
+      `Cannot modify asset: referenced by published content - ${detailSummary}${remainder}`,
+      409,
+      "MEDIA_REFERENCED_BY_PUBLISHED_CONTENT",
+    );
+  }
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
 export async function handleMediaRoutes(
@@ -165,6 +207,8 @@ async function handleDeleteRoutes(
     if (!hasMediaPermission(event, user, "media:delete")) {
       throw new AppError("Insufficient access for asset deletion", 403, "FORBIDDEN");
     }
+    // 🛡️ PUBLISH-STATE GATE: Block deletion of assets referenced by published content
+    await checkMediaNotReferencedByPublishedContent(cms, method, tenantId);
     return rawResponse(event, await cms.media.delete(method, { tenantId }));
   }
   return successResponse(event, null);
@@ -367,6 +411,9 @@ export async function handleMediaPostDelete(
     targetId = String(res.data._id);
   }
 
+  // 🛡️ PUBLISH-STATE GATE: Block deletion of assets referenced by published content
+  await checkMediaNotReferencedByPublishedContent(cms, targetId || id, tenantId);
+
   const result = await cms.media.delete(targetId, { tenantId });
   if (!result.success) throw result.error || new AppError(result.message || "Deletion failed", 500);
   return successResponse(event, { success: true });
@@ -403,6 +450,9 @@ export async function handleMediaManipulate(
   id = id || body.mediaId || body.id;
   if (!id) throw new AppError("Asset entity matrix identification value missing", 400);
 
+  // 🛡️ PUBLISH-STATE GATE: Block manipulation of assets referenced by published content
+  await checkMediaNotReferencedByPublishedContent(cms, id, tenantId);
+
   if (!body.manipulations || Object.keys(body.manipulations).length === 0) {
     throw new AppError("Manipulation instruction set is required", 400);
   }
@@ -427,6 +477,9 @@ export async function handleMediaVersionCreate(
 ) {
   const mediaId = segments[2];
   if (!mediaId) throw new AppError("Media reference target identifier required", 400);
+
+  // 🛡️ PUBLISH-STATE GATE: Block version creation for assets referenced by published content
+  await checkMediaNotReferencedByPublishedContent(cms, mediaId, tenantId);
 
   const formData = await event.request.formData();
   const file = formData.get("file");
@@ -475,6 +528,8 @@ export async function handleMediaVersionUpload(
 ) {
   const mediaId = segments[2];
   if (!mediaId) throw new AppError("Media reference target identifier required", 400);
+  // 🛡️ PUBLISH-STATE GATE: Block version upload for assets referenced by published content
+  await checkMediaNotReferencedByPublishedContent(cms, mediaId, tenantId);
   const formData = await event.request.formData();
   const file = formData.get("file");
   if (!isFileLike(file))
@@ -499,6 +554,8 @@ export async function handleMediaVersionRestore(
 ) {
   const mediaId = segments[2];
   if (!mediaId) throw new AppError("Media reference target identifier required", 400);
+  // 🛡️ PUBLISH-STATE GATE: Block version restore for assets referenced by published content
+  await checkMediaNotReferencedByPublishedContent(cms, mediaId, tenantId);
   const { versionNumber } = await event.request.json().catch(() => ({}));
   if (!versionNumber) throw new AppError("Target variation index integer required", 400);
   const result = await cms.media.restoreVersion(mediaId, Number(versionNumber), {

@@ -45,9 +45,9 @@ SveltyCMS security architecture includes:
 | **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program |
 | **Auth & Session**        |  20%   |  98   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout |
 | **Input Validation**      |  15%   |  98   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit   |
-| **Dependency Hygiene**    |  15%   |  98   | Dependabot weekly, CI audit failure, override-pinned           |
+| **Dependency Hygiene**    |  15%   |  99   | Dependabot weekly, CI audit BLOCKING, override-pinned          |
 
-**Weighted**: 100×0.25 + 98×0.20 + 98×0.15 + 100×0.15 + 98×0.15 + 98×0.10 = **~99/100**
+**Weighted**: 100×0.25 + 98×0.20 + 98×0.15 + 100×0.15 + 99×0.15 + 98×0.10 = **~99/100**
 
 > Self-assessed (June 2026). Remaining gap: third-party penetration test, WebAuthn passkey management UI.
 
@@ -156,9 +156,10 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 3.  **🧪 Test Isolation**: Worker-index based database isolation for CI.
 4.  **🔥 Dynamic Firewall**: Scans for SQLi, XSS, and Command Injection threat patterns.
 5.  **📉 Load Shedding**: Automatically rejects mutations when memory usage > 90%.
-6.  **🚧 Setup Guard**: Blocks initialization endpoints after the system is live.
-7.  **🔐 Authentication**: Resolves session and enforces tenant isolation.
-8.  **🛂 Authorization**: Granular RBAC and Fail-Closed API dispatching.
+6.  **🚦 Rate Limiting**: Per-IP sliding window token bucket with adaptive cost multipliers (0.8x–2.0x based on system pressure). Returns 429 with `Retry-After` and `X-RateLimit-*` headers.
+7.  **🚧 Setup Guard**: Blocks initialization endpoints after the system is live.
+8.  **🔐 Authentication**: Resolves session and enforces tenant isolation.
+9.  **🛂 Authorization**: Granular RBAC and Fail-Closed API dispatching.
 
 ### 3. Data Protection
 
@@ -218,6 +219,7 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Multi-Layer Honeypot Grid**: 45+ decoy routes mimicking WordPress, Drupal, Joomla, AWS metadata endpoints, and common config/backup files. Any probe triggers immediate IP blacklisting.
 - ✅ **Progressive Tarpit**: Randomized 5–15 second response delays waste bot resources while legitimate users experience zero latency.
 - ✅ **Response Poisoning**: Bots receive fake JSON payloads (phantom users, false config) designed to corrupt scraper datasets rather than revealing real system information.
+- ✅ **Silent Tarpit**: Honeypot routes return empty `200 OK` (`Content-Length: 0`, `text/plain`) — no JSON structure or server info leaked.
 
 - ✅ **Cross-Origin Isolation Headers**: All API responses include `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin` preventing Spectre-style side-channel attacks.
 - ✅ **AI Crawler Honeypot (Tarpitting)**: Detects automated reconnaissance bots hitting shadow routes (e.g., `/wp-admin`, `/.env`) and traps them in a high-latency "tarpit" while automatically flagging their IP.

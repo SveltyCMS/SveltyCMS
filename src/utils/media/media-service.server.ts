@@ -500,6 +500,110 @@ export class MediaService {
     }
   }
 
+  /**
+   * Checks if a media item is referenced by any published content entries.
+   * Scans all collection schemas for published entries that reference the given mediaId.
+   */
+  public async isReferencedByPublishedContent(
+    mediaId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<{ referenced: boolean; references: any[] }> {
+    try {
+      const references = await this.getPublishedReferences(mediaId, tenantId);
+      return {
+        referenced: references.length > 0,
+        references,
+      };
+    } catch (err) {
+      logger.error(`[MediaService] Error checking published references:`, err);
+      return { referenced: false, references: [] };
+    }
+  }
+
+  /**
+   * Returns all published collection entries that reference a specific mediaId.
+   * Filters entries to only those with status "publish".
+   */
+  public async getPublishedReferences(
+    mediaId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<
+    {
+      collectionId: string;
+      collectionName: string;
+      entryId: string;
+      entryName: string;
+      fieldName: string;
+    }[]
+  > {
+    try {
+      const { scanCompiledCollections } = await import("@src/content/engine.server");
+      const schemas = await scanCompiledCollections();
+      const references: {
+        collectionId: string;
+        collectionName: string;
+        entryId: string;
+        entryName: string;
+        fieldName: string;
+      }[] = [];
+
+      // Get the media item to check by path/filename as well
+      const mediaRes = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      const mediaPath = mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
+
+      for (const schema of schemas) {
+        const collectionName = `collection_${schema._id}`;
+
+        // Fetch only PUBLISHED entries in the collection
+        const res = await this.db.crud.findMany<any>(collectionName, { status: "publish" } as any, {
+          tenantId: tenantId ?? undefined,
+        });
+
+        if (res.success && Array.isArray(res.data)) {
+          for (const entry of res.data) {
+            const entryAny = entry as any;
+            // Scan all fields in this entry
+            for (const key of Object.keys(entryAny)) {
+              if (
+                key === "_id" ||
+                key === "createdAt" ||
+                key === "updatedAt" ||
+                key === "tenantId"
+              ) {
+                continue;
+              }
+              const val = entryAny[key];
+
+              // Direct match or embedded match
+              const referenced = this.isMediaReferencedInValue(val, mediaId, mediaPath);
+              if (referenced) {
+                // Find a friendly name/title for the entry if possible
+                const entryName =
+                  entryAny.name || entryAny.title || entryAny.slug || entryAny._id || "Untitled";
+                references.push({
+                  collectionId: (schema._id ?? "") as string,
+                  collectionName: (schema.name ?? schema._id ?? "") as string,
+                  entryId: (entryAny._id ?? "") as string,
+                  entryName: entryName as string,
+                  fieldName: key as string,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return references;
+    } catch (err) {
+      logger.error(`[MediaService] Error scanning published references:`, err);
+      return [];
+    }
+  }
+
   private isMediaReferencedInValue(val: any, mediaId: string, path: string): boolean {
     if (val === mediaId || (path && val === path)) {
       return true;

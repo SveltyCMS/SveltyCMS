@@ -735,11 +735,12 @@ Features:
 						description={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
 						variant="card"
 					/>
-					{#if systemSettings.demoMode && !systemSettings.multiTenant}
-						<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
-							({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
-						</span>
-					{/if}
+					<span
+						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant ? 'text-amber-600 dark:text-amber-400' : 'invisible'}"
+						aria-hidden={!(systemSettings.demoMode && !systemSettings.multiTenant)}
+					>
+						({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
+					</span>
 				</div>
 			</div>
 		</section>

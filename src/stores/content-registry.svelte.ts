@@ -73,7 +73,10 @@ class ContentStore {
 
   getCollections(tenantId?: string | null): Schema[] {
     const tid = tenantId || "global";
-    return this._collections.get(tid) || [];
+    const nodes = this._nodes.get(tid) || [];
+    return nodes
+      .filter((n) => n.nodeType === "collection" && n.collectionDef)
+      .map((n) => n.collectionDef!);
   }
 
   getAllCollections(tenantId?: string | null): Schema[] {
@@ -96,8 +99,15 @@ class ContentStore {
   }
 
   getSmartFirstCollection(_tenantId?: string | null): Schema | null {
-    const first = Array.from(this._schemas.values())[0];
-    return first || null;
+    // Skip system-only collections (redirects, 404_logs, etc.) that are not user content
+    const systemPrefixes = ["redirects", "404_logs", "plugin_", "workflow_"];
+    for (const schema of this._schemas.values()) {
+      const id = (schema._id || schema.name || "").toLowerCase();
+      if (systemPrefixes.some((prefix) => id.startsWith(prefix))) continue;
+      return schema;
+    }
+    // Fall back to first available if no user collection found
+    return Array.from(this._schemas.values())[0] || null;
   }
 
   setCollections(tenantId: string, collections: Schema[]) {

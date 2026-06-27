@@ -59,6 +59,9 @@ const mediaTypeOptions = mediaTypes.map((type) => ({
 	label: type.label,
 }));
 
+// Published media reference gating
+const publishedMediaIds = $derived(new SvelteSet<string>((data as { publishedMediaIds?: string[] }).publishedMediaIds ?? []));
+
 // Derived
 const filteredFiles = $derived.by(() => {
 	return files.filter((file) => {
@@ -367,28 +370,31 @@ async function handleOpenFileDetails(file: any) {
 		{#if view === 'grid'}
 			{#if useVirtualScrolling}
 				<VirtualMediaGrid
-					filteredFiles={filteredFiles}
-					{gridSize}
-					{isSelectionMode}
-					bind:selectedFiles={selectedFiles}
-					onEditImage={handleEditImage}
-					onOpenFileDetails={handleOpenFileDetails}
-				/>
+						filteredFiles={filteredFiles}
+						{gridSize}
+						{isSelectionMode}
+						bind:selectedFiles={selectedFiles}
+						{publishedMediaIds}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+					/>
 			{:else}
 				<MediaGrid
-					filteredFiles={filteredFiles}
-					{gridSize}
-					{isSelectionMode}
-					bind:selectedFiles={selectedFiles}
-					onEditImage={handleEditImage}
-					onOpenFileDetails={handleOpenFileDetails}
-				/>
+						filteredFiles={filteredFiles}
+						{gridSize}
+						{isSelectionMode}
+						bind:selectedFiles={selectedFiles}
+						{publishedMediaIds}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+					/>
 			{/if}
 		{:else}
 			<MediaTable
 				filteredFiles={filteredFiles}
 				{isSelectionMode}
 				bind:selectedFiles={selectedFiles}
+				{publishedMediaIds}
 				onEditImage={handleEditImage}
 				onOpenFileDetails={handleOpenFileDetails}
 			/>

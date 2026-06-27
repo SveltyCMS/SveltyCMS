@@ -66,10 +66,12 @@ export type {
 } from "./types";
 
 // Import shared password utilities (Argon2id)
+// NOTE: Import directly from ./crypto, NOT from @utils/security barrel,
+// to avoid pulling server-only modules (cors-utils, csrf-utils, etc.) into the client bundle.
 import {
   hashPassword as cryptoHashPassword,
   verifyPassword as cryptoVerifyPassword,
-} from "@utils/security";
+} from "@utils/security/crypto";
 // Import for internal use
 import { SESSION_COOKIE_NAME } from "./constants";
 
@@ -174,8 +176,14 @@ export class Auth {
         hashedPassword = await cryptoHashPassword(password);
       }
 
+      const preferences = userData.preferences || {};
+      if (oauth) {
+        preferences.auth = { ...(preferences.auth as any), oauthEnabled: true };
+      }
+
       const result = await this.db.auth.createUser({
         ...userData,
+        preferences,
         email: normalizedEmail,
         password: hashedPassword,
       });
