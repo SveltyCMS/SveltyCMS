@@ -109,29 +109,59 @@ xychart-beta
 
 <!-- API_LATENCY_TABLE_START -->
 
-> **Measures**: Measures the base network and HTTP overhead for the simplest possible API calls.
-> **Code**: `src/routes/api/[...path]/+server.ts`, `src/hooks.server.ts`
-> **Why**: Foundation for all API performance. Degradation here affects every endpoint.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 100% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+56340%) — review recent commits immediately.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
-<!-- API_LATENCY_TABLE_END -->
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                             SVELTYCMS  —  API LAYER LATENCY                             ║
+║                       File: tests/benchmarks/api-latency.test.ts                        ║
+║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ HTTP: findById @ 8c            │     1041.323 ms │ p95:     1046.165 ms │ RPS:          1 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ HTTP Latency (findById)                            │     1041.323 ms       ║
+║ Peak Throughput                                    │        1.000 req/s    ║
+║ Memory RSS Δ                                       │         0.00 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- COLD_START_TABLE_START -->
 
-### 🏷️ PHASED COLD START ⚪ —
-
-> 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
-> 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
+> Within normal variance — no action needed.  
+> **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
+║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
+║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.062 ms │ p95:        0.151 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.083 ms │ p95:        0.241 ms │ RPS:          0 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- COLD_START_TABLE_END -->
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Cold Start                                 │            0 ms       ║
+║ p95 Cold Start                                     │            0 ms       ║
+║ Rating                                             │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-### 🏷️ SRE TRUTH AUDIT ⚪ —
+### 🏷️ SRE TRUTH AUDIT 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
@@ -147,7 +177,7 @@ xychart-beta
 
 <!-- INCREMENTAL_TABLE_START -->
 
-### 🏷️ Incremental Content Reload ⚪ —
+### 🏷️ Incremental Content Reload 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
@@ -171,7 +201,7 @@ xychart-beta
 
 <!-- STATE_MACHINE_TABLE_START -->
 
-### 🏷️ State Machine Transitions ⚪ —
+### 🏷️ State Machine Transitions 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
@@ -195,7 +225,7 @@ xychart-beta
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-### 🏷️ System Cache Efficiency ⚪ —
+### 🏷️ System Cache Efficiency     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](../../../tests/benchmarks/cache-performance.test.ts)
 > 🎯 **Proves**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
@@ -207,7 +237,7 @@ xychart-beta
 <!-- CACHE_TABLE_END -->
 
 <!-- TEMPORAL_TABLE_START -->
-### 🏷️ Temporal Integrity Audit ⚪ —
+### 🏷️ Temporal Integrity Audit     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
 > 🎯 **Proves**: Verifies timezone normalization and deterministic UTC persistence.
@@ -218,7 +248,7 @@ xychart-beta
 <!-- TEMPORAL_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
-### 🏷️ Relational & Nested Queries ⚪ —
+### 🏷️ Relational & Nested Queries     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](../../../tests/benchmarks/relational-performance.test.ts)
 > 🎯 **Proves**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
@@ -237,7 +267,7 @@ xychart-beta
 <!-- AUTH_TRACE_TABLE_END -->
 
 <!-- REST_TABLE_START -->
-### 🏷️ REST API Performance ⚪ —
+### 🏷️ REST API Performance     🔴 avg +33% p95 +28% (11 runs)
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
@@ -253,7 +283,7 @@ xychart-beta
 
 <!-- GRAPHQL_TABLE_START -->
 
-### 🏷️ GraphQL API Performance ⚪ —
+### 🏷️ GraphQL API Performance 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
@@ -269,7 +299,7 @@ xychart-beta
 
 <!-- SEO_TABLE_START -->
 
-### 🏷️ Enterprise SEO Suite Audit ⚪ —
+### 🏷️ Enterprise SEO Suite Audit 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/seo-performance.test.ts](../../../tests/benchmarks/seo-performance.test.ts)
 > 🎯 **Proves**: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.
@@ -289,7 +319,7 @@ xychart-beta
 <!-- BROADCAST_TABLE_END -->
 
 <!-- REAL_TIME_TABLE_START -->
-### 🏷️ WebSocket & Realtime Latency ⚪ —
+### 🏷️ WebSocket & Realtime Latency     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](../../../tests/benchmarks/realtime-performance.test.ts)
 > 🎯 **Proves**: Benchmarks WebSocket connection/broadcast latency.
@@ -302,7 +332,7 @@ xychart-beta
 <!-- REAL_TIME_TABLE_END -->
 
 <!-- NEGATIVE_CACHE_TABLE_START -->
-### 🏷️ Negative Cache Performance ⚪ —
+### 🏷️ Negative Cache Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
 > 🎯 **Proves**: Benchmarks 404-miss response times and cache lookup speedup.
@@ -314,7 +344,7 @@ xychart-beta
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
 <!-- REVISION_STRESS_TABLE_START -->
-### 🏷️ Revision & History Growth ⚪ —
+### 🏷️ Revision & History Growth     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/revision-stress.test.ts](../../../tests/benchmarks/revision-stress.test.ts)
 > 🎯 **Proves**: Benchmarks performance degradation as document history grows to 100+ versions.
@@ -326,7 +356,7 @@ xychart-beta
 <!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-### 🏷️ Memory Stability & GC Behavior ⚪ —
+### 🏷️ Memory Stability & GC Behavior     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
 > 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
@@ -337,7 +367,7 @@ xychart-beta
 <!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
-### 🏷️ Multi-Tenant Performance & Isolation ⚪ —
+### 🏷️ Multi-Tenant Performance & Isolation     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
 > 🎯 **Proves**: Stress-tests cross-tenant isolation and security boundary latency.
@@ -349,7 +379,7 @@ xychart-beta
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
-### 🏷️ Realistic Mixed Workload ⚪ —
+### 🏷️ Realistic Mixed Workload     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](../../../tests/benchmarks/mixed-workload.test.ts)
 > 🎯 **Proves**: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
@@ -366,7 +396,7 @@ xychart-beta
 <!-- GQL_STRESS_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
-### 🏷️ Bulk Migration & Scale ⚪ —
+### 🏷️ Bulk Migration & Scale     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/migration-scale.test.ts](../../../tests/benchmarks/migration-scale.test.ts)
 > 🎯 **Proves**: Measures system ingestion limits and read performance on 10,000+ entries.
@@ -378,7 +408,7 @@ xychart-beta
 <!-- MIGRATION_TABLE_END -->
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-### 🏷️ Million-Row Index Pressure ⚪ —
+### 🏷️ Million-Row Index Pressure     🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/index-pressure.test.ts](../../../tests/benchmarks/index-pressure.test.ts)
 > 🎯 **Proves**: Measures complex filtering and sorting performance on 100,000+ entry collections.
@@ -408,7 +438,7 @@ xychart-beta
 
 <!-- CACHE_EFFICIENCY_TABLE_START -->
 
-### 🏷️ Cache Hit/Miss Ratio & Efficiency ⚪ avg 0% rps -9% (2 runs)
+### 🏷️ Cache Hit/Miss Ratio & Efficiency 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/cache-hit-ratio.test.ts](../../../tests/benchmarks/cache-hit-ratio.test.ts)
 > 🎯 **Proves**: Measures Redis cache hit/miss ratio, cold vs warm read speedup, and invalidation performance.
@@ -419,7 +449,7 @@ xychart-beta
 <!-- CACHE_EFFICIENCY_TABLE_END -->
 
 <!-- MEDIA_UPLOAD_TABLE_START -->
-### 🏷️ Media Upload Stress & Throughput ⚪ —
+### 🏷️ Media Upload Stress & Throughput     🔴 avg +33% p95 +28% (11 runs)
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
@@ -441,7 +471,7 @@ xychart-beta
 
 <!-- CONCURRENCY_TABLE_START -->
 
-### 🏷️ Concurrency & Race Condition ⚪ —
+### 🏷️ Concurrency & Race Condition 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
@@ -455,7 +485,7 @@ xychart-beta
 
 <!-- THROUGHPUT_TABLE_START -->
 
-### 🏷️ Multi-Doc Concurrency Throughput ⚪ —
+### 🏷️ Multi-Doc Concurrency Throughput 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
@@ -491,7 +521,7 @@ xychart-beta
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
 
-### 🏷️ Circuit Breaker Failover ⚪ —
+### 🏷️ Circuit Breaker Failover 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
 > 🎯 **Proves**: Measures system graceful degradation when external services fail.
@@ -505,7 +535,7 @@ xychart-beta
 
 <!-- RESILIENCE_TABLE_START -->
 
-### 🏷️ Chaos & Infrastructure Resilience ⚪ —
+### 🏷️ Chaos & Infrastructure Resilience 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/chaos-resilience.test.ts](../../../tests/benchmarks/chaos-resilience.test.ts)
 > 🎯 **Proves**: Simulates 500ms database brownouts and measures CMS availability and stability.
@@ -516,7 +546,7 @@ xychart-beta
 <!-- RESILIENCE_TABLE_END -->
 
 <!-- THROTTLING_TABLE_START -->
-### 🏷️ Throttling & Backoff Stress ⚪ —
+### 🏷️ Throttling & Backoff Stress     🔴 avg +33% p95 +28% (11 runs)
 > 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
 > 🎯 **Proves**: Measures rate-limiting consistency under 10x design load.
 
@@ -529,7 +559,7 @@ xychart-beta
 
 <!-- GDPR_TABLE_START -->
 
-### 🏷️ GDPR Compliance Speed ⚪ —
+### 🏷️ GDPR Compliance Speed 🔴 avg +33% p95 +28% (11 runs)
 
 > 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
 > 🎯 **Proves**: Measures performance of deep-deletion across all linked tables.
@@ -575,13 +605,15 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Core System Readiness — Fast, low-intensity tests verifying basic system health and network overhead
 
-### 🏷️ API LAYER LATENCY  🟡 avg +5% p95 -8% rps -5% (9 runs)
+### 🏷️ API LAYER LATENCY      🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 100% — check connection pool saturation or lock contention.
+**Severe degradation** (+56340%) — review recent commits immediately.
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
@@ -591,30 +623,30 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        1.936 ms │ p95:        3.128 ms │ RPS:        496 ║
+║ HTTP: findById @ 8c            │     1041.323 ms │ p95:     1046.165 ms │ RPS:          1 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-````
+```
 
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        1.936 ms       ║
-║ Peak Throughput                                    │      496.000 req/s    ║
+║ HTTP Latency (findById)                            │     1041.323 ms       ║
+║ Peak Throughput                                    │        1.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- API_LATENCY_TABLE_END -->
 
-### 🏷️ PHASED COLD START 🟢 avg -10% p95 -16% (9 runs)
+### 🏷️ PHASED COLD START     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 10,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- COLD_START_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.  
-> **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+> Within normal variance — no action needed.
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -622,7 +654,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.062 ms │ p95:        0.151 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.083 ms │ p95:        0.241 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -636,15 +668,14 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- COLD_START_TABLE_END -->
 
-### 🏷️ SRE TRUTH AUDIT 🟢 rps +72% (4 runs)
+### 🏷️ SRE TRUTH AUDIT     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.  
+> Performance improved — recent optimizations or cache warming likely effective.
 > **Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
 
 ```text
@@ -672,7 +703,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- TRUTH_AUDIT_TABLE_END -->
 
-### 🏷️ Production Build Analysis ⚪ — baseline established (1 run)
+### 🏷️ Production Build Analysis     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 85,000ms (suite) | **Tags**: `network` | **Level**: 0
 
@@ -684,7 +715,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- BUILD_TABLE_END -->
 
-### 🏷️ DX Toolchain Performance ⚪ —
+### 🏷️ DX Toolchain Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `network` | **Level**: 0
 
@@ -698,7 +729,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Core System Internals — Cache, middleware, state machine, SDK, and content scanning subsystems
 
-### 🏷️ Self-Healing Content Scan ⚪ —
+### 🏷️ Self-Healing Content Scan     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 8,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -710,7 +741,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SCAN_TABLE_END -->
 
-### 🏷️ Incremental Content Reload 🟢 avg -21% (2 runs)
+### 🏷️ Incremental Content Reload     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 4,000ms (suite) | **Tags**: `cpu` | **Level**: 2
 
@@ -741,7 +772,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- INCREMENTAL_TABLE_END -->
 
-### 🏷️ Middleware & Hooks Performance 🟢 avg -10% p95 -8% rps +10% (10 runs)
+### 🏷️ Middleware & Hooks Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `cpu`, `security` | **Level**: 2
 
@@ -754,7 +785,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- HOOKS_TRACE_TABLE_END -->
 
-### 🏷️ Edge Sync & Distributed Cache ⚪ —
+### 🏷️ Edge Sync & Distributed Cache     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 5,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -766,7 +797,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- EDGE_SYNC_TABLE_END -->
 
-### 🏷️ Telemetry Collection & Signing ⚪ —
+### 🏷️ Telemetry Collection & Signing     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 8,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -778,7 +809,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- TELEMETRY_TABLE_END -->
 
-### 🏷️ State Machine Transitions ⚪ —
+### 🏷️ State Machine Transitions     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -790,7 +821,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- STATE_MACHINE_TABLE_END -->
 
-### 🏷️ System Cache Efficiency ⚪ —
+### 🏷️ System Cache Efficiency     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -802,7 +833,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- CACHE_TABLE_END -->
 
-### 🏷️ CacheService Micro-Benchmark ⚪ —
+### 🏷️ CacheService Micro-Benchmark     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 5,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 2
 
@@ -814,7 +845,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- CACHE_SVC_TABLE_END -->
 
-### 🏷️ LocalCMS SDK Overhead ⚪ —
+### 🏷️ LocalCMS SDK Overhead     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 5,000ms (suite) | **Tags**: `cpu` | **Level**: 2
 
@@ -826,16 +857,18 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 ````
+
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                         SVELTYCMS — PARALLEL READS (POSTGRESQL)                         ║
-║                   File: tests/benchmarks/local-parallel-reads.test.ts                   ║
-║                  Local SDK Parallel Reads — 10 collections × 100 docs.                  ║
+║ SVELTYCMS — PARALLEL READS (POSTGRESQL) ║
+║ File: tests/benchmarks/local-parallel-reads.test.ts ║
+║ Local SDK Parallel Reads — 10 collections × 100 docs. ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Parallel Reads                 │        0.272 ms │ p95:        0.272 ms │ RPS:      3,672 ║
+║ Parallel Reads │ 0.272 ms │ p95: 0.272 ms │ RPS: 3,672 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
+
 ```text
 
-````
+```
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║ FINAL AUDIT SUMMARY ║
@@ -851,7 +884,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- LOCAL_API_TABLE_END -->
 
-### 🏷️ Setup Proxy & Bootstrap Isolation ⚪ —
+### 🏷️ Setup Proxy & Bootstrap Isolation     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 55,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 3
 
@@ -865,7 +898,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Database Adapter Efficiency — Raw CRUD operations and ACID transaction guarantees
 
-### 🏷️ Database Adapter Raw CRUD ⚪ —
+### 🏷️ Database Adapter Raw CRUD     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 35,000ms (suite) | **Tags**: `disk`, `cpu` | **Level**: 1
 
@@ -878,7 +911,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- DB_RAW_P95_TABLE_END -->
 
-### 🏷️ ACID Transaction Overhead ⚪ —
+### 🏷️ ACID Transaction Overhead     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `disk`, `cpu` | **Level**: 1
 
@@ -892,7 +925,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Widget & Domain Workloads — Server-side processing cost of widgets, media, AI, and relations
 
-### 🏷️ AI Bus & Inference Overhead ⚪ —
+### 🏷️ AI Bus & Inference Overhead     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -904,7 +937,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- AI_OVERHEAD_TABLE_END -->
 
-### 🏷️ Temporal Integrity Audit ⚪ —
+### 🏷️ Temporal Integrity Audit     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -916,7 +949,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- TEMPORAL_TABLE_END -->
 
-### 🏷️ Core Widgets Overhead ⚪ —
+### 🏷️ Core Widgets Overhead     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -928,7 +961,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- WIDGETS_TABLE_END -->
 
-### 🏷️ Simulated Admin UX Vitality ⚪ —
+### 🏷️ Simulated Admin UX Vitality     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -940,7 +973,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- UX_VITALITY_TABLE_END -->
 
-### 🏷️ Media Engine & DAM Overhead ⚪ —
+### 🏷️ Media Engine & DAM Overhead     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 50,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -952,7 +985,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- MEDIA_TABLE_END -->
 
-### 🏷️ Relational & Nested Queries ⚪ —
+### 🏷️ Relational & Nested Queries     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 35,000ms (suite) | **Tags**: `cpu`, `memory` | **Level**: 3
 
@@ -966,7 +999,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 API Dispatcher & Security — REST, GraphQL, Auth, WebSocket, SEO, and OpenAPI performance
 
-### 🏷️ OpenAPI Specification Performance ⚪ —
+### 🏷️ OpenAPI Specification Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -978,7 +1011,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- OPENAPI_TABLE_END -->
 
-### 🏷️ Auth & RBAC Performance ⚪ —
+### 🏷️ Auth & RBAC Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 18,000ms (suite) | **Tags**: `security` | **Level**: 4
 
@@ -991,7 +1024,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- AUTH_TRACE_TABLE_END -->
 
-### 🏷️ Security Hardening & Audit ⚪ —
+### 🏷️ Security Hardening & Audit     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -1003,7 +1036,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SECURITY_TABLE_END -->
 
-### 🏷️ REST API Performance ⚪ avg 0% (3 runs)
+### 🏷️ REST API Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
@@ -1042,7 +1075,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- REST_TABLE_END -->
 
-### 🏷️ GraphQL API Performance 🔴 avg +82% p95 +85% rps -46% (12 runs)
+### 🏷️ GraphQL API Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network` | **Level**: 4
 
@@ -1080,7 +1113,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- GRAPHQL_TABLE_END -->
 
-### 🏷️ Enterprise SEO Suite Audit ⚪ —
+### 🏷️ Enterprise SEO Suite Audit     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -1092,7 +1125,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SEO_TABLE_END -->
 
-### 🏷️ REAL-TIME BROADCAST AUDIT ⚪ —
+### 🏷️ REAL-TIME BROADCAST AUDIT     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -1104,7 +1137,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- BROADCAST_TABLE_END -->
 
-### 🏷️ WebSocket & Realtime Latency ⚪ —
+### 🏷️ WebSocket & Realtime Latency     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -1118,7 +1151,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Scale & Throughput — Multi-tenancy, concurrency, index pressure, and production workloads
 
-### 🏷️ Negative Cache Performance ⚪ —
+### 🏷️ Negative Cache Performance     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
@@ -1130,7 +1163,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
-### 🏷️ Revision & History Growth ⚪ —
+### 🏷️ Revision & History Growth     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1142,7 +1175,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- REVISION_STRESS_TABLE_END -->
 
-### 🏷️ Memory Stability & GC Behavior ⚪ —
+### 🏷️ Memory Stability & GC Behavior     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 70,000ms (suite) | **Tags**: `memory` | **Level**: 5
 
@@ -1155,7 +1188,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- MEMORY_TABLE_END -->
 
-### 🏷️ Multi-Tenant Performance & Isolation ⚪ —
+### 🏷️ Multi-Tenant Performance & Isolation     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1167,7 +1200,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- TENANCY_TABLE_END -->
 
-### 🏷️ Realistic Mixed Workload ⚪ —
+### 🏷️ Realistic Mixed Workload     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `network`, `disk` | **Level**: 5
 
@@ -1180,7 +1213,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- MIXED_TABLE_END -->
 
-### 🏷️ GraphQL Load Stress ⚪ —
+### 🏷️ GraphQL Load Stress     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1192,7 +1225,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- GQL_STRESS_TABLE_END -->
 
-### 🏷️ Bulk Migration & Scale ⚪ —
+### 🏷️ Bulk Migration & Scale     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 120,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1204,7 +1237,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- MIGRATION_TABLE_END -->
 
-### 🏷️ Million-Row Index Pressure ⚪ —
+### 🏷️ Million-Row Index Pressure     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
@@ -1217,7 +1250,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- INDEX_PRESSURE_TABLE_END -->
 
-### 🏷️ Content Scale Stress   ⚪ avg 0% rps -89% (2 runs)
+### 🏷️ Content Scale Stress       🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1251,7 +1284,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 <!-- CONTENT_STRESS_TABLE_END -->
 
-### 🏷️ Full Client Journey Simulation ⚪ —
+### 🏷️ Full Client Journey Simulation 🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
@@ -1263,12 +1296,16 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 <!-- JOURNEY_TABLE_END -->
 
-### 🏷️ Concurrency & Race Condition ⚪ —
+### 🏷️ Concurrency & Race Condition 🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 40,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONCURRENCY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+> Throughput dropped 100% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+56340%) — review recent commits immediately.  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ````text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1296,7 +1333,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 <!-- CONCURRENCY_TABLE_END -->
 
-### 🏷️ Failure Propagation & Fast-Fail Audit ⚪ —
+### 🏷️ Failure Propagation & Fast-Fail Audit     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
@@ -1308,12 +1345,17 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 <!-- FAST_FAIL_TABLE_END -->
 
-### 🏷️ Chaos & Infrastructure Resilience ⚪ —
+### 🏷️ Chaos & Infrastructure Resilience     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
 <!-- RESILIENCE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 100% — check connection pool saturation or lock contention.
+**Severe degradation** (+56340%) — review recent commits immediately.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1336,7 +1378,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ```
 <!-- RESILIENCE_TABLE_END -->
 
-### 🏷️ Production Day Simulation ⚪ —
+### 🏷️ Production Day Simulation     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 20,000ms (suite) | **Tags**: `cpu`, `network`, `disk` | **Level**: 5
 
@@ -1350,7 +1392,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 ### 📦 Resilience & Chaos Engineering — Circuit breakers, failover, and graceful degradation
 
-### 🏷️ Circuit Breaker Failover ⚪ —
+### 🏷️ Circuit Breaker Failover     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
@@ -1364,12 +1406,17 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 ### 📦 Security & Compliance Enforcement — Rate limiting, data residency, and throttling boundaries
 
-### 🏷️ Throttling & Backoff Stress ⚪ —
+### 🏷️ Throttling & Backoff Stress     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 4
 
 <!-- THROTTLING_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 100% — check connection pool saturation or lock contention.
+**Severe degradation** (+56340%) — review recent commits immediately.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -1392,7 +1439,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 ```
 <!-- THROTTLING_TABLE_END -->
 
-### 🏷️ Data Residency & Sovereignty ⚪ —
+### 🏷️ Data Residency & Sovereignty     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 4
 
@@ -1406,7 +1453,7 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 
 ### 📦 Governance & Regulatory Compliance — GDPR right-to-be-forgotten and deep-deletion audits
 
-### 🏷️ GDPR Compliance Speed ⚪ —
+### 🏷️ GDPR Compliance Speed     🔴 avg +33% p95 +28% (11 runs)
 
 > **Budget**: ≤ 35,000ms (suite) | **Tags**: `disk`, `cpu` | **Level**: 5
 

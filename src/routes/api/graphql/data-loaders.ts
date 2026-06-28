@@ -1,5 +1,11 @@
+/**
+ * @file src\routes\api\graphql\data-loaders.ts
+ * @description Data loaders for GraphQL queries, including relation loading across collections.
+ */
+
 import DataLoader from "dataloader";
 import { getDb } from "@src/databases/db";
+import { logger } from "@utils/logger";
 
 interface RelationTarget {
   id: string;
@@ -35,17 +41,27 @@ export function createRelationLoader(tenantId: string) {
         groupPromises.push(
           (async () => {
             try {
-              const recordsResult = await db.crud.findMany(collection, {
-                _id: { $in: ids },
-                ...(tenantId && tenantId !== "global" ? { tenantId } : {}),
-              });
+              const options: any = {};
+              if (tenantId && tenantId !== "global") {
+                options.tenantId = tenantId;
+              }
+              const recordsResult = await db.crud.findByIds(collection, ids, options);
+              if (!recordsResult.success) {
+                logger.error(
+                  `[DataLoader] Failed to batch load ids for collection "${collection}": ${recordsResult.message || "Unknown error"}`,
+                  recordsResult.error,
+                );
+              }
               const records = recordsResult.data || [];
               for (let k = 0; k < records.length; k++) {
                 const row = records[k]!;
                 resultMap.set(`${collection}/${row._id}`, row);
               }
-            } catch {
-              /* suppress individual collection lookup misses */
+            } catch (err: any) {
+              logger.error(
+                `[DataLoader] Exception in batch load for collection "${collection}":`,
+                err,
+              );
             }
           })(),
         );
@@ -54,7 +70,7 @@ export function createRelationLoader(tenantId: string) {
       await Promise.all(groupPromises);
 
       // Map back to the exact initial order requested by the GraphQL execution engine
-      const orderedResults = Array.from({ length: targets.length });
+      const orderedResults = Array.from({ length: targets.length }, () => null);
       for (let i = 0; i < targets.length; i++) {
         const t = targets[i]!;
         orderedResults[i] = resultMap.get(`${t.collection}/${t.id}`) || null;
@@ -65,6 +81,7 @@ export function createRelationLoader(tenantId: string) {
     {
       // Cache identical database references inside the same request context sequence
       cacheKeyFn: (target) => `${target.collection}/${target.id}`,
+      maxBatchSize: 100,
     },
   );
 }
