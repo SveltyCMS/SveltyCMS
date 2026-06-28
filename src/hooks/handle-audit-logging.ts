@@ -55,37 +55,37 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
     const durationMs = (performance.now() - start).toFixed(1);
     const success = statusCode >= 200 && statusCode < 300 && !executionError;
 
-    // Macrotask scheduling: defer log compilation so the HTTP response flushes
+    // Detached asynchronous execution pathway: defer log compilation so the HTTP response flushes
     // to the client before computing IP resolution and structured logging.
-    setTimeout(() => {
-      const logEntry: Record<string, unknown> = {
-        timestamp: new Date().toISOString(),
-        method,
-        path,
-        status: statusCode,
-        userId,
-        tenantId,
-        ip: extractIpSafely(event),
-        durationMs,
-        success,
-        ...(executionError
-          ? {
-              error: {
-                message: executionError.message || String(executionError),
-              },
-            }
-          : {}),
-      };
+    Promise.resolve()
+      .then(() => {
+        const logEntry: Record<string, unknown> = {
+          timestamp: new Date().toISOString(),
+          method,
+          path,
+          status: statusCode,
+          userId,
+          tenantId,
+          ip: extractIpSafely(event),
+          durationMs,
+          success,
+          ...(executionError
+            ? {
+                error: {
+                  message: executionError.message || String(executionError),
+                },
+              }
+            : {}),
+        };
 
-      try {
         if (success) {
           logger.info("[AUDIT] Mutation completed", logEntry);
         } else {
           logger.warn("[AUDIT] Mutation logged with failure flags", logEntry);
         }
-      } catch (logErr) {
-        console.error("[AUDIT Fallback] Secondary log pipeline failed:", logErr);
-      }
-    }, 0);
+      })
+      .catch((err) => {
+        console.error("[AUDIT Fallback] Secondary log pipeline failed:", err);
+      });
   }
 };

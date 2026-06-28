@@ -296,6 +296,7 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
     - Run `bun run scripts/validate-links.ts` before shipping to catch broken internal links.
     - Flags missing `data-preload` attributes on collection entry links.
     - **Reference**: `src/utils/link-validator.ts`
+18. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
 
 ### Mandatory Documentation Updates
 
@@ -700,6 +701,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
   **Realistic maximum**: Client-side hooks can always be bypassed (you control your own machine). The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. The hardened wrapper, local hooks, and final parity re-verification are defense-in-depth + team culture.
 
 - **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
+- [ ] Benchmark MDX reports show full truth tables (borders, titles, all data) matching single-test console output
 
 ---
 

@@ -186,37 +186,7 @@ function atomicWrite(docPath: string, content: string): void {
 // MDX Write Operations
 // ─────────────────────────────────────────────────────────────
 
-/** Find the correct tag occurrence — prefer the one after BENCHMARK_END (educational section). */
-function findSectionPosition(doc: string, tag: string): { idx: number } | null {
-  const START = `<!-- ${tag}_TABLE_START -->`;
-  const BENCH_END = "<!-- BENCHMARK_END -->";
-  let benchEnd = -1;
-  let searchFrom = 0;
-  while (true) {
-    const next = doc.indexOf(BENCH_END, searchFrom);
-    if (next < 0) break;
-    benchEnd = next;
-    searchFrom = next + BENCH_END.length;
-  }
-
-  // Collect all occurrences
-  const starts: number[] = [];
-  let idx = 0;
-  while ((idx = doc.indexOf(START, idx)) !== -1) {
-    starts.push(idx);
-    idx += START.length;
-  }
-  if (starts.length === 0) return null;
-
-  // Prefer the one after BENCHMARK_END (educational section)
-  if (benchEnd > 0) {
-    const eduStart = starts.find((s) => s > benchEnd);
-    if (eduStart !== undefined) return { idx: eduStart };
-  }
-
-  // Fall back to first occurrence
-  return { idx: starts[0] };
-}
+/* findSectionPosition removed — writeTruthTable now updates ALL occurrences via loop */
 
 /** Write the truth table between TABLE_START / TABLE_END. Returns the tag name. */
 export function writeTruthTable(
@@ -237,19 +207,8 @@ export function writeTruthTable(
       return null;
     }
 
-    const pos = findSectionPosition(doc, tag);
-    if (!pos) {
-      releaseMdxLock(docPath);
-      return null;
-    }
-
     const START = `<!-- ${tag}_TABLE_START -->`;
     const END = `<!-- ${tag}_TABLE_END -->`;
-    const endIdx = doc.indexOf(END, pos.idx);
-    if (endIdx < 0) {
-      releaseMdxLock(docPath);
-      return null;
-    }
 
     const block = [
       "<!-- INSIGHT_PLACEHOLDER -->",
@@ -261,7 +220,25 @@ export function writeTruthTable(
       "<!-- SUMMARY_PLACEHOLDER -->",
     ].join("\n");
 
-    doc = doc.slice(0, pos.idx) + START + "\n" + block + "\n" + doc.slice(endIdx);
+    // Update ALL occurrences of START/END to ensure both the main
+    // section and educational section get the latest data
+    let startIdx = 0;
+    let replaced = false;
+    while (true) {
+      const pos = doc.indexOf(START, startIdx);
+      if (pos < 0) break;
+      const endIdx = doc.indexOf(END, pos + START.length);
+      if (endIdx < 0) break;
+
+      doc = doc.slice(0, pos) + START + "\n" + block + "\n" + doc.slice(endIdx + END.length);
+      replaced = true;
+      startIdx = pos + START.length + block.length + 1;
+    }
+
+    if (!replaced) {
+      releaseMdxLock(docPath);
+      return null;
+    }
 
     atomicWrite(docPath, doc);
     releaseMdxLock(docPath);
@@ -271,7 +248,7 @@ export function writeTruthTable(
   }
 }
 
-/** Append summary table before TABLE_END. */
+/** Append summary table before TABLE_END in ALL occurrences. */
 export function writeSummary(
   summaryTable: string,
   testFile: string,
@@ -291,23 +268,15 @@ export function writeSummary(
     }
 
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
-    const pos = findSectionPosition(doc, resolvedTag);
-    if (!pos || !doc.includes(END, pos.idx)) {
-      releaseMdxLock(docPath);
-      return;
-    }
-
-    const endIdx = doc.indexOf(END, pos.idx);
     const summaryBlock = ["```text", summaryTable, "```"].join("\n");
-    const section = doc.slice(pos.idx, endIdx + END.length);
 
-    if (section.includes("<!-- SUMMARY_PLACEHOLDER -->")) {
-      doc =
-        doc.slice(0, pos.idx) +
-        section.replace("<!-- SUMMARY_PLACEHOLDER -->", summaryBlock) +
-        doc.slice(endIdx + END.length);
+    // Replace ALL SUMMARY_PLACEHOLDER occurrences globally (simple, no position-shift bugs)
+    const placeholder = "<!-- SUMMARY_PLACEHOLDER -->";
+    if (doc.includes(placeholder)) {
+      doc = doc.split(placeholder).join(summaryBlock);
     } else {
-      doc = doc.slice(0, endIdx) + "\n" + summaryBlock + "\n" + doc.slice(endIdx);
+      // Fallback: insert before each END tag
+      doc = doc.split(END).join(summaryBlock + "\n" + END);
     }
 
     atomicWrite(docPath, doc);
@@ -317,7 +286,7 @@ export function writeSummary(
   }
 }
 
-/** Update the ### 🏷️ label and append insight before TABLE_END. */
+/** Update the \uD83C\uDFF7 label and append insight before TABLE_END in ALL occurrences. */
 export function writeTrendAndInsight(
   trendLabel: string,
   insight: string,
@@ -337,36 +306,35 @@ export function writeTrendAndInsight(
       return;
     }
 
-    // Find the correct tag position (prefer educational section)
-    const pos = findSectionPosition(doc, resolvedTag);
-    if (!pos) {
-      releaseMdxLock(docPath);
-      return;
-    }
-
-    // Update the ### 🏷️ label
-    const before = doc.slice(0, pos.idx);
-    const li = before.lastIndexOf("### " + "\u{1F3F7}");
-    if (li > 0) {
-      const le = doc.indexOf("\n", li);
-      const old = doc.slice(li, le);
-      // Handle both "⚪ — ..." (fresh) and "⚪ avg 0% ..." (previously updated)
-      const newHeading = old.replace(
-        /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
-        trendLabel,
-      );
-      doc = doc.slice(0, li) + newHeading + doc.slice(le);
-    }
-
-    // Replace INSIGHT_PLACEHOLDER or append after END
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
     const insightBlock = "\n> " + insight + "\n";
 
-    if (doc.includes("<!-- INSIGHT_PLACEHOLDER -->")) {
-      doc = doc.replace("<!-- INSIGHT_PLACEHOLDER -->", insightBlock);
-    } else if (doc.includes(END)) {
-      // Insert insight AFTER the END marker (outside the table block)
-      doc = doc.replace(END, END + insightBlock);
+    // Update the ### \uD83C\uDFF7 label in ALL section headings
+    // Use simple replace-based approach instead of regex to avoid escape sequence issues
+    const headingMarker = "### \u{1F3F7}";
+    let startSearch = 0;
+    while (true) {
+      const hPos = doc.indexOf(headingMarker, startSearch);
+      if (hPos < 0) break;
+      const hEnd = doc.indexOf("\n", hPos);
+      if (hEnd < 0) break;
+      const oldLine = doc.slice(hPos, hEnd);
+      // Replace the icon + any text after it with our trend label
+      const newLine = oldLine.replace(
+        /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
+        trendLabel,
+      );
+      doc = doc.slice(0, hPos) + newLine + doc.slice(hEnd);
+      startSearch = hPos + newLine.length + 1;
+    }
+
+    // Replace INSIGHT_PLACEHOLDER in ALL occurrences
+    const insightPlaceholder = "<!-- INSIGHT_PLACEHOLDER -->";
+    if (doc.includes(insightPlaceholder)) {
+      doc = doc.split(insightPlaceholder).join(insightBlock);
+    } else {
+      // Fallback: insert before each END tag
+      doc = doc.split(END).join(insightBlock + "\n" + END);
     }
 
     atomicWrite(docPath, doc);

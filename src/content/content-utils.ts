@@ -7,6 +7,7 @@
 import { contentStore } from "@stores/content-registry.svelte";
 import type { ContentNode, NavigationNode, Schema } from "./types";
 import { logger } from "@utils/logger";
+import { sanitizeHtml, stripHtml } from "@src/utils/sanitize-html";
 
 // --- PURE UTILITIES ---
 
@@ -328,3 +329,97 @@ export const contentMetrics = {
   },
   // Fix: getDiagnostics is a strict subset of getHealthStatus — removed it (deprecated placeholder)
 };
+
+// ─────────────────────────────────────────────────────────────
+// Numeric Field Range Validation
+// ─────────────────────────────────────────────────────────────
+
+const MAX_SAFE_SQL_INT = 2_147_483_647; // MariaDB/PostgreSQL INT max
+const MIN_SAFE_SQL_INT = -2_147_483_648;
+
+/**
+ * Validates numeric field values against schema-defined min/max ranges.
+ * Prevents integer overflow errors at the database layer (500 errors)
+ * by catching out-of-range values before they reach the adapter.
+ *
+ * @returns Array of validation error messages (empty = all valid)
+ */
+export function validateNumericFields(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+      min?: number;
+      max?: number;
+    }>;
+  },
+): string[] {
+  const errors: string[] = [];
+  if (!schema.fields) return errors;
+
+  for (const field of schema.fields) {
+    if (field.type !== "number") continue;
+    const value = data[field.db_fieldName];
+    if (value === undefined || value === null) continue;
+
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      errors.push(`Field "${field.db_fieldName}": value "${value}" is not a valid number`);
+      continue;
+    }
+
+    // Check schema-defined range
+    if (field.min !== undefined && num < field.min) {
+      errors.push(
+        `Field "${field.db_fieldName}": ${num} is below minimum allowed value (${field.min})`,
+      );
+    }
+    if (field.max !== undefined && num > field.max) {
+      errors.push(
+        `Field "${field.db_fieldName}": ${num} exceeds maximum allowed value (${field.max})`,
+      );
+    }
+
+    // Guard against SQL integer overflow (even if no min/max defined)
+    if (num > MAX_SAFE_SQL_INT || num < MIN_SAFE_SQL_INT) {
+      errors.push(
+        `Field "${field.db_fieldName}": ${num} is outside the safe integer range for the database (${MIN_SAFE_SQL_INT} to ${MAX_SAFE_SQL_INT})`,
+      );
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Sanitizes input data fields before database persistence.
+ * - Fields of type "richtext" or "markdown" are run through HTML sanitization (retaining safe tags).
+ * - Fields of type "text" or "textarea" have all HTML tags stripped out to prevent HTML/XSS injection.
+ * - This actively prevents database pollution and stored XSS inside collections.
+ */
+export function sanitizeCollectionFields(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+    }>;
+  },
+): Record<string, unknown> {
+  if (!schema.fields) return data;
+  const sanitized = { ...data };
+
+  for (const field of schema.fields) {
+    const value = sanitized[field.db_fieldName];
+    if (typeof value !== "string") continue;
+
+    if (field.type === "richtext" || field.type === "markdown") {
+      sanitized[field.db_fieldName] = sanitizeHtml(value);
+    } else if (field.type === "text" || field.type === "textarea") {
+      sanitized[field.db_fieldName] = stripHtml(value);
+    }
+  }
+
+  return sanitized;
+}

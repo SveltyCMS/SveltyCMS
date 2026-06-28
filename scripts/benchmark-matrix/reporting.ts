@@ -1111,14 +1111,8 @@ tags:
         if (tableFile) {
           const rawTable = await fs.readFile(tableFile, "utf8");
           const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
-          // Strip duplicate title/subtitle/separator — section header already has them
-          const cleanTable = rawTable
-            .split("\n")
-            .slice(4) // Skip: top border, title, subtitle, separator
-            .join("\n")
-            .replace(/^╚═+╝\s*$/m, "") // Remove bottom border
-            .trim();
-          tableContent = `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n> 📂 **Source**: [${script.path}](${relativePath})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${cleanTable}\n\`\`\``;
+          // Show the FULL truth table as the benchmark produced it — preserves borders, title, and all data
+          tableContent = `### \uD83C\uDFF7 ${script.label} ${trend.icon} ${trend.pct}\n> \uD83D\uDCC2 **Source**: [${script.path}](${relativePath})\n> \uD83C\uDFAF **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable.trim()}\n\`\`\``;
         }
       } catch {}
 

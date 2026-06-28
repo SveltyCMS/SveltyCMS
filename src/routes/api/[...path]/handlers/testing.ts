@@ -81,14 +81,41 @@ export async function handleTestingRoutes(
       process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
     }
 
+    // 🚀 HARDENING: Wait for database to be ready
+    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
+    if (!isDbConnected()) {
+      logger.info("[testing] DB not connected, waiting for initialization...");
+      await getDbInitPromise().catch((err) => {
+        logger.error("[testing] getDbInitPromise failed:", err);
+      });
+
+      // Secondary poll for safety
+      let retries = 15; // Increased for Windows/Slow DBs
+      while (!isDbConnected() && retries-- > 0) {
+        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+
+    const initializedAdapter = getDb();
+    if (!initializedAdapter || !isDbConnected()) {
+      const adapterStatus = initializedAdapter ? "exists" : "null";
+      const connectedStatus = isDbConnected() ? "true" : "false";
+      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
+      throw new AppError(
+        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
+        503,
+      );
+    }
+
     if (action === "reset") {
       process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
 
       // 1. Wipe Database (Collections + Data)
-      if (cms.db?.clearDatabase) {
-        await cms.db.clearDatabase();
-      } else if (cms.db?.reset) {
-        await cms.db.reset();
+      if (initializedAdapter.clearDatabase) {
+        await initializedAdapter.clearDatabase();
+      } else if (initializedAdapter.reset) {
+        await initializedAdapter.reset();
       }
 
       // 2. Wipe Media Folder
@@ -166,7 +193,7 @@ export async function handleTestingRoutes(
       // Seed default roles if missing (crucial after database reset/wipe)
       try {
         const { seedRoles } = await import("@src/routes/setup/seed");
-        await seedRoles(cms.db, tenantId);
+        await seedRoles(initializedAdapter, tenantId);
       } catch (err: any) {
         logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
       }
@@ -194,7 +221,7 @@ export async function handleTestingRoutes(
 
       // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
-      await cms.db.system.themes.ensure(safeTheme);
+      await initializedAdapter.system.themes.ensure(safeTheme);
 
       const { ThemeManager } = await import("@src/databases/theme-manager");
       const themeManager = ThemeManager.getInstance();
@@ -239,33 +266,6 @@ export async function handleTestingRoutes(
         success: true,
         message: "System reinitialized successfully",
       });
-    }
-
-    // 🚀 HARDENING: Wait for database to be ready
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
-    if (!isDbConnected()) {
-      logger.info("[testing] DB not connected, waiting for initialization...");
-      await getDbInitPromise().catch((err) => {
-        logger.error("[testing] getDbInitPromise failed:", err);
-      });
-
-      // Secondary poll for safety
-      let retries = 15; // Increased for Windows/Slow DBs
-      while (!isDbConnected() && retries-- > 0) {
-        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-
-    const initializedAdapter = getDb();
-    if (!initializedAdapter || !isDbConnected()) {
-      const adapterStatus = initializedAdapter ? "exists" : "null";
-      const connectedStatus = isDbConnected() ? "true" : "false";
-      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
-      throw new AppError(
-        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
-        503,
-      );
     }
 
     if (action === "ping") {

@@ -119,6 +119,8 @@ Self-overwriting getters eliminate Proxy overhead after first access. Verified: 
 - **Query IR removal**: standalone `query-ir.ts` removed; translator inlined into the only 2 real consumers
 - **Mongo file reduction**: 43 → 39 files (4 thin module/model pairs merged)
 - **Code reduction**: 1,105 lines deleted across 36 files
+- **Lazy Zero-Allocation GraphQL Loaders**: Eager per-request user, media, and collection loaders are refactored into on-demand lazy getters, eliminating memory overhead on requests that do not query those fields.
+- **Direct Primary Key Index Loading**: Replaced MongoDB-style `$in` filter translations with explicit, database-agnostic `db.crud.findByIds` index lookups, allowing SQL and document database engines to resolve relational widget fields with zero query-parsing overhead.
 
 ## Phase 1: Database Indexing & Optimization
 
@@ -141,4 +143,4 @@ O(1) namespace clearing replaces O(N) cache scans.
 
 ---
 
-**Last Updated**: 2026-06-15 (allocation-floor optimizations, schema-aware conversion, ring-buffer pools, fused mapQuery, cross-database impact table)
+**Last Updated**: 2026-06-28 (lazy request-scoped batching, direct primary key index loaders, allocation-floor optimizations, schema-aware conversion)

@@ -1125,10 +1125,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     safeExec("PRAGMA synchronous=NORMAL");
     safeExec("PRAGMA foreign_keys=ON");
     safeExec("PRAGMA page_size=8192");
-    safeExec("PRAGMA busy_timeout=30000");
+    safeExec("PRAGMA busy_timeout=5000");
     safeExec("PRAGMA temp_store=MEMORY");
     safeExec("PRAGMA mmap_size=536870912");
-    safeExec("PRAGMA cache_size=-128000");
+    safeExec("PRAGMA cache_size=-20000");
     safeExec("PRAGMA wal_autocheckpoint=1000");
   }
 
