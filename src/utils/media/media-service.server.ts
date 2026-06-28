@@ -408,13 +408,23 @@ export class MediaService {
     if (flipH) pipeline = pipeline.flop();
     if (flipV) pipeline = pipeline.flip();
 
-    // Track crop origin so composite coordinates can be made crop-relative
-    const cropX = (crop && crop.width > 0 && crop.height > 0) ? Math.max(0, Math.round(crop.x)) : 0;
-    const cropY = (crop && crop.width > 0 && crop.height > 0) ? Math.max(0, Math.round(crop.y)) : 0;
+    // After rotation the canvas dimensions may swap — re-read them from the intermediate buffer
+    let postRotW = imgW;
+    let postRotH = imgH;
+    if (rotation || flipH || flipV) {
+      const rotBuf = await pipeline.clone().toBuffer();
+      const rotMeta = await sharp(rotBuf).metadata();
+      postRotW = rotMeta.width ?? imgW;
+      postRotH = rotMeta.height ?? imgH;
+    }
+
+    // Clamp crop to the post-rotation canvas so Sharp never gets an out-of-bounds extract
+    const cropX = (crop && crop.width > 0 && crop.height > 0) ? Math.min(Math.max(0, Math.round(crop.x)), postRotW - 1) : 0;
+    const cropY = (crop && crop.width > 0 && crop.height > 0) ? Math.min(Math.max(0, Math.round(crop.y)), postRotH - 1) : 0;
 
     // Working dimensions after crop (used to clamp/size all composites)
-    const workW = (crop && crop.width > 0) ? Math.round(crop.width) : imgW;
-    const workH = (crop && crop.height > 0) ? Math.round(crop.height) : imgH;
+    const workW = (crop && crop.width > 0) ? Math.min(Math.round(crop.width), postRotW - cropX) : postRotW;
+    const workH = (crop && crop.height > 0) ? Math.min(Math.round(crop.height), postRotH - cropY) : postRotH;
 
     if (crop && crop.width > 0 && crop.height > 0) {
       pipeline = pipeline.extract({ left: cropX, top: cropY, width: workW, height: workH });
