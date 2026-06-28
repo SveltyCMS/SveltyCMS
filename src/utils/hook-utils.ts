@@ -37,6 +37,7 @@ export const PUBLIC_ROUTES = [
   "/forgot-password",
   "/setup",
   "/api/settings/public",
+  "/api/theme/public",
   "/api/system/health",
   "/api/health",
   "/api/system/version",
