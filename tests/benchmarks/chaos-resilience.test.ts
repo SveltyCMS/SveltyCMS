@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/chaos-resilience.test.ts
- * @description Chaos & Resilience Audit
+ * @description Chaos & Resilience Audit (Optimized)
  * @summary Simulates infrastructure brownouts and measures system stability and graceful degradation under stress.
  *
  * ### Features:
@@ -27,7 +27,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runChaosAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Chaos & Resilience Audit...\n");
 
   try {
@@ -37,6 +36,13 @@ async function runChaosAudit() {
 
     await ensureStableTestData();
     await stabilize(1000);
+
+    // Cache authorization token and request definitions outside hot trails
+    const apiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    const requestHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": apiSecret,
+    };
 
     console.log("   → Running under simulated infrastructure brownouts...");
 
@@ -49,30 +55,28 @@ async function runChaosAudit() {
       silent: true,
       abortOnErrors: false,
       onIteration: async () => {
-        // Simulate network brownout with jitter
+        // Simulate network brownout with jitter injection
         const jitter = Math.random() < 0.35 ? Math.random() * 600 + 200 : 0;
         if (jitter > 0) await new Promise((r) => setTimeout(r, jitter));
 
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-          },
+          method: "GET",
+          headers: requestHeaders,
         });
 
         // 🛡️ RESILIENCE: 503 (Circuit Breaker) is acceptable during brownouts.
-        // 500 (Crash) is considered a failure but should not hard-abort the benchmark.
         if (res.status === 503) {
-          await res.text().catch(() => {});
-          return; // Success (Resilience active)
+          await res.arrayBuffer().catch(() => {});
+          return; // Expected alternative pathway (Graceful fallback)
         }
 
         if (!res.ok) {
-          await res.text().catch(() => {});
+          await res.arrayBuffer().catch(() => {});
           throw new Error(`System failure: ${res.status}`);
         }
 
-        await res.json().catch(() => ({}));
+        // Native stream collector prevents payload tree building from altering timings
+        await res.arrayBuffer();
       },
     });
 

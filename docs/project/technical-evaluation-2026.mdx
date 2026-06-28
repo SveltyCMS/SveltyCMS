@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-23"
+updated: "2026-06-27"
 tags:
   - "evaluation"
   - "technical"
@@ -33,10 +33,10 @@ To accurately assess SveltyCMS, one must establish the baseline for SOTA technol
 - **Zero-Runtime Overhead:** The shift away from heavy client-side JavaScript bundles toward compiled, lightweight output.
 - **Ultra-Fast Developer Feedback:** Sub-1.2s Hot Module Replacement (HMR) for content structure changes, a 60% improvement over legacy patterns.
 - **Native Svelte 5 UI Library (March 2026):** Zero-dependency, native Svelte 5 UI architecture, achieving <150 requests per page and solving the "ESM Storm" overhead.
-- **Ultra-High Performance Toolchain:** 2026 migration to **Vite+ Alpha (VoidZero)**.
+- **Ultra-High Performance Toolchain:** Rust-powered linting and formatting (oxlint/oxfmt).
   - **Linting (Oxlint):** Project-wide checks in **47ms** (1000+ files).
   - **Formatting (Oxfmt):** Full project formatting in **~2.2s**.
-  - **Production Builds (Rolldown):** Sub-18s full builds using the unified Rust-based bundler.
+  - **Production Builds (Vite 7):** Fast builds using Vite's native bundler.
   - **Zero-Warning Codebase:** Automated and manual audit cleared all 84 legacy warnings.
   - **Automated Doc Integrity (March 2026):** Native `lint-docs.ts` utility achieving **100% link integrity** and **Path Alignment Strategy** (filesystem matching) across 158 files.
 
@@ -131,7 +131,7 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **4-Layer Defense-in-Depth Authorization**:
     Most CMS platforms (Payload, Strapi, Directus) rely on a **perimeter security model**: authenticate at the gate, then assume internal trust. This creates dangerous gaps where an authenticated user with low privileges can exploit deeper vulnerabilities. SveltyCMS eliminates this assumption through **4-layer zero-trust re-validation**:
     - **Layer 1 — Middleware**: `__Host-` cookie prefix enforcement (RFC 6265bis), setup completion gating, CSRF protection.
-    - **Layer 2 — Dispatcher**: Fail-closed `ENDPOINT_PERMISSIONS` mapping; unmapped namespaces return 403 by default.
+    - **Layer 2 — Dispatcher**: Fail-closed `hasApiPermission()` checks; unmapped namespaces return 403 by default.
 
     - **Layer 3 — Handler**: Admin verification for system mutations, `media:write`/`media:delete` permission checks.
     - **Layer 4 — Page Action**: Centralized permission guards (e.g., `requireCollectionBuilderPermission`).
@@ -226,7 +226,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 | **SDK Latency**      | **Zero (Local Bridge)**     | 2–5ms (Local HTTP) | ~1ms (Direct)   | 3–8ms (Local HTTP) | N/A           |
 | **Negative Caching** | **Bloom Filter (100,000x)** | None / DB query    | None / DB query | None / DB query    | N/A           |
 | **SEO Redirects**    | **0.92 ms (Sub-MS)**        | ~45 ms (Plugin)    | ✅ Plugin       | ⚠️ Basic           | ⚠️ Basic      |
-| **Toolchain**        | **VoidZero (Rust)**         | Vite (JS/TS)       | Vite (JS/TS)    | Vite (JS/TS)       | Rolldown/Vite |
+| **Toolchain**        | **Vite + oxlint/oxfmt**     | Vite (JS/TS)       | Vite (JS/TS)    | Vite (JS/TS)       | Rolldown/Vite |
 
 | Feature                    | SveltyCMS (v2026)                 | Strapi 5            | Payload 3.0  | Directus 11  | Sveltia CMS |
 | :------------------------- | :-------------------------------- | :------------------ | :----------- | :----------- | :---------- |
@@ -244,7 +244,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 
 ### 3.2 Competitive Benchmark Analysis (2026)
 
-See [Competitive Comparison](./competitive-comparison.mdx#-competitive-context--is-sveltycms-really-that-fast) for the full benchmark matrix — 48 tests across 4 databases under extreme concurrent load, with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
+See [Competitive Comparison](./competitive-comparison.mdx#-competitive-context--is-sveltycms-really-that-fast) for the full benchmark matrix — 60 tests across 4 databases under extreme concurrent load, with per-adapter throughput, Local SDK, and competitor comparisons (Payload, Directus, Strapi, Drupal, WordPress).
 
 > **Reproduce locally:**
 >
@@ -354,7 +354,7 @@ Closed the remaining auth surface gaps to match and exceed enterprise CMS platfo
 - Admin REST API: `GET/POST/DELETE /api/api-keys` with owner-or-admin enforcement
 - Credential cache: hash-keyed `SESSION` category entries with tag invalidation (`apikey:{sha256-b64url}`)
 - Cache purge on revoke: `invalidateApiKeyAuth()` clears both L1/L2 and tag buckets immediately
-- Dispatcher wired via `ENDPOINT_PERMISSIONS` + `api:api-keys` permission
+- Dispatcher wired via `hasApiPermission()` + `api:api-keys` permission
 
 **Magic Links (Passwordless Auth)**
 
@@ -380,6 +380,86 @@ Closed the remaining auth surface gaps to match and exceed enterprise CMS platfo
 - Pending: settings-page UI for managing registered passkeys
 
 **Authentication test suite**: 32 auth expansion-specific tests + 68 defense-in-depth security regression tests — all passing.
+
+#### SSRF IPv6 Transition Address Blocking
+
+Extended the egress guard (`src/utils/egress-guard.ts`) and cloud storage endpoint validator (`src/utils/media/cloud-storage.ts`) to block IPv6 transition/embedding mechanisms that previously bypassed IPv4 deny lists:
+
+- **IPv4-Mapped IPv6** (`::ffff:0:0/96`): Blocks `::ffff:127.0.0.1` and similar addresses that embed private IPv4 ranges in IPv6 space — previously could reach local services through webhook/automation paths
+- **6to4** (`2002::/16`): Blocks 6to4-encapsulated IPv4 traffic
+- **Teredo** (`2001::/32`): Blocks Teredo NAT-traversal tunnels
+- **Bare IPv6 Detection**: `isBlockedHostname()` now handles IPv6 addresses without bracket notation (e.g., bare `::1` or `fe80::1%eth0` with zone IDs)
+
+This closes a critical SSRF bypass vector where `http://[::ffff:127.0.0.1]:27017/` could previously reach a local MongoDB instance through any admin-configured fetch path (importers, webhooks, automations, AI calls).
+
+#### Binary MIME Sniffing for Large File Uploads
+
+The media service (`src/utils/media/media-service.server.ts`) previously trusted the client-declared `file.type` for all uploads ≥5MB, relying on the stream path for large files. This opened a MIME-type spoofing vector:
+
+- **Small files (<5MB)**: Already used `arrayBuffer()` → `Buffer.from()` → `sniffMimeType(buffer.subarray(0, 2048))` for binary signature verification
+- **Large files (≥5MB)**: Added `file.slice(0, 2048).arrayBuffer()` → `sniffMimeType()` before stream processing — rejects major MIME category mismatches (e.g., client sends `image/png` but binary signature indicates `application/pdf`)
+- Uses the lightweight `slim-sniffer.server.ts` (~2KB, zero dependencies) which detects 10+ formats via magic bytes (JPEG, PNG, GIF, WebP, SVG, MP4, WebM, PDF, DOCX)
+- SVGs additionally sanitized via dedicated `sanitizeSvg()` function
+
+#### Email Normalization Utility
+
+Created a dedicated `normalizeEmail()` utility (`src/utils/normalize-email.ts`) providing proper email normalization:
+
+- **Unicode NFC Normalization**: Prevents homoglyph bypass attacks where visually identical Unicode characters resolve to different code points
+- **Whitespace Trimming**: Both leading/trailing and after normalization
+- **Case-Folding**: Consistent lowercase conversion
+
+Applied across all 5 auth adapters, replacing 13 raw `.toLowerCase()` call sites in MongoDB, relational, and token auth modules. The old `.toLowerCase()` approach did not handle Unicode normalization, meaning an attacker registering with `"user@example.com"` (using a Unicode homoglyph) could create a separate account from the legitimate `"user@example.com"`.
+
+#### Draft Relation Validation Before Publish
+
+The scheduled publish handler (`src/services/background/jobs/scheduled-jobs.ts`) previously transitioned entries from `draft` to `publish` status without validating relation field targets:
+
+- **Pre-Publish Scan**: Before publishing, the handler fetches all content nodes and builds a `nodeStatusById` status map
+- **Relation Field Inspection**: Scans each node's `data` field for values matching MongoDB ObjectId patterns (24-char hex), covering relation fields storing `string | string[]` entry IDs
+- **Guard**: If any referenced entry is still in `"draft"` status, the publish is skipped with a logged warning
+- **Cache Invalidation**: After each successful publish, `cacheService.invalidateCollection()` is called to prevent stale relation data from being served via the GraphQL `publicationFilter` cache
+
+This prevents broken front-end experiences where an entry is published but references content not yet visible to visitors.
+
+#### Cache Invalidation on Scheduled Publish
+
+The background job scheduler (`scheduled-jobs.ts`) previously bypassed the SDK's cache invalidation by calling `db.content.nodes.update()` directly, leaving cached responses stale:
+
+- **Automatic Invalidation**: After each successful scheduled publish transition, calls `cacheService.invalidateCollection()` on the affected collection
+- **Scope**: Clears all cached entries for that collection across L1 (in-memory LRU) and L2 (Redis) cache layers
+- **Impact on GraphQL**: Without this invalidation, GraphQL queries using `publicationFilter` would continue serving cached results that don't reflect the newly published state — visitors would not see published content until the TTL expired or an admin manually cleared the cache
+
+#### Row ID Regeneration in Bulk Updates
+
+Created `copyDataWithFreshRowIds()` utility (`src/utils/data/copy-data-with-fresh-ids.ts`) to prevent key conflicts in array/repeater data during bulk operations:
+
+- Recursively walks nested structures (repeaters inside repeaters)
+- Regenerates `_dndId`, `_rowId`, `uuid`, and `key` identifiers using `crypto.randomUUID()` (Web Crypto API)
+- Preserves all data shape and values — only internal row identifiers are refreshed
+- Applied in the SDK `collections-namespace.ts` `bulkUpdate()` method
+
+Without this regeneration, reused array/block rows from Repeater/Group widgets would retain their old IDs during bulk updates, causing duplicate `_dndId` values across multiple entries — leading to silent DnD reorder corruption and duplication bugs in dynamic zones.
+
+#### MongoDB Batch Update Ordering
+
+Changed MongoDB batch-module `bulkWrite` from `{ ordered: false }` to `{ ordered: true }` (`src/databases/mongodb/batch-module.ts`):
+
+- **Previous behavior**: `{ ordered: false }` allowed MongoDB to process bulk operations in any order, causing a read-order ≠ write-order mismatch when revision sequencing depends on update sequence
+- **Current behavior**: `{ ordered: true }` preserves input order, ensuring counter-based version fields and sequential updates are written in the expected sequence
+- **Performance impact**: Negligible — MongoDB still batches internally regardless of the ordered flag
+- **SQLite**: Already uses a transaction with sequential `for...of` processing, so no change needed
+
+#### Lazy Chunk Retry for Admin Dashboard
+
+Created `retryDynamicImport()` utility (`src/utils/retry-dynamic-import.ts`) to recover from transient chunk load failures in the admin UI:
+
+- **Exponential backoff**: `baseDelay × 2^attempt` (1s, 2s, 4s) with jitter (`+random(0, 200ms)`) to avoid thundering herd on chunk servers
+- **Configurable**: `maxRetries` (default: 3), `baseDelayMs` (default: 1000), optional fallback value on permanent failure
+- **Integration**: Applied to dashboard widget dynamic imports in `src/routes/(app)/dashboard/+page.svelte`, wrapping `import.meta.glob` widget resolvers
+- **Error UX**: Failed chunk loads display a toast notification via the existing `setupErrorBoundary()` (catches global `unhandledrejection` events)
+
+This prevents the dashboard from showing broken widget areas when a CDN chunk encounters a load failure due to network instability during deployment rollouts or cache evictions.
 
 ### 3.4 June 2026 All-Phase Performance Optimization Sprint
 
@@ -726,7 +806,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
 - [Database Performance](../../tests/benchmarks/database-performance.test.ts)
-- [Live Preview Architecture](../architecture/live-preview-architecture.mdx)
+- [Live Preview Architecture](../reference/architecture/live-preview-architecture.mdx)
 
 ---
 

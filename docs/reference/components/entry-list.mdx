@@ -1,0 +1,210 @@
+---
+path: "docs/reference/components/entry-list.mdx"
+title: "entry-list Component"
+description: "SSR-backed collection data table with URL-driven search, filtering, pagination, plugin columns, and connection-aware preloading."
+order: 2
+icon: "mdi:table"
+author: "SveltyCMS Team"
+created: "2026-01-04"
+updated: "2026-06-27"
+tags:
+  - "components"
+  - "entry-list"
+  - "table"
+  - "pagination"
+  - "filtering"
+---
+
+# entry-list Component
+
+**File**: `src/components/collection-display/entry-list.svelte`
+
+Primary table for collection **view mode**. Data comes from `+page.server.ts` props; the component does **not** perform client-side collection fetching.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Server["+page.server.ts"]
+        DB[(Database)]
+        Cache[L1/L2 Cache]
+    end
+
+    subgraph EL["entry-list"]
+        URL[URL query sync]
+        TH[Headers + DnD]
+        TR[Rows + selection]
+        TF[TableFilter]
+        PG[TablePagination]
+        MB[EntryListMultiButton]
+        TS[TranslationStatus]
+    end
+
+    subgraph Preload["Preloading"]
+        PE[preloadEntry — SvelteKit]
+        WC["/api/collections/warm-cache"]
+    end
+
+    DB --> Cache --> EL
+    TR -->|hover| PE
+    TR -->|idle batch| WC
+```
+
+---
+
+## Features (as implemented)
+
+| Feature                | Implementation                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| **Server-driven data** | `entries` and `pagination` props from SSR; `tableData = $derived(serverEntries)` |
+| **URL state**          | `search`, `page`, `pageSize`, `filter_{field}`, sort fields via `goto()`         |
+| **Debounced search**   | `globalSearchValue` synced to URL; resets to page 1 on new search                |
+| **Column filters**     | Per-column inputs when filter row open; URL keys `filter_{name}`                 |
+| **Sortable columns**   | Header click toggles ASC/DESC; synced to URL                                     |
+| **Pagination**         | `TablePagination`; page sizes via `rowsPerPage` URL param                        |
+| **Multi-select**       | Shift+click range selection; select-all checkbox                                 |
+| **Bulk actions**       | Delegated to `entry-list-multi-button.svelte`                                    |
+| **Archived view**      | `showDeleted` toggles active vs archived entries                                 |
+
+| **Column manager** | Show/hide columns; **drag-and-drop reorder** (`svelte-dnd-action`) |
+| **Density** | `normal` / `compact` via `TableFilter` → `entryListPaginationSettings.density` |
+| **localStorage** | Per-collection `entryListPaginationSettings_{collectionId}` persisted |
+
+| **Plugin columns** | `availablePlugins` → dynamic headers → `PluginComponent` cells |
+| **Translation UI** | Embeds `translation-status.svelte` in filter toolbar |
+| **Hover preload** | `preloadEntry()` from `@utils/navigation` on row hover |
+| **Idle warm-cache** | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request) |
+| **Connection-aware** | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API) |
+| **Row virtualization** | On pages with >25 rows, only visible rows + buffer (5 above/below) render as DOM elements; spacers maintain scroll height |
+
+---
+
+## URL Parameters
+
+| Param                | Purpose                                                               |
+| -------------------- | --------------------------------------------------------------------- |
+| `search`             | Global text search (server-side)                                      |
+| `page`               | Current page number                                                   |
+| `pageSize`           | Rows per page                                                         |
+| `filter_{fieldName}` | Per-column filter value                                               |
+| Sort fields          | Written by `onSortChange` (see `entryListPaginationSettings.sorting`) |
+
+---
+
+## Props
+
+```typescript
+interface EntryListProps {
+  entries: Entry[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    pagesCount: number;
+  };
+  contentLanguage: string;
+  breadcrumb?: Array<{ name: string; path: string }>;
+  collectionStats?: {
+    _id: string;
+    name: string;
+    count: number;
+    lastModified: string;
+  } | null;
+}
+```
+
+---
+
+## Keyboard Shortcuts
+
+Shortcuts are implemented on **`entry-list-multi-button`**, not in `entry-list.svelte` directly:
+
+| Shortcut  | Action             |
+| --------- | ------------------ |
+| `Alt+N`   | Create             |
+| `Alt+P`   | Publish selected   |
+| `Alt+U`   | Unpublish selected |
+| `Alt+D`   | Draft selected     |
+| `Alt+Del` | Delete selected    |
+
+---
+
+## Row Virtualization
+
+When the page size exceeds 25 rows (`useRowVirtualization = $derived(pageSize > 25)`), the component activates row virtualization to avoid rendering all rows into the DOM:
+
+```mermaid
+flowchart LR
+    subgraph Data["tableData (all rows)"]
+        T1[row 1]
+        T2[row 2]
+        TX[...]
+        TN[row N]
+    end
+
+    subgraph Virtual["Virtual Slice"]
+        TS[spacerTop]
+        VB[visibleRows: start - 5 .. end + 5]
+        SB[spacerBottom]
+    end
+
+    subgraph DOM["Rendered DOM"]
+        ST["&lt;tr style=&quot;height: {spacerTop}px&quot;&gt;"]
+        VR["&lt;tr&gt; entry X &lt;/tr&gt;"]
+        SB2["&lt;tr style=&quot;height: {spacerBottom}px&quot;&gt;"]
+    end
+
+    Data --> Virtual
+    Virtual --> DOM
+```
+
+- **Row height**: 44px per row (defined in `src/utils/table-constants.ts`)
+- **Buffer**: 5 rows rendered above and below the visible viewport to prevent blank flashes during scroll
+- **Scroll container**: `max-h-[calc(100dvh)]` with `overflow-auto`; scroll position tracked via `onscroll` handler
+- **Index mapping**: `{@const realIndex = virtualStartIndex + idx}` preserves selection state across virtual/non-virtual modes
+- **`content-visibility: auto`**: Applied to virtualized rows for additional browser-level rendering optimization
+
+Key state variables:
+
+| Variable                     | Type       | Purpose                                                                |
+| ---------------------------- | ---------- | ---------------------------------------------------------------------- |
+| `virtualScrollTop`           | `$state`   | Current scroll position in pixels                                      |
+| `containerHeight`            | `$state`   | Visible height of the scroll container                                 |
+| `virtualStartIndex`          | `$derived` | First visible row index (minus buffer)                                 |
+| `virtualEndIndex`            | `$derived` | Last visible row index (plus buffer)                                   |
+| `visibleRows`                | `$derived` | `tableData.slice(virtualStartIndex, virtualEndIndex)` — rows to render |
+| `spacerTop` / `spacerBottom` | `$derived` | Padding rows above/below the visible window                            |
+
+> [!TIP]
+> Virtualization is **opt-in** — it only activates when `pageSize > 25`. Below that threshold, the table renders all rows directly with no overhead from scroll tracking.
+
+## Scheduling Note
+
+Bulk **Schedule** from MultiButton calls `onSchedule(date)` which sets a `_scheduled` timestamp payload on selected entries. The full **schedule-modal** (date/time/action picker) is opened from **header-edit** / **right-sidebar** / `entry-actions.ts` via `showScheduleModal()`, not from the bulk schedule stub.
+
+---
+
+## Plugin Columns
+
+Plugins register `ui.columns` in their definition. `entry-list` adds headers and renders cells with:
+
+```svelte
+<PluginComponent
+  pluginId={...}
+  componentName={header.component}
+  {...mapPluginProps(header.props, entry)}
+/>
+```
+
+Zone for list-level plugin UI: **`dashboard`** slot `list_actions` (see plugin docs).
+
+---
+
+## Related Documentation
+
+- [MultiButton](./entrylist-multibutton.mdx)
+- [translation-status](./translation-status.mdx)
+- [fields](./fields.mdx)
+- [Collection page load tiers](/docs/reference/architecture/collection-store-dataflow.mdx)

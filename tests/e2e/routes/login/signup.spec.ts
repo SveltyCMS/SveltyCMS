@@ -8,11 +8,32 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 
-/** Dismiss cookie consent banner if visible */
+/**
+ * Dismiss cookie consent banner if visible.
+ * Uses addInitScript to inject consent state before page load so the banner
+ * never appears, then falls back to clicking accept if it still shows.
+ */
 async function dismissCookieConsent(page: Page) {
+  // Pre-inject consent state into localStorage before the next navigation
+  // so the banner is never rendered (consentStore reads from localStorage)
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "sveltycms_consent",
+      JSON.stringify({
+        responded: true,
+        necessary: true,
+        analytics: false,
+        marketing: false,
+      }),
+    );
+  });
+
+  // Fallback: if banner still visible, click accept
   const cookieAccept = page.getByTestId("cookie-accept-all");
   if (await cookieAccept.isVisible({ timeout: 2000 }).catch(() => false)) {
     await cookieAccept.click();
+    // Wait for fade-out transition to complete (300ms) + buffer
+    await page.waitForTimeout(500);
   }
 }
 
@@ -56,26 +77,27 @@ test("SignUp First User", async ({ page }) => {
   await dismissCookieConsent(page);
   await page.getByText(/sign up/i).click();
 
+  // FloatingInput uses placeholder=" " (CSS trick), so use getByLabel or ID selectors
   // Username validation
-  await page.getByPlaceholder(/username/i).fill("T");
-  await page.getByPlaceholder(/username/i).press("Tab");
-  await page.getByPlaceholder(/username/i).fill("Test");
+  await page.locator("#usernamesignUp").fill("T");
+  await page.locator("#usernamesignUp").press("Tab");
+  await page.locator("#usernamesignUp").fill("Test");
 
   // Email validation
-  await page.getByPlaceholder(/email/i).fill("tes");
-  await page.getByPlaceholder(/email/i).fill("test@test2.de");
+  await page.locator("#emailsignUp").fill("tes");
+  await page.locator("#emailsignUp").fill("test@test2.de");
 
   // Password validation
-  await page.getByPlaceholder(/^password$/i).fill("Test123");
-  await page.getByPlaceholder(/^password$/i).press("Tab");
+  await page.locator("#passwordsignUp").fill("Test123");
+  await page.locator("#passwordsignUp").press("Tab");
 
-  await page.getByPlaceholder(/^password$/i).fill("Test123!");
-  await page.getByPlaceholder(/confirm/i).fill("Test1234!");
+  await page.locator("#passwordsignUp").fill("Test123!");
+  await page.locator("#confirm_passwordsignUp").fill("Test1234!");
 
-  await page.getByPlaceholder(/confirm/i).fill("Test123!");
+  await page.locator("#confirm_passwordsignUp").fill("Test123!");
 
-  // Registration Token (if required)
-  await page.getByPlaceholder(/token/i).fill("svelty-secret-key");
+  // Registration Token (if required) — use label selector for floating inputs
+  await page.getByLabel(/token/i).fill("svelty-secret-key");
 
   await expect(page).toHaveURL(/\/en\/Posts/);
 });
@@ -143,15 +165,16 @@ test("Forgot Password Flow", async ({ page }) => {
 
   await page.getByText(/sign in/i).click();
   await page.getByRole("button", { name: /forgotten password/i }).click();
-  await page.getByPlaceholder(/email/i).fill("test@test2.de");
+  // FloatingInput has placeholder=" ", use label selectors
+  await page.getByLabel(/email/i).fill("test@test2.de");
   await page.getByRole("button", { name: /send password reset email/i }).click();
 
   // Assume redirected to reset form
   await page
-    .getByPlaceholder(/password/i)
+    .getByLabel(/password/i)
     .first()
     .fill("Test123!");
-  await page.getByPlaceholder(/confirm/i).fill("Test123!");
+  await page.getByLabel(/confirm/i).fill("Test123!");
   await page.getByRole("button", { name: /save new password/i }).click();
 
   await expect(page).toHaveURL(/\/login/);

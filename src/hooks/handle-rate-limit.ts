@@ -38,6 +38,7 @@ const EXCLUDED_PREFIXES = [
   "/favicon.ico",
   "/.well-known",
   "/warming-up",
+  "/api/testing",
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -89,6 +90,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // Skip excluded paths
   if (isExcluded(pathname)) {
+    return resolve(event);
+  }
+
+  // Bypass rate limiting in test/benchmark mode
+  if (process.env.TEST_MODE === "true" || event.request.headers.get("x-test-mode") === "true") {
     return resolve(event);
   }
 

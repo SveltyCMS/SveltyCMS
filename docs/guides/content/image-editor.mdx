@@ -188,6 +188,8 @@ export default {
 
 ### Server-Side Baking (Sharp.js)
 
+> **Note**: The image editor's primary image processing (filters, convolution, color adjustments) is handled client-side in a **Web Worker** for instant feedback. The server-side step described below is an optional persistence layer that re-applies lossless transformations to the original asset — it is **not** the primary processing path.
+
 Instead of exporting a lossy blob from the browser, the editor sends a **JSON instruction set** to the server:
 
 ```
@@ -351,8 +353,8 @@ bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-w
 
 ## 📚 Related Documentation
 
-- [**Media API Reference**](../../api/media.mdx) — Full technical spec for the `/api/media/manipulate` endpoint.
-- [**MediaUpload Widget**](../../src/widgets/core/media-upload/mediaupload.mdx) — Widget documentation with field configuration examples.
+- [**Media API Reference**](../../reference/api/media.mdx) — Full technical spec for the `/api/media/manipulate` endpoint.
+- [**MediaUpload Widget**](../../src/widgets/core/media-upload/media-upload.mdx) — Widget documentation with field configuration examples.
 - [**Accessibility Guide**](../../contributing/accessibility.mdx) — WCAG compliance requirements and testing procedures.
 - [**Contributing Docs**](../../contributing/contributing-docs.mdx) — Documentation standards and PR workflow.
 
@@ -361,5 +363,5 @@ bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-w
 ## Related
 
 - [Getting Started](../../getting-started.mdx)
-- [Architecture Overview](../../architecture/index.mdx)
-- [Security Overview](../../architecture/security/index.mdx)
+- [Architecture Overview](../../reference/architecture/index.mdx)
+- [Security Overview](../../reference/security/index.mdx)

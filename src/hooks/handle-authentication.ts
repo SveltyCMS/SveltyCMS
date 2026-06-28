@@ -235,14 +235,14 @@ async function getUserFromSession(
     const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
 
     if (!sessionResult?.success) {
-      lastRefreshAttempt.delete(sessionId);
-      logger.warn(
-        `[Auth] Transient session validation error for ${sessionId}: ${sessionResult?.message || "Unknown"}`,
+      logger.info(
+        `[AuthDebug] getSessionTokenData returned false success for sessionId=${sessionId}. Result=${JSON.stringify(sessionResult)}`,
       );
       return null;
     }
 
     if (!sessionResult.data) {
+      logger.info(`[AuthDebug] getSessionTokenData returned null data for sessionId=${sessionId}`);
       negativeCache.add(sessionId);
       return null;
     }
@@ -497,6 +497,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
       cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
+      logger.info(
+        `[Auth] Session cookie found: ${sessionId.slice(0, 12)}..., path=${event.url.pathname}`,
+      );
       metricsService.incrementAuthValidations();
       if (!auth) {
         logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
@@ -504,6 +507,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       }
 
       const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
+      logger.info(
+        `[Auth] getUserFromSession result: ${user ? user.email + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
+      );
 
       if (isDemoMode && !locals.tenantId && !user) {
         await handleDemoTenantAssignment(event, !!user);

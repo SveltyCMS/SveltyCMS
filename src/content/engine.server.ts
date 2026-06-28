@@ -1058,6 +1058,10 @@ export function startContentWatcher() {
         logger.info(`[Watcher] Content system re-synchronized (batched)`);
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
+        // Gracefully ignore — Vite module runner closes during dev server shutdown
+        if (error.message?.includes("Vite module runner has been closed")) {
+          return;
+        }
         logger.error("[Watcher] Failed to reload content system", {
           filename,
           message: error.message,

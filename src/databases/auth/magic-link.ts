@@ -16,6 +16,7 @@ import { getClientIp } from "@utils/hook-utils";
 import { sendMail } from "@utils/email.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
+import { normalizeEmail } from "@utils/normalize-email";
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 
@@ -121,7 +122,7 @@ export async function verifyMagicLink({
   if (!auth) return { success: false, message: "Authentication system unavailable." };
 
   try {
-    const user = await auth.checkUser({ email: email.toLowerCase() });
+    const user = await auth.checkUser({ email: normalizeEmail(email) });
     if (!user?._id) {
       return {
         success: false,

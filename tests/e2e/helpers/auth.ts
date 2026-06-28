@@ -16,20 +16,12 @@ export const ADMIN_CREDENTIALS = {
 };
 
 /**
- * Generic login function for any user
+ * Prepare the login form by dismissing modals and clicking the sign in icon
  * @param page - Playwright page object
- * @param email - User email
- * @param password - User password
- * @param waitForUrl - URL pattern to wait for after login (default: not /login)
  */
-export async function loginAs(
-  page: Page,
-  email: string,
-  password: string,
-  waitForUrl?: string | RegExp,
-) {
+export async function prepareLoginForm(page: Page) {
   // Atomic Auth: Clear all previous session state to prevent session bleed
-  console.log(`[Auth] Logging in as ${email}...`);
+  console.log(`[Auth] Preparing login form...`);
   await page.context().clearCookies();
 
   // Block external icon API requests that cause CORS errors with test headers.
@@ -221,17 +213,39 @@ export async function loginAs(
     }
   }
 
-  if (!formFound) {
-    // Provide debug info about available inputs
-    const inputs = await page.locator("input").all();
-    for (let i = 0; i < inputs.length; i++) {
-      const input = inputs[i];
-      const name = await input.getAttribute("name");
-      const testId = await input.getAttribute("data-testid");
-      console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
-    }
-    throw new Error("[Auth] ERROR: signin-email field not found after 3 attempts!");
-  }
+  // Wait for login form to be visible - use data-testid
+  console.log("[Auth] Waiting for signin-email field...");
+  await page
+    .getByTestId("signin-email")
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .catch(async (e) => {
+      console.error("[Auth] ERROR: signin-email field not found!");
+      // Provide debug info about available inputs
+      const inputs = await page.locator("input").all();
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i];
+        const name = await input.getAttribute("name");
+        const testId = await input.getAttribute("data-testid");
+        console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
+      }
+      throw e;
+    });
+}
+
+/**
+ * Generic login function for any user
+ * @param page - Playwright page object
+ * @param email - User email
+ * @param password - User password
+ * @param waitForUrl - URL pattern to wait for after login (default: not /login)
+ */
+export async function loginAs(
+  page: Page,
+  email: string,
+  password: string,
+  waitForUrl?: string | RegExp,
+) {
+  await prepareLoginForm(page);
 
   // Fill login form using data-testid selectors
   console.log(`[Auth] Filling email: ${email}`);
@@ -256,6 +270,38 @@ export async function loginAs(
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+}
+
+/**
+ * Enable 2FA for a specific user to test the 2FA UI flow
+ * @param page - Playwright page object
+ * @param email - User email
+ */
+export async function enable2FAForTestUser(page: Page, email: string) {
+  // 1. Get user to find ID
+  const userRes = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: { action: "get-user", email },
+  });
+  const userData = await userRes.json();
+  if (!userData.success || !userData.user) {
+    throw new Error(`Failed to find user ${email}`);
+  }
+
+  // 2. Update user to enable 2FA
+  const updateRes = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "update",
+      collectionId: "auth_users",
+      id: userData.user._id,
+      data: { is2FAEnabled: true },
+    },
+  });
+  const updateData = await updateRes.json();
+  if (!updateData.success) {
+    throw new Error(`Failed to enable 2FA for user ${email}`);
+  }
 }
 
 /**

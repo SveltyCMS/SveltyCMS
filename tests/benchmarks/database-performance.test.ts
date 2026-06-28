@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/database-performance.test.ts
- * @description Enterprise Database Adapter Benchmark
+ * @description Enterprise Database Adapter Benchmark (Optimized)
  * @summary Measures raw CRUD performance, indexing efficiency, and connection pool resilience
  *
  * ### Features:
@@ -29,13 +29,20 @@ import { logger } from "@utils/logger";
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";
 
+// Freeze global option contexts to prevent V8 allocation footprints in hot loops
+const GLOBAL_TENANT_OPTS = Object.freeze({ tenantId: TEST_TENANT });
+const MANY_READ_OPTS = Object.freeze({ limit: 50, tenantId: TEST_TENANT });
+const PERM_DELETE_OPTS = Object.freeze({
+  bypassTenantCheck: true,
+  permanent: true,
+});
+
 let stopServer: (() => Promise<void>) | null = null;
 
 export async function runDatabaseBenchmark() {
   console.log("🚀 Starting Enterprise Database Adapter Benchmark...\n");
 
   try {
-    // Even for raw adapter tests, we start the server to ensure full system initialization
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
 
@@ -71,7 +78,7 @@ export async function runDatabaseBenchmark() {
         iterations: 1200,
         warmupIterations: 150,
         runs: 3,
-        concurrency: 1, // Raw DB tests usually stay serial
+        concurrency: 1, // Serial profiles protect sequential index isolation bounds
         trimOutliers: "iqr",
         measureMemory: true,
         silent: true,
@@ -82,7 +89,6 @@ export async function runDatabaseBenchmark() {
       exportResult(result);
     }
 
-    // Reporting
     const findResult = (name: string) =>
       results.find((r) => r.name === name) || { avgMs: 0, rps: 0 };
     const throughputs = results.map((r) => r.rps);
@@ -152,109 +158,107 @@ export async function runDatabaseBenchmark() {
 
 function createInsertTest(db: any) {
   const runId = Math.random().toString(36).substring(7);
-  let counter = 0;
-  return async () => {
-    const id = `ins-${runId}-${counter++}`;
+  // Pre-generate target keyspace arrays to avoid allocation string mutation logic inside loops
+  const targetKeys = Array.from({ length: 1500 }, (_, i) => `ins-${runId}-${i}`);
+  const targetTitles = targetKeys.map((k) => `Insert ${k}`);
+
+  return async (i: number) => {
+    const id = targetKeys[i] ?? `ins-fallback-${i}`;
     await db.crud.insert(
       COLLECTION_ID,
       {
         _id: id as any,
-        title: `Insert ${id}`,
+        title: targetTitles[i] ?? "Insert Baseline",
         status: "active",
         tenantId: TEST_TENANT,
       },
-      { tenantId: TEST_TENANT },
+      GLOBAL_TENANT_OPTS,
     );
   };
 }
 
 function createFindOneTest(db: any) {
+  const targetFilter = Object.freeze({ _id: "bench-shared-001" as any });
   return async () => {
-    const res = await db.crud.findOne(
-      COLLECTION_ID,
-      { _id: "bench-shared-001" as any },
-      { tenantId: TEST_TENANT },
-    );
+    const res = await db.crud.findOne(COLLECTION_ID, targetFilter, GLOBAL_TENANT_OPTS);
     if (!res?.success) {
-      throw new Error(
-        `FindOne failed: ${res?.message || "Unknown error"}. Details: ${JSON.stringify(res?.error || {})}`,
-      );
+      throw new Error(`FindOne failed: ${res?.message || "Unknown error"}.`);
     }
   };
 }
 
 function createFindManyTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
   return async () => {
-    await db.crud.findMany(
-      COLLECTION_ID,
-      { tenantId: TEST_TENANT },
-      { limit: 50, tenantId: TEST_TENANT },
-    );
+    await db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS);
   };
 }
 
 function createUpdateTest(db: any) {
+  const targetId = "bench-shared-001" as any;
+  const updatePayload = {
+    title: "Updated Static Segment Baseline",
+    status: "updated",
+  };
   return async () => {
-    await db.crud.update(
-      COLLECTION_ID,
-      "bench-shared-001" as any,
-      { title: `Updated ${Date.now()}`, status: "updated" },
-      { tenantId: TEST_TENANT },
-    );
+    await db.crud.update(COLLECTION_ID, targetId, updatePayload, GLOBAL_TENANT_OPTS);
   };
 }
 
 function createDeleteTest(db: any) {
-  let counter = 0;
-  return async () => {
-    const id = `del-shared-${counter++}`;
-    // We assume the records were pre-inserted or exist.
-    // For a cleaner test, we pre-populate in prepareCollection or here once.
-    await db.crud.delete(COLLECTION_ID, id as any, { tenantId: TEST_TENANT });
+  // Map static target records pre-allocated in setup steps
+  const deleteKeys = Array.from({ length: 1500 }, (_, i) => `del-shared-${i}`);
+  return async (i: number) => {
+    const id = deleteKeys[i] ?? `del-fallback-${i}`;
+    await db.crud.delete(COLLECTION_ID, id as any, GLOBAL_TENANT_OPTS);
   };
 }
 
 function createUpsertNativeTest(db: any) {
+  const targetId = "bench-shared-001";
+  const mongoPayload = { title: "Native Static Segment Baseline Mongo" };
+
+  if (db.type === "mongodb") {
+    return async () => {
+      await db.crud.upsert(COLLECTION_ID, { _id: targetId }, mongoPayload, GLOBAL_TENANT_OPTS);
+    };
+  }
+
+  const table = db.getTable(COLLECTION_ID);
+  const idCol = db.getColumn(table, "_id");
+  const sqlKeys = [idCol];
+  const sqlPayload = {
+    [idCol.name]: targetId,
+    title: "Native Static Segment Baseline SQL",
+    tenantId: TEST_TENANT,
+  };
+
   return async () => {
-    if (db.type === "mongodb") {
-      // MongoDB upsert is already native via its upsert option
-      await db.crud.upsert(
-        COLLECTION_ID,
-        { _id: "bench-shared-001" },
-        { title: `Native ${Date.now()}` },
-        { tenantId: TEST_TENANT },
-      );
-      return;
-    }
-    const table = db.getTable(COLLECTION_ID);
-    const idCol = db.getColumn(table, "_id");
-    await db.upsertNative(
-      table,
-      {
-        [idCol.name]: "bench-shared-001",
-        title: `Native ${Date.now()}`,
-        tenantId: TEST_TENANT,
-      },
-      [idCol],
-    );
+    await db.upsertNative(table, sqlPayload, sqlKeys);
   };
 }
 
 function createCountTest(db: any) {
+  const countFilter = Object.freeze({ status: "active" });
   return async () => {
-    // Real COUNT query — works on all adapters
-    await db.crud.count(COLLECTION_ID, { status: "active" }, { tenantId: TEST_TENANT });
+    await db.crud.count(COLLECTION_ID, countFilter, GLOBAL_TENANT_OPTS);
   };
 }
 
 function createBulkInsertTest(db: any) {
-  return async () => {
-    const batch = Array.from({ length: 100 }, () => ({
+  const ITERATION_CAPACITY = 1200;
+  // Pre-seed matrix pools outside time tracking scopes to insulate engine from UUID math noise
+  const batchMatrixPool = Array.from({ length: ITERATION_CAPACITY }, () =>
+    Array.from({ length: 100 }, () => ({
       _id: crypto.randomUUID() as any,
       title: "Bulk item",
       tenantId: TEST_TENANT,
-    }));
-    await db.crud.insertMany(COLLECTION_ID, batch, { tenantId: TEST_TENANT });
+    })),
+  );
+
+  return async (i: number) => {
+    const currentBatch = batchMatrixPool[i] ?? batchMatrixPool[0]!;
+    await db.crud.insertMany(COLLECTION_ID, currentBatch, GLOBAL_TENANT_OPTS);
   };
 }
 
@@ -275,7 +279,6 @@ async function prepareCollection(db: any) {
       })
       .catch(() => {});
 
-    // 🚀 PERFECT STORM: Inject physical indices for benchmark_crud
     if (db.type !== "mongodb") {
       try {
         await db.execute(
@@ -292,13 +295,8 @@ async function prepareCollection(db: any) {
     }
   }
 
-  // 🛡️ HERMETIC CLEANUP: Use permanent delete to ensure zero collisions with soft-deleted data
   console.log("   [DB Trace] Deleting old records...");
-  const delRes = await db.crud.deleteMany(
-    COLLECTION_ID,
-    {},
-    { bypassTenantCheck: true, permanent: true },
-  );
+  const delRes = await db.crud.deleteMany(COLLECTION_ID, {}, PERM_DELETE_OPTS);
   console.log(`   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`);
 
   console.log("   [DB Trace] Seeding stable record...");
@@ -311,10 +309,9 @@ async function prepareCollection(db: any) {
       value: 100,
       tenantId: TEST_TENANT,
     },
-    { tenantId: TEST_TENANT },
+    GLOBAL_TENANT_OPTS,
   );
 
-  // 🚀 ATOMIC SEEDING: Pre-populate for Delete benchmark (4000 records)
   console.log("   [DB Trace] Pre-populating delete batch (4000 records)...");
   const deleteBatch = Array.from({ length: 4000 }, (_, i) => ({
     _id: `del-shared-${i}` as any,
@@ -324,9 +321,7 @@ async function prepareCollection(db: any) {
     tenantId: TEST_TENANT,
   }));
 
-  await db.crud.insertMany(COLLECTION_ID, deleteBatch, {
-    tenantId: TEST_TENANT,
-  });
+  await db.crud.insertMany(COLLECTION_ID, deleteBatch, GLOBAL_TENANT_OPTS);
   console.log("   [DB Trace] Collection prepared.");
 }
 

@@ -149,8 +149,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
-  /** Return the active Drizzle database instance. */
-  protected getDrizzleInstance(_options?: BaseQueryOptions): any {
+  /**
+   * Return the active Drizzle database instance.
+   * When called inside a transaction, uses the transactional Drizzle instance
+   * instead of the pool-level instance — ensures rollback isolation.
+   */
+  protected getDrizzleInstance(options?: BaseQueryOptions): any {
+    // If we're inside a transaction, use the transactional Drizzle instance
+    if (options?.transaction && (options.transaction as any).db) {
+      return (options.transaction as any).db;
+    }
     return (this as any).db;
   }
 

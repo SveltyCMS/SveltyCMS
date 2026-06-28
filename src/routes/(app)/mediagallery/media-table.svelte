@@ -13,7 +13,7 @@ import AdminCard from '@components/admin-card.svelte';
 import TablePagination from "@src/components/system/table/table-pagination.svelte";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
-import type { SvelteSet } from "svelte/reactivity";
+import { SvelteSet } from "svelte/reactivity";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
@@ -22,6 +22,7 @@ interface Props {
 	filteredFiles?: (MediaBase | MediaImage)[];
 	isSelectionMode?: boolean;
 	selectedFiles: SvelteSet<string>;
+	publishedMediaIds?: SvelteSet<string>;
 	ondeleteImage?: (file: MediaBase | MediaImage) => void;
 	onEditImage?: (file: MediaImage) => void;
 	onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
@@ -31,6 +32,7 @@ let {
 	filteredFiles = [],
 	isSelectionMode = false,
 	selectedFiles = $bindable(),
+	publishedMediaIds = $bindable(new SvelteSet<string>()),
 	ondeleteImage = () => {},
 	onEditImage = () => {},
 	onOpenFileDetails = () => {},

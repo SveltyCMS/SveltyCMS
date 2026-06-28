@@ -7,7 +7,7 @@ published: true
 order: 1
 author: "SveltyCMS Team"
 created: "2025-08-05"
-updated: "2026-06-10"
+updated: "2026-06-27"
 tags:
   - "documentation"
   - "guide"
@@ -31,18 +31,19 @@ Welcome. This site serves two audiences:
 | Guide                                                              | What You'll Learn                                           |
 | ------------------------------------------------------------------ | ----------------------------------------------------------- |
 | [🚀 Getting Started](./getting-started.mdx)                        | Install, run the Setup Wizard, create your first collection |
-| [🛡️ Security Overview](./architecture/security/index.mdx)          | RBAC, 2FA, audit logs, account lockout                      |
-| [🖼️ Media Hub](./architecture/media-system.mdx)                    | Upload images, video transcoding, cloud storage             |
+| [🛡️ **Security Overview**](./reference/security/index.mdx)         | RBAC, 2FA, audit logs, account lockout                      |
+| [🖼️ Media Hub](./reference/architecture/media-system.mdx)          | Upload images, video transcoding, cloud storage             |
 | [👥 User Management](./guides/configuration/user-registration.mdx) | Roles, permissions, 2FA enforcement                         |
 
 ### 🛠️ For Developers & Engineers
 
-| Guide                                                           | What You'll Learn                                 |
-| --------------------------------------------------------------- | ------------------------------------------------- |
-| [🏗️ Architecture Overview](./architecture/index.mdx)            | Svelte 5 Runes, DB adapters, boot pipeline        |
-| [📡 API Reference](./api/index.mdx)                             | REST, GraphQL, Local SDK, SCIM 2.0                |
-| [🧩 Widget Development](./guides/development/widgets/index.mdx) | Build custom field types with the 3-pillar system |
-| [⚡ Performance Benchmarks](./project/benchmarks/index.mdx)     | 48 tests across 4 databases, trend analysis       |
+| Guide                                                          | What You'll Learn                                 |
+| -------------------------------------------------------------- | ------------------------------------------------- |
+| [🏗️ Architecture Overview](./reference/architecture/index.mdx) | Svelte 5 Runes, DB adapters, boot pipeline        |
+| [📡 API Reference](./reference/api/index.mdx)                  | REST, GraphQL, Local SDK, SCIM 2.0                |
+| [🧩 Widget Development](./development/widgets/index.mdx)       | Build custom field types with the 3-pillar system |
+| [⚡ Performance Benchmarks](./project/benchmarks/index.mdx)    | 60 tests across 4 databases, trend analysis       |
+| [🤖 AI Agent Guide](../static/llms.txt)                        | `llms.txt` — structured context for LLM tooling   |
 
 ---
 
@@ -86,8 +87,8 @@ SveltyCMS is designed for teams that prioritize **performance, security, and dev
 
 ## 🔐 Security at a Glance
 
-| Score | 0 CVEs | [Full Report →](./architecture/security/index.mdx) |
-| ----- | ------ | -------------------------------------------------- |
+| Score | 0 CVEs | [Full Report →](./reference/security/index.mdx) |
+| ----- | ------ | ----------------------------------------------- |
 
 - **4 Defense Layers**: Middleware → Dispatcher → Handler → Page Action
 - **Auth**: Argon2id (64MB), CSPRNG tokens, `__Host-` cookies, 2FA TOTP, 5-attempt lockout
@@ -102,12 +103,12 @@ SveltyCMS is designed for teams that prioritize **performance, security, and dev
 - **Bugs**: [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
 - **Contribute**: [Documentation Standards](./contributing/contributing-docs.mdx)
-- **Security**: [Reporting a Vulnerability](./architecture/security/index.mdx#reporting-a-vulnerability)
+- **Security**: [Reporting a Vulnerability](./reference/security/index.mdx#reporting-a-vulnerability)
 
 ---
 
 ## Related
 
 - [Getting Started](./getting-started.mdx)
-- [Architecture Overview](./architecture/index.mdx)
-- [Security Overview](./architecture/security/index.mdx)
+- [Architecture Overview](./reference/architecture/index.mdx)
+- [Security Overview](./reference/security/index.mdx)

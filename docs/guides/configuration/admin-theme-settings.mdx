@@ -179,7 +179,7 @@ Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`u
 
 #### Default install (Corporate workspace)
 
-Fresh installs seed the active theme with the **Corporate** workspace from `/src/themes/corporate.json`:
+Fresh installs seed the active theme from `/src/themes/default.json`:
 
 - **Layout:** cozy density, bordered cards, sticky action bar, collapsible sidebar
 - **Branding:** `brandedLogin: true` — login shows tenant site name + accent colors immediately
@@ -231,7 +231,7 @@ Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it t
 > [!TIP]
 > Theme files are Git-trackable, shareable between instances, and marketplace-ready. Copy a `.json` between servers and it works identically.
 
-**Example — Corporate (default on install)** (`/src/themes/corporate.json`):
+**Example — Default Theme** (`/src/themes/default.json`):
 
 ```
 {
@@ -257,7 +257,7 @@ Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it t
 }
 ```
 
-**Example — Developer Workbench** (`/themes/developer-workbench.json`):
+**Example — Developer Workbench** (custom theme, save to `src/themes/developer-workbench.json`):
 
 ```
 {
@@ -281,7 +281,7 @@ Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it t
 }
 ```
 
-**Example — Distraction-Free Writer** (`/themes/distraction-free-writer.json`):
+**Example — Distraction-Free Writer** (custom theme, save to `src/themes/distraction-free-writer.json`):
 
 ```
 {

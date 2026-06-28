@@ -9,7 +9,7 @@
 
 /** Strict CSP for JSON/API responses (no inline scripts). */
 export const API_CONTENT_SECURITY_POLICY =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; media-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; media-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 
 /** Required for /files/ assets to load under COEP require-corp admin pages. */
 export const MEDIA_RESOURCE_HEADERS: Record<string, string> = {

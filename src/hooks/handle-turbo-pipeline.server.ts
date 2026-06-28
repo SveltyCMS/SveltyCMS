@@ -44,7 +44,8 @@ let healthHeaders: Record<string, string> | null = null;
 let requestIdCounter = 0;
 const generateRequestId = () => {
   if (IS_BENCHMARK) return ++requestIdCounter;
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+  // Use CSPRNG for all trace IDs (security hardening)
+  return globalThis.crypto.randomUUID().slice(0, 8) + Date.now().toString(36);
 };
 
 /** Logs request performance — ONLY in development mode to avoid string interpolation overhead in production */

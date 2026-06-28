@@ -1,0 +1,65 @@
+---
+path: "docs/reference/components/revision-diff-modal.mdx"
+title: "Revision Diff Modal"
+description: "Field-aware revision comparison modal with smart diff computation and keyboard navigation."
+order: 99
+icon: "mdi:file-compare"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-06-27"
+tags:
+  - "components"
+  - "architecture"
+  - "revisions"
+---
+
+# Revision Diff Modal
+
+The **Revision Diff Modal** provides a field-aware comparison view between two entry revisions. It computes structured diffs at the field level and displays added, modified, removed, and unchanged fields.
+
+## Props
+
+| Prop       | Type                      | Default      | Description                                                   |
+| ---------- | ------------------------- | ------------ | ------------------------------------------------------------- |
+| `oldData`  | `Record<string, unknown>` | required     | Previous revision data                                        |
+| `newData`  | `Record<string, unknown>` | required     | Current revision data                                         |
+| `fields`   | `FieldInstance[]`         | `[]`         | Collection field definitions (enables field-aware comparison) |
+| `oldLabel` | `string`                  | `"Previous"` | Label for the old revision column                             |
+| `newLabel` | `string`                  | `"Current"`  | Label for the new revision column                             |
+| `close`    | `() => void`              | —            | Callback to dismiss the modal                                 |
+
+## Features
+
+- **Field-Level Diffs**: Computes granular per-field differences using `computeFieldDiff` from `@src/utils/diff-utils`
+- **Filter by Change Type**: Toggle to show only changed fields (added, modified, removed) or all fields including unchanged
+- **Stats Summary**: Displays counts of added, modified, removed, and unchanged fields
+- **Keyboard Dismiss**: Press `Escape` to close
+- **Accessible**: Proper `role="dialog"`, `aria-modal`, and `aria-labelledby` attributes
+- **Transitions**: Uses Svelte `fade` and `slide` transitions
+
+## Change Types
+
+| Type        | Description                           | Visual                              |
+| ----------- | ------------------------------------- | ----------------------------------- |
+| `added`     | Field exists only in new revision     | Green highlight                     |
+| `modified`  | Field value changed between revisions | Yellow/amber highlight              |
+| `removed`   | Field exists only in old revision     | Red highlight                       |
+| `unchanged` | Field value is identical              | No highlight (hidden when filtered) |
+
+## Usage
+
+```svelte
+<RevisionDiffModal
+  oldData={previousRevision.data}
+  newData={currentRevision.data}
+  {fields}
+  oldLabel="v1.2"
+  newLabel="v1.3"
+  {close}
+/>
+```
+
+## Related
+
+- [Fields Component](./fields.mdx)
+- [Entry List Component](./entry-list.mdx)

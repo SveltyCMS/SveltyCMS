@@ -1,0 +1,191 @@
+---
+path: "docs/reference/architecture/state-management.mdx"
+title: "System State & Health Architecture"
+description: "SveltyCMS state machine, phased initialization, self-healing watchdog, and request gating middleware with hardware-aware rate limiting."
+order: 30
+icon: "mdi:state-machine"
+author: "SveltyCMS Team"
+created: "2025-11-26"
+updated: "2026-06-10"
+tags:
+  - "architecture"
+  - "state-machine"
+  - "middleware"
+  - "health"
+  - "boot"
+---
+
+# System State & Health Architecture
+
+SveltyCMS employs a **Svelte 5 Runes-based state machine** to manage the application lifecycle, enforce security boundaries during bootstrap, and recover autonomously from failures.
+
+---
+
+## 1. System States
+
+| State              | Description                                        | Requests                                                           |
+| ------------------ | -------------------------------------------------- | ------------------------------------------------------------------ |
+| **`IDLE`**         | Waiting for setup or initialization                | Blocked (except Setup Wizard + Health)                             |
+| **`INITIALIZING`** | Database + core services starting                  | Blocked (requests wait for completion or timeout at 60s)           |
+| **`WARMING`**      | Cache pre-warming, widget reconciliation in flight | Blocked (SSR warming page shown)                                   |
+| **`WARMED`**       | Background services fully ready                    | Allowed (full dashboard available)                                 |
+| **`SETUP`**        | Setup wizard active, no DB configured yet          | Blocked (except Setup Wizard + Health)                             |
+| **`RECOVERY`**     | Autonomous healing after service failure           | Blocked (503 + `Retry-After`)                                      |
+| **`READY`**        | Normal operation                                   | Allowed                                                            |
+| **`DEGRADED`**     | Operational, non-critical services failing         | Allowed (warning logged, degraded services injected into `locals`) |
+| **`MAINTENANCE`**  | Scheduled maintenance window                       | Blocked (503 + maintenance page)                                   |
+| **`FAILED`**       | Critical failure (DB down)                         | Blocked (503)                                                      |
+
+---
+
+## 2. Reactive State with Svelte 5 Runes
+
+The system state is managed by `SystemStateContainer` (`src/stores/system/state.svelte.ts`) using `$state` and `$derived` runes:
+
+1. **Zero-Tax Access**: Direct `system.state` reads — no `get()` helper overhead
+2. **Fine-Grained Reactivity**: Components re-render only when the specific service they watch changes
+3. **Derived Intelligence**: `overallState` is a `$derived` rune — zero computation when idle
+4. **Hot-Path Cache**: `isSystemReady()` uses a module-level cache invalidated only on state transitions — zero-overhead for `handleSystemState` and all downstream hooks
+5. **Single Source**: Consolidated in `state.svelte.ts` — no dual-state file duplication
+
+---
+
+## 3. Phased Initialization
+
+Instead of a monolithic boot, the system targets "Minimum Viable Services" based on request intent:
+
+| Phase     | Services                                                                     | Result           | Required For |
+| --------- | ---------------------------------------------------------------------------- | ---------------- | ------------ |
+| **SETUP** | Database connectivity                                                        | State → `SETUP`  | Setup Wizard |
+| **CORE**  | Auth, Security, Critical Settings                                            | State → `READY`  | Login screen |
+| **FULL**  | Cache Pre-Warming, Widget Reconciliation, Background Jobs, Behavioral Engine | State → `WARMED` | Dashboard    |
+
+> **Thundering Herd Prevention**: Only the first request triggers initialization. Subsequent requests wait on the shared `dbInitPromise` — preventing connection storms.  
+> **Logical vs. Technical**: [Lazy Holders](../database/core-infrastructure.mdx#lazy-holder-architecture) enforce physical code isolation, preventing server-only modules from leaking into client bundles.
+
+---
+
+## 4. Request Gating Middleware
+
+`handleSystemState` (`src/hooks/handle-system-state.ts`) intercepts every request:
+
+1. **Fast-Path Resolution**: Static assets, health checks, `.well-known/` paths bypass immediately
+2. **Bootstrap Host Validation**: During restricted states, only authorized hosts (localhost, `ORIGIN`, or Demo) can access bootstrap routes — **prevents SSRF and DNS rebinding during setup**
+3. **Setup Completion Gating**: After setup completes, all `/api/setup` endpoints return **403** — enforced at both middleware and handler levels
+4. **Initialization Wait**: Non-bootstrap requests pause while `INITIALIZING` (or timeout at 60s → `FAILED`)
+5. **State-Specific Blocking**: Returns 503 with state-specific messaging for `SETUP`, `FAILED`, and `RECOVERY` states
+6. **Degradation Injection**: If `DEGRADED`, injects `locals.degradedServices` for UI awareness
+
+---
+
+## 5. Self-Healing Watchdog
+
+The **Autonomous System Watchdog** (`src/services/system/watchdog.ts`):
+
+| Feature                 | Detail                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Heal-on-Failure**     | Automatically triggers targeted re-initialization on critical service failure                                              |
+| **Exponential Backoff** | Recovery attempts use 5s → 10s → 20s progressive delays                                                                    |
+| **Drift Detection**     | Continuously compares internal health map against reality — demotes to `RECOVERY` if DB is dead while state claims `READY` |
+| **Timeout Safety**      | 60-second hard limit on initialization — enters `FAILED` to protect infrastructure                                         |
+| **Cleanup on Failure**  | Logs full stack trace, increments `metricsService` counters for alerting                                                   |
+
+---
+
+## 6. Hardware-Aware Rate Limiting
+
+The `SystemMonitor` utility (`src/utils/system-monitor.ts`) adjusts request costs based on real-time pressure:
+
+| Condition             | Multiplier         | Effect                                   |
+| --------------------- | ------------------ | ---------------------------------------- |
+| Event Loop Lag > 80ms | 2.0x               | Requests cost double — throttles traffic |
+| High CPU Load         | 1.5x               | Gradual throttling                       |
+| Idle / Low Load       | 0.8x               | Capacity boost — higher throughput       |
+| Heap > 90%            | Mutations rejected | 503 with compressed payload              |
+
+---
+
+## 7. Boot Telemetry
+
+Every phase is measured with `performance.now()` precision, exposed via health API and `MetricsService`:
+
+| Metric               | Description                                      |
+| -------------------- | ------------------------------------------------ |
+| `boot:phase:setup`   | Database handshake latency                       |
+| `boot:phase:core`    | Auth/settings hydration latency                  |
+| `boot:phase:full`    | Content/widget reconciliation latency            |
+| `recoveryCount`      | Successful self-healing events since start       |
+| `initDuration`       | Total time to `READY` state                      |
+| `securityViolations` | Untrusted host attempts, restricted route access |
+
+---
+
+## 8. Progressive Initialization UX
+
+Instead of 503 errors during boot, users see a **SSR-rendered warming-up dashboard** with live service status (`src/routes/warming-up/`). The page:
+
+- Shows real-time status of Database, Auth, Cache, and Content services
+- Auto-refreshes via server polling — transitions to target page when `READY`
+- Provides actionable feedback if a service fails to start
+
+---
+
+## 9. Store Directory (`src/stores`)
+
+All reactive client-side state uses Svelte 5 runes (`.svelte.ts`):
+
+### Core Application
+
+| Store                         | Purpose                               |
+| ----------------------------- | ------------------------------------- |
+| `store.svelte.ts`             | Core app context, session, language   |
+| `global-settings.svelte.ts`   | Public tenant settings, site branding |
+| `ui-store.svelte.ts`          | Panels, sidebars, workspace layouts   |
+| `screen-size-store.svelte.ts` | Responsive breakpoints                |
+| `theme-store.svelte.ts`       | Dark/light mode persistence           |
+
+### Feature Stores
+
+| Store                           | Purpose                                   |
+| ------------------------------- | ----------------------------------------- |
+| `collection-store.svelte.ts`    | Schema definitions, entry streams         |
+| `content-registry.svelte.ts`    | Active editor, form bindings, draft state |
+| `collaboration-store.svelte.ts` | Real-time presence, lock ownership        |
+| `widget-store.svelte.ts`        | Widget configurations, field registry     |
+| `image-editor-store.svelte.ts`  | Canvas operations, filters, crops         |
+| `consent-store.svelte.ts`       | GDPR cookie consent                       |
+| `setup-store.svelte.ts`         | Setup wizard step flow                    |
+
+### System Health (`src/stores/system/`)
+
+| File              | Purpose                                                                    |
+| ----------------- | -------------------------------------------------------------------------- |
+| `state.svelte.ts` | Reactive `SystemStateContainer` with `$state`/`$derived`                   |
+| `types.ts`        | Status levels, anomaly payloads, performance logs                          |
+| `config.ts`       | Default timeouts, failure thresholds                                       |
+| `metrics.ts`      | Historical graphs, EMA calculations, anomaly detection                     |
+| `reporting.ts`    | JSON summary logs, bottleneck recommendations                              |
+| `async.ts`        | Abort-signal-compatible `waitForSystemReady()` / `waitForServiceHealthy()` |
+
+---
+
+## 10. Incremental Service Refresh
+
+`reinitializeSystem` performs surgical updates without destructive resets:
+
+- **Config Hot-Reload**: Re-parses `private.ts` without dropping active DB connections
+- **Dynamic Settings Sync**: Automatically re-synchronizes in-memory cache with database
+- **Zero-Downtime Transitions**: Minimizes the blocked-request window during updates
+
+---
+
+## Related
+
+- [Server Hooks](./server-hooks.mdx)
+- [Database Core](../database/core-infrastructure.mdx)
+- [API Security & Token Hardening](./api-security.mdx)
+- [Login Resilience & Recovery](../security/login-resilience.mdx)
+- [Behavioral Learning Engine](./behavioral-learning.mdx) — Starts/stops with server lifecycle during `FULL` phase
+- [Utility System Architecture](./utils-system.mdx) — Complete utility reference: structure, patterns, import guide
+- [Store System Architecture](./store-system.mdx) — Complete store reference: patterns, purpose, page.data vs stores
+- [Sidebar States & UI Visibility](./sidebar-states.mdx) — How panels, sidebars, and layout visibility are managed

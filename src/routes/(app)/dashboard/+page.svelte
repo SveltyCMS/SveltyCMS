@@ -48,6 +48,7 @@ import { themeStore } from "@src/stores/theme-store.svelte.ts";
 
 // System logger
 import { logger } from "@utils/logger";
+import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Loader from '@components/ui/loader.svelte';
@@ -209,13 +210,16 @@ async function loadWidgetComponent(widgetId: string, componentName: string) {
 	}
 
 	try {
-		// Dynamically import the widget component
-		const module = await import(`./widgets/${componentName}.svelte`);
-		loadedWidgets.set(widgetId, module.default);
-	} catch (error) {
-		logger.error(`Failed to load widget: ${componentName}`, error);
-		loadedWidgets.set(widgetId, null); // Mark as failed
-	}
+			// Dynamically import the widget component with retry on transient failures
+			const module = await retryDynamicImport(
+				() => import(`./widgets/${componentName}.svelte`),
+				{ maxRetries: 2, baseDelayMs: 500 },
+			);
+			loadedWidgets.set(widgetId, module.default);
+		} catch (error) {
+			logger.error(`Failed to load widget: ${componentName}`, error);
+			loadedWidgets.set(widgetId, null); // Mark as failed
+		}
 }
 
 // Setup intersection observer for lazy loading (Svelte action)

@@ -192,7 +192,9 @@ async function main() {
       run: () => runCommand("bun", ["run", "lint:docs"]),
     },
     {
-      name: "Type Check (svelte-check)",
+      name: "Format + Lint Check",
+      // Note: "bun run check" runs format verification + oxlint (not svelte-check).
+      // Full type checking runs in CI via svelte-check.
       ciJob: "check",
       skip: !hasTsOrSvelte,
       run: () => runCommand("bun", ["run", "check"]),

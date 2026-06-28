@@ -88,14 +88,23 @@
 		});
 	}
 
-	// Function to update RTC preferences
-	async function updateRtcPreference(key: 'enabled' | 'sound', value: boolean) {
+	// Function to update user preferences
+	async function updateRtcPreference(key: string, value: boolean) {
+		const isAuth = ['passkeyEnabled', 'magicLinkEnabled', 'oauthEnabled'].includes(key);
 		const newUserData = {
 			preferences: {
-				rtc: {
-					...serverUser?.preferences?.rtc,
-					[key]: value
-				}
+				...serverUser?.preferences,
+				...(isAuth ? {
+					auth: {
+						...serverUser?.preferences?.auth,
+						[key]: value
+					}
+				} : {
+					rtc: {
+						...serverUser?.preferences?.rtc,
+						[key]: value
+					}
+				})
 			}
 		};
 
@@ -221,27 +230,66 @@
 				{#if isMultiTenant && user?.tenantId}
 					<Badge preset="tonal" color="warning" class="w-full max-w-xs">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></Badge>
 				{/if}
-				<!-- Two-Factor Authentication Status -->
-				{#if is2FAEnabledGlobal}
-					<Button variant="error"
-						onclick={open2FAModal}
-					 size="sm" class="w-full max-w-xs">
-						<div class="flex w-full items-center justify-between py-1">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:shield-lock" width={20} class="text-error-500"></iconify-icon>
-								<span class="text-sm font-bold">Two-Factor Auth</span>
-							</div>
-							<div class="flex items-center gap-1">
-								<iconify-icon
-									icon="mdi:{user?.is2FAEnabled ? 'check-decagram' : 'alert-circle'}"
-									width={20}
-									class={user?.is2FAEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
-								></iconify-icon>
-								<span class="text-xs font-bold uppercase">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
-							</div>
+				<!-- Authentication Methods -->
+				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
+					<div class="space-y-3">
+						<div class="flex items-center gap-2 mb-2">
+							<iconify-icon icon="mdi:shield-lock-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
+							<span class="text-sm font-semibold">Authentication</span>
 						</div>
-					</Button>
-				{/if}
+						
+						{#if is2FAEnabledGlobal}
+							<div class="flex items-center justify-between gap-3">
+								<div class="flex items-center gap-2">
+									<iconify-icon icon="mdi:two-factor-authentication" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
+									<span class="text-sm">Two-Factor Auth</span>
+								</div>
+								<Button variant="ghost" size="sm" onclick={open2FAModal} class="p-1 h-auto min-h-0 text-xs {user?.is2FAEnabled ? 'text-success-500' : 'text-surface-500'}">
+									{user?.is2FAEnabled ? 'Enabled' : 'Setup'}
+								</Button>
+							</div>
+						{/if}
+
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:fingerprint" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
+								<span class="text-sm">Passkeys</span>
+							</div>
+							<Checkbox
+								checked={serverUser?.preferences?.auth?.passkeyEnabled ?? false}
+								onchange={async (enabled) => updateRtcPreference('passkeyEnabled' as any, enabled)}
+								label="Toggle Passkey"
+								size="sm"
+							/>
+						</div>
+
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:magic-staff" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
+								<span class="text-sm">Magic Link</span>
+							</div>
+							<Checkbox
+								checked={serverUser?.preferences?.auth?.magicLinkEnabled ?? false}
+								onchange={async (enabled) => updateRtcPreference('magicLinkEnabled' as any, enabled)}
+								label="Toggle Magic Link"
+								size="sm"
+							/>
+						</div>
+						
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:account-group-outline" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
+								<span class="text-sm">OAuth Login</span>
+							</div>
+							<Checkbox
+								checked={serverUser?.preferences?.auth?.oauthEnabled ?? false}
+								onchange={async (enabled) => updateRtcPreference('oauthEnabled' as any, enabled)}
+								label="Toggle OAuth"
+								size="sm"
+							/>
+						</div>
+					</div>
+				</AdminCard>
 
 				<!-- Workspace Appearance -->
 				<AdminCard class="w-full max-w-xs p-4">

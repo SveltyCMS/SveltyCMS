@@ -7,6 +7,7 @@ import { getDb } from "@src/databases/db";
 import { StatusTypes } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { webhookService } from "../webhook-service";
+import { cacheService } from "@src/databases/cache/cache-service";
 import type { JobHandler } from "./job-queue-service";
 
 export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
@@ -46,8 +47,69 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
 
   logger.info(`[ScheduledJob] Found ${nodesToPublish.length} items ready for publishing`);
 
-  // 4. Publish items
+  // 4a. Validate relation fields — ensure no referenced entries are still draft
+  const allNodesResult = await db.content.nodes.getStructure("flat", {
+    bypassTenantCheck: true,
+  });
+  const nodeStatusById = new Map<string, string>();
+  if (allNodesResult.success && allNodesResult.data) {
+    for (const n of allNodesResult.data) {
+      nodeStatusById.set((n as any)._id, (n as any).status || StatusTypes.draft);
+    }
+  }
+
+  const NODE_ID_REGEX = /^[0-9a-fA-F]{24}$/;
+  const validNodes: typeof nodesToPublish = [];
+
   for (const node of nodesToPublish) {
+    const nodeData = (node as any).data || {};
+    const relationIds = new Set<string>();
+
+    // Collect potential relation IDs from the node's data fields
+    for (const value of Object.values(nodeData)) {
+      if (typeof value === "string" && NODE_ID_REGEX.test(value)) {
+        relationIds.add(value);
+      } else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string" && NODE_ID_REGEX.test(item)) {
+            relationIds.add(item);
+          }
+        }
+      }
+    }
+
+    // Check if any related entry is still in draft status
+    let hasDraftRelation = false;
+    for (const relId of relationIds) {
+      const relStatus = nodeStatusById.get(relId);
+      if (relStatus === StatusTypes.draft) {
+        logger.warn(
+          `[ScheduledJob] Skipping publish of "${node.name}" (${node._id}) — ` +
+            `related entry ${relId} is still in draft status`,
+        );
+        hasDraftRelation = true;
+        break;
+      }
+    }
+
+    if (!hasDraftRelation) {
+      validNodes.push(node);
+    }
+  }
+
+  if (validNodes.length === 0) {
+    logger.info(`[ScheduledJob] No items passed relation validation, nothing to publish`);
+    return;
+  }
+
+  if (validNodes.length < nodesToPublish.length) {
+    logger.info(
+      `[ScheduledJob] Proceeding with ${validNodes.length} of ${nodesToPublish.length} items after relation validation`,
+    );
+  }
+
+  // 4b. Publish validated items
+  for (const node of validNodes) {
     try {
       logger.info(`[ScheduledJob] Publishing scheduled item: ${node.name} (${node._id})`);
 
@@ -71,6 +133,11 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
           },
           node.tenantId || "",
         );
+
+        // Invalidate cache for this collection after successful publish
+        await cacheService
+          .invalidateCollection(node.collectionDef?.name || "unknown")
+          .catch(() => {});
       } else {
         logger.warn(`[ScheduledJob] Node ${node._id} has no path, skipping publish`);
       }

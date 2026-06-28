@@ -194,18 +194,27 @@ async function executeWithTimeout(
       shell: process.platform === "win32",
     });
 
-    proc.stdout?.on("data", (data) => {
+    proc.stdout?.on("data", (data: Buffer) => {
       const content = data.toString();
       process.stdout.write(data);
 
-      const metricMatch = content.match(/METRIC: ([\w.]+)=([\d.]+)/gm);
-      if (metricMatch) {
-        for (const m of metricMatch) {
-          const matchResult = m.match(/METRIC: ([\w.]+)=([\d.]+)/);
-          if (matchResult) {
-            const [, key, val] = matchResult;
-            metrics[key] = parseFloat(val);
-          }
+      // Fast string sub-sequence skip to avoid processing chunks that lack performance keys
+      if (!content.includes("METRIC: ")) return;
+
+      const lines = content.split("\n");
+      for (let l = 0; l < lines.length; l++) {
+        const line = lines[l]!;
+        const markerIndex = line.indexOf("METRIC: ");
+        if (markerIndex === -1) continue;
+
+        const segment = line.substring(markerIndex + 8);
+        const eqIndex = segment.indexOf("=");
+        if (eqIndex === -1) continue;
+
+        const key = segment.substring(0, eqIndex).trim();
+        const val = parseFloat(segment.substring(eqIndex + 1).trim());
+        if (!isNaN(val)) {
+          metrics[key] = val;
         }
       }
     });
@@ -317,6 +326,8 @@ export function buildWorkerEnv(
     PASSWORD_MIN_LENGTH: "8",
     ADMIN_PASSWORD,
     BENCHMARK_MODE: "1",
+    BENCHMARK_MATRIX: "1",
+    BENCHMARK_RECORD: "1",
     ADMIN_EMAIL: "admin@example.com",
     BUN_TEST_MOCKS: "false",
     DISABLE_AUDIT_LOGS: "true",

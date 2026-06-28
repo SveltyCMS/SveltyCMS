@@ -342,6 +342,26 @@ export class MediaNamespace {
     }
   }
 
+  /**
+   * Returns all published collection entries that reference a specific mediaId.
+   * Filters entries to only those with status "publish".
+   */
+  async getPublishedReferences(
+    mediaId: string,
+    options: TenantOptions = {},
+  ): Promise<
+    {
+      collectionId: string;
+      collectionName: string;
+      entryId: string;
+      entryName: string;
+      fieldName: string;
+    }[]
+  > {
+    if (!mediaId) throw new AppError("Media ID is required", 400);
+    return this.mediaService.getPublishedReferences(mediaId, options.tenantId as DatabaseId);
+  }
+
   async uploadVersion(
     mediaId: string,
     file: File,

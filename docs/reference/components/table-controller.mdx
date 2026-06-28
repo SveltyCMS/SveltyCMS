@@ -1,0 +1,68 @@
+---
+path: "docs/reference/components/table-controller.mdx"
+title: "Table Controller"
+description: "Svelte 5 runes-based controller for client-side table state — selection, sorting, filtering, pagination."
+order: 99
+icon: "mdi:table"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-06-27"
+tags:
+  - "components"
+  - "architecture"
+  - "state-management"
+---
+
+# Table Controller
+
+The **Table Controller** is a reusable Svelte 5 runes-based class that manages complex client-side state for data-intensive tables. It encapsulates selection, sorting, filtering, and pagination logic in a single controller, separating business logic from the presentation layer.
+
+## Type Parameters
+
+| Param | Constraint | Description                                            |
+| ----- | ---------- | ------------------------------------------------------ |
+| `T`   | —          | The data type of the entries managed by the controller |
+
+## State
+
+| Property          | Type                                           | Description                                      |
+| ----------------- | ---------------------------------------------- | ------------------------------------------------ |
+| `data`            | `T[]`                                          | The managed data array (reactive via `$state()`) |
+| `selectedIndices` | `Set<number>`                                  | Currently selected row indices                   |
+| `sorting`         | `{ sortedBy: string; isSorted: 0 \| 1 \| -1 }` | Current sort field and direction                 |
+| `filters`         | `Record<string, string>`                       | Active filter parameters (field → value)         |
+
+## Getters
+
+| Getter      | Return Type | Description                                |
+| ----------- | ----------- | ------------------------------------------ |
+| `selectAll` | `boolean`   | Whether all records are selected (get/set) |
+
+## Methods
+
+| Method                          | Params                                     | Description                                                        |
+| ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| `toggleSelect(index)`           | `number`                                   | Toggle selection for a specific row index                          |
+| `updateFiltersAndSync(updates)` | `Record<string, string \| number \| null>` | Update filters and sync state to URL query params for deep linking |
+
+## Features
+
+- **Svelte 5 Runes**: All state powered by `$state()` for fine-grained reactivity
+- **URL Synchronization**: `updateFiltersAndSync()` writes filter/sort state to URL query parameters, enabling bookmarkable and shareable table views
+- **Bulk Selection**: `selectAll` getter/setter with `Set<number>` for efficient large-list selection tracking
+- **Sorting Toggle**: Direction cycles through `0` (unsorted) → `1` (asc) → `-1` (desc)
+
+## Usage
+
+```typescript
+import { TableController } from "@src/components/collection-display/table-controller.svelte.ts";
+
+const controller = new TableController<Post>(initialPosts);
+controller.toggleSelect(0);
+controller.updateFiltersAndSync({ status: "published", sort: "createdAt" });
+```
+
+## Related
+
+- [Entry List Component](./entry-list.mdx)
+- [Entry List Multi-Button](./entrylist-multibutton.mdx)

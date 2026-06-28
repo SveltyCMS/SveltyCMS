@@ -19,6 +19,7 @@ const mockMediaService = {
   }),
   manipulateMedia: vi.fn(),
   batchProcessImages: vi.fn(),
+  getPublishedReferences: vi.fn().mockResolvedValue([]),
   enrichMediaWithUrl: vi.fn((m) => ({
     ...m,
     url: `http://localhost/files/${m.path}`,

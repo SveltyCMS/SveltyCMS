@@ -120,6 +120,48 @@ export const requestMagicLink = command("unchecked", async (data: any) => {
   }
 });
 
+export const checkAuthMethods = query("unchecked", async (email: string) => {
+  await dbInitPromise;
+  if (!auth) return { success: false, message: "Authentication system is not ready." };
+
+  const e = email?.trim().toLowerCase();
+  if (!e) return { success: false, message: "Email required." };
+
+  try {
+    const user = await auth.checkUser({ email: e }, { bypassTenantCheck: true });
+    if (!user) {
+      // If user doesn't exist, we just return true for password to not leak user existence trivially
+      // But if we want open signup, we might allow magic link / passkey registration?
+      // For now, let's just return basic defaults.
+      return {
+        success: true,
+        hasPassword: true,
+        hasPasskey: false,
+        hasMagicLink: false,
+        hasOAuth: false,
+      };
+    }
+
+    // Checking passkey availability - wait, user profile needs a way to set passkey.
+    // If we assume user can register multiple passkeys, it would be in user attributes or a separate collection.
+    // Let's check `lastAuthMethod` or similar, or just assume if global is enabled, we allow it.
+    // The user requested that passkeys and magic links should be activated in /user.
+    // We can store these flags in `user.preferences.auth` or similar.
+    const prefs = (user.preferences as any) || {};
+    const authPrefs = prefs.auth || {};
+
+    return {
+      success: true,
+      hasPassword: true,
+      hasPasskey: !!authPrefs.passkeyEnabled,
+      hasMagicLink: !!authPrefs.magicLinkEnabled,
+      hasOAuth: !!authPrefs.oauthEnabled,
+    };
+  } catch {
+    return { success: false, message: "Failed to check auth methods" };
+  }
+});
+
 export const verify2FA = command(
   "unchecked",
   async ({ userId, code }: { userId: string; code: string }) => {
@@ -381,6 +423,9 @@ async function signInInternal(event: RequestEvent, input: any) {
     });
 
   const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
+  logger.info(
+    `[SignIn] First collection path: ${path}, redirecting to: ${path ?? "/config/collectionbuilder"}`,
+  );
   return { success: true, redirectPath: path ?? "/config/collectionbuilder" };
 }
 
@@ -421,7 +466,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
     if ((await auth.getUserCount({}, { bypassTenantCheck: true })) >= 100)
       return { success: false, message: "Demo capacity reached." };
     role = "admin";
-    tid = crypto.randomUUID();
+    // Use the demo_tenant_id cookie if present (set by handleDemoTenantAssignment)
+    // to keep tenant IDs consistent between the middleware and the sign-up flow.
+    tid = event.cookies.get("demo_tenant_id") || crypto.randomUUID();
   } else {
     if (!t) return { success: false, message: "Invitation required." };
     const td = await auth.validateRegistrationToken(t);

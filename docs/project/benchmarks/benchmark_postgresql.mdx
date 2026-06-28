@@ -30,29 +30,24 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (15/06/2026, 12:32:32)
+## 📊 Latest Performance Audit (28/06/2026, 02:29:38)
 
-> [!WARNING]
-> **Performance Regressions Detected for POSTGRESQL**:
->
-> - **REST/Collections p95**: 5.920ms (was 0.000ms, delta: +18.4%) - _Exceeded budget: 5.920ms > 5ms_
-> - **Hooks/Middleware**: 3.168ms (was 0.000ms, delta: +58.4%) - _Exceeded budget: 3.168ms > 2ms_
->
-> _Please investigate potential database adapter performance bottlenecks or environment variance._
+**Status:** ❌ FAIL
 
-**Status:** ✅ PASS
+> [!CAUTION]
+> **Anomalies Detected**: Hooks Trace failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [31.42s]); State-Machine failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [251.00ms]); DB Raw p95 failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.80s]); ACID failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.55s]); Cache failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [32.37s]); Temporal failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.35s]); Relational failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.68s]); Auth Trace failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1.79s]); REST failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [33.52s]); GraphQL failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.37s]); SEO failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.86s]); Real-Time failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.39s]); Negative Cache failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.30s]); Revision Stress failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [31.71s]); Memory failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.30s]); Tenancy failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [32.04s]); Mixed failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.68s]); GQL Stress failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.53s]); Migration failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [32.90s]); Index Pressure failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.69s]); Media Upload failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.68s]); Journey failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.25s]); Concurrency failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.17s]); Throughput failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.81s]); MaxRPS failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.52s]); LocalSDK failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [15.51s]); Resilience failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.19s]); GDPR failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [32.49s]); Sovereignty failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [247.00ms]); Prod Day failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [16.21s]); Failover failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [64.17s]) See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
-| :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 306ms       | ⚪ (+14.1%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 5.920ms     | ⚪ (+0.0%)  | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | 3.168ms     | ⚪          | < 2ms         | 🔴 FAIL |
-| **GraphQL (Avg)**      | 3.679ms     | 🟢 (+0.0%)  | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.808ms     | ⚪          | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
+| :--------------------- | :---------- | :----------- | :------------ | :------ |
+| **Cold Start**         | 811ms       | ⚪ (+165.0%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.632ms     | ⚪ (-89.3%)  | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 3.168ms     | ⚪           | < 2ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | 3.679ms     | 🟢 (+0.0%)   | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | FAILED      | ⚪           | < 250ms       | 🔴 FAIL |
+| **DB Raw (p95)**       | 0.808ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -80,7 +75,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 3.168ms | **Target:** < 2ms | **Trend:** ⚪ (+0.2%)
+**Middleware p95:** 3.168ms | **Target:** < 2ms | **Trend:** 🔴 (-0.0%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -127,36 +122,41 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
-````text
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.068 ms │ p95:        0.179 ms │ RPS:          0 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Cold Start (IDLE → READY)      │        0.062 ms │ p95:        0.151 ms │ RPS:          0 ║
+```
+
 <!-- COLD_START_TABLE_END -->
 
 <!-- TRUTH_AUDIT_TABLE_START -->
+
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
-```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,873,563 ║
-║ Local SDK (Full)               │        0.004 ms │ p95:        0.009 ms │ RPS:    225,141 ║
-║ HTTP End-to-End                │        0.496 ms │ p95:        0.892 ms │ RPS:      2,017 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,851,711 ║
+║ Local SDK (Full)               │        0.006 ms │ p95:        0.012 ms │ RPS:    164,330 ║
+║ HTTP End-to-End                │        0.557 ms │ p95:        0.632 ms │ RPS:      1,796 ║
+```
+
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- INCREMENTAL_TABLE_START -->
+
 ### 🏷️ Incremental Content Reload ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
 
-```
+```text
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.252 ms │ p95:        0.303 ms │ RPS:      3,964 ║
-║ Full Reconciliation Reload     │        1.599 ms │ p95:        3.122 ms │ RPS:        626 ║
-````
+║ Incremental fullReload (1 file) │        0.199 ms │ p95:        0.309 ms │ RPS:      5,036 ║
+║ Full Reconciliation Reload     │       13.459 ms │ p95:       17.224 ms │ RPS:         74 ║
+```
 
 <!-- INCREMENTAL_TABLE_END -->
 
@@ -496,40 +496,45 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
 > 🎯 **Proves**: Measures system graceful degradation when external services fail.
 
-`````text
-║ Circuit Breaker Fallback       │        0.408 ms │ p95:        0.678 ms │ RPS:      2,450 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Circuit Breaker Fallback       │        0.408 ms │ p95:        1.698 ms │ RPS:      2,453 ║
+```
+
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
 <!-- RESILIENCE_TABLE_START -->
+
 ### 🏷️ Chaos & Infrastructure Resilience ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/chaos-resilience.test.ts](../../../tests/benchmarks/chaos-resilience.test.ts)
 > 🎯 **Proves**: Simulates 500ms database brownouts and measures CMS availability and stability.
 
-```
+````
 ║ Chaos Resilience (Brownout)    │      175.922 ms │ p95:      707.561 ms │ RPS:          6 ║
 ```text
 <!-- RESILIENCE_TABLE_END -->
 
 <!-- THROTTLING_TABLE_START -->
 ### 🏷️ Throttling & Backoff Stress ⚪ —
-
 > 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
 > 🎯 **Proves**: Measures rate-limiting consistency under 10x design load.
 
-```
-║ Throttling Enforcement         │        2.085 ms │ p95:        4.678 ms │ RPS:        480 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Throttling Enforcement         │        1.818 ms │ p95:        4.599 ms │ RPS:        550 ║
+````
+
 <!-- THROTTLING_TABLE_END -->
 
 <!-- GDPR_TABLE_START -->
+
 ### 🏷️ GDPR Compliance Speed ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
 > 🎯 **Proves**: Measures performance of deep-deletion across all linked tables.
 
-```
+````
 ║ Deep Deletion Speed            │       15.182 ms │ p95:       20.272 ms │ RPS:         66 ║
 ```text
 <!-- GDPR_TABLE_END -->
@@ -545,6 +550,11 @@ xychart-beta
 > **Code**: `src/routes/api/[...path]/+server.ts`, `src/databases/<db>/crud-methods.ts`, `src/databases/cache/cache-service.ts`
 > **Why**: The ultimate test. Reveals slow memory leaks, cache churn, and connection pool drift.
 <!-- PROD_DAY_TABLE_END -->
+
+<!-- FAILOVER_TABLE_START -->
+> ⏳ **Database Failover & Reconnection**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/database-failover.test.ts](../../../tests/benchmarks/database-failover.test.ts)
+<!-- FAILOVER_TABLE_END -->
 
 
 ---
@@ -565,57 +575,58 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ### 📦 Core System Readiness — Fast, low-intensity tests verifying basic system health and network overhead
 
-### 🏷️ API LAYER LATENCY 🟢 avg -4% p95 -3% (8 runs)
+### 🏷️ API LAYER LATENCY  🟡 avg +5% p95 -8% rps -5% (9 runs)
 
 > **Budget**: ≤ 12,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Within normal variance — no action needed.
-> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+> Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
-```
+
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS  —  API LAYER LATENCY                             ║
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        1.772 ms │ p95:        3.289 ms │ RPS:        551 ║
+║ HTTP: findById @ 8c            │        1.936 ms │ p95:        3.128 ms │ RPS:        496 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```text
+````
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        1.772 ms       ║
-║ Peak Throughput                                    │      551.000 req/s    ║
+║ HTTP Latency (findById)                            │        1.936 ms       ║
+║ Peak Throughput                                    │      496.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-```text
+```
 
 <!-- API_LATENCY_TABLE_END -->
 
-### 🏷️ PHASED COLD START 🟢 avg -100% p95 -100% (8 runs)
+### 🏷️ PHASED COLD START 🟢 avg -10% p95 -16% (9 runs)
 
 > **Budget**: ≤ 10,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- COLD_START_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
+> Performance improved — recent optimizations or cache warming likely effective.  
 > **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
-```
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.068 ms │ p95:        0.179 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.062 ms │ p95:        0.151 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```text
-
 ```
+
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -623,41 +634,41 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║ p95 Cold Start                                     │            0 ms       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-```text
+```
 
 <!-- COLD_START_TABLE_END -->
 
-### 🏷️ SRE TRUTH AUDIT 🟢 rps +73% (4 runs)
+### 🏷️ SRE TRUTH AUDIT 🟢 rps +72% (4 runs)
 
 > **Budget**: ≤ 15,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
+> Performance improved — recent optimizations or cache warming likely effective.  
 > **Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
 
-```
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,873,563 ║
-║ Local SDK (Full)               │        0.004 ms │ p95:        0.009 ms │ RPS:    225,141 ║
-║ HTTP End-to-End                │        0.496 ms │ p95:        0.892 ms │ RPS:      2,017 ║
+║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,851,711 ║
+║ Local SDK (Full)               │        0.006 ms │ p95:        0.012 ms │ RPS:    164,330 ║
+║ HTTP End-to-End                │        0.557 ms │ p95:        0.632 ms │ RPS:      1,796 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```text
-
 ```
+
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Baseline Harness Overhead                          │        0.000 ms       ║
-║ SDK Engine Latency                                 │        0.004 ms       ║
-║ E2E HTTP Latency                                   │        0.496 ms       ║
-║ Peak HTTP Throughput                               │     2017.000 req/s    ║
+║ SDK Engine Latency                                 │        0.006 ms       ║
+║ E2E HTTP Latency                                   │        0.557 ms       ║
+║ Peak HTTP Throughput                               │     1796.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-```text
+```
 
 <!-- TRUTH_AUDIT_TABLE_END -->
 
@@ -699,14 +710,35 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SCAN_TABLE_END -->
 
-### 🏷️ Incremental Content Reload ⚪ —
+### 🏷️ Incremental Content Reload 🟢 avg -21% (2 runs)
 
 > **Budget**: ≤ 4,000ms (suite) | **Tags**: `cpu` | **Level**: 2
 
 <!-- INCREMENTAL_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
 
-<!-- SUMMARY_PLACEHOLDER -->
+> Performance improved — recent optimizations or cache warming likely effective.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
+║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
+║          Measures surgical single-file fullReload vs full reconciliation path           ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Incremental fullReload (1 file) │        0.199 ms │ p95:        0.309 ms │ RPS:      5,036 ║
+║ Full Reconciliation Reload     │       13.459 ms │ p95:       17.224 ms │ RPS:         74 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Incremental Reload (avg)                           │        0.199 ms       ║
+║ Full Reconciliation (avg)                          │       13.459 ms       ║
+║ Incremental Speedup Factor                         │         67.6 x        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
 <!-- INCREMENTAL_TABLE_END -->
 
 ### 🏷️ Middleware & Hooks Performance 🟢 avg -10% p95 -8% rps +10% (10 runs)
@@ -793,7 +825,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Severe degradation** (+67%) — review recent commits immediately.
 > **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
-```
+````
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS — PARALLEL READS (POSTGRESQL)                         ║
 ║                   File: tests/benchmarks/local-parallel-reads.test.ts                   ║
@@ -803,16 +835,18 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```text
 
-```
+````
+
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
+║ FINAL AUDIT SUMMARY ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Database                                           │   POSTGRESQL          ║
-║ Total Reads                                        │     1000.000 reads    ║
-║ Duration                                           │      272.298 ms       ║
-║ Throughput                                         │     3672.451 RPS      ║
-║ Found                                              │     987/1000          ║
+║ Database │ POSTGRESQL ║
+║ Total Reads │ 1000.000 reads ║
+║ Duration │ 272.298 ms ║
+║ Throughput │ 3672.451 RPS ║
+║ Found │ 987/1000 ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+
 ```text
 
 <!-- LOCAL_API_TABLE_END -->
@@ -979,27 +1013,31 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```
+
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
-║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
+║ SVELTYCMS — ENTERPRISE REST API AUDIT ║
+║ File: tests/benchmarks/rest-api-performance.test.ts ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        1.016 ms │ p95:        2.075 ms │ RPS:        984 ║
-║ Collection Schema              │        3.362 ms │ p95:        6.121 ms │ RPS:        297 ║
-║ Collection Find (List)         │        3.304 ms │ p95:        5.675 ms │ RPS:        303 ║
-║ Collection Search              │        3.220 ms │ p95:        5.798 ms │ RPS:        311 ║
+║ Health Check │ 1.016 ms │ p95: 2.075 ms │ RPS: 984 ║
+║ Collection Schema │ 3.362 ms │ p95: 6.121 ms │ RPS: 297 ║
+║ Collection Find (List) │ 3.304 ms │ p95: 5.675 ms │ RPS: 303 ║
+║ Collection Search │ 3.220 ms │ p95: 5.798 ms │ RPS: 311 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
+
 ```text
 
 ```
+
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
+║ FINAL AUDIT SUMMARY ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        1.016 ms       ║
-║ Collection Schema                                  │        3.362 ms       ║
-║ Collection Find (List)                             │        3.304 ms       ║
-║ Collection Search                                  │        3.220 ms       ║
+║ Health Check │ 1.016 ms ║
+║ Collection Schema │ 3.362 ms ║
+║ Collection Find (List) │ 3.304 ms ║
+║ Collection Search │ 3.220 ms ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+
 ```text
 
 <!-- REST_TABLE_END -->
@@ -1014,27 +1052,31 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 
 ```
+
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                          SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                          ║
-║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
-║   Measures GraphQL resolver performance and throughput across varied query scenarios.   ║
+║ SVELTYCMS — GRAPHQL PERFORMANCE AUDIT ║
+║ File: tests/benchmarks/graphql-api-performance.test.ts ║
+║ Measures GraphQL resolver performance and throughput across varied query scenarios. ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        1.434 ms │ p95:        2.556 ms │ RPS:        698 ║
-║ GQL: Collection List           │        3.929 ms │ p95:        7.212 ms │ RPS:        255 ║
-║ GQL: Concurrent Load           │        3.176 ms │ p95:        5.696 ms │ RPS:        315 ║
+║ GQL: System Health │ 1.434 ms │ p95: 2.556 ms │ RPS: 698 ║
+║ GQL: Collection List │ 3.929 ms │ p95: 7.212 ms │ RPS: 255 ║
+║ GQL: Concurrent Load │ 3.176 ms │ p95: 5.696 ms │ RPS: 315 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
+
 ```text
 
 ```
+
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
+║ FINAL AUDIT SUMMARY ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        1.434 ms       ║
-║ Collection List                                    │        3.929 ms       ║
-║ Entries Query                                      │        3.176 ms       ║
-║ Peak RPS                                           │      697.500 req/s    ║
+║ Health Check │ 1.434 ms ║
+║ Collection List │ 3.929 ms ║
+║ Entries Query │ 3.176 ms ║
+║ Peak RPS │ 697.500 req/s ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-```text
+
+````text
 
 <!-- GRAPHQL_TABLE_END -->
 
@@ -1175,14 +1217,38 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- INDEX_PRESSURE_TABLE_END -->
 
-### 🏷️ Content Scale Stress  ⚪ — baseline established (1 run)
+### 🏷️ Content Scale Stress   ⚪ avg 0% rps -89% (2 runs)
 
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONTENT_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
 
-<!-- SUMMARY_PLACEHOLDER -->
+> Within normal variance — no action needed.
+Throughput dropped 89% — check connection pool saturation or lock contention.
+**Check**: `src/content/collectionScanner.ts` · `src/databases/cache/cache-service.ts`
+
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                        SVELTYCMS  —  CONTENT SCALE STRESS AUDIT                         ║
+║                   File: tests/benchmarks/content-scale-stress.test.ts                   ║
+║Measures file-scanning and content discovery performance at extreme scale (1,000+ collections)║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Cold Stress Scan (1k)          │        9.754 ms │ p95:       12.011 ms │ RPS:        103 ║
+║ Warm Stress Scan (1k)          │        0.027 ms │ p95:        0.036 ms │ RPS:     36,535 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+````
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Cold Scan Latency                                  │        9.754 ms       ║
+║ Warm Scan Latency                                  │        0.027 ms       ║
+║ Scale Efficiency                                   │        ELITE          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
 <!-- CONTENT_STRESS_TABLE_END -->
 
 ### 🏷️ Full Client Journey Simulation ⚪ —
@@ -1247,11 +1313,27 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
 <!-- RESILIENCE_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
 
-> **Measures**: Simulates 500ms database brownouts and measures CMS availability and stability.
-> **Code**: `src/hooks.server.ts`, `src/databases/<db>/adapter-core.ts`
-> **Why**: Infrastructure failures are inevitable. The system must degrade gracefully, not crash.
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                            SVELTYCMS — CIRCUIT BREAKER AUDIT                            ║
+║                 File: tests/benchmarks/circuit-breaker-failover.test.ts                 ║
+║Simulates external service failures and measures system graceful degradation via circuit breaker patterns.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Circuit Breaker Fallback       │        0.408 ms │ p95:        1.698 ms │ RPS:      2,453 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
 
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Fallback Latency                                   │        0.408 ms       ║
+║ Failover Stability                                 │       STABLE          ║
+║ Recovery Posture                                   │      GRADUAL          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- RESILIENCE_TABLE_END -->
 
 ### 🏷️ Production Day Simulation ⚪ —
@@ -1287,11 +1369,27 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 4
 
 <!-- THROTTLING_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
 
-> **Measures**: Measures rate-limiting consistency under 10x design load.
-> **Code**: `src/hooks/handle-rate-limit.ts`, `src/hooks.server.ts`
-> **Why**: Rate limiting protects against DoS. Must be consistent even under extreme load.
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                              SVELTYCMS — THROTTLING AUDIT                               ║
+║                File: tests/benchmarks/throttling-backoff-stress.test.ts                 ║
+║Simulates high-velocity traffic from a single client IP to verify rate-limiting enforcement and backoff consistency.║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Throttling Enforcement         │        1.818 ms │ p95:        4.599 ms │ RPS:        550 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
 
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Throughput (RPS)                                   │      550.000 req/s    ║
+║ Limiter Consistency                                │       STABLE          ║
+║ Backoff Policy                                     │       ACTIVE          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- THROTTLING_TABLE_END -->
 
 ### 🏷️ Data Residency & Sovereignty ⚪ —
@@ -1368,7 +1466,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 - **Test metadata**: `tests/benchmarks/benchmark-meta.ts`
 - **Per-DB budgets**: `tests/benchmarks/benchmark-mdx.ts` → `PER_DIMENSION_BUDGETS`
 - **Report template**: This file — updated on each `BENCHMARK_RECORD=1` run
-`````
+````
 
 ---
 

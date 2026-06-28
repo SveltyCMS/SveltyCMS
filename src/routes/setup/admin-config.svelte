@@ -17,7 +17,6 @@
 
 -->
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
@@ -199,30 +198,29 @@
 					</SystemTooltip>
 				</label>
 
-				<div class="relative">
-					<Input
-						id="admin-password"
-						bind:value={adminUser.password}
-						oninput={checkPasswordRequirements}
-						onblur={() => handleBlur('password')}
-						type={showAdminPassword ? 'text' : 'password'}
-						autocomplete="new-password"
-						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						error={displayErrors.password}
-						required
-						inputClass="pe-10"
-					/>
-					<Button
-						variant="ghost"
-						type="button"
-						tabindex={-1}
-						onclick={() => (showAdminPassword = !showAdminPassword)}
-						class="absolute inset-e-0 top-0 p-0! min-w-0"
-						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
-					>
-						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
-					</Button>
-				</div>
+				<Input
+					id="admin-password"
+					bind:value={adminUser.password}
+					oninput={checkPasswordRequirements}
+					onblur={() => handleBlur('password')}
+					type={showAdminPassword ? 'text' : 'password'}
+					autocomplete="new-password"
+					placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
+					error={displayErrors.password}
+					required
+				>
+					{#snippet post()}
+						<button
+							type="button"
+							tabindex={-1}
+							onclick={() => (showAdminPassword = !showAdminPassword)}
+							class="flex items-center justify-center w-full h-full text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100 transition-colors"
+							aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+						>
+							<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+						</button>
+					{/snippet}
+				</Input>
 
 				<!-- Password Strength Meter -->
 				{#if adminUser.password}
@@ -262,30 +260,29 @@
 					</SystemTooltip>
 				</label>
 
-				<div class="relative">
-					<Input
-						id="admin-confirm-password"
-						bind:value={adminUser.confirmPassword}
-						oninput={checkPasswordRequirements}
-						onblur={() => handleBlur('confirmPassword')}
-						type={showConfirmPassword ? 'text' : 'password'}
-						autocomplete="new-password"
-						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						error={displayErrors.confirmPassword}
-						required
-						inputClass="pe-10"
-					/>
-					<Button
-						variant="ghost"
-						type="button"
-						tabindex={-1}
-						onclick={() => (showConfirmPassword = !showConfirmPassword)}
-						class="absolute inset-e-0 top-0 p-0! min-w-0"
-						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
-					>
-						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
-					</Button>
-				</div>
+				<Input
+					id="admin-confirm-password"
+					bind:value={adminUser.confirmPassword}
+					oninput={checkPasswordRequirements}
+					onblur={() => handleBlur('confirmPassword')}
+					type={showConfirmPassword ? 'text' : 'password'}
+					autocomplete="new-password"
+					placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
+					error={displayErrors.confirmPassword}
+					required
+				>
+					{#snippet post()}
+						<button
+							type="button"
+							tabindex={-1}
+							onclick={() => (showConfirmPassword = !showConfirmPassword)}
+							class="flex items-center justify-center w-full h-full text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100 transition-colors"
+							aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+						>
+							<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+						</button>
+					{/snippet}
+				</Input>
 			</div>
 		</div>
 

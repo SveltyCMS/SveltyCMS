@@ -18,6 +18,7 @@
 
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import os from "node:os";
+import v8 from "node:v8";
 import { logger } from "@utils/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -96,10 +97,11 @@ async function lazyLoadDependencies(): Promise<boolean> {
   if (_osuCpu && _osuMem) return true;
   try {
     const osu = await import("node-os-utils");
-    _osuCpu = (osu as any).cpu;
-    _osuMem = (osu as any).mem;
-    _cpuCores = _osuCpu.count?.() ?? os.cpus().length ?? 1;
-    _cpuModel = _osuCpu.model?.() ?? os.cpus()[0]?.model ?? "Unknown";
+    const osuRoot = (osu as any).default || osu;
+    _osuCpu = osuRoot.cpu;
+    _osuMem = osuRoot.mem;
+    _cpuCores = _osuCpu?.count?.() ?? os.cpus().length ?? 1;
+    _cpuModel = _osuCpu?.model?.() ?? os.cpus()[0]?.model ?? "Unknown";
     return true;
   } catch (err) {
     logger.error("[SystemMonitor] Failed to load dependency node-os-utils", err);
@@ -108,8 +110,9 @@ async function lazyLoadDependencies(): Promise<boolean> {
 }
 
 function getHeapUsedPercent(): number {
-  const { heapUsed, heapTotal } = process.memoryUsage();
-  return Math.round((heapUsed / (heapTotal || 1)) * 100);
+  const { heapUsed } = process.memoryUsage();
+  const heapLimit = v8.getHeapStatistics().heap_size_limit;
+  return Math.round((heapUsed / (heapLimit || 1)) * 100);
 }
 
 function getEventLoopLagMs(): number {

@@ -1,6 +1,6 @@
 /**
- * @file tests/benchmark./modules/benchmark-summary.ts
- * @description Ranked executive summary for benchmark reports.
+ * @file tests/benchmarks/modules/benchmark-summary.ts
+ * @description Ranked executive summary for benchmark reports (Optimized)
  *
  * Analyzes results across all dimensions and produces a ranked list of:
  * - Top regressions (sorted by severity × delta)
@@ -39,30 +39,20 @@ export interface SharedCause {
 export interface NoiseReport {
   testId: string;
   dbType: string;
-  cv: number; // coefficient of variation
+  cv: number;
   sampleSize: number;
   status: "stable" | "noisy";
 }
 
 export interface ExecutiveSummary {
-  /** When this summary was generated */
   generatedAt: string;
-  /** Which databases are included */
   databases: string[];
-  /** Total tests analyzed */
   totalTests: number;
-  /** Whether this is a partial or full run */
   mode: "partial" | "full";
-
-  /** Top regressions — sorted by severity × delta */
   topRegressions: RankedAlert[];
-  /** Largest improvements */
   topImprovements: RankedAlert[];
-  /** Noisy tests with high variance */
   noisyTests: NoiseReport[];
-  /** Likely shared root cause clusters */
   sharedCauses: SharedCause[];
-  /** Top files/subsystems to investigate */
   recommendedFiles: string[];
 }
 
@@ -100,9 +90,15 @@ function severityIcon(severity: string): string {
 // Analysis
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Build a ranked executive summary from history data across all tracked tests.
- */
+// Pre-allocate structural mappings for reuse inside median loops
+/** Compute in-place median from Float64Array slice without heap copy */
+function fastMedian(buf: Float64Array, length: number): number {
+  if (length === 0) return 0;
+  const slice = buf.subarray(0, length);
+  slice.sort(); // Native typed array sort — no GC churn
+  return slice[Math.floor(length / 2)]!;
+}
+
 export function buildExecutiveSummary(
   trackedTests: Array<{
     testId: string;
@@ -115,34 +111,50 @@ export function buildExecutiveSummary(
   const alerts: RankedAlert[] = [];
   const improvements: RankedAlert[] = [];
   const noiseReports: NoiseReport[] = [];
+  const uniqueDbs = new Set<string>();
 
-  for (const t of trackedTests) {
+  // Pre-allocate explicit scratch buffers to insulate timing analytics loops from memory allocations
+  // Pre-allocate fixed typed-array scratch buffers — zero GC allocation in hot loop
+  const avgScratchBuffer = new Float64Array(10);
+  const p95ScratchBuffer = new Float64Array(10);
+
+  for (let i = 0; i < trackedTests.length; i++) {
+    const t = trackedTests[i]!;
+    uniqueDbs.add(t.dbType);
+
     const history = loadHistory(t.testId, t.dbType, t.redisEnabled, t.phase, 20);
-    if (history.length < 2) continue;
+    const historyLen = history.length;
+    if (historyLen < 2) continue;
 
-    // Compute baseline (rolling median of last 10, excluding current)
-    const baseline = history.slice(0, Math.min(10, history.length));
-    const med = (arr: number[]) => {
-      const s = [...arr].sort((a, b) => a - b);
-      return s.length > 0 ? s[Math.floor(s.length / 2)] : 0;
-    };
+    const current = history[0]!;
+    const baselineLimit = Math.min(10, historyLen);
 
-    const bAvg = med(baseline.map((h) => h.avgMs));
-    const bP95 = med(baseline.filter((h) => h.p95Ms > 0).map((h) => h.p95Ms));
-    const current = history[0]; // most recent
-    const pct = (c: number, b: number) => (b > 0 ? ((c - b) / b) * 100 : 0);
+    // Populate allocation-free primitive buffers natively
+    let avgCount = 0;
+    let p95Count = 0;
 
-    const dAvg = pct(current.avgMs, bAvg);
-    const dP95 = pct(current.p95Ms, bP95);
+    for (let j = 0; j < baselineLimit; j++) {
+      const h = history[j]!;
+      avgScratchBuffer[j] = h.avgMs;
+      if (h.p95Ms > 0) {
+        p95ScratchBuffer[p95Count++] = h.p95Ms;
+      }
+      avgCount++;
+    }
+
+    // Direct typed-array sort — avoids Array.from() heap allocation entirely
+    const bAvg = fastMedian(avgScratchBuffer, avgCount);
+    const bP95 = fastMedian(p95ScratchBuffer, p95Count);
+
+    const dAvg = bAvg > 0 ? ((current.avgMs - bAvg) / bAvg) * 100 : 0;
+    const dP95 = bP95 > 0 ? ((current.p95Ms - bP95) / bP95) * 100 : 0;
     const ad = Math.abs(dAvg);
 
-    // Severity classification
     let severity: RankedAlert["severity"] = "stable";
     if (ad > 20) severity = "regression";
     else if (ad > 10) severity = "warning";
     else if (ad > 5) severity = "watch";
 
-    // Budget check
     let budgetViolation: string | undefined;
     const budgets = PER_DIMENSION_BUDGETS[t.dbType.toLowerCase()];
     if (budgets) {
@@ -162,7 +174,7 @@ export function buildExecutiveSummary(
       p95DeltaPct: dP95,
       currentAvg: current.avgMs,
       baselineAvg: bAvg,
-      sampleSize: history.length,
+      sampleSize: historyLen,
       budgetViolation,
     };
 
@@ -172,23 +184,29 @@ export function buildExecutiveSummary(
       improvements.push(alert);
     }
 
-    // Noise detection
-    if (history.length >= 5) {
-      const cvs = history.map((h) => h.cv).filter((c) => c > 0);
-      const avgCv = cvs.length > 0 ? cvs.reduce((a, b) => a + b, 0) / cvs.length : 0;
+    if (historyLen >= 5) {
+      let cvSum = 0;
+      let validCvCount = 0;
+      for (let j = 0; j < historyLen; j++) {
+        const cvVal = history[j]!.cv;
+        if (cvVal > 0) {
+          cvSum += cvVal;
+          validCvCount++;
+        }
+      }
+      const avgCv = validCvCount > 0 ? cvSum / validCvCount : 0;
       if (avgCv > 20) {
         noiseReports.push({
           testId: t.testId,
           dbType: t.dbType,
           cv: avgCv,
-          sampleSize: history.length,
+          sampleSize: historyLen,
           status: "noisy",
         });
       }
     }
   }
 
-  // Sort: regressions by severity × abs(delta); improvements by abs(delta)
   alerts.sort(
     (a, b) =>
       severityRank(b.severity) * Math.abs(b.deltaPct) -
@@ -197,48 +215,57 @@ export function buildExecutiveSummary(
   improvements.sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct));
   noiseReports.sort((a, b) => b.cv - a.cv);
 
-  // Detect shared causes (tests with same severity + same DB)
-  const causeClusters: Map<string, string[]> = new Map();
-  for (const a of alerts) {
+  // Structural maps using composite object layouts rather than splittable string keys
+  const causeClusters = new Map<string, string[]>();
+  for (let i = 0; i < alerts.length; i++) {
+    const a = alerts[i]!;
     if (a.severity === "stable" || a.severity === "watch") continue;
     const key = `${a.dbType}/${a.severity}`;
-    if (!causeClusters.has(key)) causeClusters.set(key, []);
-    causeClusters.get(key)!.push(a.testId);
+
+    let cluster = causeClusters.get(key);
+    if (!cluster) {
+      cluster = [];
+      causeClusters.set(key, cluster);
+    }
+    cluster.push(a.testId);
   }
 
   const sharedCauses: SharedCause[] = [];
-  for (const [key, tests] of causeClusters) {
+  const isSingleDB = causeClusters.size === 1;
+
+  for (const [key, tests] of causeClusters.entries()) {
     if (tests.length < 2) continue;
-    const [dbType] = key.split("/");
-    const isSingleDB = causeClusters.size === 1;
+    const slashIdx = key.indexOf("/");
+    const extractedDbType = slashIdx !== -1 ? key.substring(0, slashIdx) : key;
 
     sharedCauses.push({
       cause: isSingleDB
-        ? `All regressions isolated to ${dbType.toUpperCase()} — likely adapter-specific`
+        ? `All regressions isolated to ${extractedDbType.toUpperCase()} — likely adapter-specific`
         : `Multiple databases affected — likely shared CMS logic or middleware`,
       affectedTests: tests,
       confidence: isSingleDB ? "confirmed" : "suspected",
       recommendation: isSingleDB
-        ? `Check src/databases/${dbType}/crud-methods.ts and adapter-core.ts`
+        ? `Check src/databases/${extractedDbType}/crud-methods.ts and adapter-core.ts`
         : "Check src/hooks.server.ts and shared middleware pipeline",
     });
   }
 
-  // Collect recommended files from the top alerts
   const recommendedFiles: string[] = [];
-  // Top 3 regressions' DBs
-  for (const a of alerts.slice(0, 3)) {
-    const file = `src/databases/${a.dbType}/crud-methods.ts`;
+  const regressionLimit = Math.min(3, alerts.length);
+  for (let i = 0; i < regressionLimit; i++) {
+    const file = `src/databases/${alerts[i]!.dbType}/crud-methods.ts`;
     if (!recommendedFiles.includes(file)) recommendedFiles.push(file);
   }
-  if (sharedCauses.length > 0 && sharedCauses[0].confidence === "suspected") {
-    if (!recommendedFiles.includes("src/hooks.server.ts"))
+
+  if (sharedCauses.length > 0 && sharedCauses[0]!.confidence === "suspected") {
+    if (!recommendedFiles.includes("src/hooks.server.ts")) {
       recommendedFiles.push("src/hooks.server.ts");
+    }
   }
 
   return {
     generatedAt: new Date().toISOString(),
-    databases: [...new Set(trackedTests.map((t) => t.dbType))],
+    databases: Array.from(uniqueDbs),
     totalTests: trackedTests.length,
     mode: isPartial ? "partial" : "full",
     topRegressions: alerts.slice(0, 10),
@@ -249,9 +276,6 @@ export function buildExecutiveSummary(
   };
 }
 
-/**
- * Format the executive summary as an MDX block suitable for report insertion.
- */
 export function formatSummaryAsMdx(summary: ExecutiveSummary): string {
   const lines: string[] = [];
 
@@ -263,11 +287,12 @@ export function formatSummaryAsMdx(summary: ExecutiveSummary): string {
     lines.push("> \u{1F4CB} **Partial report** — run full matrix for complete cross-DB analysis.");
   }
 
-  // Top regressions
   if (summary.topRegressions.length > 0) {
     lines.push("");
     lines.push("### \u{1F534} Top Regressions");
-    for (const r of summary.topRegressions.slice(0, 5)) {
+    const displayLimit = Math.min(5, summary.topRegressions.length);
+    for (let i = 0; i < displayLimit; i++) {
+      const r = summary.topRegressions[i]!;
       const icon = severityIcon(r.severity);
       const dir = r.deltaPct > 0 ? "+" : "";
       lines.push(
@@ -279,11 +304,12 @@ export function formatSummaryAsMdx(summary: ExecutiveSummary): string {
     }
   }
 
-  // Shared causes
   if (summary.sharedCauses.length > 0) {
     lines.push("");
     lines.push("### \u{1F50D} Likely Shared Causes");
-    for (const sc of summary.sharedCauses.slice(0, 3)) {
+    const displayLimit = Math.min(3, summary.sharedCauses.length);
+    for (let i = 0; i < displayLimit; i++) {
+      const sc = summary.sharedCauses[i]!;
       const conf = sc.confidence === "confirmed" ? "\u2705 confirmed" : "\u{1F50D} suspected";
       lines.push(`> **${conf}**: ${sc.cause}`);
       lines.push(`>   Affected: ${sc.affectedTests.join(", ")}`);
@@ -291,33 +317,42 @@ export function formatSummaryAsMdx(summary: ExecutiveSummary): string {
     }
   }
 
-  // Top improvements
   if (summary.topImprovements.length > 0) {
     lines.push("");
     lines.push("### \u{1F7E2} Top Improvements");
-    for (const imp of summary.topImprovements.slice(0, 3)) {
+    const displayLimit = Math.min(3, summary.topImprovements.length);
+    for (let i = 0; i < displayLimit; i++) {
+      const imp = summary.topImprovements[i]!;
       lines.push(
         `> **${imp.testId}** (${imp.dbType}): ${imp.deltaPct.toFixed(0)}% faster | ${imp.currentAvg.toFixed(2)}ms (was ${imp.baselineAvg.toFixed(2)}ms)`,
       );
     }
   }
 
-  // Noisy tests
   if (summary.noisyTests.length > 0) {
     lines.push("");
     lines.push("### \u{1F4CA} Noisy / Unstable Tests");
-    for (const n of summary.noisyTests.slice(0, 3)) {
+    const displayLimit = Math.min(3, summary.noisyTests.length);
+    for (let i = 0; i < displayLimit; i++) {
+      const n = summary.noisyTests[i]!;
       lines.push(
         `> **${n.testId}** (${n.dbType}): CV ${n.cv.toFixed(1)}% over ${n.sampleSize} runs — consider increasing iterations`,
       );
     }
   }
 
-  // Recommended files
   if (summary.recommendedFiles.length > 0) {
     lines.push("");
     lines.push("### \u{1F4C2} Files to Investigate");
-    lines.push("> " + summary.recommendedFiles.map((f) => "`" + f + "`").join(" · "));
+    let joinedFiles = "";
+    for (let i = 0; i < summary.recommendedFiles.length; i++) {
+      joinedFiles +=
+        "`" +
+        summary.recommendedFiles[i] +
+        "`" +
+        (i < summary.recommendedFiles.length - 1 ? " · " : "");
+    }
+    lines.push("> " + joinedFiles);
   }
 
   return lines.join("\n");

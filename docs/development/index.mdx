@@ -1,0 +1,84 @@
+---
+path: "docs/development/index.mdx"
+title: "Development Guide"
+description: "Extend and customize SveltyCMS — widget development, plugin architecture, automation, AI integration, and SDK references."
+order: 1
+icon: "mdi:code-braces"
+author: "SveltyCMS Team"
+created: "2026-06-27"
+updated: "2026-06-27"
+tags:
+  - "development"
+  - "widgets"
+  - "plugins"
+  - "automation"
+  - "ai"
+  - "sdk"
+  - "index"
+---
+
+# Development Guide
+
+Extend and customize SveltyCMS to fit your specific needs. This section covers everything from building custom widgets and plugins to integrating AI services, automating workflows, and using the SDK.
+
+---
+
+## 🧩 Widget System
+
+Build custom field types using the 3-pillar architecture (Definition, Input, Display) with full Valibot validation and Tailwind v4 theming.
+
+- [📖 **Widget System Overview**](./widgets/widget-system-overview.mdx) — Architecture, lifecycle, and registration
+- [🛠️ **Widget Development Guide**](./widgets/widget-development-guide.mdx) — Step-by-step tutorial for creating widgets
+- [🏗️ **Widget Architecture**](./widgets/architecture.mdx) — The 3-pillar strategy in depth
+- [🔧 **Widget Development**](./widgets/development.mdx) — API reference and best practices
+- [🏪 **Widget Marketplace**](./widgets/marketplace.mdx) — Publishing and discovering community widgets
+- [📋 **Widget Index**](./widgets/index.mdx) — Complete widget catalog
+
+---
+
+## 🔌 Plugin System
+
+Extend SveltyCMS with server-side logic via the hook-based plugin architecture.
+
+- [🏗️ **Plugin Architecture**](./plugins/architecture.mdx) — Hook system, lifecycle, and registration
+- [🔧 **Plugin Development**](./plugins/development.mdx) — Building and testing plugins
+
+---
+
+## 🤖 Automation & Workflows
+
+Automate content operations and build editorial workflows.
+
+- [⚡ **Automation System**](./automation-system.mdx) — Event-driven triggers for webhooks, emails, and field updates
+- [📋 **Workflow Engine**](./workflow-engine.mdx) — Draft, review, and publishing state management
+- [🛠️ **Error Handling**](./error-handling.mdx) — Unified error handling patterns for development
+- [🔧 **Autonomous Maintenance**](./autonomous-maintenance.mdx) — System watchdog and self-healing
+
+---
+
+## 🧠 AI Integration
+
+Leverage AI capabilities within SveltyCMS.
+
+- [🤖 **AI Integration**](./ai-integration.mdx) — Local Ollama, hosted MCP knowledge core, AI translation
+- [🧠 **Smart CMS Importer**](../guides/content/smart-importer.mdx) — AI-powered migration from legacy platforms
+
+---
+
+## 📡 SDK & API Patterns
+
+Developer tools for building on top of SveltyCMS.
+
+- [⚡ **Edge SDK**](./edge-sdk.mdx) — Edge-optimized data fetching and multi-region support
+- [🔗 **Local vs HTTP API**](./local-vs-http-api.mdx) — When to use the Local SDK vs REST/GraphQL
+- [📖 **OpenAPI Specification**](./openapi-spec.mdx) — Dynamic OpenAPI 3.1.0 spec for automated SDK generation
+
+---
+
+## Next Steps
+
+- **New to widget development?** Start with the [Widget System Overview](./widgets/widget-system-overview.mdx)
+- **Building a plugin?** See the [Plugin Architecture](./plugins/architecture.mdx)
+- **Automating workflows?** Check the [Automation System](./automation-system.mdx)
+- **Using AI?** Read the [AI Integration Guide](./ai-integration.mdx)
+- **Need the API?** Visit the [API Reference](../reference/api/index.mdx)

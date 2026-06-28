@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { verifyPassword } from "@utils/security";
+import { verifyPassword } from "@utils/security/crypto";
 import { parseSessionDuration } from "@utils/security/auth-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions } from "@src/databases/auth/permissions";

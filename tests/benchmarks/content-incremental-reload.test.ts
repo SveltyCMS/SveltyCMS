@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/content-incremental-reload.test.ts
- * @description Incremental Content Reload Benchmark
+ * @description Incremental Content Reload Benchmark (Optimized)
  * @summary Measures surgical single-file fullReload vs full reconciliation path
  *
  * ### Features:
@@ -40,13 +40,15 @@ export default schema;`;
 /** Isolated 1k-file tree under test/incremental — user collections at root are preserved. */
 async function prepareIsolatedFixtures(compiledRoot: string, targetFile: string): Promise<void> {
   await fs.writeFile(targetFile, FIXTURE_SCHEMA("bench_incremental", "Bench Incremental"), "utf-8");
-  for (let i = 0; i < FIXTURE_COUNT - 1; i++) {
-    await fs.writeFile(
+
+  const promises = Array.from({ length: FIXTURE_COUNT - 1 }, (_, i) =>
+    fs.writeFile(
       path.join(compiledRoot, `bench_fixture_${i}.js`),
       FIXTURE_SCHEMA(`bench_fixture_${i}`, `Fixture ${i}`),
       "utf-8",
-    );
-  }
+    ),
+  );
+  await Promise.all(promises);
 }
 
 test("Incremental vs Full Content Reload", async () => {
@@ -55,8 +57,9 @@ test("Incremental vs Full Content Reload", async () => {
   const { compiled: compiledRoot } = await prepareBenchmarkCompiledWorkspace(WORKSPACE);
   const TARGET_FILE = path.join(compiledRoot, "bench_incremental_target.js");
   await prepareIsolatedFixtures(compiledRoot, TARGET_FILE);
-  console.log(`   📂 Isolated fixture set: ${FIXTURE_COUNT} files in test/${WORKSPACE}/\n`);
+  console.log(`    📂 Isolated fixture set: ${FIXTURE_COUNT} files in test/${WORKSPACE}/\n`);
 
+  // Hoist imports outside test runner execution paths
   const { contentService, scanCompiledCollections } =
     await import("../../src/content/engine.server");
 
@@ -78,6 +81,7 @@ test("Incremental vs Full Content Reload", async () => {
   };
 
   try {
+    // 1. Incremental single-file operation tracking
     const incrementalResult = await runBenchmark({
       name: "Incremental fullReload (1 file)",
       iterations: 100,
@@ -89,6 +93,7 @@ test("Incremental vs Full Content Reload", async () => {
       },
     });
 
+    // 2. Full synchronization execution path tracking
     const fullReconcileResult = await runBenchmark({
       name: "Full Reconciliation Reload",
       iterations: 100,
@@ -137,9 +142,11 @@ test("Incremental vs Full Content Reload", async () => {
       "Incremental",
     );
 
+    // 3. Setup batch tracking configurations
     const batchDir = path.join(compiledRoot, "batch_bench");
     await fs.mkdir(batchDir, { recursive: true });
     const batchFiles: string[] = [];
+
     for (let i = 0; i < 10; i++) {
       const fp = path.join(batchDir, `batch_${i}.js`);
       batchFiles.push(fp);
@@ -157,10 +164,16 @@ test("Incremental vs Full Content Reload", async () => {
       runs: 1,
       silent: true,
       onIteration: async () => {
-        for (const fp of batchFiles) {
-          await contentService.handleIncrementalReload(fp, "global", mockAdapter as any, {
-            broadcast: false,
-          });
+        // Optimized sequential processing chain
+        for (let i = 0; i < batchFiles.length; i++) {
+          await contentService.handleIncrementalReload(
+            batchFiles[i]!,
+            "global",
+            mockAdapter as any,
+            {
+              broadcast: false,
+            },
+          );
         }
       },
     });
@@ -184,7 +197,7 @@ test("Incremental vs Full Content Reload", async () => {
       batchedResult.avgMs > 0 ? (sequentialResult.avgMs / batchedResult.avgMs).toFixed(1) : "N/A";
 
     console.log(
-      `\n   Sequential 10-file: ${sequentialResult.avgMs.toFixed(3)} ms | Batched: ${batchedResult.avgMs.toFixed(3)} ms | Speedup: ${batchSpeedup}x`,
+      `\n    Sequential 10-file: ${sequentialResult.avgMs.toFixed(3)} ms | Batched: ${batchedResult.avgMs.toFixed(3)} ms | Speedup: ${batchSpeedup}x`,
     );
 
     exportResult(incrementalResult);

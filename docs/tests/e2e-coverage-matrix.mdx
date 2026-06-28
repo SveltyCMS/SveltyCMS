@@ -49,24 +49,24 @@ tags:
 
 ## 2. `/login` — Authentication (4 components, 5 specs)
 
-| Feature                               | Test File                        | Status         |
-| ------------------------------------- | -------------------------------- | -------------- |
-| Login with valid credentials          | `login.spec.ts`                  | ✅             |
-| Logout                                | `login.spec.ts`                  | ✅             |
-| Sign Up (first user)                  | `signupfirstuser.spec.ts`        | ⚠️ Broken      |
-| Forgot password flow                  | `signupfirstuser.spec.ts`        | ⚠️ Broken      |
-| OAuth button visibility               | `oauth-signup-firstuser.spec.ts` | ⚠️ Skips       |
-| OAuth redirect mock                   | `oauth-signup-firstuser.spec.ts` | ✅             |
-| OAuth error handling                  | `oauth-signup-firstuser.spec.ts` | ✅             |
-| Axe accessibility audit               | `accessibility.spec.ts`          | ⚠️ 1 violation |
-| Keyboard focus trap                   | `accessibility.spec.ts`          | ✅ Fixed       |
-| RTL layout audit                      | `accessibility.spec.ts`          | ⚠️ 1 violation |
-| **2FA/TOTP flow**                     | —                                | ❌             |
-| **SAML SSO login**                    | —                                | ❌             |
-| **Rate limiting (5 failed attempts)** | —                                | ❌             |
-| **Account lockout (15 min)**          | —                                | ❌             |
-| **Session timeout warning**           | —                                | ❌             |
-| **"Remember me" persistent session**  | —                                | ❌             |
+| Feature                               | Test File               | Status         |
+| ------------------------------------- | ----------------------- | -------------- |
+| Login with valid credentials          | `login.spec.ts`         | ✅             |
+| Logout                                | `login.spec.ts`         | ✅             |
+| Sign Up (first user)                  | `login/signup.spec.ts`  | ⚠️ Broken      |
+| Forgot password flow                  | `login/signup.spec.ts`  | ⚠️ Broken      |
+| OAuth button visibility               | `login/oauth.spec.ts`   | ⚠️ Skips       |
+| OAuth redirect mock                   | `login/oauth.spec.ts`   | ✅             |
+| OAuth error handling                  | `login/oauth.spec.ts`   | ✅             |
+| Axe accessibility audit               | `accessibility.spec.ts` | ⚠️ 1 violation |
+| Keyboard focus trap                   | `accessibility.spec.ts` | ✅ Fixed       |
+| RTL layout audit                      | `accessibility.spec.ts` | ⚠️ 1 violation |
+| **2FA/TOTP flow**                     | —                       | ❌             |
+| **SAML SSO login**                    | —                       | ❌             |
+| **Rate limiting (5 failed attempts)** | —                       | ❌             |
+| **Account lockout (15 min)**          | —                       | ❌             |
+| **Session timeout warning**           | —                       | ❌             |
+| **"Remember me" persistent session**  | —                       | ❌             |
 
 **Coverage: 10/16 features (62%)**
 
@@ -74,23 +74,23 @@ tags:
 
 ## 3. `/user` — User Profile & Management (3 specs)
 
-| Feature                      | Test File               | Status              |
-| ---------------------------- | ----------------------- | ------------------- |
-| View profile                 | `account-smoke.spec.ts` | ✅                  |
-| Edit avatar                  | `user.spec.ts`          | ⚠️ Needs test image |
-| Delete avatar                | `user.spec.ts`          | ⚠️                  |
-| Edit user details            | `user.spec.ts`          | ⚠️                  |
-| Registration token workflow  | `user.spec.ts`          | ⚠️                  |
-| Toggle token/list visibility | `user.spec.ts`          | ⚠️                  |
-| Read/edit user (admin)       | `user-crud.spec.ts`     | ⚠️                  |
-| Delete/block/unblock (admin) | `user-crud.spec.ts`     | ⚠️                  |
-| Invite user via email        | `user-crud.spec.ts`     | ⚠️                  |
-| **Password change**          | —                       | ❌                  |
-| **2FA setup**                | —                       | ❌                  |
-| **API key management**       | —                       | ❌                  |
-| **User search/filter**       | —                       | ❌                  |
-| **Bulk user actions**        | —                       | ❌                  |
-| **User import**              | —                       | ❌                  |
+| Feature                      | Test File                    | Status              |
+| ---------------------------- | ---------------------------- | ------------------- |
+| View profile                 | `user/account-smoke.spec.ts` | ✅                  |
+| Edit avatar                  | `user/profile.spec.ts`       | ⚠️ Needs test image |
+| Delete avatar                | `user/profile.spec.ts`       | ⚠️                  |
+| Edit user details            | `user/profile.spec.ts`       | ⚠️                  |
+| Registration token workflow  | `user/profile.spec.ts`       | ⚠️                  |
+| Toggle token/list visibility | `user/profile.spec.ts`       | ⚠️                  |
+| Read/edit user (admin)       | `user/management.spec.ts`    | ⚠️                  |
+| Delete/block/unblock (admin) | `user/management.spec.ts`    | ⚠️                  |
+| Invite user via email        | `user/management.spec.ts`    | ⚠️                  |
+| **Password change**          | —                            | ❌                  |
+| **2FA setup**                | —                            | ❌                  |
+| **API key management**       | —                            | ❌                  |
+| **User search/filter**       | —                            | ❌                  |
+| **Bulk user actions**        | —                            | ❌                  |
+| **User import**              | —                            | ❌                  |
 
 **Coverage: 9/15 features (60%) — all marked ⚠️ (fragile selectors)**
 
@@ -98,23 +98,24 @@ tags:
 
 ## 4. `/config/collectionbuilder` (4 specs)
 
-| Feature                                | Test File                           | Status |
-| -------------------------------------- | ----------------------------------- | ------ |
-| Navigate to builder                    | `collection-builder.spec.ts`        | ⚠️     |
-| Create collection                      | `collection-builder.spec.ts`        | ⚠️     |
-| Add widget/field                       | `collection-builder.spec.ts`        | ⚠️     |
-| Configure widget properties            | `collection-builder.spec.ts`        | ⚠️     |
-| Widget search/filter                   | `collection-builder.spec.ts`        | ⚠️     |
-| Field validation                       | `collection-builder.spec.ts`        | ⚠️     |
-| Save collection                        | `content-smoke.spec.ts`             | ✅     |
-| Full lifecycle (builder→entry→API)     | `master-behavioral-journey.spec.ts` | ⚠️     |
-| Collection actions (publish/unpublish) | `collection.spec.ts`                | ⚠️     |
-| Dashboard widget add                   | `collection.spec.ts`                | ⚠️     |
-| **Field reordering (drag & drop)**     | —                                   | ❌     |
-| **Relation field setup**               | —                                   | ❌     |
-| **Schema export**                      | —                                   | ❌     |
-| **Template import**                    | —                                   | ❌     |
-| **Nested content structure**           | —                                   | ❌     |
+| Feature                                | Test File                                  | Status |
+| -------------------------------------- | ------------------------------------------ | ------ |
+| Navigate to builder                    | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Create collection                      | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Add widget/field                       | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Configure widget properties            | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Widget search/filter                   | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Field validation                       | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Save collection                        | `collection-builder/content-smoke.spec.ts` | ✅     |
+| Full lifecycle (builder→entry→API)     | `collection-builder/journey.spec.ts`       | ⚠️     |
+| Empty state handling                   | `collection-builder/empty-state.spec.ts`   | ✅     |
+| Collection actions (publish/unpublish) | `collection-builder/collection.spec.ts`    | ⚠️     |
+| Dashboard widget add                   | `collection-builder/collection.spec.ts`    | ⚠️     |
+| **Field reordering (drag & drop)**     | —                                          | ❌     |
+| **Relation field setup**               | —                                          | ❌     |
+| **Schema export**                      | —                                          | ❌     |
+| **Template import**                    | —                                          | ❌     |
+| **Nested content structure**           | —                                          | ❌     |
 
 ---
 

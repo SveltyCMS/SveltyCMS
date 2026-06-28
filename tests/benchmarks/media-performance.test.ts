@@ -26,10 +26,14 @@ import sharp from "sharp";
 
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
-let testImageBuffer: Buffer;
+
+// Pre-allocated scratch buffer for zero-allocation mutation in hot loops
+const NOISE_BYTES = 2;
+let scratchBuffer: Buffer;
+let baseImageLength: number;
 
 async function generateTestImage() {
-  return sharp({
+  const baseImage = await sharp({
     create: {
       width: 1920,
       height: 1080,
@@ -39,6 +43,14 @@ async function generateTestImage() {
   })
     .jpeg({ quality: 85 })
     .toBuffer();
+
+  baseImageLength = baseImage.length;
+
+  // Single combined buffer: [Base Image | 2 Bytes for noise]
+  // Mutate the trailing bytes in-place instead of allocating per iteration
+  const combined = Buffer.alloc(baseImageLength + NOISE_BYTES);
+  baseImage.copy(combined);
+  return combined;
 }
 
 async function runMediaAudit() {
@@ -53,8 +65,8 @@ async function runMediaAudit() {
     await ensureStableTestData();
     await stabilize(1200);
 
-    // Generate test image once
-    testImageBuffer = await generateTestImage();
+    // Generate test image scratch buffer once (zero-allocation hot path)
+    scratchBuffer = await generateTestImage();
 
     const { getDb, ensureFullInitialization } = await import("@src/databases/db");
     const { LocalCMS } = await import("@src/services/sdk");
@@ -65,6 +77,7 @@ async function runMediaAudit() {
     const cms = new LocalCMS(db!);
 
     const results: any[] = [];
+    const uploadedSdkPaths: string[] = [];
 
     console.log("   → Measuring Local SDK Media Processing...");
     const sdkResult = await runBenchmark({
@@ -77,9 +90,11 @@ async function runMediaAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async (i: number) => {
-        const noise = new Uint8Array([i % 256, Math.floor(Math.random() * 256)]);
-        const uniqueBuffer = Buffer.concat([testImageBuffer, Buffer.from(noise)]);
-        const file = new File([uniqueBuffer], `sdk-media-${i}.jpg`, {
+        // Zero-allocation: mutate trailing bytes of the scratch buffer in place
+        scratchBuffer[baseImageLength] = i % 256;
+        scratchBuffer[baseImageLength + 1] = Math.floor(Math.random() * 256);
+
+        const file = new File([scratchBuffer as BlobPart], `sdk-media-${i}.jpg`, {
           type: "image/jpeg",
         });
         const res = await cms.media.upload(file, {
@@ -90,29 +105,31 @@ async function runMediaAudit() {
           console.error("SDK upload failed, FULL res:", res);
           throw new Error(`SDK upload failed: Missing URL/Path`);
         }
+        if (res.data?.path) uploadedSdkPaths.push(res.data.path);
       },
     });
     results.push({ ...sdkResult, shortLabel: "SDK", layer: "SDK" });
 
     console.log("   → Measuring HTTP Media Upload Pipeline...");
-
     const httpResult = await runBenchmark({
       name: "HTTP: Media Upload",
-      iterations: 80, // Media operations are heavy
+      iterations: 80,
       warmupIterations: 8,
       runs: 2,
-      concurrency: 2, // Conservative concurrency for I/O heavy work
+      concurrency: 2,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async (i: number) => {
         const formData = new FormData();
 
-        // Add small noise to ensure unique file hash
-        const noise = new Uint8Array([i % 256, Math.floor(Math.random() * 256)]);
-        const uniqueBuffer = Buffer.concat([testImageBuffer, Buffer.from(noise)]);
+        // Zero-allocation: mutate trailing bytes of the scratch buffer in place
+        scratchBuffer[baseImageLength] = i % 256;
+        scratchBuffer[baseImageLength + 1] = Math.floor(Math.random() * 256);
 
-        const blob = new Blob([uniqueBuffer], { type: "image/jpeg" });
+        const blob = new Blob([scratchBuffer as BlobPart], {
+          type: "image/jpeg",
+        });
         formData.append("files", blob, `bench-media-${i}.jpg`);
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
@@ -120,7 +137,7 @@ async function runMediaAudit() {
           headers: {
             "x-test-mode": "true",
             "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-            Origin: baseUrl, // 🛡️ Bypasses SvelteKit CSRF check
+            Origin: baseUrl,
           },
           body: formData,
         });
@@ -129,11 +146,18 @@ async function runMediaAudit() {
           const text = await res.text().catch(() => "");
           throw new Error(`Media upload failed: ${res.status} ${text}`);
         }
-
         await res.json();
       },
     });
     results.push({ ...httpResult, shortLabel: "HTTP", layer: "HTTP" });
+
+    // Cleanup skipped — matrix GC handles artifact purging
+    // (Adapter delete has known circular call stack issue in bulk path)
+    if (uploadedSdkPaths.length > 0) {
+      console.log(
+        `   → Skipping artifact cleanup (${uploadedSdkPaths.length} files) — matrix GC will handle`,
+      );
+    }
 
     printTruthTable({
       title: "SVELTYCMS — MEDIA PIPELINE AUDIT",
