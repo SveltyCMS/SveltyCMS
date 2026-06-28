@@ -458,6 +458,17 @@ export async function handleCollectionBulkDelete(
       413,
     );
   }
+
+  // 🛡️ BULK DELETE GUARD: Check collection-level disableBulkDelete flag
+  const schema = await cms.collections.getSchema(collectionId, tenantId);
+  if (schema?.disableBulkDelete) {
+    throw new AppError(
+      `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
+      403,
+      "BULK_DELETE_DISABLED",
+    );
+  }
+
   return successResponse(
     event,
     await cms.collections.bulkDelete(collectionId, payload, {

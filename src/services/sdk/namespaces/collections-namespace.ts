@@ -913,6 +913,13 @@ export class CollectionsNamespace {
     const { user, tenantId } = options;
     if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+    if (schema?.disableBulkDelete) {
+      throw new AppError(
+        `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
+        403,
+        "BULK_DELETE_DISABLED",
+      );
+    }
 
     const result = await this._dbAdapter.batch.bulkDelete(
       this.getCollectionName(schema._id as string),
