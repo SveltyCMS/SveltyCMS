@@ -106,50 +106,62 @@ xychart-beta
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-> Throughput dropped 67% — check connection pool saturation or lock contention.
-> **Severe degradation** (+191%) — review recent commits immediately.
-> (suspected — single test run, needs cross-validation with related benchmarks)
-> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 26% — check connection pool saturation or lock contention.  
+**Severe degradation** (+32%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
-> **Phase 3a/3b Implemented**: Relational batch (3a) + trained zstd dict (3b) complete and wired. See dedicated "Performance & Security Gains" section + "All Phases" table above. Stale pre-optimization "Latest" header at top of file replaced with post-sprint snapshot. Full matrix rerun will append complete data.
 
-> **Phase 3a/3b Implemented**: Relational batch (3a) + trained zstd dict (3b) complete and wired. See dedicated "Performance & Security Gains" section + "All Phases" table above. Stale pre-optimization "Latest" header at top of file replaced with post-sprint snapshot. Full matrix rerun will append complete data.
-
-> **Phase 3a/3b Implemented**: Relational batch (3a) + trained zstd dict (3b) complete and wired. See dedicated "Performance & Security Gains" section + "All Phases" table above. Stale pre-optimization "Latest" header at top of file replaced with post-sprint snapshot. Full matrix rerun will append complete data.
-
-``````text
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS  —  API LAYER LATENCY                             ║
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
-║                    Enterprise API overhead benchmark for SveltyCMS.                     ║
-║     Measures the precise cost of the middleware stack compared to direct SDK calls.     ║
+║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        5.843 ms │ p95:        9.935 ms │ RPS:        171 ║
+║ HTTP: findById @ 8c            │        2.901 ms │ p95:        4.552 ms │ RPS:        329 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```text
-
 ```
+
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │        5.843 ms       ║
-║ Peak Throughput                                    │      171.000 req/s    ║
+║ HTTP Latency (findById)                            │        2.901 ms       ║
+║ Peak Throughput                                    │      329.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-```text
-<!-- API_LATENCY_TABLE_END -->
+```
+
 
 <!-- COLD_START_TABLE_START -->
-### 🏷️ PHASED COLD START ⚪ —
-> 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
-> 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+7026352%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
+║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
+║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.077 ms │ p95:        0.207 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │     6245.110 ms │ p95:     6748.923 ms │ RPS:          0 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- COLD_START_TABLE_END -->
+
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Cold Start                                 │         3177 ms       ║
+║ p95 Cold Start                                     │         3629 ms       ║
+║ Rating                                             │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
@@ -710,7 +722,15 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- SUMMARY_PLACEHOLDER -->
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Cold Start                                 │         3177 ms       ║
+║ p95 Cold Start                                     │         3629 ms       ║
+║ Rating                                             │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- LOCALSDK_TABLE_END -->
 
 <!-- FAST_FAIL_TABLE_START -->
@@ -941,60 +961,62 @@ A short high-level gains summary remains earlier in this file. The in-progress m
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 99% — check connection pool saturation or lock contention.
-**Severe degradation** (+21459%) — review recent commits immediately.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 26% — check connection pool saturation or lock contention.  
+**Severe degradation** (+32%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
-```
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS  —  API LAYER LATENCY                             ║
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │     1027.715 ms │ p95:     1044.107 ms │ RPS:          1 ║
+║ HTTP: findById @ 8c            │        2.901 ms │ p95:        4.552 ms │ RPS:        329 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │     1027.715 ms       ║
-║ Peak Throughput                                    │        1.000 req/s    ║
+║ HTTP Latency (findById)                            │        2.901 ms       ║
+║ Peak Throughput                                    │      329.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- API_LATENCY_TABLE_END -->
+
 
 <!-- COLD_START_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-**Severe degradation** (+22%) — review recent commits immediately.
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
-```
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.101 ms │ p95:        0.213 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │     6245.110 ms │ p95:     6748.923 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Cold Start                                 │            0 ms       ║
-║ p95 Cold Start                                     │            0 ms       ║
+║ Average Cold Start                                 │         3177 ms       ║
+║ p95 Cold Start                                     │         3629 ms       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- COLD_START_TABLE_END -->
+
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
@@ -2130,7 +2152,15 @@ Throughput dropped 23% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- SUMMARY_PLACEHOLDER -->
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Cold Start                                 │         3177 ms       ║
+║ p95 Cold Start                                     │         3629 ms       ║
+║ Rating                                             │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- SETUP_PROXY_TABLE_END -->
 
 
@@ -2158,8 +2188,11 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/services/sdk/local-cms.ts` · `src/routes/api/[...path]/+server.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 26% — check connection pool saturation or lock contention.  
+**Severe degradation** (+32%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
 ```text
@@ -2168,7 +2201,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
 ║  Measures the precise cost of the HTTP middleware stack compared to direct SDK calls.   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │     1031.026 ms │ p95:     1035.851 ms │ RPS:          1 ║
+║ HTTP: findById @ 8c            │        2.901 ms │ p95:        4.552 ms │ RPS:        329 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2176,21 +2209,23 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ HTTP Latency (findById)                            │     1031.026 ms       ║
-║ Peak Throughput                                    │        1.000 req/s    ║
+║ HTTP Latency (findById)                            │        2.901 ms       ║
+║ Peak Throughput                                    │      329.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- API_LATENCY_TABLE_END -->
 
-### 🏷️ PHASED COLD START                                                🟢 avg -33% p95 -17% (50 runs)
+
+### 🏷️ PHASED COLD START                                                   🔴 avg +7026352% p95 +3264981% (50 runs)
 
 > **Budget**: ≤ 10,000ms (suite) | **Tags**: `network` | **Level**: 0
 
 <!-- COLD_START_TABLE_START -->
 
-> Within normal variance — no action needed.
-**Check**: `src/hooks.server.ts` · `src/hooks/handle-turbo-pipeline.server.ts`
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
 ```text
@@ -2199,7 +2234,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.058 ms │ p95:        0.154 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │     6245.110 ms │ p95:     6748.923 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2207,12 +2242,12 @@ description: "Database performance benchmarks with trend analysis and competitiv
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Cold Start                                 │            0 ms       ║
-║ p95 Cold Start                                     │            0 ms       ║
+║ Average Cold Start                                 │         3177 ms       ║
+║ p95 Cold Start                                     │         3629 ms       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- COLD_START_TABLE_END -->
+
 
 ### 🏷️ SRE TRUTH AUDIT                                             🟢 rps +50% (28 runs)
 
@@ -2490,7 +2525,15 @@ Throughput dropped 72% — check connection pool saturation or lock contention.
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- SUMMARY_PLACEHOLDER -->
+```text
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Cold Start                                 │         3177 ms       ║
+║ p95 Cold Start                                     │         3629 ms       ║
+║ Rating                                             │    EXCELLENT          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- CACHE_TABLE_END -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
@@ -2598,7 +2641,12 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `disk`, `cpu` | **Level**: 1
 
 <!-- ACID_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3092,7 +3140,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 70,000ms (suite) | **Tags**: `memory` | **Level**: 5
 
 <!-- MEMORY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3136,7 +3189,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `network`, `disk` | **Level**: 5
 
 <!-- MIXED_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3166,7 +3224,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- GQL_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3196,7 +3259,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 120,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- MIGRATION_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3226,7 +3294,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 180,000ms (suite) | **Tags**: `cpu`, `disk` | **Level**: 5
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3255,7 +3328,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 45,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONTENT_STRESS_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3284,7 +3362,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- JOURNEY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3313,7 +3396,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 40,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 5
 
 <!-- CONCURRENCY_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3355,7 +3443,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 60,000ms (suite) | **Tags**: `cpu`, `disk`, `network` | **Level**: 4
 
 <!-- RESILIENCE_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3397,7 +3490,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 25,000ms (suite) | **Tags**: `network`, `cpu` | **Level**: 4
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -3427,7 +3525,12 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 30,000ms (suite) | **Tags**: `security`, `cpu` | **Level**: 4
 
 <!-- THROTTLING_TABLE_START -->
-<!-- INSIGHT_PLACEHOLDER -->
+
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+**Severe degradation** (+3537410%) — review recent commits immediately.  
+(suspected — single test run, needs cross-validation with related benchmarks)  
+**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
+
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
