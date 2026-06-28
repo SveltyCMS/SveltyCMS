@@ -161,7 +161,7 @@ xychart-beta
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-### 🏷️ SRE TRUTH AUDIT   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ SRE TRUTH AUDIT 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
@@ -177,7 +177,7 @@ xychart-beta
 
 <!-- SCAN_TABLE_START -->
 
-### 🏷️ Self-Healing Content Scan   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ Self-Healing Content Scan 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/content-scan.test.ts](../../../tests/benchmarks/content-scan.test.ts)
 > 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across .compiledCollections/test/scan (isolated from user data).
@@ -191,7 +191,7 @@ xychart-beta
 
 <!-- INCREMENTAL_TABLE_START -->
 
-### 🏷️ Incremental Content Reload   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ Incremental Content Reload 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
@@ -242,7 +242,7 @@ xychart-beta
 
 <!-- EDGE_SYNC_TABLE_START -->
 
-### 🏷️ Edge Sync & Distributed Cache   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ Edge Sync & Distributed Cache 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/edge-sync.test.ts](../../../tests/benchmarks/edge-sync.test.ts)
 > 🎯 **Proves**: Verifies distributed L1/L2 cache invalidation latency across simulated nodes.
@@ -256,7 +256,7 @@ xychart-beta
 
 <!-- TELEMETRY_TABLE_START -->
 
-### 🏷️ Telemetry Collection & Signing   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ Telemetry Collection & Signing 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/telemetry-performance.test.ts](../../../tests/benchmarks/telemetry-performance.test.ts)
 > 🎯 **Proves**: Measures the overhead of telemetry data collection and cryptographic signing.
@@ -271,7 +271,7 @@ xychart-beta
 
 <!-- STATE_MACHINE_TABLE_START -->
 
-### 🏷️ State Machine Transitions   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ State Machine Transitions 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
@@ -294,7 +294,7 @@ xychart-beta
 
 <!-- ACID_TABLE_START -->
 
-### 🏷️ ACID Transaction Overhead   🔴 avg +68% p95 +57% rps -40% (50 runs)
+### 🏷️ ACID Transaction Overhead 🔴 avg +68% p95 +57% rps -40% (50 runs)
 
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
@@ -544,10 +544,10 @@ Throughput dropped 75% — check connection pool saturation or lock contention.
 
 <!-- GRAPHQL_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 40% — check connection pool saturation or lock contention.  
-**Severe degradation** (+68%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 40% — check connection pool saturation or lock contention.
+**Severe degradation** (+68%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
@@ -668,10 +668,10 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- GQL_STRESS_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 40% — check connection pool saturation or lock contention.  
-**Severe degradation** (+68%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 40% — check connection pool saturation or lock contention.
+**Severe degradation** (+68%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
@@ -1656,10 +1656,10 @@ Throughput dropped 75% — check connection pool saturation or lock contention.
 
 <!-- GRAPHQL_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 40% — check connection pool saturation or lock contention.  
-**Severe degradation** (+68%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 40% — check connection pool saturation or lock contention.
+**Severe degradation** (+68%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
@@ -1851,10 +1851,10 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- GQL_STRESS_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 40% — check connection pool saturation or lock contention.  
-**Severe degradation** (+68%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 40% — check connection pool saturation or lock contention.
+**Severe degradation** (+68%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
@@ -3150,10 +3150,10 @@ Throughput dropped 75% — check connection pool saturation or lock contention.
 
 <!-- GRAPHQL_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 40% — check connection pool saturation or lock contention.  
-**Severe degradation** (+68%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 40% — check connection pool saturation or lock contention.
+**Severe degradation** (+68%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
@@ -3378,10 +3378,10 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- GQL_STRESS_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 40% — check connection pool saturation or lock contention.  
-**Severe degradation** (+68%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 40% — check connection pool saturation or lock contention.
+**Severe degradation** (+68%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
 
 
