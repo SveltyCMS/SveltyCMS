@@ -6,11 +6,14 @@
 
 <script lang="ts">
 import AdminPageShell from "@components/admin-page-shell.svelte";
+import Slot from "@components/system/slot.svelte";
 import PermissionGuard from "@src/components/permission-guard.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
 import { onMount } from "svelte";
 import { fade, fly } from "svelte/transition";
+
+let { data } = $props();
 
 onMount(() => {
 	collections.setCollection(null);
@@ -336,6 +339,30 @@ const configItems = [
 				</div>
 			{/if}
 		{/each}
+
+		<!-- Plugin config_grid slots (each plugin supplies its own tile GUI) -->
+		<div class="contents" in:fly={{ y: 20, delay: configItems.length * 50, duration: 300 }}>
+			<PermissionGuard config={{
+				contextId: "config:extensions",
+				name: "Plugin Extensions",
+				description: "Plugin-owned config tiles and tools",
+				requiredRole: "admin",
+				action: "manage",
+				contextType: "configuration",
+			}}>
+				<Slot
+					name="config_grid"
+					inline={true}
+					props={{
+						pluginStates: data?.pluginStates ?? {},
+						isPro: false,
+						enabled: data?.pluginStates?.['smart-importer'] ?? true,
+					}}
+				/>
+			</PermissionGuard>
+		</div>
+
+		<Slot name="config" props={{ pluginStates: data?.pluginStates ?? {} }} />
 	</div>
 </div>
 </AdminPageShell>

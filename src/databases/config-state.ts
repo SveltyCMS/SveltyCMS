@@ -11,7 +11,11 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { safeParse, type InferOutput } from "valibot";
 
-if (process.env.TEST_MODE === "true" && process.env.BENCHMARK !== "true") {
+if (
+  typeof process !== "undefined" &&
+  process.env.TEST_MODE === "true" &&
+  process.env.BENCHMARK !== "true"
+) {
   logger.debug("config-state.ts initialized");
 }
 
@@ -20,7 +24,7 @@ export type AppPrivateConfig = Readonly<InferOutput<typeof privateConfigSchema>>
 type RawEnv = Partial<Record<string, string | number | boolean>>;
 
 // In-memory singleton
-export let privateEnv: AppPrivateConfig | null = null;
+let privateEnv: AppPrivateConfig | null = null;
 let loadPromise: Promise<AppPrivateConfig | null> | null = null;
 
 export function setPrivateEnv(env: AppPrivateConfig | null) {
@@ -425,6 +429,7 @@ export function getDatabaseConnectionString(): string {
   }
 
   const connectionString = driver.buildConnectionString(config);
+  logger.info(`[DB] Registry resolved database user: ${config.user || "default/empty"}`);
   const masked = connectionString.includes("://")
     ? connectionString.replace(/:([^@]+)@/, ":****@")
     : connectionString;

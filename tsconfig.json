@@ -18,14 +18,13 @@
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "types": ["google.maps", "node"]
+    "types": ["node"]
   },
   "include": [
     "src/**/*.js",
     "src/**/*.ts",
     "src/**/*.svelte",
     "config/**/*.ts",
-    "types/**/*.ts",
     "scripts/**/*.ts",
     "tests/**/*.ts",
     "playwright.config.ts"

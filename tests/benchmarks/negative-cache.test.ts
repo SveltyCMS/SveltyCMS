@@ -1,12 +1,12 @@
 /**
  * @file tests/benchmarks/negative-cache.test.ts
- * @description Negative Cache Performance Benchmark
+ * @description Negative Cache Performance Benchmark (Optimized)
  * @summary Measures Bloom-filter style missing-key cache speedup for repeated misses
  *
  * ### Features:
- * - First miss (DB roundtrip) baseline
- * - Cached miss (negative cache hit) comparison
- * - 2392x speedup verification for repeated lookups
+ * - First miss (DB roundtrip) baseline across multiple unique missing keys
+ * - Cached miss (negative cache hit) comparison with multi-key distribution
+ * - Speedup verification for repeated lookups
  */
 
 import { LocalCMS } from "@src/services/sdk";
@@ -19,52 +19,67 @@ test("Negative Cache Performance Audit", async () => {
   const db = getDb();
   if (!db) throw new Error("Database initialization failed");
   const cms = new LocalCMS(db);
+
   const TENANT = "bench-tenant" as DatabaseId;
-  const MISSING_ID = "missing-entry-id" as DatabaseId;
   const COLLECTION = "benchmarkstable" as DatabaseId;
 
   console.log("🚀 Starting Negative Cache Benchmark...");
 
   const results: any[] = [];
 
-  // 1. First Miss (DB Hit)
-  console.log("   → Measuring First Miss (DB Roundtrip)...");
+  // Pre-generate a static lookup matrix of unseeded keys to prevent string generation penalties inside iterations
+  const COLD_ITERATIONS = 20;
+  const coldMissingKeys = Array.from(
+    { length: COLD_ITERATIONS },
+    (_, i) => `cold-missing-id-${i}` as DatabaseId,
+  );
+
+  // 1. First Miss (DB Hit) Baseline
+  console.log("   → Measuring Cold Misses (DB Roundtrip)...");
   const firstMiss = await runBenchmark({
     name: "First Miss (DB)",
-    iterations: 1,
+    iterations: COLD_ITERATIONS,
+    warmupIterations: 2,
     runs: 1,
-    onIteration: async () => {
-      try {
-        await cms.collections.findById(COLLECTION, MISSING_ID, {
-          tenantId: TENANT,
-          bypassCache: true,
-          disableErrors: true,
-        });
-      } catch (err) {
-        console.error("DEBUG: First Miss Error:", err);
-        throw err;
-      }
+    onIteration: async (i: number) => {
+      const targetKey = coldMissingKeys[i] ?? coldMissingKeys[0];
+      // Let the harness native handler capture rejection errors directly without local try/catch bloat
+      await cms.collections.findById(COLLECTION, targetKey, {
+        tenantId: TENANT,
+        bypassCache: true,
+        disableErrors: true,
+      });
     },
   });
   results.push({ ...firstMiss, label: "Cold Miss (DB)" });
 
   // 2. Subsequent Misses (Negative Cache Hit)
-  console.log("   → Measuring Cached Miss (Negative Cache)...");
-  // Warm up the negative cache
-  await cms.collections.findById(COLLECTION, MISSING_ID, { tenantId: TENANT });
+  console.log("   → Measuring Cached Misses (Negative Cache)...");
+
+  const HOT_ITERATIONS = 10000;
+  const hotMissingKeys = Array.from({ length: 100 }, (_, i) => `hot-missing-id-${i}` as DatabaseId);
+
+  // Seed / Warm up the negative cache for our hot targets ahead of time
+  for (const targetKey of hotMissingKeys) {
+    await cms.collections.findById(COLLECTION, targetKey, { tenantId: TENANT });
+  }
 
   const cachedMiss = await runBenchmark({
     name: "Cached Miss (Negative Cache)",
-    iterations: 10000,
+    iterations: HOT_ITERATIONS,
+    warmupIterations: 120,
     runs: 2,
-    onIteration: async () => {
-      await cms.collections.findById(COLLECTION, MISSING_ID, {
+    onIteration: async (i: number) => {
+      // Loop over our pool of warmed missing keys to avoid JIT literal optimizations
+      const targetKey = hotMissingKeys[i % hotMissingKeys.length];
+      await cms.collections.findById(COLLECTION, targetKey, {
         tenantId: TENANT,
       });
     },
   });
   results.push({ ...cachedMiss, label: "Hot Miss (Cache)" });
 
+  // Report Processing
   printTruthTable({
     title: "NEGATIVE CACHE PERFORMANCE AUDIT",
     subtitle: "Verifying 404-Miss Latency Gains",
@@ -78,7 +93,7 @@ test("Negative Cache Performance Audit", async () => {
     layerMode: false,
   });
 
-  // Verification
+  // Verification Assertions
   expect(cachedMiss.avgMs).toBeLessThan(firstMiss.avgMs);
   console.log(`\n✅ Negative Cache Speedup: ${(firstMiss.avgMs / cachedMiss.avgMs).toFixed(1)}x`);
 }, 60000);

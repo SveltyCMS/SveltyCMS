@@ -16,12 +16,12 @@ import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 // --- Direct Exports from Sub-modules ---
-export { fourOhFourLogs } from "./404Logs";
+export { fourOhFourLogs } from "./404-logs";
 export { redirectsMV } from "./seo";
 export { workflowDefinitions, workflowInstances } from "./workflow";
 
 // --- Local Schema Definitions ---
-import { fourOhFourLogs } from "./404Logs";
+import { fourOhFourLogs } from "./404-logs";
 import { redirectsMV } from "./seo";
 import { workflowDefinitions, workflowInstances } from "./workflow";
 import type { TenantQuota, TenantUsage } from "../db-interface";
@@ -70,6 +70,11 @@ export const authUsers = sqliteTable(
     last2FAVerification: integer("last2FAVerification", {
       mode: "timestamp_ms",
     }),
+    authenticators: text("authenticators", { mode: "json" }).$type<
+      import("../auth/types").Authenticator[]
+    >(),
+    failedAttempts: integer("failedAttempts").notNull().default(0),
+    lockoutUntil: integer("lockoutUntil", { mode: "timestamp_ms" }),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -396,6 +401,7 @@ export const websiteTokens = sqliteTable(
     tokenIdx: unique("token_unique").on(table.token),
     nameIdx: index("name_idx").on(table.name),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    tenantNameIdx: index("tenant_name_idx").on(table.tenantId, table.name),
   }),
 );
 
@@ -538,11 +544,45 @@ export const auditLogs = sqliteTable(
   }),
 );
 
+// Auth API Keys Table
+export const authApiKeys = sqliteTable(
+  "auth_api_keys",
+  {
+    _id: uuidPk(),
+    name: text("name", { length: 255 }).notNull(),
+    hash: text("hash", { length: 255 }).notNull(),
+    prefix: text("prefix", { length: 12 }).notNull(),
+    userId: text("userId", { length: 36 }).notNull(),
+    scopes: text("scopes", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([] as any),
+    permissions: text("permissions", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([] as any),
+    revoked: integer("revoked", { mode: "boolean" }).notNull().default(false),
+    usageCount: integer("usageCount").notNull().default(0),
+    lastUsedAt: integer("lastUsedAt", { mode: "timestamp_ms" }),
+    lastUsedIp: text("lastUsedIp"),
+    expiresAt: integer("expiresAt", { mode: "timestamp_ms" }),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    hashIdx: unique("hash_unique").on(table.hash),
+    userIdx: index("api_key_user_idx").on(table.userId),
+    tenantIdx: index("api_key_tenant_idx").on(table.tenantId),
+    tenantHashIdx: index("tenant_hash_idx").on(table.tenantId, table.hash), // 🚀 Compound index for optimization
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
   authSessions,
   authTokens,
+  authApiKeys,
   roles,
   contentNodes,
   contentDrafts,

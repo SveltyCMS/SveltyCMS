@@ -57,6 +57,7 @@ This component presents a summary of all configuration steps before finalizing t
 	} from '@src/paraglide/messages';
 	// Types from setupStore
 	import type { AdminUser, DbConfig, EmailSettings, SystemSettings } from '@src/stores/setup-store.svelte.ts';
+	import { PRESETS } from './presets';
 
 	//  props
 	//  props
@@ -68,6 +69,15 @@ This component presents a summary of all configuration steps before finalizing t
 	}
 
 	const { dbConfig, adminUser, systemSettings, emailSettings }: Props = $props();
+
+	// Derive preset collection names for the review page
+	const presetCollections = $derived(
+		(() => {
+			if (!systemSettings.preset || systemSettings.preset === 'blank') return [];
+			const preset = PRESETS.find((p) => p.id === systemSettings.preset);
+			return preset?.collections?.map((c) => c.label || c.name) ?? [];
+		})(),
+	);
 
 	// Redaction helper (masking)
 	function redact(value: string | undefined): string {
@@ -372,6 +382,12 @@ This component presents a summary of all configuration steps before finalizing t
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.preset}</dd>
+						{#if presetCollections.length > 0}
+							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+								Creates:
+							</dt>
+							<dd class="text-tertiary-500 dark:text-primary-500 text-sm">{presetCollections.join(', ')}</dd>
+						{/if}
 
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							Production URL:

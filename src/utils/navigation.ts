@@ -12,7 +12,7 @@ import { goto, preloadData } from "$app/navigation";
 import { page } from "$app/state";
 import { setCollectionValue, type ModeType } from "@src/stores/collection-store.svelte";
 import { globalLoadingStore, loadingOperations } from "@src/stores/loading-store.svelte.ts";
-import { uiModeStore } from "@stores/ui-mode-store.svelte";
+import { modeTransitionGuard } from "@stores/mode-transition-guard.svelte";
 import { dataChangeStore } from "@src/stores/store.svelte.ts";
 import { logger } from "./logger";
 
@@ -192,14 +192,17 @@ class NavigationManager {
     await this.executeNavigation("toList", async () => {
       if (IS_BROWSER) {
         document.dispatchEvent(
-          new CustomEvent("entrySaved", { bubbles: true, detail: { timestamp: Date.now() } }),
+          new CustomEvent("entrySaved", {
+            bubbles: true,
+            detail: { timestamp: Date.now() },
+          }),
         );
       }
 
       dataChangeStore.reset();
       setCollectionValue({});
 
-      const ok = await uiModeStore.transitionTo("view");
+      const ok = await modeTransitionGuard.transitionTo("view");
       if (!ok) {
         logger.error("[Navigation] Failed to transition to view mode");
         return;
@@ -223,7 +226,7 @@ class NavigationManager {
     }
 
     await this.executeNavigation(`toEdit(${entryId})`, async () => {
-      const ok = await uiModeStore.transitionTo("edit");
+      const ok = await modeTransitionGuard.transitionTo("edit");
       if (!ok) {
         logger.error("[Navigation] Failed to transition to edit mode");
         return;
@@ -239,7 +242,7 @@ class NavigationManager {
    */
   async toCreate(): Promise<void> {
     await this.executeNavigation("toCreate", async () => {
-      const ok = await uiModeStore.transitionTo("create");
+      const ok = await modeTransitionGuard.transitionTo("create");
       if (!ok) {
         logger.error("[Navigation] Failed to transition to create mode");
         return;
@@ -263,4 +266,9 @@ class NavigationManager {
 export const navigationManager = new NavigationManager();
 
 // --- Compatibility Exports ---
-export const navigationUtils = { preloadEntry, cancelPreload, reflectModeInURL, parseURLToMode };
+export const navigationUtils = {
+  preloadEntry,
+  cancelPreload,
+  reflectModeInURL,
+  parseURLToMode,
+};

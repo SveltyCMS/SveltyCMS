@@ -35,7 +35,8 @@
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
-	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collection-store.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { statusStore } from '@src/stores/status-store.svelte';
 	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
@@ -257,8 +258,8 @@
 				if (result.success) {
 					toast.success('Entry cloned successfully.');
 					invalidateCollectionCache(currentCollection._id);
-					setMode('view');
-				} else {
+						modeTransitionGuard.setMode('view');
+					} else {
 					toast.error(result.error || 'Failed to clone');
 				}
 			}
@@ -278,7 +279,7 @@
 </script>
 
 <header
-	class="border-secondary-600-300-token sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
+	class="border-surface-200 dark:border-surface-700 sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
 	class:border-b-0={showMore}
 >
 	<div class="flex items-center gap-2 flex-1 min-w-0">
@@ -315,7 +316,7 @@
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
 						aria-label="Save"
-					 class="p-0! min-w-0 dark:">
+					 class="p-0! min-w-0">
 						<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 					</Button>
 				{/if}
@@ -327,7 +328,7 @@
 
 				{#if ['edit', 'create'].includes(currentMode)}
 					{#if showNextButton}
-						<Button variant="tertiary" onclick={next} aria-label="Next" class="p-0! min-w-0 dark:">
+						<Button variant="tertiary" onclick={next} aria-label="Next" class="p-0! min-w-0">
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</Button>
 					{:else}
@@ -335,7 +336,7 @@
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
 							aria-label="Save"
-						 class="p-0! min-w-0 dark:">
+						 class="p-0! min-w-0">
 							<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
 						</Button>
 					{/if}
@@ -351,7 +352,7 @@
 		{/if}
 
 		{#if !app.headerActionButton}
-			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="p-0! min-w-0">
+			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</Button>
 		{/if}

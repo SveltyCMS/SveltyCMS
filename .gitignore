@@ -3,6 +3,9 @@ terminals/
 
 # sveltekit
 /build
+
+# bun-generated type stubs (local artifacts, not tracked)
+src/types/*/
 /.svelte-kit
 /package
 package-lock.json

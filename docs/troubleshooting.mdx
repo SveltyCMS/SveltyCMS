@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wrench"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-10"
+updated: "2026-06-27"
 tags:
   - "troubleshooting"
   - "debugging"
@@ -50,7 +50,7 @@ Solutions for common installation, configuration, and operational issues.
 | **PostgreSQL / MariaDB** | Database must exist before running wizard                 |
 | **SQLite**               | Ensure the directory for `.db` file has write permissions |
 
-> Mechanics: `src/databases/db.ts` probes the connection. Use `bun run check:mongodb` for isolated testing.
+> Mechanics: `src/databases/db.ts` probes the connection. Use `bun run check` for isolated testing (MongoDB-specific diagnostics script not currently available).
 
 ---
 
@@ -135,13 +135,13 @@ bun run build
    bun run check
    bun run test:unit
    ```
-3. **Community**: [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions) · [Discord](https://discord.gg/VrvZF6e2sC)
+3. **Community**: [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions) · [Discord](https://discord.gg/qKQRB6mP)
 
 ---
 
 ## Related
 
-- [Security Overview](./architecture/security/index.mdx)
-- [State Management Architecture](./architecture/state-management.mdx)
-- [Database Architecture](./architecture/database/index.mdx)
-- [Login Resilience & Recovery](./architecture/security/login-resilience.mdx)
+- [Security Overview](./reference/security/index.mdx)
+- [State Management Architecture](./reference/architecture/state-management.mdx)
+- [Database Architecture](./reference/database/index.mdx)
+- [Login Resilience & Recovery](./reference/security/login-resilience.mdx)

@@ -13,7 +13,12 @@
  */
 
 import { dev } from "$app/environment";
-import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
+import {
+  getSetupState,
+  SetupState,
+  isSetupComplete,
+  getTestSecret,
+} from "../utils/server/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
@@ -26,7 +31,7 @@ import {
   restrictedResponse,
   boundaryResponse,
 } from "@src/utils/hook-utils";
-import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "@src/utils/security-constants";
+import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "../utils/security/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
@@ -39,7 +44,8 @@ let healthHeaders: Record<string, string> | null = null;
 let requestIdCounter = 0;
 const generateRequestId = () => {
   if (IS_BENCHMARK) return ++requestIdCounter;
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+  // Use CSPRNG for all trace IDs (security hardening)
+  return globalThis.crypto.randomUUID().slice(0, 8) + Date.now().toString(36);
 };
 
 /** Logs request performance — ONLY in development mode to avoid string interpolation overhead in production */
@@ -67,6 +73,19 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     };
   }
 
+  // 🚀 PERFORMANCE FAST-PATH: Avoid allocating system info & calling process.memoryUsage() / process.uptime()
+  // which are heavy system/V8 operations, unless verbose is requested during benchmark/health checks.
+  if (IS_BENCHMARK && !searchParams.has("verbose")) {
+    return new Response(
+      JSON.stringify({
+        status: db ? "healthy" : "initializing",
+        overallStatus: db ? "READY" : "SETUP",
+        database: !!db,
+      }),
+      { status: 200, headers: healthHeaders },
+    );
+  }
+
   const health = {
     status: db ? "healthy" : "initializing",
     overallStatus: db ? "READY" : "SETUP",
@@ -83,25 +102,19 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     })(),
   };
 
-  // Fast path for benchmarks: skip memory and extra fields unless verbose
-  if (IS_BENCHMARK && !searchParams.has("verbose")) {
-    return new Response(
-      JSON.stringify({
-        status: health.status,
-        overallStatus: health.overallStatus,
-        database: health.database,
-      }),
-      { status: 200, headers: healthHeaders },
-    );
-  }
-
   return new Response(JSON.stringify(health), {
     status: 200,
     headers: healthHeaders,
   });
 }
 
-/** Simplified inline getCorsHeaders to avoid circular dependencies */
+/**
+ * Inline CORS header generator that reads origins from the database
+ * (private settings). This differs from the canonical getCorsHeaders in
+ * cors-utils.ts which uses hardcoded/env-var origins.
+ * Both are used in the pipeline: this for the preflight fast exit,
+ * getCorsHeaders (via applyAllSecurityHeaders) for post-resolve headers.
+ */
 async function getCorsHeadersInline(
   origin: string | null,
   isApiRoute: boolean,
@@ -188,7 +201,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     const response = await resolve(event);
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
     if (pathname.startsWith("/files/")) {
-      const { MEDIA_RESOURCE_HEADERS } = await import("@utils/security-constants");
+      const { MEDIA_RESOURCE_HEADERS } = await import("@root/src/utils/security/constants");
       for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
         response.headers.set(key, value);
       }
@@ -364,7 +377,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     const response = await resolve(event);
     response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
     if (pathname.startsWith("/files/")) {
-      const { MEDIA_RESOURCE_HEADERS } = await import("@utils/security-constants");
+      const { MEDIA_RESOURCE_HEADERS } = await import("@root/src/utils/security/constants");
       for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
         response.headers.set(key, value);
       }

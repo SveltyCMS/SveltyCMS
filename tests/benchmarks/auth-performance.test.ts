@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/auth-performance.test.ts
- * @description Authentication & RBAC Pipeline Benchmark
+ * @description Authentication & RBAC Pipeline Benchmark (Optimized)
  * @summary Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.
  *
  * ### Features:
@@ -35,6 +35,7 @@ async function runAuthAudit() {
 
     await stabilize(1000);
 
+    // Cache headers in canonical lowercase format outside hot trails to guard timing precision
     const authHeaders = {
       "x-test-mode": "true",
       "x-test-secret": TEST_API_SECRET,
@@ -55,10 +56,13 @@ async function runAuthAudit() {
       silent: true,
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/user/me`, {
+          method: "GET",
           headers: authHeaders,
         });
         if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-        await res.json();
+
+        // Native byte stream collector isolates server roundtrip from client-side tree building
+        await res.arrayBuffer();
       },
     });
     results.push({ ...lightResult, layer: "HTTP", shortLabel: "Auth-1c" });
@@ -70,16 +74,17 @@ async function runAuthAudit() {
       iterations: 600,
       warmupIterations: 80,
       runs: 2,
-      concurrency: 8,
+      concurrency: 8, // High-concurrency stress profile
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/user/me`, {
+          method: "GET",
           headers: authHeaders,
         });
         if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
     results.push({ ...httpResult, layer: "HTTP", shortLabel: "Auth-8c" });
@@ -87,7 +92,7 @@ async function runAuthAudit() {
     printTruthTable({
       title: "SVELTYCMS — AUTHENTICATION TELEMETRY",
       shortLabel: "Auth",
-      subtitle: `Session Verification \u2022 RBAC Resolution \u2022 ${getDbType().toUpperCase()}`,
+      subtitle: `Session Verification • RBAC Resolution • ${getDbType().toUpperCase()}`,
       results,
     });
 
@@ -96,7 +101,7 @@ async function runAuthAudit() {
       { key: "Auth Pipeline (8c)", val: httpResult.avgMs, unit: "ms" },
       { key: "Peak Auth RPS", val: Math.round(httpResult.rps), unit: "req/s" },
       {
-        key: "Auth Memory RSS \u0394",
+        key: "Auth Memory RSS Δ",
         val: (httpResult.rssDelta || 0).toFixed(2),
         unit: "MB",
       },

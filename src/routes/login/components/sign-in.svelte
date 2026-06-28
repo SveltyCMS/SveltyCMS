@@ -1,5 +1,6 @@
 <!--
 @file src/routes/login/components/SignIn.svelte
+@description erro 500 — SignIn component with OAuth support
 @component
 **SignIn component with OAuth support**
 
@@ -30,6 +31,7 @@ import FloatingPaths from "@src/components/system/floating-paths.svelte";
 import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
 import FloatingInput from "@components/ui/floating-input.svelte";
+import Input from "@components/ui/input.svelte";
 import Button from "@components/ui/button.svelte";
 // ParaglideJS
 import {
@@ -92,6 +94,8 @@ const brandedVariant = $derived(branding?.variant ?? "bordered");
 // State management
 let P_WFORGOT = $state(false);
 let P_WRESET = $state(false);
+let P_WMAGIC = $state(false);
+let isPasskeyLoading = $state(false);
 
 // FIX: let not const — const prevents $state reassignment so the
 // password-visibility toggle silently broke.
@@ -101,6 +105,7 @@ let showPassword = $state(false);
 let loginFormElement: HTMLFormElement | null = $state(null);
 let forgotFormElement: HTMLFormElement | null = $state(null);
 let resetFormElement: HTMLFormElement | null = $state(null);
+let magicFormElement: HTMLFormElement | null = $state(null);
 
 const isInteractiveCard = $derived(active === undefined);
 const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
@@ -143,13 +148,44 @@ function wiggle(el: HTMLFormElement | null) {
 }
 
 // ---------------------------------------------------------------------------
+// Dynamic Auth Methods Checking
+// ---------------------------------------------------------------------------
+let allowedMethods = $state({
+	hasPassword: true,
+	hasPasskey: false,
+	hasMagicLink: false,
+	hasOAuth: false,
+});
+let checkTimeout: ReturnType<typeof setTimeout> | undefined;
+
+function onEmailInput() {
+	if (checkTimeout) clearTimeout(checkTimeout);
+	checkTimeout = setTimeout(async () => {
+		const email = (loginForm.data.email || "").trim().toLowerCase();
+		if (!email || !email.includes('@')) {
+			allowedMethods = { hasPassword: true, hasPasskey: false, hasMagicLink: false, hasOAuth: false };
+			return;
+		}
+		try {
+			const { checkAuthMethods } = await import("../auth.remote");
+			const res = await checkAuthMethods(email);
+			if (res.success) {
+				allowedMethods = { ...allowedMethods, ...res };
+			}
+		} catch (e) {
+			console.error("Failed to check auth methods", e);
+		}
+	}, 400);
+}
+
+// ---------------------------------------------------------------------------
 // Login form
 // ---------------------------------------------------------------------------
 
 const loginForm = new Form({ email: "", password: "", isToken: false }, loginFormSchema);
 
-async function handleLoginSubmit(event: Event) {
-	event.preventDefault();
+	async function handleLoginSubmit(event: Event) {
+		event.preventDefault();
 	if (loginForm.data.email) {
 		loginForm.data.email = loginForm.data.email.toLowerCase();
 	}
@@ -189,6 +225,7 @@ async function handleLoginSubmit(event: Event) {
 		}
 
 		if (result.success && result.redirectPath) {
+			console.log('[SignIn Client] redirectPath:', result.redirectPath);
 			isAuthenticating = true;
 			sessionStorage.setItem(
 				"flashMessage",
@@ -222,6 +259,123 @@ async function handleLoginSubmit(event: Event) {
 // ---------------------------------------------------------------------------
 
 const forgotForm = new Form({ email: "" }, forgotFormSchema);
+
+// ---------------------------------------------------------------------------
+// Magic Link form
+// ---------------------------------------------------------------------------
+
+const magicForm = new Form({ email: "" }, forgotFormSchema);
+
+function base64UrlToBuffer(base64url: string): Uint8Array {
+	const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
+	const base64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
+	const raw = atob(base64);
+	const buf = new Uint8Array(raw.length);
+	for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+	return buf;
+}
+
+function bufferToBase64Url(buffer: ArrayBuffer): string {
+	const bytes = new Uint8Array(buffer);
+	let binary = "";
+	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function handlePasskeySignIn() {
+	if (!browser) return;
+	const email = (loginForm.data.email || "").trim().toLowerCase();
+	if (!email) {
+		toast.error({ title: "Email required", description: "Enter your email above, then use Passkey sign-in." });
+		return;
+	}
+	if (!window.PublicKeyCredential) {
+		toast.error({ title: "Unsupported", description: "Passkeys are not supported in this browser." });
+		return;
+	}
+
+	isPasskeyLoading = true;
+	try {
+		const { getPasskeyAuthOptions, verifyPasskeyAuth } = await import("../auth.remote");
+		const opts = await getPasskeyAuthOptions({ email });
+		if (!opts.success || !opts.options) {
+			toast.error({ title: "Passkey unavailable", description: opts.message || "No passkey found for this account." });
+			return;
+		}
+
+		const credential = (await navigator.credentials.get({
+				publicKey: {
+					...opts.options,
+					challenge: base64UrlToBuffer(opts.options.challenge) as BufferSource,
+					allowCredentials: opts.options.allowCredentials?.map((c) => ({
+												type: 'public-key' as const,
+												id: base64UrlToBuffer(c.id),
+												transports: c.transports as AuthenticatorTransport[] | undefined,
+											})) as PublicKeyCredentialDescriptor[],
+				},
+			})) as PublicKeyCredential | null;
+
+		if (!credential) {
+			toast.error({ title: "Cancelled", description: "Passkey sign-in was cancelled." });
+			return;
+		}
+
+		const response = credential.response as AuthenticatorAssertionResponse;
+		const result = await verifyPasskeyAuth({
+			email,
+			assertion: {
+				id: credential.id,
+				rawId: bufferToBase64Url(credential.rawId),
+				type: credential.type,
+				response: {
+					authenticatorData: bufferToBase64Url(response.authenticatorData),
+					clientDataJSON: bufferToBase64Url(response.clientDataJSON),
+					signature: bufferToBase64Url(response.signature),
+				},
+			},
+		});
+
+		if (result.success && result.redirectPath) {
+			await goto(result.redirectPath, { invalidateAll: true });
+		} else {
+			toast.error({ title: "Passkey failed", description: result.message || "Authentication failed." });
+		}
+	} catch (error: any) {
+		toast.error({ title: "Passkey error", description: error?.message || "Passkey authentication failed." });
+	} finally {
+		isPasskeyLoading = false;
+	}
+}
+
+async function handleMagicSubmit(event: Event) {
+	event.preventDefault();
+	if (magicForm.data.email) {
+		magicForm.data.email = magicForm.data.email.toLowerCase();
+	}
+	if (!magicForm.validate()) {
+		wiggle(magicFormElement);
+		return;
+	}
+	isSubmitting = true;
+
+	try {
+		const { requestMagicLink } = await import("../auth.remote");
+		const result = await requestMagicLink({ email: magicForm.data.email });
+		isSubmitting = false;
+		if (result.success) {
+			toast.success({ title: "Magic Link Sent", description: result.message || "Please check your inbox for the sign-in link." });
+			P_WMAGIC = false;
+		} else {
+			toast.error({ title: "Request Failed", description: result.message || "Failed to send magic link" });
+		}
+	} catch (error: any) {
+		isSubmitting = false;
+		const errorMessage = error?.message || "Failed to request magic link";
+		toast.error({ title: "Request Failed", description: errorMessage });
+		wiggle(magicFormElement);
+	}
+}
+
 
 async function handleForgotSubmit(event: Event) {
 	event.preventDefault();
@@ -375,6 +529,8 @@ function handleBack(event: Event) {
 		P_WRESET = false;
 	} else if (P_WFORGOT) {
 		P_WFORGOT = false;
+	} else if (P_WMAGIC) {
+		P_WMAGIC = false;
 	} else {
 		onBack();
 	}
@@ -439,8 +595,10 @@ $effect(() => {
 						<div class="text-xs text-surface-300">
 							<SiteName {siteName} highlight="CMS" textClass="text-black" />
 						</div>
-						{#if !P_WFORGOT && !P_WRESET}
+						{#if !P_WFORGOT && !P_WRESET && !P_WMAGIC}
 							<div class="lg:-mt-1">{form_signin()}</div>
+						{:else if P_WMAGIC}
+							<div class="text-2xl lg:-mt-1 lg:text-4xl">Sign in via Magic Link</div>
 						{:else if P_WFORGOT && !P_WRESET}
 							<div class="text-2xl lg:-mt-1 lg:text-4xl">{signin_forgottenpassword()}</div>
 						{:else if P_WFORGOT && P_WRESET}
@@ -471,12 +629,13 @@ $effect(() => {
 				<!-- Sign In form                                               -->
 				<!-- FIX: Hidden (not just absent) when 2FA panel is active    -->
 				<!-- --------------------------------------------------------- -->
-				{#if !P_WFORGOT && !P_WRESET}
+				{#if !P_WFORGOT && !P_WRESET && !P_WMAGIC}
 					<div class:hidden={requires2FA}>
 						<form
-							id="signin-form"
 							method="POST"
+							action="?/signIn"
 							onsubmit={handleLoginSubmit}
+							id="signin-form"
 							bind:this={loginFormElement}
 							class="flex w-full flex-col gap-3"
 							class:hide={active !== 0}
@@ -492,6 +651,7 @@ $effect(() => {
 								autocapitalize="none"
 								spellcheck={false}
 								bind:value={loginForm.data.email}
+								oninput={onEmailInput}
 								label={email()}
 								required
 								icon="mdi:email"
@@ -520,26 +680,58 @@ $effect(() => {
 								invalid={!!loginForm.errors.password}
 								errorMessage={loginForm.errors.password?.[0] || ''}
 							/>
+							<button type="submit" class="hidden" aria-hidden="true">Sign in</button>
 						</form>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto">
+							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto transition-all">
 								<Button
-									type="submit"
-									form="signin-form"
+									type="button"
 									variant="surface"
 									class="w-full sm:w-auto"
 									aria-label={form_signin()}
 									data-testid="signin-submit"
 									loading={isSubmitting || isAuthenticating}
+									onclick={handleLoginSubmit}
 								>
 									{form_signin()}
 								</Button>
 
-								<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} {firstCollectionPath} />
+								{#if allowedMethods.hasOAuth}
+								<div class="animate-fade-in w-full sm:w-auto">
+									<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} {firstCollectionPath} />
+								</div>
+								{/if}
 							</div>
 
-							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
+							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto gap-2 transition-all">
+								{#if pageData.showPasskey && allowedMethods.hasPasskey}
+								<div class="animate-fade-in">
+									<Button
+										type="button"
+										variant="outline"
+										class="w-full sm:w-auto text-black!"
+										aria-label="Sign in with Passkey"
+										onclick={handlePasskeySignIn}
+										loading={isPasskeyLoading}
+									>
+										<iconify-icon icon="mdi:fingerprint" width="20" class="me-1"></iconify-icon> Passkey
+									</Button>
+								</div>
+								{/if}
+								{#if pageData.showMagicLink && allowedMethods.hasMagicLink}
+								<div class="animate-fade-in">
+									<Button
+										type="button"
+										variant="outline"
+										class="w-full sm:w-auto text-black!"
+										aria-label="Sign in via Magic Link"
+										onclick={() => { P_WMAGIC = true; }}
+									>
+										Magic Link
+									</Button>
+								</div>
+								{/if}
 								<Button
 									type="button"
 									variant="outline"
@@ -572,7 +764,7 @@ $effect(() => {
 							<div class="flex flex-col gap-3">
 								<div class="relative">
 									<!-- FIX: aria-label added to 2FA input -->
-									<input
+									<Input
 										type="text"
 										id="twofa-code"
 										bind:value={twoFACode}
@@ -580,9 +772,7 @@ $effect(() => {
 										onkeydown={(e) => e.key === "Enter" && submitTwoFA()}
 										placeholder={useBackupCode ? "Enter backup code" : twofa_code_placeholder()}
 										aria-label={useBackupCode ? "Backup recovery code" : "Authenticator code"}
-										class="input text-center font-mono tracking-wider"
-										class:text-2xl={!useBackupCode}
-										class:text-lg={useBackupCode}
+										class="text-center font-mono tracking-wider {!useBackupCode ? 'text-2xl' : 'text-lg'}"
 										maxlength={useBackupCode ? 10 : 6}
 										autocomplete="one-time-code"
 										inputmode={useBackupCode ? "text" : "numeric"}
@@ -595,14 +785,15 @@ $effect(() => {
 								</div>
 
 								<div class="text-center">
-									<button
+									<Button
+										variant="ghost"
 										type="button"
 										onclick={toggle2FACodeType}
-										class="text-sm text-tertiary-500  underline hover:text-tertiary-600 dark:text-primary-600"
+										class="text-sm underline"
 										aria-label={useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 									>
 										{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
-									</button>
+										</Button>
 								</div>
 
 								<div class="flex gap-3">
@@ -616,14 +807,14 @@ $effect(() => {
 									</Button>
 
 									<Button variant="tertiary"
-										type="button"
-										onclick={submitTwoFA}
-										disabled={!twoFACode.trim() ||
-											isVerifying2FA ||
-											(!useBackupCode && twoFACode.length !== 6) ||
-											(useBackupCode && twoFACode.length < 8)}
-										aria-label={twofa_verify_button()}
-									 class="dark: flex-1">
+																				type="button"
+																				onclick={submitTwoFA}
+																				disabled={!twoFACode.trim() ||
+																					isVerifying2FA ||
+																					(!useBackupCode && twoFACode.length !== 6) ||
+																					(useBackupCode && twoFACode.length < 8)}
+																				aria-label={twofa_verify_button()}
+																			 class="flex-1">
 										{#if isVerifying2FA}
 											<!-- FIX: alt="" + aria-hidden on spinner image -->
 											<img src="/Spinner.svg" alt="" aria-hidden="true" class="me-2 h-5 invert filter" />
@@ -689,7 +880,56 @@ $effect(() => {
 								type="button"
 								aria-label="Back to sign in"
 								onclick={() => { P_WFORGOT = false; P_WRESET = false; }}
-							 class="p-0! min-w-0 rounded-full">
+								class="p-0! min-w-0 rounded-full">
+								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
+							</Button>
+						</div>
+					</form>
+				{/if}
+
+				<!-- --------------------------------------------------------- -->
+				<!-- Magic Link request form                                   -->
+				<!-- --------------------------------------------------------- -->
+				{#if P_WMAGIC}
+					<form
+						onsubmit={handleMagicSubmit}
+						bind:this={magicFormElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+						inert={active !== 0}
+						aria-label="Request magic link"
+					>
+						<FloatingInput
+							id="emailmagic"
+							name="email"
+							type="email"
+							autocomplete="email"
+							autocapitalize="none"
+							spellcheck={false}
+							bind:value={magicForm.data.email}
+							label={email()}
+							required
+							icon="mdi:email"
+							invalid={!!magicForm.errors.email}
+							errorMessage={magicForm.errors.email?.[0] || ''}
+						/>
+
+						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
+							<Button variant="surface"
+								type="submit"
+								aria-label="Send Magic Link"
+								class="text-white w-full sm:w-auto">
+								Send Magic Link
+								{#if isSubmitting}
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6 invert filter" />
+								{/if}
+							</Button>
+
+							<Button variant="surface"
+								type="button"
+								aria-label="Back to sign in"
+								onclick={() => { P_WMAGIC = false; }}
+								class="p-0! min-w-0 rounded-full">
 								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"></iconify-icon>
 							</Button>
 						</div>

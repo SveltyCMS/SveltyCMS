@@ -34,10 +34,10 @@ describe("theme-contrast", () => {
     expect(warnings.some((w) => w.pair.includes("Primary accent"))).toBe(true);
   });
 
-  it("passes audit for corporate shorthand palette", () => {
+  it("passes audit for default shorthand palette", () => {
     const warnings = auditPresetJson(
       JSON.stringify({
-        name: "Corporate",
+        name: "Default",
         properties: {
           primary: "#0f766e",
           tertiary: "#1d4ed8",

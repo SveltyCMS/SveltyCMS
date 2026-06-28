@@ -11,7 +11,7 @@
 // System Logger
 import { contentSystem } from "@src/content/index.server";
 // Auth - Use cached roles from locals instead of global config
-import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { error, fail, redirect, isRedirect, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { Actions, PageServerLoad } from "./$types";
@@ -28,8 +28,7 @@ function requireCollectionBuilderPermission(locals: any): void {
   if (!user) {
     throw error(401, "Authentication required");
   }
-  if (isAdmin) return;
-  if (!hasPermissionWithRoles(user, "config:collectionbuilder", tenantRoles)) {
+  if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
     logger.warn("[CollectionBuilder] Permission denied for action.", {
       userId: user._id,
     });
@@ -38,8 +37,11 @@ function requireCollectionBuilderPermission(locals: any): void {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
+  logger.info("[CB-DEBUG] Load function started");
   try {
+    logger.info("[CB-DEBUG] locals keys: " + Object.keys(locals).join(", "));
     const { user, isAdmin, tenantId } = locals;
+    logger.info(`[CB-DEBUG] user=${!!user}, isAdmin=${isAdmin}, tenantId=${tenantId}`);
 
     // User authentication already done by handleAuthorization hook. We assume `user` exists here due to the hook.
     if (!user) {
@@ -49,16 +51,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Use centralized guard function (redundant but explicit for load context)
     requireCollectionBuilderPermission(locals);
+    logger.info("[CB-DEBUG] Permission check passed");
 
     // Ensure content system is initialized for this tenant
     if (!contentSystem.isInitialized) {
-      logger.debug("[CollectionBuilder] System not initialized, initializing now...");
+      logger.info("[CB-DEBUG] Content system NOT initialized, initializing...");
       await contentSystem.initialize(tenantId, true);
+      logger.info("[CB-DEBUG] Content system initialized");
+    } else {
+      logger.info("[CB-DEBUG] Content system already initialized");
     }
 
     // Fetch the initial content structure directly from database for organizational work
-    logger.debug("[CollectionBuilder] Fetching content structure from database...");
+    logger.info("[CB-DEBUG] Fetching content structure from database...");
     let contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+    logger.info(`[CB-DEBUG] Content structure fetched: ${contentStructure?.length ?? 0} nodes`);
 
     // 🚑 SELF-HEALING: If no content nodes in DB but system was already marked as
     // initialized (e.g. from a prior skipReconciliation setup), trigger a full refresh.

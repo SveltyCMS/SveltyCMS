@@ -14,7 +14,7 @@ Features:
   import SystemTooltip from "@src/components/system/system-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
   import { formatBytes } from "@utils/utils";
-  import type { SvelteSet } from "svelte/reactivity";
+  import { SvelteSet } from "svelte/reactivity";
   import { scale } from "svelte/transition";
 
   interface Props {
@@ -22,6 +22,7 @@ Features:
     gridSize?: "tiny" | "small" | "medium" | "large";
     isSelectionMode?: boolean;
     selectedFiles: SvelteSet<string>;
+    publishedMediaIds?: SvelteSet<string>;
     ondeleteImage?: (file: MediaBase | MediaImage) => void;
     onEditImage?: (file: MediaImage) => void;
     onUpdateImage?: (file: MediaImage) => void;
@@ -33,6 +34,7 @@ Features:
     gridSize = "medium",
     isSelectionMode = false,
     selectedFiles = $bindable(),
+    publishedMediaIds = $bindable(new SvelteSet<string>()),
     ondeleteImage = () => {},
     onEditImage = () => {},
     onUpdateImage = () => {},
@@ -141,6 +143,7 @@ Features:
     {#each filteredFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
+      {const isPublishedReferenced = publishedMediaIds.has(fileId)}
 
       <div
         class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300
@@ -175,8 +178,12 @@ Features:
         <div
           class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
         >
-          <SystemTooltip title="Edit" positioning={{ placement: "left" }}>
+          <SystemTooltip
+            title={isPublishedReferenced ? "Referenced by published content" : "Edit"}
+            positioning={{ placement: "start" }}
+          >
             <Button variant="ghost"
+              disabled={isPublishedReferenced}
               data-testid="media-edit-button"
               onclick={(e: MouseEvent) => {
                 e.stopPropagation();
@@ -188,17 +195,33 @@ Features:
             </Button>
           </SystemTooltip>
 
-          <Button variant="ghost"
-            onclick={(e: MouseEvent) => {
-              e.stopPropagation();
-              ondeleteImage(file);
-            }}
-            aria-label="Delete {file.filename}"
-           class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm">
-            <iconify-icon icon="mdi:trash-can-outline" width={16}
-            ></iconify-icon>
-          </Button>
+          <SystemTooltip
+            title={isPublishedReferenced ? "Referenced by published content" : "Delete"}
+            positioning={{ placement: "start" }}
+          >
+            <Button variant="ghost"
+              disabled={isPublishedReferenced}
+              onclick={(e: MouseEvent) => {
+                e.stopPropagation();
+                ondeleteImage(file);
+              }}
+              aria-label="Delete {file.filename}"
+             class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm">
+              <iconify-icon icon="mdi:trash-can-outline" width={16}
+              ></iconify-icon>
+            </Button>
+          </SystemTooltip>
         </div>
+
+        <!-- Published reference badge -->
+        {#if isPublishedReferenced}
+          <div class="absolute inset-s-2 top-2 z-20" title="Referenced by published content">
+            <span class="flex items-center gap-1 rounded-full bg-warning-500/20 px-2 py-0.5 text-[10px] font-medium text-warning-700 backdrop-blur-sm dark:text-warning-300">
+              <iconify-icon icon="mdi:lock-outline" width={12}></iconify-icon>
+              Published
+            </span>
+          </div>
+        {/if}
 
         <!-- Image / Icon -->
         <button

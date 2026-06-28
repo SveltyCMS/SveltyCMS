@@ -48,12 +48,16 @@ test.describe("Full Collection & Widget Flow", () => {
     // Navigate directly to Names collection list page
     await page.goto("/en/collection/Names");
 
-    // 2. Create Entry
-    await page.getByRole("button", { name: /create/i }).click();
+    // 2. Create Entry — the button may have text "Create New" or "Add Entry"
+    const createBtn = page.getByRole("button", { name: /create/i });
+    await createBtn.waitFor({ state: "visible", timeout: 10_000 });
+    await createBtn.click();
     await page.getByPlaceholder(/first name/i).fill("First Name");
     await page.getByPlaceholder(/last name/i).fill("Last Name");
     await page.getByRole("button", { name: /save/i }).first().click();
-    await expect(page).toHaveURL(/\/en\/collection\/Names/i);
+    await expect(page).toHaveURL(/\/en\/collection\/Names/i, {
+      timeout: 10_000,
+    });
 
     // 3. Perform Collection Actions
     const actions = ["Published", "Unpublished", "Scheduled", "Cloned", "Delete", "Testing"];
@@ -74,8 +78,8 @@ test.describe("Full Collection & Widget Flow", () => {
       await expect(page).toHaveURL(/\/en\/collection\/Names/i);
     }
 
-    // 4. Add a Widget to Dashboard
-    await page.getByRole("button", { name: /system configuration/i }).click();
+    // 4. Add a Widget to Dashboard — navigate via sidebar or link
+    await page.goto("/config");
     await page.getByRole("link", { name: /dashboard/i }).click();
     await page.getByRole("button", { name: /add widget/i }).click();
 

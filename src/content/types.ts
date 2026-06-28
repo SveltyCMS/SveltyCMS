@@ -280,6 +280,8 @@ export interface Schema {
   tenantScopedUnique?: boolean; // If true, unique schema-level indexes include tenantId
   translations?: Translation[]; // Optional translations with enhanced metadata
   displaySpec?: Record<string, unknown>; // json-render-svelte display specification
+  /** If true, bulk delete operations are forbidden for this collection */
+  disableBulkDelete?: boolean;
 }
 
 export interface MinimalContentNode {

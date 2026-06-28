@@ -20,7 +20,9 @@
  */
 
 import {
+  COLLECTION_BUILDER_PERMISSION_ID,
   getAllPermissions,
+  hasCollectionBuilderPermission,
   hasPermissionByAction,
   hasPermissionWithRoles,
   isAdminRoleWithRoles,
@@ -51,6 +53,13 @@ const mockRoles: Role[] = [
     name: "Viewer",
     description: "Can only view content",
     permissions: ["collection:read"],
+    isAdmin: false,
+  },
+  {
+    _id: "developer" as DatabaseId,
+    name: "Developer",
+    description: "Can manage collections via Collection Builder",
+    permissions: [COLLECTION_BUILDER_PERMISSION_ID],
     isAdmin: false,
   },
 ];
@@ -216,5 +225,37 @@ describe("Role and Permission Access Management", () => {
       (p: { _id: string }) => p._id === "collection:create",
     );
     expect(hasContentCreate).toBe(true);
+  });
+
+  test("hasCollectionBuilderPermission grants admin and config:collectionbuilder", () => {
+    const adminUser: User = {
+      _id: "admin1" as DatabaseId,
+      email: "admin@example.com",
+      role: "admin",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+    const developerUser: User = {
+      _id: "dev1" as DatabaseId,
+      email: "dev@example.com",
+      role: "developer",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+    const editorUser: User = {
+      _id: "editor1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    expect(hasCollectionBuilderPermission(adminUser, mockRoles, true)).toBe(true);
+    expect(hasCollectionBuilderPermission(developerUser, mockRoles)).toBe(true);
+    expect(hasCollectionBuilderPermission(editorUser, mockRoles)).toBe(false);
+    expect(hasCollectionBuilderPermission(null, mockRoles)).toBe(false);
   });
 });

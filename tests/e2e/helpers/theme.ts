@@ -27,7 +27,9 @@ export interface AdminThemePatch {
 
 /** Save admin theme settings via authenticated API (TEST_MODE skips CSRF) */
 export async function saveAdminTheme(page: Page, settings: AdminThemePatch) {
-  const res = await page.request.post("/api/theme/admin-theme", { data: settings });
+  const res = await page.request.post("/api/theme/admin-theme", {
+    data: settings,
+  });
   expect(res.ok()).toBeTruthy();
 }
 

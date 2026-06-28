@@ -19,7 +19,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// ParaglideJS
 	import { button_cancel, button_delete, button_save, modaledit_avatarfilesallowed, modaledit_avatarfilesize } from '@src/paraglide/messages';
 	// Stores
-	import { avatarSrc } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@src/utils/logger';
 	import { modalState } from '@utils/modal.svelte';
@@ -57,7 +56,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		if (imageLoadError) {
 			return '/Default_User.svg';
 		}
-		let src = avatarSrc.value || '/Default_User.svg';
+		let src = page.data.user?.avatar || '/Default_User.svg';
 
 		if (src === '/Default_User.svg') {
 			return src;
@@ -171,7 +170,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			parse(avatarSchema, { file });
 
 			// Show confirmation if replacing existing avatar
-			if (avatarSrc.value && avatarSrc.value !== '/Default_User.svg') {
+			if (page.data.user?.avatar && page.data.user.avatar !== '/Default_User.svg') {
 				showConfirm({
 					title: 'Replace Avatar',
 					body: 'Are you sure you want to replace your current avatar?',
@@ -267,11 +266,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 				const result = await response.json();
 
-				// Update the avatar store
-				if (result.avatarUrl) {
-					avatarSrc.value = result.avatarUrl;
-				logger.info('Avatar store updated', { avatarUrl: result.avatarUrl });
-			}
+				// Avatar updated on server — invalidateAll below will refresh page.data.user
 
 			// Invalidate all data to ensure consistency
 			await invalidateAll();
@@ -309,8 +304,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			onConfirm: async () => {
 				// User confirmed - proceed with deletion
 				try {
-					const currentAvatar = avatarSrc.value;
-					logger.info('Attempting to delete avatar:', currentAvatar);
+					const currentAvatar = page.data.user?.avatar ?? '/Default_User.svg';
+				logger.info('Attempting to delete avatar:', currentAvatar);
 
 					const response = await fetch('/api/user/delete-avatar', {
 						method: 'DELETE',
@@ -321,9 +316,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					const result = await response.json();
 
 					if (response.ok && result.success) {
-						// Update the avatar store
-						avatarSrc.value = '/Default_User.svg';
-						previewUrl = null;
+						// Avatar deleted on server — invalidateAll below will refresh page.data.user
+							previewUrl = null;
 
 						// Show success message
 						toast.success({
@@ -358,7 +352,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 <div class="modal-avatar space-y-4">
 	<form class="modal-form {cForm}">
-		<div class="grid grid-cols-1 grid-rows-{avatarSrc.value ? '1' : '2'} items-center justify-center">
+		<div class="grid grid-cols-1 grid-rows-{page.data.user?.avatar ? '1' : '2'} items-center justify-center">
 			<FileUpload bind:files accept={acceptMime} multiple={false} onchange={onFileChange} class="border-none! p-0! w-full">
 				<div class="flex flex-col items-center gap-4 w-full">
 					<!-- Avatar Trigger (Clickable) -->
@@ -412,8 +406,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
 		<!-- Delete Avatar -->
-		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
-			<Button variant="error" type="button" onclick={deleteAvatar}>
+		{#if page.data.user?.avatar && page.data.user.avatar !== '/Default_User.svg'}
+			<Button variant="error" type="button" onclick={deleteAvatar} aria-label="Delete Avatar">
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
 				<span class="hidden sm:block">{button_delete()}</span>
 			</Button>
@@ -425,7 +419,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			<!-- Cancel -->
 			<Button variant="outline" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</Button>
 			<!-- Save -->
-			<Button variant="tertiary" onclick={onFormSubmit} disabled={!files.length || isUploading} class="dark:">
+			<Button variant="tertiary" onclick={onFormSubmit} disabled={!files.length || isUploading} class="dark:preset-filled-primary-500">
 				{#if isUploading}
 					<div class="me-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Uploading...

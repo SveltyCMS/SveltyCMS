@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-20"
+updated: "2026-06-28"
 tags:
   - "testing"
   - "status"
@@ -18,25 +18,26 @@ tags:
 
 # SveltyCMS Enterprise Test Coverage Report
 
-### 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
+## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
-| Metric                      | Before | After                  |
-| --------------------------- | ------ | ---------------------- |
-| Execution time (SQLite)     | ~9 min | ~70 sec                |
-| Server starts/stops per run | 72     | 2 (mode switches only) |
-| Pass rate                   | 31/36  | **36/36**              |
-| Speedup                     | —      | **~7.5x**              |
+| Metric                      | Before | After                                                                  |
+| --------------------------- | ------ | ---------------------------------------------------------------------- |
+| Execution time (SQLite)     | ~9 min | ~70 sec                                                                |
+| Server starts/stops per run | 72     | 2 (mode switches only)                                                 |
+| Pass rate                   | 31/36  | **35/36** (2 FormData subtests fail in `media.test.ts`, [#regression]) |
+| Speedup                     | —      | **~7.5x**                                                              |
 
 **Coverage**: 36 spec files across 4 domains
 
-| Domain          | Files | What's Tested                                                              |
-| --------------- | ----- | -------------------------------------------------------------------------- |
-| Auth & Users    | 5     | Login, 2FA, lockout, tokens, website-tokens, user CRUD                     |
-| Content & Media | 6     | Collections, content CRUD, media upload/delete, search, GraphQL            |
-| System & Config | 12    | Settings, themes, dashboard, cache, permissions, RBAC, i18n                |
-| Security        | 4     | Defense-in-depth, negative scenarios, rate-limiting, XSS/SQLi              |
-| Database        | 7     | Contract tests, adapter-specific (SQLite/Mongo/Maria/Postgres), resilience |
-| Setup & SDK     | 2     | Setup wizard, LocalCMS SDK                                                 |
+| Domain          | Files | What's Tested                                                   |
+| --------------- | ----- | --------------------------------------------------------------- |
+| Auth & Users    | 5     | Login, 2FA, lockout, tokens, website-tokens, user CRUD          |
+| Content & Media | 6     | Collections, content CRUD, media upload/delete, search, GraphQL |
+| System & Config | 12    | Settings, themes, dashboard, cache, permissions, RBAC, i18n     |
+| Security        | 4     | Defense-in-depth, negative scenarios, rate-limiting, XSS/SQLi   |
+
+| Database | 7 | Contract tests, adapter-specific (SQLite/Mongo/Maria/Postgres), resilience |
+| Setup & SDK | 2 | Setup wizard, LocalCMS SDK |
 
 **Hardening applied**:
 
@@ -45,7 +46,9 @@ tags:
 - Widget auto-registration → fixes 404 for valid widgets in fresh DB
 - All caches + state stores cleared per-test → true isolation
 
-### 2. Playwright E2E Tests (`tests/e2e/`)
+These measures ensure zero cross-test contamination and deterministic test results.
+
+## 2. Playwright E2E Tests (`tests/e2e/`)
 
 | Status                   | Count | Notes                                                                            |
 | ------------------------ | ----- | -------------------------------------------------------------------------------- |
@@ -57,7 +60,7 @@ tags:
 
 **Config & admin specs** (wired June 2026): `config/access-management`, `config/webhooks`, `config/automations`, `config/data-management`, `config/operations`, `admin/tenants`
 
-**New specs (June 2026)**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`
+**New specs (June 2026)**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`, `collection-builder/empty-state.spec.ts`
 
 **Builder hardening**: `data-testid` on collection builder + widget editor; studio stepper wired on all breakpoints
 
@@ -73,50 +76,102 @@ tags:
 | Hardcoded ports  | `localhost:5173`          | `127.0.0.1:4173` or `baseURL`-relative  |
 | Environment deps | Assertion fails hard      | `try/catch` with graceful skip          |
 
-### 3. Unit Tests
+## 3. Unit Tests
 
-| Metric            | Value                             |
-| ----------------- | --------------------------------- |
-| Total tests       | **1,114**                         |
-| Pass rate         | 100%                              |
-| Test files        | 121                               |
-| Security-specific | 64 (defense-in-depth, auth, RBAC) |
+| Metric                | Value                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| Total tests           | **1,440+**                                                                         |
+| Pass rate             | 100%                                                                               |
+| Test files            | 163                                                                                |
+| Security-specific     | 64 (defense-in-depth, auth, RBAC)                                                  |
+| Content-specific      | 35 (cache helpers, reconciliation, API surface, collection builder utils)          |
+| Media-specific        | 40 (sharing, MIME utils, binary sniffer)                                           |
+| Image editor          | 35 (widget registry validation, plugin slot rendering, defaults + sorting)         |
+| Utils integrity       | 4 (circular import detection, barrel health)                                       |
+| **Bulk delete guard** | 6 (API handler, SDK layer, 403 status, error code)                                 |
+| **Cache service**     | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh) |
 
-**June 2026 additions**: `tests/unit/core/` — 23 dedicated tests for previously untested database proxy behavior and tenant filter logic:
+**June 2026 additions**:
 
-| Test file                  | Tests | Covers                                                                                              |
-| -------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
-| `proxy-utils.test.ts`      | 16    | Self-healing HMR recovery, hot-swap zero-tax getters, tenant auto-injection, function binding cache |
-| `relational-utils.test.ts` | 7     | Tenant filter application, bypass flags, null/global handling, object variant, Mongo symmetry       |
+`tests/unit/core/` — 23 dedicated tests for database proxy and tenant filter logic:
 
-### 4. CI Pipeline Gates
+| Test file                | Tests | Covers                                                     |
+| ------------------------ | ----- | ---------------------------------------------------------- |
+| proxy-utils.test.ts      | 16    | Self-healing HMR, hot-swap getters, tenant auto-injection  |
+| relational-utils.test.ts | 7     | Tenant filter, bypass flags, null handling, Mongo symmetry |
+
+`tests/unit/stores/` — 32 store architecture and reactivity tests:
+
+| Test file                         | Tests | Covers                                                                         |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------ |
+| mode-transition-guard.test.ts     | 12    | Validated mode transitions, unsaved changes blocking, force-reset, idempotency |
+| content-registry.test.ts          | 11    | `$state` reactivity, event-driven `waitForReload`, multi-tenant support        |
+| collection-store-reactive.test.ts | 9     | Reactive getter snapshot fix, selection management, content structure dedup    |
+| ui-store.test.ts                  | 6     | Toggle visibility, screen-size reactivity, singleton                           |
+
+`tests/unit/content/` — 20 reconciliation and API surface tests:
+
+| Test file                 | Tests | Covers                                                                                                                                          |
+| ------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| content-reconcile.test.ts | 20    | FS-DB reconciliation (merge, prune, preserve), category nesting, parentId, path auto-gen, tenantId, contentSystemBase API, refreshContent modes |
+
+`tests/unit/media/` — 40 media utility and security tests:
+
+| Test file            | Tests | Covers                                                                                                      |
+| -------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| sharing.test.ts      | 13    | Share link generation, validation, revocation, expiry, download limits, IP checks                           |
+| media-utils.test.ts  | 15    | MIME lookup, reverse extension mapping, filename sanitization, file/buffer validation, hash-path resolution |
+| slim-sniffer.test.ts | 12    | Binary MIME detection for JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM                                   |
+
+`tests/unit/components/image-editor/` — 35 image editor widget and plugin slot tests:
+
+| Test file                | Tests | Covers                                                                                                                                                    |
+| ------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| widget-registry.test.ts  | 27    | isValidWidget validation (12 cases), default value application (8), sorting by order/title (3), disabled filtering (2), category + key lookup (2)         |
+| plugin-tool-slot.test.ts | 8     | image_editor_tool InjectionZone acceptance, slot registration/deduplication, zone isolation, server actions, prop passthrough, condition filtering, clear |
+
+`tests/unit/utils/` — 4 barrel integrity tests:
+
+| Test file                | Tests | Covers                                                                                   |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------- |
+| circular-imports.test.ts | 4     | No `@utils/utils` barrel imports from utils files, barrel export existence, dead exports |
+
+> **Why**: Rolldown (Vite 8 config bundler) traces static imports. A circular reference `utils.ts → file.ts → @utils/utils` causes Rolldown to expand the entire dependency graph into `.svelte` files, which it cannot parse. This test prevents regressions.
+
+## 4. CI Pipeline Gates
 
 | Gate              | Runtime    | What it catches                                   |
 | ----------------- | ---------- | ------------------------------------------------- |
 | Bootstrap         | ~30s       | Dep install, codegen                              |
 | Lint + Type Check | ~40s       | oxlint, svelte-check, tsc                         |
-| Unit Tests        | ~12s       | 1,152 Vitest specs                                |
+| Unit Tests        | ~12s       | 1,100+ Vitest specs                               |
 | Build             | ~30s       | Production build integrity                        |
 | DB Matrix (×4)    | ~3min each | SQLite, MongoDB, MariaDB, PostgreSQL integration  |
 | E2E Wizard        | ~30s       | Setup wizard flow                                 |
 | E2E Auth          | ~20s       | Login + session creation                          |
 | E2E App (×17)     | ~15s each  | Full admin surface (signup through media gallery) |
 
-### 5. Gaps — What's NOT Tested
+## 5. Gaps — What's NOT Tested
 
-| Gap                                     | Risk                                                                                         | Priority  |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
-| **Image editor save E2E**               | Editor open + crop/focal tools covered; manipulate save not browser-tested                   | 🟢 Low    |
-| **GraphQL E2E**                         | Only integration-tested; no browser-level GQL query test                                     | 🟡 Medium |
-| **SSO/OAuth integration**               | Mock-only test; no real IdP flow validation                                                  | 🟡 Medium |
-| **Dashboard drag-reorder E2E**          | Widget grid smoke covered; drag-and-drop reorder not browser-tested                          | 🟢 Low    |
-| **Performance regression**              | Benchmarks gated to `main` only; no per-PR perf diff                                         | 🟡 Medium |
-| **Plugin/extension E2E**                | Stripe, cookie-consent, editable-website untested at browser level                           | 🟢 Low    |
-| **Mobile viewport**                     | All tests run Desktop Chrome only                                                            | 🟢 Low    |
-| **Multi-tenant E2E**                    | No cross-tenant isolation test at browser level                                              | 🟢 Low    |
-| **✅ Proxy & tenant filter** (resolved) | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests) | —         |
+| Gap                            | Risk                                                                       | Priority                                                      |
+| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| **GraphQL E2E**                | Only integration-tested; no browser-level GQL query test                   | 🟡 Medium                                                     |
+| **SSO/OAuth integration**      | Mock-only test; no real IdP flow validation                                | 🟡 Medium                                                     |
+| **Dashboard drag-reorder E2E** | Widget grid smoke covered; drag-and-drop reorder not browser-tested        | 🟢 Low                                                        |
+| - **Performance regression**   | Benchmarks gated to `main` only; no per-PR perf diff                       | 🟢 Low — 58/58 benchmark tests pass on SQLite, CI skips on PR |
+| **Image editor E2E save**      | Editor open + crop/focal tools covered; manipulate save not browser-tested | 🟢 Low                                                        |
 
-### 6. Recommended Next Actions
+| Gap                                                          | Risk                                                                                                    | Priority |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | -------- |
+| **Plugin/extension E2E**                                     | Stripe, cookie-consent, editable-website untested at browser level                                      | 🟢 Low   |
+| **Mobile viewport**                                          | All tests run Desktop Chrome only                                                                       | 🟢 Low   |
+| **Multi-tenant E2E**                                         | No cross-tenant isolation test at browser level                                                         | 🟢 Low   |
+| **✅ Media sharing & MIME** (resolved)                       | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)                      | —        |
+| **✅ Content reconciliation** (resolved)                     | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                                | —        |
+| **✅ Proxy & tenant filter** (resolved)                      | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests)            | —        |
+| **✅ Image editor widget registry + plugin slot** (resolved) | Now covered by `tests/unit/components/image-editor/` (35 tests: registry validation, plugin tool slots) | —        |
+
+## 6. Recommended Next Actions
 
 1. **Harden builder selectors** — add `data-testid` to collection builder critical paths (`builder.spec.ts`, `journey.spec.ts`)
 2. **Image editor save E2E** — save via `/api/media/manipulate` after crop

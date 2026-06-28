@@ -42,7 +42,12 @@ if (isBun) {
   }
   class HTMLElementMock extends NodeMock {
     style = {};
-    classList = { add: () => {}, remove: () => {}, contains: () => false, toggle: () => false };
+    classList = {
+      add: () => {},
+      remove: () => {},
+      contains: () => false,
+      toggle: () => false,
+    };
     setAttribute() {}
     getAttribute() {
       return null;

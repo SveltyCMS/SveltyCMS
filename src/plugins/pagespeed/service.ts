@@ -20,7 +20,9 @@ export async function fetchPageSpeedInsights(
 ): Promise<Partial<PageSpeedResult> | null> {
   // 🛡️ Security: Validate URL to prevent SSRF and outside-of-scope testing
   if (!validateUrl(url, allowedBaseUrl)) {
-    logger.warn("PageSpeed URL validation failed (out of scope or unsafe)", { url });
+    logger.warn("PageSpeed URL validation failed (out of scope or unsafe)", {
+      url,
+    });
     return null;
   }
 
@@ -85,7 +87,10 @@ export async function fetchPageSpeedInsights(
 
     return result;
   } catch (error) {
-    logger.error("Failed to fetch PageSpeed Insights (fetch exception)", { error, url });
+    logger.error("Failed to fetch PageSpeed Insights (fetch exception)", {
+      error,
+      url,
+    });
     return null;
   }
 }
@@ -118,13 +123,20 @@ export async function getCachedResult(
     const ageMinutes = (Date.now() - fetchedAt) / (1000 * 60);
 
     if (ageMinutes > maxAgeMinutes) {
-      logger.debug("PageSpeed cache is stale", { entryId, ageMinutes, maxAgeMinutes });
+      logger.debug("PageSpeed cache is stale", {
+        entryId,
+        ageMinutes,
+        maxAgeMinutes,
+      });
       return null;
     }
 
     return result.data;
   } catch (error) {
-    logger.error("Failed to retrieve cached PageSpeed result", { error, entryId });
+    logger.error("Failed to retrieve cached PageSpeed result", {
+      error,
+      entryId,
+    });
     return null;
   }
 }
@@ -198,7 +210,10 @@ export async function getMultipleCachedResults(
       }
     }
   } catch (error) {
-    logger.error("Failed to batch-retrieve PageSpeed results", { error, entryIds });
+    logger.error("Failed to batch-retrieve PageSpeed results", {
+      error,
+      entryIds,
+    });
   }
 
   return resultMap;

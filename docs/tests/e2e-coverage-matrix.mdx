@@ -16,7 +16,8 @@ tags:
 
 # E2E Coverage Matrix — Route-Based Analysis
 
-> Generated: 2026-06-19 | Total routes: 9 | Total E2E specs: 29 | CI projects: 17 (+ wizard + auth-setup)
+> Generated: 2026-06-19
+> Total routes: 9 | Total E2E specs: 29 | CI projects: 17 (+ wizard + auth-setup)
 
 ## 1. `/setup` — Setup Wizard (24 components, 6 tested)
 
@@ -30,14 +31,17 @@ tags:
 | SMTP invalid host error                         | `email-config.svelte`      | ✅      | setup-wizard             |
 | **Preset/template selection**                   | `preset-selector.svelte`   | ❌      | —                        |
 | **System config (site name, media folder)**     | `system-config.svelte`     | ❌      | —                        |
-| **SMTP test email (valid config)**              | `email-config.svelte`      | ❌      | —                        |
-| **Review step verification**                    | `review-config.svelte`     | ❌      | —                        |
-| **Back navigation (return to previous)**        | `setup-navigation.svelte`  | ❌      | —                        |
-| **OAuth config during setup**                   | setup server               | ❌      | —                        |
-| **Demo mode detection**                         | `+page.svelte`             | ❌      | —                        |
-| **Multi-DB provisioning (Mongo/Maria/PG)**      | full flow                  | ❌      | Commented out            |
-| **Config write permissions error**              | `write-private-config.ts`  | ❌      | —                        |
-| **Cookie consent during setup**                 | `CookieConsent` plugin     | ⚠️      | Flaky                    |
+
+| Feature                                    | Component                 | Tested? | Test File     |
+| ------------------------------------------ | ------------------------- | ------- | ------------- |
+| **SMTP test email (valid config)**         | `email-config.svelte`     | ❌      | —             |
+| **Review step verification**               | `review-config.svelte`    | ❌      | —             |
+| **Back navigation (return to previous)**   | `setup-navigation.svelte` | ❌      | —             |
+| **OAuth config during setup**              | setup server              | ❌      | —             |
+| **Demo mode detection**                    | `+page.svelte`            | ❌      | —             |
+| **Multi-DB provisioning (Mongo/Maria/PG)** | full flow                 | ❌      | Commented out |
+| **Config write permissions error**         | `write-private-config.ts` | ❌      | —             |
+| **Cookie consent during setup**            | `CookieConsent` plugin    | ⚠️      | Flaky         |
 
 **Coverage: 6/16 features (37%)**
 
@@ -45,24 +49,24 @@ tags:
 
 ## 2. `/login` — Authentication (4 components, 5 specs)
 
-| Feature                               | Test File                        | Status         |
-| ------------------------------------- | -------------------------------- | -------------- |
-| Login with valid credentials          | `login.spec.ts`                  | ✅             |
-| Logout                                | `login.spec.ts`                  | ✅             |
-| Sign Up (first user)                  | `signupfirstuser.spec.ts`        | ⚠️ Broken      |
-| Forgot password flow                  | `signupfirstuser.spec.ts`        | ⚠️ Broken      |
-| OAuth button visibility               | `oauth-signup-firstuser.spec.ts` | ⚠️ Skips       |
-| OAuth redirect mock                   | `oauth-signup-firstuser.spec.ts` | ✅             |
-| OAuth error handling                  | `oauth-signup-firstuser.spec.ts` | ✅             |
-| Axe accessibility audit               | `accessibility.spec.ts`          | ⚠️ 1 violation |
-| Keyboard focus trap                   | `accessibility.spec.ts`          | ✅ Fixed       |
-| RTL layout audit                      | `accessibility.spec.ts`          | ⚠️ 1 violation |
-| **2FA/TOTP flow**                     | —                                | ❌             |
-| **SAML SSO login**                    | —                                | ❌             |
-| **Rate limiting (5 failed attempts)** | —                                | ❌             |
-| **Account lockout (15 min)**          | —                                | ❌             |
-| **Session timeout warning**           | —                                | ❌             |
-| **"Remember me" persistent session**  | —                                | ❌             |
+| Feature                               | Test File               | Status         |
+| ------------------------------------- | ----------------------- | -------------- |
+| Login with valid credentials          | `login.spec.ts`         | ✅             |
+| Logout                                | `login.spec.ts`         | ✅             |
+| Sign Up (first user)                  | `login/signup.spec.ts`  | ⚠️ Broken      |
+| Forgot password flow                  | `login/signup.spec.ts`  | ⚠️ Broken      |
+| OAuth button visibility               | `login/oauth.spec.ts`   | ⚠️ Skips       |
+| OAuth redirect mock                   | `login/oauth.spec.ts`   | ✅             |
+| OAuth error handling                  | `login/oauth.spec.ts`   | ✅             |
+| Axe accessibility audit               | `accessibility.spec.ts` | ⚠️ 1 violation |
+| Keyboard focus trap                   | `accessibility.spec.ts` | ✅ Fixed       |
+| RTL layout audit                      | `accessibility.spec.ts` | ⚠️ 1 violation |
+| **2FA/TOTP flow**                     | —                       | ❌             |
+| **SAML SSO login**                    | —                       | ❌             |
+| **Rate limiting (5 failed attempts)** | —                       | ❌             |
+| **Account lockout (15 min)**          | —                       | ❌             |
+| **Session timeout warning**           | —                       | ❌             |
+| **"Remember me" persistent session**  | —                       | ❌             |
 
 **Coverage: 10/16 features (62%)**
 
@@ -70,23 +74,23 @@ tags:
 
 ## 3. `/user` — User Profile & Management (3 specs)
 
-| Feature                      | Test File               | Status              |
-| ---------------------------- | ----------------------- | ------------------- |
-| View profile                 | `account-smoke.spec.ts` | ✅                  |
-| Edit avatar                  | `user.spec.ts`          | ⚠️ Needs test image |
-| Delete avatar                | `user.spec.ts`          | ⚠️                  |
-| Edit user details            | `user.spec.ts`          | ⚠️                  |
-| Registration token workflow  | `user.spec.ts`          | ⚠️                  |
-| Toggle token/list visibility | `user.spec.ts`          | ⚠️                  |
-| Read/edit user (admin)       | `user-crud.spec.ts`     | ⚠️                  |
-| Delete/block/unblock (admin) | `user-crud.spec.ts`     | ⚠️                  |
-| Invite user via email        | `user-crud.spec.ts`     | ⚠️                  |
-| **Password change**          | —                       | ❌                  |
-| **2FA setup**                | —                       | ❌                  |
-| **API key management**       | —                       | ❌                  |
-| **User search/filter**       | —                       | ❌                  |
-| **Bulk user actions**        | —                       | ❌                  |
-| **User import**              | —                       | ❌                  |
+| Feature                      | Test File                    | Status              |
+| ---------------------------- | ---------------------------- | ------------------- |
+| View profile                 | `user/account-smoke.spec.ts` | ✅                  |
+| Edit avatar                  | `user/profile.spec.ts`       | ⚠️ Needs test image |
+| Delete avatar                | `user/profile.spec.ts`       | ⚠️                  |
+| Edit user details            | `user/profile.spec.ts`       | ⚠️                  |
+| Registration token workflow  | `user/profile.spec.ts`       | ⚠️                  |
+| Toggle token/list visibility | `user/profile.spec.ts`       | ⚠️                  |
+| Read/edit user (admin)       | `user/management.spec.ts`    | ⚠️                  |
+| Delete/block/unblock (admin) | `user/management.spec.ts`    | ⚠️                  |
+| Invite user via email        | `user/management.spec.ts`    | ⚠️                  |
+| **Password change**          | —                            | ❌                  |
+| **2FA setup**                | —                            | ❌                  |
+| **API key management**       | —                            | ❌                  |
+| **User search/filter**       | —                            | ❌                  |
+| **Bulk user actions**        | —                            | ❌                  |
+| **User import**              | —                            | ❌                  |
 
 **Coverage: 9/15 features (60%) — all marked ⚠️ (fragile selectors)**
 
@@ -94,23 +98,24 @@ tags:
 
 ## 4. `/config/collectionbuilder` (4 specs)
 
-| Feature                                | Test File                           | Status |
-| -------------------------------------- | ----------------------------------- | ------ |
-| Navigate to builder                    | `collection-builder.spec.ts`        | ⚠️     |
-| Create collection                      | `collection-builder.spec.ts`        | ⚠️     |
-| Add widget/field                       | `collection-builder.spec.ts`        | ⚠️     |
-| Configure widget properties            | `collection-builder.spec.ts`        | ⚠️     |
-| Widget search/filter                   | `collection-builder.spec.ts`        | ⚠️     |
-| Field validation                       | `collection-builder.spec.ts`        | ⚠️     |
-| Save collection                        | `content-smoke.spec.ts`             | ✅     |
-| Full lifecycle (builder→entry→API)     | `master-behavioral-journey.spec.ts` | ⚠️     |
-| Collection actions (publish/unpublish) | `collection.spec.ts`                | ⚠️     |
-| Dashboard widget add                   | `collection.spec.ts`                | ⚠️     |
-| **Field reordering (drag & drop)**     | —                                   | ❌     |
-| **Relation field setup**               | —                                   | ❌     |
-| **Schema export**                      | —                                   | ❌     |
-| **Template import**                    | —                                   | ❌     |
-| **Nested content structure**           | —                                   | ❌     |
+| Feature                                | Test File                                  | Status |
+| -------------------------------------- | ------------------------------------------ | ------ |
+| Navigate to builder                    | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Create collection                      | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Add widget/field                       | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Configure widget properties            | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Widget search/filter                   | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Field validation                       | `collection-builder/builder.spec.ts`       | ⚠️     |
+| Save collection                        | `collection-builder/content-smoke.spec.ts` | ✅     |
+| Full lifecycle (builder→entry→API)     | `collection-builder/journey.spec.ts`       | ⚠️     |
+| Empty state handling                   | `collection-builder/empty-state.spec.ts`   | ✅     |
+| Collection actions (publish/unpublish) | `collection-builder/collection.spec.ts`    | ⚠️     |
+| Dashboard widget add                   | `collection-builder/collection.spec.ts`    | ⚠️     |
+| **Field reordering (drag & drop)**     | —                                          | ❌     |
+| **Relation field setup**               | —                                          | ❌     |
+| **Schema export**                      | —                                          | ❌     |
+| **Template import**                    | —                                          | ❌     |
+| **Nested content structure**           | —                                          | ❌     |
 
 ---
 
@@ -124,15 +129,18 @@ tags:
 | `/config/access-management` | RBAC (admin/dev/editor)          | `system/rbac.spec.ts`              | `rbac`          | ✅     |
 | `/config/webhooks`          | List, create form, delivery logs | `config/webhooks.spec.ts`          | `config-routes` | ✅     |
 | `/config/automations`       | Workflow builder smoke           | `config/automations.spec.ts`       | `config-routes` | ✅     |
-| `/config/importer`          | Smart importer smoke             | `config/data-management.spec.ts`   | `config-routes` | ✅     |
-| `/config/sync`              | Sync settings smoke              | `config/data-management.spec.ts`   | `config-routes` | ✅     |
-| `/config/redirects`         | Redirect manager smoke           | `config/data-management.spec.ts`   | `config-routes` | ✅     |
-| `/config/monitor`           | Service health                   | `config/operations.spec.ts`        | `config-routes` | ✅     |
-| `/config/queue`             | Job queue list                   | `config/operations.spec.ts`        | `config-routes` | ✅     |
-| `/config/extensions`        | Extension list                   | `config/operations.spec.ts`        | `config-routes` | ✅     |
-| `/config/appearance`        | My Overrides + layout prefs      | `config/appearance.spec.ts`        | `appearance`    | ✅     |
-| `/config/design-system`     | Component playground             | `config/design-system.spec.ts`     | `appearance`    | ✅     |
-| `/config/workflows`         | —                                | —                                  | —               | ❌     |
+| `/config/migration`         | Smart migration smoke            | `config/data-management.spec.ts`   | `config-routes` | ✅     |
+
+| Route                   | Feature                     | Test File                        | CI Project      | Status |
+| ----------------------- | --------------------------- | -------------------------------- | --------------- | ------ |
+| `/config/sync`          | Sync settings smoke         | `config/data-management.spec.ts` | `config-routes` | ✅     |
+| `/config/redirects`     | Redirect manager smoke      | `config/data-management.spec.ts` | `config-routes` | ✅     |
+| `/config/monitor`       | Service health              | `config/operations.spec.ts`      | `config-routes` | ✅     |
+| `/config/queue`         | Job queue list              | `config/operations.spec.ts`      | `config-routes` | ✅     |
+| `/config/extensions`    | Extension list              | `config/operations.spec.ts`      | `config-routes` | ✅     |
+| `/config/appearance`    | My Overrides + layout prefs | `config/appearance.spec.ts`      | `appearance`    | ✅     |
+| `/config/design-system` | Component playground        | `config/design-system.spec.ts`   | `appearance`    | ✅     |
+| `/config/workflows`     | —                           | —                                | —               | ❌     |
 
 ---
 
@@ -203,30 +211,38 @@ tags:
 | **TOTAL**                   | **105**  | **63** | **60%**  |
 
 > **Critical gaps**: Setup presets, 2FA, SAML, rate limiting, image editor, dashboard drag-reorder.
+>
+> See [Next Steps](#next-steps) for prioritized action items.
 
 ## CI Playwright Projects (17 + wizard + auth-setup)
 
-| Project             | Spec(s)                                                                                | Depends on |
-| ------------------- | -------------------------------------------------------------------------------------- | ---------- |
-| `wizard`            | `setup/setup-wizard.spec.ts`                                                           | —          |
-| `auth-setup`        | `auth.setup.ts`, `login/login.spec.ts`                                                 | —          |
-| `signup`            | `user/account-smoke.spec.ts`                                                           | auth-setup |
-| `content`           | `collection-builder/content-smoke.spec.ts`                                             | auth-setup |
-| `system`            | `system/settings.spec.ts`                                                              | auth-setup |
-| `a11y`              | `login/accessibility.spec.ts`                                                          | auth-setup |
-| `branding`          | `login/branding.spec.ts`                                                               | auth-setup |
-| `visual-regression` | `admin-theme/visual-regression.spec.ts`                                                | auth-setup |
-| `rbac`              | `system/rbac.spec.ts`                                                                  | auth-setup |
-| `language`          | `system/language.spec.ts`                                                              | auth-setup |
-| `users`             | `user/profile.spec.ts`, `user/management.spec.ts`                                      | auth-setup |
-| `builder`           | `collection-builder/builder.spec.ts`, `collection.spec.ts`, `journey.spec.ts`          | auth-setup |
-| `permissions`       | `system/permissions.spec.ts`                                                           | auth-setup |
-| `firstuser`         | `login/signup.spec.ts`, `login/oauth.spec.ts`                                          | —          |
-| `config-routes`     | `config/access-management`, `webhooks`, `automations`, `data-management`, `operations` | auth-setup |
-| `admin`             | `admin/tenants.spec.ts`                                                                | auth-setup |
-| `dashboard`         | `dashboard/dashboard.spec.ts`                                                          | auth-setup |
-| `appearance`        | `config/appearance.spec.ts`, `config/design-system.spec.ts`                            | auth-setup |
-| `media`             | `mediagallery/mediagallery.spec.ts`                                                    | auth-setup |
+| Project      | Spec(s)                                    | Depends on |
+| ------------ | ------------------------------------------ | ---------- |
+| `wizard`     | `setup/setup-wizard.spec.ts`               | —          |
+| `auth-setup` | `auth.setup.ts`, `login/login.spec.ts`     | —          |
+| `signup`     | `user/account-smoke.spec.ts`               | auth-setup |
+| `content`    | `collection-builder/content-smoke.spec.ts` | auth-setup |
+| `system`     | `system/settings.spec.ts`                  | auth-setup |
+| `a11y`       | `login/accessibility.spec.ts`              | auth-setup |
+| `branding`   | `login/branding.spec.ts`                   | auth-setup |
+
+| Project             | Spec(s)                                                                       | Depends on |
+| ------------------- | ----------------------------------------------------------------------------- | ---------- |
+| `visual-regression` | `admin-theme/visual-regression.spec.ts`                                       | auth-setup |
+| `rbac`              | `system/rbac.spec.ts`                                                         | auth-setup |
+| `language`          | `system/language.spec.ts`                                                     | auth-setup |
+| `users`             | `user/profile.spec.ts`, `user/management.spec.ts`                             | auth-setup |
+| `builder`           | `collection-builder/builder.spec.ts`, `collection.spec.ts`, `journey.spec.ts` | auth-setup |
+| `permissions`       | `system/permissions.spec.ts`                                                  | auth-setup |
+
+| Project         | Spec(s)                                                                                | Depends on |
+| --------------- | -------------------------------------------------------------------------------------- | ---------- |
+| `firstuser`     | `login/signup.spec.ts`, `login/oauth.spec.ts`                                          | —          |
+| `config-routes` | `config/access-management`, `webhooks`, `automations`, `data-management`, `operations` | auth-setup |
+| `admin`         | `admin/tenants.spec.ts`                                                                | auth-setup |
+| `dashboard`     | `dashboard/dashboard.spec.ts`                                                          | auth-setup |
+| `appearance`    | `config/appearance.spec.ts`, `config/design-system.spec.ts`                            | auth-setup |
+| `media`         | `mediagallery/mediagallery.spec.ts`                                                    | auth-setup |
 
 ## Next Steps
 

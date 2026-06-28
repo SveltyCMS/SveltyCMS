@@ -44,7 +44,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 {#if typeof value === 'number' && value >= 0}
 	<div class="rating-display" title="{value} out of {max} stars">
 		<div class="flex items-center gap-0.5">
-			{#each stars as starIndex}
+			{#each stars as starIndex (starIndex)}
 				{#if starIndex <= Math.floor(value)}
 					<iconify-icon icon={iconFull} width="20" class="text-warning-500"></iconify-icon>
 				{:else if starIndex - 0.5 <= value}
@@ -54,7 +54,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 				{/if}
 			{/each}
 		</div>
-		
+
 		{#if showValue}
 			<span class="ms-2 text-sm font-bold text-surface-700 dark:text-surface-300">
 				{value.toFixed(value % 1 !== 0 ? 1 : 0)}

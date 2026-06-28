@@ -10,31 +10,51 @@
 
 export const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
 export const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
-export const TENANT_ID = process.env.TENANT_ID || "default";
 
-const API_BASE = process.env.API_BASE_URL!;
-const SECRET = process.env.TEST_API_SECRET!;
+export interface BenchmarkSeedOptions {
+  apiBase?: string;
+  secret?: string;
+  tenantId?: string;
+  authorCount?: number;
+  postsPerAuthor?: number;
+  maxServerRetries?: number;
+}
+
+export interface BenchmarkSeedResult {
+  reused: boolean;
+  message: string;
+}
 
 function log(msg: string): void {
   const ts = new Date().toISOString().slice(11, 19);
   console.log(`[\x1b[90m${ts}\x1b[0m] ${msg}`);
 }
 
-function headers(extra?: Record<string, string>) {
+function seedHeaders(
+  secret: string,
+  tenantId: string,
+  extra?: Record<string, string>,
+): Record<string, string> {
   return {
     "Content-Type": "application/json",
-    "x-test-secret": SECRET,
-    "x-tenant-id": TENANT_ID,
+    "x-test-secret": secret,
+    "x-test-mode": "true",
+    "x-tenant-id": tenantId,
     ...extra,
   };
 }
 
-async function waitForServer(maxRetries = 8): Promise<void> {
+async function waitForServer(
+  apiBase: string,
+  secret: string,
+  tenantId: string,
+  maxRetries = 8,
+): Promise<void> {
   const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const res = await fetch(`${API_BASE}/api/health`, {
-        headers: headers(),
+      const res = await fetch(`${apiBase}/api/health`, {
+        headers: seedHeaders(secret, tenantId),
         signal: AbortSignal.timeout(5000),
       });
       if (res.ok || res.status === 401 || res.status === 403) return;
@@ -45,23 +65,28 @@ async function waitForServer(maxRetries = 8): Promise<void> {
     log(`   ⏳ Server not ready, retrying in ${wait}ms (attempt ${i + 1}/${maxRetries})...`);
     await delay(wait);
   }
-  throw new Error(`Server at ${API_BASE} not reachable after ${maxRetries} attempts`);
+  throw new Error(`Server at ${apiBase} not reachable after ${maxRetries} attempts`);
 }
 
-async function smartCheck(): Promise<boolean> {
+export async function isBenchmarkSeedReady(
+  apiBase: string,
+  secret: string,
+  tenantId: string,
+): Promise<boolean> {
   try {
     const sig = () => AbortSignal.timeout(15000);
+    const hdrs = seedHeaders(secret, tenantId);
     const [checkAuthor, checkStable, checkRedirect] = await Promise.all([
-      fetch(`${API_BASE}/api/collections/benchmark_authors/author-1`, {
-        headers: headers(),
+      fetch(`${apiBase}/api/collections/benchmark_authors/author-1`, {
+        headers: hdrs,
         signal: sig(),
       }),
-      fetch(`${API_BASE}/api/collections/BenchmarkStable/bench-shared-001`, {
-        headers: headers(),
+      fetch(`${apiBase}/api/collections/BenchmarkStable/bench-shared-001`, {
+        headers: hdrs,
         signal: sig(),
       }),
-      fetch(`${API_BASE}/api/collections/redirects/bench-redirect-1`, {
-        headers: headers(),
+      fetch(`${apiBase}/api/collections/redirects/bench-redirect-1`, {
+        headers: hdrs,
         signal: sig(),
       }),
     ]);
@@ -86,45 +111,113 @@ async function smartCheck(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Polls until bench-shared-001 is readable and writable via the API layer.
+ * Direct DB writes from the test process do not satisfy this — PATCH must succeed.
+ */
+export async function waitForStableEntryReady(
+  apiBase: string,
+  secret: string,
+  tenantId = "global",
+  maxRetries = 30,
+): Promise<void> {
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const hdrs = seedHeaders(secret, tenantId);
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const getRes = await fetch(
+        `${apiBase}/api/collections/BenchmarkStable/bench-shared-001?bypassCache=true`,
+        { headers: hdrs, signal: AbortSignal.timeout(10000) },
+      );
+      if (!getRes.ok) {
+        await delay(Math.min(250 * (i + 1), 2000));
+        continue;
+      }
+      const getJson = await getRes.json().catch(() => ({}));
+      if (!getJson.success || getJson.data?._id !== "bench-shared-001") {
+        await delay(Math.min(250 * (i + 1), 2000));
+        continue;
+      }
+
+      const patchRes = await fetch(`${apiBase}/api/collections/BenchmarkStable/bench-shared-001`, {
+        method: "PATCH",
+        headers: hdrs,
+        body: JSON.stringify({
+          title: getJson.data?.title ?? "Stable Benchmark Entry",
+          content: getJson.data?.content ?? "Stable entry.",
+          count: getJson.data?.count ?? 0,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (patchRes.ok) return;
+    } catch {
+      /* retry */
+    }
+    await delay(Math.min(250 * (i + 1), 2000));
+  }
+
+  throw new Error(
+    `bench-shared-001 not ready for PATCH on ${apiBase} after ${maxRetries} attempts`,
+  );
+}
+
+/** Seeds benchmark data and blocks until the API layer can read + patch the stable entry. */
+export async function runBenchmarkSeed(
+  options: BenchmarkSeedOptions = {},
+): Promise<BenchmarkSeedResult> {
+  const apiBase = options.apiBase ?? process.env.API_BASE_URL;
+  const secret = options.secret ?? process.env.TEST_API_SECRET;
+  const tenantId = options.tenantId ?? process.env.TENANT_ID ?? "global";
+  const authorCount = options.authorCount ?? AUTHOR_COUNT;
+  const postsPerAuthor = options.postsPerAuthor ?? POSTS_PER_AUTHOR;
+
+  if (!apiBase || !secret) {
+    throw new Error("API_BASE_URL and TEST_API_SECRET required. Run via setupBenchmarkServer().");
+  }
+
+  log(`🚀 Benchmark data seeding via LocalCMS: ${apiBase}`);
+  await waitForServer(apiBase, secret, tenantId, options.maxServerRetries);
+
+  if (await isBenchmarkSeedReady(apiBase, secret, tenantId)) {
+    log("🚀 [SmartSeed] Benchmark data already exists. Reusing state...");
+    await waitForStableEntryReady(apiBase, secret, tenantId);
+    return { reused: true, message: "Benchmark data already exists" };
+  }
+
+  log("   → Seeding benchmark data (collections + entries via LocalCMS)...");
+  const res = await fetch(`${apiBase}/api/testing`, {
+    method: "POST",
+    headers: seedHeaders(secret, tenantId),
+    body: JSON.stringify({
+      action: "benchmark-seed",
+      authorCount,
+      postsPerAuthor,
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Benchmark seed failed: ${res.status} — ${body}`);
+  }
+
+  const result = await res.json();
+  log(`✅ ${result.message}`);
+
+  // Sync content store inside the server (no rebuild required for this path)
+  await fetch(`${apiBase}/api/content/collections`, {
+    headers: seedHeaders(secret, tenantId),
+    signal: AbortSignal.timeout(30000),
+  }).catch(() => {});
+
+  await waitForStableEntryReady(apiBase, secret, tenantId);
+  return { reused: false, message: result.message ?? "Benchmark data seeded" };
+}
+
 async function main(): Promise<void> {
   try {
-    if (!API_BASE || !SECRET) {
-      log("❌ API_BASE_URL and TEST_API_SECRET required. Run via setupBenchmarkServer().");
-      process.exit(1);
-    }
-
-    log(`🚀 Benchmark data seeding via LocalCMS: ${API_BASE}`);
-
-    // Wait for the server to be fully up before any requests
-    await waitForServer();
-
-    // Smart check: skip seeding if data already exists
-    if (await smartCheck()) {
-      log("🚀 [SmartSeed] Benchmark data already exists. Reusing state...");
-      process.exit(0);
-    }
-
-    // Single call — all seeding runs inside the server using LocalCMS
-    log("   → Seeding benchmark data (collections + entries via LocalCMS)...");
-    const res = await fetch(`${API_BASE}/api/testing`, {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({
-        action: "benchmark-seed",
-        authorCount: AUTHOR_COUNT,
-        postsPerAuthor: POSTS_PER_AUTHOR,
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Benchmark seed failed: ${res.status} — ${body}`);
-    }
-
-    const result = await res.json();
-    log(`✅ ${result.message}`);
-
+    await runBenchmarkSeed();
     process.exit(0);
   } catch (err: any) {
     console.error("❌ Benchmark setup failed:", err.message);

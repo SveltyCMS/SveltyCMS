@@ -11,6 +11,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
+import { AppError } from "@utils/error-handling";
 import { fileExists, getFile, saveFile } from "./media-storage.server";
 import type {
   IDBAdapter,
@@ -22,7 +23,8 @@ import type {
 import type { MediaItem } from "./media-models";
 import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./cloud-storage";
-import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
+import { validateEgressUrl, safeFetch } from "../egress-guard";
+import { sniffMimeType } from "./slim-sniffer.server";
 
 /**
  * 🛡️ Lightweight SVG sanitizer — strips dangerous elements and attributes
@@ -89,7 +91,12 @@ function isSvgFile(mimeType: string, filename: string): boolean {
 }
 
 function validateMime(mimeType: string, filename: string) {
-  if (!mimeType) throw new Error("Missing MIME type");
+  if (!mimeType) {
+    // Fall back to extension-based lookup
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
+    return; // Allow through — binary sniffing will run downstream
+  }
   if (!ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p))) {
     const ext = filename.split(".").pop()?.toLowerCase();
     if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
@@ -193,8 +200,12 @@ export class MediaService {
         // Small file: Buffer is fine and faster for small items
         let buffer = Buffer.from(await file.arrayBuffer());
 
-        // 🛡️ SVG Sanitization: strip scripts, event handlers, and foreignObject before storage
-        if (isSvgFile(file.type, file.name)) {
+        // Binary MIME sniffing as defense-in-depth
+        const sniffed = sniffMimeType(buffer.subarray(0, 2048));
+        const effectiveType = file.type || sniffed?.mime || "application/octet-stream";
+
+        // 🛡️ SVG Sanitization
+        if (isSvgFile(effectiveType, file.name)) {
           const raw = buffer.toString("utf-8");
           const sanitized = sanitizeSvg(raw);
           buffer = Buffer.from(sanitized, "utf-8");
@@ -208,7 +219,9 @@ export class MediaService {
         if (existing.success && existing.data) {
           const record = existing.data as any;
           if (record.path !== relPath) {
-            await this.db.crud.update("media_items", record._id, { path: relPath } as any);
+            await this.db.crud.update("media_items", record._id, {
+              path: relPath,
+            } as any);
             record.path = relPath;
           }
           return {
@@ -237,6 +250,26 @@ export class MediaService {
         // Large file: Stream it!
         // We tee the stream: one for hashing, one for uploading
         const { hashStream } = await import("./media-processing.server");
+
+        // MIME sniffing for large files — read first 2048 bytes
+        // `File` has .slice(), custom stream-only types don't — guard it
+        const headerBuffer =
+          typeof (file as any).slice === "function"
+            ? Buffer.from(await (file as any).slice(0, 2048).arrayBuffer())
+            : null;
+        const sniffed = headerBuffer ? sniffMimeType(headerBuffer) : null;
+        if (
+          sniffed &&
+          sniffed.mime !== "application/octet-stream" &&
+          file.type &&
+          sniffed.mime.split("/")[0] !== file.type.split("/")[0]
+        ) {
+          // Major mismatch — reject
+          throw new Error(
+            `MIME type mismatch: client sent "${file.type}", binary signature indicates "${sniffed.mime}"`,
+          );
+        }
+
         const stream = file.stream();
         const [s1, s2] = stream.tee();
 
@@ -253,7 +286,9 @@ export class MediaService {
         if (existing.success && existing.data) {
           const record = existing.data as any;
           if (record.path !== relPath) {
-            await this.db.crud.update("media_items", record._id, { path: relPath } as any);
+            await this.db.crud.update("media_items", record._id, {
+              path: relPath,
+            } as any);
             record.path = relPath;
           }
           return {
@@ -384,7 +419,7 @@ export class MediaService {
       { _id: id as DatabaseId },
       { tenantId: tenantId ?? undefined },
     );
-    if (!res.success || !res.data) throw new Error("Media not found");
+    if (!res.success || !res.data) throw new AppError("Media not found", 404);
     return res.data as unknown as MediaItem;
   }
 
@@ -422,7 +457,7 @@ export class MediaService {
    */
   public async getMediaReferences(mediaId: string, tenantId?: DatabaseId | null): Promise<any[]> {
     try {
-      const { scanCompiledCollections } = await import("@src/content/content-service.server");
+      const { scanCompiledCollections } = await import("@src/content/engine.server");
       const schemas = await scanCompiledCollections();
       const references: any[] = [];
 
@@ -481,6 +516,110 @@ export class MediaService {
       return references;
     } catch (err) {
       logger.error(`[MediaService] Error scanning usage references:`, err);
+      return [];
+    }
+  }
+
+  /**
+   * Checks if a media item is referenced by any published content entries.
+   * Scans all collection schemas for published entries that reference the given mediaId.
+   */
+  public async isReferencedByPublishedContent(
+    mediaId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<{ referenced: boolean; references: any[] }> {
+    try {
+      const references = await this.getPublishedReferences(mediaId, tenantId);
+      return {
+        referenced: references.length > 0,
+        references,
+      };
+    } catch (err) {
+      logger.error(`[MediaService] Error checking published references:`, err);
+      return { referenced: false, references: [] };
+    }
+  }
+
+  /**
+   * Returns all published collection entries that reference a specific mediaId.
+   * Filters entries to only those with status "publish".
+   */
+  public async getPublishedReferences(
+    mediaId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<
+    {
+      collectionId: string;
+      collectionName: string;
+      entryId: string;
+      entryName: string;
+      fieldName: string;
+    }[]
+  > {
+    try {
+      const { scanCompiledCollections } = await import("@src/content/engine.server");
+      const schemas = await scanCompiledCollections();
+      const references: {
+        collectionId: string;
+        collectionName: string;
+        entryId: string;
+        entryName: string;
+        fieldName: string;
+      }[] = [];
+
+      // Get the media item to check by path/filename as well
+      const mediaRes = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      const mediaPath = mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
+
+      for (const schema of schemas) {
+        const collectionName = `collection_${schema._id}`;
+
+        // Fetch only PUBLISHED entries in the collection
+        const res = await this.db.crud.findMany<any>(collectionName, { status: "publish" } as any, {
+          tenantId: tenantId ?? undefined,
+        });
+
+        if (res.success && Array.isArray(res.data)) {
+          for (const entry of res.data) {
+            const entryAny = entry as any;
+            // Scan all fields in this entry
+            for (const key of Object.keys(entryAny)) {
+              if (
+                key === "_id" ||
+                key === "createdAt" ||
+                key === "updatedAt" ||
+                key === "tenantId"
+              ) {
+                continue;
+              }
+              const val = entryAny[key];
+
+              // Direct match or embedded match
+              const referenced = this.isMediaReferencedInValue(val, mediaId, mediaPath);
+              if (referenced) {
+                // Find a friendly name/title for the entry if possible
+                const entryName =
+                  entryAny.name || entryAny.title || entryAny.slug || entryAny._id || "Untitled";
+                references.push({
+                  collectionId: (schema._id ?? "") as string,
+                  collectionName: (schema.name ?? schema._id ?? "") as string,
+                  entryId: (entryAny._id ?? "") as string,
+                  entryName: entryName as string,
+                  fieldName: key as string,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return references;
+    } catch (err) {
+      logger.error(`[MediaService] Error scanning published references:`, err);
       return [];
     }
   }

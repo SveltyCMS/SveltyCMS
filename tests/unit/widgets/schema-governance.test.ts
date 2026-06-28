@@ -16,7 +16,10 @@ describe("Schema Governance & Linter Audit", () => {
   const coreWidgets = [
     InputWidget({ label: "Test Input" }),
     NumberWidget({ label: "Test Number" }),
-    SelectWidget({ label: "Test Select", options: [{ label: "A", value: "a" }] }),
+    SelectWidget({
+      label: "Test Select",
+      options: [{ label: "A", value: "a" }],
+    }),
     RelationWidget({ label: "Test Relation", relation: "auth_users" }),
   ];
 

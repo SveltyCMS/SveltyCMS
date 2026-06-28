@@ -171,17 +171,21 @@ async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
-  const demoMode = getPrivateSettingSync("DEMO");
-  const multiTenant = getPrivateSettingSync("MULTI_TENANT");
   const userLanguage = getUserLanguage();
-  const isOpenSignup = !!(multiTenant && demoMode);
 
   const defaultBranding = await loadLoginBranding(locals?.tenantId);
+
+  // Default values — updated after DB init once settings cache is loaded
+  let demoMode = false;
+  let multiTenant = false;
+  let isOpenSignup = false;
 
   const errorDefaults = {
     hasAdminUser: true,
     showGoogleOAuth: false,
     showGithubOAuth: false,
+    showPasskey: false,
+    showMagicLink: false,
     hasExistingOAuthUsers: false,
     isOpenSignup,
     loginForm: {},
@@ -211,6 +215,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     }
 
     await dbInitPromise;
+
+    // Re-read multi-tenancy and demo mode from settings cache (now guaranteed loaded)
+    demoMode = !!getPrivateSettingSync("DEMO");
+    multiTenant = !!getPrivateSettingSync("MULTI_TENANT");
+    isOpenSignup = multiTenant && demoMode;
+
     const dbHealth = await checkDatabaseHealth();
     if (!dbHealth.healthy) {
       return {
@@ -225,7 +235,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     const authReady = await waitForAuthService();
     if (!(authReady && auth)) {
-      const { isSetupCompleteAsync } = await import("@utils/setup-check");
+      const { isSetupCompleteAsync } = await import("@utils/server/setup-check");
       const setupComplete = await isSetupCompleteAsync();
       if (!setupComplete) {
         return {
@@ -255,6 +265,28 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     if (limiter.cookieLimiter?.preflight) {
       await limiter.cookieLimiter.preflight({ request, cookies } as any);
+    }
+
+    // Magic Link Verification
+    const magicToken = url.searchParams.get("magic_token");
+    const magicEmail = url.searchParams.get("email");
+    if (magicToken && magicEmail) {
+      const { verifyMagicLink } = await import("@src/databases/auth/magic-link");
+      const result = await verifyMagicLink({
+        token: magicToken,
+        email: magicEmail,
+        cookies,
+        request,
+        userLanguage: userLanguage || "en",
+      });
+      if (result.success && result.redirectPath) {
+        throw redirect(303, result.redirectPath);
+      } else {
+        return {
+          ...errorDefaults,
+          error: result.message || "Invalid or expired magic link.",
+        };
+      }
     }
 
     // Invite flow
@@ -404,6 +436,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     const showGoogleOAuth = await shouldShowGoogleOAuth();
     const showGithubOAuth = await shouldShowGithubOAuth();
+    const showPasskey = !!(
+      (await getUntypedSetting("WEBAUTHN_RP_ID", "private")) ||
+      (await getUntypedSetting("PASSKEY_ENABLED", "private"))
+    );
+    const showMagicLink = !!(
+      (await getUntypedSetting("SMTP_HOST", "private")) ||
+      (await getUntypedSetting("MAGIC_LINK_ENABLED", "private"))
+    );
 
     let firstCollectionPath: string | null = null;
     try {
@@ -415,9 +455,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     return {
       ...errorDefaults,
+      demoMode,
+      isOpenSignup,
       hasAdminUser,
       showGoogleOAuth,
       showGithubOAuth,
+      showPasskey,
+      showMagicLink,
       hasExistingOAuthUsers: false,
       firstCollectionPath,
       pkgVersion,
@@ -446,8 +490,19 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 // ---------------------------------------------------------------------------
 
 export const actions: Actions = {
-  // Auth actions delegate to auth.remote.ts
-  signIn: signInFn,
+  signIn: async (event) => {
+    const formData = await event.request.formData();
+    const data: Record<string, unknown> = {};
+    formData.forEach((v, k) => {
+      data[k] = v;
+    });
+    const result = await signInFn(data);
+    logger.info(`[SignInAction] result: ${JSON.stringify(result)}`);
+    if (result?.success && result?.redirectPath) {
+      throw redirect(303, result.redirectPath);
+    }
+    return fail(401, result ?? { success: false, message: "Sign in failed" });
+  },
   signUp: signUpFn,
   forgotPW: forgotPWFn,
   resetPW: resetPWFn,

@@ -59,8 +59,6 @@ class UIStore {
   headerShowMore = $state(false);
   isSearchVisible = $state(false);
   isCommandBarVisible = $state(false);
-  userPreferred = $state<UIVisibility>("collapsed");
-
   // Sticky action bar: pages set their action buttons here
   stickyActionContent = $state<import("svelte").Snippet | null>(null);
 
@@ -291,24 +289,6 @@ export const uiStateManager = {
   toggle: ui.toggle.bind(ui),
   show: (element: keyof UIState) => ui.toggle(element, "full"),
   hide: (element: keyof UIState) => ui.toggle(element, "hidden"),
-};
-
-// Compatibility export for userPreferredState - wraps ui.state
-export const userPreferredState = {
-  get leftSidebar() {
-    return ui.state.leftSidebar;
-  },
-  get rightSidebar() {
-    return ui.state.rightSidebar;
-  },
-  get pageheader() {
-    return ui.state.pageheader;
-  },
-  set(state: UIVisibility) {
-    // No-op or map to something?
-    // Theme branch likely set a preference.
-    ui.userPreferred = state;
-  },
 };
 
 export const setRouteContext = ui.setRouteContext.bind(ui);

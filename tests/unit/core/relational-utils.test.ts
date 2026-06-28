@@ -31,7 +31,10 @@ describe("relational-utils — tenant filter centralization", () => {
 
   it("honors bypassTenantCheck and adds nothing", () => {
     const conditions: any[] = [];
-    const options: BaseQueryOptions = { tenantId: "tenant-xyz" as any, bypassTenantCheck: true };
+    const options: BaseQueryOptions = {
+      tenantId: "tenant-xyz" as any,
+      bypassTenantCheck: true,
+    };
 
     utils.applyTenantFilter(conditions, fakeTenantCol, options);
 
@@ -53,13 +56,18 @@ describe("relational-utils — tenant filter centralization", () => {
     const conditions: any[] = [];
 
     utils.applyTenantFilter(conditions, fakeTenantCol, { tenantId: undefined });
-    utils.applyTenantFilter(conditions, fakeTenantCol, { tenantId: "global" as any });
+    utils.applyTenantFilter(conditions, fakeTenantCol, {
+      tenantId: "global" as any,
+    });
 
     expect(conditions.length).toBe(0);
   });
 
   it("never mutates the input options object", () => {
-    const options: BaseQueryOptions = { tenantId: "t-1" as any, filter: { foo: "bar" } };
+    const options: BaseQueryOptions = {
+      tenantId: "t-1" as any,
+      filter: { foo: "bar" },
+    };
     const snapshot = JSON.stringify(options);
     const conditions: any[] = [];
 
@@ -78,14 +86,19 @@ describe("relational-utils — tenant filter centralization", () => {
     expect(result1).not.toBe(base); // new object
     expect(result1).toEqual({ status: "active", tenantId: "t-abc" });
 
-    const bypass = utils.applyTenantFilterToObject(base, { ...opts, bypassTenantCheck: true });
+    const bypass = utils.applyTenantFilterToObject(base, {
+      ...opts,
+      bypassTenantCheck: true,
+    });
     expect(bypass).toEqual({ status: "active" }); // no tenant added
     expect(bypass).toBe(base); // unchanged ref (efficient, no clone when skipping)
   });
 
   it("applyTenantFilterToMongoQuery provides symmetric non-mutating behavior", () => {
     const q = { slug: "hello" };
-    const res = utils.applyTenantFilterToMongoQuery(q, { tenantId: "t-mongo" as any });
+    const res = utils.applyTenantFilterToMongoQuery(q, {
+      tenantId: "t-mongo" as any,
+    });
     expect(res).toEqual({ slug: "hello", tenantId: "t-mongo" });
     expect(res).not.toBe(q);
   });
@@ -101,7 +114,12 @@ describe("relational-utils — tenant filter centralization", () => {
       ` AND \`tenantId\` = 't-3'`,
     );
 
-    expect(utils.buildRawTenantFilter({ bypassTenantCheck: true, tenantId: "x" as any })).toBe("");
+    expect(
+      utils.buildRawTenantFilter({
+        bypassTenantCheck: true,
+        tenantId: "x" as any,
+      }),
+    ).toBe("");
     expect(utils.buildRawTenantFilter({ tenantId: "global" as any })).toBe("");
     expect(utils.buildRawTenantFilter({ tenantId: undefined })).toBe("");
   });

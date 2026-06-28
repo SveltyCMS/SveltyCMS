@@ -21,7 +21,7 @@ Features:
 import InputSwitch from "@src/components/system/builder/input-switch.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { modalState } from "@utils/modal.svelte";
-import { asAny } from "@utils/utils";
+
 import type { Component } from "svelte";
 
 // GuiSchema is a record of field properties with their widget configs
@@ -87,7 +87,7 @@ function handleUpdate(detail: { value?: any; icon?: any }, property: string) {
 				<InputSwitch
 					value={collections.targetWidget[property] ?? defaultValue(property)}
 					icon={collections.targetWidget[property] as string}
-					widget={asAny(guiSchema[property]?.widget)}
+					widget={(guiSchema[property]?.widget as any)}
 					key={property}
 					onupdate={(e: { value: any }) => handleUpdate(e, property)}
 				/>

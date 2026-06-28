@@ -27,7 +27,9 @@ export class AuthGuardService {
       console.warn(`[AuthGuardService] Auth service NOT available for sessionId: ${sessionId}`);
       return null;
     }
-    const result = await authService.validateSession(sessionId as any, { suppressErrorLog: true });
+    const result = await authService.validateSession(sessionId as any, {
+      suppressErrorLog: true,
+    });
     return result?.success ? result.data : null;
   }
 

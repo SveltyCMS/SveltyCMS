@@ -1,21 +1,16 @@
 /**
- * @file tests\unit\utils\utils.test.ts
- * @description Tests for the general utility functions.
+ * @file tests/unit/utils/utils.test.ts
+ * @description Tests for the general utility functions re-exported from the barrel.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   uniqueItems,
   getGuiFields,
-  parse,
   getFieldName,
   extractData,
   deepCopy,
-  get_elements_by_id,
-  meta_data,
-  toStringHelper,
   debounce,
-  asAny,
   SIZES,
 } from "@src/utils/utils";
 
@@ -25,11 +20,11 @@ describe("General Utilities (utils.ts)", () => {
       const items = [
         { id: 1, name: "Alice" },
         { id: 2, name: "Bob" },
-        { id: 1, name: "Alice Duplicate" }, // Same id
+        { id: 1, name: "Alice Duplicate" },
       ];
       const result = uniqueItems(items, "id");
       expect(result).toHaveLength(2);
-      expect(result[0].name).toBe("Alice Duplicate"); // Map stores the last value for the key
+      expect(result[0].name).toBe("Alice Duplicate");
       expect(result[1].name).toBe("Bob");
     });
   });
@@ -57,29 +52,7 @@ describe("General Utilities (utils.ts)", () => {
       const guiSchema = { tags: { required: false, widget: "tags" } };
       const result = getGuiFields(fieldParams, guiSchema);
       expect(result.tags).toEqual(["a", "b"]);
-      expect(result.tags).not.toBe(fieldParams.tags); // It should be a copy
-    });
-  });
-
-  describe("parse", () => {
-    it("should parse stringified JSON in object properties", () => {
-      const input = {
-        name: "Test",
-        nested: '{"count": 42}',
-        arr: ["plain-string"],
-        primitive: 123,
-      };
-      const result = parse<any>(input);
-      expect(result.name).toBe("Test");
-      expect(result.nested.count).toBe(42);
-      expect(result.arr[0]).toBe("plain-string");
-      expect(result.primitive).toBe(123);
-    });
-
-    it("should handle null and primitives correctly", () => {
-      expect(parse(null)).toBeNull();
-      expect(parse("test")).toBe("test");
-      expect(parse(123)).toBe(123);
+      expect(result.tags).not.toBe(fieldParams.tags);
     });
   });
 
@@ -144,52 +117,6 @@ describe("General Utilities (utils.ts)", () => {
     });
   });
 
-  describe("get_elements_by_id", () => {
-    it("should store and fetch elements by ID", async () => {
-      const mockCallback = vi.fn();
-      const mockDbAdapter = {
-        get: vi.fn().mockResolvedValue("Fetched Data"),
-      };
-
-      get_elements_by_id.store = {}; // reset
-      get_elements_by_id.add("users", "user1", mockCallback);
-
-      expect(get_elements_by_id.store["users"]).toHaveLength(1);
-
-      await get_elements_by_id.getAll(mockDbAdapter as any);
-
-      expect(mockDbAdapter.get).toHaveBeenCalledWith("user1");
-      expect(mockCallback).toHaveBeenCalledWith("Fetched Data");
-    });
-  });
-
-  describe("meta_data", () => {
-    beforeEach(() => {
-      meta_data.clear();
-    });
-
-    it("should add, get, and clear meta data", () => {
-      expect(meta_data.is_empty()).toBe(true);
-
-      meta_data.add("media_images_remove", ["image1.jpg"]);
-      expect(meta_data.is_empty()).toBe(false);
-      expect(meta_data.get().media_images_remove).toEqual(["image1.jpg"]);
-
-      meta_data.clear();
-      expect(meta_data.is_empty()).toBe(true);
-    });
-  });
-
-  describe("toStringHelper", () => {
-    it("should join array elements into a string", () => {
-      expect(toStringHelper({ data: [1, "two", true] })).toBe("1, two, true");
-    });
-
-    it("should return empty string if data is not an array", () => {
-      expect(toStringHelper({ data: "not-an-array" as any })).toBe("");
-    });
-  });
-
   describe("debounce", () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -218,14 +145,11 @@ describe("General Utilities (utils.ts)", () => {
       const mockFn = vi.fn();
       const schedule = debounce(100, true);
 
-      schedule(mockFn); // Executes immediately
+      schedule(mockFn);
       expect(mockFn).toHaveBeenCalledTimes(1);
 
-      schedule(mockFn); // Ignored until timeout resets
+      schedule(mockFn);
       expect(mockFn).toHaveBeenCalledTimes(1);
-
-      // Note: the implementation of `immediate` in `utils.ts` only executes once ever
-      // unless we create a new debounce instance.
     });
 
     it("should support debounce.create for traditional debouncing with arguments", () => {
@@ -239,12 +163,6 @@ describe("General Utilities (utils.ts)", () => {
 
       expect(mockFn).toHaveBeenCalledTimes(1);
       expect(mockFn).toHaveBeenCalledWith("arg3", "arg4");
-    });
-  });
-
-  describe("asAny", () => {
-    it("should assert type as any", () => {
-      expect(asAny(123)).toBe(123);
     });
   });
 

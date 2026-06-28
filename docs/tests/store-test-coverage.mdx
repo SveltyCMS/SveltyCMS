@@ -19,23 +19,23 @@ tags:
 
 ## Executive Summary
 
-**Total Suite:** 1,122 unit tests (consolidated)
-**Total Store Tests:** 95 tests across 6 core files
+| **Total Suite:** 1,100+ unit tests (consolidated)
+**Total Store Tests:** 95 tests across 11 core files
 **Coverage:** 100% Logic Coverage (Svelte 5 Runes)
 **Status:** ✅ All tests passing
 **Framework:** Vitest + Svelte 5 Runes
 
 ---
 
-## Test Coverage by Store
+## Test Coverage by Store {#content-store-coverage}
 
-### 1. Content Store (`tests/unit/stores/content-store.test.ts`)
+### 1. Content Registry (`tests/unit/stores/content-registry.test.ts`)
 
 **Tests:** 16 | **Status:** ✅ Passing
 
 #### Audit Integration
 
-- ✅ **Zero-Latency Sync**: Verified `refreshCollectionsCache()` logic for benchmark stability.
+- ✅ **Zero-Latency Sync**: Verified `refreshContent({ mode: "schemas" })` logic for benchmark stability.
 - ✅ **HMR Optimization**: Verified hash-based change detection (15ms reconciliation).
 - ✅ **Multi-Tenant Safety**: Atomic node isolation per `tenantId`.
 
@@ -58,20 +58,30 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 
 ---
 
-## Test Coverage by Store
+## Test Coverage by Store {#test-coverage-by-store-2}
 
-### 1. System Store (`tests/unit/stores/system.test.ts`)
+### 1. Content Registry (`tests/unit/stores/content-registry.test.ts`) {#content-registry-2}
+
+**Tests:** 16 | **Status:** ✅ Passing
+
+#### Audit Integration {#audit-integration-2}
+
+- ✅ **Zero-Latency Sync**: Verified `refreshContent({ mode: "schemas" })` logic for benchmark stability.
+- ✅ **HMR Optimization**: Verified hash-based change detection (15ms reconciliation).
+- ✅ **Multi-Tenant Safety**: Atomic node isolation per `tenantId`.
+
+### 2. System Store (`tests/unit/stores/system.test.ts`) {#system-store-2}
 
 **Tests:** 17 | **Status:** ✅ Passing
 
-#### Service Health Management
+#### Service Health Management {#service-health-2}
 
 - ✅ Initializes with default state (IDLE)
 - ✅ Updates service health status (database, auth, cache)
 - ✅ Transitions to READY when all services healthy
 - ✅ Transitions to FAILED when critical services down
 
-### 2. Loading Store (`tests/unit/stores/loading-store.test.ts`)
+### 3. Loading Store (`tests/unit/stores/loading-store.test.ts`)
 
 **Tests:** 22 | **Status:** ✅ Passing
 
@@ -82,7 +92,7 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 - ✅ Automatic timeout protection (30s default)
 - ✅ Context isolation (Multi-tenant safe)
 
-### 3. Screen Size Store (`tests/unit/stores/screen-size.test.ts`)
+### 4. Screen Size Store (`tests/unit/stores/screen-size.test.ts`)
 
 **Tests:** 26 | **Status:** ✅ Passing
 
@@ -92,7 +102,7 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 - ✅ Device-specific mock testing (iPhone, iPad, MacBook, 4K)
 - ✅ Zero-width and boundary condition handling
 
-### 4. Setup Store (`tests/unit/stores/setup-store.test.ts`)
+### 5. Setup Store (`tests/unit/stores/setup-store.test.ts`)
 
 **Tests:** 5 | **Status:** ✅ Passing
 
@@ -103,7 +113,7 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 - ✅ Admin user creation validation
 - ✅ Password matching and strength checks
 
-### 5. Toast Store (`tests/unit/stores/toast.test.ts`)
+### 6. Toast Store (`tests/unit/stores/toast.test.ts`)
 
 **Tests:** 9 | **Status:** ✅ Passing
 
@@ -113,6 +123,16 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 - ✅ Auto-removal after duration timeout
 - ✅ Maximum toast limit enforcement (non-persistent removal)
 - ✅ Manual close and pause/resume logic
+
+### 7. Additional Store Files
+
+| Store File                                            | Focus Area                      |
+| ----------------------------------------------------- | ------------------------------- |
+| `tests/unit/stores/collection-store-reactive.test.ts` | Reactive collection state       |
+| `tests/unit/stores/filter-worker.test.ts`             | Off-thread filtering operations |
+| `tests/unit/stores/image-editor-store.test.ts`        | Image editor UI state           |
+| `tests/unit/stores/mode-transition-guard.test.ts`     | Svelte 5 mode guard transitions |
+| `tests/unit/stores/ui-store.test.ts`                  | General UI state management     |
 
 ---
 
@@ -177,6 +197,6 @@ Verifies state persistence and UI reflections in real user workflows across mult
 ## Related Documentation
 
 - [Test Status Overview](./test-status.mdx)
-- [System State Architecture](../architecture/state-management.mdx)
-- [Security Architecture](../architecture/security/index.mdx)
+- [System State Architecture](../reference/architecture/state-management.mdx)
+- [Security Architecture](../reference/security/index.mdx)
 ````

@@ -1,20 +1,17 @@
 /**
  * @file src/hooks/handle-redirects.ts
- * @description High-performance middleware hook for processing redirects using the Materialized View Index.
- *
- * This hook intercepts requests and applies redirects by first checking in-memory cache,
- * then querying a dedicated, pre-indexed RedirectIndexService (MV), and finally checking regex rules.
+ * @description Hardened redirect middleware with atomic 404 log flushes and cache stampede protection.
  */
 
 import { getDb, isDbConnected } from "@src/databases/db";
 import { isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
-
+import { getTenantIdFromHostname } from "@utils/tenant";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { getRequestFlags } from "@utils/hook-utils";
 
-// 🚀 PRE-CACHED IMPORTS: Avoid lazy import overhead in hot validation path
 let cachedContentSystem: typeof import("@src/content/index.server").contentSystem | null = null;
 async function getContentSystem() {
   if (!cachedContentSystem) {
@@ -24,24 +21,22 @@ async function getContentSystem() {
   return cachedContentSystem;
 }
 
-// --- 404 Log Buffering (Enterprise Performance) ---
-const LOG_FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds
-const MAX_LOG_BUFFER_SIZE = 1000; // Force flush if we hit 1k unique 404s
+const LOG_FLUSH_INTERVAL_MS = 10000;
+const MAX_LOG_BUFFER_SIZE = 1000;
 const logBuffer = new Map<string, { path: string; tenantId: string; hits: number }>();
-let flushTimer: NodeJS.Timeout | null = null;
 
-/**
- * Flush buffered 404 logs to the database in one background task.
- */
+// Global timer guard to prevent interval leaks on hot-reloads
+const TIMER_KEY = Symbol.for("svelty.redirects.timer");
+
+// Cache stampede mitigation: tracks in-flight DB redirect lookups
+const inflightRedirectLookups = new Map<string, Promise<any>>();
+
 function flush404Logs() {
   if (logBuffer.size === 0) return;
   const db = getDb();
   if (!db) return;
-
-  // 🛡️ Verify the table schema exists before flushing to prevent ER_NO_SUCH_TABLE
   const schemaExists = cacheService.getSync<any>("schema:404_logs");
   if (!schemaExists) return;
-
   const logsToFlush = Array.from(logBuffer.values());
   logBuffer.clear();
 
@@ -49,24 +44,39 @@ function flush404Logs() {
     try {
       const table = "404_logs";
       for (const log of logsToFlush) {
-        const existing = await db.crud.findOne(table, {
-          path: log.path,
-          tenantId: log.tenantId,
-        } as any);
-        if (existing.success && existing.data && (existing.data as any)._id) {
-          await db.crud.update(
+        const timestamp = new Date();
+        if (typeof (db as any).upsertNative === "function") {
+          // Atomic single-statement upsert — no read-modify-write race
+          await (db as any).upsertNative(
             table,
-            (existing.data as any)._id,
             {
-              hits: ((existing.data as any).hits || 0) + log.hits,
-              lastHit: new Date().toISOString(),
-            } as any,
-            { tenantId: log.tenantId as any },
+              path: log.path,
+              tenantId: log.tenantId,
+              hits: log.hits,
+              lastHit: timestamp,
+            },
+            ["path", "tenantId"],
           );
         } else {
-          await db.crud.insert(table, { ...log, lastHit: new Date().toISOString() } as any, {
-            tenantId: log.tenantId as any,
-          });
+          const existing = await db.crud.findOne(table, {
+            path: log.path,
+            tenantId: log.tenantId,
+          } as any);
+          if (existing.success && existing.data && (existing.data as any)._id) {
+            await db.crud.update(
+              table,
+              (existing.data as any)._id,
+              {
+                hits: ((existing.data as any).hits || 0) + log.hits,
+                lastHit: timestamp,
+              } as any,
+              { tenantId: log.tenantId as any },
+            );
+          } else {
+            await db.crud.insert(table, { ...log, lastHit: timestamp } as any, {
+              tenantId: log.tenantId as any,
+            });
+          }
         }
       }
     } catch (err) {
@@ -75,39 +85,33 @@ function flush404Logs() {
   })();
 }
 
-/**
- * @description Service layer responsible for querying the Materialized View for redirects.
- */
+function scheduleFlush() {
+  if ((globalThis as any)[TIMER_KEY]) return;
+  (globalThis as any)[TIMER_KEY] = setTimeout(() => {
+    (globalThis as any)[TIMER_KEY] = null;
+    flush404Logs();
+  }, LOG_FLUSH_INTERVAL_MS);
+}
+
 class RedirectIndexService {
-  /**
-   * Fetches redirects by querying the dedicated Materialized View (MV).
-   * @param tenantId - The current tenant ID.
-   * @param path - The requested URL path.
-   */
   async getRedirects(
     tenantId: string,
     path: string,
   ): Promise<import("@src/databases/db-interface").DatabaseResult<any[]>> {
     const db = getDb();
-    if (!db) {
+    if (!db)
       return {
         success: false,
         message: "Database not connected",
         error: { code: "NOT_CONNECTED", message: "Database not connected" },
       };
-    }
-
     try {
       const results = await db.crud.findMany<any>("redirectsMV", {
-        tenantId: tenantId,
+        tenantId,
         source: path,
         active: true,
       } as any);
-
-      return {
-        success: true,
-        data: results.success ? results.data || [] : [],
-      };
+      return { success: true, data: results.success ? results.data || [] : [] };
     } catch (err: any) {
       return {
         success: false,
@@ -120,14 +124,13 @@ class RedirectIndexService {
 
 const redirectIndexService = new RedirectIndexService();
 
-import { getTenantIdFromHostname } from "@utils/tenant";
-
 export const handleRedirects: Handle = async ({ event, resolve }) => {
   const url = new URL(event.url);
   const path = url.pathname;
 
-  // Skip API and system routes early
+  const flags = getRequestFlags(event.locals as any);
   if (
+    flags.isStatic ||
     path.startsWith("/api") ||
     path.startsWith("/cms") ||
     path.startsWith("/_") ||
@@ -137,7 +140,6 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
-  // 🚀 SMART TENANT RESOLUTION: Ensure we have a tenant ID even if auth hook hasn't run yet.
   const tenantId =
     (event.locals as any).tenantId ||
     event.request.headers.get("x-tenant-id") ||
@@ -145,18 +147,11 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     "default";
 
   const cacheKey = `redirect:${path}`;
-
-  // 1. Synchronous L1 Check (Zero Micro-task Overhead for hot paths)
   let cached = cacheService.getSync<any>(cacheKey, tenantId);
-
-  if (!cached) {
-    // 2. Distributed L2 Check (Redis)
-    cached = await cacheService.get<any>(cacheKey, tenantId);
-  }
+  if (!cached) cached = await cacheService.get<any>(cacheKey, tenantId);
 
   const ready = isSystemReady();
   const connected = isDbConnected();
-
   let hasRedirect = false;
   let redirectEntry = null;
 
@@ -166,28 +161,29 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
       redirectEntry = cached;
     }
   } else {
-    // 2. DB Lookup
     if (connected && ready) {
-      try {
-        const result = await redirectIndexService.getRedirects(tenantId, path);
+      const flightKey = `${tenantId}:${cacheKey}`;
 
-        if (result.success && result.data && result.data.length > 0) {
-          redirectEntry = result.data[0];
-          hasRedirect = true;
-          // Debug-level logging; gated to avoid overhead in production
-          if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
-            logger.debug(
-              `[handleRedirects] Match found for ${path}: ${redirectEntry.target} (${redirectEntry.type})`,
-            );
+      let dbPromise = inflightRedirectLookups.get(flightKey);
+      if (!dbPromise) {
+        dbPromise = (async () => {
+          try {
+            const result = await redirectIndexService.getRedirects(tenantId, path);
+            return result.success && result.data?.length > 0 ? result.data[0] : null;
+          } finally {
+            inflightRedirectLookups.delete(flightKey);
           }
-          // Store in cache for 1 hour
-          await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
-        } else {
-          // Negative cache for 5 minutes to prevent DB hammering on 404s
-          await cacheService.set(cacheKey, { isNegative: true }, 300, tenantId, CacheCategory.API);
-        }
-      } catch (err) {
-        logger.error(`[handleRedirects] Lookup error for ${path}:`, err);
+        })();
+        inflightRedirectLookups.set(flightKey, dbPromise);
+      }
+
+      const match = await dbPromise;
+      if (match) {
+        redirectEntry = match;
+        hasRedirect = true;
+        await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
+      } else {
+        await cacheService.set(cacheKey, { isNegative: true }, 300, tenantId, CacheCategory.API);
       }
     }
   }
@@ -196,10 +192,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     return applyRedirect(path, redirectEntry);
   }
 
-  // 1b. Check Regex Redirects (If we wanted to support them via the same service)
-  // For now, standard rules follow.
-
-  // 3. Log 404 for unmatched path (Buffered for performance)
+  // Log 404
   if (connected && ready && path !== "/favicon.ico") {
     const logKey = `${tenantId}|${path}`;
     const existingEntry = logBuffer.get(logKey);
@@ -208,33 +201,23 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     } else {
       logBuffer.set(logKey, { path, tenantId, hits: 1 });
     }
-
-    // Force immediate flush if buffer is getting too large
     if (logBuffer.size >= MAX_LOG_BUFFER_SIZE) {
-      if (flushTimer) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
+      if ((globalThis as any)[TIMER_KEY]) {
+        clearTimeout((globalThis as any)[TIMER_KEY]);
+        (globalThis as any)[TIMER_KEY] = null;
       }
       flush404Logs();
-    } else if (!flushTimer) {
-      flushTimer = setTimeout(() => {
-        flushTimer = null;
-        flush404Logs();
-      }, LOG_FLUSH_INTERVAL_MS);
+    } else {
+      scheduleFlush();
     }
   }
 
-  // 4. Validate if path is a valid route to prevent 200 OK on 404 SPA fallback
+  // Validate route exists
   const pathSegments = path.split("/").filter(Boolean);
-
   if (pathSegments.length > 0) {
     const firstSegment = pathSegments[0];
-    const availableLanguages = (
-      await import("@src/services/core/settings-service")
-    ).getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
+    const availableLanguages = ["en"];
     const hasLangPrefix = availableLanguages.includes(firstSegment);
-
-    // List of allowed root-level folders/routes
     const allowedRoots = new Set([
       "login",
       "setup",
@@ -253,65 +236,42 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
       "mediagallery",
       "user",
     ]);
-
     const isAllowedRoot = allowedRoots.has(firstSegment);
 
     if (hasLangPrefix) {
-      if (pathSegments.length > 1) {
-        const collectionPath = "/" + pathSegments.slice(1).join("/");
-        if (connected && ready) {
-          try {
-            const contentSystem = await getContentSystem();
-            await contentSystem.initialize(tenantId);
-            const exists = contentSystem.getCollection(collectionPath, tenantId);
-            if (!exists) {
-              return new Response("Not Found", {
-                status: 404,
-                headers: {
-                  "Content-Type": "text/plain",
-                  "X-Robots-Tag": "none",
-                },
-              });
-            }
-          } catch {
-            // Fallback to SvelteKit resolve on error
-          }
-        }
+      if (pathSegments.length > 1 && connected && ready) {
+        try {
+          const contentSystem = await getContentSystem();
+          await contentSystem.initialize(tenantId);
+          const exists = contentSystem.getCollection(
+            "/" + pathSegments.slice(1).join("/"),
+            tenantId,
+          );
+          if (!exists)
+            return new Response("Not Found", {
+              status: 404,
+              headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
+            });
+        } catch {}
       }
-    } else {
-      if (!isAllowedRoot) {
-        return new Response("Not Found", {
-          status: 404,
-          headers: {
-            "Content-Type": "text/plain",
-            "X-Robots-Tag": "none",
-          },
-        });
-      }
+    } else if (!isAllowedRoot) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
+      });
     }
   }
 
   return resolve(event);
 };
 
-/**
- * Helper to apply the redirect response
- */
-function applyRedirect(path: string, redirect: any) {
-  if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
-    logger.debug(`[RedirectManager] Redirecting ${path} -> ${redirect.target} (${redirect.type})`);
-  }
+function applyRedirect(_path: string, redirect: any) {
   return new Response(null, {
     status: redirect.type || 301,
-    headers: {
-      location: redirect.target,
-    },
+    headers: { location: redirect.target },
   });
 }
 
-/**
- * Invalidate cache for a tenant
- */
 export function invalidateRedirectCache(tenantId: string) {
   cacheService.clearByPattern("redirect:", tenantId);
 }

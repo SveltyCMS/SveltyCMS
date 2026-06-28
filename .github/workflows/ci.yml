@@ -3,20 +3,18 @@ name: CI
 on:
   push:
     branches: [main, next]
-    # Docs-only pushes skip CI to keep the matrix focused on code changes.
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".vscode/**"
   pull_request:
     branches: [main, next]
-    # PRs that only change docs use the docs pipeline instead of the full test matrix.
     paths-ignore:
       - "**.md"
       - "docs/**"
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.ref_protected && github.sha || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -26,10 +24,11 @@ env:
   BUN_CACHE_DIR: .bun-cache
   NODE_OPTIONS: "--no-warnings --no-deprecation"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  DO_NOT_TRACK: 1
 
 jobs:
   # ------------------------------------------------
-  # 1. Bootstrap
+  # 1. Bootstrap — single source of truth for deps + codegen
   # ------------------------------------------------
   bootstrap:
     name: 🏁 Bootstrap
@@ -42,28 +41,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - uses: oven-sh/setup-bun@v2
+      - name: Setup Environment
+        uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
-
-      - uses: actions/cache@v5
-        id: cache-bun
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-
-      - run: mkdir -p ${{ env.BUN_CACHE_DIR }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile --prefer-offline --cache-dir ${{ env.BUN_CACHE_DIR }}
+          node-version: "24"
 
       - name: Verify Codegen
         run: |
@@ -89,39 +71,32 @@ jobs:
           retention-days: 1
 
   # ------------------------------------------------
-  # 2. Quality gates
+  # 2. Quality gates (parallel, no artifact deps beyond bootstrap meta)
   # ------------------------------------------------
   security-audit:
     name: 🔒 Dependency Audit
     needs: bootstrap
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-
-      - name: CVE Audit (npm)
+          node-version: "24"
+      - name: CVE Audit (bun)
         run: |
-          npm i --package-lock-only
-          npm audit --omit=dev --audit-level=critical
-
+          bun audit --severity=high 2>&1
       - name: CVE Audit Summary
         run: |
-          echo "## 🔒 Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
-          npm audit --omit=dev --json 2>/dev/null | jq -r '.metadata // empty | "**Total:** \(.totalDependencies) deps | **Vulnerabilities:** \(.vulnerabilities.critical // 0) critical, \(.vulnerabilities.high // 0) high, \(.vulnerabilities.moderate // 0) moderate"' >> $GITHUB_STEP_SUMMARY || echo "Audit completed (no structured output)" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔒 Dependency Audit (CVE Check)" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          if bun audit --severity=high 2>&1; then
+            echo "| bun audit | ✅ No high/critical vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| bun audit | ❌ Vulnerabilities found |" >> $GITHUB_STEP_SUMMARY
+          fi
 
   format:
     name: 🖌️ Format Check
@@ -130,34 +105,22 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+          node-version: "24"
+      - uses: actions/download-artifact@v8
+        with: { name: workspace-meta }
       - name: Run formatter
         run: bun run format
-      - name: Verify tree is clean (no unformatted files)
+      - name: Verify tree is clean
         run: |
           if ! git diff --exit-code --quiet; then
-            echo ""
-            echo "❌  Formatting drift detected."
-            echo "    Run 'bun run format' locally (or let the pre-commit hook do it),"
-            echo "    stage the fixes, and push again."
-            echo ""
+            echo "❌ Formatting drift detected. Run 'bun run format' locally."
             git diff --stat
             exit 1
           fi
-          echo "✅  Working tree is properly formatted."
+          echo "✅ Working tree is properly formatted."
 
   lint:
     name: 🔎 Lint
@@ -166,22 +129,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run lint
 
   check:
@@ -191,22 +144,12 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run check
 
   unit:
@@ -216,24 +159,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run test:unit
-
       - uses: codecov/codecov-action@v6
         if: success()
         with:
@@ -241,169 +173,91 @@ jobs:
           flags: unit
 
   # ------------------------------------------------
-  # 3. Build
+  # 3. Build — single artifact for all downstream jobs
   # ------------------------------------------------
   build:
     name: 🏗️ Build
     needs: bootstrap
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run build
-
+        env:
+          COMPILE_ALL_ADAPTERS: "true"
       - uses: actions/upload-artifact@v7
         with:
           name: build-output
           include-hidden-files: true
           path: |
-            .svelte-kit/output
-            build
+            build/
+            .svelte-kit/output/
           retention-days: 1
 
   # ------------------------------------------------
-  # 4. Database Matrix Tests
+  # 4. DB Matrix — TS config
   # ------------------------------------------------
-  db-tests:
-    name: 🧪 DB (${{ matrix.db }})
-    needs: build
+  db-matrix:
+    name: 📋 DB Matrix
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        db: [sqlite, mongodb, mariadb, postgresql]
-        include:
-          - db: sqlite
-            image: alpine:latest
-            health: "true"
-          - db: mongodb
-            image: mongo:7
-            port: 27017
-            health: "mongosh --quiet -u testuser -p testpass --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok'"
-          - db: mariadb
-            image: mariadb:11
-            port: 3306
-            health: "mariadb-admin ping -h localhost"
-          - db: postgresql
-            image: postgres:16
-            port: 5432
-            health: "pg_isready -U testuser"
-
-    services:
-      db:
-        image: ${{ matrix.image }}
-        ports:
-          - ${{ matrix.port && format('{0}:{0}', matrix.port) || '12345:12345' }}
-        env:
-          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: ${{ matrix.db == 'mariadb' && 'yes' || '' }}
-          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_test' || '' }}
-          MARIADB_USER: ${{ matrix.db == 'mariadb' && 'testuser' || '' }}
-          MARIADB_PASSWORD: ${{ matrix.db == 'mariadb' && 'testpass' || '' }}
-          POSTGRES_USER: ${{ matrix.db == 'postgresql' && 'testuser' || '' }}
-          POSTGRES_PASSWORD: ${{ matrix.db == 'postgresql' && 'testpass' || '' }}
-          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_test' || '' }}
-          MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
-          MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
-        options: >-
-          ${{ matrix.db != 'sqlite' && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 10', matrix.health) || '' }}
-
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github/workflows
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - name: Generate DB Matrix
+        id: generate
+        run: |
+          matrix=$(node .github/workflows/db-matrix.ts)
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  # ------------------------------------------------
+  # 5. DB Integration Tests (Docker Compose profiles)
+  # ------------------------------------------------
+  db-tests:
+    name: 🧪 DB (${{ matrix.db }})
+    needs: [build, db-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
+          restore-build: "true"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-
-      - name: Wait for DB
+      - name: Start Database (Docker Compose)
         if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+        run: |
+          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
+          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
       - name: Create MongoDB test user
         if: matrix.db == 'mongodb'
         run: |
-          echo "Creating/updating MongoDB test user inside sveltycms_test database..."
-
-          MONGO_CONTAINER="$(docker ps --filter "ancestor=mongo:7" --format "{{.ID}}" | head -n 1)"
-
-          if [ -z "$MONGO_CONTAINER" ]; then
-            MONGO_CONTAINER="$(docker ps --format "{{.ID}} {{.Image}}" | awk '$2 ~ /mongo/ {print $1; exit}')"
-          fi
-
-          if [ -z "$MONGO_CONTAINER" ]; then
-            echo "MongoDB container not found"
-            docker ps
-            exit 1
-          fi
-
-          docker exec "$MONGO_CONTAINER" mongosh --quiet "mongodb://testuser:testpass@127.0.0.1:27017/admin" --eval '
-            const dbName = "sveltycms_test";
-            const appDb = db.getSiblingDB(dbName);
-
-            const roles = [
-              { role: "dbOwner", db: dbName },
-              { role: "readWrite", db: dbName },
-              { role: "clusterMonitor", db: "admin" },
-              { role: "dbAdminAnyDatabase", db: "admin" }
-            ];
-
-            const existingUser = appDb.getUser("testuser");
-
-            if (existingUser) {
-              appDb.updateUser("testuser", {
-                pwd: "testpass",
-                roles
-              });
-              print("MongoDB test user updated with dbOwner + clusterMonitor permissions");
-            } else {
-              appDb.createUser({
-                user: "testuser",
-                pwd: "testpass",
-                roles
-              });
-              print("MongoDB test user created with dbOwner + clusterMonitor permissions");
-            }
-          '
-
-      - name: Create MariaDB integration database
-        if: matrix.db == 'mariadb'
-        run: |
-          echo "Creating sveltycms_test_integration DB for adapter tests (testuser lacks CREATE DATABASE)..."
-          MARIA_CONTAINER="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 ~ /mariadb/ {print $1; exit}')"
-          if [ -z "$MARIA_CONTAINER" ]; then
-            echo "MariaDB container not found"; docker ps; exit 1
-          fi
-          docker exec "$MARIA_CONTAINER" mariadb -uroot -e "CREATE DATABASE IF NOT EXISTS sveltycms_test_integration; GRANT ALL PRIVILEGES ON sveltycms_test_integration.* TO 'testuser'@'%'; FLUSH PRIVILEGES;"
+          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
+            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
+            db = db.getSiblingDB("sveltycms_test");
+            try { db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "dbOwner", db: "sveltycms_test" }] }); } catch(e) { db.grantRolesToUser("testuser", [{ role: "dbOwner", db: "sveltycms_test" }]); }
+            print("MongoDB test user created or updated for sveltycms_test");
+          ' || echo "MongoDB user setup failed"
 
       - name: Run Integration Tests
         env:
@@ -416,11 +270,13 @@ jobs:
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
+          PORT: "4173"
         run: |
-          if [ -f tests/e2e/.auth/test-secret.txt ]; then
-            export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          fi
-          bun run scripts/run-integration-tests.ts --db=${{ matrix.db }}
+          bun run scripts/run-integration-tests.ts --db=${{ matrix.db }} --no-build
+
+      - name: Dump Docker Logs on Failure
+        if: failure() && matrix.db != 'sqlite'
+        run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
 
       - name: Upload Logs
         if: always()
@@ -432,145 +288,56 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 5. E2E – Wizard
+  # 6. E2E Prep — auth state only (single artifact)
   # ------------------------------------------------
-  e2e-wizard:
-    name: 🧙 E2E (Wizard)
-    needs: [bootstrap, build]
+  e2e-prep:
+    name: 🧪 E2E Prep
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
+          restore-build: "true"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v5
+
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: playwright-${{ runner.os }}-
 
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-      - run: bun x playwright install --with-deps chromium
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: bun x playwright install --with-deps chromium
 
-      - name: Run Wizard E2E tests
-        env:
-          PASSWORD_MIN_LENGTH: 8
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
-          ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
-        run: |
-          if [ -f tests/e2e/.auth/test-secret.txt ]; then
-            export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-            echo "::add-mask::$TEST_API_SECRET"
-          fi
+      - name: Install Playwright Deps Only
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: bun x playwright install-deps chromium
 
-          # Ensure clean state for wizard
-          rm -rf config/private.ts config/private.test.ts config/database/* tests/e2e/.auth/user.json logs/* || true
-
-          HOST=127.0.0.1 \
-          PORT=4173 \
-          PASSWORD_MIN_LENGTH=8 \
-          STRICT_SETUP_CHECK=true \
-          TEST_MODE=true \
-          TEST_API_SECRET="$TEST_API_SECRET" \
-          PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
-          node build/index.js > preview.log 2>&1 &
-
-          # Increase timeout and add explicit logging
-          echo "Waiting for preview server on port 4173..."
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500 || (cat preview.log && exit 1)
-
-          # Run the consolidated Wizard suite
-          # baseURL must point at the CI preview server (4173); export so it reaches the
-          # test process — an inline prefix on the server line above does NOT propagate here.
-          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          # Use --project=wizard (the project's testMatch in playwright.config.ts selects
-          # the single setup-wizard spec). This is robust to internal test file moves.
-          bun x playwright test --project=wizard
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: playwright-report-Wizard
-          path: tests/playwright-report
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: preview-log-wizard
-          path: preview.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-  # ------------------------------------------------
-  # 6. E2E – Auth Setup
-  # ------------------------------------------------
-  e2e-auth:
-    name: 🔐 E2E (Auth Setup)
-    needs: [bootstrap, e2e-wizard]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.14"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
-          restore-keys: playwright-${{ runner.os }}-
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-      - run: bun x playwright install --with-deps chromium
-
-      - name: Run Auth Setup project
+      - name: Run Auth Setup (state only — no tests)
         env:
           DB_TYPE: sqlite
           DB_HOST: 127.0.0.1
-          DB_PORT: ""
           DB_NAME: e2e_auth_test
           DB_USER: ""
           DB_PASSWORD: ""
-          DB_AUTH_SOURCE: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
           JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
           ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          HOST: 127.0.0.1
+          PORT: 4173
         run: |
-          export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          echo "::add-mask::$TEST_API_SECRET"
-
           mkdir -p config config/database tests/e2e/.auth logs mediaFolder
 
           cat > config/private.test.ts <<EOF
@@ -589,168 +356,37 @@ jobs:
             DEMO: false,
             HOST_PROD: "http://127.0.0.1:4173"
           };
-
           export const privateConfig = privateEnv;
           export default privateEnv;
           EOF
 
           cp config/private.test.ts config/private.ts
 
-          trap 'echo "::group::preview.log"; cat preview.log || true; echo "::endgroup::"' EXIT
-
-          TEST_MODE=true \
-          DB_TYPE=sqlite \
-          DB_HOST=127.0.0.1 \
-          DB_PORT="" \
-          DB_NAME=e2e_auth_test \
-          DB_USER="" \
-          DB_PASSWORD="" \
-          DB_AUTH_SOURCE="" \
-          PASSWORD_MIN_LENGTH=8 \
-          SKIP_TEST_CLEANUP=true \
-          ADMIN_PASSWORD=Password123! \
-          JWT_SECRET_KEY=Auth-Setup-JWT-Secret-Key-2026 \
-          ENCRYPTION_KEY=Auth-Setup-Encryption-Key-2026-32ch \
-          TEST_API_SECRET="$TEST_API_SECRET" \
-          HOST=127.0.0.1 \
-          PORT=4173 \
+          # Start the built server
           node build/index.js > preview.log 2>&1 &
-
-
-          cat preview.log || true
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
+
+          # Run Wizard first (sets up the system)
+          bun x playwright test --project=wizard
+
+          # Then run Auth Setup to generate auth state for other E2E tests
           bun x playwright test --project=auth-setup
+
+      - name: Archive E2E Environment (single artifact)
+        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts
 
       - uses: actions/upload-artifact@v7
         with:
-          name: e2e-auth-state
-          path: tests/e2e/.auth/
-          include-hidden-files: true
-          if-no-files-found: ignore
+          name: e2e-env-${{ github.sha }}
+          path: e2e-env.tar.zst
+          if-no-files-found: error
           retention-days: 1
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: playwright-report-Auth
-          path: tests/playwright-report
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: preview-log-auth
-          path: preview.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-  # ------------------------------------------------
-  # 7. E2E – App Tests
-  # ------------------------------------------------
-  e2e-app:
-    name: 🧪 E2E (${{ matrix.project }})
-    needs: [bootstrap, e2e-auth]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        project:
-          [
-            signup,
-            content,
-            system,
-            a11y,
-            rbac,
-            language,
-            branding,
-            visual-regression,
-            users,
-            builder,
-            permissions,
-            firstuser,
-            config-routes,
-            admin,
-            dashboard,
-            appearance,
-            media,
-          ]
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.14"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
-      - uses: actions/download-artifact@v8
-        with:
-          name: e2e-auth-state
-          path: tests/e2e/.auth/
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
-          restore-keys: playwright-${{ runner.os }}-
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-      - run: bun x playwright install --with-deps chromium
-
-      - name: Run E2E (${{ matrix.project }}) project
-        env:
-          DB_TYPE: sqlite
-          DB_HOST: 127.0.0.1
-          DB_NAME: e2e_auth_test
-          DB_USER: ""
-          DB_PASSWORD: ""
-          DB_AUTH_SOURCE: ""
-          PASSWORD_MIN_LENGTH: 8
-          TEST_MODE: "true"
-          SKIP_TEST_CLEANUP: "true"
-          ADMIN_PASSWORD: Password123!
-          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
-          ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
-
-        run: |
-          export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          echo "::add-mask::$TEST_API_SECRET"
-
-          trap 'echo "::group::preview.log"; cat preview.log || true; echo "::endgroup::"' EXIT
-
-          DB_HOST=127.0.0.1 \
-          DB_NAME=e2e_auth_test \
-          HOST=127.0.0.1 \
-          PORT=4173 \
-          PASSWORD_MIN_LENGTH=8 \
-          TEST_MODE=true \
-          SKIP_TEST_CLEANUP=true \
-          ADMIN_PASSWORD=Password123! \
-          JWT_SECRET_KEY=Auth-Setup-JWT-Secret-Key-2026 \
-          ENCRYPTION_KEY=Auth-Setup-Encryption-Key-2026-32ch \
-          TEST_API_SECRET="$TEST_API_SECRET" \
-          PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173 \
-          node build/index.js > preview.log 2>&1 &
-
-          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
-          bun x playwright test --project=${{ matrix.project }}
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: playwright-report-${{ matrix.project }}
+          name: playwright-report-Wizard-Auth
           path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
@@ -758,129 +394,162 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: preview-log-${{ matrix.project }}
+          name: preview-log-prep
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7
 
   # ------------------------------------------------
-  # 8. Benchmarks
+  # 7. E2E Matrix — TS config
+  # ------------------------------------------------
+  e2e-matrix:
+    name: 📋 E2E Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github/workflows
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Generate E2E Matrix
+        id: generate
+        run: |
+          matrix=$(node .github/workflows/e2e-matrix.ts)
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  # ------------------------------------------------
+  # 8. E2E Tests (sharded, uses single prep artifact)
+  # ------------------------------------------------
+  e2e:
+    name: 🧪 E2E - ${{ matrix.project }}${{ matrix.total-shards > 1 && format(' ({0})', matrix.shard) || '' }}
+    needs: [bootstrap, e2e-prep, e2e-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-sveltycms
+        with:
+          bun-version: "1.3.14"
+          node-version: "24"
+          pnpm-run-install: "false"
+
+      - name: Download E2E Environment
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-env-${{ github.sha }}
+          path: .
+
+      - name: Extract E2E Environment
+        run: |
+          if [ ! -f e2e-env.tar.zst ]; then
+            echo "::error::E2E prep artifact missing. Re-run workflow."
+            exit 1
+          fi
+          tar --zstd -xf e2e-env.tar.zst
+          rm e2e-env.tar.zst
+
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: bun x playwright install --with-deps chromium
+
+      - name: Install Playwright Deps Only
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: bun x playwright install-deps chromium
+
+      - name: Run E2E Tests
+        env:
+          DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_NAME: e2e_auth_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          PASSWORD_MIN_LENGTH: 8
+          TEST_MODE: "true"
+          SKIP_TEST_CLEANUP: "true"
+          ADMIN_PASSWORD: Password123!
+          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          HOST: 127.0.0.1
+          PORT: 4173
+        run: |
+          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
+          node build/index.js > preview.log 2>&1 &
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
+          bun x playwright test \
+            --project=${{ matrix.project }} \
+            --shard=${{ matrix.shard }} \
+            --fully-parallel \
+            ${{ matrix.parallel == false && ' --workers=1' || '' }}
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.project }}-${{ matrix.shardId }}
+          path: tests/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: preview-log-${{ matrix.project }}-${{ matrix.shardId }}
+          path: preview.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ------------------------------------------------
+  # 9. Benchmarks (conditional, Docker Compose profiles)
   # ------------------------------------------------
   benchmarks:
     name: 📊 Benchmarks (${{ matrix.db }})
-    needs: [build]
+    needs: [build, db-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
     strategy:
       fail-fast: false
-      matrix:
-        db: [sqlite, mongodb, mariadb, postgresql]
-        include:
-          - db: sqlite
-            image: alpine:latest
-            health: "true"
-          - db: mongodb
-            image: mongo:7
-            port: 27017
-            health: "mongosh --quiet -u testuser -p testpass --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok'"
-          - db: mariadb
-            image: mariadb:11
-            port: 3306
-            health: "mariadb-admin ping -h localhost"
-          - db: postgresql
-            image: postgres:16
-            port: 5432
-            health: "pg_isready -U testuser"
-
-    services:
-      db:
-        image: ${{ matrix.image }}
-        ports:
-          - ${{ matrix.port && format('{0}:{0}', matrix.port) || '12345:12345' }}
-        env:
-          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: ${{ matrix.db == 'mariadb' && 'yes' || '' }}
-          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_bench' || '' }}
-          MARIADB_USER: ${{ matrix.db == 'mariadb' && 'testuser' || '' }}
-          MARIADB_PASSWORD: ${{ matrix.db == 'mariadb' && 'testpass' || '' }}
-          POSTGRES_USER: ${{ matrix.db == 'postgresql' && 'testuser' || '' }}
-          POSTGRES_PASSWORD: ${{ matrix.db == 'postgresql' && 'testpass' || '' }}
-          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_bench' || '' }}
-          MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
-          MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
-        options: >-
-          ${{ matrix.db != 'sqlite' && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 6', matrix.health) || '' }}
-
+      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
+          node-version: "24"
+          restore-build: "true"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-
-      - name: Wait for DB
+      - name: Start Database (Docker Compose)
         if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+        run: |
+          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
+          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
       - name: Create MongoDB benchmark user
         if: matrix.db == 'mongodb'
         run: |
-          echo "Creating/updating MongoDB benchmark user inside sveltycms_bench database..."
-
-          MONGO_CONTAINER="$(docker ps --filter "ancestor=mongo:7" --format "{{.ID}}" | head -n 1)"
-
-          if [ -z "$MONGO_CONTAINER" ]; then
-            MONGO_CONTAINER="$(docker ps --format "{{.ID}} {{.Image}}" | awk '$2 ~ /mongo/ {print $1; exit}')"
-          fi
-
-          if [ -z "$MONGO_CONTAINER" ]; then
-            echo "MongoDB container not found"
-            docker ps
-            exit 1
-          fi
-
-          docker exec "$MONGO_CONTAINER" mongosh --quiet "mongodb://testuser:testpass@127.0.0.1:27017/admin" --eval '
-            const dbName = "sveltycms_bench";
-            const appDb = db.getSiblingDB(dbName);
-
-            const roles = [
-              { role: "dbOwner", db: dbName },
-              { role: "readWrite", db: dbName },
-              { role: "clusterMonitor", db: "admin" },
-              { role: "dbAdminAnyDatabase", db: "admin" }
-            ];
-
-            const existingUser = appDb.getUser("testuser");
-
-            if (existingUser) {
-              appDb.updateUser("testuser", {
-                pwd: "testpass",
-                roles
-              });
-              print("MongoDB benchmark user updated with dbOwner + clusterMonitor permissions");
-            } else {
-              appDb.createUser({
-                user: "testuser",
-                pwd: "testpass",
-                roles
-              });
-              print("MongoDB benchmark user created with dbOwner + clusterMonitor permissions");
-            }
-          '
+          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
+            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
+            db = db.getSiblingDB("sveltycms_bench");
+            db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_bench" }] });
+            print("MongoDB benchmark user created for sveltycms_bench");
+          ' || echo "MongoDB user may already exist"
 
       - name: Run Enterprise Benchmark Matrix
         env:
@@ -889,19 +558,17 @@ jobs:
           ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
-          if [ -f tests/e2e/.auth/test-secret.txt ]; then
-            export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          fi
-
-          # Ensure clean state for benchmarks
           rm -rf config/private.ts config/database/* tests/e2e/.auth/user.json logs/* || true
-
           bun run scripts/benchmark-matrix/index.ts \
             --no-build \
             --db=${{ matrix.db }} \
             --level=4 \
             --skip-redis \
             --ci
+
+      - name: Dump Docker Logs on Failure
+        if: failure() && matrix.db != 'sqlite'
+        run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -910,3 +577,30 @@ jobs:
           path: tests/benchmarks/results/
           if-no-files-found: ignore
           retention-days: 14
+
+  # ------------------------------------------------
+  # 10. All Green Gate
+  # ------------------------------------------------
+  all-green:
+    name: ✅ All Green
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - bootstrap
+      - build
+      - format
+      - lint
+      - check
+      - unit
+      - security-audit
+      - e2e-prep
+      - e2e
+      - db-tests
+      - benchmarks
+    steps:
+      - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+        run: |
+          echo "::error::One or more required jobs failed or were cancelled"
+          exit 1
+      - if: ${{ success() }}
+        run: echo "✅ All checks passed"

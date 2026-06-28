@@ -203,7 +203,9 @@ const author = await dbAdapter.find("users", { id: post.authorId });
 
 // Multiple Relation
 const product = await dbAdapter.find("products", { id: "prod_123" });
-const categories = await dbAdapter.findMany("categories", { id: { $in: product.categoryIds } });
+const categories = await dbAdapter.findMany("categories", {
+  id: { $in: product.categoryIds },
+});
 ```
 
 ### Advanced Querying

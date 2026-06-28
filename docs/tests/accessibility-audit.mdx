@@ -41,7 +41,7 @@ We integrate automated accessibility audits into our Playwright E2E test suites 
 
 ### Playwright Integration Example
 
-We write dedicated accessibility specs (e.g., `tests/e2e/accessibility.spec.ts`) to audit critical user flows:
+We write dedicated accessibility specs (e.g., `tests/e2e/routes/login/accessibility.spec.ts`) to audit critical user flows:
 
 ````typescript
 import { test, expect } from "@playwright/test";
@@ -238,7 +238,7 @@ You can execute accessibility checks locally using the following workflows:
 
 ```
 # Run the E2E accessibility suite (automated axe, keyboard, and RTL checks)
-npx playwright test tests/e2e/accessibility.spec.ts
+npx playwright test tests/e2e/routes/login/accessibility.spec.ts
 ```text
 ````
 
@@ -248,4 +248,4 @@ npx playwright test tests/e2e/accessibility.spec.ts
 
 - [Test Documentation](./index.mdx)
 - [Security Testing](./security-testing.mdx)
-- [Architecture Overview](../architecture/index.mdx)
+- [Architecture Overview](../reference/architecture/index.mdx)

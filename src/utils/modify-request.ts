@@ -8,7 +8,7 @@ import type { User } from "@src/databases/auth/types";
 import type { CollectionModel } from "@src/databases/db-interface";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { logger } from "@utils/logger";
-import { getFieldName } from "@utils/utils";
+import { getFieldName } from "@utils/schema/field-utils";
 
 export interface EntryData {
   _id?: string;
@@ -36,6 +36,17 @@ export async function modifyRequest(params: ModifyRequestParams) {
   const { data, fields, type } = params;
 
   if (!data || data.length === 0) return data;
+
+  // 🛡️ INPUT SANITIZATION: Strip XSS vectors from all string values in mutation payloads
+  // Runs before widget processing to catch encoded/nested vectors early
+  if (type === "POST" || type === "PATCH" || type === "PUT") {
+    const { sanitizeObject } = await import("@utils/security/input-sanitizer");
+    for (let i = 0; i < data.length; i++) {
+      if (data[i]) {
+        data[i] = sanitizeObject(data[i]);
+      }
+    }
+  }
 
   // 1. Resolve Widget Functions once per batch
   const activeWidgets = fields

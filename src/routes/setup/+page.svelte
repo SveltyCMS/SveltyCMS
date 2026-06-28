@@ -443,7 +443,7 @@
 													<span class="uppercase tracking-widest text-[10px]">Troubleshooting Suggestions</span>
 												</div>
 												<div class="space-y-2">
-													{#each wizard.lastDbTestResult.hint.split('\n') as step}
+													{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
 														<div class="flex gap-2 text-slate-700 dark:text-slate-300">
 															<span class="shrink-0 text-amber-500">•</span>
 															<span>{step.replace(/^\d+\.\s*/, '')}</span>

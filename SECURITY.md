@@ -1,17 +1,17 @@
 # Security Policy
 
-SveltyCMS is built with **defense-in-depth security** featuring 4-layer zero-trust authorization, AI bot defense, zero-bias cryptography, and cross-origin isolation.
+SveltyCMS is built with **defense-in-depth security** featuring 4-layer zero-trust authorization, AI bot defense, zero-bias cryptography, cross-origin isolation, and 5 authentication methods (password, API Keys, Magic Links, SAML SSO, WebAuthn/Passkeys).
 
-| Dimension             | Score | Detail                                                           |
-| --------------------- | ----- | ---------------------------------------------------------------- |
-| CVE Track Record      | 100   | 0 published CVEs — verifiable via NVD, GitHub Advisory DB        |
-| Cryptography          | 100   | AES-256-GCM, SHA-256 chain, timing-safe, key rotation documented |
-| Auth & Session        | 95    | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, lockout                |
-| Input Validation      | 95    | Valibot + DOMPurify + Drizzle + body limit + SVG                 |
-| Disclosure & Response | 98    | security.txt, incident runbook, responsible disclosure           |
-| Dependency Hygiene    | 92    | Override-pinned, node-forge-free, osv-scanner/audit:deps         |
+| Dimension             | Score | Detail                                                                                     |
+| --------------------- | ----- | ------------------------------------------------------------------------------------------ |
+| CVE Track Record      | 100   | 0 published CVEs — verifiable via NVD, GitHub Advisory DB                                  |
+| Cryptography          | 100   | AES-256-GCM, SHA-256 chain, timing-safe, key rotation documented                           |
+| Auth & Session        | 97    | Argon2id, CSPRNG, Host- cookies, 2FA, lockout, API Keys, Magic Links, Guest Auth, WebAuthn |
+| Input Validation      | 95    | Valibot + DOMPurify + Drizzle + body limit + SVG                                           |
+| Disclosure & Response | 98    | security.txt, incident runbook, responsible disclosure                                     |
+| Dependency Hygiene    | 92    | Override-pinned, node-forge-free, osv-scanner/audit:deps                                   |
 
-**Weighted: ~97/100** — self-assessed (June 2026). Remaining: WebAuthn support, third-party penetration test.
+**Weighted: ~98/100** — self-assessed (June 2026). Remaining: WebAuthn passkey management UI, third-party penetration test.
 
 📖 **Full Security Docs**: [docs/architecture/security/index.mdx](./docs/architecture/security/index.mdx)  
 📋 **Security.txt**: [static/.well-known/security.txt](./static/.well-known/security.txt)  
@@ -73,6 +73,7 @@ Secrets in `config/private.ts` should be rotated periodically:
 | `ENCRYPTION_KEY`    | Every 180 days | Re-encrypt sensitive data with new key               |
 | `RATE_LIMIT_SECRET` | Every 90 days  | Update key → existing rate limit states remain valid |
 | `TEST_API_SECRET`   | Every 30 days  | Rotate in CI environment variables                   |
+| **API Keys**        | Every 90 days  | Create new key → update service → revoke old key     |
 
 ```bash
 # Generate a new CSPRNG secret (Bun / Node.js)

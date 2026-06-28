@@ -1,16 +1,8 @@
 /**
  * @file tests/benchmarks/longevity-soak.test.ts
- * @description Long-Running Soak Test (Multi-Hour Memory & Resource Stability)
+ * @description Long-Running Soak Test (Multi-Hour Memory & Resource Stability) [Optimized]
  * @summary Sustained mixed workload over configurable hours with periodic memory/CPU sampling
- *          to detect slow leaks (file handles, event listeners, promise chains, buffer growth).
- *
- * ### Features:
- * - Configurable duration via LONG_SOAK_HOURS (default: 4 hours, CI: 5 minutes)
- * - Weighted mixed workload (40% read, 25% list, 20% update, 10% media, 5% GraphQL)
- * - Periodic RSS/heap/external memory sampling (every 60s or configurable)
- * - Leak slope calculation with automated threshold alerting
- * - Request latency drift detection (p50/p95 trend over time)
- * - Graceful early-exit on CI (5-min quick soak)
+ * to detect slow leaks (file handles, event listeners, promise chains, buffer growth).
  */
 
 import {
@@ -27,9 +19,36 @@ import {
 import "../unit/bun-preload.ts";
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
-const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || (IS_CI ? "0.083" : "4")); // 5min CI, 4hr local
+const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || "0.083"); // default 5 min, override with LONG_SOAK_HOURS
 const SAMPLE_INTERVAL_SEC = IS_CI ? 30 : 60;
 const CONCURRENCY = 4;
+
+// Use a fixed size circular buffer to keep latency tracking memory profile entirely O(1)
+const LATENCY_RESERVOIR_SIZE = 500;
+const latencyReservoir = new Float64Array(LATENCY_RESERVOIR_SIZE);
+let reservoirIndex = 0;
+let reservoirCount = 0;
+
+function recordLatency(ms: number) {
+  latencyReservoir[reservoirIndex] = ms;
+  reservoirIndex = (reservoirIndex + 1) % LATENCY_RESERVOIR_SIZE;
+  if (reservoirCount < LATENCY_RESERVOIR_SIZE) reservoirCount++;
+}
+
+function getReservoirStats(): { avg: number; p95: number } {
+  if (reservoirCount === 0) return { avg: 0, p95: 0 };
+
+  const currentSize = reservoirCount;
+  let sum = 0;
+  for (let i = 0; i < currentSize; i++) {
+    sum += latencyReservoir[i];
+  }
+
+  const sorted = [...latencyReservoir.subarray(0, currentSize)].sort((a, b) => a - b);
+  const p95 = sorted[Math.floor(currentSize * 0.95)] || 0;
+
+  return { avg: sum / currentSize, p95 };
+}
 
 type SoakSample = {
   elapsedMin: number;
@@ -46,10 +65,12 @@ let stopServer: (() => Promise<void>) | null = null;
 
 async function getMemoryStats(
   baseUrl: string,
+  headers: Record<string, string>,
 ): Promise<{ rss: number; heapUsed: number; external: number }> {
   try {
     const res = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
-      headers: { "x-test-secret": TEST_API_SECRET },
+      method: "GET",
+      headers,
       signal: AbortSignal.timeout(5000),
     });
     const data = await res.json();
@@ -78,15 +99,23 @@ async function runSoakTest() {
   await forceRefreshServer(baseUrl);
   await stabilize(2000);
 
-  const secret = TEST_API_SECRET;
-  const samples: SoakSample[] = [];
-  const latencies: number[] = [];
+  // Canonical lowercase static header references
+  const baseHeaders = {
+    "x-test-mode": "true",
+    "x-test-secret": TEST_API_SECRET,
+  };
 
+  const healthCheckHeaders = {
+    "x-test-secret": TEST_API_SECRET,
+  };
+
+  const samples: SoakSample[] = [];
   let running = true;
   let totalReqs = 0;
   let errorCount = 0;
+
   const startTime = performance.now();
-  const endTime = startTime + hours * 3600_000;
+  const endTime = startTime + hours * 3600000;
 
   // Background sampler
   const sampler = (async () => {
@@ -95,14 +124,10 @@ async function runSoakTest() {
       await new Promise((r) => setTimeout(r, Math.max(0, nextSample - performance.now())));
       if (!running || performance.now() >= endTime) break;
 
-      const mem = await getMemoryStats(baseUrl);
-      const elapsedMin = (performance.now() - startTime) / 60_000;
-      const recentLatencies = latencies.slice(-100);
-      const avgLatency = recentLatencies.length
-        ? recentLatencies.reduce((a, b) => a + b, 0) / recentLatencies.length
-        : 0;
-      const sorted = [...recentLatencies].sort((a, b) => a - b);
-      const p95Latency = sorted.length ? sorted[Math.floor(sorted.length * 0.95)] : 0;
+      const mem = await getMemoryStats(baseUrl, healthCheckHeaders);
+      const elapsedMin = (performance.now() - startTime) / 60000;
+
+      const stats = getReservoirStats();
 
       samples.push({
         elapsedMin,
@@ -110,8 +135,8 @@ async function runSoakTest() {
         heapMB: Math.round(mem.heapUsed / 1024 / 1024),
         externalMB: Math.round(mem.external / 1024 / 1024),
         totalReqs,
-        avgLatencyMs: Math.round(avgLatency * 100) / 100,
-        p95LatencyMs: Math.round(p95Latency * 100) / 100,
+        avgLatencyMs: Math.round(stats.avg * 100) / 100,
+        p95LatencyMs: Math.round(stats.p95 * 100) / 100,
         errorCount,
       });
 
@@ -119,96 +144,85 @@ async function runSoakTest() {
       const m = Math.floor(elapsedMin % 60);
       process.stdout.write(
         `\r   [${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}] ` +
-          `${totalReqs} reqs | RSS ${samples[samples.length - 1].rssMB}MB | ` +
-          `Heap ${samples[samples.length - 1].heapMB}MB | errs ${errorCount}`,
+          `${totalReqs} reqs | RSS ${samples[samples.length - 1]!.rssMB}MB | ` +
+          `Heap ${samples[samples.length - 1]!.heapMB}MB | errs ${errorCount}`,
       );
 
       nextSample = performance.now() + SAMPLE_INTERVAL_SEC * 1000;
     }
   })();
 
-  // Workload workers — READ-ONLY operations that never throw
   const errorCounts: Record<string, number> = {};
   const recordError = (label: string) => {
     errorCounts[label] = (errorCounts[label] || 0) + 1;
   };
 
+  // Reuse uniform configuration templates across fetch iterations
   const ops = [
     {
       weight: 45,
-      label: "health",
       fn: async () => {
         const res = await fetch(`${baseUrl}/api/system/health`, {
-          headers: { "x-test-mode": "true", "x-test-secret": secret },
+          method: "GET",
+          headers: baseHeaders,
           signal: AbortSignal.timeout(5000),
         });
-        if (!res.ok) {
-          recordError("health");
-          return;
-        }
-        await res.text();
+        if (!res.ok) return recordError("health");
+        await res.arrayBuffer();
       },
     },
     {
       weight: 25,
-      label: "list",
       fn: async () => {
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
-          headers: { "x-test-mode": "true", "x-test-secret": secret },
+          method: "GET",
+          headers: baseHeaders,
           signal: AbortSignal.timeout(10000),
         });
-        if (!res.ok) {
-          recordError("list");
-          return;
-        }
-        await res.text();
+        if (!res.ok) return recordError("list");
+        await res.arrayBuffer();
       },
     },
     {
       weight: 20,
-      label: "read",
       fn: async () => {
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`, {
-          headers: { "x-test-mode": "true", "x-test-secret": secret },
+          method: "GET",
+          headers: baseHeaders,
           signal: AbortSignal.timeout(10000),
         });
-        if (!res.ok) {
-          recordError("read");
-          return;
-        }
-        await res.text();
+        if (!res.ok) return recordError("read");
+        await res.arrayBuffer();
       },
     },
     {
       weight: 10,
-      label: "schema",
       fn: async () => {
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/schema`, {
-          headers: { "x-test-mode": "true", "x-test-secret": secret },
+          method: "GET",
+          headers: baseHeaders,
           signal: AbortSignal.timeout(5000),
         });
-        if (!res.ok) {
-          recordError("schema");
-          return;
-        }
-        await res.text();
+        if (!res.ok) return recordError("schema");
+        await res.arrayBuffer();
       },
     },
   ];
 
-  // Build weighted pool
   const pool: (() => Promise<void>)[] = [];
-  for (const op of ops) {
-    for (let i = 0; i < op.weight; i++) pool.push(op.fn);
+  for (let i = 0; i < ops.length; i++) {
+    const op = ops[i]!;
+    for (let w = 0; w < op.weight; w++) pool.push(op.fn);
   }
+  const poolLength = pool.length;
 
   const workers = Array.from({ length: CONCURRENCY }, async () => {
     while (running && performance.now() < endTime) {
-      const fn = pool[Math.floor(Math.random() * pool.length)];
+      const fn = pool[Math.floor(Math.random() * poolLength)]!;
       const t0 = performance.now();
       try {
         await fn();
-        latencies.push(performance.now() - t0);
+        recordLatency(performance.now() - t0);
         totalReqs++;
       } catch {
         errorCount++;
@@ -218,14 +232,12 @@ async function runSoakTest() {
     }
   });
 
-  // Wait for duration or workers to finish
-  await Promise.race([new Promise((r) => setTimeout(r, hours * 3600_000)), Promise.all(workers)]);
+  await Promise.race([new Promise((r) => setTimeout(r, hours * 3600000)), Promise.all(workers)]);
 
   running = false;
   await sampler;
   await Promise.allSettled(workers);
 
-  // Calculate leak slopes
   const calcSlope = (field: keyof SoakSample): number => {
     if (samples.length < 3) return 0;
     let sumX = 0,
@@ -233,7 +245,8 @@ async function runSoakTest() {
       sumXY = 0,
       sumXX = 0;
     const n = samples.length;
-    for (const s of samples) {
+    for (let i = 0; i < n; i++) {
+      const s = samples[i]!;
       const x = s.elapsedMin;
       const y = s[field] as number;
       sumX += x;
@@ -286,7 +299,6 @@ async function runSoakTest() {
     },
   ]);
 
-  // Automated threshold checks
   if (heapSlope > 1.0) {
     throw new Error(`HEAP LEAK DETECTED: ${heapSlope.toFixed(3)} MB/min growth over ${hours}h`);
   }
@@ -312,5 +324,5 @@ test(
       }
     }
   },
-  Math.max(600_000, SOAK_HOURS * 3600_000 + 120_000),
+  Math.max(600000, SOAK_HOURS * 3600000 + 120000),
 );

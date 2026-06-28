@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/dashboard/widgets/disk-widget.svelte
 @component
 **High-performance Disk Usage Widget using native CSS + SVG with multi-disk support**
@@ -103,12 +103,12 @@ export const widgetMeta = {
 			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Disk usage statistics">
 				<!-- Multi-disk Selector tabs (Only shown if more than 1 disk is detected) -->
 				{#if disks.length > 1}
-					<div 
+					<div
 						class="flex flex-wrap gap-1.5 border-b pb-2 {theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}"
 						role="tablist"
 						aria-label="Select disk drive"
 					>
-						{#each disks as d}
+						{#each disks as d (d.key)}
 							<Button variant="outline">
 								type="button"
 								role="tab"

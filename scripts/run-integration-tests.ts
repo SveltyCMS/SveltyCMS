@@ -19,7 +19,6 @@ import {
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createServer } from "node:net";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,16 +27,6 @@ const ROOT = join(__dirname, "..");
 let PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 let API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
-
-function getFreePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, () => {
-      const port = (server.address() as any).port;
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 type IntegrationSuite = "all" | "db" | "api";
 
@@ -81,9 +70,8 @@ let serverRunningMode: "normal" | "setup" | "none" = "none";
 
 function getEnvValue(name: string): string | undefined {
   if (Object.prototype.hasOwnProperty.call(process.env, name)) {
-    return process.env[name] ?? "";
+    return process.env[name];
   }
-
   return undefined;
 }
 
@@ -317,9 +305,29 @@ async function startPreviewServer(setupMode = false) {
   await waitForServerReady();
 }
 
+let testFileRunCount = 0;
+
 async function prepareIsolatedServerForTestFile(filePath: string) {
   const setupModeTest = isSetupModeTest(filePath);
   const targetMode = setupModeTest ? "setup" : "normal";
+  const isMongoDB = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+
+  testFileRunCount++;
+
+  // MongoDB: restart server every 5 tests to prevent connection pool degradation
+  const needsMongoRestart =
+    isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 5 === 0;
+
+  if (needsMongoRestart) {
+    console.log(
+      `\n🔁 MongoDB: restarting server after ${testFileRunCount - 1} tests to refresh connection pool...`,
+    );
+    if (previewProcess) {
+      await stopPreviewServer();
+    }
+    serverRunningMode = targetMode;
+    await startPreviewServer(setupModeTest);
+  }
 
   // Ensure server is running in the correct mode
   if (!previewProcess || serverRunningMode !== targetMode) {
@@ -336,6 +344,11 @@ async function prepareIsolatedServerForTestFile(filePath: string) {
   // Reset state between tests — security rate-limiters, caches, DB tables
   console.log("🧹 Resetting test data for isolated test file...");
   await testingAction("reset");
+
+  // MongoDB: wait for connection pool to stabilize after collection drops
+  if (isMongoDB) {
+    await new Promise((r) => setTimeout(r, 3000));
+  }
 
   if (setupModeTest) {
     console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
@@ -538,11 +551,11 @@ async function runSystemSetup() {
 
   // Create a default test collection so that dynamic endpoints (like OpenAPI and Collections)
   // are populated with at least one collection during integration testing.
-  const collectionsDir = join(ROOT, "config", "collections");
+  const collectionsDir = join(ROOT, "config", "collections", "test");
   if (!existsSync(collectionsDir)) {
     mkdirSync(collectionsDir, { recursive: true });
   }
-  const tsPath = join(collectionsDir, "test_collection.ts");
+  const tsPath = join(collectionsDir, "integration_test_collection.ts");
   const tsContent = `
 import type { Schema } from '@src/content/types';
 export const schema: Schema = {
@@ -555,13 +568,15 @@ export const schema: Schema = {
 };
 `;
   writeFileSync(tsPath, tsContent, "utf8");
-  console.log("✅ Created config/collections/test_collection.ts for build-time compilation");
+  console.log(
+    "✅ Created config/collections/test/integration_test_collection.ts for build-time compilation",
+  );
 
-  const compiledDir = join(ROOT, ".compiledCollections");
+  const compiledDir = join(ROOT, ".compiledCollections", "test");
   if (!existsSync(compiledDir)) {
     mkdirSync(compiledDir, { recursive: true });
   }
-  const jsPath = join(compiledDir, "test_collection.js");
+  const jsPath = join(compiledDir, "integration_test_collection.js");
   const jsContent = `
 export const schema = {
 	name: 'test_collection',
@@ -573,7 +588,9 @@ export const schema = {
 };
 `;
   writeFileSync(jsPath, jsContent, "utf8");
-  console.log("✅ Created .compiledCollections/test_collection.js for runtime loading");
+  console.log(
+    "✅ Created .compiledCollections/test/integration_test_collection.js for runtime loading",
+  );
 
   console.log("⚙️ Integration test config ready. /api/testing will reset/seed per test file.");
 }
@@ -725,9 +742,10 @@ async function main() {
     throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
-  // 🚀 DYNAMIC PORT RESOLUTION: Avoid port collisions by selecting a fresh port
-  const freePortNum = await getFreePort();
-  PORT = String(freePortNum);
+  // Use PORT from env (4173) — fixed per DB for CI parity, overridable locally
+  if (process.env.PORT) {
+    PORT = process.env.PORT;
+  }
   API_BASE_URL = `http://${HOST}:${PORT}`;
 
   let passed = 0;

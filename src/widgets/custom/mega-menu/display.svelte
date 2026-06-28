@@ -38,7 +38,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 		{#each value as item (item._id)}
 			<li>
 				<Sanitize html={(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'} profile="strict" />
-				{#if item.children.length > 0}
+				{#if item.children?.length > 0}
 					<Display value={item.children} />
 				{/if}
 			</li>

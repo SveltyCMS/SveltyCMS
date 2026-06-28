@@ -64,25 +64,15 @@ class ConfigSafeguard {
   /** Cleans up leaked test configurations and mock collections */
   static async restore() {
     try {
-      // Clean up the transient test configuration if it exists
       await fs.rm(this.configPath, { force: true });
       log.info("🛡️ Cleanup: Transient config/private.test.ts removed.");
 
-      // Purge mock collections to prevent redirection leaks
-      const compiledDir = path.join(process.cwd(), ".compiledCollections");
-      const files = await fs.readdir(compiledDir).catch(() => []);
-      for (const file of files) {
-        if (file.includes("bench") || file.includes("mock") || file.startsWith("benchmark_")) {
-          await fs.rm(path.join(compiledDir, file), {
-            recursive: true,
-            force: true,
-          });
-        }
+      const { purgeBenchmarkCollectionArtifacts } =
+        await import("@src/routes/setup/preset-collections.server");
+      const removed = await purgeBenchmarkCollectionArtifacts();
+      if (removed > 0) {
+        log.info(`🛡️ Cleanup: Purged ${removed} benchmark collection artifact(s).`);
       }
-      // Also purge 'nested' benchmark directory if it exists
-      await fs
-        .rm(path.join(compiledDir, "nested"), { recursive: true, force: true })
-        .catch(() => {});
     } catch (err: any) {
       log.error(`Safeguard failed: ${err.message}`);
     }
@@ -196,6 +186,16 @@ async function main() {
     // Ignore if directory missing
   }
 
+  // Purge leaked benchmark fixtures before any server scans user collections
+  try {
+    const { purgeBenchmarkCollectionArtifacts } =
+      await import("@src/routes/setup/preset-collections.server");
+    const purged = await purgeBenchmarkCollectionArtifacts();
+    if (purged > 0) log.info(`🛡️ Isolation: purged ${purged} benchmark collection artifact(s).`);
+  } catch (err: any) {
+    log.warn(`Isolation pre-purge skipped: ${err.message}`);
+  }
+
   // Initialize Safeguard before any logic
   await ConfigSafeguard.backup();
 
@@ -206,13 +206,10 @@ async function main() {
 
   const hostInfo = await collectHostInfo();
   const activeScripts = filterScripts(cfg);
-  const activeDatabases = filterDatabases(cfg);
-
-  // Clean up existing results only for the databases we are about to audit
-  await cleanupResults(activeDatabases, cfg, activeScripts);
+  const allDatabases = filterDatabases(cfg);
 
   if (cfg.sectionFilter) log.info(`Section filter: ${cfg.sectionFilter.join(", ")}`);
-  if (cfg.levelFilter !== null) log.info(`Level filter: ≤ ${cfg.levelFilter}`);
+  if (cfg.levelFilter !== null) log.info(`Level filter: \u2264 ${cfg.levelFilter}`);
   if (cfg.onlyFilter) log.info(`Only: ${cfg.onlyFilter.join(", ")}`);
   if (cfg.dbFilter) log.info(`DB filter: ${cfg.dbFilter.join(", ")}`);
   if (cfg.skipRedis) log.info("Redis variants: SKIPPED");
@@ -220,12 +217,6 @@ async function main() {
 
   log.header(`SveltyCMS Enterprise Audit v${pkgVersion}`);
   log.info(`Scripts to run: ${activeScripts.length} / ${BENCHMARK_SCRIPTS.length}`);
-  log.info(`Databases to test: ${activeDatabases.length} / ${ALL_DATABASES.length}`);
-  log.info(`Retry attempts per script: ${cfg.retryCount}`);
-
-  // 🚀 Initialize Progress Tracker
-  const totalTasks = activeDatabases.length * activeScripts.length;
-  initProgressTracker(totalTasks);
 
   const privateTestPath = path.join(process.cwd(), "config/private.test.ts");
   try {
@@ -237,7 +228,7 @@ async function main() {
     // (respects --db=mongodb, --db=postgresql, etc.) instead of hardcoding SQLite.
     // This prevents failures when the SQLite adapter is excluded from the build.
     const healingConf =
-      activeDatabases.find((d) => !d.useRedis) ??
+      allDatabases.find((d) => !d.useRedis) ??
       ALL_DATABASES.find((d) => d.type === "sqlite" && !d.useRedis);
     if (!healingConf) {
       log.error("CRITICAL: No database config available for self-healing.");
@@ -308,20 +299,51 @@ async function main() {
   }
 
   log.info("Phase 1.5: Infrastructure pre-check...");
-  for (const db of activeDatabases) {
+  const availableDbs: typeof allDatabases = [];
+  for (const db of allDatabases) {
     try {
       await ensureDatabaseExists(db);
+
+      // Check Redis connectivity for Redis variants
+      if (db.useRedis) {
+        const { createClient } = await import("redis");
+        const redisClient = createClient({
+          url: `redis://${process.env.REDIS_HOST || "127.0.0.1"}:${process.env.REDIS_PORT || 6379}`,
+          socket: { connectTimeout: 2000 },
+        });
+        await redisClient.connect();
+        await redisClient.ping();
+        await redisClient.quit();
+      }
+
+      availableDbs.push(db);
     } catch (e: any) {
-      log.warn(`Infrastructure check failed for ${db.type}: ${e.message}`);
+      log.warn(`Infrastructure check failed for ${db.label || db.type}: ${e.message}. Skipping.`);
     }
   }
-  log.success("Infrastructure readiness documented.");
+  if (availableDbs.length === 0) {
+    log.error("No databases available. Aborting.");
+    process.exit(1);
+  }
+  log.success(
+    `Infrastructure readiness documented: ${availableDbs.length}/${allDatabases.length} databases available.`,
+  );
+
+  // Clean up existing results only for the databases we are about to audit
+  await cleanupResults(availableDbs, cfg, activeScripts);
+
+  log.info(`Databases to test: ${availableDbs.length} / ${ALL_DATABASES.length}`);
+  log.info(`Retry attempts per script: ${cfg.retryCount}`);
+
+  // 🚀 Initialize Progress Tracker
+  const totalTasks = availableDbs.length * activeScripts.length;
+  initProgressTracker(totalTasks);
 
   log.info(`Phase 2: Database Audits (Mode: ${cfg.parallelMode.toUpperCase()})`);
   const results: BenchmarkResult[] = [];
   await fs.mkdir(ROOT_RESULTS_DIR, { recursive: true });
 
-  const sortedDbs = [...activeDatabases].sort((a, b) => {
+  const sortedDbs = [...availableDbs].sort((a, b) => {
     const aKey = (a.label ?? a.type).toLowerCase().replace("+", "-");
     const bKey = (b.label ?? b.type).toLowerCase().replace("+", "-");
     const aIdx = (DB_ORDER as readonly string[]).indexOf(aKey);

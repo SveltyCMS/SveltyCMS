@@ -4,7 +4,12 @@
  */
 
 import type { Session } from "@src/databases/auth/types";
-import type { DatabaseId, DatabaseResult, ISODateString } from "@src/databases/db-interface";
+import type {
+  DatabaseId,
+  DatabaseResult,
+  ISODateString,
+  BaseQueryOptions,
+} from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
 import { generateId, getOrCreateModel, convertMongoSessionToISO } from "./mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
@@ -200,9 +205,9 @@ export class SessionAdapter {
     }
   }
 
-  async getAllActiveSessions(tenantId: string): Promise<DatabaseResult<Session[]>> {
+  async getAllActiveSessions(options?: BaseQueryOptions): Promise<DatabaseResult<Session[]>> {
     try {
-      const filter = safeQuery({ expires: { $gt: new Date() } } as any, tenantId, {
+      const filter = safeQuery({ expires: { $gt: new Date() } } as any, options?.tenantId, {
         includeDeleted: true,
       });
       const sessions = await this.SessionModel.find(filter).lean();

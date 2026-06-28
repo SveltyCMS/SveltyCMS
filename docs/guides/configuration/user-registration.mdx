@@ -20,8 +20,6 @@ tags:
 
 ## Overview
 
-## Overview
-
 SveltyCMS uses a secure **invitation-based registration system** where administrators create invitation tokens that allow new users to sign up with specific roles and permissions.
 
 > **Note for Multi-Tenancy**: In Multi-Tenant environments (like Demo Mode), the registration token is **optional**. Registering without a token will automatically create a **new tenant** and make you the administrator of that tenant.
@@ -141,7 +139,7 @@ Each invitation token includes:
 4. **Expired**: Token past its expiration date (can still be viewed)
 5. **Blocked**: Token manually disabled by admin
 
-### Token Security
+### Token Security {#token-lifecycle-security}
 
 - Tokens are unique, cryptographically secure strings
 - Each token can only be used once
@@ -376,7 +374,7 @@ Registration attempts are rate-limited to prevent abuse:
 - 100 requests per minute per IP + User-Agent
 - 50 requests per minute per cookie
 
-### Token Security
+### Token Security {#token-security-2}
 
 - Cryptographically secure random tokens
 - One-time use (consumed upon successful registration)
@@ -414,10 +412,10 @@ token=invite_token_here
 
 ## Related Documentation
 
-- [Admin User Management](/docs/architecture/admin-user-management.mdx) - Managing users and permissions
-- [Access Management](/docs/architecture/admin-user-management.mdx) - Roles and permissions system
-- [Two-Factor Authentication](/docs/api/auth.mdx) - Enhanced security setup
-- [Multi-Tenant Configuration](/docs/architecture/multi-tenancy.mdx) - Tenant isolation setup
+- [Admin User Management](/docs/reference/architecture/admin-user-management.mdx) - Managing users and permissions
+- [Access Management](/docs/reference/architecture/admin-user-management.mdx) - Roles and permissions system
+- [Two-Factor Authentication](/docs/reference/api/auth.mdx) - Enhanced security setup
+- [Multi-Tenant Configuration](/docs/reference/architecture/multi-tenancy.mdx) - Tenant isolation setup
 
 ---
 

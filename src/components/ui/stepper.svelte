@@ -51,7 +51,7 @@ function isClickable(index: number) {
 </script>
 
 <div class="stepper-container {orientation === 'vertical' ? 'flex-col space-y-4' : 'flex-row space-x-4 items-center justify-between'} flex w-full">
-	{#each steps as step, i}
+	{#each steps as step, i (i)}
 		<div class="step-item flex-1 relative group">
 			<button
 				type="button"

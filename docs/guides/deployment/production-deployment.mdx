@@ -557,7 +557,7 @@ const SESSION_CACHE_TTL_MS = 15 * 60 * 1000;
 
 ### Connection Pooling
 
-#### MongoDB
+#### MongoDB {#pooling-mongodb}
 
 ```
 import { MongoClient } from "mongodb";
@@ -575,7 +575,7 @@ const client = new MongoClient(process.env.MONGODB_URI, {
 await client.connect();
 ```
 
-#### PostgreSQL
+#### PostgreSQL {#pooling-postgresql}
 
 ```
 import { Pool } from "pg";
@@ -593,7 +593,7 @@ const pool = new Pool({
 
 Create indexes for frequently queried fields to improve performance.
 
-#### MongoDB
+#### MongoDB {#mongodb-2}
 
 ```
 // User collection
@@ -615,7 +615,7 @@ db.media.createIndex({ tenantId: 1, type: 1 });
 db.media.createIndex({ uploadedAt: -1 });
 ```
 
-#### PostgreSQL
+#### PostgreSQL {#postgresql-2}
 
 ```
 -- Users table
@@ -1059,10 +1059,10 @@ curl http://127.0.0.1:3000/api/health
 
 ## Related Documentation
 
-- [Server Hooks Architecture](../../architecture/server-hooks.mdx) - Middleware system
-- [Cache System](../../architecture/cache-system.mdx) - Caching strategies
-- [Security Plugin](../../architecture/security-plugin.mdx) - Security implementation
-- [Database Methods](../../architecture/database/database-methods.mdx) - Database optimization
+- [Server Hooks Architecture](../../reference/architecture/server-hooks.mdx) - Middleware system
+- [Cache System](../../reference/architecture/cache-system.mdx) - Caching strategies
+- [Security Plugin](../../reference/architecture/security-plugin.mdx) - Security implementation
+- [Database Methods](../../reference/database/database-methods.mdx) - Database optimization
 
 ---
 

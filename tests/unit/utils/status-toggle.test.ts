@@ -46,7 +46,10 @@ describe("Status Toggle Utilities", () => {
 
     it("should handle API errors", async () => {
       const onError = vi.fn();
-      (updateEntryStatus as any).mockResolvedValue({ success: false, error: "API Error" });
+      (updateEntryStatus as any).mockResolvedValue({
+        success: false,
+        error: "API Error",
+      });
 
       const result = await toggleEntryStatus({
         collectionId: "posts",

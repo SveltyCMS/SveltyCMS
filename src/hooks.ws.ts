@@ -19,7 +19,7 @@ import { logger } from "@utils/logger";
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
-import { parseCookies } from "@utils/http/cookie-utils";
+import { parseCookies } from "@utils/cookie-utils";
 import { LRUCache } from "lru-cache";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/content/types";
@@ -29,7 +29,7 @@ export { message } from "svelte-realtime/server";
 
 // 🚀 Platform reference lives in src/lib/ws-platform.ts (extracted here
 // to avoid SvelteKit's "unknown export" warning on non-hook exports).
-// Import directly: import { globalPlatform } from "@src/lib/ws-platform";
+// Import directly: import { getGlobalPlatform } from "@src/live/ws-platform";
 import { initWsPlatform } from "@src/live/ws-platform";
 
 /** Initialize platform for global broadcasting */

@@ -59,6 +59,9 @@ export const authUsers = mysqlTable(
     totpSecret: varchar("totpSecret", { length: 255 }),
     backupCodes: json("backupCodes").$type<string[]>(),
     last2FAVerification: datetime("last2FAVerification"),
+    authenticators: json("authenticators").$type<import("../auth/types").Authenticator[]>(),
+    failedAttempts: int("failedAttempts").notNull().default(0),
+    lockoutUntil: datetime("lockoutUntil"),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -400,6 +403,7 @@ export const websiteTokens = mysqlTable(
     tokenIdx: unique("token_unique").on(table.token),
     nameIdx: index("name_idx").on(table.name),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    tenantNameIdx: index("tenant_name_idx").on(table.tenantId, table.name),
   }),
 );
 
@@ -523,11 +527,39 @@ export const redirectsMV = mysqlTable(
   }),
 );
 
+// Auth API Keys Table
+export const authApiKeys = mysqlTable(
+  "auth_api_keys",
+  {
+    _id: uuidPk(),
+    name: varchar("name", { length: 255 }).notNull(),
+    hash: varchar("hash", { length: 255 }).notNull(),
+    prefix: varchar("prefix", { length: 12 }).notNull(),
+    userId: varchar("userId", { length: 36 }).notNull(),
+    scopes: json("scopes").$type<string[]>().notNull().default([]),
+    permissions: json("permissions").$type<string[]>().notNull().default([]),
+    revoked: boolean("revoked").notNull().default(false),
+    usageCount: int("usageCount").notNull().default(0),
+    lastUsedAt: datetime("lastUsedAt"),
+    lastUsedIp: varchar("lastUsedIp", { length: 45 }),
+    expiresAt: datetime("expiresAt"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    hashIdx: unique("hash_unique").on(table.hash),
+    userIdx: index("api_key_user_idx").on(table.userId),
+    tenantIdx: index("api_key_tenant_idx").on(table.tenantId),
+    tenantHashIdx: index("tenant_hash_idx").on(table.tenantId, table.hash),
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
   authSessions,
   authTokens,
+  authApiKeys,
   roles,
   contentNodes,
   contentDrafts,

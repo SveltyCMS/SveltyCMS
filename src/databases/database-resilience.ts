@@ -12,7 +12,6 @@
 
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 import { logger } from "@utils/logger";
-import { sendMail } from "@utils/email.server";
 import type { DatabaseError } from "./db-interface";
 
 // Type definitions
@@ -636,6 +635,7 @@ export async function notifyAdminsOfDatabaseFailure(
     };
 
     // Send email directly via service
+    const { sendMail } = await import("@utils/email.server");
     const mailResult = await sendMail({
       recipientEmail: (emailData.recipientEmail as string[]).join(", "),
       subject: emailData.subject,

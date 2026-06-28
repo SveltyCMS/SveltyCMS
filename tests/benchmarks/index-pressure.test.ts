@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/index-pressure.test.ts
- * @description Enterprise Index Pressure audit for SveltyCMS.
- * @summaryMeasures read performance with sorting and filtering on a large entry collection.
+ * @description Enterprise Index Pressure audit for SveltyCMS (Optimized)
+ * @summary Measures read performance with sorting and filtering on a large entry collection.
  *
  * ### Features:
  * - smart server detection (no duplicate infrastructure)
@@ -30,12 +30,11 @@ import "../unit/bun-preload.ts";
 
 const COLLECTION_ID = "bench_index_pressure";
 
-// 🚀 CI MODE: Reduced entry count for faster pipeline runs
 const IS_CI =
   process.env.CI === "true" ||
   process.env.BENCHMARK_CI === "true" ||
   process.env.GITHUB_ACTIONS === "true";
-const ENTRY_COUNT = IS_CI ? 5_000 : 25_000;
+const ENTRY_COUNT = IS_CI ? 5000 : 25000;
 const BATCH_SIZE = IS_CI ? 250 : 500;
 const ITERATIONS = IS_CI ? 100 : 300;
 const WARMUP_ITERS = IS_CI ? 20 : 50;
@@ -43,43 +42,49 @@ const WARMUP_ITERS = IS_CI ? 20 : 50;
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runPressureAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log(
     `🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT.toLocaleString()} entries)...\n`,
   );
 
   try {
-    // ── Server Detection: Use runner's server if available, otherwise start one ──
     let baseUrl: string;
     const runnerBaseUrl = process.env.API_BASE_URL;
 
     if (runnerBaseUrl) {
-      console.log(`   → Using runner's pre-warmed server at ${runnerBaseUrl}`);
+      console.log(`    → Using runner's pre-warmed server at ${runnerBaseUrl}`);
       baseUrl = runnerBaseUrl;
     } else {
-      console.log("   → No runner detected. Starting isolated benchmark server...");
+      console.log("    → No runner detected. Starting isolated benchmark server...");
       const server = await setupBenchmarkServer();
       stopServer = server.stop;
       baseUrl = server.baseUrl;
     }
 
+    // Freeze structural options array elements out of processing trails
+    const baseHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+    };
+
+    const lowercaseJsonHeaders = {
+      "content-type": "application/json",
+      ...baseHeaders,
+    };
+
     await ensureStableTestData();
-    await prepareCollection(baseUrl).catch((err) => {
+    await prepareCollection(baseUrl, baseHeaders).catch((err) => {
       (err as any).phase = "provisioning";
       throw err;
     });
 
-    // Only deep health-check when running standalone (runner already guarantees health)
     if (!runnerBaseUrl) {
-      console.log("   → Performing Deep Health Check before seeding...");
+      console.log("    → Performing Deep Health Check before seeding...");
       let adapterReady = false;
       for (let i = 0; i < 20; i++) {
         try {
           const res = await fetch(`${baseUrl}/api/system/health`, {
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-            },
+            method: "GET",
+            headers: baseHeaders,
           });
           if (res.ok) {
             const health = await res.json();
@@ -88,6 +93,8 @@ async function runPressureAudit() {
               adapterReady = true;
               break;
             }
+          } else {
+            await res.arrayBuffer().catch(() => {});
           }
         } catch {
           /* wait */
@@ -100,65 +107,55 @@ async function runPressureAudit() {
         throw err;
       }
     } else {
-      // Under runner: quick verify with shorter timeout
       await stabilize(2000);
     }
 
     await forceRefreshServer(baseUrl);
     await stabilize(3000);
 
-    // Seed data efficiently
-    await seedLargeDataset(baseUrl).catch((err) => {
+    await seedLargeDataset(baseUrl, lowercaseJsonHeaders).catch((err) => {
       (err as any).phase = "seeding";
       throw err;
     });
 
-    // === Benchmarks ===
     const scLabel = `${(ENTRY_COUNT / 1000).toFixed(0)}k rows`;
+    const executionConcurrency = getRecommendedConcurrency();
 
-    console.log(`   → Measuring Sorted Query Performance (${scLabel})...`);
+    console.log(`    → Measuring Sorted Query Performance (${scLabel})...`);
     const sortResult = await runBenchmark({
       name: `Sorted List (${scLabel})`,
       iterations: ITERATIONS,
       warmupIterations: WARMUP_ITERS,
       runs: 2,
-      concurrency: getRecommendedConcurrency(),
+      concurrency: executionConcurrency,
       silent: true,
       onIteration: async () => {
         const res = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}?sort=score&order=desc&limit=20`,
-          {
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-            },
-          },
+          { method: "GET", headers: baseHeaders },
         );
         if (!res.ok) throw new Error(`Sort failed: ${res.status}`);
-        await res.json();
+
+        // Byte-level socket clearance guards performance loops from GC spikes
+        await res.arrayBuffer();
       },
     });
 
-    console.log(`   → Measuring Filtered Query Performance (${scLabel})...`);
+    console.log(`    → Measuring Filtered Query Performance (${scLabel})...`);
     const filterResult = await runBenchmark({
       name: `Filtered Query (${scLabel})`,
       iterations: ITERATIONS,
       warmupIterations: WARMUP_ITERS,
       runs: 2,
-      concurrency: getRecommendedConcurrency(),
+      concurrency: executionConcurrency,
       silent: true,
       onIteration: async () => {
         const res = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}?filter[category]=A&limit=20`,
-          {
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-            },
-          },
+          { method: "GET", headers: baseHeaders },
         );
         if (!res.ok) throw new Error(`Filter failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
 
@@ -180,22 +177,16 @@ async function runPressureAudit() {
       },
     ]);
 
-    // ── Dual Export: JSON files (for findResult) + METRIC: lines (for getMetric) ──
-    // NOTE: METRIC keys must use only [\w.]+ chars (alphanumeric, underscore, dot) —
-    // spaces/hyphens break the runner's stdout regex parser.
     for (const r of allResults) exportResult(r);
     exportMetric("index.pressure.p95", sortResult.p95Ms, "ms");
     exportMetric("index.pressure.filtered.p95", filterResult.p95Ms, "ms");
-    exportMetric("index.pressure.status", 1, "bool"); // 1 = PASS
+    exportMetric("index.pressure.status", 1, "bool");
   } catch (err: any) {
-    // 🚀 ERROR TELEMETRY: Export failure status so the reporting system
-    // can distinguish "not run" (0) from "failed" (-1) from "passed" (1).
-    // This prevents surgical recovery from carrying forward stale historical data.
     try {
-      exportMetric("index.pressure.status", -1, "bool"); // -1 = FAIL
+      exportMetric("index.pressure.status", -1, "bool");
       exportMetric("index.pressure.p95", -1, "ms");
     } catch {
-      // Best-effort; don't mask the original error
+      /* no-op */
     }
     console.error(
       `\n❌ INDEX PRESSURE AUDIT FAILED: ${err.message}\n` +
@@ -214,35 +205,43 @@ async function runPressureAudit() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function prepareCollection(baseUrl: string) {
-  // Collection already seeded by setup wizard (seedPresetCollections). Just verify.
+async function prepareCollection(baseUrl: string, headers: Record<string, string>) {
   const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/schema`, {
-    headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+    method: "GET",
+    headers,
   });
-  if (!checkRes.ok)
+  if (!checkRes.ok) {
+    await checkRes.arrayBuffer().catch(() => {});
     throw new Error(`Collection ${COLLECTION_ID} not found — setup may have failed`);
+  }
+  await checkRes.arrayBuffer();
 }
 
-async function seedLargeDataset(baseUrl: string) {
-  // 🚀 SMART SEEDING: Check if data already exists
+async function seedLargeDataset(baseUrl: string, headers: Record<string, string>) {
   try {
     const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}?limit=1`, {
-      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+      method: "GET",
+      headers,
     });
     if (checkRes.ok) {
       const checkData = await checkRes.json();
       const total = checkData.total || checkData.data?.total || 0;
       if (total >= ENTRY_COUNT) {
-        console.log(`   → Data already present (${total} entries). Skipping seed.`);
+        console.log(`    → Data already present (${total} entries). Skipping seed.`);
         return;
       }
+    } else {
+      await checkRes.arrayBuffer().catch(() => {});
     }
   } catch {
     /* proceed */
   }
 
-  console.log(`   → Seeding ${ENTRY_COUNT.toLocaleString()} entries (Batches of ${BATCH_SIZE})...`);
+  console.log(
+    `    → Seeding ${ENTRY_COUNT.toLocaleString()} entries (Batches of ${BATCH_SIZE})...`,
+  );
   const totalBatches = Math.ceil(ENTRY_COUNT / BATCH_SIZE);
+  const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/bulk`;
 
   for (let i = 0; i < totalBatches; i++) {
     const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
@@ -252,21 +251,19 @@ async function seedLargeDataset(baseUrl: string) {
 
     let retryCount = 0;
     const maxRetries = 5;
-    let res: Response;
+    const payloadBody = JSON.stringify(batch);
 
     while (true) {
-      // Use real bulk endpoint, not /api/testing backdoor
-      res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
+      const res = await fetch(targetUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-        },
-        body: JSON.stringify(batch),
+        headers,
+        body: payloadBody,
       });
 
-      if (res.ok) break;
+      if (res.ok) {
+        await res.arrayBuffer();
+        break;
+      }
 
       const bodyText = await res.text().catch(() => "");
       const isRetryable =
@@ -276,7 +273,7 @@ async function seedLargeDataset(baseUrl: string) {
         retryCount++;
         const delay = 3000 * retryCount;
         console.warn(
-          `   [WARN] Seeding batch ${i} failed (${res.status}). Reason: ${bodyText.includes("Pool Exhausted") ? "Pool Exhausted" : "Other"}. Retrying in ${delay}ms...`,
+          `    [WARN] Seeding batch ${i} failed (${res.status}). Reason: ${bodyText.includes("Pool Exhausted") ? "Pool Exhausted" : "Other"}. Retrying in ${delay}ms...`,
         );
         await new Promise((r) => setTimeout(r, delay));
         continue;
@@ -294,4 +291,4 @@ async function seedLargeDataset(baseUrl: string) {
 
 test("100k Row Index Pressure", async () => {
   await runPressureAudit();
-}, 1200000); // 20 minutes
+}, 1200000);

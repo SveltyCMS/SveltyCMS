@@ -19,19 +19,13 @@ SveltyCMS uses a **four-gate testing architecture** enforced by a Smart Test Orc
 
 ````mermaid
 graph TD
-    classDef gate1 fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:white;
-    classDef gate2 fill:#2980b9,stroke:#3498db,stroke-width:2px,color:white;
-    classDef gate3 fill:#e67e22,stroke:#f39c12,stroke-width:2px,color:white;
-    classDef gate4 fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:white;
-    classDef runner fill:#c0392b,stroke:#e74c3c,stroke-width:2px,color:white;
+    GitDiff[Git Diff] --> SmartOrch{Smart Orchestrator<br>scripts/test-smart.ts}
 
-    GitDiff[Git Diff]:::runner --> SmartOrch{Smart Orchestrator<br>scripts/test-smart.ts}:::runner
-
-    SmartOrch -->|"src/hooks/*"| Gate1[Gate 1: Unit Tests]:::gate1
-    SmartOrch -->|"src/routes/api/*"| Gate2[Gate 2: Contracts]:::gate2
-    SmartOrch -->|"*.svelte"| Gate3[Gate 3: Doctor]:::gate3
-    SmartOrch -->|"setup/*"| Gate4[Gate 4: E2E]:::gate4
-    SmartOrch -->|"unknown"| FullCore[Full Core Suite<br>FAIL-CLOSED]:::runner
+    SmartOrch -->|"src/hooks/*"| Gate1[Gate 1: Unit Tests]
+    SmartOrch -->|"src/routes/api/*"| Gate2[Gate 2: Contracts]
+    SmartOrch -->|"*.svelte"| Gate3[Gate 3: Doctor]
+    SmartOrch -->|"setup/*"| Gate4[Gate 4: E2E]
+    SmartOrch -->|"unknown"| FullCore[Full Core Suite<br>FAIL-CLOSED]
 ```text
 
 ## The Four Gates
@@ -84,7 +78,7 @@ Every adapter (SQLite, MongoDB, PostgreSQL, MariaDB) MUST pass every assertion. 
 
 **"Test pure logic knowing how it works."**
 
-Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 1,122 (123 files, 0 failures)
+Files: `tests/unit/**/*.test.ts` | Runner: `bun run test:unit` | Tests: 1,100+ (150+ files — run `bun run test:unit` for current count)
 
 These tests have full access to internal code structure. They're fast (milliseconds), parallelizable, and catch logic regressions immediately.
 

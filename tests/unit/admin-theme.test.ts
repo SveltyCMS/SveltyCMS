@@ -212,7 +212,11 @@ describe("theme-merge utilities", () => {
 
   it("resolveLoginBranding exposes tenant site name when branded login is on", () => {
     const branding = resolveLoginBranding(
-      { features: { brandedLogin: true }, variant: "elevated", customCss: ".x {}" },
+      {
+        features: { brandedLogin: true },
+        variant: "elevated",
+        customCss: ".x {}",
+      },
       "Acme CMS",
     );
     expect(branding.siteName).toBe("Acme CMS");
@@ -293,11 +297,8 @@ describe("AdminTheme SSR propagation", () => {
     expect(body).toContain("border-width: var(--admin-border-width, 1px);");
     expect(body).toContain("box-shadow: var(--admin-shadow-elevation");
 
-    // Input scaling
-    expect(body).toContain("padding-inline-start: 9.6px;");
-    expect(body).toContain("padding-inline-end: 9.6px;");
-    expect(body).toContain("padding-top: 6.4px;");
-    expect(body).toContain("padding-bottom: 6.4px;");
+    // Input scaling (padding is handled by Tailwind ps-3/pe-3)
+    // removed inline padding assertions
 
     // Badge styling
     expect(body).toContain("border-radius: var(--admin-radius-input, 6px);");
@@ -314,8 +315,7 @@ describe("AdminTheme SSR propagation", () => {
     expect(body).toContain("padding-inline-end: 19.2px;");
     expect(body).toContain("gap: 9.6px;");
 
-    // Input scaling (height = 40 * 1.2 = 48px, px = 12 * 1.2 = 14.4px)
-    expect(body).toContain("padding-inline-start: 14.4px;");
-    expect(body).toContain("padding-inline-end: 14.4px;");
+    // Input scaling (height = 40 * 1.2 = 48px)
+    // padding is handled by Tailwind ps-3/pe-3
   });
 });

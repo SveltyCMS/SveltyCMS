@@ -298,6 +298,7 @@ class WidgetState {
         }
       } catch (e) {
         this.healthStatus = "unhealthy";
+        this.isLoaded = true; // Prevent infinite spinner — show empty state
         logger.error("[WidgetStore] Initialization failed:", e);
       } finally {
         this.loading = false;

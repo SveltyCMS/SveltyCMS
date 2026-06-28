@@ -27,7 +27,7 @@ Our UI is built on a robust and flexible foundation:
 
 - **`src/components/ui/`**: 37+ reusable, WCAG 3.0-ready Svelte 5 primitives. **Always prefer these.**
 - **Tailwind CSS v4** with CSS-first configuration (`@import "tailwindcss"` in `app.css`).
-- **Admin Theme System**: Full support for color + structural theming inspired by Drupal Gin (see `admin-theme-plan.mdx`).
+- **Admin Theme System**: Full support for color + structural theming inspired by Drupal Gin. Ships with one default theme (`src/themes/default.json`). Additional presets can be added as JSON files in `/src/themes/` — they auto-sync on boot. See `admin-theme-plan.mdx`.
 
 **Key Rules**:
 
@@ -334,6 +334,7 @@ When writing custom styles:
 - **Normal text** (body, labels, descriptions): Must achieve **≥4.5:1** contrast ratio against its background in both light and dark modes.
 - **Large text** (18px+ or 14px+ bold): Must achieve **≥3:1** contrast ratio.
 - **Selected/active states**: When a card, row, or tab is selected, the text-inside-background contrast must be maintained (never drop below 4.5:1 on selection).
+
 - **Outline buttons in dark mode**: The outline variant (`preset-outlined-surface-500`) may have insufficient contrast on dark backgrounds. Always add `dark:text-white` (or `dark:text-surface-50`) to outline buttons when used in dark mode contexts.
 - **Icons on colored backgrounds**: Never use the same color for both icon and background (e.g., a check icon colored `dark:text-primary-500` on a `dark:bg-primary-500` background is invisible). For selected cards, use contrasting icon colors like `text-white`.
 - **Use browser DevTools** or automated audits (Lighthouse) to verify contrast ratios in both modes.
@@ -377,18 +378,25 @@ Every configuration workspace must invoke the global `<PageTitle>` primitive. Wr
 
 All content grids, data tables, metrics feeds, and system blocks must reside inside an explicit bounding card. No content may lay bare on the application viewport background.
 
-```
-<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
-     style="border-radius: var(--admin-radius-card, 0.75rem);">
+Use the **`<AdminCard>`** component instead of raw `<div class="card...">`:
+
+```svelte
+<script lang="ts">
+  import AdminCard from '@components/admin-card.svelte';
+</script>
+
+<AdminCard>
   <!-- Tables, grids, forms, stats — everything goes inside a card -->
-</div>
+</AdminCard>
 ```
+
+The `AdminCard` component (`src/components/admin-card.svelte`) automatically applies `--admin-radius-card`, `--admin-border-width`, and `--admin-shadow-elevation` from the active admin theme. It also supports optional `variant` and `preset` props for preset styling.
 
 **Rules**:
 
-- Always wrap content blocks in cards, never bare `<div>` sections.
+- Always wrap content blocks in `<AdminCard>`, never bare `<div>` sections.
 - Use `space-y-4` or `space-y-6` inside cards for internal spacing.
-- Always include `style="border-radius: var(--admin-radius-card, 0.75rem);"` to respect the active admin theme.
+- The component handles theme CSS variable fallbacks automatically.
 
 ## 💎 Enterprise Layout Principles
 
@@ -520,10 +528,12 @@ Always use the native `<Badge>` component from `@components/ui/badge.svelte`. Ne
 - ❌ Bare `<div>` content sections placed directly on the viewport background — always wrap in a `.card`
 - ❌ `table-container` / `table-hover` classes — use the native `overflow-x-auto` + `divide-y` pattern
 - ❌ `$app/stores` (`$page`) — use `$app/state` (`page`)
+
 - ❌ `variant-ghost-surface` / `variant-filled-primary` — use `preset-*` classes or native `<Button>`
 - ❌ Raw color assignments (`bg-black`, `bg-neutral-900`, `text-red-500`) — use preset classes or CSS custom properties exclusively
 - ❌ Full-saturation accent buttons in dark mode without a `dark:` variant — combine `preset-filled-tertiary-500 dark:preset-filled-primary-500`
 - ❌ Heavy background fills (`bg-surface-100 dark:bg-surface-800`) for container separation — use `border border-surface-200 dark:border-surface-800` with translucent backgrounds
+
 - ❌ Active accent styling on unselected/inactive segment controls — use `text-surface-500 bg-transparent` for dormant options
 - ❌ Unbounded table regions placed directly on the page without `overflow-x-auto` wrapper
 - ❌ `class="badge"` on a `<Button>` or `class="btn"` on a `<Badge>` — each component owns its base CSS class; never mix them
@@ -540,9 +550,11 @@ Before submitting a PR:
 - [ ] **Use Native Components**: Prefer `src/components/ui/` over building from scratch.
 - [ ] **Semantic Colors**: Use preset classes (`preset-filled-primary-500`) or CSS variables (`var(--color-primary-500)`). No hardcoded hex/Tailwind colors.
 - [ ] **Dynamic Accent Pairing**: Interactive accents use `tertiary-500` (light) / `primary-500` (dark), or are intentionally overridden by AdminTheme.
+
 - [ ] **Dark Mode**: All custom styles have `dark:` variants. Contrast ≥4.5:1 for normal text, ≥3:1 for large text, verified in both modes.
 - [ ] **Selected State Contrast**: When an active/selected state changes the background, text and icons on that background maintain ≥4.5:1 contrast (no invisible icons or unreadable text on selection).
 - [ ] **Error Handling**: Correct error pattern used (Absolute via component `error` prop, Static, or Banner).
+
 - [ ] **WCAG 3.0**: `aria-label` on icon-only buttons, `role="alert"` on errors, `role="status"` on live regions, 24px touch targets.
 - [ ] **`prefers-reduced-motion`**: Any custom animation checks the media query.
 - [ ] **Svelte 5 Runes**: `$state`, `$derived`, `$props`, `$bindable` used. No Svelte 4 legacy syntax.
@@ -554,5 +566,5 @@ Before submitting a PR:
 ## Related
 
 - [Getting Started](../getting-started.mdx)
-- [Architecture Overview](../architecture/index.mdx)
-- [Security Overview](../architecture/security/index.mdx)
+- [Architecture Overview](../reference/architecture/index.mdx)
+- [Security Overview](../reference/security/index.mdx)

@@ -194,7 +194,7 @@ function onVirtualScroll() {
                                         checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="select-all-rows" />
                                 </th>
                             {/if}
-                            {#each columns as col}
+                            {#each columns as col (col.key)}
                                 <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                     style={col.width ? `width: ${col.width}` : ''}
                                     aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
@@ -214,7 +214,7 @@ function onVirtualScroll() {
                         <!-- Top spacer for virtual scroll -->
                         <tr aria-hidden="true" style="height: {virtualTopSpacer}px"></tr>
 
-                        {#each virtualData as row, vi}
+                        {#each virtualData as row, vi (row._id || row.id || vi)}
                             {const index = virtualVisibleStart + vi}
                             {#if rowSnippet}
                                 {@render rowSnippet({ row, index })}
@@ -234,7 +234,7 @@ function onVirtualScroll() {
                                                 aria-label={`select-row-${index + 1}`} />
                                         </td>
                                     {/if}
-                                    {#each columns as col}
+                                    {#each columns as col (col.key)}
                                         <td class={cn('text-surface-700 dark:text-surface-300 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
                                             {#if cell}{@render cell({ row, column: col })}{:else}{row[col.key] ?? '-'}{/if}
                                         </td>
@@ -264,7 +264,7 @@ function onVirtualScroll() {
                                     checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="select-all-rows" />
                             </th>
                         {/if}
-                        {#each columns as col}
+                        {#each columns as col (col.key)}
                             <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                 style={col.width ? `width: ${col.width}` : ''}
                                 aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
@@ -282,10 +282,10 @@ function onVirtualScroll() {
                 </thead>
                 <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                     {#if loading}
-                        {#each Array(5) as _}
+                        {#each Array(5) as _, i (i)}
                             <tr class="animate-pulse">
                                 {#if selectable}<td class="p-4"><div class="size-4 bg-surface-200 dark:bg-surface-700 rounded-sm"></div></td>{/if}
-                                {#each columns as _}<td class={densityClass}><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded"></div></td>{/each}
+                                {#each columns as _, ci (ci)}<td class={densityClass}><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded"></div></td>{/each}
                             </tr>
                         {/each}
                     {:else if data.length === 0}
@@ -318,7 +318,7 @@ function onVirtualScroll() {
                                                 aria-label={`select-row-${index + 1}`} />
                                         </td>
                                     {/if}
-                                    {#each columns as col}
+                                    {#each columns as col (col.key)}
                                         <td class={cn('text-surface-700 dark:text-surface-300 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
                                             {#if cell}{@render cell({ row, column: col })}{:else}{row[col.key] ?? '-'}{/if}
                                         </td>

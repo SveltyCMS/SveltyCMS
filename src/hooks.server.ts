@@ -32,7 +32,7 @@ if (typeof (globalThis as any).__dirname === "undefined") {
   (globalThis as any).__dirname = dirname((globalThis as any).__filename);
 }
 
-import { isSetupComplete } from "@utils/setup-check-fast";
+import { isSetupComplete } from "./utils/setup-check-fast";
 import { resetIdCounters } from "@utils/id-generator";
 
 // 🚀 ZERO-RESTART ARCHITECTURE:
@@ -53,7 +53,7 @@ import { handleTurboGet } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
-import { getTestSecret } from "@src/utils/setup-check";
+import { getTestSecret } from "./utils/server/setup-check";
 
 // 🚀 HYPER-TURBO BYPASS (Enterprise)
 // In benchmark mode, injects a system admin user for non-auth requests
@@ -104,6 +104,7 @@ const handleHyperTurbo: Handle = async ({ event, resolve }) => {
 const passThrough: Handle = ({ event, resolve }) => resolve(event);
 
 let handleSecurity: Handle = passThrough,
+  handleRateLimit: Handle = passThrough,
   handleUserPreferences: Handle = passThrough,
   handleAuthentication: Handle = passThrough,
   handleAuthorization: Handle = passThrough,
@@ -114,7 +115,9 @@ let handleSecurity: Handle = passThrough,
   handleTokenResolution: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
-  handleTestIsolation: Handle = passThrough;
+  handleTestIsolation: Handle = passThrough,
+  handleContentNegotiation: Handle = passThrough,
+  handleAeoHeaders: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
 let fullMiddlewareInitialized = false;
@@ -124,6 +127,8 @@ async function ensureFullMiddleware() {
 
   const security = await import("./hooks/handle-security");
   handleSecurity = security.handleSecurity;
+  const rateLimit = await import("./hooks/handle-rate-limit");
+  handleRateLimit = rateLimit.handleRateLimit;
   const preferences = await import("./hooks/handle-user-preferences");
   handleUserPreferences = preferences.handleUserPreferences;
   const auth = await import("./hooks/handle-authentication");
@@ -146,6 +151,10 @@ async function ensureFullMiddleware() {
   handleSystemState = state.handleSystemState;
   const isolation = await import("./hooks/handle-test-isolation");
   handleTestIsolation = isolation.handleTestIsolation;
+  const contentNeg = await import("./hooks/handle-content-negotiation");
+  handleContentNegotiation = contentNeg.handleContentNegotiation;
+  const aeo = await import("./hooks/handle-aeo-headers");
+  handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
 }
@@ -376,13 +385,16 @@ const getPipeline = () => {
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
         wrapHandle("test-isolation", () => handleTestIsolation),
         wrapHandle("security", () => handleSecurity),
+        wrapHandle("rate-limit", () => handleRateLimit),
         wrapHandle("system-state", () => handleSystemState),
         // 🚀 Turbo GET: Right after security gates but BEFORE auth/authz.
         // Serves pre-encoded cached responses with pre-computed session auth,
         // bypassing handleAuthentication, handleAuthorization, and CSRF.
         wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
+        wrapHandle("content-negotiation", () => handleContentNegotiation),
         wrapHandle("compression", () => handleCompression),
+        wrapHandle("aeo-headers", () => handleAeoHeaders),
         wrapHandle("user-preferences", () => handleUserPreferences),
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),

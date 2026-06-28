@@ -41,7 +41,10 @@ export async function checkExtensionLicense(
       const res = await fetch("https://marketplace.sveltycms.com/api/v1/license/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ license_key: licenseKeyToCheck, extension: `${type}:${id}` }),
+        body: JSON.stringify({
+          license_key: licenseKeyToCheck,
+          extension: `${type}:${id}`,
+        }),
       });
 
       if (res.ok) {

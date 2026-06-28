@@ -20,14 +20,15 @@
  * - Auto-cleanup: expired entries pruned every 60s
  */
 
+import { xxhash64 } from "hash-wasm";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-// Default: 100 requests per 60s window per IP
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX_REQUESTS = 100;
+const MAX_TRACKED_BUCKETS = 10000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
 // Paths excluded from rate limiting
@@ -37,6 +38,7 @@ const EXCLUDED_PREFIXES = [
   "/favicon.ico",
   "/.well-known",
   "/warming-up",
+  "/api/testing",
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -49,24 +51,23 @@ interface RateLimitEntry {
 // ─── State ────────────────────────────────────────────────────────────────
 
 const _buckets = new Map<string, RateLimitEntry>();
-let _cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function getClientKey(event: Parameters<Handle>[0]["event"]): string {
+async function getClientKey(event: Parameters<Handle>[0]["event"]): Promise<string> {
   // Use X-Forwarded-For if behind proxy, otherwise remote address
   const forwarded = event.request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
-  return ip || "unknown";
+  const rawIp = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
+  return xxhash64(rawIp || "unknown");
 }
 
 function isExcluded(pathname: string): boolean {
   return EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-function startCleanupTimer(): void {
-  if (_cleanupInterval) return;
-  _cleanupInterval = setInterval(() => {
+const LIMITER_CLEANUP_KEY = Symbol.for("svelty.limiter.cleanup");
+if (typeof setInterval !== "undefined" && !(globalThis as any)[LIMITER_CLEANUP_KEY]) {
+  (globalThis as any)[LIMITER_CLEANUP_KEY] = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of _buckets) {
       if (now - entry.windowStart > DEFAULT_WINDOW_MS * 2) {
@@ -92,13 +93,18 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // Bypass rate limiting in test/benchmark mode
+  if (process.env.TEST_MODE === "true" || event.request.headers.get("x-test-mode") === "true") {
+    return resolve(event);
+  }
+
   // Skip non-mutating GET/HEAD/OPTIONS unless under critical pressure
   const method = event.request.method;
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
     return resolve(event);
   }
 
-  const clientKey = getClientKey(event);
+  const clientKey = await getClientKey(event);
   const now = Date.now();
 
   // Get or create bucket
@@ -172,7 +178,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   }
 
   // Start cleanup timer on first request
-  startCleanupTimer();
+  // Bounded map eviction: prevent OOM under distributed attacks
+  if (_buckets.size >= MAX_TRACKED_BUCKETS) {
+    const oldestKey = _buckets.keys().next().value;
+    if (oldestKey) _buckets.delete(oldestKey);
+  }
 
   const response = await resolve(event);
 

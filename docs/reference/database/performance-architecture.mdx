@@ -1,0 +1,146 @@
+---
+path: "docs/reference/database/performance-architecture.mdx"
+title: "Performance Architecture"
+description: "2027-ready allocation-floor database layer with schema-aware conversion, ring-buffer pooling, fused query paths, and zero-tax SDK dispatching."
+order: 3
+icon: "mdi:rocket-launch"
+author: "SveltyCMS Team"
+created: "2024-01-15"
+updated: "2026-06-22"
+tags:
+  - "performance"
+  - "optimization"
+  - "caching"
+  - "indexing"
+  - "database"
+  - "architecture"
+---
+
+# Performance Architecture
+
+## 📊 Performance Benchmarks (2026-2027)
+
+SveltyCMS delivers enterprise-grade performance through its database-agnostic architecture. For the complete set of verified benchmarks, stress test results, and hardware context, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
+
+### SQLite — Local/Edge (Verified June 2026)
+
+| Operation                 | Latency      | RPS                         |
+| ------------------------- | ------------ | --------------------------- |
+| FIND ONE                  | **0.090 ms** | 10,386                      |
+| FIND MANY (50)            | **0.109 ms** | 8,863                       |
+| INSERT                    | **0.142 ms** | 2,657                       |
+| DELETE                    | **0.051 ms** | 14,447                      |
+| NATIVE UPSERT             | **0.093 ms** | 9,102                       |
+| Peak Throughput           | —            | **15,617 req/s**            |
+| **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
+
+### Cross-Database Impact (All 4 Engines)
+
+| Optimization                                   | SQLite  | PostgreSQL | MariaDB    | MongoDB        |
+| ---------------------------------------------- | ------- | ---------- | ---------- | -------------- |
+| Schema-aware row conversion                    | ✅ Full | ✅ Full    | 🟡 Planned | N/A (own path) |
+| Ring-buffer result pool                        | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
+| Conditions array pool                          | ✅ Full | ✅ Full    | 🟡 Planned | N/A (own path) |
+| Fused mapQuery (no IR objects)                 | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
+| for...in (zero Object.entries)                 | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
+| Pre-allocated meta object                      | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
+| MariaDB double-parse isolated                  | N/A     | ✅ Benefit | 🟡 Planned | N/A            |
+| Parallel list + count (`websiteTokens.getAll`) | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
+
+> **SQL family gets ~5-8 fewer allocations per filtered query. MongoDB gets ~2-3 fewer (result pool + fused mapQuery). All 4 databases benefit from shared BaseAdapter optimizations.**
+
+### Credential list hot-path
+
+`system.websiteTokens.getAll()` issues the row query and `COUNT(*)` in parallel on all four engines (`Promise.all` in `relational-system.ts` and `website-token-methods.ts`). Combined with the `{ tenantId, name }` compound index, admin token tables stay sub-millisecond even under multi-tenant filtering.
+
+## Philosophy
+
+SveltyCMS implements **best-practice performance patterns from day one**. Every feature is built with performance as a core requirement, not an afterthought. The 2027 allocation-floor work pushes the database layer to the practical limit of the current architecture (Drizzle ORM + DatabaseResult contract).
+
+## 2027 Allocation-Floor Optimizations
+
+### Schema-Aware Row Conversion
+
+Instead of checking every row key against `DATE_FIELDS`/`JSON_FIELDS` Set lookups on every row read/write, table schemas are pre-computed once during table creation. Only known date and JSON columns are converted — eliminating per-row `Set.has()` calls and enabling targeted iteration.
+
+```typescript
+// Before: checks every key against Sets
+for (const k in row) {
+  if (DATE_FIELDS.has(k)) {
+    /* convert date */
+  } else if (JSON_FIELDS.has(k)) {
+    /* parse JSON */
+  }
+  result[k] = row[k];
+}
+
+// After: only touches known columns
+registerTableSchema("posts", ["_id", "title", "createdAt", "metadata"]);
+// converts only "createdAt" (date) and "metadata" (JSON) — skips everything else
+```
+
+### Fused Query Construction (SQL + MongoDB)
+
+Both `mapQuery` implementations now build database conditions directly from user queries without intermediate IR (Intermediate Representation) objects. The old pattern (query → QueryIR → LogicalGroup → QueryCondition[] → SQL conditions) is replaced with a single fused walk.
+
+- **SQL path** (`drizzle-sql-helpers.ts`): `addFilterConds` + `addSingleCondition` build `SQL[]` directly
+- **Mongo path** (`mongodb/adapter-core.ts`): `addMongoConds` + `addMongoCondition` build filter objects directly
+- **Eliminated**: QueryIR, LogicalGroup, QueryCondition[] intermediates (~3-5 objects per filtered query)
+- **Eliminated**: All `Object.entries()` array allocations (replaced with `for...in`)
+
+### Ring-Buffer Result Pool
+
+All `BaseAdapter.wrap()` calls now use a 64-slot ring-buffer pool for `{ success, data }` result wrappers. Pooled slots are safe in single-threaded JS — callers consume results synchronously after `await`. Eliminates 100% of result wrapper allocations.
+
+### Ring-Buffer Conditions Array Pool
+
+Filtered queries (`mapQuery`) reuse `conditions: SQL[]` arrays from a 32-slot ring-buffer pool instead of allocating `[]` each time. Arrays are cleared via `.length = 0` without deallocation.
+
+### Pre-Allocated Meta Object
+
+The `{ executionTime }` meta sub-object is pre-allocated once per adapter. `wrap()` mutates `this._meta.executionTime` instead of creating a new object per call.
+
+### MariaDB Double-Parse Isolation
+
+MariaDB's native JSON columns can double-encode. The double-parse loop is now opt-in (`mariaDoubleParseJson: true`) — PostgreSQL and SQLite paths never pay this cost.
+
+### SQLite RETURNING Cache
+
+The `insertMany` path caches whether `RETURNING` is supported per SQLite instance. Avoids repeated try/catch + logger.warn overhead in benchmarks and unsupported table scenarios.
+
+### Zero-Tax SDK Dispatcher
+
+Self-overwriting getters eliminate Proxy overhead after first access. Verified: **0.00% middleware tax** (LocalCMS is statistically identical to direct adapter calls).
+
+## Structural Improvements (Shared by All Adapters)
+
+- **Proxy extraction**: 3 scattered Proxy factories → 1 shared `core/proxy-utils.ts` with 23 dedicated tests
+- **Tenant filter centralization**: ~4+ duplicate sites → single source of truth in `relational-utils.ts`
+- **Query IR removal**: standalone `query-ir.ts` removed; translator inlined into the only 2 real consumers
+- **Mongo file reduction**: 43 → 39 files (4 thin module/model pairs merged)
+- **Code reduction**: 1,105 lines deleted across 36 files
+- **Lazy Zero-Allocation GraphQL Loaders**: Eager per-request user, media, and collection loaders are refactored into on-demand lazy getters, eliminating memory overhead on requests that do not query those fields.
+- **Direct Primary Key Index Loading**: Replaced MongoDB-style `$in` filter translations with explicit, database-agnostic `db.crud.findByIds` index lookups, allowing SQL and document database engines to resolve relational widget fields with zero query-parsing overhead.
+
+## Phase 1: Database Indexing & Optimization
+
+**Status:** ✅ FULLY IMPLEMENTED
+**Impact:** Exponential query speedup (O(n) → O(log n))
+
+Background `IndexOptimizer` service automatically manages database performance through schema-driven indexing, background building, and multi-database support (MongoDB Compound/Text, SQL B-Tree).
+
+## Batch Relational Upserts
+
+`setMany` and `bulkUpdate` use true multi-row `INSERT ... ON CONFLICT DO UPDATE` via Drizzle ORM. During setup seeding, ~80 individual DB queries → single batch operation. Dialect-specific handling (PostgreSQL/SQLite `excluded.*`, MariaDB/MySQL `VALUES()`).
+
+## Negative Caching
+
+O(1) missing-key cache prevents "DB miss storms" (verified 2392x speedup for repeated misses).
+
+## Prefix-Bucketed Invalidation
+
+O(1) namespace clearing replaces O(N) cache scans.
+
+---
+
+**Last Updated**: 2026-06-28 (lazy request-scoped batching, direct primary key index loaders, allocation-floor optimizations, schema-aware conversion)

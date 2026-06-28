@@ -1,0 +1,49 @@
+---
+path: "docs/reference/components/generative-collection-display.mdx"
+title: "Generative Collection Display"
+description: "AI-native collection display using json-render-svelte for dynamic, spec-driven layouts."
+order: 99
+icon: "mdi:auto-fix"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-06-27"
+tags:
+  - "components"
+  - "architecture"
+  - "ai"
+---
+
+# Generative Collection Display
+
+The **Generative Collection Display** renders a collection's data using a dynamic JSON specification powered by `json-render-svelte`. It enables AI-generated, interactive layouts that leverage existing widgets from the svelty component registry.
+
+## Props
+
+| Prop      | Type                      | Default  | Description                                         |
+| --------- | ------------------------- | -------- | --------------------------------------------------- |
+| `schema`  | `Schema`                  | required | Collection schema with optional `displaySpec` field |
+| `entries` | `CollectionEntry[]`       | required | Collection entries to display                       |
+| `context` | `Record<string, unknown>` | `{}`     | Additional context passed to the renderer           |
+
+## Architecture
+
+The component works in three layers:
+
+1. **Schema Layer**: The collection `Schema` may include a `displaySpec` field — a JSON object conforming to the `json-render-svelte` `Spec` interface
+2. **Registry Layer**: `sveltyRegistry` from `@src/services/json-render/catalog` maps component names (e.g., `"EntryList"`) to actual Svelte components
+3. **Renderer Layer**: `JSONUIProvider` and `Renderer` from `json-render-svelte` consume the spec + registry to produce the UI
+
+## Fallback Behavior
+
+If `schema.displaySpec` is not defined, the component falls back to a default render spec that wraps entries in a basic `EntryList` component, ensuring the display always works even without AI-generated layouts.
+
+## Usage
+
+```svelte
+<GenerativeCollectionDisplay {schema} {entries} />
+```
+
+## Related
+
+- [Entry List Component](./entry-list.mdx)
+- [AI Integration Guide](../../../development/ai-integration.mdx)

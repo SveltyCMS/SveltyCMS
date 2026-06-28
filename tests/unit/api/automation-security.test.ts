@@ -60,7 +60,11 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
     it("should allow super-admin to override tenantId via query parameter", async () => {
       const event = {
-        locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
+        locals: {
+          user: mockSuperAdmin,
+          tenantId: myTenant,
+          __testBypass: true,
+        },
         params: { path: "automations" },
         request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations?tenantId=${otherTenant}`),
@@ -130,9 +134,11 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
         params: { path: "automations" },
         request: {
           method: "POST",
-          json: vi
-            .fn()
-            .mockResolvedValue({ name: "New Flow", trigger: { type: "on_save" }, actions: [] }),
+          json: vi.fn().mockResolvedValue({
+            name: "New Flow",
+            trigger: { type: "on_save" },
+            actions: [],
+          }),
           headers: new Headers(),
         },
         url: new URL("http://localhost/api/automations"),

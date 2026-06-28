@@ -13,7 +13,7 @@ Displays the current step title and icon, and a reset button.
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
 </script>
 
-<div class="flex shrink-0 justify-between border-b p-2">
+<div class="flex shrink-0 justify-between bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 p-2 rounded ">
 	<h2 class="flex justify-center items-center text-lg font-semibold tracking-tight sm:text-xl text-black dark:text-white">
 		{#if icons[currentStep]}
 			<iconify-icon icon={icons[currentStep]} class="me-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>

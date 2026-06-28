@@ -32,7 +32,7 @@ export class IndexOptimizer {
 
       // Get all current schemas (uses L2 cache if available)
       // Dynamic import to avoid static server-module leak into client bundle
-      const { scanCompiledCollections } = await import("@src/content/content-service.server");
+      const { scanCompiledCollections } = await import("@src/content/engine.server");
       const schemas = await scanCompiledCollections();
       logger.info(
         `[IndexOptimizer] Starting optimization pass for ${schemas.length} collections...`,
@@ -81,7 +81,10 @@ export class IndexOptimizer {
 }
 
 // Factory for easier access
-export let indexOptimizer: IndexOptimizer | null = null;
+let indexOptimizer: IndexOptimizer | null = null;
+export function getIndexOptimizer() {
+  return indexOptimizer;
+}
 
 export function initializeIndexOptimizer(adapter: IDBAdapter) {
   indexOptimizer = new IndexOptimizer(adapter);

@@ -14,11 +14,18 @@ class SlotRegistry {
    */
   register(slot: PluginSlot) {
     const existing = this.slots.get(slot.zone) || [];
-    existing.push(slot);
+    // Deduplicate: replace existing slot with same id (HMR / re-evaluation safety)
+    const dupIndex = existing.findIndex((s) => s.id === slot.id);
+    if (dupIndex !== -1) {
+      existing[dupIndex] = slot;
+      logger.debug(`[SlotRegistry] Replaced duplicate slot '${slot.id}' in zone '${slot.zone}'`);
+    } else {
+      existing.push(slot);
+      logger.debug(`[SlotRegistry] Registered slot '${slot.id}' in zone '${slot.zone}'`);
+    }
     // Sort by position (ascending), default to 0
     existing.sort((a, b) => (a.position || 0) - (b.position || 0));
     this.slots.set(slot.zone, existing);
-    logger.debug(`[SlotRegistry] Registered slot '${slot.id}' in zone '${slot.zone}'`);
   }
 
   /**

@@ -26,23 +26,25 @@ if (!isTest && (import.meta.env.SSR === false || typeof window !== "undefined"))
 }
 
 import { logger } from "@utils/logger";
-import { contentStore } from "@stores/content-store.svelte";
-import { contentSystemBase } from "./core";
+import { contentStore } from "@stores/content-registry.svelte";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNodeOperation } from "./types";
+import { contentSystemBase } from "./index";
 
-// Re-export shared safe items
+export { contentStore } from "@stores/content-registry.svelte";
 export {
   contentNavigation,
   contentMetrics,
   sortContentNodes,
   generateCategoryNodesFromPaths,
   hasDuplicateSiblingName,
-} from "./content-utils";
+  setContentContext,
+  useContent,
+  initializeContent,
+  CONTENT_CONTEXT_KEY,
+} from "./index";
 
 export * from "./types";
-export { contentStore } from "@stores/content-store.svelte";
-export { setContentContext, useContent, initializeContent } from "./index";
 
 // Lazy-loaded services (avoid loading on import)
 let contentService: any = null;
@@ -50,7 +52,7 @@ let apiSpecService: any = null;
 
 async function getServerContentService() {
   if (!contentService) {
-    const mod = await import("./content-service.server");
+    const mod = await import("./engine.server");
     contentService = mod.contentService;
   }
   return contentService;
@@ -64,133 +66,154 @@ async function getServerApiSpecService() {
   return apiSpecService;
 }
 
-// Module-level cache for initialization promises and initialized state
 const initPromises = new Map<string | null, Promise<void>>();
 const initializedTenants = new Set<string | null>();
 
-// ===================================================================
-// SERVER CONTENT SYSTEM (extends browser base)
-// ===================================================================
+export interface ContentInitOptions {
+  force?: boolean;
+  skipReconciliation?: boolean;
+  skipApiSpec?: boolean;
+  awaitApiSpec?: boolean;
+  incremental?: boolean;
+  /** Passed through by seed/setup callers; not consumed by the init coordinator */
+  transaction?: unknown;
+}
+
+/**
+ * Single init coordinator — shared by hooks and direct callers to prevent reload storms.
+ */
+export async function ensureContentInitialized(
+  tenantId: string | null = null,
+  options: ContentInitOptions | boolean = {},
+  adapter?: DatabaseAdapter,
+): Promise<void> {
+  const opts: ContentInitOptions = typeof options === "boolean" ? { force: options } : options;
+  const isForced = opts.force === true;
+
+  if (
+    (process.env.BENCHMARK_MODE === "true" ||
+      process.env.BENCHMARK_MODE === "1" ||
+      process.env.BENCHMARK_STABLE === "true") &&
+    !isForced
+  ) {
+    if (initializedTenants.has(tenantId)) return;
+    await _benchmarkInitialize(tenantId, adapter);
+    initializedTenants.add(tenantId);
+    return;
+  }
+
+  let initPromise = initPromises.get(tenantId);
+
+  if (!initPromise || isForced) {
+    initPromise = (async () => {
+      try {
+        const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+
+        let db = adapter || getDb();
+        if (!db) {
+          await ensureFullInitialization();
+          db = getDb();
+        }
+        if (!db) throw new Error("Database not ready for content initialization");
+
+        const { refreshContent } = await import("./engine.server");
+        await refreshContent(tenantId, {
+          mode: "full",
+          adapter: db,
+          skipReconciliation: opts.skipReconciliation ?? false,
+        });
+
+        contentStore.initState = "initialized";
+        initializedTenants.add(tenantId);
+
+        if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
+          try {
+            const { startContentWatcher } = await import("./engine.server");
+            startContentWatcher();
+          } catch (e) {
+            logger.warn("Content watcher failed to start", { error: e });
+          }
+        }
+
+        const shouldGenerateApiSpec = !opts.skipReconciliation && opts.skipApiSpec !== true;
+        if (shouldGenerateApiSpec) {
+          const apiSpecTask = generateApiSpec(tenantId || "global", true);
+          if (opts.awaitApiSpec === true) {
+            await apiSpecTask;
+          } else {
+            void apiSpecTask;
+          }
+        }
+      } catch (err) {
+        logger.error(`[ContentSystem] Init failed for tenant ${tenantId}:`, err);
+        initPromises.delete(tenantId);
+        throw err;
+      }
+    })();
+    initPromises.set(tenantId, initPromise);
+  }
+
+  return initPromise;
+}
+
+async function _benchmarkInitialize(tenantId: string | null, adapter?: DatabaseAdapter) {
+  const { getDb, getDbInitPromise } = await import("@src/databases/db");
+
+  if (!adapter) {
+    await getDbInitPromise(false, "CORE").catch(() => {
+      logger.debug("DB init promise resolution failed during benchmark init");
+    });
+  }
+
+  const db: DatabaseAdapter | undefined = adapter || getDb() || undefined;
+  const { refreshContent } = await import("./engine.server");
+  await refreshContent(tenantId, { mode: "schemas", adapter: db });
+
+  contentStore.initState = "initialized";
+}
+
+async function generateApiSpec(tenantId: string = "global", force = false) {
+  const apiSpec = await getServerApiSpecService();
+  if (force) {
+    await apiSpec.invalidateCache(tenantId);
+  }
+  return apiSpec.generateFullSpec(tenantId);
+}
+
 export const contentSystem = {
   ...contentSystemBase,
 
-  // --- Lifecycle ---
-  async initialize(
-    tenantId: string | null = null,
-    options: any = {},
-    adapter?: DatabaseAdapter,
-  ): Promise<void> {
-    const isForced = options === true || options?.force === true;
-
-    // 🚀 Fast path for benchmarks: Skip if already initialized for this specific tenant
-    if (
-      (process.env.BENCHMARK_MODE === "true" ||
-        process.env.BENCHMARK_MODE === "1" ||
-        process.env.BENCHMARK_STABLE === "true") &&
-      !isForced
-    ) {
-      if (initializedTenants.has(tenantId)) return;
-      await this._benchmarkInitialize(tenantId, options, adapter);
-      initializedTenants.add(tenantId);
-      return;
-    }
-
-    // 🛡️ SAFETY: Use a shared promise per tenant to prevent initialization storms
-    let initPromise = initPromises.get(tenantId);
-
-    if (!initPromise || isForced) {
-      initPromise = (async () => {
-        try {
-          const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-
-          let db = adapter || getDb();
-          if (!db) {
-            await ensureFullInitialization();
-            db = getDb();
-          }
-          if (!db) throw new Error("Database not ready for content initialization");
-
-          const svc = await getServerContentService();
-          await svc.fullReload(tenantId, options.skipReconciliation ?? false, db, null);
-
-          // Mark as initialized to prevent redundant initialization calls
-          contentStore.initState = "initialized";
-          initializedTenants.add(tenantId);
-
-          // Dev watcher
-          if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
-            try {
-              const { startContentWatcher } = await import("./content-watcher.server");
-              startContentWatcher();
-            } catch (e) {
-              logger.warn("Content watcher failed to start", { error: e });
-            }
-          }
-
-          const shouldGenerateApiSpec = !options.skipReconciliation && options.skipApiSpec !== true;
-          if (shouldGenerateApiSpec) {
-            const apiSpecTask = this.generateApiSpec(tenantId || "global", true);
-            if (options.awaitApiSpec === true) {
-              await apiSpecTask;
-            } else {
-              void apiSpecTask;
-            }
-          }
-        } catch (err) {
-          logger.error(`[ContentSystem] Init failed for tenant ${tenantId}:`, err);
-          initPromises.delete(tenantId); // Allow retry on failure
-          throw err;
-        }
-      })();
-      initPromises.set(tenantId, initPromise);
-    }
-
-    return initPromise;
+  /** @deprecated Use getCollection — kept for SDK/REST backward compatibility */
+  getCollectionById(id: string, tenantId?: string | null) {
+    return contentStore.getCollection(id, tenantId);
   },
 
-  async _benchmarkInitialize(tenantId: string | null, _options: any, adapter?: DatabaseAdapter) {
-    // Ultra-fast path for benchmarks or manual refreshes to avoid full reconciliation
-    const { getDb, getDbInitPromise } = await import("@src/databases/db");
-
-    // 🛡️ DEADLOCK PROTECTION: Only await DB init if we don't already have an adapter.
-    // Background tasks (which run DURING init) provide the adapter to avoid waiting on themselves.
-    if (!adapter) {
-      await getDbInitPromise(false, "CORE").catch(() => {
-        logger.debug("DB init promise resolution failed during benchmark init");
-      });
-    }
-
-    const db: DatabaseAdapter | undefined = adapter || getDb() || undefined;
-
-    const { refreshCollectionsCache } = await import("./content-service.server");
-    await refreshCollectionsCache(tenantId, db);
-
-    // 🚀 Performance: Mark as initialized so benchmarks don't re-init on every request
-    contentStore.initState = "initialized";
+  initialize(
+    tenantId: string | null = null,
+    options: ContentInitOptions | boolean = {},
+    adapter?: DatabaseAdapter,
+  ) {
+    return ensureContentInitialized(tenantId, options, adapter);
   },
 
   async refresh(
     tenantId?: string | null,
     skipReconciliation = false,
-    incremental = false,
+    _incremental = false,
     adapter?: DatabaseAdapter,
   ) {
-    if (process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true") {
-      const { refreshCollectionsCache } = await import("./content-service.server");
-      return await refreshCollectionsCache(tenantId, adapter);
-    }
-    return this.initialize(tenantId, { skipReconciliation, incremental, force: true }, adapter);
+    const { refreshContent } = await import("./engine.server");
+    const mode =
+      process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true" ? "schemas" : "full";
+    return refreshContent(tenantId, {
+      mode,
+      adapter,
+      skipReconciliation,
+    });
   },
 
-  async generateApiSpec(tenantId: string = "global", force = false) {
-    const apiSpec = await getServerApiSpecService();
-    if (force) {
-      await apiSpec.invalidateCache(tenantId);
-    }
-    return apiSpec.generateFullSpec(tenantId);
-  },
+  generateApiSpec,
 
-  // --- CRUD Pass-throughs (with lazy loading) ---
   async find(collection: string, query: any, options?: any) {
     const svc = await getServerContentService();
     return svc.find(collection, query, options);
@@ -212,7 +235,6 @@ export const contentSystem = {
     return svc.delete(collection, query, options);
   },
 
-  // --- Node Operations ---
   async getContentStructureFromDatabase(
     format: "flat" | "tree" = "tree",
     tenantId?: string | null,
@@ -244,5 +266,4 @@ export const contentSystem = {
   },
 };
 
-// Export the server version as default for server imports
 export { contentSystem as default };

@@ -9,6 +9,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
 
@@ -42,7 +43,7 @@ export async function handleTestingRoutes(
   const requestSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
-  const { getTestSecret } = await import("@src/utils/setup-check");
+  const { getTestSecret } = await import("@src/utils/server/setup-check");
   const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
 
   if (!isTestMode || !expectedSecret || !requestSecret) {
@@ -80,14 +81,41 @@ export async function handleTestingRoutes(
       process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
     }
 
+    // 🚀 HARDENING: Wait for database to be ready
+    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
+    if (!isDbConnected()) {
+      logger.info("[testing] DB not connected, waiting for initialization...");
+      await getDbInitPromise().catch((err) => {
+        logger.error("[testing] getDbInitPromise failed:", err);
+      });
+
+      // Secondary poll for safety
+      let retries = 15; // Increased for Windows/Slow DBs
+      while (!isDbConnected() && retries-- > 0) {
+        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+
+    const initializedAdapter = getDb();
+    if (!initializedAdapter || !isDbConnected()) {
+      const adapterStatus = initializedAdapter ? "exists" : "null";
+      const connectedStatus = isDbConnected() ? "true" : "false";
+      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
+      throw new AppError(
+        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
+        503,
+      );
+    }
+
     if (action === "reset") {
       process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
 
       // 1. Wipe Database (Collections + Data)
-      if (cms.db?.clearDatabase) {
-        await cms.db.clearDatabase();
-      } else if (cms.db?.reset) {
-        await cms.db.reset();
+      if (initializedAdapter.clearDatabase) {
+        await initializedAdapter.clearDatabase();
+      } else if (initializedAdapter.reset) {
+        await initializedAdapter.reset();
       }
 
       // 2. Wipe Media Folder
@@ -96,15 +124,15 @@ export async function handleTestingRoutes(
       const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
       if (fs.existsSync(fullMediaRoot)) {
         try {
-          fs.rmSync(fullMediaRoot, { recursive: true, force: true });
-          fs.mkdirSync(fullMediaRoot, { recursive: true });
+          await fsp.rm(fullMediaRoot, { recursive: true, force: true });
+          await fsp.mkdir(fullMediaRoot, { recursive: true });
         } catch (err) {
           console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
         }
       }
 
       // Invalidate cache to reflect empty DB
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, null);
 
       try {
@@ -143,6 +171,13 @@ export async function handleTestingRoutes(
       const { resetInitializationState } = await import("@src/hooks/handle-system-state");
       resetInitializationState();
 
+      try {
+        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
+        resetRateLimitBuckets();
+      } catch (err) {
+        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+      }
+
       return rawResponse({
         success: true,
         message: "System reset successfully",
@@ -158,7 +193,7 @@ export async function handleTestingRoutes(
       // Seed default roles if missing (crucial after database reset/wipe)
       try {
         const { seedRoles } = await import("@src/routes/setup/seed");
-        await seedRoles(cms.db, tenantId);
+        await seedRoles(initializedAdapter, tenantId);
       } catch (err: any) {
         logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
       }
@@ -186,7 +221,7 @@ export async function handleTestingRoutes(
 
       // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
-      await cms.db.system.themes.ensure(safeTheme);
+      await initializedAdapter.system.themes.ensure(safeTheme);
 
       const { ThemeManager } = await import("@src/databases/theme-manager");
       const themeManager = ThemeManager.getInstance();
@@ -202,7 +237,7 @@ export async function handleTestingRoutes(
       }
 
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, true);
 
       // Invalidate roles and user count caches so they are reloaded after seeding
@@ -231,33 +266,6 @@ export async function handleTestingRoutes(
         success: true,
         message: "System reinitialized successfully",
       });
-    }
-
-    // 🚀 HARDENING: Wait for database to be ready
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
-    if (!isDbConnected()) {
-      logger.info("[testing] DB not connected, waiting for initialization...");
-      await getDbInitPromise().catch((err) => {
-        logger.error("[testing] getDbInitPromise failed:", err);
-      });
-
-      // Secondary poll for safety
-      let retries = 15; // Increased for Windows/Slow DBs
-      while (!isDbConnected() && retries-- > 0) {
-        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-
-    const initializedAdapter = getDb();
-    if (!initializedAdapter || !isDbConnected()) {
-      const adapterStatus = initializedAdapter ? "exists" : "null";
-      const connectedStatus = isDbConnected() ? "true" : "false";
-      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
-      throw new AppError(
-        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
-        503,
-      );
     }
 
     if (action === "ping") {
@@ -383,8 +391,11 @@ export async function handleTestingRoutes(
         await new Promise((r) => setTimeout(r, 100));
       }
       // 🚀 BATCH SYNC: Refresh once for all collections
-      const { refreshCollectionsCache } = await import("@src/content/content-service.server");
-      await refreshCollectionsCache(tenantId, initializedAdapter);
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, {
+        mode: "schemas",
+        adapter: initializedAdapter,
+      });
 
       // 🚀 INVALIDATE OpenAPI spec cache so new collections appear in the API spec
       const { apiSpecService } = await import("@services/system/api-spec-service");
@@ -688,7 +699,8 @@ export async function handleTestingRoutes(
       eventBus.emit(eventName, payload);
 
       // Direct WebSocket broadcast via svelte-realtime platform
-      const { globalPlatform } = await import("@src/live/ws-platform");
+      const { getGlobalPlatform } = await import("@src/live/ws-platform");
+      const globalPlatform = getGlobalPlatform();
       if (globalPlatform) {
         const topic = `system_events:${tenantId || "default"}`;
         try {
@@ -729,7 +741,8 @@ export async function handleTestingRoutes(
       pubSub.publish("entryUpdated", payload as any);
 
       // Direct WebSocket broadcast for connected clients
-      const { globalPlatform } = await import("@src/live/ws-platform");
+      const { getGlobalPlatform } = await import("@src/live/ws-platform");
+      const globalPlatform = getGlobalPlatform();
       if (globalPlatform) {
         const topic = `system_events:${tenantId || "default"}`;
         try {
@@ -900,6 +913,10 @@ export async function handleTestingRoutes(
       const { LocalCMS } = await import("@src/services/sdk");
       const localCms = new LocalCMS(initializedAdapter);
 
+      for (const schema of collectionSchemas) {
+        localCms.collections.registerSchema(schema._id, schema as any, tenantId);
+      }
+
       // Seed authors
       const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
         _id: `author-${i + 1}`,
@@ -926,19 +943,31 @@ export async function handleTestingRoutes(
         system: true,
       });
 
-      // Seed stable entry and redirects in parallel
+      // Seed stable entry and redirects in parallel (upsert stable entry for re-runs)
+      const stablePayload = {
+        _id: "bench-shared-001",
+        title: "Stable Benchmark Entry",
+        content: "This is a stable entry for REST and API performance testing.",
+        count: 1,
+        tenantId,
+      };
       await Promise.all([
-        localCms.collections.create(
-          "BenchmarkStable",
-          {
-            _id: "bench-shared-001",
-            title: "Stable Benchmark Entry",
-            content: "This is a stable entry for REST and API performance testing.",
-            count: 1,
-            tenantId,
-          },
-          { tenantId, skipValidation: true, system: true },
-        ),
+        initializedAdapter.crud
+          .upsert(
+            "BenchmarkStable" as any,
+            { _id: "bench-shared-001" } as any,
+            stablePayload as any,
+            { tenantId, bypassTenantCheck: true } as any,
+          )
+          .then(async (res) => {
+            if (!res.success) {
+              await localCms.collections.create("BenchmarkStable", stablePayload, {
+                tenantId,
+                skipValidation: true,
+                system: true,
+              });
+            }
+          }),
         localCms.collections.bulkCreate(
           "redirects",
           [
@@ -960,6 +989,16 @@ export async function handleTestingRoutes(
           { tenantId, skipValidation: true, system: true },
         ),
       ]);
+
+      // Sync content store + SDK schema cache so PATCH/GET see API-seeded entries immediately
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, {
+        mode: "schemas",
+        adapter: initializedAdapter,
+      });
+      if (cms.collections?.refresh) {
+        await cms.collections.refresh(tenantId as any, true);
+      }
 
       return rawResponse({
         success: true,

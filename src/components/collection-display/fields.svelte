@@ -58,7 +58,7 @@
   } from "@src/stores/store.svelte.ts";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { widgets } from "@src/stores/widget-store.svelte";
-  import { collaborationService } from "@src/services/collaboration/collaboration-service";
+  import { collaborationService } from "@src/services/collaboration/collaboration-service.svelte";
   import { showConfirm } from "@utils/modal.svelte";
   import {
     getCachedWidgetInputLoader,

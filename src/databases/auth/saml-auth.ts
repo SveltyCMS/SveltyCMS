@@ -193,7 +193,7 @@ export async function handleSAMLACS(request: Request, cookies?: any) {
     const response = json({ success: true, user });
     response.headers.append(
       "Set-Cookie",
-      `auth_session=${session._id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
+      `auth_sessions=${session._id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
     );
 
     return response;

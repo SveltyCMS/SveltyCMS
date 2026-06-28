@@ -15,9 +15,7 @@ import {
   formatRelativeDate,
   isISODateString,
   isoDateStringToDate,
-  normalizeDateInput,
   nowISODateString,
-  stringToISODateString,
   toISOString,
 } from "@src/utils/date";
 
@@ -37,17 +35,6 @@ describe("Date Utils - Type Guards", () => {
     expect(result).toBe("2025-01-20T12:00:00.000Z" as any);
     expect(isISODateString(result)).toBe(true);
   });
-
-  it("should convert string to ISO date string", () => {
-    const result = stringToISODateString("2025-01-20T12:00:00.000Z");
-
-    expect(result).toBe("2025-01-20T12:00:00.000Z" as any);
-    expect(isISODateString(result)).toBe(true);
-  });
-
-  it("should handle invalid date strings", () => {
-    expect(() => stringToISODateString("invalid")).toThrow();
-  });
 });
 
 describe("Date Utils - Conversions", () => {
@@ -62,16 +49,6 @@ describe("Date Utils - Conversions", () => {
 
     // Timestamp
     expect(toISOString(date.getTime())).toBe("2025-01-20T12:00:00.000Z" as any);
-  });
-
-  it("should normalize date inputs", () => {
-    const date = new Date("2025-01-20T12:00:00.000Z");
-
-    expect(normalizeDateInput(date)).toBe("2025-01-20T12:00:00.000Z" as any);
-    expect(normalizeDateInput("2025-01-20T12:00:00.000Z" as any)).toBe(
-      "2025-01-20T12:00:00.000Z" as any,
-    );
-    expect(normalizeDateInput(date.getTime())).toBe("2025-01-20T12:00:00.000Z" as any);
   });
 
   it("should get current time as ISO string", () => {
@@ -194,14 +171,6 @@ describe("Date Utils — Property-Based Round-Trip", () => {
       const iso = dateToISODateString(d);
       const back = new Date(iso);
       expect(dateToISODateString(back)).toBe(iso);
-    }
-  });
-
-  it("normalizeDateInput always returns valid ISO", () => {
-    const inputs = [new Date(), "2026-06-06", null, undefined, 0];
-    for (const input of inputs) {
-      const result = normalizeDateInput(input as any);
-      expect(typeof result).toBe("string");
     }
   });
 });

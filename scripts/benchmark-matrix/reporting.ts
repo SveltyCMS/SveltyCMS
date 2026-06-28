@@ -682,6 +682,22 @@ async function writeRankedExecutiveSummary(
         doc = doc.slice(0, doc.indexOf("\n", doc.indexOf(marker)) + 1) + "\n" + body + "\n";
       }
 
+      // Clean up stale temp files from previous crashes
+      const dir = path.dirname(docPath);
+      const base = path.basename(docPath);
+      try {
+        const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
+        for (const sf of staleFiles) {
+          try {
+            fs.unlinkSync(path.join(dir, sf));
+          } catch {
+            /* best-effort */
+          }
+        }
+      } catch {
+        /* dir may not exist */
+      }
+
       const tmpPath = docPath + ".tmp." + Date.now();
       await fs.writeFile(tmpPath, doc, "utf8");
       await fs.rename(tmpPath, docPath);
@@ -1095,14 +1111,8 @@ tags:
         if (tableFile) {
           const rawTable = await fs.readFile(tableFile, "utf8");
           const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
-          // Strip duplicate title/subtitle/separator — section header already has them
-          const cleanTable = rawTable
-            .split("\n")
-            .slice(4) // Skip: top border, title, subtitle, separator
-            .join("\n")
-            .replace(/^╚═+╝\s*$/m, "") // Remove bottom border
-            .trim();
-          tableContent = `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n> 📂 **Source**: [${script.path}](${relativePath})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${cleanTable}\n\`\`\``;
+          // Show the FULL truth table as the benchmark produced it — preserves borders, title, and all data
+          tableContent = `### \uD83C\uDFF7 ${script.label} ${trend.icon} ${trend.pct}\n> \uD83D\uDCC2 **Source**: [${script.path}](${relativePath})\n> \uD83C\uDFAF **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable.trim()}\n\`\`\``;
         }
       } catch {}
 

@@ -39,6 +39,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   // Website Tokens - Admin only
   "api:website-tokens": ["admin"],
 
+  // API Keys (machine-to-machine) - Admin only
+  "api:api-keys": ["admin"],
+
   // Authentication & Security - All authenticated users can manage their own auth/2FA
   "api:auth": ["*"], // Authentication endpoints (2FA setup, disable, backup codes, etc.)
   "api:events": ["*"], // Real-time collaboration stream
@@ -95,15 +98,27 @@ for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
 }
 
 /**
- * Check if a user role has permission to access an API endpoint
- * @param userRole - The user's role
+ * Check if a user has permission to access an API endpoint.
+ * Supports multiple roles — grants access if ANY role matches.
+ * @param userRoles - The user's role(s) (single string or array)
  * @param apiEndpoint - The API endpoint (e.g., 'token', 'user', 'collections')
  * @param isAdmin - Whether the user is an admin
  * @returns boolean - true if access is allowed
  */
-export function hasApiPermission(userRole: string, apiEndpoint: string, isAdmin = false): boolean {
+export function hasApiPermission(
+  userRoles: string | string[],
+  apiEndpoint: string,
+  isAdmin = false,
+): boolean {
   // Full access for administrators
-  if (isAdmin || userRole === "admin") {
+  if (isAdmin) {
+    return true;
+  }
+
+  const roles = Array.isArray(userRoles) ? userRoles : [userRoles];
+
+  // Admin role fast-path
+  if (roles.includes("admin")) {
     return true;
   }
 
@@ -120,21 +135,35 @@ export function hasApiPermission(userRole: string, apiEndpoint: string, isAdmin 
     return true;
   }
 
-  // Check if user's role is in the allowed roles
-  return allowedRoles.includes(userRole);
+  // Check if ANY of the user's roles is in the allowed roles
+  for (let i = 0; i < roles.length; i++) {
+    if (allowedRoles.includes(roles[i])) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
- * Get all API endpoints that a role can access
- * @param userRole - The user's role
- * @returns string[] - Array of API endpoints the role can access
+ * Get all API endpoints that a role (or roles) can access
+ * @param userRoles - The user's role(s) (single string or array)
+ * @returns string[] - Array of API endpoints the roles can access
  */
-export function getApiPermissionsForRole(userRole: string): string[] {
+export function getApiPermissionsForRole(userRoles: string | string[]): string[] {
+  const roles = Array.isArray(userRoles) ? userRoles : [userRoles];
   const endpoints: string[] = [];
 
-  for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
-    if (roles.includes("*") || roles.includes(userRole)) {
+  for (const [endpoint, allowed] of Object.entries(API_PERMISSIONS)) {
+    if (allowed.includes("*")) {
       endpoints.push(endpoint.replace("api:", ""));
+    } else {
+      for (let i = 0; i < roles.length; i++) {
+        if (allowed.includes(roles[i])) {
+          endpoints.push(endpoint.replace("api:", ""));
+          break;
+        }
+      }
     }
   }
 

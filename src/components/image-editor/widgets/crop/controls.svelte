@@ -136,7 +136,7 @@ Supports multiple aspect ratios including common social media formats.
 	<div class="control-group">
 		<span class="control-label">Aspect</span>
 		<div class="aspect-ratios">
-			{#each aspectPresets as preset, i}
+			{#each aspectPresets as preset, i (i)}
 				<Button variant="outline"
 									type="button"
 									onclick={() => selectPreset(preset, i)}

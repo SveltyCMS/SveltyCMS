@@ -612,7 +612,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							Add full connection strings for regional read-only replicas (PostgreSQL/MongoDB).
 						</p>
 
-						{#each dbConfig.replicaUrls as _, index}
+						{#each dbConfig.replicaUrls as _, index (index)}
 							<div class="flex gap-2 mb-2 animate-in fade-in slide-in-from-left-2 duration-200">
 								<Input
 									type="text"

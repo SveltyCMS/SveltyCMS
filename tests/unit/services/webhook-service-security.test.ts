@@ -5,14 +5,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { WebhookService, type WebhookEvent } from "@src/services/background/webhook-service";
 
-const mockDb = {
-  system: {
-    preferences: {
-      get: vi.fn(),
-      set: vi.fn(),
+const { mockDb, mockDispatch } = vi.hoisted(() => ({
+  mockDb: {
+    system: {
+      preferences: {
+        get: vi.fn(),
+        set: vi.fn(),
+      },
     },
   },
-};
+  mockDispatch: vi.fn().mockResolvedValue("job-123"),
+}));
 
 vi.mock("@src/databases/db", () => ({
   dbAdapter: mockDb,
@@ -29,9 +32,6 @@ vi.mock("@utils/logger", () => ({
     debug: vi.fn(),
   },
 }));
-
-// Mock jobQueue (we'll control dispatch behavior)
-const mockDispatch = vi.fn().mockResolvedValue("job-123");
 
 vi.mock("@src/services/background/jobs/job-queue-service", () => ({
   jobQueue: {
@@ -152,7 +152,10 @@ describe("WebhookService Security - Tenant Isolation", () => {
   });
 
   it("should enforce tenantId when saving webhooks", async () => {
-    mockDb.system.preferences.get.mockResolvedValue({ success: true, data: [] });
+    mockDb.system.preferences.get.mockResolvedValue({
+      success: true,
+      data: [],
+    });
     mockDb.system.preferences.set.mockResolvedValue({ success: true });
 
     const newHook = {

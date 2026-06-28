@@ -47,10 +47,11 @@ vi.mock("../../../src/utils/event-bus", () => ({
   },
 }));
 
-vi.mock("../../../src/content/module-processor.server", () => ({
+vi.mock("../../../src/content/loader.server", () => ({
   loadSchema: vi.fn(),
   loadSchemaNative: vi.fn(),
   generateSchemaHash: vi.fn(() => "abc-hash"),
+  isSafeCollectionPath: vi.fn(() => true),
 }));
 
 describe("ContentService - Incremental Reconciliation", () => {
@@ -58,14 +59,14 @@ describe("ContentService - Incremental Reconciliation", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const module = await import("../../../src/content/content-service.server");
+    const module = await import("../../../src/content/engine.server");
     contentService = module.contentService;
   });
 
   it("should perform a surgical update when a single file changes", async () => {
-    const { loadSchema } = await import("../../../src/content/module-processor.server");
+    const { loadSchema } = await import("../../../src/content/loader.server");
 
-    const { contentStore } = await import("../../../src/stores/content-store.svelte");
+    const { contentStore } = await import("../../../src/stores/content-registry.svelte");
     const { eventBus } = await import("../../../src/utils/event-bus");
     const fs = (await import("node:fs/promises")).default;
 
@@ -73,7 +74,14 @@ describe("ContentService - Incremental Reconciliation", () => {
       _id: "test-col",
       name: "Test Collection",
       path: "/collection/posts/test",
-      fields: [{ db_fieldName: "title", label: "Title", required: true, translated: false }],
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          required: true,
+          translated: false,
+        },
+      ],
     };
 
     // Setup mocks
@@ -110,7 +118,10 @@ describe("ContentService - Incremental Reconciliation", () => {
     );
 
     // 3. Verify in-memory store was updated surgically
-    expect(contentStore.upsert).toHaveBeenCalledWith(expect.objectContaining({ _id: "test-col" }));
+    // contentStore.upsert is a real method — verify via store state
+    const node = contentStore.getNode("test-col");
+    expect(node).toBeDefined();
+    expect(node?.collectionDef?.name).toBe("Test Collection");
 
     // 4. Verify event was broadcast
     expect(eventBus.broadcast).toHaveBeenCalledWith("content:update", expect.any(Object));
@@ -118,15 +129,25 @@ describe("ContentService - Incremental Reconciliation", () => {
 
   it("should skip processing if file hash matches cache (HMR optimization)", async () => {
     const { cacheService } = await import("../../../src/databases/cache/cache-service");
-    const { loadSchema } = await import("../../../src/content/module-processor.server");
+    const { loadSchema } = await import("../../../src/content/loader.server");
     const fs = (await import("node:fs/promises")).default;
 
     (fs.stat as any).mockResolvedValue({ mtimeMs: 12345 });
-    (cacheService.get as any).mockResolvedValue({ hash: "abc-hash", mtime: 12000 });
+    (cacheService.get as any).mockResolvedValue({
+      hash: "abc-hash",
+      mtime: 12000,
+    });
     (loadSchema as any).mockResolvedValue({
       schema: {
         name: "Same",
-        fields: [{ db_fieldName: "title", label: "Title", required: true, translated: false }],
+        fields: [
+          {
+            db_fieldName: "title",
+            label: "Title",
+            required: true,
+            translated: false,
+          },
+        ],
       },
     });
 

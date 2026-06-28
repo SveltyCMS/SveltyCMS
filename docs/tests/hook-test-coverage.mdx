@@ -14,29 +14,36 @@ tags:
 
 # Hook Test Coverage
 
-Complete test coverage for all 16 SvelteKit middleware hooks in the SveltyCMS system.
+Complete test coverage for all 17 SvelteKit middleware hooks and security test suites in the SveltyCMS system.
 
 ## Test Suite Overview
 
-| Hook                        | Tests   | Coverage    | File                                              |
-| --------------------------- | ------- | ----------- | ------------------------------------------------- |
-| handleStaticAssetCaching    | 6       | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`   |
-| handleSystemState           | 26      | ✅ Complete | `tests/unit/hooks/system-state.test.ts`           |
-| handleRateLimit             | 35      | ✅ Complete | `tests/unit/hooks/rate-limit.test.ts`             |
-| handleFirewall              | 27      | ✅ Complete | `tests/unit/hooks/firewall.test.ts`               |
-| handleSetup                 | 16      | ✅ Complete | `tests/unit/hooks/setup.test.ts`                  |
-| handleLocale                | 34      | ✅ Complete | `tests/unit/hooks/locale.test.ts`                 |
-| handleTheme                 | 16      | ✅ Complete | `tests/unit/hooks/theme.test.ts`                  |
-| handleAuthentication        | 33      | ✅ Complete | `tests/unit/hooks/authentication.test.ts`         |
-| handleAuthorization         | 23      | ✅ Complete | `tests/unit/hooks/authorization.test.ts`          |
-| handleApiRequests           | 28      | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`           |
-| handleTokenResolution       | 5       | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts`       |
-| addSecurityHeaders          | 38      | ✅ Complete | `tests/unit/hooks/security-headers.test.ts`       |
-| handleTurboGet              | 12      | ✅ Complete | `tests/unit/hooks/turbo-get.test.ts`              |
-| handleCompression           | 8       | ✅ Complete | `tests/unit/hooks/compression.test.ts`            |
-| handleAuditLogging          | 6       | ✅ Complete | `tests/unit/hooks/audit-logging.test.ts`          |
-| handleContentInitialization | 4       | ✅ Complete | `tests/unit/hooks/content-initialization.test.ts` |
-| **Total**                   | **317** | **100%**    | 16 files                                          |
+| Test Suite            | Tests | Coverage    | File                                             |
+| --------------------- | ----- | ----------- | ------------------------------------------------ |
+| Static Asset Caching  | 6     | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`  |
+| System State          | 26    | ✅ Complete | `tests/unit/hooks/system-state.test.ts`          |
+| System State Security | 14    | ✅ Complete | `tests/unit/hooks/system-state-security.test.ts` |
+| Setup                 | 16    | ✅ Complete | `tests/unit/hooks/setup.test.ts`                 |
+
+| Test Suite                 | Tests | Coverage    | File                                                  |
+| -------------------------- | ----- | ----------- | ----------------------------------------------------- |
+| Authentication             | 33    | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
+| API Keys Authentication    | 12    | ✅ Complete | `tests/unit/hooks/api-keys-authentication.test.ts`    |
+| Bearer Authentication      | 18    | ✅ Complete | `tests/unit/hooks/bearer-authentication.test.ts`      |
+| Guest Authentication       | 8     | ✅ Complete | `tests/unit/hooks/guest-authentication.test.ts`       |
+| Magic Links Authentication | 10    | ✅ Complete | `tests/unit/hooks/magic-links-authentication.test.ts` |
+
+| Test Suite          | Tests | Coverage    | File                                        |
+| ------------------- | ----- | ----------- | ------------------------------------------- |
+| Authorization       | 23    | ✅ Complete | `tests/unit/hooks/authorization.test.ts`    |
+| API Requests        | 28    | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`     |
+| Token Resolution    | 5     | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts` |
+| Security Headers    | 38    | ✅ Complete | `tests/unit/hooks/security-headers.test.ts` |
+| CSP Headers         | 10    | ✅ Complete | `tests/unit/hooks/csp-headers.test.ts`      |
+| Defense-in-Depth    | 25    | ✅ Complete | `tests/unit/hooks/defense-in-depth.test.ts` |
+| Adversarial Testing | 20    | ✅ Complete | `tests/unit/hooks/adversarial.test.ts`      |
+
+| **Total** | **317** | **100%** | **16 files** |
 
 ## Performance Benchmarks (Audit)
 
@@ -61,16 +68,12 @@ The hooks run in this specific order:
 graph TD
     A[Request] --> B[handleStaticAssetCaching]
     B --> C[handleSystemState]
-    C --> D[handleRateLimit]
-    D --> E[handleFirewall]
-    E --> F[handleSetup]
-    F --> G[handleLocale]
-    G --> H[handleTheme]
-    H --> I[handleAuthentication]
-    I --> J[handleAuthorization]
-    J --> K[handleApiRequests]
-    K --> L[addSecurityHeaders]
-    L --> M[Response]
+    C --> D[handleSetup]
+    D --> E[handleAuthentication]
+    E --> F[handleAuthorization]
+    F --> G[handleApiRequests]
+    G --> H[addSecurityHeaders]
+    H --> I[Response]
 ```text
 
 ## Test Patterns and Best Practices
@@ -192,72 +195,7 @@ it("should block routes when state is INITIALIZING", async () => {
 });
 ```text
 
-### 3. handleRateLimit
-
-**Purpose**: Multi-layer rate limiting (500/min general, 200/min API)
-
-**Test Categories**:
-
-- ✅ Localhost Exemption
-- ✅ Static Asset Exemption
-- ✅ IP Detection (x-forwarded-for, x-real-ip)
-- ✅ General Route Rate Limiting (500/min)
-- ✅ API Route Rate Limiting (200/min, stricter)
-- ✅ Distributed Store Operations
-- ✅ 429 Response Handling
-
-**Key Tests**:
-
-```
-it("should bypass rate limiting for localhost", async () => {
-  const event = createMockEvent("/api/collections", "GET", { "x-forwarded-for": "127.0.0.1" });
-  const response = await handleRateLimit({ event, resolve: mockResolve });
-
-  expect(response.status).toBe(200);
-});
-
-it("should track requests by IP+User-Agent", async () => {
-  const headers = { "x-forwarded-for": "1.2.3.4", "user-agent": "Mozilla/5.0" };
-
-  for (let i = 0; i < 10; i++) {
-    await handleRateLimit({
-      event: createMockEvent("/api/test", "GET", headers),
-      resolve: mockResolve,
-    });
-  }
-
-  expect(mockResolve).toHaveBeenCalledTimes(10);
-});
-```text
-
-### 4. handleFirewall
-
-**Purpose**: Threat detection (SQL injection, XSS, bot detection)
-
-**Test Categories**:
-
-- ✅ SQL Injection Detection
-- ✅ XSS Prevention
-- ✅ Bot Detection
-- ✅ Admin Enumeration Protection
-- ✅ Bulk Operations Monitoring
-- ✅ Metrics Tracking
-
-**Key Tests**:
-
-```
-it("should block SQL injection attempts", async () => {
-  const event = createMockEvent("/search?q=1%27%20OR%20%271%27=%271");
-
-  try {
-    await handleFirewall({ event, resolve: mockResolve });
-  } catch (err: unknown) {
-    expect((err as Error).message).toContain("suspicious");
-  }
-});
-```text
-
-### 5. handleSetup
+### 3. handleSetup
 
 **Purpose**: Setup wizard flow enforcement (3-step validation)
 
@@ -292,74 +230,7 @@ it("should allow /setup route when setup incomplete", async () => {
 });
 ```text
 
-### 6. handleLocale
-
-**Purpose**: i18n cookie synchronization with ParaglideJS
-
-**Test Categories**:
-
-- ✅ Valid Locale Detection
-- ✅ Invalid Locale Cleanup
-- ✅ Store Synchronization (systemLanguage, contentLanguage)
-- ✅ Missing Cookie Handling
-- ✅ Store Availability Check
-- ✅ ParaglideJS Integration
-
-**Key Tests**:
-
-```
-it("should delete invalid systemLanguage cookie", async () => {
-  const event = createMockEvent("/dashboard", { systemLanguage: "invalid" });
-  await handleLocale({ event, resolve: mockResolve });
-
-  expect(event.cookies.delete).toHaveBeenCalledWith("systemLanguage", { path: "/" });
-});
-
-it("should accept both systemLanguage and contentLanguage", async () => {
-  const event = createMockEvent("/dashboard", {
-    systemLanguage: "en",
-    contentLanguage: "de",
-  });
-  const response = await handleLocale({ event, resolve: mockResolve });
-
-  expect(response.status).toBe(200);
-});
-```text
-
-### 7. handleTheme
-
-**Purpose**: SSR theme rendering (prevent FOUC)
-
-**Test Categories**:
-
-- ✅ Theme Detection (system, light, dark)
-- ✅ event.locals.darkMode Setting
-- ✅ HTML Transformation (class="dark" injection)
-- ✅ transformPageChunk Function
-- ✅ Client-Side System Theme Handling
-- ✅ SSR Flicker Prevention
-
-**Key Tests**:
-
-```
-it('should inject class="dark" for dark theme', async () => {
-  const event = createMockEvent("/dashboard", "dark");
-  const response = await handleTheme({ event, resolve: mockResolve });
-
-  const html = await response.text();
-  expect(html).toContain('class="dark"');
-});
-
-it("should NOT inject dark class for system theme", async () => {
-  const event = createMockEvent("/dashboard", "system");
-  const response = await handleTheme({ event, resolve: mockResolve });
-
-  const html = await response.text();
-  expect(html).not.toContain('class="dark"');
-});
-```text
-
-### 8. handleAuthentication
+### 4. handleAuthentication
 
 **Purpose**: Enterprise session management with 3-layer caching
 
@@ -393,7 +264,7 @@ it("should extract tenantId from hostname (subdomain)", async () => {
 });
 ```text
 
-### 9. handleAuthorization
+### 5. handleAuthorization
 
 **Purpose**: Permission checks and role validation
 
@@ -432,7 +303,7 @@ it("should redirect to /setup when no roles found", async () => {
 });
 ```text
 
-### 10. handleApiRequests
+### 6. handleApiRequests
 
 **Purpose**: API role-based access via the **Fail-Closed Dispatcher** and intelligent caching
 
@@ -468,7 +339,7 @@ it("should invalidate cache on POST", async () => {
 });
 ```text
 
-### 11. addSecurityHeaders
+### 7. addSecurityHeaders
 
 **Purpose**: HTTP security headers (CSP, HSTS, X-Frame-Options, etc.)
 
@@ -502,6 +373,89 @@ it("should add HSTS header for HTTPS in production", async () => {
 });
 ```text
 
+### 8. Token Resolution
+
+**Purpose**: Bearer token validation, resolution, and multi-tenant isolation
+
+**Test Categories**:
+
+- ✅ Token parsing and validation
+- ✅ Bearer token extraction
+- ✅ Token expiry handling
+- ✅ Multi-tenant token isolation
+
+---
+
+### 9. CSP Headers
+
+**Purpose**: Content Security Policy enforcement to prevent XSS and data injection
+
+**Test Categories**:
+
+- ✅ CSP header presence and values
+- ✅ Script source restrictions
+- ✅ Style source restrictions
+- ✅ Report-URI configuration
+
+---
+
+### 10. Defense-in-Depth
+
+**Purpose**: Multi-layer security verification — middleware, dispatcher, handler, and page action enforcement
+
+**Test Categories**:
+
+- ✅ Middleware-level blocking
+- ✅ Dispatcher fail-closed authorization
+- ✅ Handler-level admin verification
+- ✅ Page action permission guards
+- ✅ Cookie prefix hardening (`__Host-`)
+- ✅ Setup completion gating
+- ✅ Media permission checks (write/delete)
+
+---
+
+### 11. Adversarial Testing
+
+**Purpose**: Fuzz testing and malicious input handling for all hook layers
+
+**Test Categories**:
+
+- ✅ Malformed header injection
+- ✅ Path traversal attempts
+- ✅ Encoding-based bypass attempts
+- ✅ HTTP method smuggling
+- ✅ Large payload rejection
+- ✅ Concurrent connection fuzzing
+
+---
+
+### 12. Authentication Sub-Suites
+
+The following files test specific authentication mechanisms beyond the core handleAuthentication hook:
+
+| Test Suite                  | File                                                        |
+| --------------------------- | ----------------------------------------------------------- |
+| API Keys Authentication     | `tests/unit/hooks/api-keys-authentication.test.ts`          |
+| Bearer Authentication       | `tests/unit/hooks/bearer-authentication.test.ts`            |
+| Guest Authentication        | `tests/unit/hooks/guest-authentication.test.ts`             |
+| Magic Links Authentication  | `tests/unit/hooks/magic-links-authentication.test.ts`       |
+
+---
+
+### 13. System State Security
+
+**Purpose**: Security-specific system state checks — unauthorized access during init, degraded, and failed states
+
+**Test Categories**:
+
+- ✅ Route blocking during non-READY states
+- ✅ Graceful degradation responses
+- ✅ Setup route access during INITIALIZING
+- ✅ Tenant isolation under failure
+
+---
+
 ## Running the Tests
 
 ### Run All Hook Tests
@@ -534,28 +488,27 @@ bun test --watch tests/unit/hooks/
 
 ### Current Status
 
-- **Total Hook Tests**: 287
-- **Coverage**: 100% (12/12 hooks)
-- **Test Files**: 12
-- **Average Tests per Hook**: 24
-- **Test Framework**: Bun Test v1.3.10
+- **Total Hook Tests**: 317+
+- **Test Files**: 16
+- **Average Tests per File**: 20
+- **Test Framework**: Vitest (vi) / Bun Test v1.3.10
 
 ### Coverage by Category
 
-| Category                | Tests | Status      |
-| ----------------------- | ----- | ----------- |
-| Static Asset Caching    | 6     | ✅ Complete |
-| System State Management | 26    | ✅ Complete |
-| Rate Limiting           | 35    | ✅ Complete |
-| Firewall & Security     | 27    | ✅ Complete |
-| Setup Wizard            | 16    | ✅ Complete |
-| Internationalization    | 34    | ✅ Complete |
-| Theme Management        | 16    | ✅ Complete |
-| Authentication          | 33    | ✅ Complete |
-| Authorization           | 23    | ✅ Complete |
-| API Request Handling    | 28    | ✅ Complete |
-| Token Resolution        | 5     | ✅ Complete |
-| Security Headers        | 38    | ✅ Complete |
+| Category                    | Tests | Status      |
+| --------------------------- | ----- | ----------- |
+| Static Asset Caching        | 6     | ✅ Complete |
+| System State Management     | 26    | ✅ Complete |
+| System State Security       | 14    | ✅ Complete |
+| Setup Wizard                | 16    | ✅ Complete |
+| Authentication (all)        | 81    | ✅ Complete |
+| Authorization               | 23    | ✅ Complete |
+| API Request Handling        | 28    | ✅ Complete |
+| Token Resolution            | 5     | ✅ Complete |
+| Security Headers            | 38    | ✅ Complete |
+| CSP Headers                 | 10    | ✅ Complete |
+| Defense-in-Depth            | 25    | ✅ Complete |
+| Adversarial Testing         | 20    | ✅ Complete |
 
 ## Common Test Patterns
 
@@ -637,8 +590,8 @@ When adding new middleware hooks:
 
 ## Related Documentation
 
-- [API Test Coverage](./api-testing.mdx)
+- [API Test Coverage](./api-test-coverage.mdx)
 - [Widget Test Coverage](./widget-test-coverage.mdx)
 - [Testing Guide](./strategy.mdx)
-- [Architecture: Middleware Hooks](../architecture/server-hooks.mdx)
+- [Architecture: Middleware Hooks](../reference/architecture/server-hooks.mdx)
 ````

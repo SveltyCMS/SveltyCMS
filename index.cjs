@@ -30,8 +30,28 @@ async function loadApp() {
     handler(req, res);
   });
 
+  // Conditional WebSocket upgrade handler — works on VPS/dedicated servers,
+  // degrades gracefully on shared Plesk hosting where proxies strip Upgrade headers.
+  // Enable with: ENABLE_WEBSOCKET=true (or re-add websocket: true in adapter config)
+  const enableWebSocket = process.env.ENABLE_WEBSOCKET === "true";
+
+  if (enableWebSocket) {
+    console.log("[SveltyCMS] WebSocket upgrades enabled");
+    server.on("upgrade", (req, socket, head) => {
+      try {
+        // Delegate to the adapter's upgrade handler (svelte-adapter-uws)
+        handler(req, socket, head);
+      } catch (err) {
+        console.warn("[SveltyCMS] WebSocket upgrade failed (shared hosting?):", err.message);
+        socket.destroy();
+      }
+    });
+  }
+
   server.listen(port, () => {
-    console.log(`[SveltyCMS] Server listening on port ${port}`);
+    console.log(
+      `[SveltyCMS] Server listening on port ${port}${enableWebSocket ? " (WS enabled)" : ""}`,
+    );
   });
 
   // Handle signals for graceful shutdown

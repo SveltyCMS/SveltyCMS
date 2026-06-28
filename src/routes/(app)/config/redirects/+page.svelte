@@ -87,7 +87,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
-					{#each filteredRedirects as redirect}
+					{#each filteredRedirects as redirect (redirect._id)}
 						<tr class="text-surface-700 hover:bg-surface-50/40 dark:text-surface-200 dark:hover:bg-surface-900/30">
 							<td class="py-3 font-mono text-xs">{redirect.from}</td>
 							<td class="py-3 font-mono text-xs">{redirect.to}</td>

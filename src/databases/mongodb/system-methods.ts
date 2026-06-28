@@ -575,14 +575,21 @@ export class MongoSystemMethods {
           success: false,
           message:
             "User ID or Tenant ID is required for user-scoped clear operation to prevent global data loss.",
-          error: { code: "SECURITY_BLOCK", message: "Global user preference purge rejected" },
+          error: {
+            code: "SECURITY_BLOCK",
+            message: "Global user preference purge rejected",
+          },
         };
       }
 
       if (options.userId) {
-        await this.SystemPreferencesModel.deleteMany({ userId: options.userId.toString() });
+        await this.SystemPreferencesModel.deleteMany({
+          userId: options.userId.toString(),
+        });
       } else if (options.tenantId !== undefined) {
-        await this.SystemPreferencesModel.deleteMany({ tenantId: options.tenantId });
+        await this.SystemPreferencesModel.deleteMany({
+          tenantId: options.tenantId,
+        });
       } else {
         return {
           success: false,

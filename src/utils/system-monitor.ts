@@ -1,37 +1,27 @@
 /**
  * @file src/utils/system-monitor.ts
- * @description Hardware-aware system monitor for adaptive rate limiting and health telemetry.
+ * @description Highly optimized hardware-aware system monitor.
  *
- * Uses node-os-utils for CPU/memory sensing and perf_hooks for event loop lag detection.
- * Drives the hardware-aware rate limiting documented in state-management.mdx —
- * previously documented but not implemented.
+ * Uses process.cpuUsage() delta tracking for zero-blocking CPU measurement,
+ * node-os-utils for memory/load sensing, and perf_hooks for event loop lag.
+ * Drives hardware-aware rate limiting (documented in state-management.mdx).
  *
  * ### Features:
- * - CPU usage, memory pressure, load average, event loop lag (real-time)
- * - Rolling historical buffer (60 samples, 5s intervals) for dashboard sparklines
+ * - Zero-blocking CPU via process.cpuUsage() delta (no 100ms osu.cpu.usage call)
+ * - Static ES module imports, lazy dependency init
+ * - Reusable snapshot objects, low GC pressure
+ * - Rolling historical buffer (60 samples, 5s intervals)
  * - getPressureMultiplier() — adaptive 0.8x–2.0x for rate limit cost adjustment
  * - shouldRejectMutations() — defensive gating when heap exceeds 90%
- * - Singleton, auto-started on first access, zero per-request allocation
- * - Node-os-utils backed (already a dependency — was previously unused)
+ * - Singleton, auto-started on first access
  */
 
+import { monitorEventLoopDelay } from "node:perf_hooks";
+import os from "node:os";
+import v8 from "node:v8";
 import { logger } from "@utils/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
-
-export interface CpuSnapshot {
-  usage: number; // 0–100
-  cores: number;
-  model: string;
-  loadAvg: number; // 1-min load average
-}
-
-export interface MemSnapshot {
-  usedPercent: number; // 0–100
-  totalMb: number;
-  usedMb: number;
-  freeMb: number;
-}
 
 export interface SystemHealthSnapshot {
   timestamp: number;
@@ -50,18 +40,18 @@ export interface HistoricalPoint {
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-const HISTORY_SIZE = 60; // 60 samples × 5s = 5 minutes of history
+const HISTORY_SIZE = 60;
 const SAMPLE_INTERVAL_MS = 5000;
 
 const PRESSURE_THRESHOLDS = {
-  idleCpu: 30, // CPU < 30% → idle
-  idleMem: 50, // Mem < 50% → idle
-  elevatedCpu: 70, // CPU > 70% → elevated
-  elevatedMem: 80, // Mem > 80% → elevated
-  criticalCpu: 90, // CPU > 90% → critical
-  criticalMem: 92, // Mem > 92% → critical
-  criticalLag: 80, // Event loop lag > 80ms → critical
-  rejectHeap: 90, // Heap > 90% → reject mutations
+  idleCpu: 30,
+  idleMem: 50,
+  elevatedCpu: 70,
+  elevatedMem: 80,
+  criticalCpu: 90,
+  criticalMem: 92,
+  criticalLag: 80,
+  rejectHeap: 90,
 };
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -70,56 +60,66 @@ let _started = false;
 let _interval: ReturnType<typeof setInterval> | null = null;
 let _lastSnapshot: SystemHealthSnapshot | null = null;
 const _history: HistoricalPoint[] = [];
-let _lagHistogram: any = null; // perf_hooks.EventLoopDelayHistogram
-let _lagEnabled = false;
+
+let _lagHistogram: ReturnType<typeof monitorEventLoopDelay> | null = null;
+let _osuCpu: any = null;
+let _osuMem: any = null;
+
+// Static hardware descriptors cached once on initialization
+let _cpuCores = 1;
+let _cpuModel = "Unknown";
+
+// State tracking for high-performance CPU delta calculation
+let _lastCpuUsage = process.cpuUsage();
+let _lastCpuTime = Date.now();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-async function readCpu(): Promise<{
-  usage: number;
-  cores: number;
-  model: string;
-  loadAvg: number;
-}> {
-  try {
-    const osu = await import("node-os-utils");
-    const cpuUsage = await osu.cpu.usage(100); // sample over 100ms
-    const loadAvg = osu.loadavgTime?.(1) ?? osu.os.loadavgTime?.(1) ?? 0; // 1-min
-    const cpuInfo = osu.cpu as any;
-    const cores = cpuInfo.count?.() ?? 1;
-    const model = cpuInfo.model?.() ?? "Unknown";
-    return { usage: Math.round(cpuUsage), cores, model, loadAvg };
-  } catch {
-    return { usage: 0, cores: 1, model: "Unknown", loadAvg: 0 };
-  }
+/** Calculates CPU usage over the interval window instantly without blocking */
+function calculateCpuUsagePercentage(): number {
+  const currentCpuUsage = process.cpuUsage(_lastCpuUsage);
+  const currentTime = Date.now();
+  const timeDeltaMs = currentTime - _lastCpuTime;
+
+  _lastCpuUsage = process.cpuUsage(); // reset markers
+  _lastCpuTime = currentTime;
+
+  if (timeDeltaMs <= 0) return 0;
+
+  // Convert microseconds to milliseconds, distribute across CPU cores
+  const totalCpuTimeMs = (currentCpuUsage.user + currentCpuUsage.system) / 1000;
+  const percent = (totalCpuTimeMs / (timeDeltaMs * _cpuCores)) * 100;
+
+  return Math.min(Math.round(percent), 100);
 }
 
-async function readMem(): Promise<MemSnapshot> {
+async function lazyLoadDependencies(): Promise<boolean> {
+  if (_osuCpu && _osuMem) return true;
   try {
     const osu = await import("node-os-utils");
-    const memInfo = await osu.mem.info();
-    return {
-      usedPercent: Math.round(memInfo.usedMemPercentage ?? 0),
-      totalMb: Math.round(memInfo.totalMemMb ?? 0),
-      usedMb: Math.round(memInfo.usedMemMb ?? 0),
-      freeMb: Math.round((memInfo.totalMemMb ?? 0) - (memInfo.usedMemMb ?? 0)),
-    };
-  } catch {
-    return { usedPercent: 0, totalMb: 0, usedMb: 0, freeMb: 0 };
+    const osuRoot = (osu as any).default || osu;
+    _osuCpu = osuRoot.cpu;
+    _osuMem = osuRoot.mem;
+    _cpuCores = _osuCpu?.count?.() ?? os.cpus().length ?? 1;
+    _cpuModel = _osuCpu?.model?.() ?? os.cpus()[0]?.model ?? "Unknown";
+    return true;
+  } catch (err) {
+    logger.error("[SystemMonitor] Failed to load dependency node-os-utils", err);
+    return false;
   }
 }
 
 function getHeapUsedPercent(): number {
-  const mem = process.memoryUsage();
-  const limit = mem.heapTotal || 1;
-  return Math.round((mem.heapUsed / limit) * 100);
+  const { heapUsed } = process.memoryUsage();
+  const heapLimit = v8.getHeapStatistics().heap_size_limit;
+  return Math.round((heapUsed / (heapLimit || 1)) * 100);
 }
 
 function getEventLoopLagMs(): number {
-  if (!_lagEnabled || !_lagHistogram) return 0;
+  if (!_lagHistogram) return 0;
   try {
-    // p95 from histogram
-    return Math.round(((_lagHistogram.percentile(95) ?? 0) / 1e6) * 100) / 100;
+    // Return p95 lag converted from nanoseconds to milliseconds
+    return Math.round((_lagHistogram.percentile(95) / 1e6) * 100) / 100;
   } catch {
     return 0;
   }
@@ -129,7 +129,7 @@ function determinePressure(
   cpu: number,
   mem: number,
   lag: number,
-): "idle" | "normal" | "elevated" | "critical" {
+): SystemHealthSnapshot["pressure"] {
   if (
     cpu > PRESSURE_THRESHOLDS.criticalCpu ||
     mem > PRESSURE_THRESHOLDS.criticalMem ||
@@ -147,28 +147,47 @@ function determinePressure(
 }
 
 async function collectSnapshot(): Promise<SystemHealthSnapshot> {
-  const [cpuData, memData] = await Promise.all([readCpu(), readMem()]);
+  const depsLoaded = await lazyLoadDependencies();
+
+  let memPercent = 0;
+  let loadAvg = 0;
+
+  if (depsLoaded) {
+    try {
+      const memInfo = await _osuMem.info();
+      memPercent = Math.round(memInfo.usedMemPercentage ?? 0);
+      loadAvg = _osuCpu.loadavgTime?.(1) ?? os.loadavg()?.[0] ?? 0;
+    } catch {
+      // non-critical sensor failure — continue with defaults
+    }
+  }
+
+  const cpuPercent = calculateCpuUsagePercentage();
+  const lag = getEventLoopLagMs();
+
+  // Reset histogram windows between pollings to prevent lifetime-diluted metrics
+  if (_lagHistogram) {
+    _lagHistogram.reset();
+  }
+
   const snapshot: SystemHealthSnapshot = {
     timestamp: Date.now(),
-    cpu: cpuData.usage,
-    memory: memData.usedPercent,
-    loadAvg: cpuData.loadAvg,
-    eventLoopLagMs: getEventLoopLagMs(),
+    cpu: cpuPercent,
+    memory: memPercent,
+    loadAvg,
+    eventLoopLagMs: lag,
     heapUsedPercent: getHeapUsedPercent(),
-    pressure: determinePressure(cpuData.usage, memData.usedPercent, getEventLoopLagMs()),
+    pressure: determinePressure(cpuPercent, memPercent, lag),
   };
-
-  // Store CPU core info as extras (not part of the snapshot for history)
-  (snapshot as any)._cpuCores = cpuData.cores;
-  (snapshot as any)._cpuModel = cpuData.model;
 
   _lastSnapshot = snapshot;
 
-  // Add to rolling history buffer
+  // Track historical data
   _history.push({
     timestamp: new Date(snapshot.timestamp).toISOString(),
     usage: snapshot.cpu,
   });
+
   if (_history.length > HISTORY_SIZE) {
     _history.shift();
   }
@@ -178,33 +197,30 @@ async function collectSnapshot(): Promise<SystemHealthSnapshot> {
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
-/** Start background monitoring. Called automatically on first access. */
 export function startSystemMonitor(): void {
   if (_started) return;
 
-  // Enable event loop lag monitoring if available (Node 12+)
   try {
-    const { monitorEventLoopDelay } = require("node:perf_hooks");
     _lagHistogram = monitorEventLoopDelay({ resolution: 20 });
     _lagHistogram.enable();
-    _lagEnabled = true;
-  } catch {
-    _lagEnabled = false;
+  } catch (err) {
+    logger.warn("[SystemMonitor] Event loop delay monitoring unavailable", err);
   }
 
-  // Collect initial snapshot immediately
+  // Pre-seed CPU timing ticks immediately
+  _lastCpuUsage = process.cpuUsage();
+  _lastCpuTime = Date.now();
+
   collectSnapshot().catch(() => {});
 
-  // Collect every 5 seconds
   _interval = setInterval(() => {
     collectSnapshot().catch(() => {});
   }, SAMPLE_INTERVAL_MS);
 
   _started = true;
-  logger.info("[SystemMonitor] Hardware-aware monitoring started");
+  logger.info("[SystemMonitor] Hardware-aware monitoring active");
 }
 
-/** Stop background monitoring. Called on graceful shutdown. */
 export function stopSystemMonitor(): void {
   if (_interval) {
     clearInterval(_interval);
@@ -213,44 +229,29 @@ export function stopSystemMonitor(): void {
   if (_lagHistogram) {
     try {
       _lagHistogram.disable();
-    } catch {}
+    } catch {
+      // best-effort cleanup
+    }
     _lagHistogram = null;
   }
   _started = false;
 }
 
-/** Get the most recent system health snapshot (< 1ms, no I/O). */
 export function getLatestSnapshot(): SystemHealthSnapshot | null {
   if (!_started) startSystemMonitor();
   return _lastSnapshot;
 }
 
-/** Get historical CPU data for dashboard sparklines. */
 export function getCpuHistory(): HistoricalPoint[] {
   if (!_started) startSystemMonitor();
-  return [..._history];
+  return _history;
 }
 
-/** Get CPU info (cores, model) for dashboard display. */
 export function getCpuInfo(): { cores: number; model: string } {
-  const snap = _lastSnapshot as any;
-  return {
-    cores: snap?._cpuCores ?? 1,
-    model: snap?._cpuModel ?? "Unknown",
-  };
+  if (!_started) startSystemMonitor();
+  return { cores: _cpuCores, model: _cpuModel };
 }
 
-/**
- * Adaptive rate limit multiplier based on real-time system pressure.
- *
- * Returns a multiplier that the rate limiter applies to request costs:
- * - idle: 0.8x (boost capacity — system has headroom)
- * - normal: 1.0x (baseline)
- * - elevated: 1.5x (gradual throttling)
- * - critical: 2.0x (aggressive throttling)
- *
- * < 0.001ms — reads cached snapshot, no I/O.
- */
 export function getPressureMultiplier(): number {
   if (!_started || !_lastSnapshot) return 1.0;
 
@@ -266,23 +267,15 @@ export function getPressureMultiplier(): number {
   }
 }
 
-/**
- * Should the system reject mutating requests (POST/PATCH/PUT/DELETE)?
- * Returns true when heap usage exceeds the rejection threshold (90%).
- */
 export function shouldRejectMutations(): boolean {
   if (!_started || !_lastSnapshot) return false;
   return _lastSnapshot.heapUsedPercent > PRESSURE_THRESHOLDS.rejectHeap;
 }
 
-/**
- * Get current pressure level for observability / logging.
- */
 export function getPressureLevel(): SystemHealthSnapshot["pressure"] {
   return _lastSnapshot?.pressure ?? "normal";
 }
 
-// Backward-compatible object export for existing consumers
 export const systemMonitor = {
   getAdaptiveCostMultiplier: getPressureMultiplier,
   getPressureLevel,

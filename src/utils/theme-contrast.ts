@@ -66,7 +66,13 @@ const AUDIT_PAIRS: {
     required: 4.5,
     level: "AA",
   },
-  { fg: "error-500", bg: "surface-50", label: "Error accent on surface", required: 3, level: "AA" },
+  {
+    fg: "error-500",
+    bg: "surface-50",
+    label: "Error accent on surface",
+    required: 3,
+    level: "AA",
+  },
 ];
 
 function parseHexColor(value: string): Rgb | null {

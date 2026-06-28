@@ -46,24 +46,34 @@ async function runMixedWorkloadAudit() {
     const { TEST_API_SECRET } = await import("./modules/benchmark-utils");
     const secret = TEST_API_SECRET;
 
+    // Pre-serialize body variants — isolates benchmark from local JSON.stringify overhead
     const operations = [
       {
         type: "REST Read",
         path: `/api/collections/BenchmarkStable/bench-shared-001`,
         method: "GET",
+        body: undefined as string | undefined,
       },
       {
         type: "REST Search",
         path: `/api/collections/BenchmarkStable?limit=20&status=published`,
         method: "GET",
+        body: undefined as string | undefined,
       },
       {
         type: "GraphQL",
         path: "/api/graphql",
         method: "POST",
-        body: { query: `{ BenchmarkStable(limit: 5) { _id title } }` },
+        body: JSON.stringify({
+          query: `{ BenchmarkStable(limit: 5) { _id title } }`,
+        }),
       },
-      { type: "Metadata", path: "/api/system/health", method: "GET" },
+      {
+        type: "Metadata",
+        path: "/api/system/health",
+        method: "GET",
+        body: undefined as string | undefined,
+      },
     ];
 
     // Weighted pool: 60% Read, 20% Search, 15% GraphQL, 5% Metadata
@@ -73,6 +83,11 @@ async function runMixedWorkloadAudit() {
       ...Array(15).fill(operations[2]),
       ...Array(5).fill(operations[3]),
     ];
+
+    // Pre-shuffle indices for pseudo-randomized dispatch (avoids batch pattern predictability)
+    const randomizedIndices = Array.from({ length: ITERATIONS }, () =>
+      Math.floor(Math.random() * pool.length),
+    );
 
     const result = await runBenchmark({
       name: "Mixed Workload",
@@ -84,7 +99,7 @@ async function runMixedWorkloadAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async (i: number) => {
-        const op = pool[i % pool.length];
+        const op = pool[randomizedIndices[i] ?? i % pool.length];
 
         const res = await fetch(baseUrl + op.path, {
           method: op.method,
@@ -93,11 +108,13 @@ async function runMixedWorkloadAudit() {
             "x-test-mode": "true",
             "x-test-secret": secret,
           },
-          body: op.body ? JSON.stringify(op.body) : undefined,
+          body: op.body,
         });
 
-        if (!res.ok) throw new Error(`Mixed workload failed: ${res.status}`);
-        await (op.method === "GET" ? res.json() : res.text());
+        if (!res.ok) throw new Error(`Mixed workload failed [${op.type}]: ${res.status}`);
+
+        // Uniform response drain — avoids timing bias between JSON/text parsing paths
+        await res.arrayBuffer();
       },
     });
 

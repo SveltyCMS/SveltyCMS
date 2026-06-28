@@ -94,6 +94,7 @@ export async function testDatabaseConnection(
 
     const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
       createIfMissing: createIfMissing || allowOverwrite || dbConfig.type === "sqlite",
+      skipModuleInit: true, // Don't create system tables before isEmpty() check
     });
 
     const health = await dbAdapter.getConnectionHealth();
@@ -105,9 +106,12 @@ export async function testDatabaseConnection(
       ).toClientPayload();
     }
 
-    if (dbConfig.type !== "sqlite") {
-      const isEmptyRes = await dbAdapter.isEmpty();
-      if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
+    const isEmptyRes = await dbAdapter.isEmpty();
+    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
+      // In test mode, the test harness resets the DB before each file — skip the
+      // emptiness warning to avoid false positives from test collection seeding.
+      const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+      if (!isTest) {
         await dbAdapter.disconnect();
         const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
         return new SetupDatabaseError(
@@ -115,6 +119,13 @@ export async function testDatabaseConnection(
         ).toClientPayload();
       }
     }
+
+    // Database is empty (or user chose overwrite) — safe to initialize modules
+    if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
+    if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+    if (dbAdapter.ensureCollections) await dbAdapter.ensureCollections();
+    if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
+    if (dbAdapter.auth?.setupAuthModels) await dbAdapter.auth.setupAuthModels();
 
     await dbAdapter.disconnect();
     return {
@@ -174,15 +185,6 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
   if (diskCheck) return diskCheck;
 
   try {
-    if (systemData.preset && systemData.preset !== "blank") {
-      const { cpSync, existsSync: es } = await import("node:fs");
-      const { resolve } = await import("node:path");
-      const src = resolve(process.cwd(), "src", "presets", systemData.preset);
-      const tgt = resolve(process.cwd(), "config", "collections");
-      if (es(src)) {
-        cpSync(src, tgt, { recursive: true, force: true });
-      }
-    }
     const { writePrivateConfig } = await import("./write-private-config");
     await writePrivateConfig(dbConfig, {
       multiTenant: systemData.multiTenant,
@@ -269,8 +271,22 @@ export async function completeSetup(
     ).dbAdapter;
   }
 
+  // Seed preset collections once the user has chosen their blueprint (step 2).
+  // Step 0 seedDatabase() always runs with preset "blank" — collections are applied here only.
+  if (system.preset && system.preset !== "blank") {
+    const { seedPresetCollections } = await import("./seed");
+    await seedPresetCollections(dbAdapter, system.preset, null, undefined, {
+      replaceAll: true,
+    });
+    try {
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(null, { mode: "schemas", adapter: dbAdapter });
+    } catch (e) {
+      logger.warn("[Setup] Content refresh after preset seeding failed:", e);
+    }
+  }
+
   // Save custom configuration settings to database preferences
-  const { logger } = await import("@utils/logger");
   if (dbAdapter?.system?.preferences) {
     try {
       const p = dbAdapter.system.preferences;
@@ -388,9 +404,13 @@ export async function completeSetup(
         logger.error("Failed to update architectural modes in private.ts:", modeError);
       }
 
-      // Invalidate the cache to ensure the new settings are picked up instantly
+      // Invalidate settings cache + reload private config to pick up MULTI_TENANT/DEMO changes
       const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
       invalidateSettingsCache();
+      const { clearPrivateConfigCache, loadPrivateConfig } =
+        await import("@src/databases/config-state");
+      clearPrivateConfigCache();
+      await loadPrivateConfig(true);
     } catch (e) {
       logger.error("Failed to save custom system preferences during setup:", e);
     }
@@ -459,7 +479,7 @@ export async function completeSetup(
   }
 
   const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
-  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   invalidateSetupCache(true);
 
   // The admin now exists — clear the cached user count (TTL 1h) so the login page

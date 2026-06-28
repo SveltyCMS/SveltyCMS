@@ -3,7 +3,7 @@ path: docs/contributing/accessibility.mdx
 title: Accessibility Guide
 description: Validating and maintaining accessibility standards in SveltyCMS.
 order: 3
-icon: mdi:human-wheelchair
+icon: "mdi:human-wheelchair"
 author: "SveltyCMS Team"
 created: 2026-01-27
 updated: "2026-06-21"
@@ -59,9 +59,10 @@ Please adhere to the following standard patterns when adding new hotkeys to Svel
 | **Duplicate**      | `Mod + D`         | All       | Clone selected field (BuzzForm)          |
 | **Next Step**      | `Mod + Enter`     | All       | Advance in Steppers / Finish Widget      |
 | **Search**         | `Mod + F`         | All       | Focus search input (Media Gallery)       |
-| **Select All**     | `Mod + A`         | All       | Select all items in current view         |
-| **Open Library**   | `Mod + O`         | All       | Open Media Library (Upload Widget)       |
-| **Help**           | `?`               | All       | Open hotkey cheatsheet                   |
+
+| **Select All** | `Mod + A` | All | Select all items in current view |
+| **Open Library** | `Mod + O` | All | Open Media Library (Upload Widget) |
+| **Help** | `?` | All | Open hotkey cheatsheet |
 
 Example usage:
 
@@ -95,8 +96,7 @@ onMount(() => {
   - **CRITICAL — Svelte Attribute Placement**: `aria-label`, `role`, `type`, and all HTML attributes MUST be on the **opening tag** of the element. Placing an attribute string between child elements in a Svelte template renders it as **visible plaintext**, not as an HTML attribute.
     - ✅ `<button aria-label="Save" onclick={...}><icon/> Save</button>`
     - ❌ `<button onclick={...}><icon/> aria-label="Save" Save</button>` — "aria-label=\"Save\"" appears as visible text in the browser
-  - Status changes are announced via `aria-live` regions.
-  - Page structure uses HTML5 landmarks (`<main>`, `<nav>`, `<aside>`, `<header>`, `<footer>`).
+
 - [ ] **Forms**:
   - All inputs have associated labels (`<label for="...">`).
   - Error messages are associated with inputs via `aria-describedby`.
@@ -188,4 +188,4 @@ Before submitting PRs:
 
 - [Documentation Standards](./contributing-docs.mdx)
 - [GUI Styling Guide](./style-guide-gui.mdx)
-- [Security Overview](../architecture/security/index.mdx)
+- [Security Overview](../reference/security/index.mdx)

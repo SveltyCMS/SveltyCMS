@@ -44,24 +44,26 @@ console.log(
   ),
 );
 
-for (const b of benchmarks) {
+const targetDbType = process.env.DB_TYPE ?? "sqlite";
+const baseEnv = Object.freeze({
+  ...process.env,
+  DB_TYPE: targetDbType,
+  SVELTY_BENCHMARK_SUITE: "true",
+  BENCHMARK_DEV: "true",
+  QUIET: "true",
+});
+
+for (let i = 0; i < benchmarks.length; i++) {
+  const b = benchmarks[i]!;
   process.stdout.write(chalk.gray(`Running [${b}] ... `));
 
-  const start = Date.now();
+  const start = performance.now();
   const res = spawnSync("bun", ["test", b], {
     encoding: "utf-8",
-    shell: true,
-    env: {
-      ...process.env,
-      // 🚀 DATABASE-AGNOSTIC: Inherit DB_TYPE from environment (set by --db flag).
-      // Falls back to "sqlite" only if no DB_TYPE is set.
-      DB_TYPE: process.env.DB_TYPE ?? "sqlite",
-      SVELTY_BENCHMARK_SUITE: "true",
-      BENCHMARK_DEV: "true", // Run against source for latest fixes
-      QUIET: "true",
-    },
+    shell: false,
+    env: baseEnv as Record<string, string>,
   });
-  const duration = Date.now() - start;
+  const duration = performance.now() - start;
 
   const success = res.status === 0;
 

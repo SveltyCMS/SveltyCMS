@@ -108,17 +108,19 @@ export function crossCorrelate(
   const correlatedStable: string[] = [];
 
   // Check positively correlated tests
-  for (const relatedId of rule.with) {
+  for (let ri = 0; ri < rule.with.length; ri++) {
+    const relatedId = rule.with[ri]!;
     const history = loadHistory(relatedId, dbType, false, "warm", 5);
     if (history.length < 2) continue;
 
-    const recent = history[0];
-    const prev = history.slice(1);
-    const med = (arr: number[]) => {
-      const s = [...arr].sort((a, b) => a - b);
-      return s.length > 0 ? s[Math.floor(s.length / 2)] : 0;
-    };
-    const baseline = med(prev.map((h) => h.avgMs));
+    const recent = history[0]!;
+    let prevSum = 0;
+    let prevCount = 0;
+    for (let hi = 1; hi < history.length; hi++) {
+      prevSum += history[hi]!.avgMs;
+      prevCount++;
+    }
+    const baseline = prevCount > 0 ? prevSum / prevCount : 0;
     if (baseline <= 0) continue;
 
     const relatedDelta = ((recent.avgMs - baseline) / baseline) * 100;
@@ -131,17 +133,19 @@ export function crossCorrelate(
   }
 
   // Check anti-correlated tests (should NOT be affected)
-  for (const relatedId of rule.anti) {
+  for (let ri = 0; ri < rule.anti.length; ri++) {
+    const relatedId = rule.anti[ri]!;
     const history = loadHistory(relatedId, dbType, false, "warm", 5);
     if (history.length < 2) continue;
 
-    const recent = history[0];
-    const prev = history.slice(1);
-    const med = (arr: number[]) => {
-      const s = [...arr].sort((a, b) => a - b);
-      return s.length > 0 ? s[Math.floor(s.length / 2)] : 0;
-    };
-    const baseline = med(prev.map((h) => h.avgMs));
+    const recent = history[0]!;
+    let prevSum = 0;
+    let prevCount = 0;
+    for (let hi = 1; hi < history.length; hi++) {
+      prevSum += history[hi]!.avgMs;
+      prevCount++;
+    }
+    const baseline = prevCount > 0 ? prevSum / prevCount : 0;
     if (baseline <= 0) continue;
 
     const relatedDelta = ((recent.avgMs - baseline) / baseline) * 100;

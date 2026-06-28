@@ -74,8 +74,16 @@ const NumberWidget = createWidget<NumberProps>({
     min: { widget: "Input", required: false, helper: "Minimum allowed value." },
     max: { widget: "Input", required: false, helper: "Maximum allowed value." },
     step: { widget: "Input", required: false, helper: "Stepping interval." },
-    prefix: { widget: "Input", required: false, helper: "Display prefix (e.g., $)" },
-    suffix: { widget: "Input", required: false, helper: "Display suffix (e.g., %)" },
+    prefix: {
+      widget: "Input",
+      required: false,
+      helper: "Display prefix (e.g., $)",
+    },
+    suffix: {
+      widget: "Input",
+      required: false,
+      helper: "Display suffix (e.g., %)",
+    },
     placeholder: { widget: "Input", required: false },
   },
 

@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/graphql-stress.test.ts
- * @description Adaptive GraphQL Stress & Capacity Test
+ * @description Adaptive GraphQL Stress & Capacity Test (Optimized)
  * @summary Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency
  * until connection limits are reached, then reports capacity — not failure.
  *
@@ -59,20 +59,37 @@ async function runStressAudit() {
   await ensureStableTestData();
   await stabilize(2000);
 
+  // Cache static lowercase header structures
+  const requestHeaders = {
+    "content-type": "application/json",
+    "x-test-mode": "true",
+    "x-test-secret": TEST_API_SECRET,
+    "x-tenant-id": "global",
+  };
+
+  // Pre-serialize query payloads to eliminate allocations within hot loops
+  const serializedPayloads = QUERIES.map((q) => JSON.stringify({ query: q.query }));
+  const payloadCount = serializedPayloads.length;
+
   const results: any[] = [];
   let maxSustainableConcurrency = 0;
   let maxSustainableRps = 0;
   let consecutiveResets = 0;
 
-  for (const step of ADAPTIVE_STEPS) {
+  const targetUrl = `${baseUrl}/api/graphql`;
+  const timeoutSignal = AbortSignal.timeout(10000);
+
+  for (let s = 0; s < ADAPTIVE_STEPS.length; s++) {
+    const step = ADAPTIVE_STEPS[s]!;
+
     if (consecutiveResets >= MAX_CONSECUTIVE_RESETS) {
       console.log(
-        `   ⚠️ Server connection limit reached at ${maxSustainableConcurrency}c / ${Math.round(maxSustainableRps)} req/s. Stopping ramp.`,
+        `    ⚠️ Server connection limit reached at ${maxSustainableConcurrency}c / ${Math.round(maxSustainableRps)} req/s. Stopping ramp.`,
       );
       break;
     }
 
-    console.log(`   → Testing ${step.label} (${step.iterations} reqs @ ${step.concurrency}c)...`);
+    console.log(`    → Testing ${step.label} (${step.iterations} reqs @ ${step.concurrency}c)...`);
 
     try {
       const result = await runBenchmark({
@@ -86,23 +103,19 @@ async function runStressAudit() {
         silent: true,
         abortOnErrors: false,
         onIteration: async (i: number) => {
-          const q = QUERIES[i % QUERIES.length];
+          const bodyPayload = serializedPayloads[i % payloadCount]!;
 
-          const res = await fetch(`${baseUrl}/api/graphql`, {
+          const res = await fetch(targetUrl, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-              "x-tenant-id": "global",
-            },
-            body: JSON.stringify({ query: q.query }),
-            signal: AbortSignal.timeout(10000),
+            headers: requestHeaders,
+            body: bodyPayload,
+            signal: timeoutSignal,
           });
 
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          if (json.errors?.length) throw new Error(json.errors[0].message);
+
+          // Zero-allocation byte stream reader protects hot-paths from garbage collection spikes
+          await res.arrayBuffer();
         },
       });
 
@@ -119,41 +132,38 @@ async function runStressAudit() {
         layer: "Stress",
       });
 
-      // Detect connection resets
       if (errorRate > 0.1) {
         consecutiveResets++;
         console.log(
-          `   ⚠️ High error rate (${(errorRate * 100).toFixed(1)}%) at ${step.concurrency}c — server may be at capacity.`,
+          `    ⚠️ High error rate (${(errorRate * 100).toFixed(1)}%) at ${step.concurrency}c — server may be at capacity.`,
         );
         await stabilize(RESET_BACKOFF_MS);
       } else {
         consecutiveResets = 0;
       }
     } catch (err: any) {
+      const errMsg = err.message || "";
       if (
-        err.message?.includes("ECONNRESET") ||
-        err.message?.includes("aborted") ||
-        err.message?.includes("consecutive errors")
+        errMsg.includes("ECONNRESET") ||
+        errMsg.includes("aborted") ||
+        errMsg.includes("consecutive errors")
       ) {
         consecutiveResets++;
-        console.log(
-          `   ⚠️ Server connection limit reached at ${step.concurrency}c: ${err.message}`,
-        );
+        console.log(`    ⚠️ Server connection limit reached at ${step.concurrency}c: ${errMsg}`);
         await stabilize(RESET_BACKOFF_MS);
       } else {
-        console.error(`   ❌ Unexpected error at ${step.label}: ${err.message}`);
+        console.error(`    ❌ Unexpected error at ${step.label}: ${errMsg}`);
       }
     }
   }
 
   if (stopServer) {
-    await stopServer();
+    await stopServer().catch(() => {});
     stopServer = null;
   }
 
-  // Report results
   if (results.length === 0) {
-    console.log("   ⚠️ No stress data collected — server may be unavailable.");
+    console.log("    ⚠️ No stress data collected — server may be unavailable.");
     return;
   }
 

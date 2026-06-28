@@ -16,6 +16,9 @@ tags:
   - "presets"
 ---
 
+<!-- lint:disable heading-density -->
+<!-- NOTE: consider splitting into sub-pages -->
+
 # Setup Wizard Guide
 
 The SveltyCMS setup wizard provides a professional, multi-step configuration experience with real-time validation, intelligent error handling, and a modern user interface. This guide covers the wizard's architecture, features, and implementation details.
@@ -26,10 +29,10 @@ The SveltyCMS setup wizard provides a professional, multi-step configuration exp
 - [Features](#features)
 - [Architecture](#architecture)
 - [Setup Steps](#setup-steps)
-- [Solution Presets](#solution-presets)
+- [Solution Presets](#solution-presets-starter-kits)
 - [Validation System](#validation-system)
 - [Error Handling](#error-handling)
-- [State Management](#state-management)
+- [State Management](#state-management-2)
 - [User Experience](#user-experience)
 - [Development Guide](#development-guide)
 - [Troubleshooting](#troubleshooting)
@@ -213,7 +216,7 @@ The setup process includes several enterprise-grade security features:
 - **Secret Redaction**: The configuration loader (`config-state.ts`) prevents raw `private.ts` content from appearing in log streams.
 - **Write-Mutex Protection**: SQLite writes during high-pressure setup are serialized via transaction management to prevent "Database is Locked" errors.
 
-### State Management
+### State Management {#security-state-mgmt}
 
 ```
 // Central state via setup-store (Svelte 5 runes)
@@ -623,7 +626,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
 
 ---
 
-## 📦 Solution Presets (Starter Kits)
+## 📦 Solution Presets (Starter Kits) {#solution-presets-starter-kits}
 
 Presets are pre-configured collections of schemas, widgets, and settings designed for specific use cases. Selecting a preset copies standard schema files into your `config/collections` directory, saving you hours of setup time.
 
@@ -999,7 +1002,7 @@ function classifyDatabaseError(error: DatabaseError): string {
 
 ---
 
-## State Management
+## State Management {#state-management-2}
 
 ### setup-store Architecture
 
@@ -1378,7 +1381,7 @@ export const adminSchema = v.object(
 );
 ```
 
-### Testing
+### Testing {#validation-testing}
 
 **Unit Tests** (Vitest):
 
@@ -1458,7 +1461,7 @@ test.describe("Setup Wizard", () => {
 
 ---
 
-## Testing
+## Testing {#testing-2}
 
 ### Test Coverage
 
@@ -1718,7 +1721,7 @@ const stepClickable = $derived<boolean[]>([
 
 ## Related Documentation
 
-- [Setup Reference](/docs/api/setup.mdx) - Complete API documentation
+- [Setup Reference](/docs/reference/api/setup.mdx) - Complete API documentation
 - [Valibot Documentation](https://valibot.dev/) - Validation library
 - [Svelte 5 Runes](https://svelte.dev/docs/svelte/what-are-runes) - Reactive state management
 

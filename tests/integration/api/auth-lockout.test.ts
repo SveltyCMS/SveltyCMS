@@ -49,7 +49,10 @@ describe("Authentication Lockout Integration", () => {
     for (let i = 0; i < 5; i++) {
       const res = await safeFetch(loginUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Test-Security": "true" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Test-Security": "true",
+        },
         body: JSON.stringify({
           email: testUserEmail,
           password: "WrongPassword123!",
@@ -62,7 +65,10 @@ describe("Authentication Lockout Integration", () => {
     // 2. Submit the 6th failed attempt, which should trigger a lockout response
     const lockoutRes = await safeFetch(loginUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Test-Security": "true" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Test-Security": "true",
+      },
       body: JSON.stringify({
         email: testUserEmail,
         password: "WrongPassword123!",
@@ -75,7 +81,10 @@ describe("Authentication Lockout Integration", () => {
     // 3. Attempt a successful login, which should fail because the account is locked out
     const correctRes = await safeFetch(loginUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Test-Security": "true" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Test-Security": "true",
+      },
       body: JSON.stringify({
         email: testUserEmail,
         password: testUserPassword,

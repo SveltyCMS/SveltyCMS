@@ -62,7 +62,9 @@ export class MongoMediaMethods {
     try {
       // Ensure files are injected with the correct tenantId if provided
       const filesWithTenant = tenantId ? files.map((f) => ({ ...f, tenantId })) : files;
-      const result = await this.mediaModel.insertMany(filesWithTenant, { lean: true });
+      const result = await this.mediaModel.insertMany(filesWithTenant, {
+        lean: true,
+      });
 
       // Invalidate media caches
       await invalidateCategoryCache(CacheCategory.MEDIA);

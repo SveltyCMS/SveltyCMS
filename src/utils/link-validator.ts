@@ -36,7 +36,8 @@ const KNOWN_ROUTES = new Map<string, string>([
   ["/config/automations", "Automations"],
   ["/config/queue", "Background Queue"],
   ["/config/sync", "Data Sync"],
-  ["/config/importer", "Smart Importer"],
+  ["/config?plugin=smart-importer", "Smart Importer"],
+  ["/config/migration", "Smart Importer (legacy redirect)"],
   ["/config/webhooks", "Webhooks"],
   ["/config/redirects", "Redirects"],
   ["/config/trash", "Trash"],
@@ -175,7 +176,7 @@ export function validateLinks(): { issues: LinkIssue[]; ok: boolean } {
     if (suggestions.length > 0) {
       console.log(`\n💡 ${suggestions.length} link(s) with suggestions:`);
       for (const s of suggestions) {
-        console.log(`   ${s.file}:${s.line} → "${s.href}" — did you mean "${suggestion}"?`);
+        console.log(`   ${s.file}:${s.line} → "${s.href}" — did you mean "${s.suggestion}"?`);
       }
     }
     if (noPreload.length > 0) {

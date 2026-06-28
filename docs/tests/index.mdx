@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-20"
+updated: "2026-06-23"
 tags:
   - "testing"
   - "documentation"
@@ -19,9 +19,9 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** June 15, 2026
+**Last Updated:** June 23, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
@@ -41,6 +41,7 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 - **[E2E Troubleshooting Guide](./e2e-troubleshooting.mdx)** 🚀
 - **[Git Workflow & Quality Gate](./git-workflow.mdx)**
 - **[Security Testing](./security-testing.mdx)** (Encryption, Auth, Fail-Closed API)
+- **[Benchmark Collection Isolation](./benchmark-isolation.mdx)** 🛡️
 - [Test Status Report](./test-status.mdx)
 - [API Coverage Report](./api-testing.mdx)
 - [Widget Coverage](./widget-test-coverage.mdx)
@@ -57,47 +58,34 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 ````bash
 # White-box gate
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:unit
 bun run check
 
 # Production build used by integration and most E2E jobs
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run build
 
 # Black-box integration runner (choose DB)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run scripts/run-integration-tests.ts --db=sqlite
 
 # Wizard E2E against the production build
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 TEST_MODE=true node build/index.js
-bun x playwright test --project=wizard  # (runs tests/e2e/routes/setup/setup-wizard.spec.ts via project testMatch)
+bun x playwright test --project=wizard
 
 # Smart test runner — auto-detects what to test from git diff
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:smart
 
-# Run the High-Performance Quality Gate (4.4x faster)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+# Run the quality gate
 bun run scripts/quality-gate.ts
 
 # Run specific contract against active database
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun test tests/integration/databases/contract.test.ts
 
-# Run the complete Enterprise Performance Matrix (All 4 Databases)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+# Run the complete Enterprise Performance Matrix (all 4 databases)
 bun run scripts/benchmark-matrix/index.ts
 
-# Run a specific benchmark (Smart-Redirect Enabled)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-# You can use 'bun run', but the system will automatically redirect to 'bun test'
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-# for maximum precision and automatic resource cleanup.
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+# Run a specific benchmark
 bun test tests/benchmarks/api-latency.test.ts
-```text
+```
 
 > [!TIP]
 > SveltyCMS benchmarks are **Environment-Aware**. If you execute a benchmark file with `bun run`, the system will automatically inform you and reroute the execution through the **Bun Test Engine** to ensure accurate micro-latency measurements and proper cleanup of background services.
@@ -193,9 +181,9 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 | **client-journey**              | E2E journey: Login -> List -> View -> Edit -> Save -> Realtime. Measures cumulative latency.   | Critical performance audit for Journey.              | ~60s      |
 | **cold-start-phased**           | Measures the time to READY state (serving traffic) vs WARMED state (background tasks).         | Critical performance audit for Cold Start.           | ~10s      |
 | **concurrency-race**            | Verifies atomic consistency and lost-update protection.                                        | Critical performance audit for Concurrency.          | ~40s      |
-| **content-scale-stress**        | Measures content scan performance on 1,000+ collections across 5 nested levels.                | Critical performance audit for Content Stress.       | ~45s      |
-| **content-scan**                | Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.       | Critical performance audit for Scan.                 | ~8s       |
-| **content-incremental-reload**  | Compares surgical 1-file `fullReload` vs full reconciliation + SCHEMA cache wipe.              | Critical performance audit for Hot Reload.           | ~4s       |
+| **content-scale-stress**        | Measures scan performance on 1,000+ files under `.compiledCollections/test/stress/` (isolated).  | Critical performance audit for Content Stress.       | ~45s      |
+| **content-scan**                | Self-Healing scanner over `.compiledCollections/test/scan/` — never touches user root files.   | Critical performance audit for Scan.                 | ~8s       |
+| **content-incremental-reload**  | Incremental vs full reload under `.compiledCollections/test/incremental/` (1k fixtures).       | Critical performance audit for Hot Reload.           | ~4s       |
 | **data-residency-failover**     | Simulates geopolitical boundary crossing and verifies PII field blocking for residency laws.   | Critical performance audit for Data Sovereignty.     | ~15s      |
 | **database-performance**        | Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.   | Critical performance audit for DB Raw p95.           | ~35s      |
 | **dev-dependency-load**         | Measures overhead of the build, sync, and lint toolchain.                                      | Critical performance audit for DX-Tooling.           | ~30s      |
@@ -236,61 +224,72 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 
 ## Test Architecture & Isolation
 
-SveltyCMS uses a strict isolation strategy to ensure tests **never** touch production data, live credentials, or user-defined collections. Every test pillar has verified isolation guarantees backed by code-level enforcement.
+SveltyCMS uses a strict isolation strategy so tests **never** touch production credentials, live databases, or user collection files at the root of `config/collections/` and `.compiledCollections/`. Enforcement is code-level — see **[Benchmark Collection Isolation](./benchmark-isolation.mdx)** for the full contract.
 
-```
+```mermaid
 graph TD
-    subgraph "Testing Levels"
-        Unit["<b>Unit Tests</b><br/>(tests/unit/*)<br/>In-memory mocks"]
-        Int["<b>Integration Tests</b><br/>(tests/unit/api/*)<br/>Black-box API"]
-        E2E["<b>E2E Tests</b><br/>(tests/e2e/*)<br/>Playwright browser"]
-        Bench["<b>Benchmark Audit</b><br/>(scripts/benchmark-matrix/)<br/>Child process + temp DB"]
+    subgraph levels [Testing Levels]
+        Unit[Unit Tests<br/>tests/unit — bun-preload mocks]
+        Int[Integration<br/>run-integration-tests.ts]
+        E2E[E2E<br/>Playwright + temp DB]
+        Bench[Benchmark Matrix<br/>child process + bench_tmp DB]
     end
 
-    subgraph "Config"
-        PC["<b>config/private.ts</b><br/>Live file must never be used by tests"]
-        PT["<b>config/private.test.ts</b><br/>Generated TEST_MODE config"]
+    subgraph config [Config]
+        PC[config/private.ts<br/>LIVE — tests never use]
+        PT[config/private.test.ts<br/>matrix / TEST_MODE]
     end
 
-    subgraph "Collections"
-        UC["<b>config/collections/</b><br/>YOUR FILES - never written"]
-        CC["<b>.compiledCollections/</b><br/>Read-only by benchmarks"]
-        DB["<b>bench_tmp_sqlite_PID</b><br/>Temp DB, PID-scoped"]
+    subgraph user [User Live Collections]
+        UC[config/collections/*.ts]
+        CC[.compiledCollections/*.js]
     end
 
-    Unit -.-> |bun-preload mocks| PT
-    Int -.-> |TEST_MODE=true| PT
-    E2E -.-> |setup wizard via Playwright| PT
-    Bench -.-> |writeTestConfig| PT
-    Bench -.-> |API-only collections| DB
-    Bench -.-> |read-only scan| CC
-```text
+    subgraph bench [Benchmark Fixtures]
+        BT[config/collections/test/]
+        BC[.compiledCollections/test/]
+    end
+
+    Unit --> PT
+    Int --> PT
+    E2E --> PT
+    Bench --> PT
+    Bench --> BC
+    Int --> BT
+```
 
 ### Isolation Guarantees by Artifact
 
-| Artifact                   |       Unit        |                              Integration                               |                  E2E                  |       Benchmark       |
-| :------------------------- | :---------------: | :--------------------------------------------------------------------: | :-----------------------------------: | :-------------------: |
-| **config/private.ts**      |   Never touched   | Ephemeral TEST_MODE mirror only when required for build/runtime parity |    Ephemeral TEST_MODE mirror only    |     Never touched     |
-| **config/private.test.ts** | bun-preload mocks |                             Auto-generated                             | Setup wizard or generated test config |    writeTestConfig    |
-| **config/collections/**    |    Never reads    |                              Never reads                               |              Never reads              | Never writes or reads |
-| **.compiledCollections/**  |    Never reads    |                              Never reads                               |              Never reads              |    Read-only scan     |
-| **User database**          |  In-memory mocks  |                              Temp DB only                              |             Temp DB only              |     bench_tmp_PID     |
-| **Content Store**          | Mocked singleton  |                              Per-process                               |              Per-browser              |   Per child process   |
+| Artifact | Unit | Integration | E2E | Benchmark |
+| :------- | :--: | :---------: | :-: | :-------: |
+| **config/private.ts** | Never touched | Ephemeral TEST_MODE mirror only | Setup wizard mirror | Never touched |
+| **config/private.test.ts** | bun-preload mocks | Auto-generated | Generated test config | `writeTestConfig` |
+| **config/collections/** (root) | Never reads | Never reads | Never reads | Never writes — purge on matrix boot |
+| **config/collections/test/** | Never reads | Writes `integration_test_collection.ts` | Never reads | Benchmark TS sources (if any) |
+| **.compiledCollections/** (root) | Never reads | Never reads | Never reads | Read-only for user files; purge removes leaked artifacts |
+| **.compiledCollections/test/** | Never reads | Integration fixture JS | Never reads | Scan/stress/incremental workspaces only |
+| **User database** | In-memory mocks | Temp DB only | Temp DB only | `bench_tmp_<db>_<pid>` |
+| **Content store** | Mocked singleton | Per-process | Per-browser | Per matrix server + temp DB |
 
 > [!IMPORTANT]
-> Integration and E2E tooling may generate a temporary `config/private.ts` by mirroring `config/private.test.ts` inside a disposable `TEST_MODE` workspace. That mirror must always point to test-only databases and secrets, never live infrastructure.
+> Integration and E2E may mirror `config/private.test.ts` into a disposable `TEST_MODE` workspace. That mirror must use test-only databases and secrets, never live infrastructure.
 
-### How Benchmarks Create Collections Without Touching Your Files
+### How Benchmarks Use Collections
 
-Benchmark collections (`BenchmarkStable`, `benchmark_authors`, etc.) use a **pure API approach** with zero filesystem writes:
+**API benchmarks** (relational, REST, GraphQL throughput) — no user filesystem writes:
 
-1. **Setup**: `setup-benchmarks.ts` creates entries via `POST /api/collections/*`
-2. **Schema registration**: `ensureStableTestData()` sends `POST /api/testing` with `action: "create-collection"` -- stores schema in the content store and temp database, **never on disk**
-3. **Field discovery**: `CollectionModule.listSchemas()` reads field names from existing table data via `SELECT data FROM "collection_*" LIMIT 1` -- no compiled files needed
-4. **Cleanup**: Temp database (`bench_tmp_sqlite_PID.sqlite`) is PID-scoped; subsequent runs use a fresh PID. The server child process is killed on completion.
+1. **Setup**: `setup-benchmarks.ts` seeds via `POST /api/testing` (LocalCMS inside the matrix server)
+2. **Stable data**: `ensureStableTestData()` creates `BenchmarkStable` in DB/content store only
+3. **Cleanup**: PID-scoped temp DB; `ConfigSafeguard.restore()` purges artifacts on exit
+
+**Filesystem benchmarks** (content-scan, scale-stress, incremental-reload) — isolated workspaces only:
+
+1. **Prepare**: `prepareBenchmarkCompiledWorkspace("scan" | "stress" | "incremental")` under `.compiledCollections/test/`
+2. **Run**: Scanner walks the full tree; user root files remain untouched
+3. **Cleanup**: `cleanupBenchmarkCompiledWorkspace()` or matrix `purgeBenchmarkCollectionArtifacts()`
 
 > [!CAUTION]
-> Benchmark collections are **fully transient**. They live only in the temporary database and in-memory content store of the benchmark's child process. Your `config/collections/`, `.compiledCollections/`, and `config/private.ts` are **never read, written, or modified** by any benchmark code path.
+> Never write benchmark fixtures to `config/collections/` or `.compiledCollections/` **root**. The matrix pre-purge and GraphQL `isMockScanCollection()` filter exist because root pollution previously caused 150+ mock types and matrix GraphQL HTTP 500 errors.
 
 ### What the Benchmark Logs Mean
 
@@ -311,11 +310,11 @@ Benchmark collections (`BenchmarkStable`, `benchmark_authors`, etc.) use a **pur
 
 | Test Category        | Status         | Pass Rate | Tests   |
 | :------------------- | :------------- | :-------- | :------ |
-| Unit Tests (Core)    | ✅ Passing     | 100%      | 915     |
-| Utility Functions    | ✅ Passing     | 100%      | 184     |
-| Widget Validation    | ✅ Passing     | 100%      | 46      |
-| Stores & Hooks       | ✅ Passing     | 100%      | 382     |
-| **TOTAL UNIT TESTS** | **✅ Passing** | **100%**  | **915** |
+| Unit Tests (Core)    | ✅ Passing     | 100%      | 1,293+  |
+| Utility Functions    | ✅ Passing     | 100%      | (incl.) |
+| Widget Validation    | ✅ Passing     | 100%      | (incl.) |
+| Stores & Hooks       | ✅ Passing     | 100%      | (incl.) |
+| **TOTAL UNIT TESTS** | **✅ Passing** | **100%**  | **1,293+** |
 
 ### 🟡 2. Integration & E2E Tests (Black-Box)
 
@@ -355,19 +354,17 @@ Dedicated automated and cognitive checkpoints integrated into CI and developer q
 
 ### Parallel E2E Suite (Playwright)
 
-```
+```bash
 # Run with 4 concurrent workers
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 npx playwright test --workers=4
-```text
+```
 
 ### Unit Tests (Bun)
 
-```
+```bash
 # Run all unit tests (Component, Service & Utility)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:unit
-```text
+```
 
 ---
 
@@ -376,6 +373,7 @@ bun run test:unit
 - [API Testing](./api-testing.mdx)
 - **[Accessibility Audit](./accessibility-audit.mdx)** ♿️ (Mandatory CI Check)
 - [Testing Strategy](./testing-strategy.mdx)
+- [Benchmark Collection Isolation](./benchmark-isolation.mdx)
 - [Test Status Report](./test-status.mdx)
 - [Widget Coverage](./widget-test-coverage.mdx)
 ````

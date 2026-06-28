@@ -17,7 +17,7 @@ All dynamic CMS settings organized into logical groups
 <script lang="ts">
 // Components
 import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
-import { groupsNeedingConfig } from "@src/stores/config-store.svelte.ts";
+import { groupsNeedingConfig } from "@src/stores/settings-config-state.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
 	import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -143,6 +143,7 @@ $effect(() => {
 <AdminPageShell title="System Settings" icon="mdi:cog-outline" showBackButton={true} backUrl="/config" spaceY="8">
 	{#snippet actions()}
 		<StickyActions>
+
 			<Button
 				variant="tertiary"
 				type="button"
@@ -213,42 +214,42 @@ $effect(() => {
 							{#if group.id === 'gdpr'}
 								<GDPRSettings {group} />
 							{:else}
-								<GenericSettingsGroup
-									{group}
-									{groupsNeedingConfig}
-									bind:saveTrigger
-									bind:saving
-									onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
-								>
-									{#if selectedGroupId === 'cache'}
-										<Button variant="warning"
-											type="button"
-											disabled={isRepairing}
-											onclick={async () => {
-												isRepairing = true;
-												repairResult = null;
-												try {
-													const { repairContentCache } = await import('./admin.remote');
-													const result = await repairContentCache();
-													if (result.success) {
-														repairResult = { success: true, message: result.message };
-														setTimeout(() => { repairResult = null; }, 5000);
-													} else {
-														repairResult = { success: false, error: result.error || 'Repair failed' };
-													}
-												} catch (e: unknown) {
-													repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
-												} finally {
-													isRepairing = false;
+							<GenericSettingsGroup
+								{group}
+								{groupsNeedingConfig}
+								bind:saveTrigger
+								bind:saving
+								onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
+							>
+								{#if selectedGroupId === 'cache'}
+									<Button variant="warning"
+										type="button"
+										disabled={isRepairing}
+										onclick={async () => {
+											isRepairing = true;
+											repairResult = null;
+											try {
+												const { repairContentCache } = await import('./admin.remote');
+												const result = await repairContentCache();
+												if (result.success) {
+													repairResult = { success: true, message: result.message };
+													setTimeout(() => { repairResult = null; }, 5000);
+												} else {
+													repairResult = { success: false, error: result.error || 'Repair failed' };
 												}
-											}}
-											aria-label="Repair Cache"
-										 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
-											<iconify-icon icon="mdi:wrench" width="16" class={isRepairing ? 'animate-spin' : ''}></iconify-icon>
-											<span class="hidden sm:inline">{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
-										</Button>
-									{/if}
-								</GenericSettingsGroup>
+											} catch (e: unknown) {
+												repairResult = { success: false, error: e instanceof Error ? e.message || String(e) : 'Repair failed' };
+											} finally {
+												isRepairing = false;
+											}
+										}}
+										aria-label="Repair Cache"
+									 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
+										<iconify-icon icon="mdi:wrench" width="16" class={isRepairing ? 'animate-spin' : ''}></iconify-icon>
+										<span class="hidden sm:inline">{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
+									</Button>
+								{/if}
+							</GenericSettingsGroup>
 							{/if}
 						</div>
 					{:else}
@@ -265,28 +266,5 @@ $effect(() => {
 		</AdminCard>
 	</AdminCard>
 
-	<!-- System Status -->
-	<div class="mx-auto mt-8 flex max-w-4xl items-center justify-center">
-		<Badge variant="surface" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 text-xs sm:text-sm text-center">
-			<div class="flex items-center gap-1.5 shrink-0">
-				<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
-			</div>
-			<span class="hidden sm:inline text-dark dark:text-white">|</span>
-			<div class="flex items-center gap-1 shrink-0">
-				<span class="text-surface-600 dark:text-surface-50">Settings:</span>
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
-			</div>
-			<span class="hidden sm:inline text-dark dark:text-white">|</span>
-			<div class="flex items-center gap-1 shrink-0">
-				<span class="text-surface-600 dark:text-surface-50">Groups:</span>
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
-			</div>
-			<span class="hidden sm:inline text-dark dark:text-white">|</span>
-			<div class="flex items-center gap-1 shrink-0">
-				<span class="text-surface-600 dark:text-surface-50">Environment:</span>
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
-			</div>
-		</Badge>
-		</div>
+
 </AdminPageShell>

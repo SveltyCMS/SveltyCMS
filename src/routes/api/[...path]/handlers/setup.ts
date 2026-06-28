@@ -37,7 +37,7 @@ export async function handleSetupRoutes(
   try {
     // ── Setup completion gating ──
     // Only "reinitialize" is allowed after setup completes — everything else returns 403.
-    const { isSetupComplete } = await import("@src/utils/setup-check");
+    const { isSetupComplete } = await import("@src/utils/server/setup-check");
     if (isSetupComplete() && action !== "reinitialize") {
       throw new AppError(
         "Setup is already complete. Use the Admin panel for further configuration.",
@@ -153,7 +153,7 @@ async function handleSeedDatabase(event: RequestEvent) {
   const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
   await writePrivateConfig(dbConfig);
 
-  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   invalidateSetupCache(true);
 
   // Initialize adapter and start seeding
@@ -256,7 +256,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
   } as any);
 
   // Invalidate setup cache so the system performs a fresh deep check on the next request
-  const { invalidateSetupCache } = await import("@src/utils/setup-check");
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   invalidateSetupCache(true);
 
   return successResponse(event, {

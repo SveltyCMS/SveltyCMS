@@ -262,6 +262,17 @@ async function main() {
         "a11y",
         "rbac",
         "language",
+        "branding",
+        "visual-regression",
+        "users",
+        "builder",
+        "permissions",
+        "firstuser",
+        "config-routes",
+        "admin",
+        "dashboard",
+        "appearance",
+        "media",
       ];
       for (const project of e2eProjects) {
         console.log(`\n  ── 🎭 ${project} ──`);

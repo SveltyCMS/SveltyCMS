@@ -59,6 +59,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // --------------------------------------------------------------------------
   public abstract type: string;
   public abstract readonly schema: any;
+  public abstract db: any;
+  public abstract raw: {
+    execute: (sql: string, params?: any[]) => Promise<any>;
+    client: any;
+  };
+  public abstract transaction<T>(
+    fn: (
+      transaction: import("../db-interface").DatabaseTransaction,
+    ) => Promise<import("../db-interface").DatabaseResult<T>>,
+    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },
+  ): Promise<import("../db-interface").DatabaseResult<T>>;
 
   // --------------------------------------------------------------------------
   // Abstract template hooks — each adapter MUST implement these
@@ -138,8 +149,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
-  /** Return the active Drizzle database instance. */
-  protected getDrizzleInstance(_options?: BaseQueryOptions): any {
+  /**
+   * Return the active Drizzle database instance.
+   * When called inside a transaction, uses the transactional Drizzle instance
+   * instead of the pool-level instance — ensures rollback isolation.
+   */
+  protected getDrizzleInstance(options?: BaseQueryOptions): any {
+    // If we're inside a transaction, use the transactional Drizzle instance
+    if (options?.transaction && (options.transaction as any).db) {
+      return (options.transaction as any).db;
+    }
     return (this as any).db;
   }
 
@@ -1016,14 +1035,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.wrap(
       async () => {
-        const items = await this.findMany(collection, query, options);
-        if (!items.success) throw new Error(items.message);
-        let modifiedCount = 0;
-        for (const item of items.data || []) {
-          const res = await this.update(collection, (item as any)._id, data, options);
-          if (res.success) modifiedCount++;
-        }
-        return { modifiedCount };
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+
+        const values = this.prepareValues(table, data, null, new Date(), options);
+        const whereCondition = this.mapQuery(table, query, options);
+
+        // Atomic single UPDATE instead of N+1 sequential loop
+        const result = await this.getDrizzleInstance(options)
+          .update(table)
+          .set(values)
+          .where(whereCondition);
+
+        return {
+          modifiedCount: (result as any).changes ?? (result as any).affectedRows ?? 0,
+        };
       },
       "UPDATE_MANY_FAILED",
       undefined,
@@ -1207,9 +1233,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _pipeline: unknown[],
     _options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<R[]>> {
-    if (process.env.BENCHMARK_MODE !== "true") {
-      return this.notImplemented("aggregate");
-    }
+    // Return empty result silently — aggregate is a MongoDB-ism not needed by SQL adapters.
+    // Concrete adapters (PostgreSQL) can override with real GROUP BY implementation.
     return { success: true, data: [] };
   }
 

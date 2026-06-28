@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/floating-nav.svelte
 @component
 **Floating navigation component for quick access to different pages**
@@ -8,7 +8,7 @@
 
 ### Features
 - Handles opening and closing modals
-- Closes modals on backdrop click or Escape key press	
+- Closes modals on backdrop click or Escape key press
 -->
 
 <script lang="ts">
@@ -20,9 +20,9 @@
 	// Auth
 	import type { User } from '@src/databases/auth/types';
 	// Stores
-	import { setMode } from '@src/stores/collection-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { motion } from '@src/utils/utils';
+	import { motion } from '@src/utils/admin-transitions';
 	import { logger } from '@utils/logger';
 	// Modals/Tooltips
 	import { modalState } from '@utils/modal.svelte';
@@ -266,13 +266,13 @@
 	}
 
 	function handleNavigateToEndpoint(): void {
-		setMode('view');
+		modeTransitionGuard.setMode('view');
 		showRoutes = false;
 		// Navigation is handled by <a> tag href attribute
 	}
 
 	function handleNavigateHome(): void {
-		setMode('view');
+		modeTransitionGuard.setMode('view');
 		modalState.clear();
 		ui.toggle('leftSidebar', 'hidden');
 		showRoutes = false;

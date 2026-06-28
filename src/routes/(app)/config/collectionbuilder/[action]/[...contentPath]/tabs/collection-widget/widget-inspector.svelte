@@ -99,7 +99,7 @@ function closeInspector() {
 			{:else if activeTab === 'permissions'}
 				<div class="space-y-4">
 					<p class="text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-50">Role Access</p>
-					{#each roles as role}
+					{#each roles as role (role._id)}
 						<div class="flex items-center justify-between p-2 rounded hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
 							<span class="text-sm">{role.name}</span>
 							<input type="checkbox" checked={true} class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-900 dark:border-surface-700"  aria-label="Input" />

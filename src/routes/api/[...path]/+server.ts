@@ -6,7 +6,7 @@
 
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/environment";
-import { createHash } from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -34,6 +34,9 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
   version: () => import("./handlers/version"),
+  database: () => import("./handlers/database"),
+  logs: () => import("./handlers/logs"),
+  "api-keys": () => import("./handlers/api-keys"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -47,7 +50,9 @@ function ensureHotPreload() {
       HANDLERS.auth(),
       HANDLERS.system(),
       HANDLERS.tokens(),
-    ]).catch(() => {});
+    ])
+      .then(() => {})
+      .catch(() => {});
   }
   return _hotPreload;
 }
@@ -97,6 +102,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
+  database: { handler: "database", fn: "handleDatabaseRoutes" },
+  logs: { handler: "logs", fn: "handleLogsRoutes" },
+  "api-keys": { handler: "api-keys", fn: "handleApiKeyRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
   "system-virtual-folder": {
@@ -162,6 +170,11 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   dashboard: "dashboard:read",
+  database: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  logs: "system:admin",
+  "api-keys": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
 };
 
 /**
@@ -263,9 +276,17 @@ export const _handler = async (event: RequestEvent) => {
 
   if (!namespace) return new Response("Not Found", { status: 404 });
 
+  // ── Cached imports for hot paths (avoids dynamic import on every request) ────
+  let _getDatabaseResilience: any = null;
+
   // 🚀 HYPER-TURBO: Direct Health Check
   if (namespace === "system" && segments[1] === "health") {
     const connected = isDbConnected();
+    if (!_getDatabaseResilience) {
+      const mod = await import("@src/databases/database-resilience");
+      _getDatabaseResilience = mod.getDatabaseResilience;
+    }
+    const metrics = _getDatabaseResilience().getMetrics();
     return json(
       {
         status: connected ? "healthy" : "initializing",
@@ -275,6 +296,12 @@ export const _handler = async (event: RequestEvent) => {
         timestamp: Date.now(),
         dbType: process.env.DB_TYPE || "unknown",
         memory: process.memoryUsage(),
+        resilience: {
+          circuitState: metrics.circuitState,
+          totalRetries: metrics.totalRetries,
+          successfulReconnections: metrics.successfulReconnections,
+          averageRecoveryTime: metrics.averageRecoveryTime,
+        },
       },
       { status: connected ? 200 : 533 }, // Use 533 to differentiate from standard 503 if needed
     );
@@ -372,13 +399,21 @@ export const _handler = async (event: RequestEvent) => {
     }
   }
 
-  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit AFTER Auth
+  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit AFTER Auth — pre-computed ETag avoids re-hash
   if (request.method === "GET") {
     const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
     if (cached) {
       if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
         console.log(`[CacheHit] Hit: ${url.pathname + url.search}`);
       }
+      // Cache tuple { body, etag } — pre-computed, zero hash overhead
+      if (typeof cached === "object" && cached !== null && "body" in cached && "etag" in cached) {
+        const entry = cached as { body: string; etag: string };
+        return new Response(entry.body, {
+          headers: { ..._jsonHeaders, "X-Cache": "HIT-L1", ETag: entry.etag },
+        });
+      }
+      // Legacy: plain string body
       if (typeof cached === "string") {
         return new Response(cached, {
           headers: { ..._jsonHeaders, "X-Cache": "HIT-L1" },
@@ -417,11 +452,37 @@ export const _handler = async (event: RequestEvent) => {
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
 
+  // ⚡ WEAK ETag FAST-PATH: Handler set apiDataHash on locals → skip body read entirely.
+  // Downstream handlers (collections, content) set this to a lightweight timestamp-based
+  // token (e.g. max updatedAt). The gateway uses it as a weak validator without cloning
+  // the response body, avoiding V8 string allocation and GC pressure on large payloads.
+  if (request.method === "GET" && response.status === 200 && !isStreaming) {
+    const apiDataHash = (event.locals as any).apiDataHash;
+    if (apiDataHash) {
+      const weakEtag = `W/"${apiDataHash}"`;
+      const ifNoneMatch = request.headers.get("if-none-match");
+
+      if (ifNoneMatch === weakEtag || ifNoneMatch === "*") {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: weakEtag,
+            "Cache-Control": "private, must-revalidate",
+            "X-API-Version": "1",
+            "X-Cache": "WEAK-304",
+          },
+        });
+      }
+
+      response.headers.set("ETag", weakEtag);
+      response.headers.set("X-API-Version", "1");
+      response.headers.set("X-Cache", "WEAK-ETAG");
+      return response;
+    }
+  }
+
   // Cache successful GET responses AND compute ETag — read body ONCE for both
   if (request.method === "GET" && response.status === 200 && !isStreaming) {
-    const responseBody = await response.text(); // Single read for cache + ETag
-
-    // Cache write (fire-and-forget)
     const pathStr = url.pathname;
     const isCacheable =
       pathStr.includes("/api/collections") ||
@@ -432,16 +493,34 @@ export const _handler = async (event: RequestEvent) => {
       pathStr.includes("/api/navigation") ||
       pathStr.includes("/api/themes") ||
       pathStr.includes("/api/config");
-    if (isCacheable) {
+
+    // 🚀 HYPER-PERFORMANCE: Read body once for ETag — cache only if cacheable
+    const responseBody = await response.text();
+
+    // Compute ETag once — works for both cacheable (cache + 304) and non-cacheable (304 only)
+    let etag = "";
+    try {
+      etag = `"${await xxhash64(responseBody)}"`;
+    } catch {
+      // Hash unavailable — body served without ETag below
+    }
+
+    if (isCacheable && etag) {
+      // Only cache cacheable endpoints — non-cacheable still get ETag for 304 support
       const { CacheCategory } = await import("@src/databases/cache/types");
       cacheService
-        .set(url.pathname + url.search, responseBody, 300, tenantId, CacheCategory.API)
+        .set(
+          url.pathname + url.search,
+          { body: responseBody, etag },
+          300,
+          tenantId,
+          CacheCategory.API,
+        )
         .catch(() => {});
     }
 
     // ETag conditional response
-    try {
-      const etag = `"${createHash("sha256").update(responseBody).digest("hex").substring(0, 16)}"`;
+    if (etag) {
       const ifNoneMatch = request.headers.get("if-none-match");
 
       if (ifNoneMatch === etag || ifNoneMatch === "*") {
@@ -455,7 +534,7 @@ export const _handler = async (event: RequestEvent) => {
         });
       }
 
-      // Merge response headers with no-cache defaults + ETag — avoid new Headers() alloc
+      // Merge response headers with no-cache defaults + ETag
       const respHeaders: Record<string, string> = {
         ..._noCacheHeaders,
         ETag: etag,
@@ -468,20 +547,20 @@ export const _handler = async (event: RequestEvent) => {
         statusText: response.statusText,
         headers: respHeaders,
       });
-    } catch {
-      // Fallback: createHash unavailable (e.g., jsdom) — return body without ETag.
-      // responseBody was already read above; we must construct a new Response
-      // because the original response.body is now consumed/disturbed.
-      const fallbackHeaders: Record<string, string> = { ..._noCacheHeaders };
-      response.headers.forEach((val, key) => {
-        if (!fallbackHeaders[key]) fallbackHeaders[key] = val;
-      });
-      return new Response(responseBody, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: fallbackHeaders,
-      });
     }
+
+    // Hash unavailable — return body without ETag.
+    // responseBody was already read above; we must construct a new Response
+    // because the original response.body is now consumed/disturbed.
+    const fallbackHeaders: Record<string, string> = { ..._noCacheHeaders };
+    response.headers.forEach((val, key) => {
+      if (!fallbackHeaders[key]) fallbackHeaders[key] = val;
+    });
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: fallbackHeaders,
+    });
   }
 
   // Streaming or non-GET/non-200: add API version header, return response as-is

@@ -589,8 +589,8 @@ const conditionOperatorOptions = [
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
-															{#each availableTokens as token}
-																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)}>{token.label}</Button>
+															{#each availableTokens as token (token.value)}
+																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)}>{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -629,8 +629,8 @@ const conditionOperatorOptions = [
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
-															{#each availableTokens as token}
-																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'to', token.value)}>{token.label}</Button>
+															{#each availableTokens as token (token.value)}
+																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'to', token.value)}>{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -650,8 +650,8 @@ const conditionOperatorOptions = [
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
-															{#each availableTokens as token}
-																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'subject', token.value)} aria-label="Insert token {token.label}">{token.label}</Button>
+															{#each availableTokens as token (token.value)}
+																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'subject', token.value)} aria-label="Insert token {token.label}">{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -671,8 +671,8 @@ const conditionOperatorOptions = [
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
-															{#each availableTokens as token}
-																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)} aria-label="Insert body token {token.label}">{token.label}</Button>
+															{#each availableTokens as token (token.value)}
+																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)} aria-label="Insert body token {token.label}">{token.label}</Button>
 															{/each}
 													</div>
 												</div>
@@ -700,8 +700,8 @@ const conditionOperatorOptions = [
 																<iconify-icon icon="mdi:code-braces"></iconify-icon>
 															</Button>
 															<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
-																{#each availableTokens as token}
-																	<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'message', token.value)}>{token.label}</Button>
+																{#each availableTokens as token (token.value)}
+																																	<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'message', token.value)}>{token.label}</Button>
 																{/each}
 															</div>
 														</div>
@@ -741,8 +741,8 @@ const conditionOperatorOptions = [
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
 														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
-															{#each availableTokens as token}
-																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'value', token.value)} aria-label="Insert value token {token.label}">{token.label}</Button>
+															{#each availableTokens as token (token.value)}
+																																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'value', token.value)} aria-label="Insert value token {token.label}">{token.label}</Button>
 															{/each}
 														</div>
 													</div>

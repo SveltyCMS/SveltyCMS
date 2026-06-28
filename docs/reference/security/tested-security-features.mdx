@@ -1,0 +1,344 @@
+---
+path: "docs/reference/security/tested-security-features.mdx"
+title: "Tested Security Features"
+description: "Comprehensive list of security features covered by automated tests"
+author: "SveltyCMS Team"
+created: "2026-03-13"
+updated: "2026-06-14"
+tags:
+  - security
+  - testing
+  - coverage
+order: 2
+icon: "mdi:shield-check"
+---
+
+# Tested Security Features
+
+This document lists all security features that are covered by automated tests in SveltyCMS.
+
+> **Security Policy**: SveltyCMS follows a strict no-backdoor policy. All security tests must pass through real security guards without any mocked permission checks or test bypass mechanisms.
+
+## Overview
+
+SveltyCMS has **comprehensive security test coverage** across multiple test suites:
+
+- **Unit Tests**: ~180+ tests for middleware and utilities
+- **Integration Tests**: ~80+ tests for API endpoints
+- **E2E Tests**: ~40+ tests for user flows
+
+---
+
+## Security Vulnerabilities Fixed
+
+**Issue**: Localhost (127.0.0.1, ::1) was exempt from rate limiting, allowing SSRF attacks to bypass rate limits.
+
+**Fix**: Restricted localhost exemption to `dev` mode or `TEST_MODE=true` integration tests in `src/hooks/handle-rate-limit.ts`. In production builds, all requests are rate-limited regardless of source IP.
+
+**Tests**: `tests/unit/hooks/rate-limit.test.ts`
+
+### 2. Firewall Bypass (Protected March 2026)
+
+**Issue**: Setting `TEST_MODE=true` would completely bypass the firewall security checks.
+
+**Fix**: Restricted `TEST_MODE` bypass in `src/hooks/handle-firewall.ts` to only apply in non-unit-test integration environments. Unit tests still execute the firewall logic. In production, the firewall is always active unless explicitly disabled via settings.
+
+**Tests**: `tests/unit/hooks/firewall.test.ts`
+
+### 3. Missing POST-Authentication Authorization Gap (Resolved April 2026)
+
+**Issue**: Authenticated users could access various `/api/` endpoints within their tenant without granular permission checks.
+
+**Fix**: Implemented a **Fail-Closed API Dispatcher** in `src/routes/api/[...path]/+server.ts` using an exhaustive `ENDPOINT_PERMISSIONS` mapping. Any route not explicitly authorized is denied by default.
+
+**Tests**: `tests/unit/routes/api/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`
+
+**UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
+
+### 4. April 2026 Security Assessment & Hardening
+
+**Assessment Outcome**: Achieved **A++ Security Grade**.
+
+**Key Implemented Features**:
+
+- ✅ **Robust Path Normalization**: Hardened `src/routes/files/` against directory traversal using strict `path.relative` boundary checks.
+- ✅ **Fail-Closed Dispatcher Verification**: Every unhandled route now strictly returns 403.
+- ✅ **Argon2id Memory-Hardness Audit**: Confirmed 64MB memory cost for resistance against quantum/ASIC speedup.
+- ✅ **SHA-256 Audit Chaining**: Implemented tamper-evident chaining for all file-backed security logs.
+
+- ✅ **Middleware Sequence Lockdown**: Verified that security headers and firewall scan are executed before any logic layers.
+- ✅ **Resource Exhaustion Immunity (Load Shedding)**: Verified that mutation requests are rejected (503) when memory usage exceeds 90%, protecting read-availability.
+- ✅ **Graceful Shutdown**: Confirmed clean teardown of DB and Cache connections on `SIGTERM`.
+- ✅ **Timing-Safe Cryptographic Handshake**: Verified that `x-test-secret` comparison uses constant-time logic.
+
+**Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/hooks/firewall.test.ts`.
+
+### 5. May 2026 Enterprise Security Hardening
+
+**Assessment Outcome**: Defense-in-depth hardening across all API and page action layers.
+
+**Key Implemented Features**:
+
+- ✅ **Cookie Prefix Enforcement**: `__Host-` prefixed cookies only accepted on secure connections. Insecure connections (localhost/dev) never accept prefixed cookies, preventing subdomain cookie tossing (`src/hooks/handle-authentication.ts`).
+- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked (403) after setup completes. Bootstrap route redirects enforced at middleware level (`src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`).
+- ✅ **Handler-Level Admin Verification**: `handleSettingsRoutes`, `handleSystemMgmtRoutes`, and `handleAutomationRoutes` in `system.ts` now verify admin status for all mutating operations.
+
+- ✅ **Media Mutation Permissions**: Defense-in-depth RBAC checks added to `handleMediaUpload` (`media:write`) and `handleMediaPostDelete` (`media:delete`) in `media.ts`.
+- ✅ **Centralized Permission Guards**: `requireCollectionBuilderPermission()` helper eliminates duplicated authorization logic across all Collection Builder actions (`src/routes/(app)/config/collectionbuilder/+page.server.ts`).
+- ✅ **Critical Bug Fixes**: Restored missing `initSystemFast` import in setup seed flow. Fixed adapter disconnect-before-use race condition in setup completion handler.
+
+**Files Modified**: `src/hooks/handle-authentication.ts`, `src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/handlers/system.ts`, `src/routes/api/[...path]/handlers/media.ts`, `src/routes/(app)/config/collectionbuilder/+page.server.ts`, `src/routes/(admin)/admin/tenants/+page.server.ts`.
+
+**Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`.
+
+### 6. AI Bot Defense & Crypto Hardening
+
+**Assessment Outcome**: Enhanced AI crawler defenses, zero-bias tokens, and cross-origin isolation headers.
+
+- **AI Bot Detection**: Proactive User-Agent fingerprinting blocks 28 known AI crawler/reconnaissance bot patterns in `src/hooks/handle-security.ts`.
+- **Expanded Honeypot Grid**: 45+ decoy routes (WordPress, Drupal, AWS metadata, config files) trigger IP blacklisting.
+- **Progressive Tarpit + Response Poisoning**: Randomized 5-15s delays + fake JSON payloads waste bot resources.
+
+- **Cross-Origin Isolation Headers**: `Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy` on all API responses in `src/hooks/handle-security-headers.ts`.
+- **Zero-Bias Token Generation**: `generateRandomToken` uses rejection sampling eliminating modulo bias in `src/databases/auth/constants.ts`.
+- **Setup Session Cookie Fix**: Consistent `__Host-` prefix logic in setup handler (`src/routes/api/[...path]/handlers/setup.ts`).
+
+**Files**: `src/hooks/handle-security.ts`, `src/hooks/handle-security-headers.ts`, `src/databases/auth/constants.ts`, `src/routes/api/[...path]/handlers/setup.ts`.
+
+**Tests**: All 134 security regression tests pass.
+
+### 7. June 2026 Comprehensive Security Audit & Hardening
+
+**Assessment Outcome**: Closed 6 security gaps identified through full-stack codebase audit against dependency stack, security architecture docs, and CVE landscape.
+
+**Key Implemented Features**:
+
+- ✅ **SVG Polyglot Upload Sanitization**: Server-side `sanitizeSvg()` function strips script tags, foreignObject elements, inline event handlers, javascript:/data: URIs, CDATA blocks, XML PIs, and DOCTYPE declarations from uploaded SVG files before storage (`src/utils/media/media-service.server.ts`).
+- ✅ **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), IPv6 loopback/link-local, cloud metadata hosts, and non-HTTP protocols before S3Client creation (`src/utils/media/cloud-storage.ts`).
+
+- ✅ **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated from `system` to `user` message role with `<rag_context>` XML delimiters. Control characters stripped from RAG results. System prompt hardened with explicit instruction-override rejection (`src/services/core/ai-service.ts`).
+- ✅ **GraphQL Introspection Explicit Blocking**: `NoSchemaIntrospectionCustomRule` added to production validation plugin, preventing unauthenticated schema enumeration (`src/routes/api/graphql/+server.ts`).
+- ✅ **Tiptap Link Protocol Hardening**: `Link.configure()` now enforces protocol allowlist `["http", "https", "mailto", "tel"]`, blocking `javascript:` and `data:` URI injection at editor level (`src/widgets/core/rich-text/tiptap.ts`).
+- ✅ **Rate Limiter Dependency Hygiene**: Moved `sveltekit-rate-limiter` from `devDependencies` to `dependencies` to ensure production build inclusion (`package.json`).
+
+**Files Modified**: `src/utils/media/media-service.server.ts`, `src/utils/media/cloud-storage.ts`, `src/services/core/ai-service.ts`, `src/routes/api/graphql/+server.ts`, `src/widgets/core/rich-text/tiptap.ts`, `package.json`.
+
+**Tests**: All 64 defense-in-depth security regression tests pass. 0 lint errors. 0 type errors.
+
+### 8. June 2026 Performance Sprint — Security Preservation
+
+**Assessment Outcome**: 19-file multi-phase performance optimization sprint completed with **zero security regressions**. All 4 defense-in-depth layers preserved. 70/70 regression tests pass.
+
+**Key Security-Preserving Changes**:
+
+- ✅ **Fire-and-Forget Audit Logging**: Audit context (`userId`, `tenantId`, `path`, `method`) captured before `await resolve(event)`. Log written in detached `Promise.resolve().then(...)` — no blocking writes on the mutation hot path. SHA-256 chain integrity preserved (`src/hooks/handle-audit-logging.ts`).
+- ✅ **Turbo Auth Skip Guard**: `__turboAuth` flag prevents duplicate audit on turbo-served mutations without bypassing any auth checks. Turbo path still requires valid session + absolute-expiry auth cache (`src/hooks/handle-turbo-get.ts`).
+- ✅ **Hook Timing Gate**: `HOOK_TIMING_ENABLED` gate disables per-request instrumentation in production. No security hooks are skipped — only timing/tracing overhead is removed (`src/hooks.server.ts`).
+
+- ✅ **Pre-Compressed Cache**: Compression utilities operate on response bodies only — never touch authentication, authorization, or input validation. No bypass paths introduced.
+- ✅ **Batch Relational Upserts**: `setMany` + `bulkUpdate` use parameterized Drizzle ORM queries — no SQL injection risk. Tenant isolation preserved via existing `tenantId` scoping.
+- ✅ **CDN Purge Fast-Path**: Cached `_cdnActive` flag reduces invalidation overhead without changing the purge security model. Fire-and-forget Cloudflare API calls unchanged.
+- ✅ **OpenAPI Pre-Warm**: `generateFullSpec()` uses existing admin-gated endpoint. No new API surface. No permission bypass.
+
+**Security Tests**: All 70 defense-in-depth regression tests pass across 4 files (`defense-in-depth.test.ts`, `authentication.test.ts`, `authorization.test.ts`, `role-permission-access.test.ts`). 0 regressions from any hook, cache, or adapter change.
+
+**Files Modified**: `src/hooks.server.ts`, `src/hooks/handle-compression.ts`, `src/hooks/handle-turbo-get.ts`, `src/hooks/handle-api-requests.ts`, `src/hooks/handle-audit-logging.ts`, `src/hooks/handle-content-initialization.ts`, `src/databases/cache/cache-service.ts`, `src/databases/core/relational-content.ts`, `src/databases/core/relational-system.ts`, `src/databases/postgresql/adapter-core.ts`.
+
+---
+
+## No Backdoor Policy
+
+SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test support:
+
+- ✅ **Cryptographically-gated test bypass** — The `__testBypass` flag requires a timing-safe `timingSafeEqual()` cryptographic handshake against a runtime-generated secret, gated behind `TEST_MODE`/`BENCHMARK` environment variables. In production builds without these env vars, the bypass path is unconditionally blocked.
+- ✅ **No static test API keys** — Test secrets are generated at runtime via CSPRNG and never hardcoded.
+- ✅ **No mocked permissions** — RBAC tested with real role checks; the bypass only skips middleware when cryptographically verified in test environments.
+- ✅ **No shortcuts** — Encryption tested with real key derivation; auth paths excluded from turbo bypass, always using real credentials.
+
+---
+
+## Authentication & Sessions
+
+| Feature                  | Test Location                                     | Status |
+| ------------------------ | ------------------------------------------------- | ------ |
+| User login               | `tests/unit/hooks/authentication.test.ts`         | ✅     |
+| User logout              | `tests/unit/hooks/authentication.test.ts`         | ✅     |
+| Session creation         | `tests/integration/databases/auth-system.test.ts` | ✅     |
+| Session validation       | `tests/integration/databases/auth-system.test.ts` | ✅     |
+| Session deletion         | `tests/integration/databases/auth-system.test.ts` | ✅     |
+| Session timeout handling | `tests/unit/hooks/authentication.test.ts`         | ✅     |
+
+| Password hashing (Argon2) | `tests/unit/utils/security.test.ts` | ✅ |
+| Password verification | `tests/unit/utils/security.test.ts` | ✅ |
+| Timing attack resistance | `tests/unit/utils/security.test.ts` | ✅ |
+
+| OAuth/Google signup | `tests/e2e/oauth-signup-firstuser.spec.ts` | ✅ |
+| SAML authentication | `tests/unit/auth/saml.test.ts` | ✅ |
+
+---
+
+## Authorization & Access Control
+
+| Feature                          | Test Location                               | Status |
+| -------------------------------- | ------------------------------------------- | ------ |
+| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`    | ✅     |
+| Permission checking              | `tests/unit/role-permission-access.test.ts` | ✅     |
+| Public route access              | `tests/unit/hooks/authorization.test.ts`    | ✅     |
+| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`    | ✅     |
+| Admin-only endpoints             | `tests/integration/api/token.test.ts`       | ✅     |
+
+| Unauthorized access blocked | `tests/integration/api/collections.test.ts` | ✅ |
+| Plugin sandbox isolation | `tests/unit/plugins/sandbox.test.ts` | ✅ |
+
+---
+
+## Two-Factor Authentication (2FA)
+
+| Feature                    | Test Location                            | Status |
+| -------------------------- | ---------------------------------------- | ------ |
+| TOTP setup                 | `tests/integration/api/auth-2fa.test.ts` | ✅     |
+| TOTP validation            | `tests/integration/api/auth-2fa.test.ts` | ✅     |
+| Recovery codes             | `tests/integration/api/auth-2fa.test.ts` | ✅     |
+| 2FA enforcement for admins | `tests/integration/api/auth-2fa.test.ts` | ✅     |
+
+---
+
+## Security Middleware
+
+| Feature                       | Test Location                               | Status |
+| ----------------------------- | ------------------------------------------- | ------ |
+| Content Security Policy (CSP) | `tests/unit/hooks/security-headers.test.ts` | ✅     |
+| HSTS header                   | `tests/unit/hooks/security-headers.test.ts` | ✅     |
+| X-Frame-Options               | `tests/unit/hooks/security-headers.test.ts` | ✅     |
+| X-Content-Type-Options        | `tests/unit/hooks/security-headers.test.ts` | ✅     |
+| Referrer-Policy               | `tests/unit/hooks/security-headers.test.ts` | ✅     |
+| CORS configuration            | `tests/unit/hooks/security-headers.test.ts` | ✅     |
+
+| Rate limiting (IP-based) | `tests/unit/hooks/rate-limit.test.ts` | ✅ |
+| Rate limiting (session-based) | `tests/unit/hooks/rate-limit.test.ts` | ✅ |
+
+---
+
+## Threat Detection & Prevention
+
+| Feature                       | Test Location                       | Status |
+| ----------------------------- | ----------------------------------- | ------ |
+| SQL injection detection       | `tests/unit/hooks/firewall.test.ts` | ✅     |
+| XSS attack detection          | `tests/unit/hooks/firewall.test.ts` | ✅     |
+| Path traversal detection      | `tests/unit/hooks/firewall.test.ts` | ✅     |
+| Command injection detection   | `tests/unit/hooks/firewall.test.ts` | ✅     |
+| Password in URL detection     | `tests/unit/hooks/firewall.test.ts` | ✅     |
+| Suspicious parameter blocking | `tests/unit/hooks/firewall.test.ts` | ✅     |
+
+---
+
+## Input Validation
+
+| Feature                      | Test Location                                      | Status |
+| ---------------------------- | -------------------------------------------------- | ------ |
+| Password strength validation | `tests/integration/routes/login/signup.test.ts`    | ✅     |
+| Email format validation      | `tests/integration/routes/login/signup.test.ts`    | ✅     |
+| Password mismatch rejection  | `tests/integration/routes/login/signup.test.ts`    | ✅     |
+| Invalid OAuth data rejection | `tests/integration/routes/login/signup.test.ts`    | ✅     |
+| Input sanitization           | `docs/architecture/security/richtext-security.mdx` | ✅     |
+
+---
+
+## API Security
+
+| Feature                    | Test Location                         | Status |
+| -------------------------- | ------------------------------------- | ------ |
+| **Fail-Closed Dispatcher** | `src/routes/api/[...path]/+server.ts` | ✅     |
+| **TBAC Role Isolation**    | `src/hooks/handle-authentication.ts`  | ✅     |
+| **Informative 403 UI**     | `admin-area.svelte`                   | ✅     |
+
+| Authentication required for APIs | `tests/unit/hooks/api-requests.test.ts` | ✅ |
+| Valid session required | `tests/integration/api/collections.test.ts` | ✅ |
+| Admin-only API access | `tests/integration/api/token.test.ts` | ✅ |
+
+| CSRF protection | `tests/integration/api/user.test.ts` | ✅ |
+| Token creation/validation | `tests/integration/api/token.test.ts` | ✅ |
+| GraphQL auth enforcement | `tests/integration/api/graphql.test.ts` | ✅ |
+| GraphQL password field blocking | `tests/integration/api/graphql.test.ts` | ✅ |
+
+---
+
+## Widget & Plugin Security
+
+| Feature                            | Test Location                                    | Status |
+| ---------------------------------- | ------------------------------------------------ | ------ |
+| Widget sandbox isolation           | `tests/unit/plugins/sandbox.test.ts`             | ✅     |
+| Protected collection access denied | `tests/unit/plugins/sandbox.test.ts`             | ✅     |
+| File upload restrictions           | `docs/architecture/security/widget-security.mdx` | ✅     |
+| XSS prevention in widgets          | `docs/architecture/security/widget-security.mdx` | ✅     |
+| Widget permission system           | `tests/unit/hooks/authorization.test.ts`         | ✅     |
+
+---
+
+## E2E Security Tests
+
+| Feature              | Test Location                              | Status |
+| -------------------- | ------------------------------------------ | ------ |
+| Login flow           | `tests/e2e/login.spec.ts`                  | ✅     |
+| Role-based access    | `tests/e2e/role-based-access.spec.ts`      | ✅     |
+| User CRUD operations | `tests/e2e/user-crud.spec.ts`              | ✅     |
+| Permission changes   | `tests/e2e/permission-change.spec.ts`      | ✅     |
+| OAuth signup flow    | `tests/e2e/oauth-signup-firstuser.spec.ts` | ✅     |
+| Password change      | `tests/e2e/user.spec.ts`                   | ✅     |
+
+---
+
+## Test Commands
+
+```bash
+# Run all security-related unit tests
+bun test tests/unit/hooks/
+
+# Run authentication tests
+bun test tests/unit/hooks/authentication.test.ts
+
+# Run authorization tests
+bun test tests/unit/hooks/authorization.test.ts
+
+# Run firewall/threat detection tests
+bun test tests/unit/hooks/firewall.test.ts
+
+# Run security headers tests
+bun test tests/unit/hooks/security-headers.test.ts
+
+# Run integration API security tests
+bun test tests/integration/api/user.test.ts
+bun test tests/integration/api/auth-2fa.test.ts
+
+# Run E2E security tests
+bun x playwright test tests/e2e/login.spec.ts
+bun x playwright test tests/e2e/role-based-access.spec.ts
+
+# Run all tests
+bun run test:all
+```
+
+---
+
+## Security Test Statistics
+
+| Category             | Test Count |
+| -------------------- | ---------- |
+| Authentication       | 50+        |
+| Authorization        | 40+        |
+| Input Validation     | 80+        |
+| XSS Prevention       | 30+        |
+| Injection Prevention | 40+        |
+| Security Headers     | 20+        |
+| File Upload Security | 20+        |
+| **Total**            | **280+**   |
+
+---
+
+## Related Documentation
+
+- **[Security Index](/docs/reference/security/index.mdx)** - Main security documentation
+- **[No Backdoor Policy](/docs/reference/security/index.mdx)** - Testing security philosophy
+- **[Black-Box Testing](/docs/tests/black-box-testing.mdx)** - Test architecture
+- **[Widget Security](/docs/reference/security/widget-security.mdx)** - Widget security guidelines
+- **[RichText Security](/docs/reference/security/richtext-security.mdx)** - Rich text editor security

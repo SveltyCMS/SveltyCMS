@@ -12,7 +12,7 @@ Features:
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
 import { onMount } from "svelte";
-import type { SvelteSet } from "svelte/reactivity";
+import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
 	gridSize?: "tiny" | "small" | "medium" | "large";
 	isSelectionMode?: boolean;
 	selectedFiles: SvelteSet<string>;
+	publishedMediaIds?: SvelteSet<string>;
 	onEditImage?: (file: MediaImage) => void;
 	onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 }
@@ -29,6 +30,7 @@ let {
 	gridSize = "medium",
 	isSelectionMode = false,
 	selectedFiles = $bindable(),
+	publishedMediaIds = $bindable(new SvelteSet<string>()),
 	onEditImage = () => {},
 	onOpenFileDetails = () => {},
 }: Props = $props();

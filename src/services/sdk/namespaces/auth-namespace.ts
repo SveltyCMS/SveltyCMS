@@ -5,8 +5,8 @@
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { verifyPassword } from "@utils/security";
-import { parseSessionDuration } from "@utils/auth-utils";
+import { verifyPassword } from "@utils/security/crypto";
+import { parseSessionDuration } from "@utils/security/auth-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
@@ -292,7 +292,9 @@ export class AuthNamespace {
   async getAllActiveSessions(options: LocalApiOptions = {}) {
     const auth = await this.getAuth();
     if (!auth) throw new AppError("Authentication system not initialized", 500);
-    return auth.getAllActiveSessions({ tenantId: options.tenantId as DatabaseId });
+    return auth.getAllActiveSessions({
+      tenantId: options.tenantId as DatabaseId,
+    });
   }
 
   async invalidateAllUserSessions(userId: string, options: LocalApiOptions = {}) {

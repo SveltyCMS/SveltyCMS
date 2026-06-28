@@ -24,7 +24,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
 import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
-import type { Permission, Role, Session, SessionStore, Token, User } from "./types";
+import type { Permission, Role, Session, SessionStore, Token, User, ApiKey } from "./types";
 
 export {
   checkPermissions,
@@ -62,15 +62,19 @@ export type {
   SessionStore,
   Token,
   User,
+  ApiKey,
 } from "./types";
 
 // Import shared password utilities (Argon2id)
+// NOTE: Import directly from ./crypto, NOT from @utils/security barrel,
+// to avoid pulling server-only modules (cors-utils, csrf-utils, etc.) into the client bundle.
 import {
   hashPassword as cryptoHashPassword,
   verifyPassword as cryptoVerifyPassword,
-} from "@utils/security";
+} from "@utils/security/crypto";
 // Import for internal use
 import { SESSION_COOKIE_NAME } from "./constants";
+import { normalizeEmail } from "@utils/normalize-email";
 
 // Main Auth class
 export class Auth {
@@ -96,7 +100,7 @@ export class Auth {
     try {
       const { email, password } = userData;
 
-      if (email) userData.email = email.toLowerCase();
+      if (email) userData.email = normalizeEmail(email);
 
       // --- PASSWORD HASHING ---
       if (password) {
@@ -161,7 +165,7 @@ export class Auth {
         throw error(400, "Tenant ID is required in multi-tenant mode");
       }
 
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = normalizeEmail(email);
 
       // --- PASSWORD STRENGTH VALIDATION ---
       if (!oauth && !samlId && password) {
@@ -173,8 +177,17 @@ export class Auth {
         hashedPassword = await cryptoHashPassword(password);
       }
 
+      const preferences = (userData.preferences || {}) as Record<string, unknown>;
+      if (oauth) {
+        preferences.auth = {
+          ...(preferences.auth as Record<string, unknown>),
+          oauthEnabled: true,
+        };
+      }
+
       const result = await this.db.auth.createUser({
         ...userData,
+        preferences,
         email: normalizedEmail,
         password: hashedPassword,
       });
@@ -282,7 +295,7 @@ export class Auth {
     await cacheService.delete(cacheKey, options?.tenantId);
 
     if (user?.email) {
-      const emailCacheKey = `user:email:${user.email.toLowerCase()}`;
+      const emailCacheKey = `user:email:${normalizeEmail(user.email)}`;
       await cacheService.delete(emailCacheKey, options?.tenantId);
     }
   }
@@ -436,7 +449,7 @@ export class Auth {
 
     const result = await this.db.auth.createToken({
       user_id: tokenData.user_id,
-      email: user.email.toLowerCase(),
+      email: normalizeEmail(user.email),
       expires: tokenData.expires,
       type: tokenData.type,
       tenantId: tokenData.tenantId,
@@ -676,7 +689,7 @@ export class Auth {
           });
         }
 
-        await this.db.auth.updateUserAttributes(user._id, updates);
+        await this.db.auth.updateUserAttributes(user._id, updates, options);
         logger.warn("Password authentication failed", {
           email,
           failedAttempts,
@@ -686,10 +699,14 @@ export class Auth {
 
       // --- SUCCESS: RESET LOCKOUT STATE ---
       if (user.failedAttempts || user.lockoutUntil) {
-        await this.db.auth.updateUserAttributes(user._id, {
-          failedAttempts: 0,
-          lockoutUntil: null,
-        });
+        await this.db.auth.updateUserAttributes(
+          user._id,
+          {
+            failedAttempts: 0,
+            lockoutUntil: null,
+          },
+          options,
+        );
       }
 
       const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
@@ -706,7 +723,14 @@ export class Auth {
 
       return { user, sessionId: session._id };
     } catch (err: any) {
-      logger.error(`Authentication error: ${err.message}`);
+      // Vite 8 dev-mode HMR cycle — non-fatal, retry will succeed
+      if (err.message?.includes("module runner has been closed")) {
+        logger.debug(
+          `Auth: Vite module runner closed during authenticate (HMR cycle), returning null`,
+        );
+      } else {
+        logger.error(`Authentication error: ${err.message}`);
+      }
       return null;
     }
   }
@@ -922,6 +946,52 @@ export class Auth {
         "Password must contain uppercase, lowercase, numbers, and special characters.",
       );
     }
+  }
+
+  async createApiKey(
+    apiKeyData: Partial<ApiKey>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey>> {
+    return this.db.auth.createApiKey(apiKeyData, options);
+  }
+
+  async getApiKey(
+    hash: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.db.auth.getApiKey(hash, options);
+  }
+
+  async getApiKeyById(
+    id: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.db.auth.getApiKeyById(id, options);
+  }
+
+  async listApiKeys(
+    filter?: { userId?: DatabaseId; tenantId?: DatabaseId | null },
+    options?: { limit?: number; skip?: number },
+  ): Promise<DatabaseResult<ApiKey[]>> {
+    return this.db.auth.listApiKeys(filter, options);
+  }
+
+  async revokeApiKey(id: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
+    const existing = await this.db.auth.getApiKeyById(id, options);
+    const result = await this.db.auth.revokeApiKey(id, options);
+    if (result.success && existing.success && existing.data?.hash) {
+      const { invalidateApiKeyAuth } = await import("./credential-auth-cache");
+      await invalidateApiKeyAuth(String(id), options?.tenantId ?? null, existing.data.hash);
+    }
+    return result;
+  }
+
+  async updateApiKeyUsage(
+    id: DatabaseId,
+    ip?: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>> {
+    return this.db.auth.updateApiKeyUsage(id, ip, options);
   }
 }
 

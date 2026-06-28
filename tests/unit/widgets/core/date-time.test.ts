@@ -26,7 +26,10 @@ describe("DateTime Widget", () => {
 
   it("should handle required constraint", () => {
     const requiredField = DateTimeWidget({ label: "Birthday", required: true });
-    const optionalField = DateTimeWidget({ label: "Birthday", required: false });
+    const optionalField = DateTimeWidget({
+      label: "Birthday",
+      required: false,
+    });
 
     const reqSchema = (requiredField.widget.validationSchema as any)(requiredField);
     const optSchema = (optionalField.widget.validationSchema as any)(optionalField);

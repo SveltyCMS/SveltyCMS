@@ -42,6 +42,7 @@ import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
 import BackToTop from "@components/ui/back-to-top.svelte";
 import Slot from "@components/system/slot.svelte";
+import PluginWorkspaceOverlay from "@components/system/plugin-workspace-overlay.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
 import { isSearchVisible } from "@utils/global-search-index";
@@ -52,9 +53,11 @@ import {
 	diffLayoutPrefsFromTenant,
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
-import { userThemePrefs } from "@src/stores/user-theme-prefs.svelte";
-import { onMount, untrack } from "svelte";
-import { registerHotkey } from "@src/utils/hotkeys";
+import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
+	import { onMount, untrack } from "svelte";
+	import { initBounceDetector } from "@utils/bounce-detector";
+	import { initPredictivePreload } from "@utils/predictive-preload";
+	import { registerHotkey } from "@src/utils/hotkeys";
 import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
@@ -280,25 +283,6 @@ $effect(() => {
 // EVENT HANDLERS
 // =============================================
 
-// Initialize avatar from user data
-function initializeUserAvatar(user: User | null): void {
-	console.log(
-		"[AppLayout] initializeUserAvatar for user:",
-		user?.username || "Guest",
-	);
-	if (!user) {
-		app.avatarSrc = "/Default_User.svg";
-		return;
-	}
-
-	if (user.avatar && user.avatar !== "/Default_User.svg") {
-		app.avatarSrc = user.avatar;
-	} else {
-		app.avatarSrc = "/Default_User.svg";
-	}
-	console.log("[AppLayout] Avatar source set to:", app.avatarSrc);
-}
-
 // =============================================
 // LIFECYCLE HOOKS
 // =============================================
@@ -308,11 +292,10 @@ onMount(() => {
 
 
 		// Initialize predictive preloading (physics cone + behavioral smart)
-		import("@utils/predictive-preload").then(m => m.initPredictivePreload());
-		import("@utils/bounce-detector").then(m => m.initBounceDetector());
+		initPredictivePreload();
+		initBounceDetector();
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
-	initializeUserAvatar(data.user);
 
 	registerHotkey(
 		"mod+k",
@@ -510,5 +493,6 @@ afterNavigate(() => {
 			</Portal>
 		{/if}
 		<BackToTop />
+		<PluginWorkspaceOverlay />
 	</div>
 {/if}

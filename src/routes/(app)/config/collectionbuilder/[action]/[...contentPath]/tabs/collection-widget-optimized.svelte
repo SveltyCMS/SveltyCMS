@@ -19,7 +19,7 @@ import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { modalState } from "@utils/modal.svelte";
-import { asAny, getGuiFields } from "@utils/utils";
+import { getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
 import { flip } from "svelte/animate";
 import type { DndEvent } from "svelte-dnd-action";
@@ -120,7 +120,7 @@ function addField() {
 					widget: { key: r.selectedWidget, Name: r.selectedWidget } as any,
 					GuiFields: getGuiFields(
 						{ key: r.selectedWidget },
-						asAny(widgetInstance.GuiSchema),
+						(widgetInstance.GuiSchema as any),
 					),
 					permissions: {},
 				};
@@ -241,18 +241,10 @@ function generatePreviewSpec(fieldsToRender: FieldInstance[]): Spec {
 }
 
 const quickWidgets = [
-	{ key: "Text", icon: "material-symbols:text-fields", label: "Short Text" },
-	{
-		key: "RichText",
-		icon: "material-symbols:format-list-bulleted-rounded",
-		label: "Rich Text",
-	},
-	{ key: "Image", icon: "material-symbols:image-outline", label: "Image" },
-	{
-		key: "Relation",
-		icon: "material-symbols:account-tree-outline",
-		label: "Relation",
-	},
+  { key: "Input", icon: "material-symbols:text-fields", label: "Short Text" },
+  { key: "RichText", icon: "material-symbols:format-list-bulleted-rounded", label: "Rich Text" },
+  { key: "MediaUpload", icon: "material-symbols:image-outline", label: "Image" },
+  { key: "Relation", icon: "material-symbols:account-tree-outline", label: "Relation" },
 ];
 
 function addQuickWidget(key: string) {
@@ -265,7 +257,7 @@ function addQuickWidget(key: string) {
 			label: `New ${key}`,
 			db_fieldName: `new_${key.toLowerCase()}`,
 			widget: { key, Name: key } as any,
-			GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
+			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
 			permissions: {},
 		};
 		items = [
@@ -335,7 +327,7 @@ const viewOptions = [
 				<!-- Add Bar -->
 				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50 dark:bg-surface-900 border-dashed">
 					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 me-2 uppercase tracking-tight">Quick Add:</span>
-					{#each quickWidgets as qw}
+					{#each quickWidgets as qw (qw.key)}
 						<Button
 							variant="outline"
 							size="sm"

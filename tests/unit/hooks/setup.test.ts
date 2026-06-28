@@ -7,7 +7,7 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { handleTurboPipeline as handleSetup } from "@src/hooks/handle-turbo-pipeline.server";
-import { invalidateSetupCache } from "@utils/setup-check";
+import { invalidateSetupCache } from "@utils/server/setup-check";
 import { setSystemState } from "@src/stores/system/state.svelte.ts";
 
 // Use global mockSetupCheck from tests/unit/bun-preload.ts

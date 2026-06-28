@@ -194,26 +194,37 @@ async function executeWithTimeout(
       shell: process.platform === "win32",
     });
 
-    proc.stdout?.on("data", (data) => {
+    proc.stdout?.on("data", (data: Buffer) => {
       const content = data.toString();
       process.stdout.write(data);
 
-      const metricMatch = content.match(/METRIC: ([\w.]+)=([\d.]+)/gm);
-      if (metricMatch) {
-        for (const m of metricMatch) {
-          const matchResult = m.match(/METRIC: ([\w.]+)=([\d.]+)/);
-          if (matchResult) {
-            const [, key, val] = matchResult;
-            metrics[key] = parseFloat(val);
-          }
+      // Fast string sub-sequence skip to avoid processing chunks that lack performance keys
+      if (!content.includes("METRIC: ")) return;
+
+      const lines = content.split("\n");
+      for (let l = 0; l < lines.length; l++) {
+        const line = lines[l]!;
+        const markerIndex = line.indexOf("METRIC: ");
+        if (markerIndex === -1) continue;
+
+        const segment = line.substring(markerIndex + 8);
+        const eqIndex = segment.indexOf("=");
+        if (eqIndex === -1) continue;
+
+        const key = segment.substring(0, eqIndex).trim();
+        const val = parseFloat(segment.substring(eqIndex + 1).trim());
+        if (!isNaN(val)) {
+          metrics[key] = val;
         }
       }
     });
 
+    let stderrBuf = "";
     proc.stderr?.on("data", (data) => {
-      // On Windows, PowerShell wraps stderr in NativeCommandError noise.
-      // All useful bun output goes to stdout, so suppress stderr on win32.
-      if (process.platform !== "win32") process.stderr.write(data);
+      const text = data.toString();
+      stderrBuf += text;
+      // Benchmark errors (HTTP 500, first-error debug) land on stderr — always surface them.
+      process.stderr.write(data);
     });
 
     let resolved = false;
@@ -234,11 +245,17 @@ async function executeWithTimeout(
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
+      const stderrHint = stderrBuf.trim() ? stderrBuf.trim().split("\n").slice(-3).join(" | ") : "";
       resolve({
         passed: code === 0,
         attempts: attempt,
         elapsedMs: Math.round(performance.now() - startTime),
-        error: code === 0 ? undefined : `exited with code ${code}`,
+        error:
+          code === 0
+            ? undefined
+            : stderrHint
+              ? `exited with code ${code}: ${stderrHint}`
+              : `exited with code ${code}`,
         metrics,
       });
     };
@@ -309,6 +326,8 @@ export function buildWorkerEnv(
     PASSWORD_MIN_LENGTH: "8",
     ADMIN_PASSWORD,
     BENCHMARK_MODE: "1",
+    BENCHMARK_MATRIX: "1",
+    BENCHMARK_RECORD: "1",
     ADMIN_EMAIL: "admin@example.com",
     BUN_TEST_MOCKS: "false",
     DISABLE_AUDIT_LOGS: "true",
@@ -370,6 +389,13 @@ export async function runAuditForDatabase(
     if (buildMetrics) metrics["dx-build"] = buildMetrics;
 
     await freePort(workerPort);
+
+    // Purge leaked mock/bench files before the server scans user .compiledCollections
+    const { purgeBenchmarkCollectionArtifacts } =
+      await import("@src/routes/setup/preset-collections.server");
+    const purged = await purgeBenchmarkCollectionArtifacts();
+    if (purged > 0) log.db(dbKey, `Isolation: purged ${purged} benchmark artifact(s)`);
+
     await writeTestConfig(dbConf, workerDbName);
 
     const serverInfo = await startServer(dbConf, workerPort, workerDbName);
@@ -449,8 +475,6 @@ export async function runAuditForDatabase(
     await warmupServer(cfg, workerPort);
 
     log.db(dbKey, "Warmup complete. Starting benchmarks...");
-    await ensureSeedingIfNeeded({ path: "relational", strategy: "sql" } as any, env, cfg);
-
     let status: "SUCCESS" | "FAILED" = "SUCCESS";
     let errorMsg: string | undefined;
     const scriptTimings: Record<string, number> = {};
@@ -463,6 +487,11 @@ export async function runAuditForDatabase(
         progressTracker?.update();
         continue;
       }
+
+      // Re-seed benchmark data before tests that need it — earlier tests may wipe the stable entry
+      await ensureSeedingIfNeeded(s, env, cfg).catch((err) => {
+        log.warn(`Re-seed skipped for ${s.shortLabel}: ${err.message}`);
+      });
 
       const useLock = s.intensity === "high" && cfg.parallelMode === "safe";
       if (useLock) {
@@ -567,15 +596,26 @@ async function ensureSeedingIfNeeded(s: BenchmarkScript, env: NodeJS.ProcessEnv,
     s.strategy === "sql" ||
     s.path.includes("relational") ||
     s.path.includes("rest") ||
-    s.path.includes("graphql")
+    s.path.includes("graphql") ||
+    s.path.includes("production-day") ||
+    s.path.includes("api-latency")
   ) {
-    const ok = await runTask(
-      "Seeding Relational Data",
-      "bun run ./scripts/benchmark-matrix/setup-benchmarks.ts",
-      env,
-      cfg.ci,
-    );
-    if (!ok) throw new Error("Seeding failed");
+    try {
+      const { runBenchmarkSeed } = await import("./setup-benchmarks");
+      await runBenchmarkSeed({
+        apiBase: env.API_BASE_URL,
+        secret: env.TEST_API_SECRET,
+        tenantId: env.TENANT_ID ?? "global",
+      });
+    } catch (err: any) {
+      if (cfg.ci && env.RESULTS_DIR) {
+        const logPath = path.join(env.RESULTS_DIR, "setup_tasks.log");
+        await fs
+          .appendFile(logPath, `--- TASK: Seeding Relational Data ---\n${err.message}\n`, "utf8")
+          .catch(() => {});
+      }
+      throw new Error(`Seeding failed: ${err.message}`);
+    }
   }
 }
 

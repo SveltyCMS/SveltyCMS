@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:image-edit"
 author: "SveltyCMS Team"
 created: "2025-11-16"
-updated: "2026-06-06"
+updated: "2026-06-26"
 tags:
   - "image-editor"
   - "svelte-canvas"
@@ -48,15 +48,16 @@ You need to crop, adjust, annotate, or filter an image that's already been uploa
 
 ### Core Editing Tools
 
-| Tool          | What It Does                                                                                     |
-| :------------ | :----------------------------------------------------------------------------------------------- |
-| **Crop**      | Trim edges, lock to 1:1 / 4:3 / 16:9 ratios, or free-form. Rule-of-thirds grid overlay built-in. |
-| **Focal**     | Set the "focus point" of your image — ensures key subjects stay visible in responsive layouts.   |
-| **Rotate**    | Rotate 90° left/right or flip horizontally/vertically.                                           |
-| **FineTune**  | Adjust brightness, contrast, saturation, temperature, and more.                                  |
-| **Blur**      | Paint blur regions over sensitive information or backgrounds.                                    |
-| **Annotate**  | Draw arrows, rectangles, or add text directly onto the image.                                    |
-| **Watermark** | Apply a preset watermark with adjustable opacity and position.                                   |
+| Tool         | What It Does                                                                                     |
+| :----------- | :----------------------------------------------------------------------------------------------- |
+| **Crop**     | Trim edges, lock to 1:1 / 4:3 / 16:9 ratios, or free-form. Rule-of-thirds grid overlay built-in. |
+| **Focal**    | Set the "focus point" of your image — ensures key subjects stay visible in responsive layouts.   |
+| **Rotate**   | Rotate 90° left/right or flip horizontally/vertically.                                           |
+| **FineTune** | Adjust brightness, contrast, saturation, temperature, and more.                                  |
+
+| **Blur** | Paint blur regions over sensitive information or backgrounds. |
+| **Annotate** | Draw arrows, rectangles, or add text directly onto the image. |
+| **Watermark** | Apply a preset watermark with adjustable opacity and position. |
 
 ### Keyboard Shortcuts
 
@@ -157,7 +158,37 @@ export default {
 3. Create `tool.svelte` for the canvas interaction logic.
 4. It appears automatically in the editor sidebar — no manual registration.
 
+### Plugin Extensibility (image_editor_tool Zone)
+
+Plugins can register custom editing tools via the `image_editor_tool` injection zone. These appear alongside built-in widgets in the editor sidebar and receive the current editor context (`activeState`, `onToolSelect`, `hasImage`) as props.
+
+**Registering a plugin tool:**
+
+```typescript
+// src/plugins/my-image-tool/index.ts
+export default {
+  metadata: { id: "my-image-tool", name: "My Image Tool", version: "1.0.0", enabled: true },
+  ui: {
+    slots: [
+      {
+        id: "my-editor-tool",
+        zone: "image_editor_tool",
+        component: () => import("./editor-tool.svelte"),
+      },
+    ],
+  },
+};
+```
+
+**Tool component receives these props:**
+
+- `activeState` — currently active tool key (string)
+- `onToolSelect` — function to activate a tool `(toolKey: string) => void`
+- `hasImage` — whether an image is loaded (boolean)
+
 ### Server-Side Baking (Sharp.js)
+
+> **Note**: The image editor's primary image processing (filters, convolution, color adjustments) is handled client-side in a **Web Worker** for instant feedback. The server-side step described below is an optional persistence layer that re-applies lossless transformations to the original asset — it is **not** the primary processing path.
 
 Instead of exporting a lossy blob from the browser, the editor sends a **JSON instruction set** to the server:
 
@@ -303,25 +334,27 @@ Since SveltyCMS is an authoring tool:
 
 ## 🧪 Testing
 
-The image editor is covered by 38 unit tests across two test files:
+The image editor is covered by 73 unit tests across four test files:
 
-| Test File                                      | Tests | Coverage                                                                                                |
-| :--------------------------------------------- | :---- | :------------------------------------------------------------------------------------------------------ |
-| `tests/unit/stores/image-editor-store.test.ts` | 26    | Undo/redo, tool switching, compare slider, zoom, rotation, reset, save behavior, error handling         |
-| `tests/unit/stores/filter-worker.test.ts`      | 12    | `buildFilterString()`, `applySharpness()` (no-op, sharpen, blur, edge cases, 1×1, 1024×768 performance) |
+| Test File                                                     | Tests | Coverage                                                                                                |
+| :------------------------------------------------------------ | :---- | :------------------------------------------------------------------------------------------------------ |
+| `tests/unit/stores/image-editor-store.test.ts`                | 26    | Undo/redo, tool switching, compare slider, zoom, rotation, reset, save behavior, error handling         |
+| `tests/unit/stores/filter-worker.test.ts`                     | 12    | `buildFilterString()`, `applySharpness()` (no-op, sharpen, blur, edge cases, 1×1, 1024×768 performance) |
+| `tests/unit/components/image-editor/widget-registry.test.ts`  | 27    | Widget validation (12 cases), defaults (8), sorting (3), disabled filtering (2), category + key lookup  |
+| `tests/unit/components/image-editor/plugin-tool-slot.test.ts` | 8     | InjectionZone acceptance, slot registration, zone isolation, server actions, props, condition filtering |
 
 Run with:
 
 ```
-bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts
+bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-worker.test.ts tests/unit/components/image-editor/widget-registry.test.ts tests/unit/components/image-editor/plugin-tool-slot.test.ts
 ```
 
 ---
 
 ## 📚 Related Documentation
 
-- [**Media API Reference**](../../api/media.mdx) — Full technical spec for the `/api/media/manipulate` endpoint.
-- [**MediaUpload Widget**](../../src/widgets/core/media-upload/mediaupload.mdx) — Widget documentation with field configuration examples.
+- [**Media API Reference**](../../reference/api/media.mdx) — Full technical spec for the `/api/media/manipulate` endpoint.
+- [**MediaUpload Widget**](../../src/widgets/core/media-upload/media-upload.mdx) — Widget documentation with field configuration examples.
 - [**Accessibility Guide**](../../contributing/accessibility.mdx) — WCAG compliance requirements and testing procedures.
 - [**Contributing Docs**](../../contributing/contributing-docs.mdx) — Documentation standards and PR workflow.
 
@@ -330,5 +363,5 @@ bun test tests/unit/stores/image-editor-store.test.ts tests/unit/stores/filter-w
 ## Related
 
 - [Getting Started](../../getting-started.mdx)
-- [Architecture Overview](../../architecture/index.mdx)
-- [Security Overview](../../architecture/security/index.mdx)
+- [Architecture Overview](../../reference/architecture/index.mdx)
+- [Security Overview](../../reference/security/index.mdx)

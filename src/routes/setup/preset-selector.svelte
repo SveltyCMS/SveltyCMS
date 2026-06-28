@@ -187,7 +187,7 @@ Default value is 'blank'.
 					<div class="line-clamp-3 text-xs leading-relaxed {selected === preset.id ? 'text-white/90 dark:text-white/90' : 'text-black/60 dark:text-white/40'}">{preset.description}</div>
 
 					<div class="flex flex-wrap gap-1 mt-auto">
-						{#each preset.features.slice(0, 2) as f}
+						{#each preset.features.slice(0, 2) as f (f)}
 							<Badge
 								variant="surface"
 								size="sm"

@@ -6,6 +6,9 @@
 @import "tailwindcss";
 @import "./utilities.css";
 
+@source "../src/**/*.svelte";
+@source "../src/**/*.html";
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ========================================================================

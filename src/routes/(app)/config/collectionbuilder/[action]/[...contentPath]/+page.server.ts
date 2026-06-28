@@ -5,7 +5,7 @@
  * #Features:
  * - Handles 'new' and 'edit' actions based on URL parameters.
  * - Checks for authenticated user in locals (set by hooks.server.ts).
- * - Verifies user permissions: Must be admin or have 'config:collection:manage' permission.
+ * - Verifies user permissions: Must be admin or have 'config:collectionbuilder' permission.
  * - Fetches all permissions and roles to pass to the client (for UI selectors).
  * - For 'edit' mode, fetches the specific collection data from contentSystem.
  * - For 'new' mode, returns a null collection object.
@@ -19,9 +19,8 @@ import path from "node:path";
 import { contentSystem } from "@src/content/index.server";
 import type { Schema } from "@src/content/types";
 // Auth
-// Use hasPermissionWithRoles and roles from locals, like the example pattern
 import {
-  hasPermissionWithRoles,
+  hasCollectionBuilderPermission,
   permissionConfigs,
   permissions,
 } from "@src/databases/auth/permissions";
@@ -94,18 +93,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
     logger.trace(`User authenticated successfully for user: ${user._id}`);
 
-    // 3. Authorization check
-    // Use the 'config:collection:manage' permission string (adjust if needed)
-    const hasManagePermission = hasPermissionWithRoles(
-      user,
-      "config:collection:manage",
-      tenantRoles,
-    );
-
-    // Replicate original logic: User must be an Admin OR have the specific permission.
-    if (!(isAdmin || hasManagePermission)) {
-      const message = `User ${user._id} lacks 'config:collection:manage' permission and is not admin.`;
-      logger.warn(message, { userId: user._id, isAdmin, hasManagePermission });
+    // 3. Authorization check — admin or config:collectionbuilder (see core-permissions.ts)
+    if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
+      const message = `User ${user._id} lacks config:collectionbuilder permission and is not admin.`;
+      logger.warn(message, { userId: user._id, isAdmin });
       throw error(403, "Insufficient permissions");
     }
 
@@ -207,13 +198,7 @@ export const actions: Actions = {
       if (!user) {
         return { status: 401, error: "Unauthorized" };
       }
-      const hasManagePermission = hasPermissionWithRoles(
-        user,
-        "config:collection:manage",
-        tenantRoles,
-      );
-
-      if (!(isAdmin || hasManagePermission)) {
+      if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
         return { status: 403, error: "Insufficient permissions" };
       }
 
@@ -299,13 +284,7 @@ export const actions: Actions = {
       if (!user) {
         return { status: 401, error: "Unauthorized" };
       }
-      const hasManagePermission = hasPermissionWithRoles(
-        user,
-        "config:collection:manage",
-        tenantRoles,
-      );
-
-      if (!(isAdmin || hasManagePermission)) {
+      if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
         return { status: 403, error: "Insufficient permissions" };
       }
 
@@ -353,13 +332,7 @@ export const actions: Actions = {
       if (!user) {
         return { status: 401, error: "Unauthorized" };
       }
-      const hasManagePermission = hasPermissionWithRoles(
-        user,
-        "config:collection:manage",
-        tenantRoles,
-      );
-
-      if (!(isAdmin || hasManagePermission)) {
+      if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
         return { status: 403, error: "Insufficient permissions" };
       }
 
@@ -623,6 +596,23 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 // Create TypeScript AST nodes for the schema object
 function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
   const properties: ts.ObjectLiteralElementLike[] = [];
+
+  // _id — derived from content name for consistent collection identification
+  const collectionId = data.contentName.toLowerCase().replace(/\s+/g, "_");
+  properties.push(
+    ts.factory.createPropertyAssignment(
+      ts.factory.createIdentifier("_id"),
+      ts.factory.createStringLiteral(collectionId),
+    ),
+  );
+
+  // name — display name for the collection
+  properties.push(
+    ts.factory.createPropertyAssignment(
+      ts.factory.createIdentifier("name"),
+      ts.factory.createStringLiteral(data.contentName),
+    ),
+  );
 
   // Add icon property
   properties.push(

@@ -42,7 +42,7 @@ functionality for image editing and basic file information display.
 	import { validationStore } from '@src/stores/store.svelte.ts';
 	import { isoDateStringToDate } from '@utils/date';
 	import { logger } from '@utils/logger';
-	import { updateMediaMetadata } from '@utils/media/api';
+	import { updateMediaMetadata } from '@utils/media/media-utils';
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
 	import { getFieldName } from '@utils/utils';
 	import { formatDateString } from '@utils/date';
