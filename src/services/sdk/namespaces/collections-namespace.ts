@@ -1162,6 +1162,8 @@ export class CollectionsNamespace {
       throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
     }
 
+    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
     const finalData = await this.triggerLifecycleHook(
       "beforeSave",
       collectionId,
@@ -1169,6 +1171,8 @@ export class CollectionsNamespace {
       options,
       schema,
     );
+
+    const collectionModel = await this._getModelResilient(schema);
 
     await modifyRequest({
       data: [finalData],
