@@ -11,12 +11,7 @@ import { PER_DIMENSION_BUDGETS } from "./benchmark-mdx";
 // Types
 // ─────────────────────────────────────────────────────────────
 
-export type Severity =
-  | "stable"
-  | "watch"
-  | "warning"
-  | "regression"
-  | "critical";
+export type Severity = "stable" | "watch" | "warning" | "regression" | "critical";
 
 export interface TrendResult {
   label: string;
@@ -138,10 +133,8 @@ export function analyzeTrend(
     label = `${icon} slower: ${formatMs(median)} \u2192 ${formatMs(current)} (+${deltaPct.toFixed(0)}%) (${historyLen} runs)`;
   }
 
-  const bP95 =
-    p95s.length > 0 ? p95s.reduce((a, b) => a + b, 0) / p95s.length : 0;
-  const bRPS =
-    rpss.length > 0 ? rpss.reduce((a, b) => a + b, 0) / rpss.length : 0;
+  const bP95 = p95s.length > 0 ? p95s.reduce((a, b) => a + b, 0) / p95s.length : 0;
+  const bRPS = rpss.length > 0 ? rpss.reduce((a, b) => a + b, 0) / rpss.length : 0;
 
   return {
     label,
@@ -186,8 +179,7 @@ export function classifyRootCause(
       "Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.";
     rootCause = deltaPct > 10 ? "cold_start" : "gc_pause";
   } else if (deltaPct < -3) {
-    insight =
-      "Performance improved — recent optimizations or cache warming likely effective.";
+    insight = "Performance improved — recent optimizations or cache warming likely effective.";
     rootCause = "improvement";
   }
 
@@ -215,10 +207,7 @@ export function classifyRootCause(
 // Budget Checking
 // ─────────────────────────────────────────────────────────────
 
-export function checkBudgets(
-  dbType: string,
-  metrics: Record<string, number>,
-): string[] {
+export function checkBudgets(dbType: string, metrics: Record<string, number>): string[] {
   const violations: string[] = [];
   const budgets = PER_DIMENSION_BUDGETS[dbType.toLowerCase()];
   if (!budgets) return violations;
@@ -230,9 +219,7 @@ export function checkBudgets(
     if (!budget || value <= 0) continue;
 
     if (value > budget.budget) {
-      violations.push(
-        `${budget.desc}: ${value.toFixed(2)}ms > ${budget.budget}ms budget`,
-      );
+      violations.push(`${budget.desc}: ${value.toFixed(2)}ms > ${budget.budget}ms budget`);
     }
   }
 
@@ -302,20 +289,13 @@ export function runAnalysis(
   if (codePaths.length > 0) {
     let components = "";
     for (let i = 0; i < codePaths.length; i++) {
-      components +=
-        "`" + codePaths[i] + "`" + (i < codePaths.length - 1 ? " · " : "");
+      components += "`" + codePaths[i] + "`" + (i < codePaths.length - 1 ? " · " : "");
     }
     fullInsight += `  \n**Check**: ${components}`;
   }
 
   if (result.memoryRssMb && result.memoryRssMb > 0) {
-    const memHistory = loadHistory(
-      testId + "-mem",
-      dbType,
-      redisEnabled,
-      phase,
-      10,
-    );
+    const memHistory = loadHistory(testId + "-mem", dbType, redisEnabled, phase, 10);
     const memLen = memHistory.length;
     if (memLen >= 2) {
       let memSum = 0;

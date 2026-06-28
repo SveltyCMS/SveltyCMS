@@ -16,15 +16,11 @@ export async function runBenchmarkSeed(options: {
     headers: { "x-test-mode": "true", "x-test-secret": options.secret },
   });
   if (checkRes.ok) {
-    console.log(
-      "  \u{1F680} [SmartSeed] Benchmark data already exists. Reusing state...",
-    );
+    console.log("  \u{1F680} [SmartSeed] Benchmark data already exists. Reusing state...");
     return;
   }
 
-  console.log(
-    `  \u2192 Seeding benchmark data (collections + entries via LocalCMS)...`,
-  );
+  console.log(`  \u2192 Seeding benchmark data (collections + entries via LocalCMS)...`);
 
   // Create benchmark collection
   const createRes = await fetch(url("/api/collections"), {

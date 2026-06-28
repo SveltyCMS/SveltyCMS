@@ -33,16 +33,12 @@ export {
  */
 const isTestRunner =
   !!process.env.BUN_TEST ||
-  (typeof (globalThis as any).test !== "undefined" &&
-    !process.env.BENCHMARK_STANDALONE);
+  (typeof (globalThis as any).test !== "undefined" && !process.env.BENCHMARK_STANDALONE);
 
 // 🚀 Auto-Redirector: Ensures benchmarks always run via 'bun test' engine
 if (!isTestRunner && !process.env.BENCHMARK_REDIRECTED) {
   const filePath = process.argv[1];
-  if (
-    filePath &&
-    (filePath.endsWith(".test.ts") || filePath.endsWith(".bench.ts"))
-  ) {
+  if (filePath && (filePath.endsWith(".test.ts") || filePath.endsWith(".bench.ts"))) {
     console.log(
       "\n\x1b[33m[NOTICE]\x1b[0m SveltyCMS Benchmarks must be executed via \x1b[1m'bun test'\x1b[0m for maximum precision and automatic resource cleanup.",
     );
@@ -96,8 +92,7 @@ export const test = (name: string, fn: any, timeout?: number) => {
 };
 
 export const expect = (val: any) => {
-  if (typeof (globalThis as any).expect !== "undefined")
-    return (globalThis as any).expect(val);
+  if (typeof (globalThis as any).expect !== "undefined") return (globalThis as any).expect(val);
 
   return {
     toBe: (exp: any) => {
@@ -193,8 +188,7 @@ export const afterEach = (fn: any, timeout?: number) => {
 process.env.BENCHMARK = "true";
 process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "1";
 process.env.BENCHMARK_STABLE = process.env.BENCHMARK_STABLE || "true";
-process.env.SVELTY_BENCHMARK_SUITE =
-  process.env.SVELTY_BENCHMARK_SUITE || "true";
+process.env.SVELTY_BENCHMARK_SUITE = process.env.SVELTY_BENCHMARK_SUITE || "true";
 process.env.TEST_MODE = process.env.TEST_MODE || "true";
 
 // 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks and collection pollution
@@ -210,16 +204,14 @@ afterAll(async () => {
   const { shutdownSystem } = await import("@src/databases/db");
   await shutdownSystem().catch(() => {});
   if (process.env.BENCHMARK_MATRIX !== "1") {
-    const { cleanupAllBenchmarkWorkspaces } =
-      await import("@utils/benchmark-paths");
+    const { cleanupAllBenchmarkWorkspaces } = await import("@utils/benchmark-paths");
     await cleanupAllBenchmarkWorkspaces().catch(() => {});
   }
 });
 
 // 🚀 UNIFIED LOGGING: High-frequency benchmarks use 'error' by default, 'debug' only if requested.
 
-process.env.LOG_LEVEL =
-  process.env.BENCHMARK_DEBUG === "true" ? "debug" : "error";
+process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 process.env.DB_NAME = process.env.DB_NAME || "bench_parent";
@@ -294,8 +286,7 @@ export const CONCURRENCY_GROUPS = {
 export function getRecommendedConcurrency(): number {
   const dbType = getDbType().toLowerCase();
   if (dbType.includes("sqlite")) return CONCURRENCY_GROUPS.sqlite;
-  if (dbType.includes("mariadb") || dbType.includes("mysql"))
-    return CONCURRENCY_GROUPS.mariadb;
+  if (dbType.includes("mariadb") || dbType.includes("mysql")) return CONCURRENCY_GROUPS.mariadb;
   if (dbType.includes("postgresql") || dbType.includes("postgres"))
     return CONCURRENCY_GROUPS.postgresql;
   if (dbType.includes("mongodb")) return CONCURRENCY_GROUPS.mongodb;
@@ -340,16 +331,13 @@ export function computeStatistics(
 ): BenchmarkResult {
   // Apply outlier trimming if requested
   const processedTimes =
-    config.trimOutliers === "iqr" || config.trimOutliers === true
-      ? trimOutliersIQR(times)
-      : times;
+    config.trimOutliers === "iqr" || config.trimOutliers === true ? trimOutliersIQR(times) : times;
 
   const sorted = [...processedTimes].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
   const avg = sum / (sorted.length || 1);
 
-  const variance =
-    sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
+  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
@@ -416,10 +404,7 @@ function discoverBenchmarkMetadata() {
       const stack = err.stack || "";
       for (const line of stack.split("\n")) {
         const n = line.replace(/\\/g, "/");
-        if (
-          n.includes("tests/benchmarks/") &&
-          !n.includes("benchmark-utils.ts")
-        ) {
+        if (n.includes("tests/benchmarks/") && !n.includes("benchmark-utils.ts")) {
           const m = n.match(/tests\/benchmarks\/([\w.-]+)/i);
           if (m) {
             filePath = `tests/benchmarks/${m[1].split(":")[0].split("?")[0]}`;
@@ -437,9 +422,7 @@ function discoverBenchmarkMetadata() {
       if (fs.existsSync(fullPath)) {
         const content = fs.readFileSync(fullPath, "utf-8");
         // Prefer @summary for table header, fall back to @description first line
-        const m =
-          content.match(/@summary\s+(.+)/i) ||
-          content.match(/@description\s+(.+)/i);
+        const m = content.match(/@summary\s+(.+)/i) || content.match(/@description\s+(.+)/i);
         if (m) proves = m[1].trim();
       }
     } catch {}
@@ -552,11 +535,9 @@ export function printTruthTable(options: {
 function saveTerminalTable(title: string, content: string) {
   const dbType = getDbType();
   let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(dbType.toLowerCase()))
-    dir = path.join(dir, dbType);
+  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const fileName =
-    title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
+  const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
   fs.writeFileSync(path.join(dir, fileName), content);
 }
 
@@ -569,13 +550,7 @@ export function printSummaryTable(
     bar: (l: string, r: string) => l + "═".repeat(W - 2) + r,
     center: (s: string) => {
       const pad = W - 2 - s.length;
-      return (
-        "║" +
-        " ".repeat(Math.floor(pad / 2)) +
-        s +
-        " ".repeat(Math.ceil(pad / 2)) +
-        "║"
-      );
+      return "║" + " ".repeat(Math.floor(pad / 2)) + s + " ".repeat(Math.ceil(pad / 2)) + "║";
     },
   };
   let summaryBuffer = "";
@@ -652,10 +627,7 @@ export async function runBenchmark(config: any) {
               consecutiveErrors++;
               failResults.push(performance.now() - iStart);
               if (totalErrors === 1 && abortOnErrors !== false)
-                console.error(
-                  `\n[Benchmark DEBUG] First error in "${config.name}":`,
-                  err,
-                );
+                console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
             }
           }),
         );
@@ -676,10 +648,7 @@ export async function runBenchmark(config: any) {
           consecutiveErrors++;
           failResults.push(performance.now() - iStart);
           if (totalErrors === 1 && abortOnErrors !== false)
-            console.error(
-              `\n[Benchmark DEBUG] First error in "${config.name}":`,
-              err,
-            );
+            console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
         }
       }
     }
@@ -731,8 +700,7 @@ export async function runStochasticLoadTest(config: {
         failures++;
       }
       const elapsed = performance.now() - t0;
-      if (elapsed < interval)
-        await new Promise((r) => setTimeout(r, interval - elapsed));
+      if (elapsed < interval) await new Promise((r) => setTimeout(r, interval - elapsed));
     }
   }
   const sorted = latencies.sort((a, b) => a - b);
@@ -741,8 +709,7 @@ export async function runStochasticLoadTest(config: {
   const violations: string[] = [];
   if (thresholds.p95) {
     const limit = parseFloat(thresholds.p95.replace(/[^\d.]/g, ""));
-    if (p95 > limit)
-      violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
+    if (p95 > limit) violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
   }
   if (thresholds.error_rate) {
     const limit = parseFloat(thresholds.error_rate.replace(/[^\d.]/g, ""));
@@ -767,8 +734,7 @@ export async function setupBenchmarkServer() {
   if (apiBase) {
     // Shared server mode: use env vars directly
     _benchmarkBootMs = 0;
-    process.env.TEST_API_SECRET =
-      process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    process.env.TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     TEST_API_SECRET = process.env.TEST_API_SECRET;
     return { baseUrl: apiBase, stop: async () => {} };
   }
@@ -859,18 +825,12 @@ export async function exportResult(r: any) {
   // Detect test file
   let testFile = process.env.BENCH_FILE || "";
   if (!testFile) {
-    const m = (process.argv[1] || "").match(
-      /tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/,
-    );
+    const m = (process.argv[1] || "").match(/tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/);
     if (m) testFile = m[1];
   }
 
-  const runMode =
-    process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
-  const wallClockMs =
-    _benchmarkTestStartTime > 0
-      ? performance.now() - _benchmarkTestStartTime
-      : 0;
+  const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
+  const wallClockMs = _benchmarkTestStartTime > 0 ? performance.now() - _benchmarkTestStartTime : 0;
 
   // Build structured entry
   const entry = {
@@ -905,10 +865,7 @@ export async function exportResult(r: any) {
     resultDir = path.join(resultDir, dbType);
   if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir, { recursive: true });
   const fileName = `${r.name.replace(/[^a-zA-Z0-9]/g, "_")}.json`;
-  fs.writeFileSync(
-    path.join(resultDir, fileName),
-    JSON.stringify(entry, null, 2),
-  );
+  fs.writeFileSync(path.join(resultDir, fileName), JSON.stringify(entry, null, 2));
 
   // Print summary line (always)
   const p95Str = entry.p95Ms ? `p95: ${entry.p95Ms.toFixed(3)}ms` : "";
@@ -954,8 +911,7 @@ export async function runFinalizeReport(): Promise<void> {
 export async function runOnAllDatabases(
   runFn: (dbKey: string, baseUrl: string, dbType: string) => Promise<void>,
 ): Promise<void> {
-  const { ALL_DATABASES } =
-    await import("../../../scripts/benchmark-matrix/config");
+  const { ALL_DATABASES } = await import("../../../scripts/benchmark-matrix/config");
 
   // Filter: if TEST_ALL_DBS env is set to specific db types, only run those.
   // Otherwise run all 8: sqlite, sqlite-redis, mongodb, mongodb-redis,
@@ -964,9 +920,7 @@ export async function runOnAllDatabases(
   const dbs = filter
     ? ALL_DATABASES.filter((d) => {
         const key = d.useRedis ? `${d.type}-redis` : d.type;
-        return (
-          filter.split(",").includes(key) || filter.split(",").includes(d.type)
-        );
+        return filter.split(",").includes(key) || filter.split(",").includes(d.type);
       })
     : ALL_DATABASES;
 
@@ -1019,13 +973,11 @@ export function exportMetric(key: string, value: number, unit: string) {
   const dbType = getDbType();
   try {
     let dir = path.resolve(process.cwd(), RESULTS_DIR);
-    if (!dir.toLowerCase().endsWith(dbType.toLowerCase()))
-      dir = path.join(dir, dbType);
+    if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const metricsFile = path.join(dir, "matrix_metrics.json");
     let current: Record<string, any> = {};
-    if (fs.existsSync(metricsFile))
-      current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
+    if (fs.existsSync(metricsFile)) current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
     current[key] = {
       _type: "numeric-metric",
       name: key,
@@ -1092,10 +1044,7 @@ export let TEST_API_SECRET = (() => {
 /** Track files that have already reported their MDX recording message */
 const _reportedFiles = new Set<string>();
 
-export async function ensureStableTestData(
-  db?: any,
-  tenantId: string = "global",
-) {
+export async function ensureStableTestData(db?: any, tenantId: string = "global") {
   const _seedStart = performance.now();
   if (process.env.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
@@ -1190,23 +1139,20 @@ export async function ensureStableTestData(
 
         // If PATCH fails (entry missing), create it via POST
         if (!patchRes.ok) {
-          await fetch(
-            `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-test-mode": "true",
-                "x-test-secret": TEST_API_SECRET,
-                "x-tenant-id": tenantId,
-              },
-              body: JSON.stringify({
-                _id: STABLE_ENTRY_ID,
-                title: "Benchmark Stable Entry",
-                count: 0,
-              }),
+          await fetch(`${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+              "x-tenant-id": tenantId,
             },
-          ).catch(() => {});
+            body: JSON.stringify({
+              _id: STABLE_ENTRY_ID,
+              title: "Benchmark Stable Entry",
+              count: 0,
+            }),
+          }).catch(() => {});
         }
         return;
       }
@@ -1214,9 +1160,7 @@ export async function ensureStableTestData(
       // Fall through to direct DB path to create the collection and entry.
     } catch (err: any) {
       if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[DEBUG] API-based stable data seeding failed: ${err.message}\n`,
-        );
+        process.stderr.write(`[DEBUG] API-based stable data seeding failed: ${err.message}\n`);
       }
     }
   }
@@ -1306,9 +1250,7 @@ export async function ensureStableTestData(
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")
-        process.stderr.write(
-          `[DEBUG] PostgreSQL upsert failed: ${e.message}\n`,
-        );
+        process.stderr.write(`[DEBUG] PostgreSQL upsert failed: ${e.message}\n`);
     }
   } else if (activeDb.type === "mariadb" || activeDb.type === "mysql") {
     try {
@@ -1356,10 +1298,7 @@ export async function ensureStableTestData(
   _benchmarkSeedMs += performance.now() - _seedStart;
 }
 
-export async function forceRefreshServer(
-  baseUrl: string,
-  tenantId: string = "global",
-) {
+export async function forceRefreshServer(baseUrl: string, tenantId: string = "global") {
   await new Promise((r) => setTimeout(r, 50));
   for (let i = 0; i < 3; i++) {
     try {
@@ -1404,33 +1343,23 @@ export async function waitForCollection(
       if (res.ok) {
         const data = await res.json();
         if (data.errors) {
-          console.log(
-            `[waitForCollection] GraphQL errors:`,
-            JSON.stringify(data.errors),
-          );
+          console.log(`[waitForCollection] GraphQL errors:`, JSON.stringify(data.errors));
         } else {
           const types = data.data.__schema.types.map((t: any) => t.name);
           if (types.includes(collectionId)) return;
           if (i % 5 === 0) {
-            console.log(
-              `[waitForCollection] Types (sample):`,
-              types.slice(0, 15).join(", "),
-            );
+            console.log(`[waitForCollection] Types (sample):`, types.slice(0, 15).join(", "));
           }
         }
       } else {
-        console.log(
-          `[waitForCollection] Fetch not OK: ${res.status} ${res.statusText}`,
-        );
+        console.log(`[waitForCollection] Fetch not OK: ${res.status} ${res.statusText}`);
       }
     } catch (e: any) {
       console.log(`[waitForCollection] Exception:`, e.message);
     }
     // After 10 retries, try forcing collection creation + cache refresh
     if (i === 10) {
-      console.log(
-        `[waitForCollection] Forcing collection creation via testing API...`,
-      );
+      console.log(`[waitForCollection] Forcing collection creation via testing API...`);
       await fetch(`${baseUrl}/api/testing`, {
         method: "POST",
         headers,
@@ -1447,17 +1376,14 @@ export async function waitForCollection(
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(
-    `Timeout waiting for collection ${collectionId} in GraphQL schema.`,
-  );
+  throw new Error(`Timeout waiting for collection ${collectionId} in GraphQL schema.`);
 }
 
 export function generateRealisticEntry(
   i: number,
   complexity: "light" | "medium" | "heavy" = "medium",
 ) {
-  const size =
-    complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
+  const size = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
     _id: `real-${Date.now()}-${i}`,
     title: `Post Title ${i} - SveltyCMS Performance Audit`,

@@ -30,9 +30,7 @@ function getDb(): Database {
           timestamp TEXT DEFAULT (datetime('now'))
         )`,
   );
-  db.run(
-    "CREATE INDEX IF NOT EXISTS idx_runs_lookup ON runs(test_id, db_type, redis, phase)",
-  );
+  db.run("CREATE INDEX IF NOT EXISTS idx_runs_lookup ON runs(test_id, db_type, redis, phase)");
   db.run(
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_dedup ON runs(run_id, run_mode, test_id, db_type, redis, phase)",
   );
