@@ -30,23 +30,23 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (28/06/2026, 02:29:37)
+## 📊 Latest Performance Audit (28/06/2026, 09:57:52)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: State-Machine failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [409.00ms]); Cache failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [3.30s]); Temporal failed (exited with code 1: 1 fail | 1 expect() calls | Ran 1 test across 1 file. [674.00ms]); Relational failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [7.78s]); Auth Trace failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [3.26s]); REST failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [2.22s]); GraphQL failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [4.10s]); SEO failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [2.27s]); Revision Stress failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [6.54s]); Tenancy failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [4.29s]); Mixed failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [9.37s]); Migration failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [779.00ms]); Index Pressure failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [678.00ms]); Cache Efficiency failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [2.28s]); Media Upload failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [2.39s]); Journey failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1459.00ms]); Concurrency failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [694.00ms]); Throughput failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [5.45s]); MaxRPS failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1380.00ms]); Resilience failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [59.23s]); GDPR failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [770.00ms]); Sovereignty failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [392.00ms]); Prod Day failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [3.15s]); Failover failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [17.45s]) See console for stack trace.
+> **Anomalies Detected**: Fail-fast See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend        | Target Budget | Result  |
 | :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 816ms       | ⚪ (+127.9%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1031.668ms  | ⚪ (-0.3%)   | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | 515.023ms   | ⚪           | < 2ms         | 🔴 FAIL |
+| **Cold Start**         | 1139ms      | ⚪ (+218.2%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1032.838ms  | ⚪ (-0.1%)   | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | 513.172ms   | ⚪           | < 2ms         | 🔴 FAIL |
 | **GraphQL (Avg)**      | N/A         | ⚪ (—)       | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | FAILED      | ⚪           | < 250ms       | 🔴 FAIL |
-| **DB Raw (p95)**       | 0.054ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | N/A         | ⚪           | < 50ms        | ⚪ N/A  |
 | **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
@@ -69,19 +69,19 @@ xychart-beta
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
 
-**Raw Adapter p95:** 0.054ms | **Target:** < 50ms | **Trend:** ⚪ (+5.9%)
+**Raw Adapter p95:** 0.000ms | **Target:** < 50ms | **Trend:** ⚪ (—)
 
 > Direct database access latency (bypass CMS logic).
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 515.023ms | **Target:** < 2ms | **Trend:** ⚪ (-49.4%)
+**Middleware p95:** 513.172ms | **Target:** < 2ms | **Trend:** ⚪ (-49.6%)
 
 > Total overhead of security, logging, and auth hooks.
 
 ### 🏷️ Memory Stability Audit {#memGrowth}
 
-**Memory RSS Δ:** 8.605MB | **Target:** < 60MB | **Trend:** ⚪ (+260.6%)
+**Memory RSS Δ:** 0.000MB | **Target:** < 60MB | **Trend:** ⚪ (—)
 
 > Peak memory growth during stress workload.
 
@@ -117,45 +117,60 @@ xychart-beta
 
 <!-- COLD_START_TABLE_START -->
 
-### 🏷️ PHASED COLD START ⚪ —
+### 🏷 PHASED COLD START ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
+║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
+║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.058 ms │ p95:        0.154 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.079 ms │ p95:        0.221 ms │ RPS:          0 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- COLD_START_TABLE_END -->
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-### 🏷️ SRE TRUTH AUDIT ⚪ —
+### 🏷 SRE TRUTH AUDIT ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
+║                      File: tests/benchmarks/truth-latency.test.ts                       ║
+║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,525,253 ║
-║ Local SDK (Full)               │        0.005 ms │ p95:        0.009 ms │ RPS:    195,008 ║
-║ HTTP End-to-End                │      515.115 ms │ p95:     1031.668 ms │ RPS:          2 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.002 ms │ RPS:    996,678 ║
+║ Local SDK (Full)               │        0.008 ms │ p95:        0.013 ms │ RPS:    125,555 ║
+║ HTTP End-to-End                │      515.076 ms │ p95:     1032.838 ms │ RPS:          2 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- INCREMENTAL_TABLE_START -->
 
-### 🏷️ Incremental Content Reload ⚪ —
+### 🏷 Incremental Content Reload ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
+║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
+║          Measures surgical single-file fullReload vs full reconciliation path           ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.211 ms │ p95:        0.383 ms │ RPS:      4,743 ║
-║ Full Reconciliation Reload     │       13.487 ms │ p95:       15.392 ms │ RPS:         74 ║
+║ Incremental fullReload (1 file) │        0.298 ms │ p95:        0.446 ms │ RPS:      3,351 ║
+║ Full Reconciliation Reload     │       21.609 ms │ p95:       23.677 ms │ RPS:         46 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- INCREMENTAL_TABLE_END -->

@@ -31,7 +31,7 @@
 </script>
 
 {#if allowed}
-  {@render children()}
+  <slot />
 {:else if fallback}
   <span class="text-muted-foreground text-sm">{fallback}</span>
 {/if}

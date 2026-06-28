@@ -4,7 +4,7 @@
  */
 
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
-import { validateNumericFields } from "@src/content/content-utils";
+import { validateNumericFields, sanitizeCollectionFields } from "@src/content/content-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
@@ -1087,8 +1087,11 @@ export class CollectionsNamespace {
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
 
+    // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
+    const sanitizedData = sanitizeCollectionFields(data, schema);
+
     const entryData = {
-      ...data,
+      ...sanitizedData,
       tenantId,
       createdBy: system ? "system" : user?._id,
       createdAt: new Date().toISOString(),
@@ -1157,8 +1160,11 @@ export class CollectionsNamespace {
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
 
+    // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
+    const sanitizedData = sanitizeCollectionFields(data, schema);
+
     const updateData = {
-      ...data,
+      ...sanitizedData,
       updatedBy: system ? "system" : user?._id,
       updatedAt: new Date().toISOString(),
     };

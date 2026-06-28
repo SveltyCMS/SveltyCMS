@@ -7,6 +7,7 @@
 import { contentStore } from "@stores/content-registry.svelte";
 import type { ContentNode, NavigationNode, Schema } from "./types";
 import { logger } from "@utils/logger";
+import { sanitizeHtml, stripHtml } from "@src/utils/sanitize-html";
 
 // --- PURE UTILITIES ---
 
@@ -389,4 +390,36 @@ export function validateNumericFields(
   }
 
   return errors;
+}
+
+/**
+ * Sanitizes input data fields before database persistence.
+ * - Fields of type "richtext" or "markdown" are run through HTML sanitization (retaining safe tags).
+ * - Fields of type "text" or "textarea" have all HTML tags stripped out to prevent HTML/XSS injection.
+ * - This actively prevents database pollution and stored XSS inside collections.
+ */
+export function sanitizeCollectionFields(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+    }>;
+  },
+): Record<string, unknown> {
+  if (!schema.fields) return data;
+  const sanitized = { ...data };
+
+  for (const field of schema.fields) {
+    const value = sanitized[field.db_fieldName];
+    if (typeof value !== "string") continue;
+
+    if (field.type === "richtext" || field.type === "markdown") {
+      sanitized[field.db_fieldName] = sanitizeHtml(value);
+    } else if (field.type === "text" || field.type === "textarea") {
+      sanitized[field.db_fieldName] = stripHtml(value);
+    }
+  }
+
+  return sanitized;
 }

@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-27"
+updated: "2026-06-28"
 tags:
   - "roadmap"
   - "todo"
@@ -35,6 +35,9 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 - 🏗️ **Phased Marketplace Migration**: Widgets, plugins, themes, dashboards, and extensions moving from the monorepo to `marketplace.sveltycms.com`. Core widgets stay in repo. Doc stubs with redirect frontmatter keep `llms-full.txt` coverage at 100% via federation layer. Phase 1 (core widget doc naming) ✅; Phase 2 (custom widgets → marketplace) pending. See [Marketplace System](../reference/architecture/marketplace.mdx).
 - 🏗️ **Hybrid Package Model**: Monorepo with `@sveltycms/core`, `@sveltycms/widgets`. Pending: official npm publishing pipeline, CI, consumer docs.
+- 🏗️ **`create-sveltycms` CLI**: Scaffolding CLI (`npm create sveltycms@latest`) that sets up a new SvelteKit project with SveltyCMS as a dependency. Simplifies adoption — no manual config needed. Pending: template repo, `@src/` alias extraction, CLI script, npm publishing.
+- 🏗️ **Published DB Adapters**: `sveltycms-sqlite`, `sveltycms-mongodb`, `sveltycms-mariadb`, `sveltycms-postgresql` as separate npm packages. Users install only what they need. Pending: adapter extraction, CI publishing, consumer docs.
+- 🏗️ **Public API Surface Extraction**: Replace `@src/` internal path aliases with real package exports (`LocalCMS`, widget factory, DB adapter interfaces, type definitions). Pending: audit of internal imports, barrel export creation, compile-time alias inlining.
 - 🏗️ **AI Co-Pilot**: `@sveltycms/ai` package with field suggestions, content scoring, import mapping. Pending: MCP UI, Ghost data generation.
 - 🏗️ **Version Channels**: Core service + API endpoints for LTS/Stable/Next. Pending: UI dashboard, upgrade CLI integration.
 - 🏗️ **WebAuthn/Passkeys UI**: Login ceremony + crypto complete (✅). Pending: settings-page UI for passkey management, `db:push` for `authenticators` column on SQL deployments.
