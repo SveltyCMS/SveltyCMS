@@ -84,7 +84,9 @@ export function escapeRegex(s: string): string {
 }
 
 function getDbType(): string {
-  return typeof process !== "undefined" ? process.env.DB_TYPE || "sqlite" : "sqlite";
+  return typeof process !== "undefined"
+    ? process.env.DB_TYPE || "sqlite"
+    : "sqlite";
 }
 
 export function getDocPath(): string {
@@ -131,7 +133,11 @@ function tagExistsInDoc(doc: string, tag: string): boolean {
 }
 
 /** Discover which TABLE tag in the MDX matches the given test file. */
-export function discoverTag(doc: string, testFile: string, shortLabel?: string): string | null {
+export function discoverTag(
+  doc: string,
+  testFile: string,
+  shortLabel?: string,
+): string | null {
   const fileBase = path
     .basename(testFile)
     .replace(/\.test\.(ts|js)$/i, "")
@@ -168,7 +174,9 @@ function atomicWrite(docPath: string, content: string): void {
   // Clean up stale temp files from previous crashes
   const dir = path.dirname(docPath);
   const base = path.basename(docPath);
-  const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
+  const staleFiles = fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith(base + ".tmp."));
   for (const sf of staleFiles) {
     try {
       fs.unlinkSync(path.join(dir, sf));
@@ -226,7 +234,13 @@ export function writeTruthTable(
       const endIdx = doc.indexOf(END, pos + START.length);
       if (endIdx < 0) break;
 
-      doc = doc.slice(0, pos) + START + "\n" + block + "\n" + doc.slice(endIdx + END.length);
+      doc =
+        doc.slice(0, pos) +
+        START +
+        "\n" +
+        block +
+        "\n" +
+        doc.slice(endIdx + END.length);
       replaced = true;
       startIdx = pos + START.length + block.length + 1;
     }
@@ -236,7 +250,10 @@ export function writeTruthTable(
     atomicWrite(docPath, doc);
     return tag;
   } catch (err: any) {
-    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+    if (
+      process.env.LOG_LEVEL === "debug" ||
+      process.env.BENCHMARK_DEBUG === "true"
+    ) {
       console.error(`[MDX Debug] writeTruthTable failed:`, err);
     }
     return null;
@@ -274,7 +291,10 @@ export function writeSummary(
 
     atomicWrite(docPath, doc);
   } catch (err: any) {
-    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+    if (
+      process.env.LOG_LEVEL === "debug" ||
+      process.env.BENCHMARK_DEBUG === "true"
+    ) {
       console.error(`[MDX Debug] writeSummary failed:`, err);
     }
   } finally {
@@ -308,7 +328,7 @@ export function writeTrendAndInsight(
 
     if (startPos >= 0 && endPos > startPos) {
       let section = doc.slice(startPos, endPos);
-      const headingRx = /^###\s+[\u{1F3F7}🏷️].+$/mu;
+      const headingRx = /^###\s+\u{1F3F7}.+$/mu;
       const hMatch = section.match(headingRx);
       if (hMatch) {
         const oldLine = hMatch[0];
@@ -321,7 +341,10 @@ export function writeTrendAndInsight(
           /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
           labelWithTs,
         );
-        section = section.slice(0, hPos) + newLine + section.slice(hPos + oldLine.length);
+        section =
+          section.slice(0, hPos) +
+          newLine +
+          section.slice(hPos + oldLine.length);
         doc = doc.slice(0, startPos) + section + doc.slice(endPos);
       }
     }
@@ -337,7 +360,10 @@ export function writeTrendAndInsight(
 
     atomicWrite(docPath, doc);
   } catch (err: any) {
-    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+    if (
+      process.env.LOG_LEVEL === "debug" ||
+      process.env.BENCHMARK_DEBUG === "true"
+    ) {
       console.error(`[MDX Debug] writeTrendAndInsight failed:`, err);
     }
   } finally {
@@ -364,7 +390,10 @@ export function writeExecutiveSummary(
     }
 
     // Remove pending placeholder
-    doc = doc.replace("\n> \u23F3 Pending \u2014 run benchmarks to populate.\n", "\n");
+    doc = doc.replace(
+      "\n> \u23F3 Pending \u2014 run benchmarks to populate.\n",
+      "\n",
+    );
 
     // Add partial watermark
     if (isPartial && !doc.includes("Partial update")) {
@@ -382,9 +411,14 @@ export function writeExecutiveSummary(
     }
 
     // Upsert test alert
-    const existingRx = new RegExp("> \\*\\*" + escapeRegex(testName) + "\\*\\*:.*\\n");
+    const existingRx = new RegExp(
+      "> \\*\\*" + escapeRegex(testName) + "\\*\\*:.*\\n",
+    );
     if (existingRx.test(doc)) {
-      doc = doc.replace(existingRx, "> **" + testName + "**:" + trendLabel + "\n");
+      doc = doc.replace(
+        existingRx,
+        "> **" + testName + "**:" + trendLabel + "\n",
+      );
     } else {
       const alert = "\n> **" + testName + "**:" + trendLabel + "\n";
       doc = doc.replace(marker, marker + alert);
@@ -428,7 +462,7 @@ function parseTrendHeading(line: string): SectionStatus {
   const icon = iconMatch ? iconMatch[1] : "⏳";
 
   // Clean tag emoji prefix (matches both 🏷️ with or without Variation Selector)
-  const cleanLine = line.replace(/^###\s+[\u{1F3F7}🏷️]\s*/u, "").trim();
+  const cleanLine = line.replace(/^###\s+\u{1F3F7}\s*/u, "").trim();
 
   // Split by any status circle emoji to extract name
   const parts = cleanLine.split(/[\u{26AA}\u{1F7E2}\u{1F7E1}\u{1F534}]/u);
@@ -453,7 +487,7 @@ function parseTrendHeading(line: string): SectionStatus {
   return { name, icon, detail, runs, lastRun, pending };
 }
 
-export function rebuildSummary(dbLabel: string): void {
+export function rebuildSummary(_dbLabel: string): void {
   const docPath = getDocPath();
   if (!fs.existsSync(docPath)) return;
   if (!acquireMdxLock(docPath)) return;
@@ -463,7 +497,7 @@ export function rebuildSummary(dbLabel: string): void {
 
     // Parse all ### 🏷️ headings
     const sections: SectionStatus[] = [];
-    const headingRx = /^###\s+[\u{1F3F7}🏷️].+/gmu;
+    const headingRx = /^###\s+\u{1F3F7}.+/gmu;
     let m: RegExpExecArray | null;
     while ((m = headingRx.exec(doc)) !== null) {
       const line = m[0];
@@ -471,14 +505,16 @@ export function rebuildSummary(dbLabel: string): void {
     }
 
     // Determine run mode
-    const isMatrix = typeof process !== "undefined" && process.env.BENCHMARK_MATRIX === "1";
+    const isMatrix =
+      typeof process !== "undefined" && process.env.BENCHMARK_MATRIX === "1";
 
     // Timestamp from most recent section, or now
     const latestTs = sections.reduce((latest, s) => {
       if (s.lastRun !== "-" && s.lastRun > latest) return s.lastRun;
       return latest;
     }, "");
-    const displayTs = latestTs || new Date().toISOString().replace("T", " ").slice(0, 19);
+    const displayTs =
+      latestTs || new Date().toISOString().replace("T", " ").slice(0, 19);
 
     // Group sections
     const regressions = sections.filter((s) => s.icon === "\u{1F534}"); // 🔴
@@ -547,15 +583,28 @@ export function rebuildSummary(dbLabel: string): void {
     if (doc.includes(sm)) {
       const start = doc.indexOf(sm);
       const end = doc.indexOf(se, start);
-      if (end > start) doc = doc.slice(0, start + sm.length) + "\n" + summary + doc.slice(end);
+      if (end > start)
+        doc = doc.slice(0, start + sm.length) + "\n" + summary + doc.slice(end);
     } else {
       const h2 = doc.indexOf("\n## ");
-      if (h2 > 0) doc = doc.slice(0, h2) + "\n" + sm + "\n" + summary + se + "\n" + doc.slice(h2);
+      if (h2 > 0)
+        doc =
+          doc.slice(0, h2) +
+          "\n" +
+          sm +
+          "\n" +
+          summary +
+          se +
+          "\n" +
+          doc.slice(h2);
     }
 
     atomicWrite(docPath, doc);
   } catch (err: any) {
-    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+    if (
+      process.env.LOG_LEVEL === "debug" ||
+      process.env.BENCHMARK_DEBUG === "true"
+    ) {
       console.error(`[MDX Debug] rebuildSummary failed:`, err);
     }
   } finally {

@@ -33,7 +33,8 @@ const filter =
     .split(",") || null;
 const databases = filter ? DBS.filter((d) => filter.includes(d)) : DBS;
 const CONTINUE_ON_ERROR =
-  process.argv.includes("--continue-on-error") || process.argv.includes("--continue");
+  process.argv.includes("--continue-on-error") ||
+  process.argv.includes("--continue");
 
 // Generate a unique run ID so finalizeReport can correlate all test subprocess results
 const BENCHMARK_RUN_ID = randomUUID();
@@ -153,7 +154,11 @@ function getHistoricWeights(): Record<string, number> {
   if (!fs.existsSync(jsonlPath)) return weights;
 
   try {
-    const raw = fs.readFileSync(jsonlPath, "utf8").trim().split("\n").filter(Boolean);
+    const raw = fs
+      .readFileSync(jsonlPath, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean);
     const entries = raw.map((line) => JSON.parse(line));
 
     const groups: Record<string, number[]> = {};
@@ -277,10 +282,6 @@ async function healthOk(url: string): Promise<boolean> {
   }
 }
 
-function estimatedRemainingWeight(testName: string): number {
-  return TEST_WEIGHTS[testName] ?? 10;
-}
-
 function spawnTestProcess(
   file: string,
   serverEnv: Record<string, string>,
@@ -289,16 +290,20 @@ function spawnTestProcess(
 ): Promise<{ code: number; durationMs: number; output: string }> {
   return new Promise((resolve) => {
     const testStartTime = performance.now();
-    const p = spawn("bun", ["test", `tests/benchmarks/${file}`, "--timeout", "300000"], {
-      stdio: ["inherit", "pipe", "pipe"],
-      shell: process.platform === "win32",
-      env: {
-        ...serverEnv,
-        API_BASE_URL: baseUrl,
-        BENCHMARK_MATRIX: "1",
-        BENCHMARK_RUN_ID: runId,
-      } as Record<string, string>,
-    });
+    const p = spawn(
+      "bun",
+      ["test", `tests/benchmarks/${file}`, "--timeout", "300000"],
+      {
+        stdio: ["inherit", "pipe", "pipe"],
+        shell: process.platform === "win32",
+        env: {
+          ...serverEnv,
+          API_BASE_URL: baseUrl,
+          BENCHMARK_MATRIX: "1",
+          BENCHMARK_RUN_ID: runId,
+        } as Record<string, string>,
+      },
+    );
 
     let output = "";
     p.stdout.on("data", (d: Buffer) => {
@@ -319,7 +324,12 @@ function spawnTestProcess(
   });
 }
 
-function renderProgressBar(completed: number, total: number, active: number, etaStr: string) {
+function renderProgressBar(
+  completed: number,
+  total: number,
+  active: number,
+  etaStr: string,
+) {
   const width = 20;
   const percent = Math.min(100, Math.max(0, (completed / total) * 100));
   const completedWidth = Math.round((width * percent) / 100);
@@ -406,7 +416,13 @@ async function run() {
       DB_USER: db === "sqlite" ? "" : "testuser",
       DB_PASSWORD: db === "sqlite" ? "" : "testpass",
       DB_PORT:
-        db === "mariadb" ? "3306" : db === "postgresql" ? "5432" : db === "mongodb" ? "27017" : "",
+        db === "mariadb"
+          ? "3306"
+          : db === "postgresql"
+            ? "5432"
+            : db === "mongodb"
+              ? "27017"
+              : "",
     } as Record<string, string>;
 
     const server = spawn("node", ["build/index.js"], {
@@ -452,7 +468,9 @@ async function run() {
       console.log("OK");
     } catch (e: any) {
       console.log("FAILED");
-      console.error(`  Setup error: ${e.stderr?.toString().slice(0, 300) || e.message}`);
+      console.error(
+        `  Setup error: ${e.stderr?.toString().slice(0, 300) || e.message}`,
+      );
       server.kill("SIGKILL");
       process.exit(1);
     }
@@ -479,7 +497,9 @@ async function run() {
         console.log(`WARN (${seedRes.status}: ${txt.slice(0, 100)})`);
       }
     } catch {
-      console.log("WARN (seed endpoint not available, will be seeded per-test)");
+      console.log(
+        "WARN (seed endpoint not available, will be seeded per-test)",
+      );
     }
 
     // ── Phase 3: Run tests ──
@@ -496,7 +516,9 @@ async function run() {
     const historicWeights = getHistoricWeights();
 
     // Compute total weight of all runnable tests for initial ETA estimate
-    const runnableTests = orderedTests.filter((f) => !SKIP_IN_MATRIX.has(getTestName(f)));
+    const runnableTests = orderedTests.filter(
+      (f) => !SKIP_IN_MATRIX.has(getTestName(f)),
+    );
     const totalRunnable = runnableTests.length;
 
     // Count skipped tests
@@ -511,7 +533,9 @@ async function run() {
 
     for (const group of GROUPS) {
       const groupFiles = orderedTests.filter(
-        (f) => group.tests.includes(getTestName(f)) && !SKIP_IN_MATRIX.has(getTestName(f)),
+        (f) =>
+          group.tests.includes(getTestName(f)) &&
+          !SKIP_IN_MATRIX.has(getTestName(f)),
       );
       if (groupFiles.length === 0) continue;
 
@@ -543,7 +567,12 @@ async function run() {
             concurrency,
           );
           const etaStr = formatTime(remainingWeight);
-          renderProgressBar(completedTests, totalRunnable, runningTests.size, etaStr);
+          renderProgressBar(
+            completedTests,
+            totalRunnable,
+            runningTests.size,
+            etaStr,
+          );
 
           const testPromise = (async () => {
             const { code, durationMs, output } = await spawnTestProcess(
@@ -562,7 +591,9 @@ async function run() {
 
             if (code !== 0) {
               failed++;
-              console.log(`  \u2716 ${name.padEnd(30)} FAILED (${durationSec}s)`);
+              console.log(
+                `  \u2716 ${name.padEnd(30)} FAILED (${durationSec}s)`,
+              );
               // Show last 30 lines of output for debugging
               const lines = output.split("\n").filter(Boolean);
               const tail = lines.slice(-30);
@@ -617,7 +648,8 @@ async function run() {
     // ── Phase 4: Finalize report (batch MDX write) ──
     process.stdout.write(`  Finalizing report...`);
     try {
-      const { finalizeReport } = await import("../../tests/benchmarks/modules/benchmark-reporting");
+      const { finalizeReport } =
+        await import("../../tests/benchmarks/modules/benchmark-reporting");
       await finalizeReport(BENCHMARK_RUN_ID);
       process.stdout.write(" OK\n");
     } catch (e: any) {
@@ -634,7 +666,7 @@ async function run() {
       // Look for 🔴 indicators in trend labels
       const trendLines = content.split("\n").filter((l) => l.includes("### "));
       for (const line of trendLines) {
-        const m = line.match(/### [^\s]+\s+(.+?)\s+[⚪🟢🔴]/);
+        const m = line.match(/### [^\s]+\s+(.+?)\s+[⚪🟢🔴]/u);
         const name = m?.[1]?.trim();
         // Check for red indicators or negative percentages
         if (line.includes("🔴")) {

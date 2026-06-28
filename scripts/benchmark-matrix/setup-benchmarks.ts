@@ -16,11 +16,15 @@ export async function runBenchmarkSeed(options: {
     headers: { "x-test-mode": "true", "x-test-secret": options.secret },
   });
   if (checkRes.ok) {
-    console.log("  \u{1F680} [SmartSeed] Benchmark data already exists. Reusing state...");
+    console.log(
+      "  \u{1F680} [SmartSeed] Benchmark data already exists. Reusing state...",
+    );
     return;
   }
 
-  console.log(`  \u2192 Seeding benchmark data (collections + entries via LocalCMS)...`);
+  console.log(
+    `  \u2192 Seeding benchmark data (collections + entries via LocalCMS)...`,
+  );
 
   // Create benchmark collection
   const createRes = await fetch(url("/api/collections"), {
@@ -55,7 +59,11 @@ export async function runBenchmarkSeed(options: {
       "x-test-mode": "true",
       "x-test-secret": options.secret,
     },
-    body: JSON.stringify({ action: "seed", email: "admin@example.com", password: "Password123!" }),
+    body: JSON.stringify({
+      action: "seed",
+      email: "admin@example.com",
+      password: "Password123!",
+    }),
   });
 
   if (!seedRes.ok) {
@@ -63,6 +71,6 @@ export async function runBenchmarkSeed(options: {
     throw new Error(`Failed to seed benchmark data: ${text}`);
   }
 
-  const result = await seedRes.json();
+  const _result = await seedRes.json();
   console.log(`  \u2705 Seeded benchmark data`);
 }

@@ -5,13 +5,15 @@
  * Called by exportResult() in benchmark-utils.ts. Both single tests and
  * the matrix runner use this same pipeline.
  */
-import { persistRun, loadHistory, type HistoryEntry } from "./benchmark-history";
-import { analyzeTrend, classifyRootCause, checkBudgets } from "./benchmark-analysis";
+import { persistRun, type HistoryEntry } from "./benchmark-history";
 import {
-  writeTrendAndInsight,
+  analyzeTrend,
+  classifyRootCause,
+  checkBudgets,
+} from "./benchmark-analysis";
+import {
   writeTruthTable,
   writeSummary,
-  rebuildSummary,
   type BenchmarkReportOptions,
 } from "./benchmark-mdx";
 import path from "node:path";
@@ -73,7 +75,8 @@ export async function reportBenchmark(
 
   // ── Persist passing runs to SQLite (for trend history) ──
   const isPassing =
-    (result.status === "SUCCESS" || result.status === undefined) && (result.errorCount || 0) === 0;
+    (result.status === "SUCCESS" || result.status === undefined) &&
+    (result.errorCount || 0) === 0;
 
   if (isPassing && options.mode !== "none") {
     const entry: HistoryEntry = {
@@ -93,7 +96,11 @@ export async function reportBenchmark(
 }
 
 // Bridge: called by benchmark-utils.ts printTruthTable()
-export function pushTableToMdx(_title: string, table: string, shortLabel?: string): void {
+export function pushTableToMdx(
+  _title: string,
+  table: string,
+  shortLabel?: string,
+): void {
   if (!shouldRecord()) return;
   const testFile = discoverTestFile();
   _lastTestFile = testFile;
@@ -101,13 +108,19 @@ export function pushTableToMdx(_title: string, table: string, shortLabel?: strin
 }
 
 // Bridge: called by benchmark-utils.ts printSummaryTable()
-export function appendSummaryToMdx(summaryTable: string, shortLabel?: string): void {
+export function appendSummaryToMdx(
+  summaryTable: string,
+  shortLabel?: string,
+): void {
   if (!shouldRecord()) return;
   writeSummary(summaryTable, _lastTestFile, _lastTag, shortLabel);
 }
 
 /** @deprecated Use finalizeReport() instead. Kept for backward compatibility. */
-export async function computeAndApplyTrend(result: any, shortLabel?: string): Promise<void> {
+export async function computeAndApplyTrend(
+  _result: any,
+  _shortLabel?: string,
+): Promise<void> {
   // No-op: trends are now computed by finalizeReport()
 }
 
@@ -119,10 +132,17 @@ export async function computeAndApplyTrend(result: any, shortLabel?: string): Pr
 export async function finalizeReport(runId: string): Promise<void> {
   try {
     // 1. Read history.jsonl
-    const historyPath = path.resolve(process.cwd(), "tests/benchmarks/results/history.jsonl");
+    const historyPath = path.resolve(
+      process.cwd(),
+      "tests/benchmarks/results/history.jsonl",
+    );
     if (!fs.existsSync(historyPath)) return;
 
-    const raw = fs.readFileSync(historyPath, "utf8").trim().split("\n").filter(Boolean);
+    const raw = fs
+      .readFileSync(historyPath, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean);
     const allEntries = raw.map((line) => JSON.parse(line));
 
     // 2. Filter to this runId
@@ -144,14 +164,18 @@ export async function finalizeReport(runId: string): Promise<void> {
     }
 
     // 5. Get previous same-mode history for comparison
-    const previousSameMode = allEntries.filter((e) => e.runMode === runMode && e.runId !== runId);
+    const previousSameMode = allEntries.filter(
+      (e) => e.runMode === runMode && e.runId !== runId,
+    );
 
     // 6. Build trend sections
     for (const [key, entries] of groups) {
       const current = entries[entries.length - 1];
 
       // Find previous same-mode, same-metric entries
-      const prevEntries = previousSameMode.filter((e) => `${e.testFile}:${e.metric}` === key);
+      const prevEntries = previousSameMode.filter(
+        (e) => `${e.testFile}:${e.metric}` === key,
+      );
 
       const trend = analyzeTrend(
         {
@@ -189,7 +213,8 @@ export async function finalizeReport(runId: string): Promise<void> {
       // Budget checking — auto-detect phase from test file
       const testFileLower = (current.testFile || "").toLowerCase();
       const isColdTest =
-        testFileLower.includes("cold-start") || testFileLower.includes("setup-proxy");
+        testFileLower.includes("cold-start") ||
+        testFileLower.includes("setup-proxy");
       const phase = isColdTest ? "cold" : current.phase || "warm";
       const budgetViolations = checkBudgets(db, {
         [`${phase}_avg`]: current.avgMs,
@@ -214,29 +239,41 @@ export async function finalizeReport(runId: string): Promise<void> {
         goods.push("Baseline performance successfully established");
       } else {
         if (trend.severity === "stable" || trend.severity === "watch") {
-          goods.push(`Performance is stable (${trend.deltaPct.toFixed(1)}% delta)`);
+          goods.push(
+            `Performance is stable (${trend.deltaPct.toFixed(1)}% delta)`,
+          );
         } else if (trend.deltaPct < -3) {
           goods.push(
             `Performance improved significantly (${Math.abs(trend.deltaPct).toFixed(0)}% faster)`,
           );
         } else {
-          bads.push(`Performance regressed significantly (+${trend.deltaPct.toFixed(0)}% slower)`);
+          bads.push(
+            `Performance regressed significantly (+${trend.deltaPct.toFixed(0)}% slower)`,
+          );
         }
       }
 
       // Evaluation of Throughput (RPS)
       if (trend.rpsDeltaPct > 5) {
-        goods.push(`Throughput increased (+${trend.rpsDeltaPct.toFixed(0)}% RPS)`);
+        goods.push(
+          `Throughput increased (+${trend.rpsDeltaPct.toFixed(0)}% RPS)`,
+        );
       } else if (trend.rpsDeltaPct < -10) {
-        bads.push(`Throughput dropped (-${Math.abs(trend.rpsDeltaPct).toFixed(0)}% RPS)`);
+        bads.push(
+          `Throughput dropped (-${Math.abs(trend.rpsDeltaPct).toFixed(0)}% RPS)`,
+        );
       }
 
       // Evaluation of Consistency (CV)
       if (current.cv !== undefined) {
         if (current.cv < 0.15) {
-          goods.push(`Highly consistent latency profile (CV: ${current.cv.toFixed(2)})`);
+          goods.push(
+            `Highly consistent latency profile (CV: ${current.cv.toFixed(2)})`,
+          );
         } else if (current.cv > 0.35) {
-          bads.push(`High latency variance/jitter detected (CV: ${current.cv.toFixed(2)})`);
+          bads.push(
+            `High latency variance/jitter detected (CV: ${current.cv.toFixed(2)})`,
+          );
         }
       }
 
@@ -275,8 +312,12 @@ export async function finalizeReport(runId: string): Promise<void> {
     }
 
     // 8. Print summary to console
-    const totalTime = runEntries.reduce((s, e) => Math.max(s, e.wallClockMs || 0), 0);
-    const avgMetric = runEntries.reduce((s, e) => s + e.avgMs, 0) / runEntries.length;
+    const totalTime = runEntries.reduce(
+      (s, e) => Math.max(s, e.wallClockMs || 0),
+      0,
+    );
+    const avgMetric =
+      runEntries.reduce((s, e) => s + e.avgMs, 0) / runEntries.length;
     console.log(
       `\n  [${runMode.toUpperCase()}] ${runEntries.length} metrics recorded · avg ${avgMetric.toFixed(2)}ms · ${(totalTime / 1000).toFixed(1)}s wall clock`,
     );

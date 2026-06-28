@@ -24,13 +24,18 @@ interface DbSummary {
 async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
   try {
     const content = await fs.readFile(filePath, "utf8");
-    const dbName = path.basename(filePath, ".mdx").replace("benchmark_", "").replace(/_/g, "-");
+    const dbName = path
+      .basename(filePath, ".mdx")
+      .replace("benchmark_", "")
+      .replace(/_/g, "-");
 
     // Extract summary status
     const statusMatch = content.match(
       /## 📊 Summary.+?(\u2705 PASS|\u23F3 INCOMPLETE|\uD83D\uDD34 WARN)/u,
     );
-    const status = statusMatch ? statusMatch[1].replace(/[✅⏳🔴]/g, "").trim() : "?";
+    const status = statusMatch
+      ? statusMatch[1].replace(/[✅⏳🔴]/gu, "").trim()
+      : "?";
 
     // Extract core benchmark values from the summary table
     const truthMatch = content.match(/Truth.*?\|\s*([\d.]+)/);
@@ -78,7 +83,8 @@ async function main() {
   md += "| :--- | :--- | :--- | :--- | :--- | :--- |\n";
 
   for (const r of results) {
-    const icon = r.status === "PASS" ? "✅" : r.status.includes("WARN") ? "🔴" : "⏳";
+    const icon =
+      r.status === "PASS" ? "✅" : r.status.includes("WARN") ? "🔴" : "⏳";
     md += `| **${r.db.toUpperCase()}** | ${r.coldStart} | ${r.truthHttp} | ${r.crudInsert} | ${r.hooks} | ${icon} ${r.status} |\n`;
   }
 

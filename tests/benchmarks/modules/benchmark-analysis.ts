@@ -4,14 +4,19 @@
  *
  * Pure functions — no I/O. Takes history data, returns structured analysis.
  */
-import { loadHistory, isBaselinePhase, buildHistoryKey } from "./benchmark-history";
+import { loadHistory } from "./benchmark-history";
 import { PER_DIMENSION_BUDGETS } from "./benchmark-mdx";
 
 // ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
 
-export type Severity = "stable" | "watch" | "warning" | "regression" | "critical";
+export type Severity =
+  | "stable"
+  | "watch"
+  | "warning"
+  | "regression"
+  | "critical";
 
 export interface TrendResult {
   label: string;
@@ -49,43 +54,9 @@ export interface AnalysisResult {
 // Configuration
 // ─────────────────────────────────────────────────────────────
 
-const SEVERITY_THRESHOLDS = Object.freeze([
-  { maxDelta: 5, severity: "stable" as Severity, icon: "\u26AA" },
-  { maxDelta: 10, severity: "watch" as Severity, icon: "\u{1F7E1}" },
-  { maxDelta: 20, severity: "warning" as Severity, icon: "\u{1F7E0}" },
-  { maxDelta: Infinity, severity: "regression" as Severity, icon: "\u{1F534}" },
-]);
-
-function severityFor(deltaPct: number): { severity: Severity; icon: string } {
-  const ad = Math.abs(deltaPct);
-  if (deltaPct < -3) {
-    return { severity: "stable", icon: "\u{1F7E2}" };
-  }
-
-  for (let i = 0; i < SEVERITY_THRESHOLDS.length; i++) {
-    const t = SEVERITY_THRESHOLDS[i]!;
-    if (ad < t.maxDelta) {
-      return { severity: t.severity, icon: t.icon };
-    }
-  }
-  return { severity: "regression", icon: "\u{1F534}" };
-}
-
 // ─────────────────────────────────────────────────────────────
 // Trend Analysis
 // ─────────────────────────────────────────────────────────────
-
-/** Compute in-place rolling median (sorts the array). */
-function fastMedian(values: number[]): number {
-  const len = values.length;
-  if (len === 0) return 0;
-  values.sort((a, b) => a - b);
-  return values[Math.floor(len / 2)]!;
-}
-
-function pctChange(current: number, baseline: number): number {
-  return baseline > 0 ? ((current - baseline) / baseline) * 100 : 0;
-}
 
 function formatMs(ms: number): string {
   if (ms === 0) return "0ms";
@@ -167,8 +138,10 @@ export function analyzeTrend(
     label = `${icon} slower: ${formatMs(median)} \u2192 ${formatMs(current)} (+${deltaPct.toFixed(0)}%) (${historyLen} runs)`;
   }
 
-  const bP95 = p95s.length > 0 ? p95s.reduce((a, b) => a + b, 0) / p95s.length : 0;
-  const bRPS = rpss.length > 0 ? rpss.reduce((a, b) => a + b, 0) / rpss.length : 0;
+  const bP95 =
+    p95s.length > 0 ? p95s.reduce((a, b) => a + b, 0) / p95s.length : 0;
+  const bRPS =
+    rpss.length > 0 ? rpss.reduce((a, b) => a + b, 0) / rpss.length : 0;
 
   return {
     label,
@@ -213,7 +186,8 @@ export function classifyRootCause(
       "Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.";
     rootCause = deltaPct > 10 ? "cold_start" : "gc_pause";
   } else if (deltaPct < -3) {
-    insight = "Performance improved — recent optimizations or cache warming likely effective.";
+    insight =
+      "Performance improved — recent optimizations or cache warming likely effective.";
     rootCause = "improvement";
   }
 
@@ -241,7 +215,10 @@ export function classifyRootCause(
 // Budget Checking
 // ─────────────────────────────────────────────────────────────
 
-export function checkBudgets(dbType: string, metrics: Record<string, number>): string[] {
+export function checkBudgets(
+  dbType: string,
+  metrics: Record<string, number>,
+): string[] {
   const violations: string[] = [];
   const budgets = PER_DIMENSION_BUDGETS[dbType.toLowerCase()];
   if (!budgets) return violations;
@@ -253,7 +230,9 @@ export function checkBudgets(dbType: string, metrics: Record<string, number>): s
     if (!budget || value <= 0) continue;
 
     if (value > budget.budget) {
-      violations.push(`${budget.desc}: ${value.toFixed(2)}ms > ${budget.budget}ms budget`);
+      violations.push(
+        `${budget.desc}: ${value.toFixed(2)}ms > ${budget.budget}ms budget`,
+      );
     }
   }
 
@@ -323,13 +302,20 @@ export function runAnalysis(
   if (codePaths.length > 0) {
     let components = "";
     for (let i = 0; i < codePaths.length; i++) {
-      components += "`" + codePaths[i] + "`" + (i < codePaths.length - 1 ? " · " : "");
+      components +=
+        "`" + codePaths[i] + "`" + (i < codePaths.length - 1 ? " · " : "");
     }
     fullInsight += `  \n**Check**: ${components}`;
   }
 
   if (result.memoryRssMb && result.memoryRssMb > 0) {
-    const memHistory = loadHistory(testId + "-mem", dbType, redisEnabled, phase, 10);
+    const memHistory = loadHistory(
+      testId + "-mem",
+      dbType,
+      redisEnabled,
+      phase,
+      10,
+    );
     const memLen = memHistory.length;
     if (memLen >= 2) {
       let memSum = 0;
