@@ -767,7 +767,14 @@ async function main() {
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
-    const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
+    // MongoDB driver requires node:v8 which Bun doesn't implement — use vitest (Node) for MongoDB
+    const isMongoDb = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+    const testCmd = isMongoDb ? "vitest" : "bun";
+    const testArgs = isMongoDb
+      ? ["run", bunTestPath, "--reporter=verbose", "--timeout=60000"]
+      : ["test", "--timeout", "60000", bunTestPath];
+
+    const { code } = await runCommand(testCmd, testArgs, {
       env: {
         ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
