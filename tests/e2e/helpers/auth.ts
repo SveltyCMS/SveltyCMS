@@ -358,7 +358,10 @@ export async function logout(page: Page) {
   } catch (error) {
     console.log("[Auth] Error during logout, continuing anyway:", error);
     // Final fallback: clear cookies and navigate to login
-    await page.context().clearCookies().catch(() => {});
+    await page
+      .context()
+      .clearCookies()
+      .catch(() => {});
     await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 10_000 }).catch(() => {});
   }
 }

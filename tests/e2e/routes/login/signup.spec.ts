@@ -39,7 +39,6 @@ async function dismissCookieConsent(page: Page) {
 
 test.describe.configure({ timeout: 60_000 }); // Set timeout for all tests
 
-
 test("Test loading homepage and login screen", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/$/);

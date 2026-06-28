@@ -94,7 +94,7 @@ describe("handleSystemState - Host Validation Security", () => {
 
   it("should allow bootstrap routes on localhost in any state (dev)", async () => {
     setSystemState("IDLE");
-    const event = createMockEvent("/setup", "localhost:5173");
+    const event = createMockEvent("/login", "localhost:5173");
     const response = await handleSystemState({ event, resolve: mockResolve });
     expect(response.status).toBe(200);
   });
@@ -102,7 +102,7 @@ describe("handleSystemState - Host Validation Security", () => {
   it("should allow bootstrap routes on configured HOST_DEV in dev mode", async () => {
     // Note: If dev is false, it uses HOST_PROD. We set both to local-ish names.
     setSystemState("IDLE");
-    const event = createMockEvent("/setup", "localhost");
+    const event = createMockEvent("/login", "localhost");
     const response = await handleSystemState({ event, resolve: mockResolve });
     expect(response.status).toBe(200);
   });

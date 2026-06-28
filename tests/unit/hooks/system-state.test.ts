@@ -137,12 +137,13 @@ describe("handleSystemState - State Machine Logic", () => {
       expect(mockResolve).toHaveBeenCalledWith(event);
     });
 
-    it("should allow setup routes when system is READY", async () => {
+    it("should redirect setup routes to login when system is READY and setup is complete", async () => {
       const event = createMockEvent("/setup/database");
       const response = await handleSystemState({ event, resolve: mockResolve });
 
-      expect(response.status).toBe(200);
-      expect(mockResolve).toHaveBeenCalledWith(event);
+      // When setup is complete, setup routes redirect to /login
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/login");
     });
   });
 
@@ -254,11 +255,13 @@ describe("handleSystemState - State Machine Logic", () => {
       // Handled by setMockState now
     });
 
-    it("should allow setup routes during INITIALIZING", async () => {
+    it("should redirect setup routes to login during INITIALIZING when setup is complete", async () => {
       const event = createMockEvent("/setup/database");
       const response = await handleSystemState({ event, resolve: mockResolve });
 
-      expect(response.status).toBe(200);
+      // Setup is complete in beforeEach, so setup routes redirect to /login
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/login");
     });
 
     it("should allow health checks during INITIALIZING", async () => {
@@ -342,17 +345,13 @@ describe("handleSystemState - State Machine Logic", () => {
       expect(response.headers.get("Location")).toContain("redirect=");
     });
 
-    it("should block setup routes when FAILED", async () => {
+    it("should redirect setup routes to login when FAILED and setup is complete", async () => {
       const event = createMockEvent("/setup");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-      try {
-        await handleSystemState({ event, resolve: mockResolve });
-        // Setup IS allowed in FAILED state (line 182)
-        expect(mockResolve).toHaveBeenCalled();
-      } catch (err: unknown) {
-        const error = err as { status: number };
-        expect(error.status).toBe(503);
-      }
+      // Setup is complete in beforeEach, so setup routes redirect to /login
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/login");
     });
 
     it("should block API routes when FAILED", async () => {

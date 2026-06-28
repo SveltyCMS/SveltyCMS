@@ -33,7 +33,7 @@ test.describe("User Management Flow", () => {
     await page.getByRole("button", { name: /edit user settings/i }).click();
     await page.locator('input[name="username"]:not([disabled])').fill("updatedUser");
     // Save button may be outside viewport in modal; submit form directly
-    await page.locator('form#change_user_form').evaluate((form: Element) => {
+    await page.locator("form#change_user_form").evaluate((form: Element) => {
       (form as HTMLFormElement).requestSubmit();
     });
 

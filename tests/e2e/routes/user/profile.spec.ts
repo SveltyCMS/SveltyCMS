@@ -109,7 +109,7 @@ test.describe("User Profile Management", () => {
     await page.locator('input[name="username"]:not([disabled])').fill("TestUserUpdated");
 
     // Save button may be outside viewport in modal; submit form directly
-    await page.locator('form#change_user_form').evaluate((form: Element) => {
+    await page.locator("form#change_user_form").evaluate((form: Element) => {
       (form as HTMLFormElement).requestSubmit();
     });
 

@@ -19,7 +19,7 @@ import {
   decryptData,
   deriveKey,
   ENCRYPTION_CONFIG as encryptionConfig,
-} from "@src/utils/security";
+} from "@utils/security/crypto";
 import { describe, it, expect } from "vitest";
 
 // Argon2 hashing is CPU-intensive and can be slow in CI environments.
