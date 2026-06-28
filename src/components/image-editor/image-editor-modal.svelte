@@ -295,7 +295,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
                     {mediaId}
                     focalPoint={initialFocalPoint}
                     oncancel={handleCancelClick}
-                    onsave={(detail) => onsave(detail)}
+                    onsave={async (detail) => { await onsave(detail); closeModal(); }}
                 />
             {/key}
         </main>

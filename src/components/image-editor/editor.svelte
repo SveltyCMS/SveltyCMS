@@ -34,7 +34,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			manipulations?: any;
 			operations?: Record<string, unknown>;
 			saveBehavior?: 'new' | 'rotate' | 'overwrite';
-		}) => void;
+		}) => Promise<void> | void;
 	}
 
 	let {
@@ -364,8 +364,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 			statusMessage = 'Baking image on server...';
 
-			// Notify parent component to perform the actual API call
-			onsave({
+			// Notify parent component to perform the actual API call and await it
+			await onsave({
 				mediaId,
 				manipulations,
 				focalPoint: currentFocalPoint,

@@ -182,11 +182,13 @@ async function handleEditorSave(detail: any) {
 		}
 
 		// --- SERVER-SIDE BAKING ---
-		// We send JSON instructions to the manipulate endpoint.
+		// Refresh CSRF token (rotates after each mutation) then POST.
+		await invalidateAll();
 		const response = await fetch(`/api/media/manipulate/${mediaId}`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
+				"X-CSRF-Token": page.data.csrfToken ?? "",
 			},
 			body: JSON.stringify(manipulations),
 		});
@@ -195,19 +197,7 @@ async function handleEditorSave(detail: any) {
 			const { data: updatedMedia } = await response.json();
 			toast.success("Image processed and saved");
 
-			// 🚀 SPA-Friendly Update: Update local state instead of full reload
-			if (updatedMedia) {
-				const index = files.findIndex(f => f._id === updatedMedia._id);
-				if (index !== -1) {
-					files[index] = updatedMedia;
-				} else {
-					// If it was saved as "New", add it to the list
-					files = [updatedMedia, ...files];
-				}
-			} else {
-				// Fallback if data is missing: re-fetch from the server reactively
-				await invalidateAll();
-			}
+			await invalidateAll();
 		} else {
 			const error = await response.json();
 			toast.error(`Save failed: ${error.message || "Unknown error"}`);

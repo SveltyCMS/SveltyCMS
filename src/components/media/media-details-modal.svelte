@@ -608,13 +608,13 @@
               {#each file.versions || [] as ver}
                 <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
                   <div class="flex min-w-0 items-center gap-3">
-                    <Badge variant="surface" size="sm">v{ver.versionNumber}</Badge>
+                    <Badge variant="surface" size="sm">v{ver.version}</Badge>
                     <div class="min-w-0">
                       <p class="truncate text-xs font-semibold text-surface-800 dark:text-surface-100" title={ver.filename}>{ver.filename}</p>
                       <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
-                        {formatBytes(ver.size)} · {new Date(ver.updatedAt).toLocaleString()}
-                        {#if ver.updatedBy}
-                          · {ver.updatedBy}
+                        {formatBytes(ver.size)} · {new Date(ver.createdAt).toLocaleString()}
+                        {#if ver.createdBy}
+                          · {ver.createdBy}
                         {/if}
                       </p>
                     </div>
@@ -635,7 +635,7 @@
                     <Button
                       variant="surface"
                       size="sm"
-                      onclick={() => handleRestoreVersion(ver.versionNumber)}
+                      onclick={() => handleRestoreVersion(ver.version)}
                       disabled={isRestoringVersion}
                       aria-label="Restore version"
                       class="h-8 px-3"
