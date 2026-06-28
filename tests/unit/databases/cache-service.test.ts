@@ -42,13 +42,12 @@ describe("CacheService (Whitebox)", () => {
       expect(service.generateKey("my-key")).toBe("tenant:default:my-key");
     });
 
-    it("memoizes generated keys", () => {
-      const getSpy = vi.spyOn(service["keyCache"], "get");
-      const setSpy = vi.spyOn(service["keyCache"], "set");
-      service.generateKey("cached-key");
-      service.generateKey("cached-key");
-      expect(getSpy).toHaveBeenCalledTimes(2);
-      expect(setSpy).toHaveBeenCalledTimes(1);
+    it("generates deterministic keys without memoization", () => {
+      // keyCache/memoization was removed for lower memory overhead
+      const key1 = service.generateKey("test-key");
+      const key2 = service.generateKey("test-key");
+      expect(key1).toBe(key2);
+      expect(key1).toContain("test-key");
     });
   });
 

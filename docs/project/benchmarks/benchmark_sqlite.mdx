@@ -107,11 +107,10 @@ xychart-beta
 <!-- API_LATENCY_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 26% — check connection pool saturation or lock contention.  
-**Severe degradation** (+32%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
-**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
-
+> Throughput dropped 26% — check connection pool saturation or lock contention.  
+> **Severe degradation** (+32%) — review recent commits immediately.  
+> (suspected — single test run, needs cross-validation with related benchmarks)  
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -133,14 +132,12 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-
 <!-- COLD_START_TABLE_START -->
 
 > Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+7026352%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
-**Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
-
+> **Severe degradation** (+7026352%) — review recent commits immediately.  
+> (suspected — single test run, needs cross-validation with related benchmarks)  
+> **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -162,9 +159,10 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-
 <!-- TRUTH_AUDIT_TABLE_START -->
+
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
@@ -174,10 +172,13 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 ║ Local SDK (Full)               │        0.006 ms │ p95:        0.010 ms │ RPS:    165,691 ║
 ║ HTTP End-to-End                │        0.673 ms │ p95:        1.090 ms │ RPS:      1,487 ║
 ```
+
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- SCAN_TABLE_START -->
+
 ### 🏷️ Self-Healing Content Scan ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/content-scan.test.ts](../../../tests/benchmarks/content-scan.test.ts)
 > 🎯 **Proves**: Measures the 99.9% Self-Healing Cache scanner across .compiledCollections/test/scan (isolated from user data).
 
@@ -185,10 +186,13 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Content Scan (Self-Healing)    │        0.010 ms │ p95:        0.014 ms │ RPS:     92,364 ║
 ```
+
 <!-- SCAN_TABLE_END -->
 
 <!-- INCREMENTAL_TABLE_START -->
+
 ### 🏷️ Incremental Content Reload ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
 
@@ -197,14 +201,15 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 ║ Incremental fullReload (1 file) │        0.226 ms │ p95:        0.300 ms │ RPS:      4,426 ║
 ║ Full Reconciliation Reload     │       13.623 ms │ p95:       15.894 ms │ RPS:         73 ║
 ```
+
 <!-- INCREMENTAL_TABLE_END -->
 
 <!-- HOOKS_TRACE_TABLE_START -->
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-Throughput dropped 48% — check connection pool saturation or lock contention.
-**Severe degradation** (+89%) — review recent commits immediately.
-**Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+> Throughput dropped 48% — check connection pool saturation or lock contention.
+> **Severe degradation** (+89%) — review recent commits immediately.
+> **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 ```
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -233,10 +238,13 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ║ Peak RPS                                           │     2799.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- HOOKS_TRACE_TABLE_END -->
 
 <!-- EDGE_SYNC_TABLE_START -->
+
 ### 🏷️ Edge Sync & Distributed Cache ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/edge-sync.test.ts](../../../tests/benchmarks/edge-sync.test.ts)
 > 🎯 **Proves**: Verifies distributed L1/L2 cache invalidation latency across simulated nodes.
 
@@ -244,10 +252,13 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ Edge Sync Propagation          │       30.810 ms │ p95:       31.591 ms │ RPS:         33 ║
 ```
+
 <!-- EDGE_SYNC_TABLE_END -->
 
 <!-- TELEMETRY_TABLE_START -->
+
 ### 🏷️ Telemetry Collection & Signing ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/telemetry-performance.test.ts](../../../tests/benchmarks/telemetry-performance.test.ts)
 > 🎯 **Proves**: Measures the overhead of telemetry data collection and cryptographic signing.
 
@@ -256,10 +267,13 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ║ Auth Validation @ 1c           │        0.484 ms │ p95:        0.552 ms │ RPS:      1,933 ║
 ║ HTTP Auth Pipeline @ 8c        │        1.540 ms │ p95:        2.275 ms │ RPS:        628 ║
 ```
+
 <!-- TELEMETRY_TABLE_END -->
 
 <!-- STATE_MACHINE_TABLE_START -->
+
 ### 🏷️ State Machine Transitions ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
 
@@ -267,17 +281,22 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
 ║ State Transition (READY -> IDLE -> READY) │       58.668 ms │ p95:       63.949 ms │ RPS:         17 ║
 ```
+
 <!-- STATE_MACHINE_TABLE_END -->
 
 <!-- DB_RAW_P95_TABLE_START -->
+
 > **Measures**: Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.
 > **Code**: `src/databases/<db>/crud-methods.ts`, `src/databases/<db>/adapter-core.ts`
 > **Why**: Adapter bottlenecks cascade to all data operations. Check indexes, connection pools, and query plans.
 > **Correlates**: `index-pressure`, `graphql-api-performance` | **Anti-correlates**: `hooks-performance`
+
 <!-- DB_RAW_P95_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
+
 ### 🏷️ ACID Transaction Overhead ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
 
@@ -286,10 +305,13 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ║ TX Commit                      │        0.250 ms │ p95:        0.479 ms │ RPS:      3,342 ║
 ║ TX Rollback Integrity          │        0.190 ms │ p95:        0.289 ms │ RPS:      5,260 ║
 ```
+
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
+
 ### 🏷️ System Cache Efficiency ⚪ —
+
 > 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](../../../tests/benchmarks/cache-performance.test.ts)
 > 🎯 **Proves**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
 
@@ -298,13 +320,15 @@ Throughput dropped 48% — check connection pool saturation or lock contention.
 ║ First Miss (DB)                │        0.136 ms │ p95:        0.206 ms │ RPS:      7,344 ║
 ║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    552,286 ║
 ```
+
 <!-- CACHE_TABLE_END -->
 
 <!-- AI_OVERHEAD_TABLE_START -->
+
 > Within normal variance — no action needed.
 > **Check**: `src/services/AIService.ts`
 
-````text
+``````text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — AI INFRASTRUCTURE AUDIT                           ║
 ║                      File: tests/benchmarks/ai-performance.test.ts                      ║
@@ -961,10 +985,10 @@ A short high-level gains summary remains earlier in this file. The in-progress m
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 26% — check connection pool saturation or lock contention.  
-**Severe degradation** (+32%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 26% — check connection pool saturation or lock contention.
+**Severe degradation** (+32%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
@@ -991,9 +1015,9 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 
 <!-- COLD_START_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -2188,10 +2212,10 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- API_LATENCY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 26% — check connection pool saturation or lock contention.  
-**Severe degradation** (+32%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+Throughput dropped 26% — check connection pool saturation or lock contention.
+**Severe degradation** (+32%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/routes/api/[...path]/+server.ts` · `src/hooks.server.ts`
 
 
@@ -2222,9 +2246,9 @@ Throughput dropped 26% — check connection pool saturation or lock contention.
 
 <!-- COLD_START_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -2642,9 +2666,9 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 
 <!-- ACID_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3141,9 +3165,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- MEMORY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3190,9 +3214,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- MIXED_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3225,9 +3249,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- GQL_STRESS_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3260,9 +3284,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- MIGRATION_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3295,9 +3319,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- INDEX_PRESSURE_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3329,9 +3353,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- CONTENT_STRESS_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3363,9 +3387,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- JOURNEY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3397,9 +3421,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- CONCURRENCY_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3444,9 +3468,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- RESILIENCE_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3491,9 +3515,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 
@@ -3526,9 +3550,9 @@ Throughput dropped 77% — check connection pool saturation or lock contention.
 
 <!-- THROTTLING_TABLE_START -->
 
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+3537410%) — review recent commits immediately.  
-(suspected — single test run, needs cross-validation with related benchmarks)  
+> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+**Severe degradation** (+3537410%) — review recent commits immediately.
+(suspected — single test run, needs cross-validation with related benchmarks)
 **Check**: `src/hooks/handle-system-state.ts` · `src/hooks.server.ts`
 
 

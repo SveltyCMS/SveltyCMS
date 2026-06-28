@@ -84,9 +84,7 @@ export function escapeRegex(s: string): string {
 }
 
 function getDbType(): string {
-  return typeof process !== "undefined"
-    ? process.env.DB_TYPE || "sqlite"
-    : "sqlite";
+  return typeof process !== "undefined" ? process.env.DB_TYPE || "sqlite" : "sqlite";
 }
 
 export function getDocPath(): string {
@@ -133,11 +131,7 @@ function tagExistsInDoc(doc: string, tag: string): boolean {
 }
 
 /** Discover which TABLE tag in the MDX matches the given test file. */
-export function discoverTag(
-  doc: string,
-  testFile: string,
-  shortLabel?: string,
-): string | null {
+export function discoverTag(doc: string, testFile: string, shortLabel?: string): string | null {
   const fileBase = path
     .basename(testFile)
     .replace(/\.test\.(ts|js)$/i, "")
@@ -174,9 +168,7 @@ function atomicWrite(docPath: string, content: string): void {
   // Clean up stale temp files from previous crashes
   const dir = path.dirname(docPath);
   const base = path.basename(docPath);
-  const staleFiles = fs
-    .readdirSync(dir)
-    .filter((f) => f.startsWith(base + ".tmp."));
+  const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
   for (const sf of staleFiles) {
     try {
       fs.unlinkSync(path.join(dir, sf));
@@ -268,13 +260,7 @@ export function writeTruthTable(
       const endIdx = doc.indexOf(END, pos + START.length);
       if (endIdx < 0) break;
 
-      doc =
-        doc.slice(0, pos) +
-        START +
-        "\n" +
-        block +
-        "\n" +
-        doc.slice(endIdx + END.length);
+      doc = doc.slice(0, pos) + START + "\n" + block + "\n" + doc.slice(endIdx + END.length);
       replaced = true;
       startIdx = pos + START.length + block.length + 1;
     }
@@ -397,10 +383,7 @@ export function writeExecutiveSummary(
     }
 
     // Remove pending placeholder
-    doc = doc.replace(
-      "\n> \u23F3 Pending \u2014 run benchmarks to populate.\n",
-      "\n",
-    );
+    doc = doc.replace("\n> \u23F3 Pending \u2014 run benchmarks to populate.\n", "\n");
 
     // Add partial watermark
     if (isPartial && !doc.includes("Partial update")) {
@@ -418,14 +401,9 @@ export function writeExecutiveSummary(
     }
 
     // Upsert test alert
-    const existingRx = new RegExp(
-      "> \\*\\*" + escapeRegex(testName) + "\\*\\*:.*\\n",
-    );
+    const existingRx = new RegExp("> \\*\\*" + escapeRegex(testName) + "\\*\\*:.*\\n");
     if (existingRx.test(doc)) {
-      doc = doc.replace(
-        existingRx,
-        "> **" + testName + "**:" + trendLabel + "\n",
-      );
+      doc = doc.replace(existingRx, "> **" + testName + "**:" + trendLabel + "\n");
     } else {
       const alert = "\n> **" + testName + "**:" + trendLabel + "\n";
       doc = doc.replace(marker, marker + alert);

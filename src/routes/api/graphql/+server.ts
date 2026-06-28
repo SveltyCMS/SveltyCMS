@@ -58,6 +58,7 @@ import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
 import { seoResolvers, seoTypeDefs } from "./resolvers/seo";
 import { createLoaders } from "./loaders";
+import { createRelationLoader } from "./data-loaders";
 import { LocalCMS } from "@src/services/sdk";
 
 import { apiHandler } from "@utils/api-handler";
@@ -211,6 +212,7 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
               set loaders(value) {
                 _loaders = value;
               },
+              relationLoader: createRelationLoader(serverContext.tenantId || "global"),
               publicationFilter: serverContext.publicationFilter || "all",
             };
           },
