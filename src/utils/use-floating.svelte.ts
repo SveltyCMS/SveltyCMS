@@ -51,7 +51,6 @@ interface FloatingOptions {
   padding?: number | (() => number);
   enabled: () => boolean;
   showArrow?: () => boolean;
-  useCssAnchor?: () => boolean;
 }
 
 // Detect CSS Anchor Positioning support (Baseline 2026: Chrome 143+, Firefox 147+)
@@ -223,7 +222,6 @@ export function useFloating(options: FloatingOptions) {
     const rawPadding = options.padding ?? 10;
     const offset = typeof rawOffset === "function" ? rawOffset() : rawOffset;
     const padding = typeof rawPadding === "function" ? rawPadding() : rawPadding;
-    const useAnchor = SUPPORTS_ANCHOR && (options.useCssAnchor?.() ?? true);
 
     if (!enabled || !ref || !float) {
       positionCalculated = false;
@@ -231,7 +229,7 @@ export function useFloating(options: FloatingOptions) {
     }
 
     // --- CSS Anchor Positioning path (Chrome 143+, Firefox 147+) ---
-    if (useAnchor) {
+    if (SUPPORTS_ANCHOR) {
       ref.style.anchorName = anchorName;
       float.style.positionAnchor = anchorName;
       (float.style as any).positionArea = placement.replace("-", " ");
@@ -242,37 +240,23 @@ export function useFloating(options: FloatingOptions) {
       float.style.top = "auto";
 
       finalPlacement = placement;
+      positionCalculated = true;
 
-      function updateArrowPosition() {
-        if (!options.showArrow?.() || !options.arrow) return;
-        const arrowEl = options.arrow();
-        if (!arrowEl || !ref || !float) return;
-        const refRect = ref.getBoundingClientRect();
-        const floatRect = float.getBoundingClientRect();
-        const arrow = computeArrow(refRect, floatRect, placement, floatRect.left, floatRect.top);
-        arrowX = arrow.arrowX;
-        arrowY = arrow.arrowY;
-        staticSide = arrow.staticSide;
-        arrowEl.style.position = "";
-        arrowEl.style.left = "";
-        arrowEl.style.top = "";
-        arrowEl.style.transform = "";
-        (arrowEl.style as any).positionAnchor = "";
+      // Arrow via CSS anchor if supported
+      if (options.showArrow?.() && options.arrow) {
+        const arr = options.arrow();
+        if (arr) {
+          const [side] = placement.split("-");
+          staticSide = OPPOSITE_SIDE[side] ?? "top";
+          arr.style.position = "absolute";
+          arr.style.left = `anchor(${anchorName} 50%)`;
+          arr.style.top = `anchor(${anchorName} 50%)`;
+          // Clamp arrow within bounds via translate
+          arr.style.transform = "rotate(45deg) translate(-50%, -50%)";
+          arrowX = null;
+          arrowY = null;
+        }
       }
-
-      function updateAll() {
-        updateArrowPosition();
-        positionCalculated = true;
-      }
-
-      requestAnimationFrame(updateAll);
-
-      const onUpdate = () => updateAll();
-      window.addEventListener("scroll", onUpdate, { passive: true, capture: true });
-      window.addEventListener("resize", onUpdate, { passive: true });
-      const observer = new ResizeObserver(onUpdate);
-      observer.observe(ref);
-      observer.observe(float);
 
       return () => {
         ref.style.anchorName = "";
@@ -283,12 +267,7 @@ export function useFloating(options: FloatingOptions) {
         float.style.margin = "";
         float.style.left = "";
         float.style.top = "";
-        window.removeEventListener("scroll", onUpdate, { capture: true });
-        window.removeEventListener("resize", onUpdate);
-        observer.disconnect();
         positionCalculated = false;
-        arrowX = null;
-        arrowY = null;
       };
     }
 
@@ -359,12 +338,10 @@ export function useFloating(options: FloatingOptions) {
   // --- Computed style string ---
 
   /** Inline position style for the floating element */
-  const usesCssAnchor = $derived(SUPPORTS_ANCHOR && (options.useCssAnchor?.() ?? true));
-
   const positionStyle = $derived(
     options.enabled()
-      ? usesCssAnchor
-        ? ""
+      ? SUPPORTS_ANCHOR
+        ? "" // CSS anchor handles positioning
         : `left: ${x}px; top: ${y}px;`
       : "display: none;",
   );
