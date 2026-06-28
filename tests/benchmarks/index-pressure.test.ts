@@ -35,7 +35,7 @@ const IS_CI =
   process.env.BENCHMARK_CI === "true" ||
   process.env.GITHUB_ACTIONS === "true";
 const ENTRY_COUNT = IS_CI ? 5000 : 25000;
-const BATCH_SIZE = IS_CI ? 250 : 500;
+const BATCH_SIZE = IS_CI ? 250 : 100;
 const ITERATIONS = IS_CI ? 100 : 300;
 const WARMUP_ITERS = IS_CI ? 20 : 50;
 

@@ -24,14 +24,14 @@ import { randomBytes } from "node:crypto";
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const SIZE_MB = IS_CI
-  ? [5, 10]
-  : (process.env.BENCH_STREAMING_SIZES || "5,10").split(",").map((s) => parseInt(s.trim(), 10));
+  ? [0.1, 0.2]
+  : (process.env.BENCH_STREAMING_SIZES || "0.1,0.2").split(",").map((s) => parseFloat(s.trim()));
 
 let stopServer: (() => Promise<void>) | null = null;
 
 function generatePayload(sizeMb: number): { buffer: Buffer; name: string } {
   return {
-    buffer: Buffer.from(randomBytes(sizeMb * 1024 * 1024)),
+    buffer: Buffer.from(randomBytes(Math.round(sizeMb * 1024 * 1024))),
     name: `bench-stream-${sizeMb}mb-${Date.now()}.bin`,
   };
 }

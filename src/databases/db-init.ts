@@ -8,6 +8,10 @@ import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import type { IDBAdapter } from "./db-interface";
 import { dbPluginRegistry } from "./core/plugin-registry";
 
+// 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
+// so MongoDB adapter works under Bun without requiring Node.js/vitest.
+import "@utils/v8-shim";
+
 /**
  * 🚀 AGNOSTIC CORE: Loads the physical database adapter based on config.
  */

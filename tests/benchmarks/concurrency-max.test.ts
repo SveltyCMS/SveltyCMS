@@ -11,6 +11,7 @@ import {
   forceRefreshServer,
   printTruthTable,
   printSummaryTable,
+  exportResult,
   getDbType,
   TEST_API_SECRET,
 } from "./modules/benchmark-utils";
@@ -148,6 +149,15 @@ async function run() {
     { key: "Throughput", val: rps, unit: "RPS" },
     { key: "Success Rate", val: `${ok}/${totalWrites}`, unit: "" },
   ]);
+
+  await exportResult({
+    name: "Full Blast",
+    avgMs: duration / totalWrites,
+    p95Ms: duration / totalWrites,
+    rps,
+    errorCount: totalWrites - ok,
+    status: ok === totalWrites ? "SUCCESS" : "FAILED",
+  }).catch(() => {});
 
   if (ok !== totalWrites) throw new Error(`Lost ${totalWrites - ok} writes`);
 }

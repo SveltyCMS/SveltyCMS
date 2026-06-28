@@ -99,6 +99,13 @@ export async function connectDatabaseWithResilience(
 export function scheduleAdapterReconnection(adapter: IDBAdapter, reason: string): void {
   if (reconnectInFlight) return;
 
+  // 🛡️ SHUTDOWN GUARD: If the system is intentionally shutting down (e.g., reinitialize),
+  // skip auto-reconnection — the caller will handle reconnection explicitly.
+  if ((globalThis as any).__SYSTEM_SHUTTING_DOWN__) {
+    logger.debug(`[Resilience] Suppressed auto-reconnect during intentional shutdown: ${reason}`);
+    return;
+  }
+
   (adapter as any).connected = false;
   updateServiceHealth("database", "unhealthy", reason);
   logger.warn(`[Resilience] Scheduling reconnection: ${reason}`);

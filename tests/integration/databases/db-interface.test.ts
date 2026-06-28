@@ -11,14 +11,9 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { createSchemaProxy } from "../../../src/databases/core/schema-proxy";
 
-// MongoDB driver requires node:v8 which Bun doesn't implement.
-// Skip MongoDB adapter tests under Bun — they pass under Node/Vitest.
-const isBun = typeof Bun !== "undefined";
-const dbType = (process.env.DB_TYPE || "").toLowerCase();
-if (isBun && dbType === "mongodb") {
-  console.warn("⚠️ Skipping MongoDB db-interface test under Bun (node:v8 not available).");
-  process.exit(0);
-}
+// 🟢 Apply the v8 shim before any MongoDB/Bson imports
+// This must happen before the dynamic import of MongoDBAdapter below.
+import "../../../src/utils/v8-shim";
 
 // 🚀  Aggressively mock SvelteKit and Store environment for standalone adapter tests
 mock.module("$app/environment", () => ({

@@ -87,6 +87,12 @@ function pctChange(current: number, baseline: number): number {
   return baseline > 0 ? ((current - baseline) / baseline) * 100 : 0;
 }
 
+function formatMs(ms: number): string {
+  if (ms === 0) return "0ms";
+  if (ms < 1) return `${ms.toFixed(3)}ms`;
+  return `${ms.toFixed(2)}ms`;
+}
+
 export function analyzeTrend(
   result: {
     name: string;
@@ -94,18 +100,20 @@ export function analyzeTrend(
     p95Ms: number;
     rps: number;
   },
+  allHistory: { avgMs: number; p95Ms: number; rps: number }[],
   testId: string,
   dbType: string,
   redisEnabled: boolean,
   phase: "cold" | "warm" | "mixed",
 ): TrendResult {
-  const stableKey = buildHistoryKey(testId, dbType, redisEnabled, phase);
-  const history = loadHistory(testId, dbType, redisEnabled, phase);
+  const stableKey = `${testId}:${dbType}:${redisEnabled ? "redis" : "plain"}:${phase}`;
+  // Only use last 7 runs for trend — old data is stale
+  const history = allHistory.slice(-7);
   const historyLen = history.length;
 
   if (historyLen < 2) {
     return {
-      label: " \u26AA \u2014 baseline established (1 run)",
+      label: `\u26AA established at ${formatMs(result.avgMs)} (1 run)`,
       severity: "stable",
       deltaPct: 0,
       p95DeltaPct: 0,
@@ -116,49 +124,60 @@ export function analyzeTrend(
     };
   }
 
-  // Single-pass buffer population — replaces .filter().map() chained allocations
-  const avgArray = Array.from({ length: historyLen });
-  const p95Array: number[] = [];
-  const rpsArray: number[] = [];
+  // Build arrays from last 7 runs
+  const avgs = history.map((h) => h.avgMs);
+  const p95s = history.filter((h) => h.p95Ms > 0).map((h) => h.p95Ms);
+  const rpss = history.filter((h) => h.rps > 0).map((h) => h.rps);
 
-  for (let i = 0; i < historyLen; i++) {
-    const h = history[i]!;
-    avgArray[i] = h.avgMs;
-    if (h.p95Ms > 0) p95Array.push(h.p95Ms);
-    if (h.rps > 0) rpsArray.push(h.rps);
+  const sortedAvgs = [...avgs].sort((a, b) => a - b);
+  const len = sortedAvgs.length;
+  const median =
+    len % 2 === 0
+      ? (sortedAvgs[len / 2 - 1] + sortedAvgs[len / 2]) / 2
+      : sortedAvgs[Math.floor(len / 2)];
+  // IQR: spread of middle 50% — determines "normal variance"
+  const q1 = sortedAvgs[Math.floor(len * 0.25)];
+  const q3 = sortedAvgs[Math.floor(len * 0.75)];
+  const iqr = q3 - q1;
+
+  const current = result.avgMs;
+  const delta = current - median;
+  const deltaPct = median > 0 ? (delta / median) * 100 : 0;
+
+  // Smart severity: use both IQR and percentage
+  // "Normal variance": within 1.5× IQR of median
+  // "Real change": outside that range AND >2% change
+  const isSignificant = Math.abs(delta) > iqr * 1.5 && Math.abs(deltaPct) > 2;
+
+  let icon: string;
+  let label: string;
+
+  if (!isSignificant || Math.abs(delta) < 0.05 || Math.abs(deltaPct) < 2) {
+    // Within normal variance — stable
+    icon = "\u26AA";
+    const range = iqr > 0 ? ` (±${formatMs(iqr)})` : "";
+    label = `${icon} stable at ${formatMs(median)}${range} (${historyLen} runs)`;
+  } else if (delta < 0) {
+    // Improved (faster)
+    icon = "\u{1F7E2}";
+    label = `${icon} faster: ${formatMs(median)} \u2192 ${formatMs(current)} (-${Math.abs(deltaPct).toFixed(0)}%) (${historyLen} runs)`;
+  } else {
+    // Regressed (slower)
+    icon = "\u{1F534}";
+    label = `${icon} slower: ${formatMs(median)} \u2192 ${formatMs(current)} (+${deltaPct.toFixed(0)}%) (${historyLen} runs)`;
   }
 
-  const bAvg = fastMedian(avgArray);
-  const bP95 = fastMedian(p95Array);
-  const bRPS = fastMedian(rpsArray);
-
-  const dAvg = pctChange(result.avgMs, bAvg);
-  const dP95 = pctChange(result.p95Ms, bP95);
-  const dRPS = pctChange(result.rps, bRPS);
-
-  const { severity, icon } = severityFor(dAvg);
-  let labelParts = "";
-
-  if (result.avgMs > 0 && bAvg > 0) {
-    labelParts += `avg ${dAvg > 0 ? "+" : ""}${dAvg.toFixed(0)}%`;
-  }
-  if (result.p95Ms > 0 && bP95 > 0 && Math.abs(dP95) > 3) {
-    labelParts += `${labelParts ? " " : ""}p95 ${dP95 > 0 ? "+" : ""}${dP95.toFixed(0)}%`;
-  }
-  if (result.rps > 0 && bRPS > 0 && Math.abs(dRPS) > 5) {
-    labelParts += `${labelParts ? " " : ""}rps ${dRPS > 0 ? "+" : ""}${dRPS.toFixed(0)}%`;
-  }
-
-  const completeLabel = ` ${icon} ${labelParts} (${historyLen} runs)`;
+  const bP95 = p95s.length > 0 ? p95s.reduce((a, b) => a + b, 0) / p95s.length : 0;
+  const bRPS = rpss.length > 0 ? rpss.reduce((a, b) => a + b, 0) / rpss.length : 0;
 
   return {
-    label: completeLabel,
-    severity,
-    deltaPct: dAvg,
-    p95DeltaPct: dP95,
-    rpsDeltaPct: dRPS,
+    label,
+    severity: isSignificant ? (delta < 0 ? "improved" : "regressed") : "stable",
+    deltaPct,
+    p95DeltaPct: bP95 > 0 ? ((result.p95Ms - bP95) / bP95) * 100 : 0,
+    rpsDeltaPct: bRPS > 0 ? ((result.rps - bRPS) / bRPS) * 100 : 0,
     sampleSize: historyLen,
-    isBaseline: isBaselinePhase(testId, dbType, redisEnabled, phase),
+    isBaseline: false,
     stableKey,
   };
 }

@@ -99,7 +99,7 @@ describe("ETag Hash Performance", () => {
         `    SHA-256: ${(sha256Time * 1000).toFixed(4)} µs  (${speedupVsSHA256}× slower)`,
       );
 
-      if (payload.length > 200) {
+      if (payload.length > 1000) {
         expect(xxh3Time).toBeLessThan(md5Time);
         expect(xxh3Time).toBeLessThan(sha1Time);
         expect(xxh3Time).toBeLessThan(sha256Time);

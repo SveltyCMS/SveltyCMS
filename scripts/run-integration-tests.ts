@@ -767,12 +767,11 @@ async function main() {
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
-    // MongoDB driver requires node:v8 which Bun doesn't implement — use vitest (Node) for MongoDB
-    const isMongoDb = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
-    const testCmd = isMongoDb ? "vitest" : "bun";
-    const testArgs = isMongoDb
-      ? ["run", bunTestPath, "--reporter=verbose", "--timeout=60000"]
-      : ["test", "--timeout", "60000", bunTestPath];
+    // All adapters (MariaDB, PostgreSQL, SQLite, MongoDB) use bun test uniformly.
+    // The v8 shim in src/utils/v8-shim.ts handles the only Bun-incompatible API
+    // (v8.isBuildingSnapshot) in the MongoDB driver chain.
+    const testCmd = "bun";
+    const testArgs = ["test", "--timeout", "60000", bunTestPath];
 
     const { code } = await runCommand(testCmd, testArgs, {
       env: {

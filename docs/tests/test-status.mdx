@@ -140,26 +140,27 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 4. CI Pipeline Gates
 
-| Gate              | Runtime    | What it catches                                   |
-| ----------------- | ---------- | ------------------------------------------------- |
-| Bootstrap         | ~30s       | Dep install, codegen                              |
-| Lint + Type Check | ~40s       | oxlint, svelte-check, tsc                         |
-| Unit Tests        | ~12s       | 1,100+ Vitest specs                               |
-| Build             | ~30s       | Production build integrity                        |
-| DB Matrix (×4)    | ~3min each | SQLite, MongoDB, MariaDB, PostgreSQL integration  |
-| E2E Wizard        | ~30s       | Setup wizard flow                                 |
-| E2E Auth          | ~20s       | Login + session creation                          |
-| E2E App (×17)     | ~15s each  | Full admin surface (signup through media gallery) |
+| Gate              | Runtime         | What it catches                                                             |
+| ----------------- | --------------- | --------------------------------------------------------------------------- |
+| Bootstrap         | ~30s            | Dep install, codegen                                                        |
+| Lint + Type Check | ~40s            | oxlint, svelte-check, tsc                                                   |
+| Unit Tests        | ~12s            | 1,100+ Vitest specs                                                         |
+| Build             | ~30s            | Production build integrity                                                  |
+| Integration (×4)  | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL contract tests                         |
+| Benchmarks (×61)  | ~10h full suite | 61 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR |
+| E2E Wizard        | ~30s            | Setup wizard flow                                                           |
+| E2E Auth          | ~20s            | Login + session creation                                                    |
+| E2E App (×17)     | ~15s each       | Full admin surface (signup through media gallery)                           |
 
 ## 5. Gaps — What's NOT Tested
 
-| Gap                            | Risk                                                                       | Priority                                                      |
-| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| **GraphQL E2E**                | Only integration-tested; no browser-level GQL query test                   | 🟡 Medium                                                     |
-| **SSO/OAuth integration**      | Mock-only test; no real IdP flow validation                                | 🟡 Medium                                                     |
-| **Dashboard drag-reorder E2E** | Widget grid smoke covered; drag-and-drop reorder not browser-tested        | 🟢 Low                                                        |
-| - **Performance regression**   | Benchmarks gated to `main` only; no per-PR perf diff                       | 🟢 Low — 58/58 benchmark tests pass on SQLite, CI skips on PR |
-| **Image editor E2E save**      | Editor open + crop/focal tools covered; manipulate save not browser-tested | 🟢 Low                                                        |
+| Gap                            | Risk                                                                       | Priority                                        |
+| ------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------- |
+| **GraphQL E2E**                | Only integration-tested; no browser-level GQL query test                   | 🟡 Medium                                       |
+| **SSO/OAuth integration**      | Mock-only test; no real IdP flow validation                                | 🟡 Medium                                       |
+| **Dashboard drag-reorder E2E** | Widget grid smoke covered; drag-and-drop reorder not browser-tested        | 🟢 Low                                          |
+| - **Performance regression**   | Benchmarks now using per-test multi-DB runner; 61 tests × 8 DB variants    | 🟡 Medium — see database-tests.mdx for strategy |
+| **Image editor E2E save**      | Editor open + crop/focal tools covered; manipulate save not browser-tested | 🟢 Low                                          |
 
 | Gap                                                          | Risk                                                                                                    | Priority |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | -------- |

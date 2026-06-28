@@ -10,6 +10,10 @@ import path from "node:path";
 import { Database } from "bun:sqlite";
 import { pushTableToMdx, appendSummaryToMdx, computeAndApplyTrend } from "./benchmark-reporting";
 
+// 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
+// so MongoDB benchmarks can run under `bun test` (not just vitest/Node).
+import "@utils/v8-shim";
+
 // Re-export isolation paths for benchmark modules
 export {
   BENCHMARK_COLLECTIONS_DIR,
@@ -21,9 +25,6 @@ export {
   cleanupBenchmarkCompiledWorkspace,
   cleanupAllBenchmarkWorkspaces,
 } from "@utils/benchmark-paths";
-
-// Auto-register educational metadata for all benchmark tests
-import "./benchmark-meta";
 
 // ── Standalone Shim (Compatibility for 'bun run') ────────────────────────────
 /**
@@ -78,6 +79,7 @@ if (typeof Bun !== "undefined") {
 }
 
 export const test = (name: string, fn: any, timeout?: number) => {
+  _benchmarkTestStartTime = performance.now();
   if (testFn) {
     try {
       return testFn(name, fn, timeout);
@@ -192,6 +194,14 @@ process.env.TEST_MODE = process.env.TEST_MODE || "true";
 
 // 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks and collection pollution
 afterAll(async () => {
+  // Finalize report only in standalone mode (matrix calls it once for all tests)
+  if (process.env.BENCHMARK_MATRIX !== "1") {
+    try {
+      const { finalizeReport } = await import("./benchmark-reporting");
+      await finalizeReport(_currentRunId);
+    } catch {}
+  }
+
   const { shutdownSystem } = await import("@src/databases/db");
   await shutdownSystem().catch(() => {});
   if (process.env.BENCHMARK_MATRIX !== "1") {
@@ -249,6 +259,15 @@ export interface BenchmarkResult {
   ci95Ms?: [number, number];
   [key: string]: any;
 }
+
+/** Track test start time for wall clock measurement */
+let _benchmarkTestStartTime = 0;
+/** Track server boot overhead */
+let _benchmarkBootMs = 0;
+/** Track seed overhead */
+let _benchmarkSeedMs = 0;
+/** Current run ID (shared across matrix subprocesses) */
+const _currentRunId = process.env.BENCHMARK_RUN_ID || crypto.randomUUID();
 
 // ── configuration ────────────────────────────────────────────────────────────
 const RESULTS_DIR = process.env.RESULTS_DIR ?? "tests/benchmarks/results";
@@ -372,7 +391,10 @@ export function getDbLabel(): string {
 }
 
 export function getDbType(): string {
+  // Default: SQLite with Redis L2 cache enabled
   if (process.env.DB_TYPE) return process.env.DB_TYPE.toLowerCase();
+  process.env.DB_TYPE = "sqlite";
+  return "sqlite";
   return "sqlite";
 }
 
@@ -486,6 +508,9 @@ export function printTruthTable(options: {
   log(h.center(options.title));
   const meta = discoverBenchmarkMetadata();
   log(h.center(`File: ${meta.path}`));
+  const now = new Date();
+  const ts = now.toISOString().replace("T", " ").substring(0, 19);
+  log(h.center(`Ran: ${ts}`));
   if (meta.proves) {
     const lines = meta.proves.split("\n");
     for (const line of lines) {
@@ -537,6 +562,9 @@ export function printSummaryTable(
   };
   log("\n" + helpers.bar("╔", "╗"));
   log(helpers.center("FINAL AUDIT SUMMARY"));
+  const now2 = new Date();
+  const ts2 = now2.toISOString().replace("T", " ").substring(0, 19);
+  log(helpers.center(`Ran: ${ts2}`));
   log(helpers.bar("╠", "╣"));
   metrics.forEach((m) => {
     const valStr = typeof m.val === "number" ? m.val.toFixed(3) : String(m.val);
@@ -703,64 +731,92 @@ export async function runStochasticLoadTest(config: {
 }
 
 export async function setupBenchmarkServer() {
+  const _bootStart = performance.now();
   const apiBase = process.env.API_BASE_URL;
-  if (apiBase) return { baseUrl: apiBase, stop: async () => {} };
+  if (apiBase) {
+    // Shared server mode: use env vars directly
+    _benchmarkBootMs = 0;
+    process.env.TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    TEST_API_SECRET = process.env.TEST_API_SECRET;
+    return { baseUrl: apiBase, stop: async () => {} };
+  }
 
-  const { startServer, runSystemSetup } = await import("../../../scripts/benchmark-matrix/server");
-  const {
-    ALL_DATABASES,
-    JWT_SECRET_KEY,
-    ENCRYPTION_KEY,
-    TEST_API_SECRET: configSecret,
-    ADMIN_PASSWORD,
-  } = await import("../../../scripts/benchmark-matrix/config");
+  // ── Standalone mode: spawn a local server ───────────────────────────
+  const { spawn } = await import("node:child_process");
 
   const dbType = getDbType() || "sqlite";
-  const useRedis = process.env.USE_REDIS === "true";
-  const dbKey = useRedis ? `${dbType}-redis` : dbType;
-  const dbName = `benchmark_shared`;
-  const dbConf =
-    ALL_DATABASES.find((d) => {
-      const key = d.useRedis ? `${d.type}-redis` : d.type;
-      return key === dbKey;
-    }) ||
-    ALL_DATABASES.find((d) => d.type === "sqlite") ||
-    ALL_DATABASES[0];
+  const port = 4173 + Math.floor(Math.random() * 500);
+  const dbName = "benchmark_shared";
+  const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+  const adminPw = process.env.ADMIN_PASSWORD || "Admin123!";
 
   process.env.DB_TYPE = dbType;
   process.env.DB_NAME = dbName;
-  process.env.DB_HOST = dbConf.host;
-  process.env.DB_PORT = String(dbConf.port);
-  process.env.DB_USER = dbConf.user || "";
-  process.env.DB_PASSWORD = dbConf.password || "";
-  const port = 4173 + Math.floor(Math.random() * 500);
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
-  process.env.JWT_SECRET_KEY = JWT_SECRET_KEY;
-  process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
-  process.env.TEST_API_SECRET = configSecret;
-  process.env.ADMIN_PASSWORD = ADMIN_PASSWORD;
-  TEST_API_SECRET = configSecret;
+  process.env.JWT_SECRET_KEY = "Benchmark-JWT-Secret-Key-2026";
+  process.env.ENCRYPTION_KEY = "Benchmark-Encryption-Key-2026-32ch";
+  process.env.TEST_API_SECRET = secret;
+  process.env.ADMIN_PASSWORD = adminPw;
+  TEST_API_SECRET = secret;
   process.env.SVELTY_BENCHMARK_SUITE = "true";
 
-  const { stop: originalStop } = await startServer(dbConf, port, dbName);
+  const serverProcess = spawn("node", ["build/index.js"], {
+    env: {
+      ...process.env,
+      PORT: String(port),
+    },
+    stdio: "pipe",
+    shell: process.platform === "win32",
+  });
+
+  // Wait for server to become healthy
+  const healthUrl = `http://127.0.0.1:${port}/api/system/health`;
+  let healthy = false;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    try {
+      const res = await fetch(healthUrl);
+      if (res.ok) {
+        healthy = true;
+        break;
+      }
+    } catch {
+      // Server not ready yet
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  if (!healthy) {
+    serverProcess.kill("SIGTERM");
+    throw new Error(`Server at ${healthUrl} did not become healthy within 30s`);
+  }
+
+  // Run system setup
+  const { execSync } = await import("child_process");
+  execSync("bun run scripts/setup-system.ts", {
+    env: {
+      ...process.env,
+      API_BASE_URL: process.env.API_BASE_URL,
+      PRESET: "demo",
+    },
+    stdio: "pipe",
+    shell: process.platform === "win32",
+  });
+
+  // Seed benchmark data in-process
+  await ensureStableTestData(undefined, "global");
+
   const stop = async () => {
     delete process.env.API_BASE_URL;
-    await originalStop();
+    serverProcess.kill("SIGTERM");
+    await new Promise((r) => setTimeout(r, 300));
+    try {
+      serverProcess.kill("SIGKILL");
+    } catch {
+      // Process may already be dead
+    }
   };
 
-  await runSystemSetup(dbConf, port, dbName, {
-    QUIET: "true",
-    LOG_LEVEL: "fatal",
-  });
-
-  // Await in-process seed — spawning setup-benchmarks.ts with stdio:ignore caused
-  // Windows races where tests started before bench-shared-001 was API-visible.
-  const { runBenchmarkSeed } = await import("../../../scripts/benchmark-matrix/setup-benchmarks");
-  await runBenchmarkSeed({
-    apiBase: process.env.API_BASE_URL,
-    secret: process.env.TEST_API_SECRET,
-    tenantId: "global",
-  });
+  _benchmarkBootMs = performance.now() - _bootStart;
 
   return { baseUrl: process.env.API_BASE_URL, stop };
 }
@@ -768,58 +824,155 @@ export async function setupBenchmarkServer() {
 export async function exportResult(r: any) {
   const dbType = getDbType();
 
-  // Detect test file for SQLite persistence and trend comparison
+  // Detect test file
   let testFile = process.env.BENCH_FILE || "";
   if (!testFile) {
     const m = (process.argv[1] || "").match(/tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/);
     if (m) testFile = m[1];
   }
-  let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+
+  const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
+  const wallClockMs = _benchmarkTestStartTime > 0 ? performance.now() - _benchmarkTestStartTime : 0;
+
+  // Build structured entry
+  const entry = {
+    runMode,
+    runId: _currentRunId,
+    testFile: testFile || "unknown",
+    metric: r.name,
+    layer: r.layer || "unknown",
+    avgMs: r.avgMs ?? 0,
+    p95Ms: r.p95Ms ?? 0,
+    rps: r.rps ?? 0,
+    cv: r.cv ?? 0,
+    errorRate: r.errorCount && r.iterations ? r.errorCount / r.iterations : 0,
+    wallClockMs,
+    serverBootMs: _benchmarkBootMs,
+    seedMs: _benchmarkSeedMs,
+    db: r.db || dbType,
+    redis: process.env.USE_REDIS === "true",
+    timestamp: new Date().toISOString(),
+    status: r.status || "SUCCESS",
+  };
+
+  // Always write to history.jsonl
+  const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
+  const dir = path.dirname(historyFile);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(
-    path.join(dir, `${r.name.replace(/\s/g, "_")}.json`),
-    JSON.stringify(r, null, 2),
-  );
-  try {
-    const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
-    const entry =
-      JSON.stringify({
-        timestamp: new Date().toISOString(),
-        name: r.name,
-        layer: r.layer || "unknown",
-        avgMs: r.avgMs,
-        p95Ms: r.p95Ms,
-        rps: r.rps,
-        db: r.db || getDbType(),
-      }) + "\n";
-    fs.appendFileSync(historyFile, entry);
+  fs.appendFileSync(historyFile, JSON.stringify(entry) + "\n");
 
-    // Trigger trend analysis + MDX update (await to ensure writes complete)
-    await computeAndApplyTrend(r);
+  // Store individual result JSON for debugging
+  let resultDir = path.resolve(process.cwd(), RESULTS_DIR);
+  if (!resultDir.toLowerCase().endsWith(dbType.toLowerCase()))
+    resultDir = path.join(resultDir, dbType);
+  if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir, { recursive: true });
+  const fileName = `${r.name.replace(/[^a-zA-Z0-9]/g, "_")}.json`;
+  fs.writeFileSync(path.join(resultDir, fileName), JSON.stringify(entry, null, 2));
 
-    // Only persist to SQLite history when explicitly recording
-    if (process.env.BENCHMARK_RECORD === "1") {
-      persistSingleRun(r, testFile, dbType);
-    }
-
-    // Print historical comparison for fast developer feedback (single-run only)
-    if (process.env.BENCHMARK_MATRIX !== "1") {
-      printTrendComparison(r, dbType);
-    }
-
-    // Confirm recording to user
-    if (process.env.BENCHMARK_RECORD === "1") {
-      console.log(`  Recorded to benchmark_${dbType.replace("-", "_")}.mdx`);
-    }
-  } catch {
-    /* ignore */
+  // Print summary line (always)
+  const p95Str = entry.p95Ms ? `p95: ${entry.p95Ms.toFixed(3)}ms` : "";
+  // Track which test files have been reported (dedup)
+  if (!_reportedFiles.has(testFile)) {
+    _reportedFiles.add(testFile);
+    // Don't print "Recorded to" anymore - finalizeReport handles MDX
   }
+
+  // In standalone mode, show per-metric line
+  if (runMode === "standalone") {
+    console.log(
+      `  ${r.name}: ${entry.avgMs.toFixed(3)}ms${p95Str ? ` (${p95Str})` : ""} · RPS: ${Math.round(entry.rps)}`,
+    );
+  }
+}
+
+export async function runFinalizeReport(): Promise<void> {
+  if (!_reportedFiles.size) return;
+  const { finalizeReport } = await import("./benchmark-reporting");
+  await finalizeReport(_currentRunId);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Multi-Database Runner: runs a benchmark callback across all 8 variants
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Runs a benchmark callback across all 8 database variants sequentially.
+ * Each variant gets its own server, results are labeled with the db key.
+ *
+ * Usage in a test:
+ * ```ts
+ * import { runOnAllDatabases } from "./modules/benchmark-utils";
+ *
+ * test("my test", async () => {
+ *   await runOnAllDatabases(async (dbKey, baseUrl) => {
+ *     // run benchmarks against baseUrl
+ *   });
+ * });
+ * ```
+ */
+export async function runOnAllDatabases(
+  runFn: (dbKey: string, baseUrl: string, dbType: string) => Promise<void>,
+): Promise<void> {
+  const { ALL_DATABASES } = await import("../../../scripts/benchmark-matrix/config");
+
+  // Filter: if TEST_ALL_DBS env is set to specific db types, only run those.
+  // Otherwise run all 8: sqlite, sqlite-redis, mongodb, mongodb-redis,
+  // postgresql, postgresql-redis, mariadb, mariadb-redis
+  const filter = (process.env.TEST_ALL_DBS || "").toLowerCase();
+  const dbs = filter
+    ? ALL_DATABASES.filter((d) => {
+        const key = d.useRedis ? `${d.type}-redis` : d.type;
+        return filter.split(",").includes(key) || filter.split(",").includes(d.type);
+      })
+    : ALL_DATABASES;
+
+  const passed: string[] = [];
+  const failed: string[] = [];
+
+  for (const dbConf of dbs) {
+    const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
+    const label = dbConf.label || dbKey.toUpperCase();
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`🔷 [${label}] Starting...`);
+    console.log(`${"=".repeat(60)}\n`);
+
+    try {
+      // Set env vars for this database
+      process.env.DB_TYPE = dbConf.type;
+      process.env.USE_REDIS = dbConf.useRedis ? "true" : "false";
+      if (dbConf.useRedis) {
+        process.env.REDIS_HOST = "127.0.0.1";
+        process.env.REDIS_PORT = "6379";
+      }
+
+      // Clear any cached server URL so setupBenchmarkServer starts fresh
+      delete process.env.API_BASE_URL;
+
+      await runFn(dbKey, "", dbConf.type);
+      passed.push(label);
+      console.log(`\n✅ [${label}] PASSED`);
+    } catch (err: any) {
+      failed.push(label);
+      console.error(`\n❌ [${label}] FAILED: ${err.message}`);
+    }
+  }
+
+  // Final summary
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`📊 Multi-Database Results:`);
+  console.log(`   ✅ Passed: ${passed.length}/${dbs.length}`);
+  console.log(`   ❌ Failed: ${failed.length}/${dbs.length}`);
+  if (failed.length > 0) {
+    console.log(`   Failed on: ${failed.join(", ")}`);
+    throw new Error(
+      `Test failed on ${failed.length}/${dbs.length} databases: ${failed.join(", ")}`,
+    );
+  }
+  console.log(`${"=".repeat(60)}\n`);
 }
 
 /**
  * Prints a trend comparison line comparing current run to historical baseline.
- * Uses the same logic as the full matrix analysis (rolling median, pctChange).
  */
 function printTrendComparison(
   result: { name: string; avgMs: number; p95Ms: number; rps: number },
@@ -1005,7 +1158,11 @@ export let TEST_API_SECRET = (() => {
   return "SVELTYCMS_TEST_SECRET_2026";
 })();
 
+/** Track files that have already reported their MDX recording message */
+const _reportedFiles = new Set<string>();
+
 export async function ensureStableTestData(db?: any, tenantId: string = "global") {
+  const _seedStart = performance.now();
   if (process.env.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
       `\n[DEBUG] ensureStableTestData called. API_BASE_URL: ${process.env.API_BASE_URL}, SECRET: ${TEST_API_SECRET ? "OK" : "NO"}\n`,
@@ -1254,6 +1411,8 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       );
     } catch {}
   }
+
+  _benchmarkSeedMs += performance.now() - _seedStart;
 }
 
 export async function forceRefreshServer(baseUrl: string, tenantId: string = "global") {

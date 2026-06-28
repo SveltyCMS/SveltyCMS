@@ -163,7 +163,13 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     }
     const genericSchema = new mongoose.Schema(
       { _id: { type: String, required: true } },
-      { strict: false, timestamps: true, versionKey: false, id: false },
+      {
+        strict: false,
+        timestamps: true,
+        versionKey: false,
+        id: false,
+        suppressReservedKeysWarning: true,
+      },
     );
     return this._connection.model(collection, genericSchema, collection);
   }

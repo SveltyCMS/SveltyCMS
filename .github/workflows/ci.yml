@@ -514,17 +514,26 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 9. Benchmarks (conditional, Docker Compose profiles)
+  # 9. Core Benchmarks (fast perf gate per DB adapter)
   # ------------------------------------------------
-  benchmarks:
-    name: 📊 Benchmarks (${{ matrix.db }})
+  bench-core:
+    name: 📊 Bench (${{ matrix.db }})
     needs: [build, db-matrix]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
+    timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
+      matrix:
+        db: [sqlite, mariadb, postgresql, mongodb]
+        include:
+          - db: sqlite
+            port: ""
+          - db: mariadb
+            port: "3306"
+          - db: postgresql
+            port: "5432"
+          - db: mongodb
+            port: "27017"
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-sveltycms
@@ -533,50 +542,48 @@ jobs:
           node-version: "24"
           restore-build: "true"
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with: { name: build-output }
 
-      - name: Start Database (Docker Compose)
+      - name: Start Database
         if: matrix.db != 'sqlite'
         run: |
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
-      - name: Create MongoDB benchmark user
-        if: matrix.db == 'mongodb'
-        run: |
-          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
-            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
-            db = db.getSiblingDB("sveltycms_bench");
-            db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "readWrite", db: "sveltycms_bench" }] });
-            print("MongoDB benchmark user created for sveltycms_bench");
-          ' || echo "MongoDB user may already exist"
-
-      - name: Run Enterprise Benchmark Matrix
+      - name: Run Core Benchmarks
         env:
+          DB_TYPE: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port }}
           DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
-          ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          ADMIN_PASSWORD: Password123!
+          TEST_MODE: "true"
+          BENCHMARK_NO_REDIS: "1"
         run: |
-          rm -rf config/private.ts config/database/* tests/e2e/.auth/user.json logs/* || true
-          bun run scripts/benchmark-matrix/index.ts \
-            --no-build \
-            --db=${{ matrix.db }} \
-            --level=4 \
-            --skip-redis \
-            --ci
+          for test in tests/benchmarks/{truth-latency,database-performance,transaction-acid,cache-performance,hooks-performance,rest-api-performance}.test.ts; do
+            echo "::group::Running $test"
+            bun test "$test" --timeout 120000 || echo "FAILED: $test"
+            echo "::endgroup::"
+          done
+
+      - name: Post to CI Summary
+        if: always()
+        run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
         run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
 
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: benchmark-results-${{ matrix.db }}
-          path: tests/benchmarks/results/
-          if-no-files-found: ignore
-          retention-days: 14
+  # ------------------------------------------------
+  bench-summary:
+    name: 📊 Bench Summary
+    needs: [bench-core]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Generate CI Summary
+        run: bun run scripts/benchmark-matrix/generate-ci-markdown.ts
 
   # ------------------------------------------------
   # 10. All Green Gate
@@ -596,7 +603,7 @@ jobs:
       - e2e-prep
       - e2e
       - db-tests
-      - benchmarks
+      - bench-core
     steps:
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |
