@@ -41,6 +41,10 @@ export interface FieldTemplate {
   helper: string;
   /** Default value */
   default?: string | number | boolean;
+  /** Minimum value (for numeric fields) — prevents integer overflow at DB layer */
+  min?: number;
+  /** Maximum value (for numeric fields) — prevents integer overflow at DB layer */
+  max?: number;
   /** Options for select/reference widgets */
   options?: string[];
 }

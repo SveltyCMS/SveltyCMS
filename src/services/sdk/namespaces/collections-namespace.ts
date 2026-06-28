@@ -4,6 +4,7 @@
  */
 
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
+import { validateNumericFields } from "@src/content/content-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
@@ -1085,6 +1086,13 @@ export class CollectionsNamespace {
       createdBy: system ? "system" : user?._id,
       createdAt: new Date().toISOString(),
     };
+
+    // 🛡️ Validate numeric field ranges before they reach the database adapter
+    const rangeErrors = validateNumericFields(entryData, schema);
+    if (rangeErrors.length > 0) {
+      throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+    }
+
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
     const finalData = await this.triggerLifecycleHook(
@@ -1147,7 +1155,12 @@ export class CollectionsNamespace {
       updatedBy: system ? "system" : user?._id,
       updatedAt: new Date().toISOString(),
     };
-    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
+    // 🛡️ Validate numeric field ranges before they reach the database adapter
+    const rangeErrors = validateNumericFields(updateData, schema);
+    if (rangeErrors.length > 0) {
+      throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+    }
 
     const finalData = await this.triggerLifecycleHook(
       "beforeSave",
@@ -1157,7 +1170,6 @@ export class CollectionsNamespace {
       schema,
     );
 
-    const collectionModel = await this._getModelResilient(schema);
     await modifyRequest({
       data: [finalData],
       fields: schema.fields as FieldInstance[],
