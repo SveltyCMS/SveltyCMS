@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-26"
+updated: "2026-06-27"
 tags:
   - "security"
   - "documentation"
@@ -38,18 +38,18 @@ SveltyCMS security architecture includes:
 
 ## 📊 Security Scorecard
 
-| Dimension                 | Weight | Score | Prevents                                                       |
-| ------------------------- | :----: | :---: | -------------------------------------------------------------- |
-| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB                |
-| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe          |
-| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program |
-| **Auth & Session**        |  20%   |  98   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout |
-| **Input Validation**      |  15%   |  98   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit   |
-| **Dependency Hygiene**    |  15%   |  99   | Dependabot weekly, CI audit BLOCKING, override-pinned          |
+| Dimension                 | Weight | Score | Prevents                                                                                                             |
+| ------------------------- | :----: | :---: | -------------------------------------------------------------------------------------------------------------------- |
+| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB                                                                      |
+| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe                                                                |
+| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program                                                       |
+| **Auth & Session**        |  20%   |  99   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout, email normalization                                  |
+| **Input Validation**      |  15%   |  99   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit, MIME sniffing, SSRF IPv6 blocking, email normalization |
+| **Dependency Hygiene**    |  15%   |  99   | Dependabot weekly, CI audit BLOCKING, override-pinned                                                                |
 
-**Weighted**: 100×0.25 + 98×0.20 + 98×0.15 + 100×0.15 + 99×0.15 + 98×0.10 = **~99/100**
+**Weighted**: 25.0 + 15.0 + 9.8 + 19.8 + 14.85 + 14.85 = **~99/100**
 
-> Self-assessed (June 2026). Remaining gap: third-party penetration test, WebAuthn passkey management UI.
+> Self-assessed (July 2026). Remaining gaps: third-party penetration test, WebAuthn passkey management UI.
 
 ---
 
@@ -185,6 +185,9 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ Schema-based validation (Valibot)
 - ✅ HTML sanitization (DOMPurify)
 - ✅ File upload validation (type, size, extension)
+- ✅ **Binary MIME sniffing for large file uploads** — server-side verifies file signatures against client-declared MIME types (prevents MIME type spoofing)
+- ✅ **SSRF IPv6 transition address blocking** — blocks IPv4-mapped IPv6 (`::ffff:`), 6to4 (`2002:`), and Teredo (`2001:`) patterns in egress guard
+- ✅ **Email normalization** — unified `normalizeEmail()` utility with Unicode NFC normalization and trimming applied consistently across all auth adapters
 - ✅ Path traversal prevention
 - ✅ **Safe Query Mapping & Parameterization**: All JSON/RichText queries are strictly mapped to whitelisted database columns and natively parameterized (via Drizzle ORM) protecting against SQL Injection and blind SQL attacks out-of-the-box.
 - ✅ ReDoS prevention (input length limits)

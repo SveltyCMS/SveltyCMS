@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/hooks-performance.test.ts
- * @description Hooks & Middleware Performance Benchmark
+ * @description Hooks & Middleware Performance Benchmark (Fixed Collision)
  * @summary Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.
  *
  * ### Features:
@@ -24,12 +24,12 @@ import {
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
+import crypto from "node:crypto";
 
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
 
 const middlewareScenarios = [
-  // ── Layer 0: Pure overhead (no middleware) ──
   {
     name: "Static Asset (No Middleware)",
     shortLabel: "Static",
@@ -37,7 +37,6 @@ const middlewareScenarios = [
     method: "GET",
     concurrency: 12,
   },
-  // ── Layer 1: Turbo Pipeline (system state + compression + security headers) ──
   {
     name: "Turbo Pipeline (Light)",
     shortLabel: "Turbo",
@@ -45,7 +44,6 @@ const middlewareScenarios = [
     method: "GET",
     concurrency: 12,
   },
-  // ── Layer 2: Turbo + Auth + Authorization + Content Init ──
   {
     name: "Full Security + Auth Pipeline",
     shortLabel: "Auth+Security",
@@ -53,7 +51,6 @@ const middlewareScenarios = [
     method: "GET",
     concurrency: 8,
   },
-  // ── Layer 3: Full Auth + API Caching (isolates cache overhead) ──
   {
     name: "REST with API Caching",
     shortLabel: "API+Cache",
@@ -61,22 +58,16 @@ const middlewareScenarios = [
     method: "GET",
     concurrency: 8,
   },
-  // ── Layer 4: Full Auth + Audit Logging (isolates audit overhead) ──
   {
     name: "Mutation + Audit Logging",
     shortLabel: "Audit",
     path: "/api/collections/BenchmarkStable",
     method: "POST",
     concurrency: 1,
-    body: () => ({
-      _id: `hook-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      title: "Middleware Audit Test Entry",
-    }),
   },
 ];
 
 async function runHooksAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Hooks & Middleware Audit...\n");
 
   try {
@@ -85,76 +76,99 @@ async function runHooksAudit() {
     baseUrl = server.baseUrl;
 
     await ensureStableTestData();
-    await stabilize(3000); // Increased for audit log propagation
+    await stabilize(3000);
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const results = [];
-    // Collect compression diagnostics (from X- headers set by turbo/compression paths) for visibility of Smart Entropy / payload wins in reports & matrix
     const compStats: Array<{
       orig: number | null;
       comp: number | null;
       ratio: string | null;
     }> = [];
 
-    for (const scenario of middlewareScenarios) {
-      console.log(`   → ${scenario.name}...`);
+    const baseHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": secret,
+      "content-type": "application/json",
+      "x-tenant-id": "global",
+    };
 
-      const dbType = (process.env.DB_TYPE ?? "sqlite").toLowerCase();
-      const isSqlite = dbType.includes("sqlite");
+    const dbType = (process.env.DB_TYPE ?? "sqlite").toLowerCase();
+    const isSqlite = dbType.includes("sqlite");
 
-      // 🎯 DB-AWARE LOAD: SQLite is a single-writer embedded DB — full concurrency
-      // causes lock contention and makes the benchmark take hours. Use minimal
-      // iterations to stay within the 300s timeout while still measuring latency.
-      const baseIterationsHttp = isSqlite ? 20 : 600;
-      const baseIterationsPost = isSqlite ? 10 : 150;
-      const baseConcurrency = (scenario: any) => (isSqlite ? 1 : scenario.concurrency);
+    const baseIterationsHttp = isSqlite ? 20 : 600;
+    const baseIterationsPost = isSqlite ? 10 : 150;
+    const maxTotalRuns = isSqlite ? 1 : 3;
+
+    // 🚀 FIXED: Pre-allocate an oversized array of unique UUID records to protect
+    // against cross-run index collision when warmup + multiple runs exhaust the pool.
+    const totalPayloadCapacityNeeded = baseIterationsPost * maxTotalRuns * 2;
+    const postPayloads = Array.from({ length: totalPayloadCapacityNeeded }, () =>
+      JSON.stringify({
+        _id: crypto.randomUUID(),
+        title: "Middleware Audit Test Entry",
+      }),
+    );
+
+    // Keep track of an internal counter across runs to safely pull unique payloads
+    let globalPayloadCounter = 0;
+
+    for (let s = 0; s < middlewareScenarios.length; s++) {
+      const scenario = middlewareScenarios[s]!;
+      console.log(`    → ${scenario.name}...`);
+
+      const currentIterations =
+        scenario.method === "POST" ? baseIterationsPost : baseIterationsHttp;
+      const targetConcurrency = isSqlite ? 1 : scenario.concurrency;
+
+      const requestConfig = {
+        method: scenario.method,
+        headers: baseHeaders,
+        body: null as string | null,
+      };
+
+      const requestUrl = `${baseUrl}${scenario.path}`;
+      const isPostAction = scenario.method === "POST";
 
       const result = await runBenchmark({
         name: scenario.name,
-        iterations: scenario.method === "POST" ? baseIterationsPost : baseIterationsHttp,
+        iterations: currentIterations,
         warmupIterations: isSqlite ? 5 : 60,
-        runs: isSqlite ? 1 : 3,
-        concurrency: baseConcurrency(scenario),
+        runs: maxTotalRuns,
+        concurrency: targetConcurrency,
         trimOutliers: "iqr",
         silent: true,
         onIteration: async () => {
-          const config: any = {
-            method: scenario.method,
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": secret,
-              "Content-Type": "application/json",
-            },
-          };
+          let currentConfig = requestConfig;
 
-          if (scenario.method === "POST" && typeof scenario.body === "function") {
-            config.body = JSON.stringify(scenario.body());
+          if (isPostAction) {
+            // Uniquely advance down our array memory space regardless of run boundaries
+            const uniquePayload = postPayloads[globalPayloadCounter++];
+            currentConfig = {
+              ...requestConfig,
+              body: uniquePayload ?? postPayloads[0]!,
+            };
           }
 
-          const res = await fetch(`${baseUrl}${scenario.path}`, config);
+          const res = await fetch(requestUrl, currentConfig);
 
           if (!res.ok) {
             const text = await res.text().catch(() => "");
             throw new Error(`${scenario.name} failed: ${res.status} ${text}`);
           }
 
-          // Capture size/compression stats when present (turbo hits and compressed responses now emit X-Original-Size etc.)
           const oSize = res.headers.get("x-original-size");
           const cSize = res.headers.get("x-compressed-size");
-          const r = res.headers.get("x-compression-ratio");
+          const ratio = res.headers.get("x-compression-ratio");
           if (oSize || cSize) {
             compStats.push({
               orig: oSize ? parseInt(oSize, 10) : null,
               comp: cSize ? parseInt(cSize, 10) : null,
-              ratio: r,
+              ratio,
             });
           }
 
-          if (scenario.method !== "POST") {
-            await res.json().catch(() => {});
-          } else {
-            await res.text().catch(() => {});
-          }
+          await res.arrayBuffer();
         },
       });
 
@@ -168,12 +182,11 @@ async function runHooksAudit() {
       exportResult(enriched);
     }
 
-    // Export compression stats so matrix / mdx reports capture Smart Entropy payload wins (avg sizes + ratio across runs)
     if (compStats.length > 0) {
       const valid = compStats.filter((s) => s.orig && s.comp);
       if (valid.length > 0) {
-        const avgO = valid.reduce((s, x) => s + x.orig!, 0) / valid.length;
-        const avgC = valid.reduce((s, x) => s + x.comp!, 0) / valid.length;
+        const avgO = valid.reduce((sum, x) => sum + x.orig!, 0) / valid.length;
+        const avgC = valid.reduce((sum, x) => sum + x.comp!, 0) / valid.length;
         const ratios = valid.map((s) => parseFloat(s.ratio || "0")).filter((r) => r > 0);
         const avgR = ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 0;
         exportMetric("compression.samples", valid.length, "");
@@ -183,11 +196,11 @@ async function runHooksAudit() {
       }
     }
 
-    const staticAsset = results[0];
-    const turbo = results[1];
-    const full = results[2];
-    const cached = results[3];
-    const audit = results[4];
+    const staticAsset = results[0]!;
+    const turbo = results[1]!;
+    const full = results[2]!;
+    const cached = results[3]!;
+    const audit = results[4]!;
 
     exportMetric("middleware.hooks.p95", full.p95Ms, "ms");
     exportMetric("middleware.hooks.avg", full.avgMs, "ms");

@@ -15,6 +15,7 @@ import type { contentSystem as serverContentSystem } from "@src/content/index.se
 import type { Schema, FieldInstance } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { pluginRegistry } from "@src/plugins/registry";
+import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-ids";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 
 type ContentSystem = typeof serverContentSystem;
@@ -889,9 +890,9 @@ export class CollectionsNamespace {
     const formattedUpdates = updates.map((u) => ({
       id: u.id as DatabaseId,
       data: {
-        ...u.data,
+        ...(copyDataWithFreshRowIds(u.data) as Record<string, unknown>),
         updatedBy: user?._id,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString() as ISODateString,
       },
     }));
 

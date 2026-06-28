@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/graphql-api-performance.test.ts
- * @description GraphQL API Performance Audit
+ * @description GraphQL API Performance Audit (Optimized)
  * @summary Measures GraphQL resolver performance and throughput across varied query scenarios.
  *
  * ### Features:
@@ -59,16 +59,29 @@ export async function runGraphQLBenchmark() {
     const baseUrl = server.baseUrl;
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-    if (!secret) console.log("Using default secret");
+    const tenantId = process.env.TENANT_ID || "global";
+    const isDebugActive = process.env.BENCHMARK_DEBUG === "true";
 
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
     await stabilize(1200);
 
+    // Pre-allocate static, lowercase headers and immutable query payloads outside loop boundaries
+    const requestHeaders = {
+      "content-type": "application/json",
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET || secret,
+      "x-tenant-id": tenantId,
+    };
+
+    const targetUrl = `${baseUrl}/api/graphql`;
     const results = [];
 
-    for (const scenario of graphqlScenarios) {
+    for (let i = 0; i < graphqlScenarios.length; i++) {
+      const scenario = graphqlScenarios[i]!;
       console.log(`   → ${scenario.name}...`);
+
+      const payloadString = JSON.stringify({ query: scenario.query });
 
       const result = await runBenchmark({
         name: scenario.name,
@@ -79,32 +92,30 @@ export async function runGraphQLBenchmark() {
         measureMemory: true,
         silent: true,
         onIteration: async () => {
-          if (process.env.BENCHMARK_DEBUG === "true") {
+          if (isDebugActive) {
             console.log(`[Fetch Debug] Query: "${scenario.query}"`);
           }
-          const res = await fetch(`${baseUrl}/api/graphql`, {
+
+          const res = await fetch(targetUrl, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-              "x-tenant-id": process.env.TENANT_ID || "global",
-            },
-            body: JSON.stringify({ query: scenario.query }),
+            headers: requestHeaders,
+            body: payloadString,
           });
 
           if (!res.ok) {
-            const text = await res.text().catch(() => "");
+            const text = await res.text().catch(() => "unreadable buffer payload");
             throw new Error(`GraphQL HTTP ${res.status}: ${text}`);
           }
 
-          const json = await res.json();
+          // Use arrayBuffer to drain the wire, then parse for validation
+          const rawBuffer = await res.arrayBuffer();
+          const decoder = new TextDecoder("utf-8");
+          const responseString = decoder.decode(rawBuffer);
+          const parsedJson = JSON.parse(responseString);
 
-          if (json.errors?.length) {
-            throw new Error(`GraphQL Error: ${json.errors[0].message}`);
+          if (parsedJson.errors && parsedJson.errors.length > 0) {
+            throw new Error(`GraphQL Error: ${parsedJson.errors[0].message}`);
           }
-
-          return json;
         },
       });
 
@@ -118,7 +129,6 @@ export async function runGraphQLBenchmark() {
       exportResult(enriched);
     }
 
-    // Reporting
     printTruthTable({
       title: "SVELTYCMS — GRAPHQL PERFORMANCE AUDIT",
       shortLabel: "GraphQL",
@@ -127,9 +137,9 @@ export async function runGraphQLBenchmark() {
     });
 
     printSummaryTable([
-      { key: "Health Check", val: results[0].avgMs, unit: "ms" },
-      { key: "Collection List", val: results[1].avgMs, unit: "ms" },
-      { key: "Entries Query", val: results[2].avgMs, unit: "ms" },
+      { key: "Health Check", val: results[0]!.avgMs, unit: "ms" },
+      { key: "Collection List", val: results[1]!.avgMs, unit: "ms" },
+      { key: "Entries Query", val: results[2]!.avgMs, unit: "ms" },
       {
         key: "Peak RPS",
         val: Math.max(...results.map((r) => r.rps || 0)),
@@ -137,8 +147,7 @@ export async function runGraphQLBenchmark() {
       },
     ]);
 
-    // Export structured metrics for matrix
-    const mainResult = results[1]; // Collection List as baseline
+    const mainResult = results[1]!;
     exportMetric("api.graphql.avg", mainResult.avgMs, "ms");
     exportMetric("api.graphql.p95", mainResult.p95Ms || mainResult.avgMs, "ms");
     exportMetric("api.graphql.rps", mainResult.rps, "req/s");

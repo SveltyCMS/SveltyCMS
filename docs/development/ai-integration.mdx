@@ -521,12 +521,13 @@ If running the local core directly:
 
 Once connected, your AI agent can use these read-only tools to explore the SveltyCMS codebase and documentation:
 
-| Tool                    | Description                                                                  | Parameters                                                                  |
-| :---------------------- | :--------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
-| `search_knowledge_base` | Semantic search across SveltyCMS docs and code via neural vector similarity. | `query` (string), `category` (code\|docs\|meta\|external), `limit` (number) |
-| `read_source_code`      | Read the full content of any source file from the SveltyCMS project.         | `filePath` (string, e.g., `src/widgets/index.ts`)                           |
-| `list_directory`        | List files and folders in a given directory.                                 | `dirPath` (string, relative directory path)                                 |
-| `get_file_tree`         | Get a recursive tree of the project structure up to a specified depth.       | `depth` (number, default: 3)                                                |
+| Tool                    | Description                                                                                                      | Parameters                                                                                                                    |
+| :---------------------- | :--------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| `search_knowledge_base` | Semantic search across SveltyCMS docs and code via neural vector similarity.                                     | `query` (string), `category` (code\|docs\|meta\|external), `limit` (number)                                                   |
+| `read_source_code`      | Read the full content of any source file from the SveltyCMS project.                                             | `filePath` (string, e.g., `src/widgets/index.ts`)                                                                             |
+| `list_directory`        | List files and folders in a given directory.                                                                     | `dirPath` (string, relative directory path)                                                                                   |
+| `get_file_tree`         | Get a recursive tree of the project structure up to a specified depth.                                           | `depth` (number, default: 3)                                                                                                  |
+| `search_code`           | Fast text/regex search across all project files. Finds component imports, function references, and symbol usage. | `pattern` (string), `includePattern` (string, optional), `caseSensitive` (boolean, optional), `maxResults` (number, optional) |
 
 All tools are **completely read-only** — your agent can explore and learn, but cannot modify, delete, or create anything. Sensitive paths like `.git`, `node_modules`, and `.env` are automatically blocked.
 

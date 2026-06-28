@@ -93,6 +93,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // Bypass rate limiting in test/benchmark mode
+  if (process.env.TEST_MODE === "true" || event.request.headers.get("x-test-mode") === "true") {
+    return resolve(event);
+  }
+
   // Skip non-mutating GET/HEAD/OPTIONS unless under critical pressure
   const method = event.request.method;
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") {

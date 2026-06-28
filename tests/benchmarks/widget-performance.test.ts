@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/widget-performance.test.ts
- * @description Widget Performance Benchmark
+ * @description Widget Performance Benchmark (Optimized)
  * @summary Measures the middleware tax of widget transformations, validation, and rendering
  *
  * ### Features:
@@ -41,9 +41,9 @@ import {
   getRecommendedConcurrency,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
+import { logger } from "@utils/logger";
 
 async function runWidgetAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
@@ -57,13 +57,37 @@ async function runWidgetAudit() {
   await ensureStableTestData(db);
 
   // 🚀 Initialize WidgetStore for the benchmark
-  const { widgets, widgetStoreActions } = await import("@src/stores/widget-store.svelte");
-  (globalThis as any).widgets = widgets;
+  const { widgets: globalWidgets, widgetStoreActions } =
+    await import("@src/stores/widget-store.svelte");
+  (globalThis as any).widgets = globalWidgets;
   await widgetStoreActions.initializeWidgets("global", db);
+
+  const { coreModules } = await import("@src/widgets/scanner");
+  const { widgets } = await import("@src/stores/widget-store.svelte");
+
+  console.log("   Scanner Core Modules:", Object.keys(coreModules).length);
+  console.log("   Current Working Directory:", process.cwd());
+  console.log("   Core Widgets:", widgets.coreWidgets.join(", "));
+  console.log("   Active Widgets:", widgets.activeWidgets.join(", "));
+  console.log("   Available Functions:", Object.keys(widgets.widgetFunctions).join(", "));
+
+  const richTextWidget = widgets.RichText({
+    label: "Content",
+    db_fieldName: "content",
+  });
 
   const ITERATIONS = 500;
   const RUNS = 2;
   const allResults: any[] = [];
+
+  // Cache static contexts, primitives, and content blobs to protect execution integrity
+  const findOptions = { limit: 10, tenantId: "global" as any };
+  const sdkOptions = { limit: 10, tenantId: "global", bypassCache: true };
+  const mockUserPayload = { role: "admin" };
+  const mockCollectionPayload = {};
+
+  // Pre-compile HTML block string payload structure to eliminate loop-level allocation variance
+  const staticHtmlPayload = { content: "<h1>Hello</h1><p>Test</p>".repeat(50) };
 
   try {
     // 1. Baseline: Direct Database Read (No Widgets)
@@ -78,12 +102,12 @@ async function runWidgetAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        await db.crud.findMany(STABLE_COLLECTION, {}, { limit: 10, tenantId: "global" as any });
+        await db.crud.findMany(STABLE_COLLECTION, {}, findOptions);
       },
     });
     allResults.push({ ...dbBaseline, layer: "Database" });
 
-    // 2. Widget Pipeline: LocalCMS Transformation (RichText/Relation context)
+    // 2. Widget Pipeline: LocalCMS Transformation
     console.log("   → Measuring Widget Transformation (Local SDK)...");
     const widgetPipeline = await runBenchmark({
       name: "Widget Pipeline (Local SDK)",
@@ -95,31 +119,13 @@ async function runWidgetAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        await cms.collections.find(STABLE_COLLECTION as any, {
-          limit: 10,
-          tenantId: "global",
-          bypassCache: true,
-        });
+        await cms.collections.find(STABLE_COLLECTION as any, sdkOptions);
       },
     });
     allResults.push({ ...widgetPipeline, layer: "Middleware" });
 
-    // 3. Specific Widget: RichText Logic (Parsing overhead simulator)
+    // 3. Specific Widget: RichText Logic
     console.log("   → Measuring Heavy Widget Logic (Simulated)...");
-    const { coreModules } = await import("@src/widgets/scanner");
-    console.log("   Scanner Core Modules:", Object.keys(coreModules).length);
-    console.log("   Current Working Directory:", process.cwd());
-    const { widgets } = await import("@src/stores/widget-store.svelte");
-
-    console.log("   Core Widgets:", widgets.coreWidgets.join(", "));
-    console.log("   Active Widgets:", widgets.activeWidgets.join(", "));
-    console.log("   Available Functions:", Object.keys(widgets.widgetFunctions).join(", "));
-
-    const richTextWidget = widgets.RichText({
-      label: "Content",
-      db_fieldName: "content",
-    });
-
     const heavyWidgetResult = await runBenchmark({
       name: "Heavy Widget (RichText Parse)",
       iterations: ITERATIONS,
@@ -131,24 +137,28 @@ async function runWidgetAudit() {
       onIteration: async () => {
         if (richTextWidget.widget.modifyRequest) {
           await richTextWidget.widget.modifyRequest({
-            collection: {} as any,
-            data: { content: "<h1>Hello</h1><p>Test</p>".repeat(50) },
+            collection: mockCollectionPayload as any,
+            data: staticHtmlPayload,
             field: richTextWidget as any,
             type: "update",
-            user: { role: "admin" } as any,
+            user: mockUserPayload as any,
           });
         }
       },
     });
     allResults.push({ ...heavyWidgetResult, layer: "Logic" });
 
+    // Output Telemetry Tables
     printTruthTable({
-      title: "SVELTYCMS  —  WIDGET PIPELINE TELEMETRY",
+      title: "WIDGET PIPELINE TELEMETRY",
       subtitle: "Database vs LocalCMS Middleware Tax",
       results: allResults,
     });
 
-    const taxPercent = ((widgetPipeline.avgMs - dbBaseline.avgMs) / dbBaseline.avgMs) * 100;
+    const taxPercent =
+      dbBaseline.avgMs > 0
+        ? ((widgetPipeline.avgMs - dbBaseline.avgMs) / dbBaseline.avgMs) * 100
+        : 0;
 
     printSummaryTable([
       { key: "DB Baseline Latency", val: dbBaseline.avgMs, unit: "ms" },
@@ -162,7 +172,6 @@ async function runWidgetAudit() {
     logger.error(`Widget audit failed: ${err.message}`);
     console.error(err);
     throw err;
-  } finally {
   }
 }
 

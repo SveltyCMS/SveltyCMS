@@ -165,6 +165,18 @@ export function discoverTag(doc: string, testFile: string, shortLabel?: string):
 
 /** Write to temp file first, then rename into place — prevents half-written reports. */
 function atomicWrite(docPath: string, content: string): void {
+  // Clean up stale temp files from previous crashes
+  const dir = path.dirname(docPath);
+  const base = path.basename(docPath);
+  const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
+  for (const sf of staleFiles) {
+    try {
+      fs.unlinkSync(path.join(dir, sf));
+    } catch {
+      /* best-effort */
+    }
+  }
+
   const tmpPath = docPath + ".tmp." + Date.now();
   fs.writeFileSync(tmpPath, content, "utf8");
   fs.renameSync(tmpPath, docPath);

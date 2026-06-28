@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:table"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-06-15"
+updated: "2026-06-27"
 tags:
   - "components"
   - "entry-list"
@@ -77,6 +77,7 @@ flowchart LR
 | **Hover preload** | `preloadEntry()` from `@utils/navigation` on row hover |
 | **Idle warm-cache** | First 5 visible rows → `POST /api/collections/warm-cache` (one ID per request) |
 | **Connection-aware** | Disables preload on `slow-2g` / `2g` / `saveData` (Network Information API) |
+| **Row virtualization** | On pages with >25 rows, only visible rows + buffer (5 above/below) render as DOM elements; spacers maintain scroll height |
 
 ---
 
@@ -129,6 +130,55 @@ Shortcuts are implemented on **`entry-list-multi-button`**, not in `entry-list.s
 | `Alt+Del` | Delete selected    |
 
 ---
+
+## Row Virtualization
+
+When the page size exceeds 25 rows (`useRowVirtualization = $derived(pageSize > 25)`), the component activates row virtualization to avoid rendering all rows into the DOM:
+
+```mermaid
+flowchart LR
+    subgraph Data["tableData (all rows)"]
+        T1[row 1]
+        T2[row 2]
+        TX[...]
+        TN[row N]
+    end
+
+    subgraph Virtual["Virtual Slice"]
+        TS[spacerTop]
+        VB[visibleRows: start - 5 .. end + 5]
+        SB[spacerBottom]
+    end
+
+    subgraph DOM["Rendered DOM"]
+        ST["&lt;tr style=&quot;height: {spacerTop}px&quot;&gt;"]
+        VR["&lt;tr&gt; entry X &lt;/tr&gt;"]
+        SB2["&lt;tr style=&quot;height: {spacerBottom}px&quot;&gt;"]
+    end
+
+    Data --> Virtual
+    Virtual --> DOM
+```
+
+- **Row height**: 44px per row (defined in `src/utils/table-constants.ts`)
+- **Buffer**: 5 rows rendered above and below the visible viewport to prevent blank flashes during scroll
+- **Scroll container**: `max-h-[calc(100dvh)]` with `overflow-auto`; scroll position tracked via `onscroll` handler
+- **Index mapping**: `{@const realIndex = virtualStartIndex + idx}` preserves selection state across virtual/non-virtual modes
+- **`content-visibility: auto`**: Applied to virtualized rows for additional browser-level rendering optimization
+
+Key state variables:
+
+| Variable                     | Type       | Purpose                                                                |
+| ---------------------------- | ---------- | ---------------------------------------------------------------------- |
+| `virtualScrollTop`           | `$state`   | Current scroll position in pixels                                      |
+| `containerHeight`            | `$state`   | Visible height of the scroll container                                 |
+| `virtualStartIndex`          | `$derived` | First visible row index (minus buffer)                                 |
+| `virtualEndIndex`            | `$derived` | Last visible row index (plus buffer)                                   |
+| `visibleRows`                | `$derived` | `tableData.slice(virtualStartIndex, virtualEndIndex)` — rows to render |
+| `spacerTop` / `spacerBottom` | `$derived` | Padding rows above/below the visible window                            |
+
+> [!TIP]
+> Virtualization is **opt-in** — it only activates when `pageSize > 25`. Below that threshold, the table renders all rows directly with no overhead from scroll tracking.
 
 ## Scheduling Note
 

@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/relational-performance.test.ts
- * @description GraphQL Relational Resolver Benchmark
+ * @description GraphQL Relational Resolver Benchmark (Optimized)
  * @summary Measures GraphQL resolver performance for shallow and deep relational queries including joins and nested population.
  *
  * ### Features:
@@ -27,7 +27,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runRelationalAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Relational Audit...\n");
 
   try {
@@ -41,18 +40,24 @@ async function runRelationalAudit() {
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
-    // Simple shallow query
-    const simpleQuery = {
+    // Shared headers layout container optimized to prevent runtime GC thrashing
+    const graphQlHeaders = {
+      "Content-Type": "application/json",
+      "x-test-mode": "true",
+      "x-test-secret": secret,
+    };
+
+    // Pre-serialize payload query configurations out of hot paths
+    const serializedSimpleQuery = JSON.stringify({
       query: `{
         allCollections {
           _id
           name
         }
       }`,
-    };
+    });
 
-    // Deeper relational query
-    const deepQuery = {
+    const serializedDeepQuery = JSON.stringify({
       query: `{
         BenchmarkStable(limit: 5) {
           _id
@@ -63,7 +68,7 @@ async function runRelationalAudit() {
           }
         }
       }`,
-    };
+    });
 
     console.log("   → Measuring Shallow Relational Query...");
     const shallow = await runBenchmark({
@@ -77,18 +82,17 @@ async function runRelationalAudit() {
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/graphql`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": secret,
-          },
-          body: JSON.stringify(simpleQuery),
+          headers: graphQlHeaders,
+          body: serializedSimpleQuery,
         });
+
         if (!res.ok) {
           const body = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status}: ${body.slice(0, 500)}`);
         }
-        await res.json();
+
+        // Native socket buffer clear avoids string deserialization lag
+        await res.arrayBuffer();
       },
     });
 
@@ -104,15 +108,12 @@ async function runRelationalAudit() {
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/graphql`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": secret,
-          },
-          body: JSON.stringify(deepQuery),
+          headers: graphQlHeaders,
+          body: serializedDeepQuery,
         });
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
 

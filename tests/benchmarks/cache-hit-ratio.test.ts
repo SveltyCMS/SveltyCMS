@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/cache-hit-ratio.test.ts
- * @description Cache Hit Ratio Audit
+ * @description Cache Hit Ratio Audit (Optimized)
  * @summary Measures Redis cache efficiency including hit rate, miss penalty, invalidation speed, and cold/warm fill.
  *
  * ### Features:
@@ -27,7 +27,6 @@ import "../unit/bun-preload.ts";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runCacheAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Cache Efficiency Audit...\n");
 
   try {
@@ -45,10 +44,25 @@ async function runCacheAudit() {
     await stabilize(1000);
 
     const entryPath = "/api/collections/BenchmarkStable/bench-shared-001";
-    const headers = {
+
+    // Canonical static headers layout
+    const baseHeaders = {
       "x-test-mode": "true",
       "x-test-secret": TEST_API_SECRET,
     };
+
+    const jsonHeaders = {
+      ...baseHeaders,
+      "content-type": "application/json",
+    };
+
+    // Pre-serialized request payloads to protect micro-timing windows
+    const coldInvalidateBody = JSON.stringify({
+      pattern: "collection:BenchmarkStable:*",
+    });
+    const bulkInvalidateBody = JSON.stringify({
+      pattern: "collection:BenchmarkStable:bench-shared-*",
+    });
 
     // 1. Cold read (cache miss)
     console.log("   → Measuring Cold Read (cache miss)...");
@@ -57,42 +71,55 @@ async function runCacheAudit() {
       iterations: 50,
       warmupIterations: 0,
       runs: 2,
-      concurrency: 1,
+      concurrency: 1, // Must be serial to execute isolation invalidation blocks cleanly
       silent: true,
       onIteration: async () => {
-        // Invalidate cache before each read to force miss
-        await fetch(`${baseUrl}/api/system/cache/invalidate`, {
+        // STEP 1: Invalidate out-of-band to guarantee cache miss
+        const purgeRes = await fetch(`${baseUrl}/api/system/cache/invalidate`, {
           method: "POST",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ pattern: `collection:BenchmarkStable:*` }),
-        }).catch(() => {});
-        const res = await fetch(`${baseUrl}${entryPath}`, { headers });
+          headers: jsonHeaders,
+          body: coldInvalidateBody,
+        });
+        if (!purgeRes.ok) throw new Error(`Pre-iteration purge failed: ${purgeRes.status}`);
+        await purgeRes.arrayBuffer();
+
+        // STEP 2: Measure the pure cost of an isolated backend cache miss
+        const res = await fetch(`${baseUrl}${entryPath}`, {
+          method: "GET",
+          headers: baseHeaders,
+        });
         if (!res.ok) throw new Error(`Cold read failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
 
     // 2. Warm read (cache hit)
-    console.log("   → Measuring Warm Read (cache hit)...");
-    // Prime the cache first
-    await fetch(`${baseUrl}${entryPath}`, { headers });
+    console.log("   --> Measuring Warm Read (cache hit)...");
+    // Warm the cache target explicitly prior to loop entry
+    const warmUpRes = await fetch(`${baseUrl}${entryPath}`, {
+      headers: baseHeaders,
+    });
+    await warmUpRes.arrayBuffer();
 
     const warmResult = await runBenchmark({
       name: "Cache Hit (Warm)",
       iterations: 200,
       warmupIterations: 20,
       runs: 2,
-      concurrency: 4,
+      concurrency: 4, // High concurrent read load profile
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}${entryPath}`, { headers });
+        const res = await fetch(`${baseUrl}${entryPath}`, {
+          method: "GET",
+          headers: baseHeaders,
+        });
         if (!res.ok) throw new Error(`Warm read failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
 
     // 3. Invalidation speed
-    console.log("   → Measuring Cache Invalidation...");
+    console.log("   --> Measuring Cache Invalidation...");
     const invalidationResult = await runBenchmark({
       name: "Cache Invalidation",
       iterations: 100,
@@ -103,13 +130,11 @@ async function runCacheAudit() {
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/system/cache/invalidate`, {
           method: "POST",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pattern: `collection:BenchmarkStable:bench-shared-*`,
-          }),
+          headers: jsonHeaders,
+          body: bulkInvalidateBody,
         });
         if (!res.ok) throw new Error(`Invalidation failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
 

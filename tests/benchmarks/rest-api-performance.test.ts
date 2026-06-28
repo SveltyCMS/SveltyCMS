@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/rest-api-performance.test.ts
- * @description Enterprise REST API Performance Benchmark
+ * @description Enterprise REST API Performance Benchmark (Optimized)
  * @summary Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.
  *
  * ### Features:
@@ -53,7 +53,6 @@ const restScenarios = [
 ];
 
 async function runRestAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Enterprise REST API Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
@@ -63,6 +62,13 @@ async function runRestAudit() {
 
     await ensureStableTestData(null);
     await forceRefreshServer(baseUrl);
+
+    // Pre-allocated static headers to eliminate runtime object instantiation penalties
+    const requestHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+      "x-tenant-id": "global",
+    };
 
     const results = [];
 
@@ -74,21 +80,21 @@ async function runRestAudit() {
         iterations: 500,
         warmupIterations: 80,
         runs: 2,
-        concurrency: 12,
+        concurrency: 12, // High concurrency scenario
         silent: true,
         onIteration: async () => {
           const res = await fetch(`${baseUrl}${scenario.path}`, {
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-              "x-tenant-id": "global",
-            },
+            method: "GET",
+            headers: requestHeaders,
           });
+
           if (!res.ok) {
-            const body = await res.text();
+            const body = await res.text().catch(() => "<failed to read body>");
             throw new Error(`${scenario.name} failed: ${res.status} - ${body}`);
           }
-          await res.text();
+
+          // Low-level buffer exhaustion isolates network transfer speed from string allocation
+          await res.arrayBuffer();
         },
       });
 

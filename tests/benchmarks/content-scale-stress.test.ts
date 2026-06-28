@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/content-scale-stress.test.ts
- * @description Content Scale Stress Benchmark
+ * @description Content Scale Stress Benchmark (Optimized)
  * @summary Measures file-scanning and content discovery performance at extreme scale (1,000+ collections)
  *
  * ### Features:
@@ -39,22 +39,21 @@ async function prepareStressEnvironment() {
 
   const { compiled: stressRoot } = await prepareBenchmarkCompiledWorkspace(WORKSPACE);
 
-  for (let i = 0; i < STRESS_FILE_COUNT; i++) {
-    // Distribute files across nested levels
-    const depth = i % (NESTED_LEVELS + 1);
-    let subDir = "";
-    if (depth > 0) {
-      subDir = Array.from({ length: depth })
-        .map((_, j) => `level_${j}`)
-        .join("/");
-    }
+  // Pre-calculate subdirectories to eliminate array mapping overhead inside the setup loop
+  const pathCache: string[] = [""];
+  for (let d = 1; d <= NESTED_LEVELS; d++) {
+    pathCache.push(Array.from({ length: d }, (_, j) => `level_${j}`).join("/"));
+  }
 
+  const fileWritePromises = Array.from({ length: STRESS_FILE_COUNT }, async (_, i) => {
+    const depth = i % (NESTED_LEVELS + 1);
+    const subDir = pathCache[depth] || "";
     const finalDir = path.join(stressRoot, subDir);
+
     await fs.mkdir(finalDir, { recursive: true });
 
     const fileName = `stress_collection_${i}.js`;
-    const content = `
-export const schema = {
+    const content = `export const schema = {
   _id: 'stress_${i}',
   name: 'Stress Collection ${i}',
   fields: [
@@ -63,10 +62,12 @@ export const schema = {
   ],
   status: 'published'
 };
-export default schema;
-    `;
-    await fs.writeFile(path.join(finalDir, fileName), content);
-  }
+export default schema;`;
+
+    return fs.writeFile(path.join(finalDir, fileName), content);
+  });
+
+  await Promise.all(fileWritePromises);
   console.log("   ✅ Stress environment ready.");
 }
 
@@ -76,6 +77,7 @@ async function runStressAudit() {
   await cleanupMockFiles();
   await prepareStressEnvironment();
 
+  // Hoist dynamic imports out of the performance validation execution block
   const { contentSystem } = await import("@src/content/index.server");
   const { cacheService } = await import("@src/databases/cache/cache-service");
 
@@ -84,10 +86,13 @@ async function runStressAudit() {
     console.log("   🔬 Running Cold Scan Audit (1,000 files)...");
     const coldResult = await runBenchmark({
       name: "Cold Stress Scan (1k)",
-      iterations: 20, // Fewer iterations for cold scan due to I/O cost
+      iterations: 20,
       runs: 1,
       onIteration: async () => {
+        // STEP 1: Purge schema indices out-of-band to prevent cache poisoning
         await cacheService.clearByPattern("schema:*", null);
+
+        // STEP 2: Measure exclusively raw file discovery and file-system traversal speed
         await contentSystem.scanForCollections();
       },
       silent: true,

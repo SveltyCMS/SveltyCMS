@@ -21,9 +21,9 @@ This document details the comprehensive security measures implemented across all
 
 ## 🛡️ Security Status Overview
 
-**Implementation Status: ✅ 11/11 Major Security Fixes Fully Implemented**
+**Implementation Status: ✅ 12/12 Major Security Fixes Fully Implemented**
 
-All critical security vulnerabilities identified in the widget system have been addressed with proper validation, sanitization, and security controls. The latest addition prevents mutation of media assets referenced by published content.
+All critical security vulnerabilities identified in the widget system have been addressed with proper validation, sanitization, and security controls. The latest addition adds binary MIME sniffing for media uploads.
 
 > [!IMPORTANT]
 > **Centralized Dispatcher Gating**: As of April 2026, all widget-specific API endpoints (e.g., `/api/media`, `/api/collections/[name]/aggregations`) are centrally gated by the **Fail-Closed API Dispatcher**. This ensures that even if an individual widget resolver lacks an internal check, the request is blocked unless the user possesses the required granular Permission ID (e.g., `media:read`, `collections:read`).
@@ -583,6 +583,31 @@ const results = await Promise.allSettled(
 - Edit button: `disabled` + tooltip "Referenced by published content"
 - Delete button: `disabled` + tooltip "Referenced by published content"
 - Card badge: Lock icon + "Published" label at top-left
+
+### 12. Media Upload - Binary MIME Sniffing ✅
+
+**Files**: `src/utils/media/media-service.server.ts`, `src/utils/media/slim-sniffer.server.ts`
+
+**Vulnerability**: MIME type spoofing — attackers could upload a file with a benign MIME type (e.g., `image/png`) while the file content is actually executable or malicious (e.g., PHP shell).
+
+**Implementation**:
+
+- **Small files (<5MB)**: Uses `arrayBuffer()` → `Buffer.from()` → `sniffMimeType(buffer.subarray(0, 2048))` to verify binary signatures before accepting
+- **Large files (≥5MB)**: Reads first 2048 bytes via `file.slice(0, 2048).arrayBuffer()`, runs `sniffMimeType()`, and rejects on major MIME category mismatch (e.g., client sends `image/png` but binary signature indicates `application/pdf`)
+- Uses the lightweight `slim-sniffer.server.ts` (~2KB) which detects 10+ formats via magic bytes (JPEG, PNG, GIF, WebP, SVG, MP4, WebM, PDF, DOCX)
+
+**Protection Against**:
+
+- MIME type spoofing attacks
+- Uploading executables disguised as media files
+- Content-type confusion attacks
+- Zero-byte and truncated file uploads
+
+**Implementation Details**:
+
+- Binary signatures verified server-side before any processing
+- Major category mismatches (image vs video vs document) trigger rejection
+- SVGs additionally sanitized via dedicated `sanitizeSvg()` function
 
 ---
 

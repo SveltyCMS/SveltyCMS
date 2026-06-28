@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:calendar-clock"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-03-27"
+updated: "2026-06-27"
 tags:
   - "components"
   - "scheduling"
@@ -83,6 +83,24 @@ sequenceDiagram
     MS->>MB: Callback with data
     MB->>API: Schedule action
 ```
+
+---
+
+## Draft Relation Validation
+
+When scheduling a publish action, the background scheduler (see `scheduled-jobs.ts`) now validates that all relation fields on the entry reference only **published** content. If any referenced entry is still in `draft` status, the publish is **skipped** and a warning is logged.
+
+```mermaid
+flowchart LR
+    SP[Schedule Publish] --> RV[Validate Relations]
+    RV -->|All published| P[Publish Entry]
+    RV -->|Has draft refs| S[Skip + Log Warning]
+    P --> CI[Cache Invalidation]
+```
+
+This prevents broken front-end experiences where an entry is published but references content not yet visible to visitors.
+
+**Cache invalidation**: After a successful scheduled publish, the collection's cache is automatically invalidated to prevent stale relation data from being served.
 
 ---
 

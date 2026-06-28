@@ -1,0 +1,25 @@
+# SveltyCMS — AI Agent Guide
+
+> SveltyCMS is a high-performance, database-agnostic headless CMS built with SvelteKit 2, Svelte 5 (Runes), TypeScript, and Tailwind CSS v4. It features automated multi-database adapter layers, runtime cryptographic audit logging, compile-time ParaglideJS localization, and automated workflows.
+
+## Core Documentation
+- [Architecture](https://docs.sveltycms.com/reference/architecture/): Unified server state machine hooks (IDLE → READY | DEGRADED), event-bus routing, and zero-tax static builds.
+- [API Reference](https://docs.sveltycms.com/reference/api/): In-depth mechanics for automated REST route dispatchers and authorization middleware context scaling.
+- [Security Boundaries](https://docs.sveltycms.com/reference/security/): High-fidelity 4-layer defense configurations, SHA-256 tamper-evident audit logging chains, and scoped keys.
+- [Database Adapters](https://docs.sveltycms.com/reference/database/): Technical interface definitions for production-ready SQLite (WAL), MongoDB, MariaDB, and PostgreSQL engines.
+- [3-Pillar Component UI](https://docs.sveltycms.com/reference/components/): Lazy-loaded interface field widget loader registries (Definition, Input, Display architecture).
+
+## API Endpoints
+- [REST Content Dispatcher](https://docs.sveltycms.com/reference/api/collections.mdx): Complete endpoint reference for collections metadata filtering, cursor pagination, and multi-tenant isolation.
+- [GraphQL API Performance](https://docs.sveltycms.com/reference/api/graphql.mdx): Auto-generated typed GraphQL schemas, query execution blocks, and integrated interactive playground paths.
+- [Dynamic OpenAPI 3.1 Spec](https://demo.sveltycms.com/api/openapi.json): Machine-readable dynamic schema blueprint updated continuously at runtime.
+
+## Model Context Protocol (MCP) Server
+- [Hosted MCP Server Hub](https://mcp.sveltycms.com/mcp): Live SSE protocol endpoints exposing active toolkits directly to consumer AI agent systems.
+- [search_knowledge_base](https://mcp.sveltycms.com/docs/tools#search): Tool for semantic query exploration over the core SveltyCMS configuration and design records.
+- [read_source_code](https://mcp.sveltycms.com/docs/tools#read): Tool allowing programmatic extraction of runtime source files, database queries, and field hooks.
+- [get_file_tree](https://mcp.sveltycms.com/docs/tools#tree): Tool providing autonomous visibility into repository file layouts and directory structures.
+
+## Key Repositories & Ecosystem
+- [SveltyCMS Source](https://github.com/SveltyCMS/SveltyCMS): Core platform engine repository tracking current releases, migration utilities, and test runner matrices.
+- [Extension Marketplace](https://marketplace.sveltycms.com): Central distribution directory hosting community-vetted widgets, slot extensions, and custom dashboard themes.

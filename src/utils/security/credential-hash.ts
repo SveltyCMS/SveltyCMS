@@ -11,7 +11,11 @@
  * - sync server-side digest for auth middleware hot paths
  */
 
-import { createHash } from "node:crypto";
+// Use createRequire for sync node:crypto access to avoid Vite browser warnings.
+// This runs once at module init and is only used in server-side code.
+import { createRequire } from "node:module";
+const _require = createRequire(import.meta.url);
+const { createHash: _createHash } = _require("node:crypto");
 
 function bytesToSha256Hex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -22,6 +26,8 @@ function bytesToSha256Hex(bytes: Uint8Array): string {
 /**
  * Hashes a credential string with SHA-256 (hex). Use for storage and lookup only —
  * never log or cache the plaintext input.
+ *
+ * Uses Web Crypto API — portable across Node, Bun, and edge runtimes.
  */
 export async function hashCredentialSha256Hex(value: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -34,5 +40,5 @@ export async function hashCredentialSha256Hex(value: string): Promise<string> {
  * Sync SHA-256 (hex) for server middleware — avoids double-hashing on auth hot paths.
  */
 export function hashCredentialSha256HexSync(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+  return _createHash("sha256").update(value).digest("hex");
 }

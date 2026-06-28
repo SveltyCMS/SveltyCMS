@@ -1,10 +1,10 @@
 /**
  * @file tests/benchmarks/openapi-performance.test.ts
- * @description OpenAPI Performance Audit
+ * @description OpenAPI Performance Audit (Optimized)
  * @summary Measures dynamic OpenAPI spec generation speed and cached documentation endpoint performance.
  *
  * ### Features:
- * - Dynamic spec generation latency profiling
+ * - Dynamic spec generation latency profiling (True multi-sample cold validation)
  * - Cached endpoint response measurement
  * - Spec size impact on generation time
  * - SDK-ready output validation
@@ -29,7 +29,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runOpenApiAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise OpenAPI Audit...\n");
 
   try {
@@ -57,23 +56,26 @@ async function runOpenApiAudit() {
 
     console.log(`   → Spec ready: ${spec.openapi} | ${Object.keys(spec.paths || {}).length} paths`);
 
-    // Cold generation (cache miss)
-    console.log("   → Measuring Cold Spec Generation...");
-    await apiSpecService.invalidateCache();
-
+    // Dynamic Generation (Cache Miss Baseline)
+    console.log("   → Measuring Cold Spec Generation (Multi-Sample)...");
     const coldResult = await runBenchmark({
       name: "Cold OpenAPI Generation",
-      iterations: 1, // Only 1 iteration for true cold measurement
-      warmupIterations: 0,
+      iterations: 15, // Multi-sampled iteration logic for proper statistical variance smoothing
+      warmupIterations: 2,
       runs: 1,
       concurrency: 1,
       measureMemory: true,
       silent: true,
       onIteration: async () => {
+        // Explicitly clear the internal service cache map right before the call triggers
+        await apiSpecService.invalidateCache();
+
         const res = await fetch(`${baseUrl}/api/openapi.json`, {
           headers: { "x-test-secret": TEST_API_SECRET },
         });
-        await res.text();
+
+        // Low-level buffer extraction bypasses raw V8 string initialization penalties
+        await res.arrayBuffer();
       },
     });
 
@@ -92,7 +94,7 @@ async function runOpenApiAudit() {
         const res = await fetch(`${baseUrl}/api/openapi.json`, {
           headers: { "x-test-secret": TEST_API_SECRET },
         });
-        await res.text();
+        await res.arrayBuffer();
       },
     });
 
@@ -128,7 +130,7 @@ async function runOpenApiAudit() {
   } catch (err: any) {
     logger.error(`OpenAPI benchmark failed: ${err.message}`);
     console.error(err);
-    throw err; // Re-throw so the test fails on validation errors
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

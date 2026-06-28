@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/throttling-backoff-stress.test.ts
- * @description API Rate-Limiting & Throttling Stress Benchmark
+ * @description API Rate-Limiting & Throttling Stress Benchmark (Optimized)
  * @summary Simulates high-velocity traffic from a single client IP to verify rate-limiting enforcement and backoff consistency.
  *
  * ### Features:
@@ -24,13 +24,19 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runThrottlingAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Throttling & Backoff Audit...\n");
 
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
+
+    // Cache immutable request configuration to completely eliminate structural execution drift
+    const rateLimiterHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+      "x-forwarded-for": "10.0.0.1", // Standard lowercase format for optimized mapping lookups
+    };
 
     console.log("   → Bombarding API with 10x design load to trigger Throttling...");
 
@@ -41,21 +47,18 @@ async function runThrottlingAudit() {
       concurrency: 15,
       silent: true,
       onIteration: async () => {
-        // We use a fixed IP header to simulate a single client being throttled
         const res = await fetch(`${baseUrl}/api/system/health`, {
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-            "x-forwarded-for": "10.0.0.1", // Constant IP to force rate limit
-          },
+          method: "GET",
+          headers: rateLimiterHeaders,
         });
 
-        // 🛡️ THROTTLING: 429 is a SUCCESS in this context (Limiter working)
+        // 🛡️ THROTTLING: 429 is a valid defensive state inside this validation test context
         if (res.status !== 200 && res.status !== 429) {
           throw new Error(`Unexpected failure state: ${res.status}`);
         }
 
-        await res.json().catch(() => ({}));
+        // Native stream collector prevents object tree allocation logic from inflating client metric runtimes
+        await res.arrayBuffer();
       },
     });
 

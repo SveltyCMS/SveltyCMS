@@ -115,7 +115,9 @@ let handleSecurity: Handle = passThrough,
   handleTokenResolution: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
-  handleTestIsolation: Handle = passThrough;
+  handleTestIsolation: Handle = passThrough,
+  handleContentNegotiation: Handle = passThrough,
+  handleAeoHeaders: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
 let fullMiddlewareInitialized = false;
@@ -149,6 +151,10 @@ async function ensureFullMiddleware() {
   handleSystemState = state.handleSystemState;
   const isolation = await import("./hooks/handle-test-isolation");
   handleTestIsolation = isolation.handleTestIsolation;
+  const contentNeg = await import("./hooks/handle-content-negotiation");
+  handleContentNegotiation = contentNeg.handleContentNegotiation;
+  const aeo = await import("./hooks/handle-aeo-headers");
+  handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
 }
@@ -386,7 +392,9 @@ const getPipeline = () => {
         // bypassing handleAuthentication, handleAuthorization, and CSRF.
         wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
+        wrapHandle("content-negotiation", () => handleContentNegotiation),
         wrapHandle("compression", () => handleCompression),
+        wrapHandle("aeo-headers", () => handleAeoHeaders),
         wrapHandle("user-preferences", () => handleUserPreferences),
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),

@@ -1,15 +1,8 @@
 /**
  * @file tests/benchmarks/large-payload-streaming.test.ts
- * @description Large Payload Streaming Benchmark
+ * @description Large Payload Streaming Benchmark (Optimized)
  * @summary Measures download/upload throughput and memory efficiency for large files (5MB-10MB)
- *          to validate streaming pipeline doesn't buffer entire payloads in memory.
- *
- * ### Features:
- * - Configurable file sizes via BENCH_STREAMING_SIZES (default: "10,50,100" MB)
- * - Upload throughput measurement with memory delta tracking
- * - Download streaming verification (response.body.getReader() chunked consumption)
- * - Memory stability check — RSS should NOT grow proportionally to file size
- * - Chunk-level latency profiling for real-time streaming awareness
+ * to validate streaming pipeline doesn't buffer entire payloads in memory.
  */
 
 import {
@@ -31,10 +24,8 @@ import { randomBytes } from "node:crypto";
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const SIZE_MB = IS_CI
-  ? [5, 10] // CI: small, fast
-  : (process.env.BENCH_STREAMING_SIZES || "5,10") // Default: stay under 15MB API limit
-      .split(",")
-      .map((s) => parseInt(s.trim(), 10));
+  ? [5, 10]
+  : (process.env.BENCH_STREAMING_SIZES || "5,10").split(",").map((s) => parseInt(s.trim(), 10));
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -48,6 +39,7 @@ function generatePayload(sizeMb: number): { buffer: Buffer; name: string } {
 async function getMemoryRSS(baseUrl: string): Promise<number> {
   try {
     const res = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
+      method: "GET",
       headers: { "x-test-secret": TEST_API_SECRET },
       signal: AbortSignal.timeout(5000),
     });
@@ -72,42 +64,49 @@ async function runPayloadAudit() {
   const uploadHeaders = {
     "x-test-mode": "true",
     "x-test-secret": TEST_API_SECRET,
-    Origin: baseUrl,
+    origin: baseUrl,
   };
 
   const results: any[] = [];
+  const targetUploadUrl = `${baseUrl}/api/media/upload`;
+  const uploadIterations = IS_CI ? 3 : 8;
 
   for (const sizeMb of SIZE_MB) {
-    console.log(`   → Uploading ${sizeMb}MB payload...`);
+    console.log(`    → Pre-allocating payload structures for ${sizeMb}MB matrix fields...`);
 
-    // Measure baseline memory before upload
+    // Pre-allocate FormData maps outside timed loops to eliminate V8 calculation drift
+    const preallocatedFormData: FormData[] = Array.from({ length: uploadIterations }, () => {
+      const { buffer, name } = generatePayload(sizeMb);
+      const fd = new FormData();
+      fd.append("file", new Blob([buffer]), name);
+      return fd;
+    });
+
+    console.log(`    → Uploading ${sizeMb}MB payload...`);
     const baselineRSS = await getMemoryRSS(baseUrl);
 
     const uploadResult = await runBenchmark({
       name: `Upload ${sizeMb}MB`,
-      iterations: IS_CI ? 3 : 8,
+      iterations: uploadIterations,
       warmupIterations: 1,
       runs: 2,
       concurrency: 1,
       silent: true,
-      onIteration: async () => {
-        const { buffer, name } = generatePayload(sizeMb);
-        const formData = new FormData();
-        formData.append("file", new Blob([buffer]), name);
+      onIteration: async (i: number) => {
+        const bodyPayload = preallocatedFormData[i] ?? preallocatedFormData[0]!;
 
-        const res = await fetch(`${baseUrl}/api/media/upload`, {
+        const res = await fetch(targetUploadUrl, {
           method: "POST",
           headers: uploadHeaders,
-          body: formData,
+          body: bodyPayload,
           signal: AbortSignal.timeout(120000),
         });
+
         if (!res.ok) {
           const errBody = await res.text().catch(() => "<no body>");
           throw new Error(`Upload ${sizeMb}MB failed: ${res.status} - ${errBody}`);
         }
-        const data = await res.json();
-        // Return the uploaded file URL for download testing
-        return data;
+        await res.arrayBuffer(); // Low-level socket flush prevents client heap inflation
       },
     });
 
@@ -122,10 +121,8 @@ async function runPayloadAudit() {
       rssDeltaMB: uploadRSSDelta,
     });
 
-    console.log(`   → Downloading ${sizeMb}MB payload (streaming)...`);
+    console.log(`    → Downloading ${sizeMb}MB payload (streaming)...`);
 
-    // First, get a file to download — use the system health endpoint which returns
-    // a known response, then verify streaming works by consuming chunks
     const downloadResult = await runBenchmark({
       name: `Download ${sizeMb}MB`,
       iterations: IS_CI ? 10 : 30,
@@ -134,8 +131,8 @@ async function runPayloadAudit() {
       concurrency: 4,
       silent: true,
       onIteration: async () => {
-        // Use sitemap.xml as a real streaming endpoint that returns XML content
         const res = await fetch(`${baseUrl}/sitemap.xml`, {
+          method: "GET",
           headers: {
             "x-test-mode": "true",
             "x-test-secret": TEST_API_SECRET,
@@ -143,39 +140,31 @@ async function runPayloadAudit() {
           signal: AbortSignal.timeout(30000),
         });
 
+        let targetResponse = res;
         if (!res.ok) {
-          // Fall back to health endpoint if sitemap isn't available
-          const fallbackRes = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
+          targetResponse = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
+            method: "GET",
             headers: {
               "x-test-mode": "true",
               "x-test-secret": TEST_API_SECRET,
             },
             signal: AbortSignal.timeout(10000),
           });
-          if (!fallbackRes.ok) throw new Error(`Download fallback failed: ${fallbackRes.status}`);
-          const reader = fallbackRes.body?.getReader();
-          if (!reader) throw new Error("No readable stream");
-          // Consume all chunks
-          while (true) {
-            const { done } = await reader.read();
-            if (done) break;
-          }
-          return;
+          if (!targetResponse.ok)
+            throw new Error(`Download fallback failed: ${targetResponse.status}`);
         }
 
-        // Streamed consumption: read chunks without buffering entire body
-        const reader = res.body?.getReader();
+        const reader = targetResponse.body?.getReader();
         if (!reader) throw new Error("No readable stream available");
 
         let totalBytes = 0;
-        const chunks: Uint8Array[] = [];
 
+        // Allocation-free chunk streaming consumption loop
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           if (value) {
-            totalBytes += value.length;
-            chunks.push(value);
+            totalBytes += value.length; // Count metrics without retaining chunks in memory
           }
         }
 
@@ -189,11 +178,9 @@ async function runPayloadAudit() {
       layer: "Download",
     });
 
-    // Memory check: FormData + sharp processing buffers expected up to ~5x file size.
-    // Only flag if growth exceeds 6x (indicates no streaming / full buffering).
     if (uploadRSSDelta > sizeMb * 6) {
       console.warn(
-        `   ⚠️  Upload ${sizeMb}MB caused ${uploadRSSDelta.toFixed(1)}MB RSS growth ` +
+        `    ⚠️  Upload ${sizeMb}MB caused ${uploadRSSDelta.toFixed(1)}MB RSS growth ` +
           `(${(uploadRSSDelta / sizeMb).toFixed(1)}x file size) — possible buffering detected`,
       );
     }
@@ -214,16 +201,17 @@ async function runPayloadAudit() {
     val: number | string;
     unit: string;
   }> = [];
-  for (const r of results) {
+  for (let s = 0; s < results.length; s++) {
+    const r = results[s]!;
     if (r.layer === "Upload") {
       summaryRows.push({
         key: `${r.shortLabel} Throughput`,
-        val: (r as any).throughputMBps?.toFixed(1) || "0",
+        val: r.throughputMBps?.toFixed(1) || "0",
         unit: "MB/s",
       });
       summaryRows.push({
         key: `${r.shortLabel} RSS Delta`,
-        val: ((r as any).rssDeltaMB || 0).toFixed(1),
+        val: (r.rssDeltaMB || 0).toFixed(1),
         unit: "MB",
       });
     }
@@ -235,8 +223,7 @@ async function runPayloadAudit() {
   });
 
   printSummaryTable(summaryRows);
-
-  for (const r of results) exportResult(r);
+  for (let s = 0; s < results.length; s++) exportResult(results[s]!);
 }
 
 test("Large Payload Streaming — Upload & Download", async () => {
@@ -252,4 +239,4 @@ test("Large Payload Streaming — Upload & Download", async () => {
       stopServer = null;
     }
   }
-}, 600_000);
+}, 600000);

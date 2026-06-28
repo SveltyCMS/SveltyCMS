@@ -250,6 +250,26 @@ export class MediaService {
         // Large file: Stream it!
         // We tee the stream: one for hashing, one for uploading
         const { hashStream } = await import("./media-processing.server");
+
+        // MIME sniffing for large files — read first 2048 bytes
+        // `File` has .slice(), custom stream-only types don't — guard it
+        const headerBuffer =
+          typeof (file as any).slice === "function"
+            ? Buffer.from(await (file as any).slice(0, 2048).arrayBuffer())
+            : null;
+        const sniffed = headerBuffer ? sniffMimeType(headerBuffer) : null;
+        if (
+          sniffed &&
+          sniffed.mime !== "application/octet-stream" &&
+          file.type &&
+          sniffed.mime.split("/")[0] !== file.type.split("/")[0]
+        ) {
+          // Major mismatch — reject
+          throw new Error(
+            `MIME type mismatch: client sent "${file.type}", binary signature indicates "${sniffed.mime}"`,
+          );
+        }
+
         const stream = file.stream();
         const [s1, s2] = stream.tee();
 

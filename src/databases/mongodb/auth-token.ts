@@ -14,6 +14,7 @@ import mongoose, { Schema, type Model } from "mongoose";
 import { generateId, getOrCreateModel } from "./mongodb-utils";
 import { generateRandomToken } from "@src/databases/auth/constants";
 import { safeQuery } from "@src/utils/security/safe-query";
+import { normalizeEmail } from "@src/utils/normalize-email";
 import { logger } from "@src/utils/logger";
 
 export const TokenSchema = new Schema(
@@ -72,7 +73,7 @@ export class TokenAdapter {
       const Model = this.TokenModel;
       const token = new Model({
         ...data,
-        email: data.email.toLowerCase(),
+        email: normalizeEmail(data.email),
         token: tokenValue,
         _id: generateId(),
       });

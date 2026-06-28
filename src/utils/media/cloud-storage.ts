@@ -28,6 +28,9 @@ const BLOCKED_ENDPOINT_IPS = [
   /^::1$/, // IPv6 loopback
   /^fe80:/, // IPv6 link-local
   /^fc00:/, // IPv6 unique local
+  /^::ffff:/, // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+  /^2002:/, // 6to4 encapsulation
+  /^2001:/, // Teredo tunneling
 ];
 
 const BLOCKED_ENDPOINT_HOSTS = new Set([

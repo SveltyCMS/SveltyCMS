@@ -682,6 +682,22 @@ async function writeRankedExecutiveSummary(
         doc = doc.slice(0, doc.indexOf("\n", doc.indexOf(marker)) + 1) + "\n" + body + "\n";
       }
 
+      // Clean up stale temp files from previous crashes
+      const dir = path.dirname(docPath);
+      const base = path.basename(docPath);
+      try {
+        const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
+        for (const sf of staleFiles) {
+          try {
+            fs.unlinkSync(path.join(dir, sf));
+          } catch {
+            /* best-effort */
+          }
+        }
+      } catch {
+        /* dir may not exist */
+      }
+
       const tmpPath = docPath + ".tmp." + Date.now();
       await fs.writeFile(tmpPath, doc, "utf8");
       await fs.rename(tmpPath, docPath);

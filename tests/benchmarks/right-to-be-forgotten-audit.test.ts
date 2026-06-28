@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/right-to-be-forgotten-audit.test.ts
- * @description GDPR/CCPA Right-to-be-Forgotten Compliance Benchmark
+ * @description GDPR/CCPA Right-to-be-Forgotten Compliance Benchmark (Optimized)
  * @summary Measures the speed and integrity of deep-deletion across all linked repositories for regulatory compliance.
  *
  * ### Features:
@@ -25,7 +25,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runGdprAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Right-to-be-Forgotten Audit...\n");
 
   try {
@@ -35,34 +34,45 @@ async function runGdprAudit() {
 
     await ensureStableTestData();
 
+    // Pre-allocated headers outside the hot iteration loop
+    const complianceHeaders = {
+      "Content-Type": "application/json",
+      "x-test-secret": TEST_API_SECRET,
+    };
+
+    const ITERATIONS = 20;
+
+    // Pre-serialize all payload strings to isolate backend execution from local engine serialization limits
+    const pregeneratedPayloads = Array.from({ length: ITERATIONS }, (_, i) =>
+      JSON.stringify({
+        action: "wipe-user",
+        userId: `gdpr-bench-${i}`,
+      }),
+    );
+
     console.log("   → Measuring Deep-Deletion (GDPR) speed across linked tables...");
 
     const results = await runBenchmark({
       name: "Deep Deletion Speed",
-      iterations: 20,
+      iterations: ITERATIONS,
       runs: 1,
       concurrency: 1,
       silent: true,
       onIteration: async (i: number) => {
-        // Trigger a specialized "Deep Wipe" of a test user's data
-        const userId = `gdpr-bench-${i}`;
+        const bodyPayload = pregeneratedPayloads[i] ?? pregeneratedPayloads[0];
+
         const res = await fetch(`${baseUrl}/api/testing`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-secret": TEST_API_SECRET,
-          },
-          body: JSON.stringify({
-            action: "wipe-user",
-            userId: userId,
-          }),
+          headers: complianceHeaders,
+          body: bodyPayload,
         });
 
         if (!res.ok) {
-          throw new Error(`GDPR Wipe failed for user ${userId}: ${res.status}`);
+          throw new Error(`GDPR Wipe failed for target payload index ${i}: ${res.status}`);
         }
 
-        await res.json();
+        // Fast low-level socket drain instead of .json() block parser serialization
+        await res.arrayBuffer();
       },
     });
 

@@ -74,6 +74,7 @@ import {
 } from "@utils/security/crypto";
 // Import for internal use
 import { SESSION_COOKIE_NAME } from "./constants";
+import { normalizeEmail } from "@utils/normalize-email";
 
 // Main Auth class
 export class Auth {
@@ -99,7 +100,7 @@ export class Auth {
     try {
       const { email, password } = userData;
 
-      if (email) userData.email = email.toLowerCase();
+      if (email) userData.email = normalizeEmail(email);
 
       // --- PASSWORD HASHING ---
       if (password) {
@@ -164,7 +165,7 @@ export class Auth {
         throw error(400, "Tenant ID is required in multi-tenant mode");
       }
 
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = normalizeEmail(email);
 
       // --- PASSWORD STRENGTH VALIDATION ---
       if (!oauth && !samlId && password) {
@@ -176,9 +177,12 @@ export class Auth {
         hashedPassword = await cryptoHashPassword(password);
       }
 
-      const preferences = userData.preferences || {};
+      const preferences = (userData.preferences || {}) as Record<string, unknown>;
       if (oauth) {
-        preferences.auth = { ...(preferences.auth as any), oauthEnabled: true };
+        preferences.auth = {
+          ...(preferences.auth as Record<string, unknown>),
+          oauthEnabled: true,
+        };
       }
 
       const result = await this.db.auth.createUser({
@@ -291,7 +295,7 @@ export class Auth {
     await cacheService.delete(cacheKey, options?.tenantId);
 
     if (user?.email) {
-      const emailCacheKey = `user:email:${user.email.toLowerCase()}`;
+      const emailCacheKey = `user:email:${normalizeEmail(user.email)}`;
       await cacheService.delete(emailCacheKey, options?.tenantId);
     }
   }
@@ -445,7 +449,7 @@ export class Auth {
 
     const result = await this.db.auth.createToken({
       user_id: tokenData.user_id,
-      email: user.email.toLowerCase(),
+      email: normalizeEmail(user.email),
       expires: tokenData.expires,
       type: tokenData.type,
       tenantId: tokenData.tenantId,

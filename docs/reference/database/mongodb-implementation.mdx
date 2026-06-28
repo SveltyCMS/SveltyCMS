@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-06-22"
+updated: "2026-06-27"
 tags:
   - database
   - mongodb
@@ -123,6 +123,17 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 - **Index Optimizer**: A background service that periodically verifies and builds missing indexes based on field configurations.
 
 - **Native Bulk Operations (NEW)**: Replaced iterative batching with native `bulkWrite`, yielding a ~50% improvement in high-throughput data ingestion and updates.
+
+### Batch Operation Ordering
+
+MongoDB batch updates now use `{ ordered: true }` in `bulkWrite` operations to preserve input order. This ensures that when revision ordering depends on write sequence (e.g., counter-based version fields), the final state in the database matches the order in which updates were submitted.
+
+```typescript
+// In batch-module.ts:
+const result = await model.bulkWrite(bulkOps, { ordered: true });
+```
+
+Without ordered writes, MongoDB's `bulkWrite` may process operations in any order, causing a read-order ≠ write-order mismatch for dependent updates.
 
 **Phase 8: Platinum Performance & Zero-Allocation**
 

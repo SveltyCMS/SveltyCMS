@@ -7,6 +7,7 @@
 
 import { isoDateStringToDate, nowISODateString, toISOString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
+import { normalizeEmail } from "@src/utils/normalize-email";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type {
   BaseQueryOptions,
@@ -165,7 +166,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         }
 
         const values: any = {
-          email: (userData.email || "").toLowerCase(),
+          email: normalizeEmail(userData.email || ""),
           username: userData.username || null,
           password: password || null,
           firstName: userData.firstName || null,
@@ -238,7 +239,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           updatedAt: isoDateStringToDate(nowISODateString()),
         };
 
-        if (updateData.email) updateData.email = updateData.email.toLowerCase();
+        if (updateData.email) updateData.email = normalizeEmail(updateData.email);
 
         if (userData.role) {
           updateData.role = userData.role;
@@ -319,7 +320,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   }): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
-        const email = criteria.email.toLowerCase();
+        const email = normalizeEmail(criteria.email);
         const conditions = [eq(this.schema.authUsers.email, email)];
         if (criteria.tenantId !== undefined) {
           conditions.push(
@@ -710,7 +711,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .values({
             _id: utils.generateId(),
             user_id: data.user_id,
-            email: data.email.toLowerCase(),
+            email: normalizeEmail(data.email),
             token: hashedToken,
             type: data.type,
             expires: new Date(data.expires),

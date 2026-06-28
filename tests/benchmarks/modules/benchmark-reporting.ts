@@ -117,6 +117,22 @@ export function registerTestMeta(
   META_REGISTRY[slugify(testFile)] = { proves, codePaths, impact };
 }
 
+/** Bulk register metadata from a frozen registry object — replaces 50+ individual calls */
+export function registerBulkTestMeta(
+  registry: Record<string, { proves: string; codePaths: readonly string[]; impact: string }>,
+) {
+  const keys = Object.keys(registry);
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i]!;
+    const meta = registry[k]!;
+    META_REGISTRY[slugify(k)] = {
+      proves: meta.proves,
+      codePaths: [...meta.codePaths],
+      impact: meta.impact,
+    };
+  }
+}
+
 export function getTestMeta(testFile: string): TestMeta {
   const key = slugify(testFile);
   const registered = META_REGISTRY[key];

@@ -63,7 +63,7 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
           update: { $set: upd.data },
         },
       }));
-      const result = await model.bulkWrite(bulkOps, { ordered: false });
+      const result = await model.bulkWrite(bulkOps, { ordered: true });
       return {
         success: true as const,
         data: { modifiedCount: result.modifiedCount },

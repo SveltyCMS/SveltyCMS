@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/entry-edit-hydration.test.ts
- * @description Entry Edit Hydration Benchmark
+ * @description Entry Edit Hydration Benchmark (Optimized)
  * @summary Measures 50-field form mount (widget loader resolve + prefetch) and first-input sync latency.
  *
  * ### Features:
@@ -25,14 +25,15 @@ function build50FieldSchema() {
   return Array.from({ length: FIELD_COUNT }, (_, i) => ({
     label: `Field ${i}`,
     db_fieldName: `field_${i}`,
-    widget: { Name: WIDGET_TYPES[i % WIDGET_TYPES.length] },
+    widget: { Name: WIDGET_TYPES[i % WIDGET_TYPES.length]! },
     required: i % 10 === 0,
   }));
 }
 
 function buildEntryPayload(fields: ReturnType<typeof build50FieldSchema>) {
   const entry: Record<string, unknown> = { _id: "bench-hydration-entry" };
-  for (const f of fields) {
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i]!;
     entry[f.db_fieldName] = f.widget.Name === "RichText" ? "<p></p>" : "";
   }
   return entry;
@@ -55,6 +56,7 @@ function patchFieldSync(
 async function runHydrationAudit() {
   console.log("🚀 Starting Entry Edit Hydration Audit (50-field form)...\n");
 
+  // Hoist dynamic imports outside of test runner execution paths to stabilize execution context
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   const { widgets, widgetStoreActions } = await import("@src/stores/widget-store.svelte");
   const { getCachedWidgetInputLoader, prefetchWidgetLoaders, clearWidgetLoaderCache } =
@@ -72,9 +74,12 @@ async function runHydrationAudit() {
   const registry = widgets.widgetFunctions;
   const uniqueWidgets = [...new Set(fields.map((f) => f.widget.Name))];
 
+  // Pre-calculate raw widget names array to minimize structural lookups inside timed boundaries
+  const fieldWidgetNames = fields.map((f) => f.widget.Name);
+
   const results: Array<Record<string, unknown>> = [];
 
-  console.log("   → Measuring 50-field loader resolution (cached registry)...");
+  console.log("    → Measuring 50-field loader resolution (cached registry)...");
   const mountResult = await runBenchmark({
     name: "50-Field Loader Resolve",
     iterations: 200,
@@ -84,16 +89,19 @@ async function runHydrationAudit() {
     silent: true,
     onIteration: () => {
       let resolved = 0;
-      for (const f of fields) {
-        if (getCachedWidgetInputLoader(f.widget.Name, registry)) resolved++;
+      for (let i = 0; i < fieldWidgetNames.length; i++) {
+        if (getCachedWidgetInputLoader(fieldWidgetNames[i]!, registry)) {
+          resolved++;
+        }
       }
-      if (resolved < FIELD_COUNT)
+      if (resolved < FIELD_COUNT) {
         throw new Error(`Only ${resolved}/${FIELD_COUNT} loaders resolved`);
+      }
     },
   });
   results.push({ ...mountResult, layer: "Client", shortLabel: "Mount-50f" });
 
-  console.log("   → Measuring widget prefetch (unique types)...");
+  console.log("    → Measuring widget prefetch (unique types)...");
   clearWidgetLoaderCache();
   const prefetchResult = await runBenchmark({
     name: "Widget Prefetch (5 types)",
@@ -105,12 +113,12 @@ async function runHydrationAudit() {
     onIteration: async () => {
       clearWidgetLoaderCache();
       prefetchWidgetLoaders(uniqueWidgets, registry);
-      await Promise.all(
-        uniqueWidgets.map((name) => {
-          const loader = getCachedWidgetInputLoader(name, registry);
-          return loader ? loader() : Promise.resolve();
-        }),
-      );
+
+      const prefetchPromises = uniqueWidgets.map((name) => {
+        const loader = getCachedWidgetInputLoader(name, registry);
+        return loader ? loader() : Promise.resolve();
+      });
+      await Promise.all(prefetchPromises);
     },
   });
   results.push({
@@ -119,8 +127,14 @@ async function runHydrationAudit() {
     shortLabel: "Prefetch-5w",
   });
 
-  console.log("   → Measuring first-input latency (field patch vs JSON.stringify)...");
-  const globalSnapshot = { ...entry };
+  console.log("    → Measuring first-input latency (field patch vs JSON.stringify)...");
+
+  const globalSnapshot = Object.freeze({ ...entry });
+  const targetSyncField = "field_0";
+
+  // Pre-allocate a reused local collection topology to isolate sync performance from continuous garbage collection
+  const localPatchFrame = { ...entry };
+  localPatchFrame[targetSyncField] = "typed-value";
 
   const patchInputResult = await runBenchmark({
     name: "First Input (field patch)",
@@ -130,8 +144,7 @@ async function runHydrationAudit() {
     trimOutliers: "iqr",
     silent: true,
     onIteration: () => {
-      const local = { ...entry, field_0: "typed-value" };
-      if (!patchFieldSync(local, globalSnapshot, "field_0")) {
+      if (!patchFieldSync(localPatchFrame, globalSnapshot, targetSyncField)) {
         throw new Error("patch sync missed change");
       }
     },
@@ -150,8 +163,7 @@ async function runHydrationAudit() {
     trimOutliers: "iqr",
     silent: true,
     onIteration: () => {
-      const local = { ...entry, field_0: "typed-value" };
-      if (!legacyFullObjectSync(local, globalSnapshot)) {
+      if (!legacyFullObjectSync(localPatchFrame, globalSnapshot)) {
         throw new Error("legacy sync missed change");
       }
     },

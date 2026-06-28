@@ -1081,9 +1081,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
         process.stderr.write(`[DEBUG] Stable collection created via API\n`);
       }
 
-      // Reset entry count via API PATCH
+      // Ensure bench-shared-001 exists — PATCH to reset count, POST if missing
       if (res.ok) {
-        await fetch(
+        const patchRes = await fetch(
           `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
           {
             method: "PATCH",
@@ -1095,7 +1095,25 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
             },
             body: JSON.stringify({ count: 0 }),
           },
-        ).catch(() => {});
+        );
+
+        // If PATCH fails (entry missing), create it via POST
+        if (!patchRes.ok) {
+          await fetch(`${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+              "x-tenant-id": tenantId,
+            },
+            body: JSON.stringify({
+              _id: STABLE_ENTRY_ID,
+              title: "Benchmark Stable Entry",
+              count: 0,
+            }),
+          }).catch(() => {});
+        }
         return;
       }
       // create-collection action failed (not yet implemented in testing handler).

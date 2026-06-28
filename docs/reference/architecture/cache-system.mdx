@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-06-22"
+updated: "2026-06-27"
 tags:
   - "cache"
   - "redis"
@@ -72,6 +72,19 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 > Use `clearByPattern("schema:")` — not `invalidateByCategory(SCHEMA)` — because schema keys are prefixed with `schema:`, not `*:schema:`.
 
 ## Smart Features (All Production-Ready)
+
+### Scheduled Publish Cache Invalidation
+
+The background job scheduler (`scheduled-jobs.ts`) now invalidates the collection cache after every successful scheduled publish. This prevents stale relation data from being served after entries transition from `draft` to `publish` status.
+
+```typescript
+// After scheduled publish, in scheduled-jobs.ts:
+await cacheService.invalidateCollection(collectionName);
+```
+
+Without this invalidation, GraphQL queries using `publicationFilter` would continue serving cached results that don't reflect the newly published state.
+
+**Related**: [Schedule Modal Component](/docs/reference/components/schedule-modal.mdx)
 
 ### Cache Stampede Protection (Single-Flight + Distributed Locks)
 
