@@ -483,17 +483,6 @@ export const _handler = async (event: RequestEvent) => {
 
   // Cache successful GET responses AND compute ETag — read body ONCE for both
   if (request.method === "GET" && response.status === 200 && !isStreaming) {
-    const responseBody = await response.text(); // Single read for cache + ETag
-
-    // Compute ETag once, then store { body, etag } tuple — cache hits skip re-hash
-    let etag = "";
-    try {
-      etag = `"${await xxhash64(responseBody)}"`;
-    } catch {
-      // Hash unavailable — body served without ETag below
-    }
-
-    // Cache write: { body, etag } tuple (fire-and-forget)
     const pathStr = url.pathname;
     const isCacheable =
       pathStr.includes("/api/collections") ||
@@ -504,7 +493,20 @@ export const _handler = async (event: RequestEvent) => {
       pathStr.includes("/api/navigation") ||
       pathStr.includes("/api/themes") ||
       pathStr.includes("/api/config");
+
+    // 🚀 HYPER-PERFORMANCE: Read body once for ETag — cache only if cacheable
+    const responseBody = await response.text();
+
+    // Compute ETag once — works for both cacheable (cache + 304) and non-cacheable (304 only)
+    let etag = "";
+    try {
+      etag = `"${await xxhash64(responseBody)}"`;
+    } catch {
+      // Hash unavailable — body served without ETag below
+    }
+
     if (isCacheable && etag) {
+      // Only cache cacheable endpoints — non-cacheable still get ETag for 304 support
       const { CacheCategory } = await import("@src/databases/cache/types");
       cacheService
         .set(

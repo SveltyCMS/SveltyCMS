@@ -25,7 +25,6 @@ export class CacheService {
   private readonly INVALIDATION_CHANNEL = "svelty:cache:invalidation";
   private tagMap: Map<string, Set<string>> = new Map();
   private keyToTags: Map<string, Set<string>> = new Map(); // Reverse mapping for O(tags) cleanup
-  private keyCache: LRUCache<string, string>; // Memoization for generated keys
   private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
 
   // Single-flight request coalescing
@@ -63,8 +62,6 @@ export class CacheService {
         this.removeFromPrefixMap(key);
       },
     });
-
-    this.keyCache = new LRUCache<string, string>({ max: 1000 });
 
     // Initialize Hybrid Negative Cache
     this.negativeBloom = new BloomFilter(100000, 0.01);
@@ -1222,7 +1219,6 @@ export class CacheService {
     this.l1.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
-    this.keyCache.clear();
   }
 
   getRedisClient() {
