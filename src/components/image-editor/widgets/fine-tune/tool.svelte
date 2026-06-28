@@ -25,16 +25,17 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 	$effect(() => {
 		if (imageEditorStore.state.activeState === 'finetune') {
-			const currentFilters = storeState.filters;
+			// Snapshot via $state.snapshot to avoid mutating the reactive proxy inside the effect
+			const currentFilters = $state.snapshot(storeState.filters) as Record<string, number>;
 			let needsUpdate = false;
 			for (const [key, defaultValue] of Object.entries(DEFAULT_ADJUSTMENTS)) {
 				if (currentFilters[key] === undefined) {
-					currentFilters[key] = defaultValue;
+					currentFilters[key] = defaultValue as number;
 					needsUpdate = true;
 				}
 			}
 			if (needsUpdate) {
-				storeState.filters = { ...currentFilters };
+				storeState.filters = currentFilters as typeof storeState.filters;
 			}
 		}
 	});
