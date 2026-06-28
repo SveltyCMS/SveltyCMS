@@ -151,7 +151,7 @@ async function handleEditorSave(detail: any) {
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify(manipulations),
+			body: JSON.stringify({ manipulations }),
 		});
 
 		if (response.ok) {

@@ -99,15 +99,15 @@ class ContentStore {
   }
 
   getSmartFirstCollection(_tenantId?: string | null): Schema | null {
-    // Skip system-only collections (redirects, 404_logs, etc.) that are not user content
-    const systemPrefixes = ["redirects", "404_logs", "plugin_", "workflow_"];
+    // Only return a collection that has a real front-end `path`. System/SEO/plugin
+    // collections discovered via the listSchemas fallback carry no `path`; returning
+    // one as the "first" collection would send users to a dead /en/collection/<id>
+    // route (404) via getFirstCollectionRedirectUrl's path fallback. Real user
+    // collections always carry a path (e.g. /collection/posts).
     for (const schema of this._schemas.values()) {
-      const id = (schema._id || schema.name || "").toLowerCase();
-      if (systemPrefixes.some((prefix) => id.startsWith(prefix))) continue;
-      return schema;
+      if (schema?.path) return schema;
     }
-    // Fall back to first available if no user collection found
-    return Array.from(this._schemas.values())[0] || null;
+    return null;
   }
 
   setCollections(tenantId: string, collections: Schema[]) {

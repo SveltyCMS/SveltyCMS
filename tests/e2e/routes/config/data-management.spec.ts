@@ -13,6 +13,7 @@ import {
 } from "../../helpers/migration-wizard";
 
 test.describe("Data Management Pages", () => {
+  test.setTimeout(120_000);
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });

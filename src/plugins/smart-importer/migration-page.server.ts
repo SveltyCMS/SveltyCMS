@@ -69,8 +69,8 @@ export const actions = {
   /**
    * Step 1: Detect format + AI field analysis + license check
    */
-  detect: async ({ request, locals }) => {
-    const data = await request.formData();
+  detect: async ({ request, locals, parsedBody }) => {
+    const data = parsedBody instanceof FormData ? parsedBody : await request.formData();
     const file = data.get("file") as File | null;
     if (!file) return fail(400, { error: "No file provided" });
 
@@ -235,8 +235,8 @@ export const actions = {
   /**
    * Step 3: Dry-run validation
    */
-  dryRun: async ({ request, locals }) => {
-    const data = await request.formData();
+  dryRun: async ({ request, locals, parsedBody }) => {
+    const data = parsedBody instanceof FormData ? parsedBody : await request.formData();
     const file = data.get("file") as File | null;
     const format = data.get("format") as string;
     const contentTypesRaw = data.get("contentTypes") as string | null;
@@ -319,7 +319,7 @@ export const actions = {
   /**
    * Step 3b: Scaffold target collection from field mappings (Collection Builder pipeline)
    */
-  scaffoldCollection: async ({ request, locals }) => {
+  scaffoldCollection: async ({ request, locals, parsedBody }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: "Unauthorized" });
 
@@ -329,7 +329,7 @@ export const actions = {
       });
     }
 
-    const data = await request.formData();
+    const data = parsedBody instanceof FormData ? parsedBody : await request.formData();
     const format = (data.get("format") as string) || "wordpress";
     const targetCollection = resolveTargetFromForm(data, format);
     const mappingsRaw = data.get("mappings") as string | null;
@@ -383,8 +383,8 @@ export const actions = {
   /**
    * Step 4: Import — gated by license for Pro platforms
    */
-  import: async ({ request, locals }) => {
-    const data = await request.formData();
+  import: async ({ request, locals, parsedBody }) => {
+    const data = parsedBody instanceof FormData ? parsedBody : await request.formData();
     const file = data.get("file") as File | null;
     const format = data.get("format") as string;
     const contentTypesRaw = data.get("contentTypes") as string | null;
@@ -450,8 +450,8 @@ export const actions = {
   /**
    * Step 5: Rollback — Pro only
    */
-  rollback: async ({ request, locals }) => {
-    const data = await request.formData();
+  rollback: async ({ request, locals, parsedBody }) => {
+    const data = parsedBody instanceof FormData ? parsedBody : await request.formData();
     const transactionToken = data.get("transactionToken") as string;
     const dbAdapter = (locals as any)?.dbAdapter;
     if (!transactionToken) return fail(400, { error: "transactionToken required" });

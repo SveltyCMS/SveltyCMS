@@ -310,52 +310,56 @@ export async function enable2FAForTestUser(page: Page, email: string) {
  */
 export async function logout(page: Page) {
   try {
-    // Try to navigate to home/dashboard first to check if logged in
-    await page.goto("/", { timeout: 10_000, waitUntil: "domcontentloaded" });
-
-    // If we're on setup or login page, we're not logged in
+    // If we're already on setup or login page, we're not logged in
     if (page.url().includes("/setup") || page.url().includes("/login")) {
       console.log("[Auth] Not logged in, skipping logout");
       return;
     }
 
-    // Look for logout button or menu - try multiple selectors
-    const logoutSelectors = [
-      '[data-testid="sign-out-button"]',
-      'button:has-text("Logout")',
-      'button:has-text("Sign out")',
-      'button:has-text("Log out")',
-      'a:has-text("Logout")',
-      'a:has-text("Sign out")',
-      '[aria-label*="logout" i]',
-      '[aria-label*="sign out" i]',
-    ];
+    console.log(`[Auth] Current URL: ${page.url()}`);
 
-    for (const selector of logoutSelectors) {
-      const button = page.locator(selector).first();
-      if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
-        console.log(`[Auth] Logging out using selector: ${selector}`);
-        await button.click();
-        await page.waitForURL(/\/(login|signup)/, { timeout: 5000 }).catch(() => {});
-        return;
-      }
+    // Try clicking the sign out button if visible (quick check)
+    const signOutBtn = page.locator('[aria-label*="sign out" i]').first();
+    if (await signOutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log("[Auth] Logging out via sign out button");
+      const logoutPromise = page
+        .waitForResponse(
+          (res) => res.request().method() === "POST" && res.url().includes("/api/user/logout"),
+          { timeout: 10_000 },
+        )
+        .catch(() => null);
+      await signOutBtn.click();
+      await logoutPromise;
+      await page.waitForURL(/\/(login|signup)/, { timeout: 10_000 }).catch(() => null);
+      if (page.url().includes("/login") || page.url().includes("/signup")) return;
     }
 
-    console.log("[Auth] No logout button found, clearing cookies and localStorage");
-    // If no logout button found, clear session manually
+    // Fallback: clear cookies and navigate to /login with networkidle
+    console.log("[Auth] Fallback: clearing cookies and navigating to /login");
     await page.context().clearCookies();
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
     });
-
-    // Navigate to login to confirm logout
-    await page.goto("/login", {
-      timeout: 10_000,
-      waitUntil: "domcontentloaded",
-    });
+    await page.goto("/login", { waitUntil: "networkidle", timeout: 15_000 });
+    await page.waitForLoadState("domcontentloaded");
+    console.log(`[Auth] After goto /login (networkidle), URL is: ${page.url()}`);
+    // If still not on /login, try one more time
+    if (!page.url().includes("/login") && !page.url().includes("/signup")) {
+      console.log("[Auth] Still not on /login, trying again");
+      await page.context().clearCookies();
+      await page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      await page.goto("/login", { waitUntil: "networkidle", timeout: 10_000 });
+      console.log(`[Auth] After retry, URL is: ${page.url()}`);
+    }
   } catch (error) {
     console.log("[Auth] Error during logout, continuing anyway:", error);
+    // Final fallback: clear cookies and navigate to login
+    await page.context().clearCookies().catch(() => {});
+    await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 10_000 }).catch(() => {});
   }
 }
 

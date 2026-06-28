@@ -359,7 +359,8 @@ export class MediaNamespace {
     }[]
   > {
     if (!mediaId) throw new AppError("Media ID is required", 400);
-    return this.mediaService.getPublishedReferences(mediaId, options.tenantId as DatabaseId);
+    const svc = await this.getMediaService();
+    return svc.getPublishedReferences(mediaId, options.tenantId as DatabaseId);
   }
 
   async uploadVersion(

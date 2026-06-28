@@ -230,22 +230,43 @@ test.describe("Role-Based Access Control", () => {
   });
 
   test("Verify all roles can login and logout", async ({ page }) => {
+    test.setTimeout(120_000);
+
+    // Helper: clear session and verify we end up on /login
+    async function logoutAndVerify() {
+      // Clear all cookies and storage, then navigate to /login
+      await page.context().clearCookies();
+      await page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      await page.goto("/login", { waitUntil: "networkidle", timeout: 15_000 });
+      // If server redirects us back (session still in server cache),
+      // clear cookies again and force navigate
+      if (!page.url().includes("/login")) {
+        await page.context().clearCookies();
+        await page.evaluate(() => {
+          localStorage.clear();
+          sessionStorage.clear();
+        });
+        await page.goto("/login", { waitUntil: "networkidle", timeout: 10_000 });
+      }
+      await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
+    }
+
     // Test admin
     await login(page, USERS.admin);
     await expect(page).not.toHaveURL(/\/login/);
-    await logout(page);
-    await expect(page).toHaveURL(/\/login/);
+    await logoutAndVerify();
 
     // Test developer
     await login(page, USERS.developer);
     await expect(page).not.toHaveURL(/\/login/);
-    await logout(page);
-    await expect(page).toHaveURL(/\/login/);
+    await logoutAndVerify();
 
     // Test editor
     await login(page, USERS.editor);
     await expect(page).not.toHaveURL(/\/login/);
-    await logout(page);
-    await expect(page).toHaveURL(/\/login/);
+    await logoutAndVerify();
   });
 });

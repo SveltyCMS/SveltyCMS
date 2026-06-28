@@ -84,7 +84,7 @@ for (const plugin of availablePlugins) {
 
   if (plugin.ui?.slots) {
     for (const slot of plugin.ui.slots) {
-      const registered = { ...slot, pluginId };
+      const { server: _server, ...registered } = { ...slot, pluginId };
       slotRegistry.register(registered);
 
       if (slot.zone === "plugin_workspace" && slot.server) {

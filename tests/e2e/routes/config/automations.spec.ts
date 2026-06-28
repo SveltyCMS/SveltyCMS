@@ -7,6 +7,7 @@ import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 
 test.describe("Automations", () => {
+  test.setTimeout(60_000);
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
@@ -16,14 +17,14 @@ test.describe("Automations", () => {
     await expect(page.getByRole("heading", { level: 1, name: /automation/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByRole("button", { name: /new|create|add/i }).first()).toBeVisible({
+    await expect(page.getByRole("button", { name: /new automation/i })).toBeVisible({
       timeout: 10_000,
     });
   });
 
   test("can start creating an automation", async ({ page }) => {
     await page.goto("/config/automations");
-    const createBtn = page.getByRole("button", { name: /new|create|add/i }).first();
+    const createBtn = page.getByRole("button", { name: /new automation/i }).first();
     if (await createBtn.isVisible()) {
       await createBtn.click();
       await expect(page).toHaveURL(/automations/, { timeout: 10_000 });

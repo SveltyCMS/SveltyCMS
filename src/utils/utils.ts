@@ -18,13 +18,14 @@ export * from "./string";
 export * from "./navigation";
 export * from "./tenant";
 export * from "./preview";
-export * from "./security/index";
+// security/index removed — it re-exports crypto.ts which uses node:module.
+// Server code should import directly from @utils/security/crypto or @utils/security/*.
 export * from "./logger";
 export * from "./api";
 export * from "./debounce";
 export * from "./object-utils";
 export * from "./array-utils";
-export * from "./server/setup-check";
+// server/setup-check removed — server-only module, should not be in client barrel.
 export * from "./schema/field-utils";
 export * from "./media/media-models";
 export * from "./media/media-utils";

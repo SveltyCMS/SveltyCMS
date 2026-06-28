@@ -61,6 +61,7 @@ import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
+import { browser } from "$app/environment";
 import { page } from "$app/state";
 import type { Schema, ContentNode } from "../../content/types";
 import { setContentContext } from "@src/content";
@@ -255,7 +256,7 @@ $effect(() => {
 // Effect: Handle system language changes
 $effect(() => {
 	const lang = app.systemLanguage;
-	if (!lang) {
+	if (!lang || !browser) {
 		return;
 	}
 

@@ -125,7 +125,7 @@ test.describe("Image Editor", () => {
       (res) =>
         res.request().method() === "POST" &&
         /\/api\/media\/manipulate\//.test(res.url()) &&
-        res.status() === 200,
+        res.ok(),
       { timeout: 30_000 },
     );
 

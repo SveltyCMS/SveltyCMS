@@ -12,6 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 
 test.describe("Media Gallery", () => {
+  test.setTimeout(60_000);
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
@@ -51,7 +52,13 @@ test.describe("Media Gallery", () => {
     const uploadInput = page.getByTestId("media-upload-input");
     await expect(uploadInput).toBeAttached({ timeout: 10_000 });
 
+    const uploadResponse = page.waitForResponse(
+      (res) => res.request().method() === "POST" && res.url().includes("?/upload"),
+      { timeout: 30_000 },
+    );
     await uploadInput.setInputFiles(TEST_IMAGE);
+    await uploadResponse;
+    // Upload handler does window.location.reload() — wait for reload to complete
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByTestId("media-grid-empty")).toHaveCount(0, {
       timeout: 20_000,

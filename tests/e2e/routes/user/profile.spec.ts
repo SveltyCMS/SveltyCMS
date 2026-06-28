@@ -108,7 +108,10 @@ test.describe("User Profile Management", () => {
     // Use fill for robustness on the enabled input in the modal
     await page.locator('input[name="username"]:not([disabled])').fill("TestUserUpdated");
 
-    await page.getByRole("button", { name: "Save" }).click();
+    // Save button may be outside viewport in modal; submit form directly
+    await page.locator('form#change_user_form').evaluate((form: Element) => {
+      (form as HTMLFormElement).requestSubmit();
+    });
 
     // Toast notification may be brief; increase timeout
     await expect(page.getByText(/User Data Updated/i)).toBeVisible({

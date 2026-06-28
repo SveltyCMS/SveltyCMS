@@ -32,6 +32,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
@@ -74,6 +75,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	onDestroy(() => {
+		if (!browser) return;
 		document.removeEventListener('click', handleClickOutside);
 	});
 
