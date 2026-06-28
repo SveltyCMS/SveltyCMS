@@ -34,7 +34,7 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 ## 🏗️ In Progress
 
 - 🏗️ **Phased Marketplace Migration**: Widgets, plugins, themes, dashboards, and extensions moving from the monorepo to `marketplace.sveltycms.com`. Core widgets stay in repo. Doc stubs with redirect frontmatter keep `llms-full.txt` coverage at 100% via federation layer. Phase 1 (core widget doc naming) ✅; Phase 2 (custom widgets → marketplace) pending. See [Marketplace System](../reference/architecture/marketplace.mdx).
-- 🏗️ **Hybrid Package Model**: Monorepo with `@sveltycms/core`, `@sveltycms/widgets`. Pending: npm publishing, CI, consumer docs.
+- 🏗️ **Hybrid Package Model**: Monorepo with `@sveltycms/core`, `@sveltycms/widgets`. Pending: official npm publishing pipeline, CI, consumer docs.
 - 🏗️ **AI Co-Pilot**: `@sveltycms/ai` package with field suggestions, content scoring, import mapping. Pending: MCP UI, Ghost data generation.
 - 🏗️ **Version Channels**: Core service + API endpoints for LTS/Stable/Next. Pending: UI dashboard, upgrade CLI integration.
 - 🏗️ **WebAuthn/Passkeys UI**: Login ceremony + crypto complete (✅). Pending: settings-page UI for passkey management, `db:push` for `authenticators` column on SQL deployments.
@@ -43,6 +43,7 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 ## 🚀 Planned
 
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
+- **Enterprise Infrastructure Scaling**: Generate a multi-stage production `Dockerfile` and Terraform configurations (AWS Fargate, RDS Proxy, ElastiCache) for effortless horizontal scaling by large corporations.
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.
 - **Autonomous Import Optimization**: Dynamic concurrency for 30k+ row datasets.
 

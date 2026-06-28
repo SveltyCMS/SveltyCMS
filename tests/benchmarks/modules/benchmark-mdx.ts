@@ -186,37 +186,7 @@ function atomicWrite(docPath: string, content: string): void {
 // MDX Write Operations
 // ─────────────────────────────────────────────────────────────
 
-/** Find the correct tag occurrence — prefer the one after BENCHMARK_END (educational section). */
-function findSectionPosition(doc: string, tag: string): { idx: number } | null {
-  const START = `<!-- ${tag}_TABLE_START -->`;
-  const BENCH_END = "<!-- BENCHMARK_END -->";
-  let benchEnd = -1;
-  let searchFrom = 0;
-  while (true) {
-    const next = doc.indexOf(BENCH_END, searchFrom);
-    if (next < 0) break;
-    benchEnd = next;
-    searchFrom = next + BENCH_END.length;
-  }
-
-  // Collect all occurrences
-  const starts: number[] = [];
-  let idx = 0;
-  while ((idx = doc.indexOf(START, idx)) !== -1) {
-    starts.push(idx);
-    idx += START.length;
-  }
-  if (starts.length === 0) return null;
-
-  // Prefer the one after BENCHMARK_END (educational section)
-  if (benchEnd > 0) {
-    const eduStart = starts.find((s) => s > benchEnd);
-    if (eduStart !== undefined) return { idx: eduStart };
-  }
-
-  // Fall back to first occurrence
-  return { idx: starts[0] };
-}
+/* findSectionPosition removed — writeTruthTable now updates ALL occurrences via loop */
 
 /** Write the truth table between TABLE_START / TABLE_END. Returns the tag name. */
 export function writeTruthTable(
@@ -297,7 +267,6 @@ export function writeSummary(
       return;
     }
 
-    const START = `<!-- ${resolvedTag}_TABLE_START -->`;
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
     const summaryBlock = ["```text", summaryTable, "```"].join("\n");
 
@@ -337,16 +306,27 @@ export function writeTrendAndInsight(
       return;
     }
 
-    const START = `<!-- ${resolvedTag}_TABLE_START -->`;
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
     const insightBlock = "\n> " + insight + "\n";
 
     // Update the ### \uD83C\uDFF7 label in ALL section headings
-    const headingRx = new RegExp(
-      `(### \\ud83c\\udff7\\s+)[^\n]+(?=\\n[\\s\\S]*?${escapeRegex(START)})`,
-      "gi",
-    );
-    doc = doc.replace(headingRx, `$1${trendLabel}`);
+    // Use simple replace-based approach instead of regex to avoid escape sequence issues
+    const headingMarker = "### \u{1F3F7}";
+    let startSearch = 0;
+    while (true) {
+      const hPos = doc.indexOf(headingMarker, startSearch);
+      if (hPos < 0) break;
+      const hEnd = doc.indexOf("\n", hPos);
+      if (hEnd < 0) break;
+      const oldLine = doc.slice(hPos, hEnd);
+      // Replace the icon + any text after it with our trend label
+      const newLine = oldLine.replace(
+        /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
+        trendLabel,
+      );
+      doc = doc.slice(0, hPos) + newLine + doc.slice(hEnd);
+      startSearch = hPos + newLine.length + 1;
+    }
 
     // Replace INSIGHT_PLACEHOLDER in ALL occurrences
     const insightPlaceholder = "<!-- INSIGHT_PLACEHOLDER -->";

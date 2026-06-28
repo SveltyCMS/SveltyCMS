@@ -449,35 +449,30 @@ xychart-beta
 <!-- OPENAPI_TABLE_END -->
 
 <!-- AUTH_TRACE_TABLE_START -->
-> Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
-> Throughput dropped 98% — check connection pool saturation or lock contention.
-> **Severe degradation** (+6201%) — review recent commits immediately.
-> (suspected — single test run, needs cross-validation with related benchmarks)
-> **Check**: `src/hooks/handle-authentication.ts` · `src/databases/auth/session-service.ts` · `src/services/sdk/namespaces/auth-namespace.ts`
+<!-- INSIGHT_PLACEHOLDER -->
 
-`````text
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
-║                   Enterprise authentication benchmark for SveltyCMS.                    ║
-║             Measures HTTP auth pipeline performance using test-mode bypass.             ║
+║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │       15.816 ms │ p95:       20.139 ms │ RPS:         62 ║
-║ HTTP Auth Pipeline @ 8c        │       22.257 ms │ p95:       32.515 ms │ RPS:         41 ║
+║ Auth Validation @ 1c           │        0.815 ms │ p95:        1.212 ms │ RPS:      1,115 ║
+║ HTTP Auth Pipeline @ 8c        │        2.538 ms │ p95:        3.899 ms │ RPS:        369 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
-```text
-
 ```
+
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Auth Latency (1c)                                  │       15.816 ms       ║
-║ Auth Pipeline (8c)                                 │       22.257 ms       ║
-║ Peak Auth RPS                                      │       41.000 req/s    ║
+║ Auth Latency (1c)                                  │        0.815 ms       ║
+║ Auth Pipeline (8c)                                 │        2.538 ms       ║
+║ Peak Auth RPS                                      │      369.000 req/s    ║
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-```text
-<!-- AUTH_TRACE_TABLE_END -->
+```
+
 
 <!-- SECURITY_TABLE_START -->
 ### 🏷️ Security Hardening & Audit ⚪ —
@@ -1469,33 +1464,30 @@ Throughput dropped 89% — check connection pool saturation or lock contention.
 <!-- OPENAPI_TABLE_END -->
 
 <!-- AUTH_TRACE_TABLE_START -->
+<!-- INSIGHT_PLACEHOLDER -->
 
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/routes/api/graphql/+server.ts` · `src/routes/api/graphql/resolvers/`
-
-
-```
+```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
 ║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │        0.321 ms │ p95:        0.400 ms │ RPS:      2,725 ║
-║ HTTP Auth Pipeline @ 8c        │        1.307 ms │ p95:        2.422 ms │ RPS:        718 ║
+║ Auth Validation @ 1c           │        0.815 ms │ p95:        1.212 ms │ RPS:      1,115 ║
+║ HTTP Auth Pipeline @ 8c        │        2.538 ms │ p95:        3.899 ms │ RPS:        369 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Auth Latency (1c)                                  │        0.321 ms       ║
-║ Auth Pipeline (8c)                                 │        1.307 ms       ║
-║ Peak Auth RPS                                      │      718.000 req/s    ║
+║ Auth Latency (1c)                                  │        0.815 ms       ║
+║ Auth Pipeline (8c)                                 │        2.538 ms       ║
+║ Peak Auth RPS                                      │      369.000 req/s    ║
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- AUTH_TRACE_TABLE_END -->
+
 
 <!-- SECURITY_TABLE_START -->
 
@@ -2914,10 +2906,7 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 > **Budget**: ≤ 18,000ms (suite) | **Tags**: `security` | **Level**: 4
 
 <!-- AUTH_TRACE_TABLE_START -->
-
-> Performance improved — recent optimizations or cache warming likely effective.
-**Check**: `src/routes/api/[...path]/+server.ts` · `src/databases/<db>/crud-methods.ts`
-
+<!-- INSIGHT_PLACEHOLDER -->
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
@@ -2925,8 +2914,8 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
 ║Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │        0.484 ms │ p95:        0.552 ms │ RPS:      1,933 ║
-║ HTTP Auth Pipeline @ 8c        │        1.540 ms │ p95:        2.275 ms │ RPS:        628 ║
+║ Auth Validation @ 1c           │        0.815 ms │ p95:        1.212 ms │ RPS:      1,115 ║
+║ HTTP Auth Pipeline @ 8c        │        2.538 ms │ p95:        3.899 ms │ RPS:        369 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2934,13 +2923,13 @@ Throughput dropped 22% — check connection pool saturation or lock contention.
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Auth Latency (1c)                                  │        0.484 ms       ║
-║ Auth Pipeline (8c)                                 │        1.540 ms       ║
-║ Peak Auth RPS                                      │      628.000 req/s    ║
+║ Auth Latency (1c)                                  │        0.815 ms       ║
+║ Auth Pipeline (8c)                                 │        2.538 ms       ║
+║ Peak Auth RPS                                      │      369.000 req/s    ║
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- AUTH_TRACE_TABLE_END -->
+
 
 ### 🏷️ Security Hardening & Audit                                    🟢 avg -50% p95 -50% rps +71% (50 runs)
 
