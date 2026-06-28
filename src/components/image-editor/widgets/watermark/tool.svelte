@@ -105,17 +105,22 @@ Watermark tool with full text and image watermark support.
 			if (!file) return;
 
 			try {
-				const url = URL.createObjectURL(file);
-				const img = new Image();
-				img.crossOrigin = 'anonymous';
+				// Convert to base64 so the server can read it (blob: URLs are browser-only)
+				const base64Url = await new Promise<string>((resolve, reject) => {
+					const reader = new FileReader();
+					reader.onload = () => resolve(reader.result as string);
+					reader.onerror = reject;
+					reader.readAsDataURL(file);
+				});
 
+				const img = new Image();
 				await new Promise<void>((resolve, reject) => {
 					img.onload = () => resolve();
 					img.onerror = reject;
-					img.src = url;
+					img.src = base64Url;
 				});
 
-				preloadedImages[url] = img;
+				preloadedImages[base64Url] = img;
 
 				const imageElement = storeState.imageElement;
 				if (!imageElement) return;
@@ -126,7 +131,7 @@ Watermark tool with full text and image watermark support.
 				const newWatermark: WatermarkItem = {
 					id,
 					type: 'image',
-					imageUrl: url,
+					imageUrl: base64Url,
 					x: imageElement.width / 4,
 					y: imageElement.height / 2,
 					width: img.width * scale,

@@ -351,7 +351,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 							x: Math.round(crop.x),
 							y: Math.round(crop.y),
 							width: Math.round(crop.width),
-							height: Math.round(crop.height)
+							height: Math.round(crop.height),
+							shape: crop.shape ?? "rect"
 						}
 					: undefined,
 				filters,

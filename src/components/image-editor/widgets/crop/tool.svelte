@@ -272,7 +272,8 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 			x: Math.round((cropViewport.x - centerX) / zoom + halfW),
 			y: Math.round((cropViewport.y - centerY) / zoom + halfH),
 			width: Math.round(cropViewport.width / zoom),
-			height: Math.round(cropViewport.height / zoom)
+			height: Math.round(cropViewport.height / zoom),
+			shape: cropShape === 'circular' ? 'circle' : 'rect'
 		};
 		normalizeImageCrop();
 	}
