@@ -548,11 +548,6 @@ describe("Database Interface Contract Tests", () => {
     it("should handle full Auth user lifecycle", async () => {
       if (!db?.auth) return;
 
-      if (currentDbType === "mongodb") {
-        console.warn("Skipping generic auth lifecycle in db-interface for MongoDB adapter.");
-        return;
-      }
-
       const createRes = await db.auth.createUser({
         email: testUserEmail,
         username: "contract_user",
@@ -623,11 +618,6 @@ describe("Database Interface Contract Tests", () => {
 
     it("should handle standardized CRUD round-trips using system_preferences", async () => {
       if (!db?.crud) return;
-
-      if (currentDbType === "mongodb") {
-        console.warn("Skipping generic CRUD round-trip in db-interface for MongoDB adapter.");
-        return;
-      }
 
       const collection = "system_preferences";
       const testId = `pref-${Date.now()}` as any;
@@ -719,11 +709,6 @@ describe("Database Interface Contract Tests", () => {
 
     it("should enforce strict multi-tenant isolation", async () => {
       if (!db?.crud) return;
-
-      if (currentDbType === "mongodb") {
-        console.warn("Skipping multi-tenant isolation check in db-interface for MongoDB adapter.");
-        return;
-      }
 
       const collection = "system_preferences";
       const testId = `tenant-pref-${Date.now()}` as any;

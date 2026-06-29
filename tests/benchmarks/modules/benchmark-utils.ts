@@ -751,7 +751,7 @@ export async function setupBenchmarkServer() {
   process.env.DB_TYPE = dbType;
   process.env.DB_NAME = dbName;
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
-  process.env.JWT_SECRET_KEY = "Benchmark-JWT-Secret-Key-2026";
+  process.env.JWT_SECRET_KEY = "Benchmark-JWT-Secret-Key-2026-32ch";
   process.env.ENCRYPTION_KEY = "Benchmark-Encryption-Key-2026-32ch";
   process.env.TEST_API_SECRET = secret;
   process.env.ADMIN_PASSWORD = adminPw;

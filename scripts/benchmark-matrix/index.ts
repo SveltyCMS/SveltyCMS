@@ -7,7 +7,7 @@
  * shows per-test results inline with ETA, stops on first failure, evaluates results.
  *
  * Features:
- * - clean, modern terminal output with running indicators
+ * - clean, minimal terminal output with \r running indicators
  * - ETA calculation using weighted heuristics
  * - smart test grouping with ordered execution
  * - fail-fast on first test failure
@@ -315,38 +315,65 @@ function spawnTestProcess(
   });
 }
 
-function renderProgressBar(completed: number, total: number, active: number, etaStr: string) {
-  const width = 20;
-  const percent = Math.min(100, Math.max(0, (completed / total) * 100));
-  const completedWidth = Math.round((width * percent) / 100);
-  const remainingWidth = width - completedWidth;
-  const bar = `[${"=".repeat(completedWidth)}${">".repeat(percent < 100 && completedWidth > 0 ? 1 : 0)}${" ".repeat(Math.max(0, remainingWidth - (percent < 100 && completedWidth > 0 ? 1 : 0)))}]`;
-  process.stdout.write(
-    `\r\x1B[K  Progress: ${bar} ${Math.round(percent)}% (${completed}/${total} done, ${active} running) | ETA: ${etaStr} remaining`,
-  );
+function calculateGroupDuration(
+  groupFiles: string[],
+  historicWeights: Record<string, number>,
+  concurrency: number,
+): string {
+  let sum = 0;
+  for (const file of groupFiles) {
+    const name = getTestName(file);
+    sum += historicWeights[name] || TEST_WEIGHTS[name] || 10;
+  }
+  return formatTime(sum / concurrency);
 }
 
-function getRemainingWeight(
-  running: Set<string>,
-  queue: string[],
-  weights: Record<string, number>,
+function printProgressDashboard(opts: {
+  groupName: string;
+  groupDone: number;
+  groupTotal: number;
+  runningCount: number;
+  completedGlobal: number;
+  totalGlobal: number;
+  testEtaSeconds: number;
+  globalEtaSeconds: number;
+}) {
+  const width = 16;
+  const percent = Math.min(100, Math.max(0, (opts.completedGlobal / opts.totalGlobal) * 100));
+  const filled = Math.round((width * percent) / 100);
+  const bar = "\u2588".repeat(filled) + "\u2591".repeat(width - filled);
+  const active = opts.runningCount > 0 ? ` (${opts.runningCount} active)` : "";
+  const testEta = opts.runningCount > 0 ? ` | Test ETA: ${formatTime(opts.testEtaSeconds)}` : "";
+  const line1 = `  \u2192 Group [${opts.groupName}]: ${opts.groupDone}/${opts.groupTotal} passed${active}${testEta}`;
+  const line2 = `  \uD83D\uDCCA ${bar} ${Math.round(percent)}% | ${opts.completedGlobal}/${opts.totalGlobal} done | Total: ${formatTime(opts.globalEtaSeconds)}`;
+  process.stdout.write(`\r\x1B[K${line1}
+\x1B[K${line2}\r\x1B[A`);
+}
+
+let globalRemainingFiles: string[] = [];
+const activeTestDurations = new Map<string, number>();
+
+function calculateGlobalRemainingSeconds(
+  runningTests: Set<string>,
+  historicWeights: Record<string, number>,
   concurrency: number,
 ): number {
-  let sum = 0;
-  for (const file of queue) {
+  let combinedWeightSeconds = 0;
+  for (const file of globalRemainingFiles) {
     const name = getTestName(file);
-    sum += weights[name] || TEST_WEIGHTS[name] || 10;
+    combinedWeightSeconds += historicWeights[name] || TEST_WEIGHTS[name] || 10;
   }
-  for (const file of running) {
+  for (const file of runningTests) {
     const name = getTestName(file);
-    sum += (weights[name] || TEST_WEIGHTS[name] || 10) * 0.5;
+    const totalEst = historicWeights[name] || TEST_WEIGHTS[name] || 10;
+    const elapsed = (activeTestDurations.get(file) || 0) / 1000;
+    combinedWeightSeconds += Math.max(totalEst * 0.2, totalEst - elapsed);
   }
-  return sum / concurrency;
+  return Math.max(0, combinedWeightSeconds / concurrency);
 }
 
 async function run() {
   let totalFailed = 0;
-  console.log(`  Found ${testFiles.length} benchmark test files`);
 
   // Build ordered test list from smart groups
   const allGroupedNames = new Set(GROUPS.flatMap((g) => g.tests));
@@ -381,7 +408,7 @@ async function run() {
     const apiSecret = "SVELTYCMS_TEST_SECRET_2026";
     const adminPassword = "Password123!";
 
-    process.stdout.write(`  [${db.toUpperCase()}] Starting server... `);
+    process.stdout.write(`  Starting server... `);
 
     const serverEnv = {
       ...process.env,
@@ -437,7 +464,7 @@ async function run() {
     console.log("OK");
 
     // ── Phase 2: System setup + seed ──
-    process.stdout.write(`  [${db.toUpperCase()}] Setting up system... `);
+    process.stdout.write(`  Setting up system... `);
     try {
       execSync("bun run scripts/setup-system.ts", {
         env: { ...serverEnv, API_BASE_URL: baseUrl, PRESET: "demo" },
@@ -454,7 +481,7 @@ async function run() {
     }
 
     // Seed benchmark data via testing API
-    process.stdout.write(`  [${db.toUpperCase()}] Seeding benchmark data... `);
+    process.stdout.write(`  Seeding benchmark data... `);
     try {
       const seedRes = await fetch(`${baseUrl}/api/testing`, {
         method: "POST",
@@ -485,24 +512,21 @@ async function run() {
     const startTime = Date.now();
 
     // ETA tracking
-    let totalElapsedTime = 0; // ms of completed (non-skipped) tests
+    let totalElapsedTime = 0;
     let completedTests = 0;
 
     // Load historic weights
     const historicWeights = getHistoricWeights();
 
-    // Compute total weight of all runnable tests for initial ETA estimate
-    const runnableTests = orderedTests.filter((f) => !SKIP_IN_MATRIX.has(getTestName(f)));
-    const totalRunnable = runnableTests.length;
+    // Initialize global time tracker
+    globalRemainingFiles = orderedTests.filter((f) => !SKIP_IN_MATRIX.has(getTestName(f)));
+    const totalGlobalCount = globalRemainingFiles.length;
 
     // Count skipped tests
     for (const file of orderedTests) {
-      if (SKIP_IN_MATRIX.has(getTestName(file))) {
-        skipped++;
-      }
+      if (SKIP_IN_MATRIX.has(getTestName(file))) skipped++;
     }
 
-    // Group execution loop
     const runningTests = new Set<string>();
 
     for (const group of GROUPS) {
@@ -511,35 +535,57 @@ async function run() {
       );
       if (groupFiles.length === 0) continue;
 
-      const groupWeight = groupFiles.reduce((sum, f) => {
-        const name = getTestName(f);
-        return sum + (historicWeights[name] || TEST_WEIGHTS[name] || 10);
-      }, 0);
-      const groupDuration = formatTime(groupWeight / (group.parallel ? 3 : 1));
-
-      console.log(
-        `\n  \u2500\u2500\u2500 ${group.name} (${groupFiles.length} tests · ~${groupDuration}) \u2500\u2500\u2500`,
-      );
-
       const concurrency = group.parallel ? (db === "sqlite" ? 1 : 3) : 1;
+      const aboutTime = calculateGroupDuration(groupFiles, historicWeights, concurrency);
+
+      console.log(`\n  \u26A1 ${group.name} (${groupFiles.length} tests \u2248 ${aboutTime})`);
+      console.log(`  ${"\u2500".repeat(45)}`);
+
       const groupQueue = [...groupFiles];
+      const groupTotalCount = groupFiles.length;
+      let groupPassedCount = 0;
       const activePromises: Promise<void>[] = [];
+      activeTestDurations.clear();
+
+      // UI ticker (200ms refresh)
+      const UIInterval = setInterval(() => {
+        for (const file of runningTests) {
+          activeTestDurations.set(file, (activeTestDurations.get(file) || 0) + 200);
+        }
+        // Calculate test-level ETA for active tests
+        let testEtaSeconds = 0;
+        for (const file of runningTests) {
+          const name = getTestName(file);
+          const totalEst = historicWeights[name] || TEST_WEIGHTS[name] || 10;
+          const elapsed = (activeTestDurations.get(file) || 0) / 1000;
+          const remaining = Math.max(0, totalEst - elapsed);
+          if (testEtaSeconds === 0 || remaining < testEtaSeconds) testEtaSeconds = remaining;
+        }
+        const currentGlobalEta = calculateGlobalRemainingSeconds(
+          runningTests,
+          historicWeights,
+          concurrency,
+        );
+        printProgressDashboard({
+          groupName: group.name,
+          groupDone: groupPassedCount,
+          groupTotal: groupTotalCount,
+          runningCount: runningTests.size,
+          completedGlobal: completedTests,
+          totalGlobal: totalGlobalCount,
+          testEtaSeconds,
+          globalEtaSeconds: currentGlobalEta,
+        });
+      }, 200);
 
       while (groupQueue.length > 0 || activePromises.length > 0) {
         while (activePromises.length < concurrency && groupQueue.length > 0) {
           const file = groupQueue.shift()!;
-          const name = getTestName(file);
+          globalRemainingFiles = globalRemainingFiles.filter((f) => f !== file);
           runningTests.add(file);
+          activeTestDurations.set(file, 0);
 
-          // Re-render progress bar
-          const remainingWeight = getRemainingWeight(
-            runningTests,
-            groupQueue,
-            historicWeights,
-            concurrency,
-          );
-          const etaStr = formatTime(remainingWeight);
-          renderProgressBar(completedTests, totalRunnable, runningTests.size, etaStr);
+          const name = getTestName(file);
 
           const testPromise = (async () => {
             const { code, durationMs, output } = await spawnTestProcess(
@@ -548,48 +594,39 @@ async function run() {
               baseUrl,
               BENCHMARK_RUN_ID,
             );
-            const durationSec = (durationMs / 1000).toFixed(1);
             runningTests.delete(file);
+            activeTestDurations.delete(file);
             completedTests++;
             totalElapsedTime += durationMs;
 
-            // Clear progress bar line to write output cleanly
-            process.stdout.write("\r\x1B[K");
+            // Wipe the dashboard line before logging permanent result
+            process.stdout.write("\r\x1B[K" + " ".repeat(80) + "\r\x1B[K");
+
+            const seqNum = groupPassedCount + 1;
+            const durationSec = (durationMs / 1000).toFixed(1);
 
             if (code !== 0) {
               failed++;
-              console.log(`  \u2716 ${name.padEnd(30)} FAILED (${durationSec}s)`);
-              // Show last 30 lines of output for debugging
+              clearInterval(UIInterval);
+              console.log(
+                `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u274C  FAILED (${durationSec}s)`,
+              );
               const lines = output.split("\n").filter(Boolean);
-              const tail = lines.slice(-30);
-              console.log(`  ${"\u2500".repeat(60)}`);
+              const tail = lines.slice(-20);
+              console.log(`  ${"\u2500".repeat(55)}`);
               for (const line of tail) console.log(`  ${line}`);
-              console.log(`  ${"\u2500".repeat(60)}`);
+              console.log(`  ${"\u2500".repeat(55)}`);
               if (!CONTINUE_ON_ERROR) {
-                console.log(`  Stopping \u2014 fix the failure and re-run.`);
-                server.kill("SIGTERM");
-                await new Promise((r) => setTimeout(r, 300));
                 server.kill("SIGKILL");
                 process.exit(1);
               }
             } else {
+              groupPassedCount++;
               passed++;
-              console.log(`  \u2713 ${name.padEnd(30)} ${durationSec}s`);
+              console.log(
+                `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u2705  ${durationSec}s`,
+              );
             }
-
-            // Re-render progress bar
-            const nextRemaining = getRemainingWeight(
-              runningTests,
-              groupQueue,
-              historicWeights,
-              concurrency,
-            );
-            renderProgressBar(
-              completedTests,
-              totalRunnable,
-              runningTests.size,
-              formatTime(nextRemaining),
-            );
           })();
 
           activePromises.push(testPromise);
@@ -603,10 +640,10 @@ async function run() {
           await Promise.race(activePromises);
         }
       }
-    }
 
-    // Clear progress bar line at end
-    process.stdout.write("\r\x1B[K");
+      clearInterval(UIInterval);
+      process.stdout.write("\r\x1B[K" + " ".repeat(80) + "\r\x1B[K");
+    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -627,13 +664,13 @@ async function run() {
       const content = fs.readFileSync(reportPath, "utf8");
       const regressions: string[] = [];
 
-      // Look for 🔴 indicators in trend labels
+      // Look for \uD83D\uDD34 indicators in trend labels
       const trendLines = content.split("\n").filter((l) => l.includes("### "));
       for (const line of trendLines) {
-        const m = line.match(/### [^\s]+\s+(.+?)\s+[⚪🟢🔴]/u);
+        const m = line.match(/### [^\s]+\s+(.+?)\s+[\u26AA\uD83D\uDFE2\uD83D\uDD34]/u);
         const name = m?.[1]?.trim();
         // Check for red indicators or negative percentages
-        if (line.includes("🔴")) {
+        if (line.includes("\uD83D\uDD34")) {
           const pct = line.match(/[-+]\d+%/);
           if (name && pct) regressions.push(`${name} ${pct[0]}`);
         }
@@ -673,7 +710,4 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error("Matrix failed:", err);
-  process.exit(1);
-});
+run();

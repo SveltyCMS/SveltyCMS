@@ -332,7 +332,7 @@ jobs:
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
-          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
+          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
           ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           HOST: 127.0.0.1
@@ -347,7 +347,7 @@ jobs:
             DB_NAME: "e2e_auth_test",
             DB_USER: "",
             DB_PASSWORD: "",
-            JWT_SECRET_KEY: "Auth-Setup-JWT-Secret-Key-2026",
+            JWT_SECRET_KEY: "Auth-Setup-JWT-Secret-Key-2026-32ch",
             ENCRYPTION_KEY: "Auth-Setup-Encryption-Key-2026-32ch",
             TEST_API_SECRET: "${TEST_API_SECRET}",
             PASSWORD_MIN_LENGTH: 8,
@@ -482,7 +482,7 @@ jobs:
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
-          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
+          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
           ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           HOST: 127.0.0.1
