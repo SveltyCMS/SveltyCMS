@@ -373,6 +373,10 @@ jobs:
           # Then run Auth Setup to generate auth state for other E2E tests
           bun x playwright test --project=auth-setup
 
+          # Cleanly stop background node server to flush SQLite WAL database file
+          pkill -f "node build/index.js" || true
+          sleep 2
+
       - name: Archive E2E Environment (single artifact)
         run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/
 
@@ -487,6 +491,7 @@ jobs:
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           HOST: 127.0.0.1
           PORT: 4173
+          SKIP_E2E_DEPS: "true"
         run: |
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           node build/index.js > preview.log 2>&1 &

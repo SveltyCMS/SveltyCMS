@@ -259,7 +259,7 @@ export default defineConfig({
       // tests are sharded here across parallel CI jobs.
       testIgnore: ["**/setup/setup-wizard.spec.ts", "**/auth.setup.ts", "**/login/login.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
+      dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },
   ],
 

@@ -590,6 +590,7 @@ describe("Database Interface Contract Tests", () => {
         username: "contract_user",
         password: "Password123!",
         isAdmin: false,
+        role: "user",
         tenantId: TEST_TENANT,
       });
 

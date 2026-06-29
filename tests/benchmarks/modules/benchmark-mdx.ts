@@ -124,6 +124,10 @@ const TEST_FILE_TO_TAG: Record<string, string> = {
   "cache-hit-ratio": "CACHE_EFFICIENCY",
   "client-journey": "JOURNEY",
   "state-machine-transition": "STATE_MACHINE",
+  "database-performance": "DB_RAW_P95",
+  "transaction-acid": "ACID",
+  "cache-performance": "CACHE",
+  "rest-api-performance": "REST",
 };
 
 function tagExistsInDoc(doc: string, tag: string): boolean {

@@ -28,21 +28,30 @@ async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
 
     // Extract summary status
     const statusMatch = content.match(
-      /## 📊 Summary.+?(\u2705 PASS|\u23F3 INCOMPLETE|\uD83D\uDD34 WARN)/u,
+      /\*\*Status:\*\*\s*(?:[^\w\s]*)\s*(PASS|FAIL|WARN|INCOMPLETE)/i,
     );
-    const status = statusMatch ? statusMatch[1].replace(/[✅⏳🔴]/gu, "").trim() : "?";
+    const status = statusMatch ? statusMatch[1].toUpperCase() : "⏳";
 
     // Extract core benchmark values from the summary table
-    const truthMatch = content.match(/Truth.*?\|\s*([\d.]+)/);
+    const truthMatch =
+      content.match(/REST \([^)]+\).*?\|\s*([\d.]+)/i) ||
+      content.match(/HTTP End-to-End.*?\|\s*([\d.]+)/i) ||
+      content.match(/Truth.*?\|\s*([\d.]+)/i);
     const truth = truthMatch ? `${truthMatch[1]}ms` : "-";
 
-    const coldMatch = content.match(/Cold.*?\|\s*([\d.]+)/);
+    const coldMatch =
+      content.match(/Cold Start.*?\|\s*([\d.]+)/i) || content.match(/Cold.*?\|\s*([\d.]+)/i);
     const cold = coldMatch ? `${coldMatch[1]}ms` : "-";
 
-    const hooksMatch = content.match(/Hooks Pipeline.*?\|\s*([\d.]+)/);
+    const hooksMatch =
+      content.match(/Middleware Hooks.*?\|\s*([\d.]+)/i) ||
+      content.match(/Hooks Pipeline.*?\|\s*([\d.]+)/i) ||
+      content.match(/Hooks.*?\|\s*([\d.]+)/i);
     const hooks = hooksMatch ? `${hooksMatch[1]}ms` : "-";
 
-    const insertMatch = content.match(/INSERT\s*\|\s*([\d.]+)/);
+    const insertMatch =
+      content.match(/INSERT\s*[|│]\s*([\d.]+)/u) ||
+      content.match(/DB Raw \(p95\).*?\|\s*([\d.]+)/i);
     const insert = insertMatch ? `${insertMatch[1]}ms` : "-";
 
     return {
@@ -78,7 +87,14 @@ async function main() {
   md += "| :--- | :--- | :--- | :--- | :--- | :--- |\n";
 
   for (const r of results) {
-    const icon = r.status === "PASS" ? "✅" : r.status.includes("WARN") ? "🔴" : "⏳";
+    const icon =
+      r.status === "PASS"
+        ? "✅"
+        : r.status === "FAIL"
+          ? "❌"
+          : r.status.includes("WARN")
+            ? "🔴"
+            : "⏳";
     md += `| **${r.db.toUpperCase()}** | ${r.coldStart} | ${r.truthHttp} | ${r.crudInsert} | ${r.hooks} | ${icon} ${r.status} |\n`;
   }
 
