@@ -342,7 +342,11 @@ export class TwoFactorAuthService {
       return newBackupCodes; // Return plain codes to user
     } catch (error: any) {
       const message = `Failed to regenerate backup codes: ${error.message}`;
-      logger.error(message, { userId, tenantId });
+      if (error.message.includes("2FA is not enabled")) {
+        logger.warn(message, { userId, tenantId });
+      } else {
+        logger.error(message, { userId, tenantId });
+      }
       throw new Error(message);
     }
   }
