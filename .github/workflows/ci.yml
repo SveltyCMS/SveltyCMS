@@ -75,10 +75,10 @@ jobs:
   # ------------------------------------------------
   security-audit:
     name: 🔒 Dependency Audit
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-sveltycms
@@ -101,11 +101,11 @@ jobs:
 
   format:
     name: 🖌️ Format Check
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-sveltycms
         with:
@@ -126,10 +126,10 @@ jobs:
 
   lint:
     name: 🔎 Lint
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-sveltycms
