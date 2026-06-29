@@ -185,7 +185,8 @@ function generateCorpus(knowledge: Set<string>): string[] {
     // Sprinkle known tokens for training value (repetition is gold for dicts)
     for (let i = 0; i < 8; i++) {
       const token = k[(i * 7 + 13) % k.length] || "title";
-      s = s.replace(/__TOKEN__/g, token).replace(/__ID__/g, "507f1f77bcf86cd7994390" + i);
+      s = s.replace("__TOKEN__", token);
+      s = s.replace("__ID__", "507f1f77bcf86cd7994390" + i);
     }
     return s;
   };
@@ -522,6 +523,7 @@ function selectAndWrite(
     return false;
   };
 
+  selectedStrings.push(c.str);
   for (const c of candidates) {
     if (currentBytes >= target) break;
     if (used.has(c.str) || isRedundant(c.str)) continue;
@@ -552,9 +554,8 @@ function selectAndWrite(
   dictContent = dictContent.subarray(0, target);
 
   // Proper zstd dictionary header (magic 0x37A430EC is the on-disk form for 0xEC30A437 value)
-  const MAGIC = Buffer.from([0x37, 0xa4, 0x30, 0xec]); // zstd dictionary magic
-  const DICT_ID = Buffer.from([0x53, 0x56, 0x4c, 0x54]); // 'SVLT' deterministic ID for this CMS
-  const finalDict = Buffer.concat([MAGIC, DICT_ID, dictContent]);
+  // Raw content dictionary (null-separated entries) — use with zstd --train or Brotli custom dict
+  const finalDict = dictContent;
 
   const outDir = join(process.cwd(), "static", "dictionaries");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
