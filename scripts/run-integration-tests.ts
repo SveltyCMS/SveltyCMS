@@ -359,7 +359,7 @@ export const privateEnv = {
   USE_REDIS: false,
   REDIS_HOST: "127.0.0.1",
   REDIS_PORT: 6379,
-  MULTI_TENANT: true,
+  MULTI_TENANT: false,
   DEMO: false,
   HOST_PROD: "${API_BASE_URL}"
 };
