@@ -346,8 +346,7 @@ function printProgressDashboard(opts: {
   const testEta = opts.runningCount > 0 ? ` | Test ETA: ${formatTime(opts.testEtaSeconds)}` : "";
   const line1 = `  \u2192 Group [${opts.groupName}]: ${opts.groupDone}/${opts.groupTotal} passed${active}${testEta}`;
   const line2 = `  \uD83D\uDCCA ${bar} ${Math.round(percent)}% | ${opts.completedGlobal}/${opts.totalGlobal} done | Total: ${formatTime(opts.globalEtaSeconds)}`;
-  process.stdout.write(`\r\x1B[K${line1}
-\x1B[K${line2}\r\x1B[A`);
+  process.stdout.write(`\r\x1B[K${line1}\n\x1B[K${line2}\x1B[1A`);
 }
 
 let globalRemainingFiles: string[] = [];
@@ -600,7 +599,7 @@ async function run() {
             totalElapsedTime += durationMs;
 
             // Wipe the dashboard line before logging permanent result
-            process.stdout.write("\r\x1B[K" + " ".repeat(80) + "\r\x1B[K");
+            process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
 
             const seqNum = groupPassedCount + 1;
             const durationSec = (durationMs / 1000).toFixed(1);
@@ -642,7 +641,7 @@ async function run() {
       }
 
       clearInterval(UIInterval);
-      process.stdout.write("\r\x1B[K" + " ".repeat(80) + "\r\x1B[K");
+      process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
