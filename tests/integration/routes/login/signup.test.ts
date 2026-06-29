@@ -15,13 +15,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import {
-  dropDatabase,
-  getUser,
-  getUserCount,
-  userExists,
-  waitFor,
-} from "../../helpers/db-helper";
+import { dropDatabase, getUser, getUserCount, userExists, waitFor } from "../../helpers/db-helper";
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:4173";
 
@@ -247,18 +241,13 @@ describe("Invitation-Based Signup Tests", () => {
       const initialUserCount = await getUserCount();
       expect(initialUserCount).toBe(0);
 
-      const response = await fetch(
-        `${API_BASE_URL}/login/oauth?provider=google`,
-        {
-          method: "GET",
-          redirect: "manual",
-        },
-      );
+      const response = await fetch(`${API_BASE_URL}/login/oauth?provider=google`, {
+        method: "GET",
+        redirect: "manual",
+      });
 
       if ([404, 500, 501].includes(response.status)) {
-        console.log(
-          "ℹ️ OAuth provider is unavailable in this environment. Skipping.",
-        );
+        console.log("ℹ️ OAuth provider is unavailable in this environment. Skipping.");
         return;
       }
 
@@ -281,9 +270,7 @@ describe("Invitation-Based Signup Tests", () => {
       );
 
       if ([404, 500, 501].includes(response.status)) {
-        console.log(
-          "ℹ️ OAuth provider is unavailable in this environment. Skipping.",
-        );
+        console.log("ℹ️ OAuth provider is unavailable in this environment. Skipping.");
         return;
       }
 
