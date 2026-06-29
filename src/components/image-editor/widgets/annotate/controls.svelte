@@ -1,10 +1,9 @@
 <!--
-@file: src/components/image-editor/toolbars/AnnotateControls.svelte
+@file: src/components/image-editor/widgets/annotate/controls.svelte
 @component
-Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling (colors).
+Pintura-style annotate bottom dock — single centered row with colors, text, and tools.
 -->
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
 	type ToolType = 'text' | 'arrow' | 'rectangle' | 'circle' | null;
 
 	let {
@@ -31,6 +30,13 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		onDeleteAnnotation?: () => void;
 	} = $props();
 
+	const annotateTools: { id: ToolType; label: string; icon: string }[] = [
+		{ id: 'text', label: 'Text', icon: 'mdi:format-text' },
+		{ id: 'arrow', label: 'Arrow', icon: 'mdi:arrow-top-right' },
+		{ id: 'rectangle', label: 'Rectangle', icon: 'mdi:rectangle-outline' },
+		{ id: 'circle', label: 'Ellipse', icon: 'mdi:circle-outline' }
+	];
+
 	function handleKeyDown(e: KeyboardEvent) {
 		if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') {
 			return;
@@ -45,153 +51,117 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="annotate-controls">
-	<!-- Tool Selection Group -->
-	<div class="tool-group">
-		<Button variant="outline" type="button" onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
-			<iconify-icon icon="mdi:format-text" width="20"></iconify-icon>
-		</Button>
-		<Button variant="outline"
-			type="button"
-			onclick={() => onSetTool(currentTool === 'arrow' ? null : 'arrow')}
-			title="Draw Arrow"
-			aria-label="Draw Arrow"
-		>
-			<iconify-icon icon="mdi:arrow-top-right" width="20"></iconify-icon>
-		</Button>
-		<Button variant="outline"
-			type="button"
-			onclick={() => onSetTool(currentTool === 'rectangle' ? null : 'rectangle')}
-			title="Draw Rectangle"
-			aria-label="Draw Rectangle"
-		>
-			<iconify-icon icon="mdi:rectangle-outline" width="20"></iconify-icon>
-		</Button>
-		<Button variant="outline"
-			type="button"
-			onclick={() => onSetTool(currentTool === 'circle' ? null : 'circle')}
-			title="Draw Circle"
-		>
-			<iconify-icon icon="mdi:circle-outline" width="20"></iconify-icon>
-		</Button>
-	</div>
-
-	{#if currentTool === 'text' && onTextDraftChange}
-		<div class="text-panel">
-			<label class="text-label" for="annotation-text">Text</label>
-			<input
-				id="annotation-text"
-				class="text-input"
-				type="text"
-				value={textDraft}
-				placeholder="Enter annotation text"
-				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
-			/>
-			<Button variant="outline" type="button" onclick={() => onSetTool('text')} title="Click canvas to place text">
-				Place text
-			</Button>
+<div class="editor-dock annotate-dock" role="toolbar" aria-label="Annotate controls">
+	<div class="dock-row dock-row-scroll annotate-row">
+		<div class="dock-pill-group color-group">
+			<span class="group-label">line</span>
+			<label class="color-trigger" title="Stroke color">
+				<input
+					type="color"
+					class="color-input"
+					value={strokeColor}
+					oninput={(e) => onStrokeColorChange(e.currentTarget.value)}
+					aria-label="Stroke color"
+				/>
+				<span class="color-swatch" style:background-color={strokeColor}></span>
+			</label>
 		</div>
-	{/if}
 
-	<div class="divider"></div>
+		<div class="dock-pill-group color-group">
+			<span class="group-label">fill</span>
+			<label class="color-trigger" title="Fill color">
+				<input
+					type="color"
+					class="color-input"
+					value={fillColor}
+					oninput={(e) => onFillColorChange(e.currentTarget.value)}
+					aria-label="Fill color"
+				/>
+				<span class="color-swatch" style:background-color={fillColor}></span>
+			</label>
+		</div>
 
-	<!-- Color Pickers -->
-	<div class="color-group">
-		<label class="color-picker-label" title="Stroke Color">
-			<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor}  aria-label="Input" />
-			<div class="color-swatch" style:background-color={strokeColor}></div>
-			<iconify-icon icon="mdi:pencil-outline" class="picker-icon" width="12"></iconify-icon>
-		</label>
+		{#if currentTool === 'text' && onTextDraftChange}
+			<div class="dock-pill-group text-group">
+				<span class="group-label">text</span>
+				<input
+					id="annotation-text"
+					class="dock-input text-input"
+					type="text"
+					value={textDraft}
+					placeholder="Enter text"
+					oninput={(e) => onTextDraftChange(e.currentTarget.value)}
+					aria-label="Annotation text"
+				/>
+			</div>
+		{/if}
 
-		<label class="color-picker-label" title="Fill Color">
-			<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor}  aria-label="Input" />
-			<div class="color-swatch" style:background-color={fillColor}></div>
-			<iconify-icon icon="mdi:format-color-fill" class="picker-icon" width="12"></iconify-icon>
-		</label>
+		{#if hasSelection && onDeleteAnnotation}
+			<button type="button" class="dock-pill" onclick={onDeleteAnnotation} title="Delete selected annotation" aria-label="Delete annotation">
+				<iconify-icon icon="mdi:delete-outline" width="15" aria-hidden="true"></iconify-icon>
+				<span>Delete</span>
+			</button>
+		{/if}
+
+		<div class="dock-pill-group tools-group">
+			{#each annotateTools as tool (tool.id)}
+				<button
+					type="button"
+					class="dock-pill"
+					class:dock-pill-active={currentTool === tool.id}
+					onclick={() => onSetTool(tool.id)}
+					title={tool.label}
+					aria-pressed={currentTool === tool.id}
+					aria-label={tool.label}
+				>
+					<iconify-icon icon={tool.icon} width="15" aria-hidden="true"></iconify-icon>
+					<span>{tool.label}</span>
+				</button>
+			{/each}
+		</div>
 	</div>
-
-	{#if hasSelection && onDeleteAnnotation}
-		<Button variant="outline" type="button" onclick={onDeleteAnnotation} title="Delete selected annotation">
-			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-			<span>Delete</span>
-		</Button>
-	{/if}
 </div>
 
 <style>
-	.annotate-controls {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.9rem;
+	@import '../../editor-dock.css';
+
+	.annotate-dock {
+		gap: 0;
+	}
+
+	.annotate-row {
 		align-items: center;
-		justify-content: flex-start;
-		width: 100%;
-		padding: 0;
 	}
 
-	.tool-group {
-		display: flex;
-		gap: 0.25rem;
-		padding: 0.25rem;
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 9999px;
-	}
-
-	.divider {
-		width: 1px;
-		height: 1.5rem;
-		background: rgba(255, 255, 255, 0.1);
-	}
-
-	.color-group {
-		display: flex;
-		gap: 0.75rem;
-	}
-
-	.text-panel {
-		display: flex;
+	.color-group,
+	.text-group,
+	.tools-group {
+		display: inline-flex;
 		align-items: center;
-		flex: 1 1 18rem;
-		gap: 0.5rem;
-		padding: 0.35rem 0.5rem;
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 0.75rem;
+		gap: 0.375rem;
+		padding-inline: 0.5rem;
 	}
 
-	.text-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #9ca3af;
+	.group-label {
+		font-size: 0.625rem;
+		font-weight: 400;
+		color: rgba(255, 255, 255, 0.45);
+		text-transform: lowercase;
+		white-space: nowrap;
 	}
 
-	.text-input {
-		min-width: 0;
-		flex: 1 1 auto;
-		padding: 0.45rem 0.65rem;
-		color: #fff;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 0.5rem;
-		outline: none;
-	}
-
-	.text-input:focus {
-		border-color: rgb(var(--color-primary-500) / 1);
-		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
-	}
-
-	.color-picker-label {
+	.color-trigger {
 		position: relative;
-		width: 2rem;
-		height: 2rem;
+		display: block;
+		width: 1.375rem;
+		height: 1.375rem;
+		flex-shrink: 0;
 		cursor: pointer;
 	}
 
-	.input-color {
+	.color-input {
 		position: absolute;
-		z-index: 10;
+		inset: 0;
 		width: 100%;
 		height: 100%;
 		cursor: pointer;
@@ -199,64 +169,27 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	}
 
 	.color-swatch {
+		display: block;
 		width: 100%;
 		height: 100%;
-		border: 2px solid rgba(255, 255, 255, 0.2);
+		border: 2px solid rgba(255, 255, 255, 0.25);
 		border-radius: 50%;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
 	}
 
-	.picker-icon {
-		position: absolute;
-		right: -4px;
-		bottom: -4px;
-		z-index: 5;
-		padding: 2px;
-		color: #9ca3af;
-		background: #1f2937;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 50%;
+	.text-input {
+		min-width: 7rem;
+		height: 1.5rem;
 	}
 
-	@media (max-width: 768px) {
-		.annotate-controls {
-			align-items: stretch;
-			gap: 0.7rem;
-			padding: 0.1rem;
-		}
+	.tools-group .dock-pill {
+		height: 1.625rem;
+		padding-inline: 0.55rem;
+	}
 
-		.tool-group {
-			order: 1;
-			width: fit-content;
-			max-width: 100%;
-			overflow-x: auto;
-		}
-
-		.text-panel {
-			order: 2;
-			flex-basis: 100%;
-			flex-wrap: wrap;
-			align-items: stretch;
-			padding: 0.5rem;
-			border: 1px solid rgba(255, 255, 255, 0.08);
-		}
-
-		.text-label {
-			width: 100%;
-		}
-
+	@media (max-width: 640px) {
 		.text-input {
-			width: 100%;
+			min-width: 5.5rem;
 		}
-
-		.divider {
-			display: none;
-		}
-
-		.color-group {
-			order: 3;
-			gap: 0.55rem;
-		}
-
 	}
 </style>

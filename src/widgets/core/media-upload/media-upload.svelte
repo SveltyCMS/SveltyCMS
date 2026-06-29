@@ -26,6 +26,7 @@ functionality for image editing and basic file information display.
 	type Any = any;
 
 	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
+	import { IMAGE_EDITOR_MODAL_CLASSES, IMAGE_EDITOR_MODAL_SIZE } from '@src/components/image-editor/image-editor-modal.ts';
 	// Components
 	import FileUpload from '@components/ui/file-upload.svelte';
 	import type { ISODateString } from '@src/content/types';
@@ -46,6 +47,7 @@ functionality for image editing and basic file information display.
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
 	import { getFieldName } from '@utils/utils';
 	import { formatDateString } from '@utils/date';
+	import { modalState } from '@utils/modal.svelte';
 	import Badge from '@components/ui/badge.svelte';
 
 	// Define reactive state
@@ -53,7 +55,6 @@ functionality for image editing and basic file information display.
 
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
-	let showEditor = $state(false);
 
 	// Define props
 	let { field, value = $bindable<File | MediaImage | undefined>(), collectionName, tenantId } = $props(); // 'value' is the bindable prop
@@ -125,6 +126,17 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
+	function openImageEditor() {
+		if (!value) return;
+		modalState.trigger(ImageEditorModal as any, {
+			image: value,
+			watermarkPreset,
+			onsave: handleEditorSave,
+			size: IMAGE_EDITOR_MODAL_SIZE,
+			modalClasses: IMAGE_EDITOR_MODAL_CLASSES,
+		});
+	}
+
 	async function handleEditorSave(detail: any) {
 		const { mediaId, manipulations } = detail;
 
@@ -155,7 +167,7 @@ functionality for image editing and basic file information display.
 
 			// Update the widget data with the new persisted image data
 			value = result.data;
-			showEditor = false;
+			modalState.close();
 		} catch (error) {
 			logger.error('Error saving edited image:', error);
 		}
@@ -326,7 +338,7 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
-						<Button variant="outline" onclick={() => (showEditor = true)} aria-label="Edit image" title="Edit image" class="p-0! min-w-0">
+						<Button variant="outline" onclick={openImageEditor} aria-label="Edit image" title="Edit image" class="p-0! min-w-0">
 							<iconify-icon icon="material-symbols:edit" width={24}></iconify-icon>
 						</Button>
 
@@ -350,10 +362,5 @@ functionality for image editing and basic file information display.
 		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>
-	{/if}
-
-	<!-- Editor Modal -->
-	{#if showEditor}
-		<ImageEditorModal image={value} {watermarkPreset} onsave={handleEditorSave} close={() => (showEditor = false)} />
 	{/if}
 </div>

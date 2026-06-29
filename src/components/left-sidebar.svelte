@@ -46,11 +46,10 @@
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { goto } from '$app/navigation';
 	// Stores
-	import { contentStructure } from '@src/stores/collection-store.svelte';
-	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
-	import { ui, uiStateManager, toggleUIElement } from '@src/stores/ui-store.svelte';
+	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
+	import { ui, uiStateManager, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { systemLanguage } from '@src/stores/store.svelte';
+	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
@@ -136,7 +135,7 @@
 	);
 
 	const avatarUrl = $derived.by(() => {
-		let src = user?.avatar ?? '/Default_User.svg';
+		let src = avatarSrc.value;
 		if (!src || src === 'Default_User.svg' || src === '/Default_User.svg') {
 			return '/Default_User.svg';
 		}
@@ -145,8 +144,11 @@
 		}
 
 		// Normalize path
+		// 1. Remove leading slashes
 		src = src.replace(/^\/+/, '');
+		// 2. Remove prefixes
 		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+		// 3. Remove leading slashes again just in case
 		src = src.replace(/^\/+/, '');
 
 		return `/files/${src}?t=${AVATAR_CACHE_BUSTER}`;
@@ -179,48 +181,42 @@
 	// Unused settings helper removed
 
 	function toggleSidebar(): void {
-		const newState: SidebarState = ui.state.leftSidebar === 'full' ? 'collapsed' : 'full';
+		const current = uiStateManager.uiState.value.leftSidebar;
+		const newState: SidebarState = current === 'full' ? 'collapsed' : 'full';
 		toggleUIElement('leftSidebar', newState);
+		userPreferredState.set(newState);
 	}
 
 	function handleUserClick(): void {
 		if (isMobile()) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
-		modeTransitionGuard.setMode('view');
+		setMode('view');
 	}
 
 	function handleConfigClick(): void {
 		if (isMobile()) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
-		modeTransitionGuard.setMode('view');
+		setMode('view');
 	}
 
 	async function signOut(): Promise<void> {
 		try {
-			let res = await fetch('/api/user/logout', {
+			await fetch('/api/user/logout', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					'X-CSRF-Token': page.data.csrfToken
 				}
 			});
-			if (!res.ok && res.status === 403) {
-				await invalidateAll();
-				await new Promise(r => setTimeout(r, 100));
-				await fetch('/api/user/logout', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-CSRF-Token': page.data.csrfToken
-					}
-				});
-			}
 		} catch (error) {
 			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 		} finally {
-			if (browser) window.location.href = '/login';
+			// Always redirect to login, even if logout fails
+			if (browser) {
+				window.location.href = '/login';
+			}
 		}
 	}
 
@@ -267,7 +263,7 @@
 	<!-- Expand/Collapse Button -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: 'end' }}
+		positioning={{ placement: 'right' }}
 		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
@@ -353,25 +349,23 @@
 
 			<!-- 2. Collections -->
 			<div class="space-y-1">
-				{#if !currentPath.includes('/collection/')}
-					<Button variant="secondary"
-						type="button"
-						onclick={handleCollectionsClick}
-						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-					 aria-label="Toggle collections">
-						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}Collections{/if}
-						</span>
-						{#if isSidebarFull}
-							<iconify-icon
-								icon="bi:chevron-down"
-								width="12"
-								class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
-							></iconify-icon>
-						{/if}
-					</Button>
-				{/if}
+				<Button variant="ghost"
+					type="button"
+					onclick={handleCollectionsClick}
+					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
+				 aria-label="Toggle collections">
+					<span class="flex items-center gap-1.5">
+						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{#if isSidebarFull}Collections{/if}
+					</span>
+					{#if isSidebarFull}
+						<iconify-icon
+							icon="bi:chevron-down"
+							width="12"
+							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
+					{/if}
+				</Button>
 				{#if isCollectionsOpen && showCollectionsHere}
 					<div class="px-1">
 						<Collections />
@@ -382,48 +376,51 @@
 
 			<!-- 3. Media Gallery -->
 			<div class="space-y-1">
-				{#if !currentPath.includes('/mediagallery')}
-				<Button variant="outline"
-					type="button"
-
-					onclick={() => {
-						goto('/mediagallery');
-						if (isMobile()) {
-							toggleUIElement('leftSidebar', 'collapsed');
-						}
-					}}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-				>
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}{Collections_MediaGallery()}{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
-				{/if}
-				{#if isMediaOpen}
-					<div class="px-1 space-y-2">
-						{#if isSidebarFull && !currentPath.includes('/mediagallery')}
-							<a
-								href="/mediagallery"
-								data-sveltekit-preload-data="hover"
-								class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
-								onclick={() => {
-									if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
-								}}
-							>
-								<iconify-icon icon="bi:images" width="14"></iconify-icon>
-								Open Media Gallery
-							</a>
-						{/if}
+				{#if currentPath.includes('/mediagallery') && isSidebarFull}
+					<div class="px-1">
 						<MediaFolders />
 					</div>
+				{:else}
+					<Button variant="ghost"
+						type="button"
+						onclick={() => {
+							goto('/mediagallery');
+							if (isMobile()) {
+								toggleUIElement('leftSidebar', 'collapsed');
+							}
+						}}
+						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
+					>
+						<span class="flex items-center gap-1.5">
+							<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}{Collections_MediaGallery()}{/if}
+						</span>
+						{#if isSidebarFull}
+							<iconify-icon
+								icon="bi:chevron-down"
+								width="12"
+								class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
+							></iconify-icon>
+						{/if}
+					</Button>
+					{#if isMediaOpen}
+						<div class="px-1 space-y-2">
+							{#if isSidebarFull && !currentPath.includes('/mediagallery')}
+								<a
+									href="/mediagallery"
+									data-sveltekit-preload-data="hover"
+									class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
+									onclick={() => {
+										if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
+									}}
+								>
+									<iconify-icon icon="bi:images" width="14"></iconify-icon>
+									Open Media Gallery
+								</a>
+							{/if}
+							<MediaFolders />
+						</div>
+					{/if}
 				{/if}
 			</div>
 		{/if}
