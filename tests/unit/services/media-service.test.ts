@@ -1,12 +1,10 @@
-import { describe, it, expect, beforeEach, vi, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MediaService } from "@src/utils/media/media-service.server";
 
 // Mock dependencies
 vi.mock("sharp", () => ({
   default: vi.fn(() => ({
-    metadata: vi
-      .fn()
-      .mockResolvedValue({ width: 1000, height: 1000, format: "jpg" }),
+    metadata: vi.fn().mockResolvedValue({ width: 1000, height: 1000, format: "jpg" }),
     rotate: vi.fn().mockReturnThis(),
     flop: vi.fn().mockReturnThis(),
     flip: vi.fn().mockReturnThis(),
@@ -78,12 +76,10 @@ describe("MediaService (Whitebox)", () => {
         .mockResolvedValueOnce({ success: true, data: mockItems[1] });
 
       // Mock manipulation logic (since manipulateMedia reads files)
-      vi.spyOn(mediaService as any, "manipulateMedia").mockImplementation(
-        async (id) => ({
-          _id: id,
-          success: true,
-        }),
-      );
+      vi.spyOn(mediaService as any, "manipulateMedia").mockImplementation(async (id) => ({
+        _id: id,
+        success: true,
+      }));
 
       const results = await mediaService.batchProcessImages(
         ["id1", "id2"],
@@ -111,12 +107,10 @@ describe("MediaService (Whitebox)", () => {
         })
         .mockResolvedValueOnce({ success: false, error: "Not found" });
 
-      vi.spyOn(mediaService as any, "manipulateMedia").mockImplementation(
-        async (id) => {
-          if (id === "id2") throw new Error("Failed");
-          return { _id: id } as any;
-        },
-      );
+      vi.spyOn(mediaService as any, "manipulateMedia").mockImplementation(async (id) => {
+        if (id === "id2") throw new Error("Failed");
+        return { _id: id } as any;
+      });
 
       const results = await mediaService.batchProcessImages(
         ["id1", "id2"],
@@ -137,9 +131,7 @@ describe("MediaService (Whitebox)", () => {
     });
 
     it("should fallback to document for unknown application/ types", () => {
-      expect(mediaService.getMediaType("application/x-executable")).toBe(
-        "document",
-      );
+      expect(mediaService.getMediaType("application/x-executable")).toBe("document");
     });
   });
 });

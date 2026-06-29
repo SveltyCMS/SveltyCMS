@@ -57,8 +57,7 @@ describe("MediaService — Sharp Pipeline", () => {
     storageMock.saveFile.mockResolvedValue(undefined);
     storageMock.fileExists.mockResolvedValue(true);
 
-    const { MediaService } =
-      await import("@src/utils/media/media-service.server");
+    const { MediaService } = await import("@src/utils/media/media-service.server");
     mediaService = new MediaService(mockDbAdapter as any);
   });
 

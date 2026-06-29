@@ -83,18 +83,12 @@ if (isBun) {
       return m;
     },
     spyOn: (obj: any, method: string) => {
-      if (!obj)
-        throw new Error(
-          `spyOn: target object is undefined for method "${method}"`,
-        );
+      if (!obj) throw new Error(`spyOn: target object is undefined for method "${method}"`);
       const spy = bunTest.spyOn(obj, method);
       spies.push(spy);
       return spy;
     },
-    mock: (
-      path: string,
-      factory?: (importOriginal: () => Promise<any>) => any,
-    ) => {
+    mock: (path: string, factory?: (importOriginal: () => Promise<any>) => any) => {
       const importOriginal = () => import(`${path}?bun-unmock=${Date.now()}`);
       if (factory) {
         bunTest.mock.module(path, () => factory(importOriginal));
@@ -173,9 +167,7 @@ if (isBun) {
 const isTestTarget = (path: string) => {
   // Normalize backslashes for Windows
   const normalizedPath = path.replace(/\\/g, "/");
-  const normalizedCurrentTest = currentTest
-    ? currentTest.replace(/\\/g, "/")
-    : "";
+  const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
 
   if (normalizedCurrentTest.includes("security-response-service")) {
     if (normalizedPath.includes("security-response-service")) return true;
@@ -189,15 +181,13 @@ const isTestTarget = (path: string) => {
           if (normalizedPath.includes("security-response-service")) return true;
         }
         // Use testPath as the primary source of truth if available
-        const targetPart =
-          path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
+        const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
         return normalizedTestPath.includes(targetPart);
       }
     } catch {}
   }
   // Fallback to simpler check for path using global currentTest
-  const targetPart =
-    path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
+  const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
   return currentTest && currentTest.includes(targetPart);
 };
 
@@ -261,9 +251,7 @@ if (typeof (import.meta as any).glob !== "function") {
       const modules: Record<string, any> = {};
       const entries = fs.readdirSync(scanDir, { withFileTypes: true });
       if (process.env.VERBOSE_TESTS === "true") {
-        console.log(
-          `[setup.ts] Scanning ${scanDir}, found ${entries.length} entries`,
-        );
+        console.log(`[setup.ts] Scanning ${scanDir}, found ${entries.length} entries`);
       }
 
       for (const entry of entries) {
@@ -418,12 +406,7 @@ const moduleMock = (path: string, factory: () => any) => {
     // ⚡ BENCHMARK MODE: Only mock virtual SvelteKit modules ($app/*, $env/*)
     if (!path.startsWith("$")) return;
   } else if (!ENABLE_MOCKS) {
-    if (
-      !path.startsWith("$") &&
-      !path.includes("svelte") &&
-      !path.includes("scanner")
-    )
-      return;
+    if (!path.startsWith("$") && !path.includes("svelte") && !path.includes("scanner")) return;
   }
 
   if (isBun) {
@@ -452,8 +435,7 @@ const mockLogger = {
     if (process.env.VERBOSE_TESTS) console.error(`[FATAL] ${msg}`);
   }),
   error: mock((msg: any, details?: any) => {
-    if (process.env.VERBOSE_TESTS)
-      console.error(`[ERROR] ${msg}`, details || "");
+    if (process.env.VERBOSE_TESTS) console.error(`[ERROR] ${msg}`, details || "");
   }),
   warn: mock((msg: any) => {
     if (process.env.VERBOSE_TESTS) console.warn(`[WARN] ${msg}`);
@@ -608,12 +590,7 @@ const $state = Object.assign(
   (v: any) => {
     // Only use Proxy for objects/arrays to allow deep reactivity simulation
     if (typeof v === "object" && v !== null) {
-      if (
-        v instanceof Map ||
-        v instanceof Set ||
-        v instanceof Date ||
-        v instanceof RegExp
-      ) {
+      if (v instanceof Map || v instanceof Set || v instanceof Date || v instanceof RegExp) {
         return v;
       }
       return new Proxy(v, {
@@ -723,8 +700,7 @@ const svelteCommon = {
   afterUpdate: (fn: any) => fn?.(),
   tick: () => Promise.resolve(),
   getAllContexts: () => (globalThis as any).__svelte_context_map__ || new Map(),
-  getContext: (key: any) =>
-    ((globalThis as any).__svelte_context_map__ || new Map()).get(key),
+  getContext: (key: any) => ((globalThis as any).__svelte_context_map__ || new Map()).get(key),
   setContext: (key: any, v: any) => {
     if (!(globalThis as any).__svelte_context_map__) {
       (globalThis as any).__svelte_context_map__ = new Map();
@@ -732,8 +708,7 @@ const svelteCommon = {
     (globalThis as any).__svelte_context_map__.set(key, v);
     return v;
   },
-  hasContext: (key: any) =>
-    ((globalThis as any).__svelte_context_map__ || new Map()).has(key),
+  hasContext: (key: any) => ((globalThis as any).__svelte_context_map__ || new Map()).has(key),
   mount: (component: any, options: any) => ({
     component,
     options,
@@ -828,12 +803,7 @@ class AppError extends Error {
   code: string;
   details: any;
   originalError: any;
-  constructor(
-    message: string,
-    status = 500,
-    code: string | any = "INTERNAL_ERROR",
-    details?: any,
-  ) {
+  constructor(message: string, status = 500, code: string | any = "INTERNAL_ERROR", details?: any) {
     super(message);
     this.status = status;
     this.name = "AppError";
@@ -854,14 +824,11 @@ setGlobal("AppError", AppError);
 
 const isAppError = (v: any): v is AppError => {
   if (!v || typeof v !== "object") return false;
-  return (
-    v instanceof AppError || v.name === "AppError" || v.__isAppError === true
-  );
+  return v instanceof AppError || v.name === "AppError" || v.__isAppError === true;
 };
 (AppError.prototype as any).__isAppError = true;
 
-const isHttpError = (v: any) =>
-  v !== null && typeof v === "object" && typeof v.status === "number";
+const isHttpError = (v: any) => v !== null && typeof v === "object" && typeof v.status === "number";
 
 const getErrorMessage = (error: any): string => {
   if (error instanceof Error) return error.message;
@@ -882,20 +849,11 @@ const getErrorMessage = (error: any): string => {
   return String(error);
 };
 
-const wrapError = (
-  error: any,
-  message = "An unexpected error occurred",
-  status = 500,
-) => {
+const wrapError = (error: any, message = "An unexpected error occurred", status = 500) => {
   if (isAppError(error)) return error;
   if (isHttpError(error)) {
     const bodyMsg = (error as any).body?.message;
-    return new AppError(
-      bodyMsg || message,
-      error.status,
-      `HTTP_${error.status}`,
-      error,
-    );
+    return new AppError(bodyMsg || message, error.status, `HTTP_${error.status}`, error);
   }
   const errorMsg = getErrorMessage(error);
   const finalMessage = errorMsg || message;
@@ -909,8 +867,7 @@ moduleMock("@src/utils/error-handling", () => ({
   getErrorMessage,
   wrapError,
   handleApiError: mock((err: any) => {
-    const status =
-      err?.status || (isHttpError(err) ? (err as any).status : 500);
+    const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
     // Don't log expected errors during tests unless requested
     if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
       // Quiet mode for tests
@@ -927,9 +884,7 @@ moduleMock("@src/utils/error-handling", () => ({
       JSON.stringify({
         success: false,
         message: getErrorMessage(err),
-        code:
-          err?.code ||
-          (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
+        code: err?.code || (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
       }),
       {
         status,
@@ -945,8 +900,7 @@ moduleMock("@utils/error-handling", () => ({
   getErrorMessage,
   wrapError,
   handleApiError: mock((err: any) => {
-    const status =
-      err?.status || (isHttpError(err) ? (err as any).status : 500);
+    const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
     // Don't log expected errors during tests unless requested
     if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
       // Quiet mode for tests
@@ -963,9 +917,7 @@ moduleMock("@utils/error-handling", () => ({
       JSON.stringify({
         success: false,
         message: getErrorMessage(err),
-        code:
-          err?.code ||
-          (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
+        code: err?.code || (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
       }),
       {
         status,
@@ -981,8 +933,7 @@ moduleMock("@utils/error-handling", () => ({
 function createWidgetFactory(name: string, type: "core" | "custom" = "core") {
   const fn = (config: any) => ({
     ...config,
-    db_fieldName:
-      config?.db_fieldName || config?.label?.toLowerCase() || "field",
+    db_fieldName: config?.db_fieldName || config?.label?.toLowerCase() || "field",
     widget: { Name: name },
   });
   return Object.assign(fn, {
@@ -1061,10 +1012,7 @@ if (isBun && !isBenchmark && ENABLE_MOCKS) {
 }
 
 // Also set globalThis.widgets for direct eval() access in safelyParseSchema
-if (
-  !(globalThis as any).widgets ||
-  Object.keys((globalThis as any).widgets).length === 0
-) {
+if (!(globalThis as any).widgets || Object.keys((globalThis as any).widgets).length === 0) {
   const widgetsObj: Record<string, any> = {
     initialize: async () => {},
     getWidget: (name: string) => widgetMap.get(name),
@@ -1129,9 +1077,7 @@ const mockMetricsService = {
 };
 
 const mockSecurityResponseService = {
-  analyzeRequest: mock(() =>
-    Promise.resolve({ level: "none", action: "allow" }),
-  ),
+  analyzeRequest: mock(() => Promise.resolve({ level: "none", action: "allow" })),
   checkRateLimit: mock(() => ({ allowed: true, limit: 100, count: 0 })),
   blockIp: mock(() => Promise.resolve()),
   reportSecurityEvent: mock(() => {}),
@@ -1193,9 +1139,7 @@ if (!isTestTarget("cache-service")) {
 
 moduleMock("sharp", () => {
   const sharpInstance: any = {
-    metadata: mock(() =>
-      Promise.resolve({ width: 100, height: 100, format: "jpeg" }),
-    ),
+    metadata: mock(() => Promise.resolve({ width: 100, height: 100, format: "jpeg" })),
     resize: mock(() => sharpInstance),
     toBuffer: mock(() => Promise.resolve(Buffer.from("mock-buffer"))),
     jpeg: mock(() => sharpInstance),
@@ -1227,8 +1171,7 @@ moduleMock("sharp", () => {
 
 const settingsMock = {
   getPrivateSettingSync: mock((key: string) => {
-    const env =
-      (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
+    const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
     if (env && key in env) return env[key];
     const defaults: Record<string, any> = {
       DB_TYPE: "mongodb",
@@ -1238,12 +1181,9 @@ const settingsMock = {
     };
     return defaults[key];
   }),
-  getPublicSettingSync: mock((key: string) =>
-    key === "SITE_NAME" ? "SveltyCMS Test" : undefined,
-  ),
+  getPublicSettingSync: mock((key: string) => (key === "SITE_NAME" ? "SveltyCMS Test" : undefined)),
   getPrivateSetting: mock(async (key: string) => {
-    const env =
-      (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
+    const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
     if (env && key in env) return env[key];
     return "mongodb";
   }),
@@ -1292,9 +1232,7 @@ const mockAuditLog = {
 };
 const mockDbAdapter = {
   auth: {
-    getUserById: mock((id: string) =>
-      Promise.resolve({ success: true, data: { _id: id } }),
-    ),
+    getUserById: mock((id: string) => Promise.resolve({ success: true, data: { _id: id } })),
     getSessionTokenData: mock(() =>
       Promise.resolve({
         success: true,
@@ -1306,18 +1244,14 @@ const mockDbAdapter = {
     ),
     getUserBySamlId: mock(() => Promise.resolve(null)),
     getUserByEmail: mock(() => Promise.resolve(null)),
-    createUser: mock(() =>
-      Promise.resolve({ success: true, data: { _id: "new-user" } }),
-    ),
+    createUser: mock(() => Promise.resolve({ success: true, data: { _id: "new-user" } })),
     createSession: mock(() => Promise.resolve({ _id: "session-123" })),
     checkUser: mock(() => Promise.resolve(null)),
     getTokenByValue: mock(() => Promise.resolve(null)),
     updateToken: mock(() => Promise.resolve({ success: true })),
     deleteTokens: mock(() => Promise.resolve(1)),
     getAllTokens: mock(() => Promise.resolve({ success: true, data: [] })),
-    createToken: mock(() =>
-      Promise.resolve({ success: true, data: "token-123" }),
-    ),
+    createToken: mock(() => Promise.resolve({ success: true, data: "token-123" })),
     getTokenById: mock(() => Promise.resolve({ success: true, data: null })),
     blockTokens: mock(() => Promise.resolve(1)),
     unblockTokens: mock(() => Promise.resolve(1)),
@@ -1329,9 +1263,7 @@ const mockDbAdapter = {
     }),
     getAllRoles: mock(() =>
       Promise.resolve(
-        (globalThis as any).__mockRoles ?? [
-          { _id: "admin", isAdmin: true, name: "Admin" },
-        ],
+        (globalThis as any).__mockRoles ?? [{ _id: "admin", isAdmin: true, name: "Admin" }],
       ),
     ),
     ensureAuth: mock(() => Promise.resolve()),
@@ -1350,9 +1282,7 @@ const mockDbAdapter = {
       attributes: {},
     })),
     authInterface: {
-      getUserById: mock((id: string) =>
-        Promise.resolve({ success: true, data: { _id: id } }),
-      ),
+      getUserById: mock((id: string) => Promise.resolve({ success: true, data: { _id: id } })),
     },
   },
   system: {
@@ -1364,15 +1294,11 @@ const mockDbAdapter = {
       deleteMany: mock(() => Promise.resolve({ success: true })),
     },
     widgets: {
-      getActiveWidgets: mock(() =>
-        Promise.resolve({ success: true, data: [] }),
-      ),
+      getActiveWidgets: mock(() => Promise.resolve({ success: true, data: [] })),
     },
   },
   crud: {
-    insert: mock(() =>
-      Promise.resolve({ success: true, data: { _id: "mock-id" } }),
-    ),
+    insert: mock(() => Promise.resolve({ success: true, data: { _id: "mock-id" } })),
     insertMany: mock(() => Promise.resolve({ success: true, data: [] })),
     update: mock(() => Promise.resolve({ success: true })),
     updateMany: mock(() => Promise.resolve({ success: true })),
@@ -1413,9 +1339,7 @@ const mockDbAdapter = {
     },
   },
   collection: {
-    getModel: mock(() =>
-      Promise.resolve({ _id: "mock_col", name: "mock_col", fields: [] }),
-    ),
+    getModel: mock(() => Promise.resolve({ _id: "mock_col", name: "mock_col", fields: [] })),
     createModel: mock(() => Promise.resolve({ success: true })),
     listSchemas: mock(() => Promise.resolve({ success: true, data: [] })),
   },
@@ -1430,23 +1354,20 @@ const dbMock = {
   dbAdapter: mockDbAdapter,
   auth: mockDbAdapter.auth,
   getDb: () => {
-    if (process.env.VERBOSE_TESTS === "true")
-      console.log("[setup.ts] dbMock.getDb called");
+    if (process.env.VERBOSE_TESTS === "true") console.log("[setup.ts] dbMock.getDb called");
     return mockDbAdapter;
   },
   getAuth: () => mockDbAdapter.auth,
   getPrivateEnv: mock(
     () =>
-      (globalThis as any).privateEnv ||
-      (globalThis as any).__privateEnv || { DB_TYPE: "mongodb" },
+      (globalThis as any).privateEnv || (globalThis as any).__privateEnv || { DB_TYPE: "mongodb" },
   ),
   setPrivateEnv: mock((env: any) => {
     (globalThis as any).privateEnv = env;
   }),
   loadPrivateConfig: mock(() =>
     Promise.resolve(
-      (globalThis as any).privateEnv ||
-        (globalThis as any).__privateEnv || { DB_TYPE: "mongodb" },
+      (globalThis as any).privateEnv || (globalThis as any).__privateEnv || { DB_TYPE: "mongodb" },
     ),
   ),
   clearPrivateConfigCache: mock(() => {}),
@@ -1570,9 +1491,7 @@ let setupStateValue = SetupState.COMPLETE;
 const mockSetupCheck = {
   isSetupComplete: mock(() => setupStateValue === SetupState.COMPLETE),
   isSetupFullyComplete: mock(() => setupStateValue === SetupState.COMPLETE),
-  isSetupCompleteAsync: mock(
-    async () => setupStateValue === SetupState.COMPLETE,
-  ),
+  isSetupCompleteAsync: mock(async () => setupStateValue === SetupState.COMPLETE),
   getSetupState: mock(async () => setupStateValue),
   SetupState,
   invalidateSetupCache: mock(() => {}),
@@ -1627,12 +1546,9 @@ moduleMock("@node-saml/node-saml", () => ({
         profile: {
           nameID: "user@test.com",
           attributes: {
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress":
-              "user@test.com",
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname":
-              "Test",
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname":
-              "User",
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "user@test.com",
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname": "Test",
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname": "User",
           },
         },
       }),
@@ -1643,8 +1559,7 @@ moduleMock("@node-saml/node-saml", () => ({
 // Node built-ins mocks for Bun
 const mockSpawn = mock(() => ({
   on: mock((event: string, cb: any) => {
-    if (event === "exit")
-      setTimeout(() => (cb as (code: number) => void)(0), 0);
+    if (event === "exit") setTimeout(() => (cb as (code: number) => void)(0), 0);
   }),
   stderr: { on: mock(() => {}) },
 }));
@@ -1656,8 +1571,7 @@ const mockExec = mock((_cmd: string, cb: any) => {
 
 const mockLookup = mock(async (hostname: string) => {
   let ip = "8.8.8.8";
-  if (hostname.includes("loopback") || hostname.includes("localhost"))
-    ip = "127.0.0.1";
+  if (hostname.includes("loopback") || hostname.includes("localhost")) ip = "127.0.0.1";
   else if (hostname.includes("internal")) ip = "10.0.1.5";
   return { address: ip, family: 4 };
 });
@@ -1684,8 +1598,7 @@ if (!isTestTarget("metrics-service")) {
 
 if (!isTestTarget("security-response-service")) {
   try {
-    const rsPath = import.meta
-      .resolve("@src/services/security/response-service");
+    const rsPath = import.meta.resolve("@src/services/security/response-service");
     mock.module(rsPath, () => ({
       securityResponseService: mockSecurityResponseService,
       default: { securityResponseService: mockSecurityResponseService },
@@ -1697,8 +1610,7 @@ if (!isTestTarget("security-response-service")) {
     securityResponseService: mockSecurityResponseService,
     default: { securityResponseService: mockSecurityResponseService },
   }));
-  (globalThis as any).__SVELTY_SECURITY_INSTANCE__ =
-    mockSecurityResponseService;
+  (globalThis as any).__SVELTY_SECURITY_INSTANCE__ = mockSecurityResponseService;
   setGlobal("securityResponseService", mockSecurityResponseService);
 }
 // This ensures that tests don't pollute each other via globalThis or module-level shared state
@@ -1714,10 +1626,7 @@ if (typeof (globalThis as any).beforeEach !== "undefined") {
       (globalThis as any).__mockRoles = undefined;
 
       // Reset metrics and cache mocks if available
-      if (
-        (globalThis as any).metricsService &&
-        (globalThis as any).metricsService.reset
-      ) {
+      if ((globalThis as any).metricsService && (globalThis as any).metricsService.reset) {
         (globalThis as any).metricsService.reset();
       }
       if ((globalThis as any).cacheService) {
@@ -1732,11 +1641,7 @@ if (typeof (globalThis as any).beforeEach !== "undefined") {
         const db = (globalThis as any).mockDbAdapter;
         const resetMocks = (obj: any) => {
           for (const key in obj) {
-            if (
-              obj[key] &&
-              typeof obj[key] === "function" &&
-              obj[key].mockClear
-            ) {
+            if (obj[key] && typeof obj[key] === "function" && obj[key].mockClear) {
               obj[key].mockClear();
             } else if (obj[key] && typeof obj[key] === "object") {
               resetMocks(obj[key]);

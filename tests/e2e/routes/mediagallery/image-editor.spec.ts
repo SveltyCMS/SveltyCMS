@@ -14,10 +14,7 @@ const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 async function uploadTestImage(page: import("@playwright/test").Page) {
   await page.goto("/mediagallery");
   const uploadResponse = page.waitForResponse(
-    (res) =>
-      res.request().method() === "POST" &&
-      res.url().includes("?/upload") &&
-      res.ok(),
+    (res) => res.request().method() === "POST" && res.url().includes("?/upload") && res.ok(),
     { timeout: 30_000 },
   );
   await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
@@ -32,9 +29,7 @@ async function uploadTestImage(page: import("@playwright/test").Page) {
   const imgSrc = await thumb.getAttribute("src");
   expect(imgSrc).toBeTruthy();
   expect(imgSrc).not.toMatch(/^data:/);
-  expect(imgSrc).toMatch(
-    /^\/files\/global\/[^/]+\/original\/.+\.(png|jpe?g|webp)$/i,
-  );
+  expect(imgSrc).toMatch(/^\/files\/global\/[^/]+\/original\/.+\.(png|jpe?g|webp)$/i);
 
   // Wait until the browser has loaded the real file (not the blur placeholder).
   await expect
@@ -73,9 +68,7 @@ async function waitForEditorReady(page: import("@playwright/test").Page) {
   await expect(dialog.getByText(/failed to load image/i).first()).toBeHidden({
     timeout: 5_000,
   });
-  await expect(
-    dialog.getByRole("tablist", { name: /image editing tools/i }),
-  ).toBeVisible({
+  await expect(dialog.getByRole("tablist", { name: /image editing tools/i })).toBeVisible({
     timeout: 15_000,
   });
   await expect(dialog.getByRole("tab", { name: /^crop/i })).toBeEnabled({
