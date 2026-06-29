@@ -516,7 +516,7 @@
             <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Asset Tags</h3>
 
             <div class="mb-3 flex flex-wrap gap-1.5">
-              {#each file.metadata?.tags || [] as tag}
+              {#each file.metadata?.tags || [] as tag (tag)}
                 <Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
                   <span>{tag}</span>
                   <button
@@ -605,7 +605,7 @@
                 </div>
               </div>
 
-              {#each file.versions || [] as ver}
+              {#each file.versions || [] as ver (ver.version)}
                 <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
                   <div class="flex min-w-0 items-center gap-3">
                     <Badge variant="surface" size="sm">v{ver.version}</Badge>
@@ -662,7 +662,7 @@
               <p class="mb-4 text-xs text-surface-500 dark:text-surface-400">Lists all content entries where this media asset is referenced.</p>
 
               <div class="flex flex-col gap-2">
-                {#each references as ref}
+                {#each references as ref (ref.entryId)}
                   <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
                     <div class="min-w-0">
                       <span class="text-[10px] font-semibold uppercase tracking-wide text-primary-500">{ref.collection}</span>
@@ -740,7 +740,7 @@
           <div>
             <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Active Sharing Links</h3>
             <div class="flex flex-col gap-2">
-              {#each file.metadata?.sharedLinks || [] as link}
+              {#each file.metadata?.sharedLinks || [] as link (link.url || link)}
                 {const expired = isExpired(link.expiry)}
                 <div class="flex flex-col gap-2 rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-900/60">
                   <div class="flex flex-wrap items-center justify-between gap-2">

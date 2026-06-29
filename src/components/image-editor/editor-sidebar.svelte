@@ -11,7 +11,6 @@ Active tool uses a soft rounded square highlight only.
 - ARIA live region for tool selection announcements
 -->
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
 	import Slot from '@components/system/slot.svelte';
 	import { onMount, tick } from 'svelte';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';

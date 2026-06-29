@@ -636,7 +636,7 @@ search filtering, and RTL support.
         <!-- Per-node Action Buttons -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
             <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
-                {#each node.actions as act}
+                {#each node.actions as act (act.label)}
                     <Button variant="ghost"
                         type="button"
                         onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(node, e); }}
