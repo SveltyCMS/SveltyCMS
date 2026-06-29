@@ -10,6 +10,7 @@
  * |-----------------------|------------------------------------------------------|
  * | --dry-run             | Print what would happen, make no changes             |
  * | --skip-tests          | Skip unit tests after upgrade                        |
+ * | --skip-benchmarks     | Skip benchmark matrix after upgrade                  |
  * | --skip-db             | Skip database migration step                         |
  * | --skip-merge          | Skip fetch+merge (resume after manual conflict fix)  |
  * | --force               | Continue even with uncommitted changes (auto-stash)  |
@@ -19,7 +20,31 @@
 import { spawn, type SpawnOptions } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { pc } from "../src/utils/native-utils";
+
+// ---------------------------------------------------------------------------
+// Self-contained ANSI colour helpers (no project imports — works mid-upgrade)
+// ---------------------------------------------------------------------------
+
+const ANSI = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  red: (s: string) => `\x1b[31m${s}${ANSI.reset}`,
+  green: (s: string) => `\x1b[32m${s}${ANSI.reset}`,
+  yellow: (s: string) => `\x1b[33m${s}${ANSI.reset}`,
+  blue: (s: string) => `\x1b[34m${s}${ANSI.reset}`,
+  cyan: (s: string) => `\x1b[36m${s}${ANSI.reset}`,
+};
+
+const pc = {
+  bold: (s: string) => `${ANSI.bold}${s}${ANSI.reset}`,
+  dim: (s: string) => `${ANSI.dim}${s}${ANSI.reset}`,
+  red: ANSI.red,
+  green: ANSI.green,
+  yellow: ANSI.yellow,
+  blue: ANSI.blue,
+  cyan: ANSI.cyan,
+};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -30,8 +55,7 @@ const UPSTREAM_URL = "https://github.com/SveltyCMS/SveltyCMS.git";
 
 /**
  * Allowlist for branch names.
- * Prevents command injection via --branch= when shell:true would be needed.
- * Adjust to match your actual branching strategy.
+ * Prevents command injection via --branch=.
  */
 const BRANCH_PATTERN = /^[a-zA-Z0-9._/-]{1,100}$/;
 
@@ -42,6 +66,7 @@ const BRANCH_PATTERN = /^[a-zA-Z0-9._/-]{1,100}$/;
 interface UpgradeOptions {
   dryRun: boolean;
   skipTests: boolean;
+  skipBenchmarks: boolean;
   skipDb: boolean;
   skipMerge: boolean;
   force: boolean;
@@ -65,6 +90,7 @@ function parseOptions(): UpgradeOptions {
   return {
     dryRun: process.argv.includes("--dry-run"),
     skipTests: process.argv.includes("--skip-tests"),
+    skipBenchmarks: process.argv.includes("--skip-benchmarks"),
     skipDb: process.argv.includes("--skip-db"),
     skipMerge: process.argv.includes("--skip-merge"),
     force: process.argv.includes("--force"),
@@ -86,8 +112,8 @@ interface RunResult {
 
 interface RunOpts {
   /**
-   * Capture stdout/stderr into the returned strings instead of inheriting
-   * the parent process's stdio.  Terminal output is suppressed.
+   * When true, capture stdout/stderr into the returned RunResult strings.
+   * Output is also teed to the parent process unless silent is also set.
    */
   capture?: boolean;
   /** Suppress all output (implies capture internally). */
@@ -105,7 +131,6 @@ interface RunOpts {
 function runCommand(command: string, args: string[], runOpts: RunOpts = {}): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const spawnOpts: SpawnOptions = {
-      // CRITICAL: shell MUST be false to prevent injection via user-supplied arguments.
       shell: false,
       stdio: runOpts.capture || runOpts.silent ? "pipe" : "inherit",
       cwd: runOpts.cwd ?? process.cwd(),
@@ -128,7 +153,6 @@ function runCommand(command: string, args: string[], runOpts: RunOpts = {}): Pro
         if (runOpts.capture && !runOpts.silent) process.stderr.write(d);
       });
 
-    // Spawn failures (ENOENT, EACCES) arrive here, not on 'close'.
     proc.on("error", (err) => reject(new Error(`Failed to spawn "${command}": ${err.message}`)));
 
     proc.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
@@ -186,14 +210,17 @@ async function isGitDirty(): Promise<boolean> {
 
 /** Returns the name of the remote that points at UPSTREAM_URL, adding it if absent. */
 async function ensureRemote(): Promise<string> {
-  const { stdout } = await mustRun(
+  // Use runCommand (not mustRun) — remote-not-found is expected, not an error
+  const remoteResult = await runCommand(
     "git",
     ["remote", "get-url", "--all", "--push", "upstream"],
-    "git remote get-url",
-    { capture: true, silent: true },
-  ).catch(() => ({ stdout: "", code: 1, stderr: "" }));
+    {
+      capture: true,
+      silent: true,
+    },
+  );
 
-  if (stdout.trim().includes(UPSTREAM_URL)) {
+  if (remoteResult.stdout.trim().includes(UPSTREAM_URL)) {
     return "upstream";
   }
 
@@ -205,7 +232,6 @@ async function ensureRemote(): Promise<string> {
 
   for (const line of allRemotes.split("\n")) {
     if (line.includes(UPSTREAM_URL) && line.includes("(fetch)")) {
-      // Extract name: first whitespace-delimited token.
       const name = line.split(/\s+/)[0];
       if (name) {
         log("info", `Using existing remote "${name}" for upstream.`);
@@ -237,8 +263,6 @@ async function createRollbackTag(): Promise<string> {
 
 /**
  * Detects whether the working tree has conflict markers after a merge attempt.
- * More reliable than checking the merge exit code alone, because `git merge
- * --no-commit` exits non-zero for clean fast-forwards as well.
  */
 async function hasConflicts(): Promise<boolean> {
   const { stdout } = await mustRun(
@@ -272,7 +296,7 @@ function dryLog(would: string): void {
 }
 
 function step(title: string): void {
-  console.log(); // blank line before each major step
+  console.log();
   console.log(pc.bold(pc.blue(`▶ ${title}`)));
 }
 
@@ -286,7 +310,7 @@ async function runCodemods(): Promise<void> {
 
   const files = readdirSync(codemodsDir)
     .filter((f) => (f.endsWith(".ts") || f.endsWith(".js")) && !f.startsWith("_"))
-    .sort(); // deterministic execution order
+    .sort();
 
   if (files.length === 0) return;
 
@@ -301,7 +325,6 @@ async function runCodemods(): Promise<void> {
       continue;
     }
 
-    // Each codemod failure is fatal — a partial migration is worse than none.
     await mustRun("bun", [filePath], `codemod ${file}`);
     log("info", `${pc.green("✓")} ${file}`);
   }
@@ -330,18 +353,26 @@ async function stepFetchAndMerge(remote: string, rollbackTag: string): Promise<v
     "--no-commit",
   ]);
 
-  // Non-zero exit alone does not mean conflicts — it also fires on fast-forwards
-  // that git treats as "nothing to do". Check for actual conflict markers.
-  if (mergeResult.code !== 0 && (await hasConflicts())) {
-    console.log();
-    console.log(pc.yellow("⚠️  Merge conflicts detected. Resolve them, then continue:"));
-    console.log(pc.cyan(`  1.  Resolve conflicts in your editor`));
-    console.log(pc.cyan(`  2.  git add .`));
-    console.log(pc.cyan(`  3.  bun install`));
-    console.log(pc.cyan(`  4.  bun run scripts/upgrade.ts --skip-merge`));
-    console.log();
-    console.log(pc.dim(`  To abort entirely: git merge --abort && git tag -d ${rollbackTag}`));
-    throw new UpgradeError("Merge conflict — manual resolution required.");
+  // Check for actual conflicts first — non-zero exit can mean conflicts OR
+  // fast-forwards OR unexpected git errors. Only treat conflicts as recovery.
+  if (mergeResult.code !== 0) {
+    if (await hasConflicts()) {
+      console.log();
+      console.log(pc.yellow("⚠️  Merge conflicts detected. Resolve them, then continue:"));
+      console.log(pc.cyan(`  1.  Resolve conflicts in your editor`));
+      console.log(pc.cyan(`  2.  git add .`));
+      console.log(pc.cyan(`  3.  bun install`));
+      console.log(pc.cyan(`  4.  bun run scripts/upgrade.ts --skip-merge`));
+      console.log();
+      console.log(pc.dim(`  To abort entirely: git merge --abort && git tag -d ${rollbackTag}`));
+      throw new UpgradeError("Merge conflict — manual resolution required.");
+    }
+
+    // Non-conflict merge failure — internal git error, unexpected state
+    throw new UpgradeError(
+      `Merge failed unexpectedly (exit ${mergeResult.code}).`,
+      mergeResult.stderr,
+    );
   }
 }
 
@@ -375,8 +406,6 @@ async function stepTests(): Promise<void> {
     return;
   }
 
-  // mustRun throws on non-zero, which propagates to main() and exits non-zero.
-  // This ensures CI does not report green on a red test suite.
   await mustRun("bun", ["run", "test:unit"], "unit tests");
 }
 
@@ -388,8 +417,6 @@ async function stepBenchmarks(): Promise<void> {
     return;
   }
 
-  // We run the matrix with --no-build because we've already built or are in a state where
-  // we want to verify the current code's performance impact.
   await mustRun(
     "bun",
     ["run", "scripts/benchmark-matrix/index.ts", "--no-build"],
@@ -403,7 +430,7 @@ async function stepBenchmarks(): Promise<void> {
 
 interface StashResult {
   stashed: boolean;
-  ref: string;
+  label: string;
 }
 
 async function stashChanges(): Promise<StashResult> {
@@ -414,11 +441,21 @@ async function stashChanges(): Promise<StashResult> {
     throw new UpgradeError("Failed to stash working changes before upgrade.");
   }
 
-  return { stashed: true, ref: label };
+  return { stashed: true, label };
 }
 
-async function popStash(): Promise<void> {
-  await mustRun("git", ["stash", "pop"], "git stash pop");
+async function popStash(label: string): Promise<void> {
+  // Find the stash reference by label — git stash pop always pops stash@{0},
+  // which is wrong if another stash was pushed between stash and pop.
+  const { stdout } = await runCommand("git", ["stash", "list", "--format=%gd %gs"], {
+    capture: true,
+    silent: true,
+  });
+
+  const entry = stdout.split("\n").find((l) => l.includes(label));
+  const ref = entry?.match(/^(stash@\{\d+\})/)?.[1] ?? "stash@{0}";
+
+  await mustRun("git", ["stash", "pop", ref], "git stash pop");
 }
 
 // ---------------------------------------------------------------------------
@@ -454,13 +491,13 @@ async function main(): Promise<void> {
     }
   }
 
-  try {
-    let rollbackTag = "(dry-run — no tag created)";
+  // Declare rollbackTag outside try so it's accessible in the final summary
+  let rollbackTag = "(dry-run — no tag created)";
 
+  try {
     if (!cli.skipMerge) {
       const remote = await ensureRemote();
 
-      // Tag current HEAD before touching anything — gives a clean rollback point.
       step("Creating rollback tag");
       rollbackTag = await createRollbackTag();
       log("info", `Rollback tag: ${pc.cyan(rollbackTag)} (local only)`);
@@ -475,15 +512,13 @@ async function main(): Promise<void> {
     await runCodemods();
 
     if (!cli.skipDb) await stepDbMigration();
-    if (!cli.skipTests) {
-      await stepTests();
-      await stepBenchmarks();
-    }
+    if (!cli.skipTests) await stepTests();
+    if (!cli.skipBenchmarks) await stepBenchmarks();
   } finally {
     // Always restore stashed changes, even if a later step threw.
     if (stashResult?.stashed && !cli.dryRun) {
       log("info", "Restoring stashed changes…");
-      await popStash().catch((err) => {
+      await popStash(stashResult.label).catch((err) => {
         log("warn", `Failed to pop stash automatically: ${(err as Error).message}`);
         log("warn", `Restore manually with: git stash pop`);
       });
@@ -496,7 +531,7 @@ async function main(): Promise<void> {
     console.log(pc.green("✅ Dry run complete — no changes made."));
   } else {
     console.log(pc.green("✅ Upgrade complete! Review your changes and commit."));
-    console.log(pc.dim("   To undo: git reset --hard <rollback-tag>"));
+    console.log(pc.dim(`   To undo: git reset --hard ${rollbackTag}`));
   }
 }
 
