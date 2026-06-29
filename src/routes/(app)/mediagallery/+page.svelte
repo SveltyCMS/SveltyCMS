@@ -194,7 +194,7 @@ async function handleEditorSave(detail: any) {
 				"Content-Type": "application/json",
 				"X-CSRF-Token": page.data.csrfToken ?? "",
 			},
-			body: JSON.stringify(manipulations),
+			body: JSON.stringify({ manipulations }),
 		});
 
 		if (response.ok) {

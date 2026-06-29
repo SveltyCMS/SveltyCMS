@@ -457,7 +457,7 @@ export async function handleMediaManipulate(
     throw new AppError("Manipulation instruction set is required", 400);
   }
 
-  const result = await cms.media.manipulate(id, body, {
+  const result = await cms.media.manipulate(id, body.manipulations, {
     userId: user?._id || "system",
     tenantId,
   });
