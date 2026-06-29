@@ -143,22 +143,59 @@ describe("Database Interface Contract Tests", () => {
           privateConfig.database?.port ||
           "27017";
 
-        let connectionString = `mongodb://${host}:${port}/${dbName}`;
+        // Defensive guard in case port is set to another DB's default
+        const finalPort =
+          port === 3306 || port === "3306" || port === 5432 || port === "5432" ? "27017" : port;
 
-        if (user && pass) {
-          const authSource = encodeURIComponent(
-            process.env.DB_AUTH_SOURCE ||
-              privateConfig.DB_AUTH_SOURCE ||
-              databaseConfig.authSource ||
-              dbName,
+        const buildUri = (authSrc?: string) => {
+          if (user && pass) {
+            const source = encodeURIComponent(authSrc || dbName);
+            return `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(
+              pass,
+            )}@${host}:${finalPort}/${dbName}?authSource=${source}`;
+          }
+          return `mongodb://${host}:${finalPort}/${dbName}`;
+        };
+
+        const primaryUri = buildUri(
+          process.env.DB_AUTH_SOURCE ||
+            privateConfig.DB_AUTH_SOURCE ||
+            databaseConfig.authSource ||
+            dbName,
+        );
+
+        let result = await (db as any).connect(primaryUri, {
+          serverSelectionTimeoutMS: 8000,
+          connectTimeoutMS: 8000,
+        });
+
+        if (!result?.success && user && pass) {
+          console.warn(
+            "DB Interface Test: MongoDB primary auth failed. Trying admin authSource fallback...",
           );
-
-          connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(
-            pass,
-          )}@${host}:${port}/${dbName}?authSource=${authSource}`;
+          await db.disconnect().catch(() => {});
+          const adminUri = buildUri("admin");
+          result = await (db as any).connect(adminUri, {
+            serverSelectionTimeoutMS: 8000,
+            connectTimeoutMS: 8000,
+          });
         }
 
-        await (db as any).connect(connectionString);
+        if (!result?.success && !user && !pass) {
+          console.warn("DB Interface Test: MongoDB unauthenticated connection fallback...");
+          await db.disconnect().catch(() => {});
+          const noAuthUri = buildUri(undefined)
+            .replace(/\/\/[^:@/]+:[^@/]+@/, "//")
+            .replace(/\?authSource=.*/, "");
+          result = await (db as any).connect(noAuthUri, {
+            serverSelectionTimeoutMS: 8000,
+            connectTimeoutMS: 8000,
+          });
+        }
+
+        if (!result?.success) {
+          throw new Error(`Failed to connect to MongoDB: ${result?.message || "unknown error"}`);
+        }
       } else if (currentDbType === "mariadb") {
         const port =
           process.env.DB_PORT ||

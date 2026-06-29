@@ -374,7 +374,7 @@ jobs:
           bun x playwright test --project=auth-setup
 
       - name: Archive E2E Environment (single artifact)
-        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts
+        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/
 
       - uses: actions/upload-artifact@v7
         with:
@@ -567,9 +567,14 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Post to CI Summary
+      - name: Upload benchmark report
         if: always()
-        run: node scripts/benchmark-matrix/generate-ci-markdown.ts
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-report-${{ matrix.db }}
+          path: docs/project/benchmarks/benchmark_${{ matrix.db }}.mdx
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
@@ -582,8 +587,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Download all benchmark reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: benchmark-report-*
+          path: docs/project/benchmarks
+          merge-multiple: true
       - name: Generate CI Summary
-        run: bun run scripts/benchmark-matrix/generate-ci-markdown.ts
+        run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 
   # ------------------------------------------------
   # 10. All Green Gate
