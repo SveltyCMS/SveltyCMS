@@ -6,11 +6,7 @@
 import { MediaService } from "@utils/media/media-service.server";
 import { AppError } from "@utils/error-handling";
 import { LRUCache } from "lru-cache";
-import type {
-  DatabaseId,
-  IDBAdapter,
-  DatabaseResult,
-} from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
 
 function isFileLike(value: unknown): value is File {
@@ -87,9 +83,7 @@ export class MediaNamespace {
   private invalidateCache(tenantId?: DatabaseId | null, fileId?: string) {
     // Basic invalidation: clear related keys or the whole cache
     if (fileId) {
-      MediaNamespace._requestCache.delete(
-        `${tenantId ?? "global"}:media:${fileId}`,
-      );
+      MediaNamespace._requestCache.delete(`${tenantId ?? "global"}:media:${fileId}`);
     }
     // For simplicity, we often clear larger chunks on folder changes
     // But for now, we just let TTL handle it or clear specific keys.
@@ -98,13 +92,7 @@ export class MediaNamespace {
   // ── Queries ────────────────────────────────────────────────────────────────
 
   async find(options: FindOptions = {}): Promise<DatabaseResult<any>> {
-    const {
-      tenantId,
-      limit = 100,
-      folderId,
-      recursive = false,
-      prefix,
-    } = options;
+    const { tenantId, limit = 100, folderId, recursive = false, prefix } = options;
 
     const cacheKey = `${tenantId ?? "global"}:media:folder:${folderId ?? "root"}:${limit}:${recursive}`;
     if (MediaNamespace._requestCache.has(cacheKey)) {
@@ -125,8 +113,7 @@ export class MediaNamespace {
 
     if (result.success && result.data?.items) {
       result.data.items = result.data.items.map(
-        (item: any) =>
-          this.mediaService.enrichMediaWithUrl(item, prefix) as any,
+        (item: any) => this.mediaService.enrichMediaWithUrl(item, prefix) as any,
       );
       MediaNamespace._requestCache.set(cacheKey, result);
     }
@@ -155,10 +142,7 @@ export class MediaNamespace {
     );
 
     if (result.success && result.data) {
-      result.data = this.mediaService.enrichMediaWithUrl(
-        result.data as any,
-        prefix,
-      );
+      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix);
       MediaNamespace._requestCache.set(cacheKey, result);
     }
 
@@ -175,25 +159,19 @@ export class MediaNamespace {
       tenantId: tenantId as DatabaseId,
       limit: 1,
     });
-    return (
-      result.success && Array.isArray(result.data) && result.data.length > 0
-    );
+    return result.success && Array.isArray(result.data) && result.data.length > 0;
   }
 
   async getMetadata(file: File) {
     if (!isFileLike(file)) throw new AppError("Valid file is required", 400);
-    const { mediaProcessingService } =
-      await import("@src/utils/media/media-processing.server");
+    const { mediaProcessingService } = await import("@src/utils/media/media-processing.server");
     const buffer = Buffer.from(await file.arrayBuffer());
     return mediaProcessingService.getMetadata(buffer);
   }
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
-  async upload(
-    file: File,
-    options: UploadOptions,
-  ): Promise<DatabaseResult<MediaItem>> {
+  async upload(file: File, options: UploadOptions): Promise<DatabaseResult<MediaItem>> {
     const {
       userId,
       access = "private",
@@ -205,8 +183,7 @@ export class MediaNamespace {
 
     try {
       if (!userId) throw new AppError("User ID is required for upload", 400);
-      if (!isFileLike(file))
-        throw new AppError("A valid File object is required", 400);
+      if (!isFileLike(file)) throw new AppError("A valid File object is required", 400);
 
       const result = await this.mediaService.saveMedia(
         file,
@@ -230,10 +207,7 @@ export class MediaNamespace {
     }
   }
 
-  async remote(
-    url: string,
-    options: RemoteOptions,
-  ): Promise<DatabaseResult<MediaItem>> {
+  async remote(url: string, options: RemoteOptions): Promise<DatabaseResult<MediaItem>> {
     const { userId, access = "private", tenantId } = options;
     try {
       if (!url) throw new AppError("URL is required", 400);
@@ -265,11 +239,7 @@ export class MediaNamespace {
     try {
       if (!mediaId) throw new AppError("Media ID is required", 400);
 
-      await this.mediaService.updateMedia(
-        mediaId,
-        data,
-        options.tenantId as DatabaseId,
-      );
+      await this.mediaService.updateMedia(mediaId, data, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, mediaId);
       return { success: true, data: undefined };
@@ -282,17 +252,11 @@ export class MediaNamespace {
     }
   }
 
-  async delete(
-    fileId: string,
-    options: TenantOptions = {},
-  ): Promise<DatabaseResult<void>> {
+  async delete(fileId: string, options: TenantOptions = {}): Promise<DatabaseResult<void>> {
     try {
       if (!fileId) throw new AppError("File ID is required", 400);
 
-      await this.mediaService.deleteMedia(
-        fileId,
-        options.tenantId as DatabaseId,
-      );
+      await this.mediaService.deleteMedia(fileId, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, fileId);
       return { success: true, data: undefined };
@@ -353,10 +317,7 @@ export class MediaNamespace {
     }
   }
 
-  async references(
-    mediaId: string,
-    options: TenantOptions = {},
-  ): Promise<DatabaseResult<any[]>> {
+  async references(mediaId: string, options: TenantOptions = {}): Promise<DatabaseResult<any[]>> {
     try {
       if (!mediaId) throw new AppError("Media ID is required", 400);
       const refs = await this.mediaService.getMediaReferences(
@@ -390,10 +351,7 @@ export class MediaNamespace {
     }[]
   > {
     if (!mediaId) throw new AppError("Media ID is required", 400);
-    return this.mediaService.getMediaReferences(
-      mediaId,
-      options.tenantId as DatabaseId,
-    );
+    return this.mediaService.getMediaReferences(mediaId, options.tenantId as DatabaseId);
   }
 
   async uploadVersion(
