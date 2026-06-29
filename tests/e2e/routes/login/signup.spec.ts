@@ -8,7 +8,8 @@
  */
 import { expect, test } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
-n; /** Dismiss cookie consent banner if visible — non-blocking. */
+
+/** Dismiss cookie consent banner if visible. */
 async function dismissCookieConsent(page: any) {
   try {
     const btn = page.getByRole("button", { name: /accept all/i }).first();
@@ -37,8 +38,6 @@ test("Check language selection updates UI text", async ({ page }) => {
   await page.goto("/login");
   await dismissCookieConsent(page);
 
-  // Language selector is a custom Dropdown with a <div role="button"> trigger
-  // (NOT a native <button>) showing current language name, then Button options.
   const languageTrigger = page.locator('.language-selector [role="button"]').first();
   await expect(languageTrigger).toBeVisible({ timeout: 5000 });
 
@@ -50,8 +49,6 @@ test("Check language selection updates UI text", async ({ page }) => {
   ];
 
   for (const lang of languages) {
-    // If the dropdown is already open from a previous selection, clicking the
-    // trigger toggles it closed — only click when the dropdown is not yet open.
     const option = page.locator(`button[aria-label="${lang.label}"]`).first();
     if ((await option.isVisible({ timeout: 500 }).catch(() => false)) === false) {
       await languageTrigger.click();
@@ -73,7 +70,6 @@ test("SignUp First User", async ({ page }) => {
   await dismissCookieConsent(page);
   await page.getByText(/sign up/i).click();
 
-  // All sign-up fields use FloatingInput with placeholder=" " — use id selectors
   await page.locator("#usernamesignUp").fill("T");
   await page.locator("#usernamesignUp").press("Tab");
   await page.locator("#usernamesignUp").fill("Test");
@@ -89,13 +85,10 @@ test("SignUp First User", async ({ page }) => {
 
   await page.locator("#confirm_passwordsignUp").fill("Test123!");
 
-  // Registration Token (if required) — token field has minlength=32
   await page.locator("#tokensignUp").fill("svelty-secret-key-with-32-chars-min!");
 
-  // Submit the signup form
   await page.locator("#signup-form button[type='submit']").click();
 
-  // After signup, user is redirected to /config/collectionbuilder
   await expect(page).toHaveURL(/\/config\/collectionbuilder/);
 });
 
@@ -151,11 +144,9 @@ test("Forgot Password Flow", async ({ page }) => {
   await page.getByText(/sign in/i).click();
   await page.getByTestId("signin-forgot-password").click();
 
-  // Forgot password form — email field uses FloatingInput with placeholder=" "
   await page.locator("#emailforgot").fill("test@test2.de");
   await page.getByRole("button", { name: /reset password/i }).click();
 
-  // After submitting forgot form, the reset form appears (P_WRESET becomes true)
   await page.locator("#passwordreset").fill("NewPass123!");
   await page.locator("#confirm_passwordreset").fill("NewPass123!");
   await page.getByRole("button", { name: /save new password/i }).click();
