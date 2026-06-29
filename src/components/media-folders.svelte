@@ -38,10 +38,9 @@
 		depth?: number;
 		icon?: string;
 		id: string;
-		isExpanded: boolean;
 		name: string;
 		nodeType: 'virtual';
-		onClick: () => void;
+		onClick?: () => void;
 		order: number;
 		parentId?: string | null;
 		path: string;
@@ -55,8 +54,9 @@
 
 	// Mutable state
 	let folders = $state<FolderNode[]>([]);
-	let expandedNodes = new SvelteSet<string>();
-	let selectedFolderId = $derived(page.url.searchParams.get('folderId') || 'root');
+	let rootExpanded = $state(true);
+	let folderExpanded = $state(new SvelteSet<string>());
+	let activeFolderId = $state('root');
 	let isEditMode = $state(false);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
@@ -66,12 +66,34 @@
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
 	let isMobile = $derived(screen.isMobile);
 
+	function setFolderExpanded(id: string, open: boolean): void {
+		const next = new SvelteSet(folderExpanded);
+		if (open) {
+			next.add(id);
+		} else {
+			next.delete(id);
+		}
+		folderExpanded = next;
+	}
+
+	function isFolderExpanded(id: string): boolean {
+		return folderExpanded.has(id);
+	}
+
+	// Sync selection from URL (browser back/forward)
+	$effect(() => {
+		activeFolderId = page.url.searchParams.get('folderId') || 'root';
+	});
+
 	// Fetch folders from API
 	async function loadFolders(): Promise<void> {
 		isLoading = true;
 		error = null;
 		try {
-			const res = await fetch('/api/system-virtual-folder');
+			// Cache-bust: the API layer caches GET /api/system-* responses for 300s,
+			// so a freshly created/renamed/deleted folder would otherwise not appear
+			// until the cache expired. A unique query param sidesteps the L1 cache.
+			const res = await fetch(`/api/system-virtual-folder?t=${Date.now()}`);
 			if (!res.ok) {
 				throw new Error('Network error');
 			}
@@ -87,11 +109,9 @@
 					name: f.name,
 					path: f.path,
 					parentId: f.parentId,
-					isExpanded: expandedNodes.has(f._id),
-					onClick: () => selectFolder(f._id),
-					icon: 'bi:folder',
+					icon: 'mdi:folder-outline',
 					nodeType: 'virtual' as const,
-					order: f.order ?? 0
+					order: f.order ?? 0,
 				}));
 		} catch (err) {
 			error = 'Failed to load folders';
@@ -104,34 +124,16 @@
 
 	// Build hierarchical tree
 	let tree = $derived.by(() => {
-		const isRootPinned = pinnedStore.isPinned('root');
 		const root: FolderNode = {
 			id: 'root',
 			name: media_root_title(),
 			path: '/',
-			isExpanded: true,
-			onClick: () => selectFolder('root'),
-			icon: 'bi:house-door',
+			icon: 'mdi:home-outline',
 			nodeType: 'virtual',
 			order: 0,
 			depth: 0,
 			children: [],
-			actions: [
-				{
-					icon: isRootPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
-					label: isRootPinned ? 'Unpin Folder' : 'Pin Folder',
-					colorClass: isRootPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
-					onClick: (_treeNode: any, _event: MouseEvent) => {
-						pinnedStore.togglePin({
-							id: 'root',
-							name: media_root_title(),
-							type: 'folder',
-							path: '/mediagallery',
-							icon: 'bi:house-door'
-						});
-					}
-				}
-			]
+			onClick: () => selectFolder('root'),
 		};
 
 		if (folders.length === 0) {
@@ -139,8 +141,8 @@
 		}
 
 		const searchLower = search.toLowerCase();
-		const filteredFolders = search 
-			? folders.filter(f => f.name.toLowerCase().includes(searchLower))
+		const filteredFolders = search
+			? folders.filter((f) => f.name.toLowerCase().includes(searchLower))
 			: folders;
 
 		const map = new SvelteMap<string, FolderNode>();
@@ -148,8 +150,10 @@
 			const isPinned = pinnedStore.isPinned(f.id);
 			map.set(f.id, {
 				...f,
+				icon: 'mdi:folder-outline',
 				children: [],
 				depth: 0,
+				onClick: () => selectFolder(f.id),
 				actions: [
 					{
 						icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
@@ -161,11 +165,11 @@
 								name: f.name,
 								type: 'folder',
 								path: `/mediagallery?folderId=${f.id}`,
-								icon: 'bi:folder'
+								icon: 'mdi:folder-outline',
 							});
-						}
-					}
-				]
+						},
+					},
+				],
 			});
 		});
 
@@ -194,15 +198,47 @@
 		return [root];
 	});
 
+	function expandAncestorChain(id: string): void {
+		let current = folders.find((f) => f.id === id);
+		while (current?.parentId) {
+			setFolderExpanded(current.parentId, true);
+			current = folders.find((f) => f.id === current!.parentId);
+		}
+	}
+
 	function selectFolder(id: string): void {
-		if (id !== 'root') {
-			expandedNodes.add(id);
+		const resolved = id === 'root' ? 'root' : id;
+		activeFolderId = resolved;
+		if (resolved === 'root') {
+			rootExpanded = true;
+		} else {
+			expandAncestorChain(resolved);
+			setFolderExpanded(resolved, true);
 		}
 		if (isMobile) {
 			ui.toggle('leftSidebar', 'collapsed');
 		}
-		const path = id === 'root' ? '/mediagallery' : `/mediagallery?folderId=${id}`;
+		const path = resolved === 'root' ? '/mediagallery' : `/mediagallery?folderId=${resolved}`;
 		goto(path);
+	}
+
+	function handleRootClick(): void {
+		if (activeFolderId !== 'root') {
+			selectFolder('root');
+			return;
+		}
+		if ((tree[0]?.children?.length ?? 0) > 0) {
+			rootExpanded = !rootExpanded;
+		}
+	}
+
+	function handleFolderClick(node: FolderNode): void {
+		selectFolder(node.id);
+	}
+
+	function toggleFolderBranch(node: FolderNode, event: MouseEvent): void {
+		event.stopPropagation();
+		setFolderExpanded(node.id, !isFolderExpanded(node.id));
 	}
 
 	// Drag & drop reordering
@@ -222,7 +258,7 @@
 		try {
 			const res = await fetch('/api/system-virtual-folder', {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
 				body: JSON.stringify({
 					action: 'reorder',
 					parentId: newParentId,
@@ -258,7 +294,74 @@
 	});
 </script>
 
-<div class="space-y-2" role="navigation" aria-label="Media folders">
+{#snippet mediaFolderRow(node: FolderNode, depth: number)}
+	{@const hasChildren = (node.children?.length ?? 0) > 0}
+	{@const selected = activeFolderId === node.id}
+	{@const expanded = folderExpanded.has(node.id)}
+	{@const indent = depth * 12}
+
+	<div class="group/folder relative flex flex-col">
+		<div
+			class="flex w-full items-center gap-1 py-0.5 text-start text-[15px] font-medium leading-none transition-colors"
+			style="padding-inline-start: {indent}px"
+		>
+			{#if hasChildren}
+				<button
+					type="button"
+					class="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-60"
+					onclick={(e) => toggleFolderBranch(node, e)}
+					aria-label={expanded ? 'Collapse folder' : 'Expand folder'}
+					aria-expanded={expanded}
+				>
+					<iconify-icon
+						icon="mdi:chevron-right"
+						width="16"
+						class="transition-transform duration-200 {expanded ? 'rotate-90' : ''}"
+						aria-hidden="true"
+					></iconify-icon>
+				</button>
+			{:else}
+				<span class="w-5 shrink-0" aria-hidden="true"></span>
+			{/if}
+
+			<button
+				type="button"
+				class="flex min-w-0 flex-1 items-center gap-1.5 rounded-none py-0 text-start
+					{selected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-300 dark:text-surface-300'}"
+				onclick={() => handleFolderClick(node)}
+				aria-selected={selected}
+				role="treeitem"
+			>
+				<iconify-icon icon="mdi:folder-outline" width="18" class="shrink-0 text-surface-400" aria-hidden="true"></iconify-icon>
+				<span class="truncate">{node.name}</span>
+			</button>
+
+			{#if node.actions?.length}
+				<div class="flex shrink-0 items-center opacity-0 transition-opacity group-hover/folder:opacity-100">
+					{#each node.actions as action (action.label)}
+						<button
+							type="button"
+							class="flex h-6 w-6 items-center justify-center rounded {action.colorClass ?? ''}"
+							onclick={(e) => action.onClick(node, e)}
+							aria-label={action.label}
+							title={action.label}
+						>
+							<iconify-icon icon={action.icon} width="14"></iconify-icon>
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		{#if hasChildren && expanded}
+			{#each node.children ?? [] as child (child.id)}
+				{@render mediaFolderRow(child, depth + 1)}
+			{/each}
+		{/if}
+	</div>
+{/snippet}
+
+<div class="space-y-1" role="navigation" aria-label="Media folders">
 	<!-- Search Header -->
 	<div class="flex items-center gap-1">
 		<div class="relative w-full min-w-0">
@@ -267,41 +370,44 @@
 				bind:value={search}
 				size="1"
 				placeholder="Search folders..."
-				class="w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-3 {isSidebarFull ? 'pe-11' : 'pe-2'} text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 h-10 py-2"
+				class="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
 				aria-label="Search media folders"
 			/>
 			{#if isSidebarFull && search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
-					<Button variant="outline"
+					<Button
+						variant="outline"
 						type="button"
-						onclick={() => search = ''}
+						onclick={() => (search = '')}
 						aria-label="Clear search"
-					 class="rounded-full preset-outline-surface-500 h-9 w-9 mt-0.5 me-0.5">
+						class="me-0.5 h-8 w-8 rounded-full preset-outline-surface-500"
+					>
 						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
 					</Button>
 				</div>
 			{:else if isSidebarFull && !search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
-					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 me-0.5">
-						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
+					<div class="me-0.5 flex h-8 w-8 items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700">
+						<iconify-icon icon="ic:outline-search" width={20}></iconify-icon>
 					</div>
 				</div>
 			{/if}
 		</div>
 		{#if isSidebarFull}
-			<Button variant="warning"
+			<Button
+				variant="warning"
 				type="button"
 				onclick={() => (isEditMode = !isEditMode)}
 				aria-pressed={isEditMode}
 				aria-label="Toggle Edit Mode"
 				title="Edit Folders"
-			 class="p-0! min-w-0 h-10 w-10 shrink-0 {isEditMode ? ' ' : ' '}">
+				class="h-9 w-9 min-w-0 shrink-0 p-0!"
+			>
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
 			</Button>
 		{/if}
 	</div>
 
-	<!-- Edit mode hint -->
 	{#if isEditMode && isSidebarFull}
 		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
 			<iconify-icon icon="bi:info-circle" width={24}></iconify-icon>
@@ -309,7 +415,7 @@
 		</div>
 	{/if}
 
-	<!-- Content -->
+	<!-- Folder tree (Media Root + folders) -->
 	<div class="media-folders-list" role="tree" aria-label="Folder tree">
 		{#if isLoading}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
@@ -330,15 +436,57 @@
 				</Button>
 			</div>
 		{:else if tree.length > 0}
-			<TreeView
-				nodes={tree}
-				selectedId={selectedFolderId}
-				compact={!isSidebarFull}
-				iconColorClass="text-tertiary-500 dark:text-primary-500"
-				showBadges={false}
-				allowDragDrop={isEditMode}
-				onReorder={reorder}
-			/>
+			{#if isSidebarFull}
+				{@const rootNode = tree[0]}
+				{@const rootHasChildren = (rootNode.children?.length ?? 0) > 0}
+				{@const rootSelected = activeFolderId === 'root'}
+				<div class="flex flex-col" role="tree" aria-label="Media folder tree">
+					<div class="group/root relative flex flex-col">
+						<button
+							type="button"
+							class="flex w-full items-center gap-1.5 rounded-none py-1 text-start text-[15px] font-medium leading-none transition-colors
+								{rootSelected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-200 dark:text-surface-200'}"
+							onclick={handleRootClick}
+							aria-expanded={rootHasChildren ? rootExpanded : undefined}
+							aria-selected={rootSelected}
+							role="treeitem"
+						>
+							{#if rootHasChildren}
+								<iconify-icon
+									icon="mdi:chevron-right"
+									width="16"
+									class="shrink-0 opacity-60 transition-transform duration-200 {rootExpanded ? 'rotate-90' : ''}"
+									aria-hidden="true"
+								></iconify-icon>
+							{/if}
+							<iconify-icon icon="mdi:home-outline" width="18" class="shrink-0" aria-hidden="true"></iconify-icon>
+							<span class="truncate">{rootNode.name}</span>
+						</button>
+
+						{#if rootHasChildren && rootExpanded}
+							<div class="relative">
+								<div
+									class="pointer-events-none absolute bottom-0 start-[22px] top-0 w-px bg-surface-600/50 dark:bg-white/10"
+									aria-hidden="true"
+								></div>
+								{#each rootNode.children ?? [] as folder (folder.id)}
+									{@render mediaFolderRow(folder, 1)}
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+			{:else}
+				<TreeView
+					nodes={tree}
+					selectedId={activeFolderId}
+					compact={true}
+					iconColorClass="text-surface-400 dark:text-surface-500"
+					showBadges={false}
+					allowDragDrop={isEditMode}
+					onReorder={reorder}
+				/>
+			{/if}
 		{:else}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				<iconify-icon icon="bi:folder" width={24}></iconify-icon>

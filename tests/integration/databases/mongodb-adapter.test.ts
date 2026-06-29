@@ -9,6 +9,11 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+
+// 🟢 Apply the v8 shim before any MongoDB/Bson imports
+// This must happen before any dynamic import of MongoDBAdapter below.
+import "../../../src/utils/v8-shim";
+
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 
 // @ts-ignore - optional test config generated at runtime

@@ -11,6 +11,7 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import FocalPointControls from './controls.svelte';
+	import FocalPointControlsMobile from './controls-mobile.svelte';
 
 	const storeState = imageEditorStore.state;
 	let isDraggingFocal = $state(false);
@@ -25,26 +26,48 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		return Math.round(dec * 100);
 	}
 
+	function isFocalToolbarComponent(component: unknown): boolean {
+		return component === FocalPointControls || component === FocalPointControlsMobile;
+	}
+
+	function updateToolbar() {
+		const isMobile =
+			imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint;
+		const ControlsComponent = isMobile ? FocalPointControlsMobile : FocalPointControls;
+		const fp = storeState.focalPoint ?? { x: 50, y: 50 };
+
+		const baseProps = {
+			focalX: fp.x,
+			focalY: fp.y,
+			onReset: () => {
+				storeState.focalPoint = { x: 50, y: 50 };
+			},
+			onPointChange: (nextPoint: { x: number; y: number }) => {
+				storeState.focalPoint = {
+					x: Math.max(0, Math.min(100, Math.round(nextPoint.x))),
+					y: Math.max(0, Math.min(100, Math.round(nextPoint.y)))
+				};
+			}
+		};
+
+		imageEditorStore.setToolbarControls({
+			component: ControlsComponent,
+			props: isMobile
+				? { ...baseProps, onPointCommit: () => imageEditorStore.takeSnapshot() }
+				: baseProps
+		});
+	}
+
 	// --- Lifecycle $effect ---
 	$effect(() => {
 		const activeState = imageEditorStore.state.activeState;
+
 		if (activeState === 'focalpoint') {
-			// Store uses percentage (0-100), controls use percentage
-			imageEditorStore.setToolbarControls({
-				component: FocalPointControls,
-				props: {
-					focalX: storeState.focalPoint?.x ?? 50,
-					focalY: storeState.focalPoint?.y ?? 50,
-					onReset: () => (storeState.focalPoint = { x: 50, y: 50 }),
-					onPointChange: (nextPoint: { x: number; y: number }) => {
-						storeState.focalPoint = {
-							x: Math.max(0, Math.min(100, Math.round(nextPoint.x))),
-							y: Math.max(0, Math.min(100, Math.round(nextPoint.y)))
-						};
-					}
-				}
-			});
-		} else if (imageEditorStore.state.toolbarControls?.component === FocalPointControls) {
+			void imageEditorStore.state.viewportWidth;
+			void storeState.focalPoint?.x;
+			void storeState.focalPoint?.y;
+			updateToolbar();
+		} else if (!activeState && isFocalToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
@@ -109,6 +132,10 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 	}
 
 	const renderFocalPoint = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+		if (imageEditorStore.state.activeState !== 'focalpoint') {
+			return;
+		}
+
 		const { zoom, translateX, translateY, imageElement, focalPoint } = storeState;
 		if (!imageElement) {
 			return;
@@ -156,11 +183,11 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		// Draw target rings (Multi-layered Translucency)
 		context.strokeStyle = secondaryColor;
 		context.lineWidth = 1 / zoom;
-		
+
 		context.beginPath();
 		context.arc(fx, fy, 16 / zoom, 0, Math.PI * 2);
 		context.stroke();
-		
+
 		context.setLineDash([4 / zoom, 4 / zoom]); // Dashed outer ring
 		context.beginPath();
 		context.arc(fx, fy, 32 / zoom, 0, Math.PI * 2);

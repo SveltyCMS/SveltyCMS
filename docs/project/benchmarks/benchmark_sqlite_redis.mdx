@@ -30,7 +30,7 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (28/06/2026, 09:57:52)
+## 📊 Latest Performance Audit (28/06/2026, 10:31:57)
 
 **Status:** ❌ FAIL
 
@@ -41,9 +41,9 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 | Scenario               | Avg Latency | Trend        | Target Budget | Result  |
 | :--------------------- | :---------- | :----------- | :------------ | :------ |
-| **Cold Start**         | 1139ms      | ⚪ (+218.2%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1032.838ms  | ⚪ (-0.1%)   | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | 513.172ms   | ⚪           | < 2ms         | 🔴 FAIL |
+| **Cold Start**         | 1225ms      | ⚪ (+242.2%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1032.709ms  | ⚪ (-0.2%)   | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | 511.133ms   | ⚪           | < 2ms         | 🔴 FAIL |
 | **GraphQL (Avg)**      | N/A         | ⚪ (—)       | < 5ms         | ⚪ N/A  |
 | **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
 | **DB Raw (p95)**       | N/A         | ⚪           | < 50ms        | ⚪ N/A  |
@@ -75,7 +75,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 513.172ms | **Target:** < 2ms | **Trend:** ⚪ (-49.6%)
+**Middleware p95:** 511.133ms | **Target:** < 2ms | **Trend:** ⚪ (-49.8%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -128,7 +128,7 @@ xychart-beta
 ║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
 ║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.079 ms │ p95:        0.221 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.095 ms │ p95:        0.239 ms │ RPS:          0 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -147,9 +147,9 @@ xychart-beta
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.001 ms │ p95:        0.002 ms │ RPS:    996,678 ║
-║ Local SDK (Full)               │        0.008 ms │ p95:        0.013 ms │ RPS:    125,555 ║
-║ HTTP End-to-End                │      515.076 ms │ p95:     1032.838 ms │ RPS:          2 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,864,512 ║
+║ Local SDK (Full)               │        0.009 ms │ p95:        0.016 ms │ RPS:    111,882 ║
+║ HTTP End-to-End                │      513.108 ms │ p95:     1032.709 ms │ RPS:          2 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -168,8 +168,8 @@ xychart-beta
 ║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
 ║          Measures surgical single-file fullReload vs full reconciliation path           ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.298 ms │ p95:        0.446 ms │ RPS:      3,351 ║
-║ Full Reconciliation Reload     │       21.609 ms │ p95:       23.677 ms │ RPS:         46 ║
+║ Incremental fullReload (1 file) │        0.275 ms │ p95:        0.578 ms │ RPS:      3,642 ║
+║ Full Reconciliation Reload     │       22.041 ms │ p95:       26.431 ms │ RPS:         45 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

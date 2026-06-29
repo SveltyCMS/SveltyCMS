@@ -10,12 +10,13 @@ Features:
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
   import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
-  import SystemTooltip from "@src/components/system/system-tooltip.svelte";
+  import MediaGridActionTooltip from "./media-grid-action-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
   import { formatBytes } from "@utils/utils";
   import { SvelteSet } from "svelte/reactivity";
-  import { scale } from "svelte/transition";
+  import { fade, scale } from "svelte/transition";
 
   interface Props {
     filteredFiles?: (MediaBase | MediaImage)[];
@@ -41,9 +42,48 @@ Features:
     onOpenFileDetails = () => {},
   }: Props = $props();
 
+  const minColWidthCss = $derived(
+    gridSize === "tiny"
+      ? "clamp(88px, 22vw, 120px)"
+      : gridSize === "small"
+        ? "clamp(120px, 38vw, 180px)"
+        : gridSize === "medium"
+          ? "clamp(140px, 28vw, 240px)"
+          : "clamp(180px, 22vw, 300px)",
+  );
+
   	let showTagModal = $state(false);
   	let taggingFile = $state<MediaImage | null>(null);
   	let fileUploadInput = $state<HTMLInputElement>();
+  	let failedImages = $state(new SvelteSet<string>());
+
+  const BATCH_SIZE = 60;
+  let visibleCount = $state(BATCH_SIZE);
+  let scrollRoot = $state<HTMLElement>();
+  let sentinel = $state<HTMLElement>();
+
+  const visibleFiles = $derived(filteredFiles.slice(0, visibleCount));
+  const hasMore = $derived(visibleCount < filteredFiles.length);
+
+  $effect(() => {
+    void filteredFiles;
+    visibleCount = BATCH_SIZE;
+    scrollRoot?.scrollTo({ top: 0 });
+  });
+
+  $effect(() => {
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && visibleCount < filteredFiles.length) {
+          visibleCount = Math.min(visibleCount + BATCH_SIZE, filteredFiles.length);
+        }
+      },
+      { root: scrollRoot ?? null, rootMargin: "600px 0px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  });
 
   function formatMimeType(mime: string | undefined = undefined): string {
     if (!mime) return "Unknown";
@@ -78,9 +118,7 @@ Features:
   }
 
   function handleItemClick(file: MediaBase | MediaImage) {
-    if (isSelectionMode) {
-      toggleSelection(file);
-    } else {
+    if (!isSelectionMode) {
       onOpenFileDetails(file);
     }
   }
@@ -88,205 +126,262 @@ Features:
   function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      if (isSelectionMode) {
-        toggleSelection(file);
-      } else {
+      if (!isSelectionMode) {
         onOpenFileDetails(file);
       }
     }
   }
+
+  function openTagEditor(file: MediaImage) {
+    taggingFile = file;
+    showTagModal = true;
+  }
+
+  function getDimensionsLabel(file: MediaBase | MediaImage): string {
+    const img = file as MediaImage;
+    if (img.width && img.height) return `${img.width}x${img.height}`;
+    return "N/A";
+  }
+
+  const actionBtnClass =
+    "flex h-8 w-8 min-w-0 shrink-0 items-center justify-center rounded-full bg-black/45 p-0! shadow-sm backdrop-blur-sm transition-colors hover:bg-black/60";
 </script>
 
 <div
-  class="flex min-h-100 flex-wrap content-start items-start gap-4 overflow-auto"
+  bind:this={scrollRoot}
+  class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:p-3"
+  style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
   role="grid"
   aria-label="Media asset grid"
   data-testid="media-grid"
 >
   {#if filteredFiles.length === 0}
     <div
-      class="flex flex-col items-center justify-center w-full min-h-75 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded bg-surface-50 dark:bg-surface-800"
+      class="col-span-full flex min-h-full flex-col items-center justify-center gap-3 py-16 text-center"
       transition:scale={{ duration: 200 }}
       data-testid="media-grid-empty"
     >
-      <iconify-icon icon="mdi:cloud-upload-outline" width="64" class=""
-      ></iconify-icon>
-      <h3 class="text-xl font-semibold">No media found</h3>
-      <p
-        class="text-sm text-surface-400 dark:text-surface-50 mb-6 text-center max-w-xs"
-      >
-        Drop files here or use the upload button to start building your library.
-      </p>
+      <iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+      <div class="space-y-1">
+        <h3 class="text-base font-semibold">No media found</h3>
+        <p class="max-w-xs text-sm text-surface-500 dark:text-surface-400">
+          Drop files here or use the upload button to start building your library.
+        </p>
+      </div>
 
-      		<Button variant="tertiary" size="lg" onclick={() => fileUploadInput?.click()} class="shadow-lg hover:shadow-primary-500/20 transition-all">
-      			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
-      			<span>Upload First File</span>
-      		</Button>
-      		<input
-      			type="file"
-      			multiple
-      			class="hidden"
-      			bind:this={fileUploadInput}
-      			onchange={(e) => {
-      				const input = e.target as HTMLInputElement;
-      				if (input.files?.length) {
-      					const event = new CustomEvent("externalUpload", {
-      						detail: { files: input.files },
-      					});
-      					document.dispatchEvent(event);
-      				}
-      			}}
-      			accept="image/*,video/*,audio/*,application/pdf"
-      		/>
+      <Button variant="tertiary" onclick={() => fileUploadInput?.click()}>
+        <iconify-icon icon="mdi:plus" width="18"></iconify-icon>
+        <span>Upload First File</span>
+      </Button>
+      <input
+        type="file"
+        multiple
+        class="hidden"
+        bind:this={fileUploadInput}
+        onchange={(e) => {
+          const input = e.target as HTMLInputElement;
+          if (input.files?.length) {
+            const event = new CustomEvent("externalUpload", {
+              detail: { files: input.files },
+            });
+            document.dispatchEvent(event);
+          }
+        }}
+        accept="image/*,video/*,audio/*,application/pdf"
+      />
     </div>
   {:else}
-    {#each filteredFiles as file (file._id || file.filename)}
+    {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
       {const isPublishedReferenced = publishedMediaIds.has(fileId)}
 
       <div
-        class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300
-					hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 focus-within:ring-4 focus-within:ring-primary-500
-					{isSelected
-          ? 'border-primary-500 ring-2 ring-primary-500/20'
-          : 'border-surface-200 dark:border-surface-800'}
-					{gridSize === 'tiny'
-          ? 'w-32'
-          : gridSize === 'small'
-            ? 'w-48'
-            : gridSize === 'medium'
-              ? 'w-64'
-              : 'w-80'}"
+        class="group relative flex h-full flex-col focus-within:outline-none
+          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
         role="gridcell"
         aria-selected={isSelected}
+        in:fade={{ duration: 180 }}
       >
-        <!-- Selection UI -->
+        {#if isSelected}
+          <div class="absolute inset-y-0 inset-s-0 z-10 w-0.5 bg-primary-500" aria-hidden="true"></div>
+        {/if}
+
         {#if isSelectionMode || isSelected}
-          <div class="absolute inset-s-3 top-3 z-20" in:scale={{ duration: 200 }}>
-            <input
-              type="checkbox"
+          <div
+            class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
+            in:scale={{ duration: 180 }}
+            onclick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
               checked={isSelected}
               onchange={() => toggleSelection(file)}
-              class="checkbox h-6 w-6 cursor-pointer rounded-full border-2 border-surface-400 shadow-lg checked:bg-primary-500"
-              aria-label="Select {file.filename}"
+              label="Select {file.filename}"
+              hideLabel
+              size="sm"
             />
           </div>
         {/if}
 
-        <!-- Actions overlay (visible on hover or focus) -->
-        <div
-          class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
-        >
-          <SystemTooltip
-            title={isPublishedReferenced ? "Referenced by published content" : "Edit"}
-            positioning={{ placement: "start" }}
+        <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-[8px]">
+          <button
+            type="button"
+            class="relative h-full w-full text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+            onclick={() => handleItemClick(file)}
+            onkeydown={(e) => handleKeyDown(e, file)}
+            aria-label="Preview {file.filename}"
           >
-            <Button variant="ghost"
-              disabled={isPublishedReferenced}
+            {#if file.type === "image" && !failedImages.has(fileId)}
+              <div
+                class="h-full w-full transition-colors duration-500"
+                style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
+              >
+                {#if file.metadata?.placeholder}
+                  <img
+                    src={file.metadata.placeholder as string}
+                    alt=""
+                    class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
+                    aria-hidden="true"
+                  />
+                {/if}
+
+                <img
+                  src={file.url}
+                  alt=""
+                  class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02]"
+                  style:object-position={file.metadata?.focalPoint
+                    ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+                    : "center"}
+                  loading="lazy"
+                  onerror={() => failedImages.add(fileId)}
+                  onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
+                />
+              </div>
+            {:else}
+              <div class="flex h-full w-full items-center justify-center bg-surface-100/80 dark:bg-surface-800/80">
+                <iconify-icon
+                  icon={file.type === "image" ? "mdi:image-off-outline" : getFileIcon(file)}
+                  width={36}
+                  class="text-surface-400 dark:text-surface-500"
+                ></iconify-icon>
+              </div>
+            {/if}
+
+            <!-- Filename: always on mobile; hover on desktop -->
+            <div
+              class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            >
+              <p class="truncate text-[11px] font-medium leading-tight text-white" title={file.filename}>
+                {file.filename}
+              </p>
+            </div>
+          </button>
+
+          <!-- Action dock: always visible on mobile; hover-only on sm+ -->
+          <div
+            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            data-testid="media-grid-actions"
+          >
+            <MediaGridActionTooltip
+              theme="light"
+              ariaLabel="Details for {file.filename}"
+              class="{actionBtnClass} hidden sm:flex"
+              onclick={(e) => e.stopPropagation()}
+            >
+              {#snippet children()}
+                <span class="font-serif text-sm font-semibold italic leading-none text-primary-500">i</span>
+              {/snippet}
+              {#snippet content()}
+                <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-surface-500">Details</p>
+                <dl class="space-y-1.5 text-[11px]">
+                  <div class="flex items-center justify-between gap-4">
+                    <dt class="text-surface-500">Size</dt>
+                    <dd class="font-medium tabular-nums text-surface-800">{formatBytes(file.size)}</dd>
+                  </div>
+                  <div class="flex items-center justify-between gap-4">
+                    <dt class="text-surface-500">Dimensions</dt>
+                    <dd class="font-medium tabular-nums text-surface-800">{getDimensionsLabel(file)}</dd>
+                  </div>
+                  <div class="flex items-center justify-between gap-4">
+                    <dt class="text-surface-500">Type</dt>
+                    <dd class="font-medium uppercase text-surface-800">{formatMimeType(file.mimeType)}</dd>
+                  </div>
+                </dl>
+              {/snippet}
+            </MediaGridActionTooltip>
+
+            <MediaGridActionTooltip
+              title="Edit"
+              ariaLabel="Edit {file.filename}"
+              class={actionBtnClass}
               data-testid="media-edit-button"
-              onclick={(e: MouseEvent) => {
+              onclick={(e) => {
                 e.stopPropagation();
                 onEditImage(file as MediaImage);
               }}
-              aria-label="Edit {file.filename}"
-             class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-surface-600 dark:text-surface-300 shadow-md backdrop-blur-sm">
-              <iconify-icon icon="mdi:pencil" width={16}></iconify-icon>
-            </Button>
-          </SystemTooltip>
+            >
+              {#snippet children()}
+                <iconify-icon icon="mdi:pencil" width={15} class="text-surface-300"></iconify-icon>
+              {/snippet}
+            </MediaGridActionTooltip>
 
-          <SystemTooltip
-            title={isPublishedReferenced ? "Referenced by published content" : "Delete"}
-            positioning={{ placement: "start" }}
-          >
-            <Button variant="ghost"
-              disabled={isPublishedReferenced}
-              onclick={(e: MouseEvent) => {
+            {#if file.type === 'image'}
+              <MediaGridActionTooltip
+                title="Tags"
+                ariaLabel="Tags for {file.filename}"
+                class={actionBtnClass}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  openTagEditor(file as MediaImage);
+                }}
+              >
+                {#snippet children()}
+                  <iconify-icon
+                    icon={(file as MediaImage).metadata?.tags?.length || (file as MediaImage).metadata?.aiTags?.length ? 'mdi:tag' : 'mdi:tag-outline'}
+                    width={15}
+                    class="text-surface-300"
+                  ></iconify-icon>
+                {/snippet}
+              </MediaGridActionTooltip>
+            {/if}
+
+            <MediaGridActionTooltip
+              title="Delete"
+              ariaLabel="Delete {file.filename}"
+              class={actionBtnClass}
+              onclick={(e) => {
                 e.stopPropagation();
                 ondeleteImage(file);
               }}
-              aria-label="Delete {file.filename}"
-             class="p-0! min-w-0 bg-white/90 dark:bg-surface-800/90 text-error-500 shadow-md backdrop-blur-sm">
-              <iconify-icon icon="mdi:trash-can-outline" width={16}
-              ></iconify-icon>
-            </Button>
-          </SystemTooltip>
+            >
+              {#snippet children()}
+                <iconify-icon icon="mdi:trash-can-outline" width={15} class="text-error-500"></iconify-icon>
+              {/snippet}
+            </MediaGridActionTooltip>
+          </div>
         </div>
 
-        <!-- Published reference badge -->
-        {#if isPublishedReferenced}
-          <div class="absolute inset-s-2 top-2 z-20" title="Referenced by published content">
-            <span class="flex items-center gap-1 rounded-full bg-warning-500/20 px-2 py-0.5 text-[10px] font-medium text-warning-700 backdrop-blur-sm dark:text-warning-300">
-              <iconify-icon icon="mdi:lock-outline" width={12}></iconify-icon>
-              Published
-            </span>
-          </div>
-        {/if}
-
-        <!-- Image / Icon -->
-        <button
-          class="relative aspect-square w-full overflow-hidden bg-surface-100 dark:bg-surface-800 text-start"
-          onclick={() => handleItemClick(file)}
-          onkeydown={(e) => handleKeyDown(e, file)}
-          aria-label="Preview {file.filename}"
-        >
-          {#if file.type === "image"}
-            <div
-              class="h-full w-full bg-surface-100 dark:bg-surface-800 transition-colors duration-500"
-              style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
-            >
-              <!-- ⚡ Progressive Loading: Placeholder -->
-              {#if file.metadata?.placeholder}
-                <img
-                  src={file.metadata.placeholder as string}
-                  alt=""
-                  class="absolute inset-0 h-full w-full object-cover blur-xl scale-110 opacity-50"
-                  aria-hidden="true"
-                />
-              {/if}
-
-              <img
-                src={file.url}
-                alt={file.filename}
-                class="relative h-full w-full object-cover transition-all duration-500 group-hover:scale-110"
-                style:object-position={file.metadata?.focalPoint
-                  ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
-                  : "center"}
-                loading="lazy"
-                onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
-              />
-            </div>
-          {:else}
-            <div
-              class="flex h-full w-full items-center justify-center text-surface-300 dark:text-surface-600"
-            >
-              <iconify-icon icon={getFileIcon(file)} width={64}></iconify-icon>
-            </div>
-          {/if}
-
-          <div
-            class="absolute bottom-0 inset-s-0 inset-e-0 h-1/2 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-          ></div>
-        </button>
-
-        <!-- Meta -->
-        <div
-          class="p-3 border-t border-surface-100 dark:border-surface-800 bg-white dark:bg-surface-900"
-        >
-          <div class="truncate text-xs font-semibold" title={file.filename}>
-            {file.filename}
-          </div>
-          <div
-            class="flex items-center gap-2 mt-1 text-[10px] opacity-60 font-mono"
-          >
-            <span class="rounded bg-surface-100 px-1 dark:bg-surface-800"
-              >{formatMimeType(file.mimeType)}</span
-            >
-            <span>{formatBytes(file.size)}</span>
-          </div>
+        <div class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-200 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-800">
+          <span class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 sm:text-[11px] dark:text-surface-400">
+            {formatMimeType(file.mimeType)}
+          </span>
+          <span class="shrink-0 font-mono text-[10px] tabular-nums text-surface-400 sm:text-[11px] dark:text-surface-500">
+            {formatBytes(file.size)}
+          </span>
         </div>
       </div>
     {/each}
+
+    {#if hasMore}
+      <div
+        bind:this={sentinel}
+        class="col-span-full flex items-center justify-center gap-2 py-5 font-mono text-[11px] text-surface-400 dark:text-surface-500"
+        aria-hidden="true"
+      >
+        <iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+        <span>Loading more…</span>
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -294,4 +389,49 @@ Features:
   bind:show={showTagModal}
   bind:file={taggingFile}
   onUpdate={onUpdateImage}
+  hideGenerate={true}
 />
+
+<style>
+  .media-checkerboard {
+    background-color: var(--color-surface-100);
+    background-image:
+      linear-gradient(45deg, var(--color-surface-200) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--color-surface-200) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--color-surface-200) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--color-surface-200) 75%);
+    background-size: 12px 12px;
+    background-position:
+      0 0,
+      0 6px,
+      6px -6px,
+      -6px 0;
+  }
+
+  :global(.dark) .media-checkerboard {
+    background-color: var(--color-surface-900);
+    background-image:
+      linear-gradient(45deg, var(--color-surface-800) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--color-surface-800) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--color-surface-800) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--color-surface-800) 75%);
+  }
+
+  .media-grid-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-300) transparent;
+  }
+
+  .media-grid-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .media-grid-scroll::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: var(--color-surface-300);
+  }
+
+  :global(.dark) .media-grid-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-surface-700);
+  }
+</style>

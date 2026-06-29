@@ -109,7 +109,7 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     const httpRes = await runBenchmark({
       name: "HTTP End-to-End",
       iterations: ITERATIONS,
-      warmupIterations: 50,
+      warmupIterations: 200,
       runs: 1,
       silent: true,
       measureMemory: true,

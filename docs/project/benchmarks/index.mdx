@@ -137,6 +137,22 @@ flowchart TD
 | **Persistent Data**           | Database file persists between runs — no cleanup on stop. Write benchmarks recreate their own collections as needed      |
 | **58 Enhanced Benchmarks**     | 12 dimensions: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance, Soak, Streaming, Failover |
 
+## 📐 Separation of Concerns & Proxy Architecture
+
+To maintain a clean boundary between test code execution and matrix orchestration, SveltyCMS divides the benchmark system into two distinct layers:
+
+### 1. Test Execution Layer (`tests/benchmarks/`)
+Runs completely inside the `bun test` context.
+* **`modules/`**: Contains execution helpers (`setupBenchmarkServer`, `runBenchmark`, `exportResult`) that compile and run within the test thread.
+* **`tests/benchmarks/benchmark-utils.ts`**: A **lazy-loading proxy facade**. It registers clean exports (like `test`, `expect`) but defers importing database adapters, AST parsers, and connection pools using dynamic `await import("./modules/benchmark-utils")` on call. This insulates micro-benchmarks from premature module graph instantiation, memory leaks, and environment variable pollution during initial test file discovery.
+* **`core.ts`**: The registry mapping the 6 core benchmark tests used for fast gatekeeping.
+
+### 2. Orchestration Layer (`scripts/benchmark-matrix/`)
+Runs completely outside the test runner (via `bun run scripts/benchmark-matrix/index.ts`).
+* **Responsibilities**: Docker database container lifecycles, dynamically generating `config/private.test.ts`, tracking concurrency semaphores, and compiling step summaries for CI (`$GITHUB_STEP_SUMMARY`).
+
+---
+
 ## 📝 Creating a New Benchmark
 
 Every benchmark test MUST follow this structure to integrate with the reporting pipeline:
@@ -197,6 +213,50 @@ test("My Benchmark Name", async () => {
 - [ ] Call `printSummaryTable()` with array of `{key, val, unit}`
 - [ ] Wrap in `test("name", async () => {...}, timeout)`
 - [ ] Register in `scripts/benchmark-matrix/benchmark-scripts.ts` with `path`, `label`, `shortLabel`, `section`
+
+### 📊 Benchmark Data & Telemetry Requirements
+
+To ensure a new benchmark is fully integrated with the dynamic scheduler, SWOT analysis generator, and the MDX report finalizer, the test file must comply with the following data contract:
+
+#### 1. File Metadata & Headers
+Each benchmark test file MUST declare standard metadata in block comment headers. This metadata is parsed dynamically by the reporting and matrix modules:
+* **`@file`**: Full workspace path of the test.
+* **`@description`**: A concise, clear sentence describing the specific optimization or architectural boundary this benchmark evaluates (used to output root-cause insight recommendations).
+* **`@phase`**: Target execution context (`cold`, `warm`, or `mixed`).
+
+#### 2. Telemetry Output Contract (`exportResult`)
+Every benchmark execution scenario must call `exportResult(result)` with a results payload adhering to the following structure:
+```typescript
+interface BenchmarkTelemetry {
+  /** The unique name of this benchmark scenario */
+  name: string;
+  /** Mean latency (milliseconds) */
+  avgMs: number;
+  /** 95th-percentile latency (milliseconds) */
+  p95Ms?: number;
+  /** 99th-percentile latency (milliseconds) */
+  p99Ms?: number;
+  /** Total throughput (Requests Per Second) */
+  rps: number;
+  /** Coefficient of Variation (Jitter / variance ratio: standard deviation / mean) */
+  cv?: number;
+  /** Cumulative count of failed iterations */
+  errorCount?: number;
+  /** Status indicator: "SUCCESS" or "FAIL" (default: "SUCCESS") */
+  status?: string;
+}
+```
+
+#### 3. Execution Context Envs
+The benchmark harness handles context injections automatically. If writing custom assertions or lifecycle hooks, developers must preserve:
+* **`BENCHMARK_MATRIX="1"`**: Indicates the test is running inside the matrix (pre-seeded database, warm server).
+* **`BENCHMARK_RUN_ID`**: The unique identifier grouping all test subprocess results in the matrix.
+* **`BENCHMARK_RECORD="1"`**: Triggered during recording runs to permit database updates.
+
+#### 4. Parallel Scheduling Guardrails
+If your benchmark is **read-only**, register it in a parallelizable group (e.g., `Core HTTP Read`) in `scripts/benchmark-matrix/index.ts`. If it **writes/mutates data**, keep it in sequential groups to avoid race conditions and database locks during concurrent runs.
+
+---
 
 ### Tag matching rules
 

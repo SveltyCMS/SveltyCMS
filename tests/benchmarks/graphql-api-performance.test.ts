@@ -38,13 +38,13 @@ const graphqlScenarios = [
   },
   {
     name: "GQL: Collection List",
-    query: `query { allCollectionStats { _id name } }`,
+    query: `query { allCollections { _id name } }`,
     shortLabel: "Collections",
     concurrency: 6,
   },
   {
     name: "GQL: Concurrent Load",
-    query: `query { allCollectionStats { _id name } __schema { types { name } } }`,
+    query: `query { allCollections { _id name } __schema { types { name } } }`,
     shortLabel: "Load",
     concurrency: 5,
   },

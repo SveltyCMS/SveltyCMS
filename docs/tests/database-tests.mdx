@@ -150,6 +150,64 @@ We use the **Enterprise Benchmark Matrix** to validate database adapter performa
 
 ---
 
+## Benchmark Execution Strategy (June 2026)
+
+### Multi-Database Runner
+
+Each benchmark test can now run across **all 8 database variants** (SQLite, SQLite+Redis, MariaDB, MariaDB+Redis, PostgreSQL, PostgreSQL+Redis, MongoDB, MongoDB+Redis) in a single `bun test` invocation.
+
+```typescript
+import { runOnAllDatabases } from "./modules/benchmark-utils";
+
+test("my test", async () => {
+  await runOnAllDatabases(async (dbKey, baseUrl, dbType) => {
+    // Runs once per database variant
+    // Each variant gets its own fresh server
+  });
+}, 600000);
+```
+
+This replaces the previous matrix approach where the orchestrator spawned 8 separate `bun test` subprocesses per test file. Benefits:
+
+| Before | After |
+|--------|-------|
+| 464 total subprocess spawns (61 tests × 8 DBs) | 61 total subprocess spawns (1 per test file) |
+| 8 servers per test (each test started its own) | 8 servers per test (same, but one `bun test` process) |
+| Failure cascades across database variants | Each database is isolated — failure stops only that variant |
+| Redis connection accumulation across subprocesses | Redis connections cleaned up per variant |
+
+### Known-Incompatible Tests
+
+Some tests are incompatible with specific database engines. The `skipOn` field in `scripts/benchmark-matrix/benchmark-scripts.ts` prevents them from running on broken combinations:
+
+```typescript
+{
+  path: "tests/benchmarks/state-machine-transition.test.ts",
+  skipOn: ["mongodb"],  // MongoDB connection drops during 50-cycle reinitialize stress
+}
+```
+
+| Test | Skipped On | Reason |
+|------|-----------|--------|
+| `state-machine-transition` | MongoDB | Connection drops during self-healing stress cycles |
+| `data-residency-failover` | MongoDB | `ConnectionRefused` after failover simulation |
+| `database-failover` | MongoDB | Connection doesn't recover cleanly enough for failover timing |
+
+### Bun Runtime Alignment
+
+All 4 database adapters now run natively under `bun test` — no vitest/Node.js special case for MongoDB:
+
+| Adapter | Driver | Previously | Now |
+|---------|--------|-----------|-----|
+| SQLite | `bun:sqlite` (native) | `bun test` | `bun test` |
+| MariaDB | `mysql2` (pure JS) | `bun test` | `bun test` |
+| PostgreSQL | `postgres` (pure JS) | `bun test` | `bun test` |
+| MongoDB | `mongoose` → `bson` | `vitest` (Node.js) | `bun test` ✅ |
+
+The `bson` package calls `v8.isBuildingSnapshot()` at module load time, which Bun (JavaScriptCore) doesn't implement. A shim in `src/utils/v8-shim.ts` patches `process.getBuiltinModule('v8')` to return a safe stub.
+
+---
+
 ## Related Documentation
 
 - [Test Status Report](./test-status.mdx)

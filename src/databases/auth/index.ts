@@ -73,8 +73,7 @@ import {
   verifyPassword as cryptoVerifyPassword,
 } from "@utils/security/crypto";
 // Import for internal use
-import { SESSION_COOKIE_NAME } from "./constants";
-import { normalizeEmail } from "@utils/normalize-email";
+import { SESSION_COOKIE_NAME, getSessionCookieName } from "./constants";
 
 // Main Auth class
 export class Auth {
@@ -804,11 +803,27 @@ export class Auth {
     throw error(500, "Failed to update user attributes");
   }
 
-  createSessionCookie(sessionId: DatabaseId): {
+  createSessionCookie(
+    sessionId: DatabaseId,
+    isSecure?: boolean,
+  ): {
     name: string;
     value: string;
     attributes: unknown;
   } {
+    if (isSecure !== undefined) {
+      return {
+        name: getSessionCookieName(isSecure),
+        value: sessionId,
+        attributes: {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: isSecure ? "strict" : "lax",
+          maxAge: 24 * 60 * 60,
+          path: "/",
+        },
+      };
+    }
     return {
       name: SESSION_COOKIE_NAME,
       value: sessionId,

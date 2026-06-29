@@ -380,10 +380,20 @@ export async function registerCollections(tenantId?: string | null) {
 		fieldCount: Int!
 	}`);
   queryFields.push(`allCollections: [CollectionInfo!]!`);
+  const _allCollectionsCache = new Map<string, { data: any[]; ts: number }>();
+  const ALL_COLLECTIONS_CACHE_TTL = 5000; // 5 seconds — schemas rarely change
+
   resolvers.Query["allCollections"] = async (_parent: unknown, _args: unknown, context: any) => {
     if (!context.user) {
       throw new Error("Authentication required");
     }
+
+    const tenantKey = context.tenantId || "global";
+    const cached = _allCollectionsCache.get(tenantKey);
+    if (cached && Date.now() - cached.ts < ALL_COLLECTIONS_CACHE_TTL) {
+      return cached.data;
+    }
+
     const { contentSystem } = await import("@src/content/index.server");
     const all: Schema[] = await contentSystem.getCollections(context.tenantId);
     const { isMockScanCollection, isBenchmarkRuntime } =
@@ -398,7 +408,7 @@ export async function registerCollections(tenantId?: string | null) {
         idLower.startsWith("bench_") || idLower.startsWith("test-") || idLower.startsWith("test_");
       return isBenchmark || !isBenchTestCollection;
     });
-    return filtered.map((col) => ({
+    const result = filtered.map((col) => ({
       _id: col._id,
       name: col.name,
       slug: col.slug || col.name,
@@ -406,6 +416,9 @@ export async function registerCollections(tenantId?: string | null) {
       description: col.description || null,
       fieldCount: (col.fields || []).length,
     }));
+
+    _allCollectionsCache.set(tenantKey, { data: result, ts: Date.now() });
+    return result;
   };
 
   if (process.env.BENCHMARK_DEBUG === "true") {

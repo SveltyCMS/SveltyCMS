@@ -13,7 +13,7 @@ Rotate tool using svelte-canvas compatible state.
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'rotate') {
 			updateToolbarControls();
-		} else if (imageEditorStore.state.toolbarControls?.component === RotateControls) {
+		} else if (!activeState && imageEditorStore.state.toolbarControls?.component === RotateControls) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});

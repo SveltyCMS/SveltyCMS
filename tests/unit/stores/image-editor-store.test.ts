@@ -129,11 +129,18 @@ describe("ImageEditorStore", () => {
       expect(imageEditorStore.state.activeState).toBe("crop");
     });
 
-    it("should toggle tool off when selecting same tool via setActiveTool", () => {
+    it("should keep tool active when selecting the same tool again", () => {
       imageEditorStore.setActiveTool("blur");
       expect(imageEditorStore.state.activeState).toBe("blur");
       imageEditorStore.setActiveTool("blur");
-      expect(imageEditorStore.state.activeState).toBe("");
+      expect(imageEditorStore.state.activeState).toBe("blur");
+    });
+
+    it("should switch sidebar selection when changing tools", () => {
+      imageEditorStore.setActiveTool("crop");
+      expect(imageEditorStore.state.activeState).toBe("crop");
+      imageEditorStore.setActiveTool("annotate");
+      expect(imageEditorStore.state.activeState).toBe("annotate");
     });
 
     it("should cancel active tool and restore pre-tool snapshot", () => {

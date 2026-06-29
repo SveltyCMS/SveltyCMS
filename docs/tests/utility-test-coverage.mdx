@@ -48,16 +48,17 @@ tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 
 ### 🔵 Black-Box Integration Tests (API layer — real server, real DB)
 
-| Module                       | Covered By                               | What's Verified                                      |
-| ---------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| `entry-actions.ts`           | `tests/unit/api/collections.test.ts`     | CRUD operations, batch mutations, status transitions |
-| `media-service.server.ts`    | `tests/unit/api/media-security*.test.ts` | Upload, delete, SSRF protection, MIME validation     |
-| `bulk-download.ts`           | Integration runner (real filesystem)     | TAR.GZ archive creation, streaming, cleanup          |
-| `cloud-storage.ts`           | Integration + E2E                        | S3/R2/Cloudinary upload, URL construction, metadata  |
-| `media-processing.server.ts` | `media-performance` benchmark            | Sharp image processing, EXIF parsing, hashing        |
-| `collection-utils.server.ts` | `tests/unit/api/collections.test.ts`     | Collection path resolution, caching                  |
-| `settings-sync.ts`           | `tests/unit/stores/system.test.ts`       | Pub/sub synchronization, state transitions           |
-| `restart-required.ts`        | `tests/unit/stores/system.test.ts`       | State flag toggling (trivial 23-line module)         |
+| Module                       | Covered By                               | What's Verified                                                                                          |
+| ---------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `entry-actions.ts`           | `tests/unit/api/collections.test.ts`     | CRUD operations, batch mutations, status transitions                                                     |
+| `media-service.server.ts`    | `tests/unit/api/media-security*.test.ts` | Upload, delete, SSRF protection, MIME validation                                                         |
+| `bulk-download.ts`           | Integration runner (real filesystem)     | TAR.GZ archive creation, streaming, cleanup                                                              |
+| `cloud-storage.ts`           | Integration + E2E                        | S3/R2/Cloudinary upload, URL construction, metadata                                                      |
+| `media-processing.server.ts` | `media-performance` benchmark            | Sharp image processing, EXIF parsing, hashing                                                            |
+| `media-manipulation.test.ts` | 11 unit tests (Vitest)                   | Sharp pipeline: rotate, crop, flip, filters, sepia, circle crop, watermarks, annotations, error handling |
+| `collection-utils.server.ts` | `tests/unit/api/collections.test.ts`     | Collection path resolution, caching                                                                      |
+| `settings-sync.ts`           | `tests/unit/stores/system.test.ts`       | Pub/sub synchronization, state transitions                                                               |
+| `restart-required.ts`        | `tests/unit/stores/system.test.ts`       | State flag toggling (trivial 23-line module)                                                             |
 
 ### 🟡 E2E Playwright Tests (full browser — user journeys)
 

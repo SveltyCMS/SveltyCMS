@@ -1,6 +1,5 @@
 <!--
-@file src/routes/login/components/SignIn.svelte
-@description erro 500 — SignIn component with OAuth support
+@file src/routes/login/components/sign-in.svelte
 @component
 **SignIn component with OAuth support**
 
@@ -69,6 +68,7 @@ import type { PageData } from "../$types";
 import type { LoginBranding } from "@utils/theme-merge";
 import SigninIcon from "./icons/signin-icon.svelte";
 import OauthLogin from "./oauth-login.svelte";
+import { fade } from 'svelte/transition';
 
 // Props
 const {
@@ -572,7 +572,7 @@ $effect(() => {
 	class:hover={isHover}
 >
 	{#if active === 0}
-		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+		<div transition:fade={{ duration: 250 }} class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
 			{#if screen.isDesktop}
 				<div class="absolute inset-0 z-0">
 					<FloatingPaths position={1} background="white" />
@@ -704,33 +704,29 @@ $effect(() => {
 								{/if}
 							</div>
 
-							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto gap-2 transition-all">
-								{#if pageData.showPasskey && allowedMethods.hasPasskey}
-								<div class="animate-fade-in">
-									<Button
-										type="button"
-										variant="outline"
-										class="w-full sm:w-auto text-black!"
-										aria-label="Sign in with Passkey"
-										onclick={handlePasskeySignIn}
-										loading={isPasskeyLoading}
-									>
-										<iconify-icon icon="mdi:fingerprint" width="20" class="me-1"></iconify-icon> Passkey
-									</Button>
-								</div>
+							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto gap-2">
+								{#if pageData.showPasskey}
+								<Button
+									type="button"
+									variant="outline"
+									class="w-full sm:w-auto text-black!"
+									aria-label="Sign in with Passkey"
+									onclick={handlePasskeySignIn}
+									loading={isPasskeyLoading}
+								>
+									Passkey
+								</Button>
 								{/if}
-								{#if pageData.showMagicLink && allowedMethods.hasMagicLink}
-								<div class="animate-fade-in">
-									<Button
-										type="button"
-										variant="outline"
-										class="w-full sm:w-auto text-black!"
-										aria-label="Sign in via Magic Link"
-										onclick={() => { P_WMAGIC = true; }}
-									>
-										Magic Link
-									</Button>
-								</div>
+								{#if pageData.showMagicLink}
+								<Button
+									type="button"
+									variant="outline"
+									class="w-full sm:w-auto text-black!"
+									aria-label="Sign in via Magic Link"
+									onclick={() => { P_WMAGIC = true; }}
+								>
+									Magic Link
+								</Button>
 								{/if}
 								<Button
 									type="button"
@@ -1027,14 +1023,14 @@ $effect(() => {
 <style>
 	.hide {
 		opacity: 0;
-		transition: 0s;
+		transition: opacity 0.25s ease-out;
 	}
 	section {
 		--width: 0%;
 		flex-grow: 1;
 		width: var(--width);
 		background: white;
-		transition: 0.4s;
+		transition: width 0.15s ease-out, border-radius 0.15s ease-out;
 	}
 	.active {
 		--width: 90%;

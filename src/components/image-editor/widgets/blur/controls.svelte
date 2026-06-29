@@ -1,11 +1,9 @@
 <!--
 @file: src/components/image-editor/widgets/blur/controls.svelte
 @component
-Minimal blur controls focused on drag-resize rectangular regions.
+Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS buttons.
 -->
 <script lang="ts">
-	import Badge from '@components/ui/badge.svelte';
-	import Button from '@components/ui/button.svelte';
 	let {
 		blurStrength,
 		hasActiveRegion = false,
@@ -28,6 +26,8 @@ Minimal blur controls focused on drag-resize rectangular regions.
 		onApply: () => void;
 	} = $props();
 
+	const sliderProgress = $derived(Math.max(0, Math.min(1, (blurStrength - 5) / 95)));
+
 	function handleStrengthInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
 		onStrengthChange(Number.parseInt(target.value, 10));
@@ -47,136 +47,141 @@ Minimal blur controls focused on drag-resize rectangular regions.
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="blur-controls" role="toolbar" aria-label="Blur controls">
-	<div class="control-group">
-		<Button variant="tertiary" type="button" onclick={onAddRegion} title="Add blur region" size="sm">
-			<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
-			<span>Add Region</span>
-		</Button>
-		{#if regionCount > 0}
-			<Badge variant="surface">
-				{regionCount}
-				{regionCount === 1 ? 'region' : 'regions'}
-			</Badge>
-		{/if}
-	</div>
-
-	<div class="control-group flex-1">
-		<label class="control-label" for="blur-strength-slider">Blur strength</label>
-		<div class="slider-shell">
-			<input
-				id="blur-strength-slider"
-				type="range"
-				min="5"
-				max="100"
-				step="1"
-				value={blurStrength}
-				oninput={handleStrengthInput}
-				class="slider"
-				aria-label="Blur strength"
-			/>
-			<span class="slider-value">{blurStrength}</span>
+<div class="editor-dock blur-dock" role="toolbar" aria-label="Blur controls">
+	<div class="dock-row dock-row-scroll blur-dock-row">
+		<div class="dock-pill-group" role="group" aria-label="Blur regions">
+			<button type="button" class="dock-pill" onclick={onAddRegion} title="Add blur region" aria-label="Add blur region">
+				<iconify-icon icon="mdi:plus" width="15" aria-hidden="true"></iconify-icon>
+				<span>Add region</span>
+			</button>
 		</div>
-	</div>
 
-	<div class="control-group ml-auto">
-		<Button variant="outline" type="button" onclick={onReset} size="sm">
-			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
-			<span>Reset</span>
-		</Button>
-		<Button variant="error" type="button" onclick={onDeleteRegion} disabled={!hasActiveRegion} size="sm">
-			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-			<span>Delete</span>
-		</Button>
-		<Button variant="error" type="button" onclick={onCancel} size="sm">
-			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			<span>Cancel</span>
-		</Button>
-		<Button variant="success" type="button" onclick={onApply} size="sm">
-			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
+		{#if regionCount > 0}
+			<span class="dock-pill-badge" aria-live="polite">
+				{regionCount} {regionCount === 1 ? 'region' : 'regions'}
+			</span>
+		{/if}
+
+		<div class="blur-slider-wrap">
+			<div class="slider-track blur-slider-track">
+				<input
+					id="blur-strength-slider"
+					type="range"
+					min="5"
+					max="100"
+					step="1"
+					value={blurStrength}
+					oninput={handleStrengthInput}
+					class="slider-input blur-slider-input"
+					style:--slider-progress="{sliderProgress * 100}%"
+					aria-label="Blur strength"
+					aria-valuemin={5}
+					aria-valuemax={100}
+					aria-valuenow={blurStrength}
+				/>
+			</div>
+		</div>
+
+		<div class="dock-pill-group blur-actions" role="group" aria-label="Blur actions">
+			<button
+				type="button"
+				class="dock-pill"
+				onclick={onReset}
+				disabled={regionCount === 0}
+				title="Reset all regions"
+				aria-label="Reset all blur regions"
+			>
+				<iconify-icon icon="mdi:restore" width="15" aria-hidden="true"></iconify-icon>
+				<span>Reset</span>
+			</button>
+			<button
+				type="button"
+				class="dock-pill dock-pill-warn"
+				onclick={onDeleteRegion}
+				disabled={!hasActiveRegion}
+				title="Delete selected region"
+				aria-label="Delete selected blur region"
+			>
+				<iconify-icon icon="mdi:delete-outline" width="15" aria-hidden="true"></iconify-icon>
+				<span>Delete</span>
+			</button>
+			<button type="button" class="dock-pill" onclick={onCancel} title="Cancel blur" aria-label="Cancel blur">
+				<iconify-icon icon="mdi:close" width="15" aria-hidden="true"></iconify-icon>
+				<span>Cancel</span>
+			</button>
+		</div>
+
+		<button type="button" class="dock-pill dock-pill-apply blur-apply-btn" onclick={onApply} title="Apply blur" aria-label="Apply blur">
+			<iconify-icon icon="mdi:check" width="15" aria-hidden="true"></iconify-icon>
 			<span>Apply</span>
-		</Button>
+		</button>
 	</div>
 </div>
 
 <style>
-	.blur-controls {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
-		align-items: center;
-		width: 100%;
-		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 0.94);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
-	}
+	@import '../../editor-dock.css';
 
-	:global(.dark) .blur-controls {
-		background: rgb(var(--color-surface-800) / 0.96);
-		border-color: rgb(var(--color-surface-700) / 1);
-	}
-
-	.control-group {
-		display: flex;
-		align-items: center;
+	.blur-dock-row {
 		gap: 0.5rem;
-		flex-wrap: wrap;
-	}
-
-	.control-label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		white-space: nowrap;
-		color: rgb(var(--color-surface-700) / 1);
-	}
-
-	:global(.dark) .control-label {
-		color: rgb(var(--color-surface-200) / 1);
-	}
-
-	.slider-shell {
-		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		flex: 1;
-		min-width: min(24rem, 100%);
-		padding: 0.45rem 0.75rem;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		border-radius: 9999px;
-		background: rgb(var(--color-surface-50) / 0.6);
+		justify-content: center;
+		width: 100%;
+		padding-inline: 0.125rem;
 	}
 
-	:global(.dark) .slider-shell {
-		background: rgb(var(--color-surface-900) / 0.48);
-		border-color: rgb(var(--color-surface-700) / 1);
+	.blur-slider-wrap {
+		display: flex;
+		flex: 1 1 7rem;
+		align-items: center;
+		justify-content: center;
+		min-width: 6rem;
+		max-width: 14rem;
+		margin-inline: 0.125rem;
 	}
 
-	.slider {
-		flex: 1;
-		margin: 0;
-		accent-color: rgb(var(--color-primary-500) / 1);
+	.blur-slider-track {
+		width: 100%;
 	}
 
-	.slider-value {
-		min-width: 2.5rem;
-		font-family: monospace;
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-align: right;
-		color: rgb(var(--color-primary-500) / 1);
+	.blur-slider-input {
+		background: linear-gradient(
+			to right,
+			var(--editor-accent, #f5c518) 0%,
+			var(--editor-accent, #f5c518) var(--slider-progress, 0%),
+			rgba(255, 255, 255, 0.16) var(--slider-progress, 0%),
+			rgba(255, 255, 255, 0.16) 100%
+		);
+	}
+
+	.blur-slider-input::-webkit-slider-thumb {
+		background: var(--editor-accent-hover, #ffd43b);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+	}
+
+	.blur-slider-input::-moz-range-thumb {
+		background: var(--editor-accent-hover, #ffd43b);
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+	}
+
+	.blur-actions {
+		flex-shrink: 0;
+	}
+
+	.blur-apply-btn {
+		flex-shrink: 0;
 	}
 
 	@media (max-width: 1024px) {
-		.blur-controls {
-			padding: 0.5rem;
+		.blur-dock-row {
+			justify-content: flex-start;
 		}
 
-		.control-group {
-			gap: 0.35rem;
-		}
-
-		.slider-shell {
-			min-width: 100%;
+		.blur-slider-wrap {
+			flex-basis: 100%;
+			order: 3;
+			max-width: none;
+			margin-inline: 0;
 		}
 	}
 </style>

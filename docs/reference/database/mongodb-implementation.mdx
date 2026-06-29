@@ -1556,6 +1556,14 @@ The MongoDB implementation provides:
 3. **Soft-Delete Filter Enforcement**: `safeQuery()` now always applies the `isDeleted: { $ne: true }` filter unless explicitly opted out — closing a gap where callers could bypass soft-deletion by setting `isDeleted` in their query.
 4. **Website Token Parity (June 2026)**: `website-token-methods.ts` declares `tenantId` and `isDeleted` on the Mongoose schema (`strict: true`), routes all CRUD through `safeQuery` (no `bypassSafeQuery`), and aligns with the SQL `ISystemAdapter.websiteTokens` contract. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 
+### Runtime Compatibility (June 2026)
+
+1. **Bun Runtime Alignment**: The MongoDB adapter now runs natively under `bun test` — no need for vitest/Node.js. A `v8` shim in `src/utils/v8-shim.ts` patches `process.getBuiltinModule('v8')` to handle the `bson` package's `isBuildingSnapshot()` call, which Bun (JavaScriptCore) doesn't implement. All 4 database adapters (MariaDB, PostgreSQL, SQLite, MongoDB) use `bun test` uniformly.
+
+2. **Reserved Key Warning Suppression**: The generic Mongoose schema in `adapter-core.ts` now passes `suppressReservedKeysWarning: true` to avoid warnings when content documents contain a field named `collection` (a Mongoose reserved pathname).
+
+3. **Self-Healing Shutdown Guard**: During intentional system reinitialization (`POST /api/system/reinitialize`), the `__SYSTEM_SHUTTING_DOWN__` flag prevents the resilience hooks from scheduling competing auto-reconnections, eliminating `MongoNotConnectedError` race conditions during state-machine stress tests.
+
 ### Performance Summary
 
 MongoDB delivers **enterprise-ready performance** with sub-1ms CRUD (0.798 ms FIND ONE, 0.853 ms INSERT) and significant optimizations for large-scale content management. For the full breakdown of metrics, see the [Performance Benchmarks](/docs/project/benchmarks/index) page.

@@ -21,7 +21,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'zoom') {
 			updateToolbar();
-		} else if (imageEditorStore.state.toolbarControls?.component === ZoomControls) {
+		} else if (!activeState && imageEditorStore.state.toolbarControls?.component === ZoomControls) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});

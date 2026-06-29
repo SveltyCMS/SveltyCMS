@@ -204,7 +204,7 @@ export class MediaService {
         const sniffed = sniffMimeType(buffer.subarray(0, 2048));
         const effectiveType = file.type || sniffed?.mime || "application/octet-stream";
 
-        // 🛡️ SVG Sanitization
+        // 🛡️ SVG Sanitization: strip scripts, event handlers, and foreignObject before storage
         if (isSvgFile(effectiveType, file.name)) {
           const raw = buffer.toString("utf-8");
           const sanitized = sanitizeSvg(raw);
@@ -248,6 +248,23 @@ export class MediaService {
         )) as any;
       } else {
         // Large file: Stream it!
+        // MIME sniffing for large files — read first 2048 bytes for validation
+        const headerBuffer =
+          typeof (file as any).slice === "function"
+            ? Buffer.from(await (file as any).slice(0, 2048).arrayBuffer())
+            : null;
+        const sniffedLarge = headerBuffer ? sniffMimeType(headerBuffer) : null;
+        if (
+          sniffedLarge &&
+          sniffedLarge.mime !== "application/octet-stream" &&
+          file.type &&
+          sniffedLarge.mime.split("/")[0] !== file.type.split("/")[0]
+        ) {
+          throw new Error(
+            `MIME type mismatch: client sent "${file.type}", binary signature indicates "${sniffedLarge.mime}"`,
+          );
+        }
+
         // We tee the stream: one for hashing, one for uploading
         const { hashStream } = await import("./media-processing.server");
 
@@ -410,17 +427,365 @@ export class MediaService {
 
   public async manipulateMedia(
     id: string,
-    _manipulations: any,
-    _userId: string,
+    manipulations: any,
+    userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem> {
+    const { hashFileContent } = await import("./media-processing.server");
+    const sharpMod = await import("sharp");
+    const sharp = sharpMod.default || sharpMod;
+
+    // 1. Load existing record
     const res = await this.db.crud.findOne<DbMediaItem>(
       "media",
       { _id: id as DatabaseId },
       { tenantId: tenantId ?? undefined },
     );
-    if (!res.success || !res.data) throw new AppError("Media not found", 404);
-    return res.data as unknown as MediaItem;
+    if (!res.success || !res.data) throw new Error("Media not found");
+    const existing = res.data as any;
+
+    // 2. Read original file + get dimensions once (reused by blur/watermark)
+    const originalBuffer = await getFile(existing.path);
+    const meta = await sharp(originalBuffer).metadata();
+    const imgW = meta.width ?? 1;
+    const imgH = meta.height ?? 1;
+
+    const {
+      rotation,
+      flipH,
+      flipV,
+      crop,
+      filters,
+      blurRegions,
+      watermarks,
+      annotations,
+      saveBehavior,
+    } = manipulations;
+
+    // 3. Build Sharp pipeline — order matters: geometry first, then colour, then composites
+    let pipeline = sharp(originalBuffer, { failOn: "none" });
+
+    // — Geometry —
+    if (rotation) pipeline = pipeline.rotate(rotation);
+    if (flipH) pipeline = pipeline.flop();
+    if (flipV) pipeline = pipeline.flip();
+
+    // After rotation the canvas dimensions may swap — re-read them from the intermediate buffer
+    let postRotW = imgW;
+    let postRotH = imgH;
+    if (rotation || flipH || flipV) {
+      const rotBuf = await pipeline.clone().toBuffer();
+      const rotMeta = await sharp(rotBuf).metadata();
+      postRotW = rotMeta.width ?? imgW;
+      postRotH = rotMeta.height ?? imgH;
+    }
+
+    // Clamp crop to the post-rotation canvas so Sharp never gets an out-of-bounds extract
+    const cropX =
+      crop && crop.width > 0 && crop.height > 0
+        ? Math.min(Math.max(0, Math.round(crop.x)), postRotW - 1)
+        : 0;
+    const cropY =
+      crop && crop.width > 0 && crop.height > 0
+        ? Math.min(Math.max(0, Math.round(crop.y)), postRotH - 1)
+        : 0;
+
+    // Working dimensions after crop (used to clamp/size all composites)
+    const workW =
+      crop && crop.width > 0 ? Math.min(Math.round(crop.width), postRotW - cropX) : postRotW;
+    const workH =
+      crop && crop.height > 0 ? Math.min(Math.round(crop.height), postRotH - cropY) : postRotH;
+
+    if (crop && crop.width > 0 && crop.height > 0) {
+      pipeline = pipeline.extract({
+        left: cropX,
+        top: cropY,
+        width: workW,
+        height: workH,
+      });
+
+      if (crop.shape === "circle") {
+        // Build circular alpha mask as raw RGBA pixels — no librsvg dependency
+        const cx = workW / 2;
+        const cy = workH / 2;
+        const rx = workW / 2;
+        const ry = workH / 2;
+        const maskPixels = Buffer.alloc(workW * workH * 4, 0);
+        for (let y = 0; y < workH; y++) {
+          for (let x = 0; x < workW; x++) {
+            const dx = (x - cx) / rx;
+            const dy = (y - cy) / ry;
+            const inside = dx * dx + dy * dy <= 1;
+            const idx = (y * workW + x) * 4;
+            maskPixels[idx] = maskPixels[idx + 1] = maskPixels[idx + 2] = 255;
+            maskPixels[idx + 3] = inside ? 255 : 0;
+          }
+        }
+        const circleMask = await sharp(maskPixels, {
+          raw: { width: workW, height: workH, channels: 4 },
+        })
+          .png()
+          .toBuffer();
+        pipeline = pipeline.ensureAlpha().composite([{ input: circleMask, blend: "dest-in" }]);
+      }
+    }
+
+    // — Colour filters —
+    if (filters) {
+      const {
+        brightness = 0,
+        contrast = 0,
+        saturation = 0,
+        grayscale = 0,
+        sepia = 0,
+        temperature = 0,
+      } = filters;
+
+      // Brightness + saturation via modulate
+      if (brightness !== 0 || saturation !== 0) {
+        pipeline = pipeline.modulate({
+          brightness: Math.max(0, 1 + brightness / 100),
+          saturation: Math.max(0, 1 + saturation / 100),
+        });
+      }
+
+      // Contrast via linear transform
+      if (contrast !== 0) {
+        const f = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        pipeline = pipeline.linear(f, -(128 * f) + 128);
+      }
+
+      // Grayscale (full desaturate)
+      if (grayscale > 0) pipeline = pipeline.grayscale();
+
+      // Sepia via colour matrix blend — partial sepia based on strength (0–100)
+      if (sepia > 0) {
+        const s = Math.min(sepia, 100) / 100;
+        pipeline = pipeline.recomb([
+          [0.393 * s + 1 * (1 - s), 0.769 * s, 0.189 * s],
+          [0.349 * s, 0.686 * s + 1 * (1 - s), 0.168 * s],
+          [0.272 * s, 0.534 * s, 0.131 * s + 1 * (1 - s)],
+        ]);
+      }
+
+      // Temperature: warm (+) boosts red/reduces blue, cool (-) the reverse
+      if (temperature !== 0) {
+        const t = temperature / 100;
+        pipeline = pipeline.recomb([
+          [1 + t * 0.2, 0, 0],
+          [0, 1, 0],
+          [0, 0, 1 - t * 0.2],
+        ]);
+      }
+    }
+
+    // 4. Collect composites (blur regions + watermarks + annotations rendered as SVG)
+    const composites: any[] = [];
+
+    // — Blur regions (coordinates are in original image space — offset by crop origin) —
+    if (Array.isArray(blurRegions) && blurRegions.length > 0) {
+      for (const region of blurRegions) {
+        const rx = Math.max(0, Math.round(region.x));
+        const ry = Math.max(0, Math.round(region.y));
+        const rw = Math.min(Math.round(region.width), imgW - rx);
+        const rh = Math.min(Math.round(region.height), imgH - ry);
+        if (rw <= 0 || rh <= 0) continue;
+        // Composite position is relative to the post-crop canvas
+        const compositeLeft = Math.max(0, rx - cropX);
+        const compositeTop = Math.max(0, ry - cropY);
+        if (compositeLeft >= workW || compositeTop >= workH) continue;
+        const blurBuf = await sharp(originalBuffer)
+          .extract({ left: rx, top: ry, width: rw, height: rh })
+          .blur(Math.max(0.3, (region.strength ?? 20) * 0.5))
+          .toBuffer();
+        composites.push({
+          input: blurBuf,
+          left: compositeLeft,
+          top: compositeTop,
+          blend: "over",
+        });
+      }
+    }
+
+    // — Watermarks —
+    const escXml = (s: string) =>
+      s.replace(
+        /[<>&"]/g,
+        (c: string) =>
+          (
+            ({
+              "<": "&lt;",
+              ">": "&gt;",
+              "&": "&amp;",
+              '"': "&quot;",
+            }) as Record<string, string>
+          )[c] ?? c,
+      );
+
+    if (Array.isArray(watermarks) && watermarks.length > 0) {
+      for (const wm of watermarks) {
+        if (wm.type === "text" && wm.text) {
+          const fontSize = Math.round(wm.fontSize ?? 48);
+          const color = wm.color ?? "#ffffff";
+          const opacity = Math.round((wm.opacity ?? 0.8) * 255)
+            .toString(16)
+            .padStart(2, "0");
+          const left = Math.max(0, Math.round(wm.x) - cropX);
+          const top = Math.max(0, Math.round(wm.y) - cropY);
+          const svgText = Buffer.from(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="${workW}" height="${workH}">` +
+              `<text x="${left}" y="${top + fontSize}" font-size="${fontSize}" fill="${color}${opacity}" font-family="sans-serif">${escXml(wm.text)}</text>` +
+              `</svg>`,
+          );
+          composites.push({ input: svgText, top: 0, left: 0, blend: "over" });
+        } else if (wm.type === "image" && wm.imageUrl) {
+          try {
+            const wmLeft = Math.max(0, Math.round(wm.x) - cropX);
+            const wmTop = Math.max(0, Math.round(wm.y) - cropY);
+            const wmW = Math.min(Math.round(wm.width ?? 100), workW - wmLeft);
+            const wmH = Math.min(Math.round(wm.height ?? 100), workH - wmTop);
+            if (wmW > 0 && wmH > 0) {
+              const wmBuf = await sharp(Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"))
+                .resize(wmW, wmH, { fit: "contain" })
+                .ensureAlpha()
+                .toBuffer();
+              composites.push({
+                input: wmBuf,
+                left: wmLeft,
+                top: wmTop,
+                blend: "over",
+              });
+            }
+          } catch {
+            logger.warn(`[manipulateMedia] Skipping invalid watermark image`);
+          }
+        }
+      }
+    }
+
+    // — Annotations rendered as SVG overlay (crop-relative coordinates) —
+    if (Array.isArray(annotations) && annotations.length > 0) {
+      const shapes = annotations
+        .map((a: any) => {
+          const stroke = a.stroke ?? "#ff0000";
+          const fill = a.fill ?? "none";
+          const sw = a.strokeWidth ?? 2;
+          const ax = (a.x ?? 0) - cropX;
+          const ay = (a.y ?? 0) - cropY;
+          switch (a.type) {
+            case "rect":
+              return `<rect x="${ax}" y="${ay}" width="${a.width ?? 50}" height="${a.height ?? 50}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
+            case "circle":
+              return `<circle cx="${ax}" cy="${ay}" r="${a.radius ?? 25}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
+            case "text":
+              return `<text x="${ax}" y="${ay}" font-size="${a.fontSize ?? 20}" fill="${stroke}" font-family="sans-serif">${escXml(String(a.text ?? ""))}</text>`;
+            case "arrow":
+            case "line":
+              return `<line x1="${ax}" y1="${ay}" x2="${ax + (a.width ?? 50)}" y2="${ay + (a.height ?? 0)}" stroke="${stroke}" stroke-width="${sw}"/>`;
+            default:
+              return "";
+          }
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      if (shapes) {
+        const svgOverlay = Buffer.from(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${workW}" height="${workH}">${shapes}</svg>`,
+        );
+        composites.push({ input: svgOverlay, top: 0, left: 0, blend: "over" });
+      }
+    }
+
+    if (composites.length > 0) pipeline = pipeline.composite(composites);
+
+    // 5. Encode — circular crop forces PNG (needs alpha channel); otherwise preserve original format
+    const ext = (existing.filename.split(".").pop() ?? "jpg").toLowerCase();
+    const isCircle = crop?.shape === "circle";
+    const outputBuffer: Buffer = await (() => {
+      if (isCircle || ext === "png") return pipeline.png({ compressionLevel: 8 }).toBuffer();
+      if (ext === "webp") return pipeline.webp({ quality: 90 }).toBuffer();
+      if (ext === "avif") return pipeline.avif({ quality: 80 }).toBuffer();
+      return pipeline.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+    })();
+
+    // 6. Hash, persist, update DB
+    // Circular crop outputs PNG — rename file accordingly
+    const outputFilename =
+      isCircle && !existing.filename.endsWith(".png")
+        ? existing.filename.replace(/\.[^.]+$/, ".png")
+        : existing.filename;
+    const outputMime = isCircle ? "image/png" : existing.mimeType;
+    const newHash = await hashFileContent(outputBuffer);
+    const relPath = buildOriginalRelPath(newHash, outputFilename);
+    await saveFile(outputBuffer, relPath);
+    const now = new Date().toISOString();
+
+    if (saveBehavior === "new") {
+      const uploadResult = await this.files.upload(
+        {
+          filename: outputFilename,
+          originalFilename: outputFilename,
+          mimeType: outputMime,
+          size: outputBuffer.byteLength,
+          hash: newHash,
+          path: relPath,
+          createdBy: userId,
+          updatedBy: userId,
+          metadata: { versions: [] },
+          thumbnails: {},
+          access: existing.access || "public",
+          folderId: existing.folderId ?? undefined,
+          originalId: id,
+          tenantId: tenantId ?? undefined,
+        } as any,
+        tenantId ?? undefined,
+      );
+      if (!uploadResult.success || !uploadResult.data)
+        throw new Error("Failed to create new media record");
+      return this.enrichMediaWithUrl(uploadResult.data as any) as unknown as MediaItem;
+    }
+
+    // overwrite: push current file to version history, update record in place
+    const versions = existing.metadata?.versions || [];
+    await this.updateMedia(
+      id,
+      {
+        hash: newHash,
+        path: relPath,
+        size: outputBuffer.byteLength,
+        thumbnails: {},
+        updatedBy: userId,
+        updatedAt: now,
+        metadata: {
+          ...existing.metadata,
+          versions: [
+            ...versions,
+            {
+              version: versions.length + 1,
+              url: existing.url || "",
+              path: existing.path,
+              hash: existing.hash,
+              size: existing.size,
+              filename: existing.filename,
+              mimeType: existing.mimeType,
+              createdAt: existing.updatedAt || existing.createdAt || now,
+              createdBy: existing.updatedBy || existing.createdBy || userId,
+              action: "edit",
+            },
+          ],
+        },
+      },
+      tenantId,
+    );
+
+    const finalRes = await this.db.crud.findOne<DbMediaItem>(
+      "media",
+      { _id: id as DatabaseId },
+      { tenantId: tenantId ?? undefined },
+    );
+    if (!finalRes.success || !finalRes.data) throw new Error("Failed to retrieve updated media");
+    return this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem;
   }
 
   public async batchProcessImages(

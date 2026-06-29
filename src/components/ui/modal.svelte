@@ -15,7 +15,10 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 - `closeOnEsc` (boolean): Allow Escape to close (default: true).
 - `closeOnOuterClick` (boolean): Allow backdrop click to close (default: true).
 - `onopen` / `onclose` (function): Lifecycle callbacks.
-- `class` (string): Additional CSS classes.
+- `class` (string): Additional CSS classes on the card shell.
+- `dialogClass` (string): Additional CSS classes on the `<dialog>` element.
+- `contentClass` (string): Additional CSS classes on the scrollable body.
+- `headerClass` (string): Additional CSS classes on the header bar.
 
 ### Features:
 - native `<dialog>` with backdrop blur and fade animation
@@ -34,9 +37,12 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	interface Props {
 		open?: boolean;
 		title?: string;
-		size?: 'sm' | 'md' | 'lg' | 'xl' | 'fullscreen';
+		size?: 'sm' | 'md' | 'lg' | 'xl' | 'editor' | 'fullscreen';
 		color?: 'surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error';
 		class?: string;
+		dialogClass?: string;
+		contentClass?: string;
+		headerClass?: string;
 		header?: Snippet;
 		footer?: Snippet;
 		children?: Snippet;
@@ -53,6 +59,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		size = 'md',
 		color = 'surface',
 		class: className,
+		dialogClass,
+		contentClass,
+		headerClass,
 		header,
 		footer,
 		children,
@@ -76,13 +85,17 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	});
 
 	const isFullscreen = $derived(size === 'fullscreen');
+	const isEditorShell = $derived(size === 'editor');
+	const isExpandedBody = $derived(isFullscreen || isEditorShell);
 
 	const sizeClasses: Record<string, string> = {
 		sm: 'max-w-sm',
 		md: 'max-w-lg',
 		lg: 'max-w-2xl',
 		xl: 'max-w-4xl',
-		fullscreen: 'h-full w-full rounded-none border-0',
+		editor:
+			'w-[min(96vw,82rem)] min-w-[min(96vw,82rem)] max-w-[min(96vw,82rem)] h-[min(90dvh,52rem)] min-h-[min(90dvh,52rem)] max-h-[90dvh] max-md:w-full max-md:min-w-full max-md:max-w-none max-md:h-full max-md:min-h-full max-md:max-h-none m-auto max-md:m-0 shrink-0 max-md:shrink max-md:grow grow-0 max-md:grow overflow-hidden rounded-none border-0',
+		fullscreen: 'h-[100dvh] max-h-[100dvh] w-full max-w-none rounded-none border-0 m-0',
 	};
 
 	const colorClasses: Record<string, string> = {
@@ -102,9 +115,16 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		bind:this={dialog.dialogEl}
 		onclick={dialog.onBackdropClick}
 		onkeydown={dialog.onKeydown}
+		data-fullscreen={isFullscreen ? 'true' : undefined}
+		data-editor={isEditorShell ? 'true' : undefined}
 		class={cn(
-			'fixed inset-0 z-101 m-auto bg-transparent border-0 p-0 overflow-visible backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
-			'open:flex items-center justify-center p-4 sm:p-6 lg:p-8',
+			'fixed inset-0 z-101 bg-transparent border-0 backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
+			isFullscreen
+				? 'open:flex m-0 h-[100dvh] max-h-[100dvh] w-full max-w-none overflow-hidden p-0'
+				: isEditorShell
+					? 'open:flex m-auto max-md:m-0 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-hidden p-0 max-md:p-0'
+					: 'open:flex m-auto items-center justify-center overflow-visible p-4 sm:p-6 lg:p-8',
+			dialogClass,
 		)}
 		{...dialog.dialogAria}
 		{...rest}
@@ -113,17 +133,20 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		<div
 			data-dialog-content
 			class={cn(
-				'card shadow-2xl transition-all duration-300 transform scale-100 opacity-100',
-				'flex flex-col border overflow-hidden w-full m-auto',
+				!isEditorShell && 'card',
+				!isEditorShell && 'shadow-2xl transition-all duration-300 transform scale-100 opacity-100',
+				'flex flex-col overflow-hidden',
+				'w-full',
+				isExpandedBody ? 'h-full min-h-0' : 'm-auto',
 				sizeClasses[size],
-				colorClasses[color],
+				isEditorShell ? 'text-white border-0 ring-0 outline-none' : colorClasses[color],
 				className,
 			)}
 			tabindex="-1"
 		>
 			<!-- Header -->
 			{#if header || title}
-				<header class="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-700 shrink-0">
+				<header class={cn('flex items-center justify-between border-b border-surface-200 p-4 shrink-0 dark:border-surface-700', headerClass)}>
 					{#if header}
 						{@render header()}
 					{:else}
@@ -144,11 +167,10 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			{/if}
 
 			<!-- Body -->
-			<div
-				data-dialog-body
-				class={cn(
+			<div class={cn(
 				'flex-1 min-h-0',
-				isFullscreen ? 'overflow-hidden p-0' : 'overflow-y-auto p-4 sm:p-6',
+				isExpandedBody ? 'flex h-full flex-col overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
+				contentClass,
 			)}>
 				{#if children}
 					{@render children()}
@@ -175,26 +197,63 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			overscroll-behavior: contain;
 		}
 
-		/* Prevent width shift when scrollbar appears in modal body */
-		[data-dialog-content] [data-dialog-body] {
-			scrollbar-gutter: stable;
-		}
+	dialog[data-fullscreen='true'][open] > div,
+	dialog[data-editor='true'][open] > div {
+		animation: none;
+	}
+
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
 
 		dialog[open] > div {
 			animation: zoom-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 		}
 
-		@keyframes fade-in {
-			from { opacity: 0; }
-			to { opacity: 1; }
+	dialog:focus {
+		outline: none;
+	}
+
+	:global(dialog[data-editor='true'] > [data-dialog-content]) {
+		border: none !important;
+		border-radius: 0 !important;
+		outline: none !important;
+		box-shadow: none !important;
+		background-clip: border-box;
+		isolation: isolate;
+	}
+
+	@media (max-width: 767px) {
+		:global(dialog[data-editor='true']) {
+			align-items: stretch !important;
+			justify-content: stretch !important;
+			inset: 0 !important;
+			width: 100vw !important;
+			min-width: 100vw !important;
+			max-width: 100vw !important;
+			height: 100dvh !important;
+			max-height: 100dvh !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			background: #1a1a1a !important;
+			overflow: hidden !important;
 		}
 
-		@keyframes zoom-in {
-			from { transform: scale(0.95); opacity: 0; }
-			to { transform: scale(1); opacity: 1; }
+		:global(dialog[data-editor='true']::backdrop) {
+			background: #1a1a1a;
+			backdrop-filter: none;
 		}
 
-		dialog:focus {
-			outline: none;
+		:global(dialog[data-editor='true'] > [data-dialog-content]) {
+			width: 100% !important;
+			min-width: 100% !important;
+			max-width: none !important;
+			height: 100dvh !important;
+			min-height: 100dvh !important;
+			max-height: 100dvh !important;
+			margin: 0 !important;
+			border-radius: 0 !important;
 		}
-	</style>
+	}
+</style>

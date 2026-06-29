@@ -17,18 +17,23 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import { getClientIp } from "@utils/hook-utils";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { sendMail } from "@utils/email.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 import { logger } from "@utils/logger";
+import { sendMail } from "@utils/email.server";
 import { isRedirect } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
+
+function isSecureConnection(event: RequestEvent): boolean {
+  const isProd = process.env.NODE_ENV !== "development" && process.env.TEST_MODE !== "true";
+  return event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+}
 
 const limiter = new RateLimiter({
   IP: [10, "m"],
@@ -120,48 +125,6 @@ export const requestMagicLink = command("unchecked", async (data: any) => {
   }
 });
 
-export const checkAuthMethods = query("unchecked", async (email: string) => {
-  await dbInitPromise;
-  if (!auth) return { success: false, message: "Authentication system is not ready." };
-
-  const e = email?.trim().toLowerCase();
-  if (!e) return { success: false, message: "Email required." };
-
-  try {
-    const user = await auth.checkUser({ email: e }, { bypassTenantCheck: true });
-    if (!user) {
-      // If user doesn't exist, we just return true for password to not leak user existence trivially
-      // But if we want open signup, we might allow magic link / passkey registration?
-      // For now, let's just return basic defaults.
-      return {
-        success: true,
-        hasPassword: true,
-        hasPasskey: false,
-        hasMagicLink: false,
-        hasOAuth: false,
-      };
-    }
-
-    // Checking passkey availability - wait, user profile needs a way to set passkey.
-    // If we assume user can register multiple passkeys, it would be in user attributes or a separate collection.
-    // Let's check `lastAuthMethod` or similar, or just assume if global is enabled, we allow it.
-    // The user requested that passkeys and magic links should be activated in /user.
-    // We can store these flags in `user.preferences.auth` or similar.
-    const prefs = (user.preferences as any) || {};
-    const authPrefs = prefs.auth || {};
-
-    return {
-      success: true,
-      hasPassword: true,
-      hasPasskey: !!authPrefs.passkeyEnabled,
-      hasMagicLink: !!authPrefs.magicLinkEnabled,
-      hasOAuth: !!authPrefs.oauthEnabled,
-    };
-  } catch {
-    return { success: false, message: "Failed to check auth methods" };
-  }
-});
-
 export const verify2FA = command(
   "unchecked",
   async ({ userId, code }: { userId: string; code: string }) => {
@@ -186,10 +149,10 @@ export const verify2FA = command(
     const user = await auth.getUserById(userId);
     if (!user) return { success: false, message: "User not found." };
 
-    const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
+    const sc = auth.createSessionCookie(userId as any as DatabaseId, isSecureConnection(event));
     try {
-      event.cookies.set(sessionCookie.name, sessionCookie.value, {
-        ...(sessionCookie.attributes as Record<string, unknown>),
+      event.cookies.set(sc.name, sc.value, {
+        ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
     } catch {}
@@ -207,14 +170,9 @@ export const verify2FA = command(
         logger.debug("2FA verify user attribute update failed silently");
       });
 
-    let finalCollectionPath: string | null = null;
-    try {
-      finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
-    } catch {}
-
     return {
       success: true,
-      redirectPath: finalCollectionPath ?? "/config/collectionbuilder",
+      redirectPath: "/config/collectionbuilder",
     };
   },
 );
@@ -222,7 +180,7 @@ export const verify2FA = command(
 export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
   const { shutdownSystem } = await import("@src/databases/db");
-  const { invalidateSetupCache } = await import("../../utils/server/setup-check");
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   const { logger } = await import("@utils/logger");
   const event = getRequestEvent();
 
@@ -349,7 +307,7 @@ async function signInInternal(event: RequestEvent, input: any) {
           message: "2FA required",
         };
       ok = true;
-      const sc = auth.createSessionCookie(ar.sessionId!);
+      const sc = auth.createSessionCookie(ar.sessionId!, isSecureConnection(event));
       try {
         event.cookies.set(sc.name, sc.value, {
           ...(sc.attributes as Record<string, unknown>),
@@ -363,7 +321,7 @@ async function signInInternal(event: RequestEvent, input: any) {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
         primeSessionMemoryCache(ar.sessionId!, user);
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
-        const { invalidateSetupCache } = await import("../../utils/server/setup-check");
+        const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch {}
     } else {
@@ -381,7 +339,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       user_id: user._id,
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
     });
-    const sc = auth.createSessionCookie(s._id);
+    const sc = auth.createSessionCookie(s._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
@@ -422,11 +380,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
-  logger.info(
-    `[SignIn] First collection path: ${path}, redirecting to: ${path ?? "/config/collectionbuilder"}`,
-  );
-  return { success: true, redirectPath: path ?? "/config/collectionbuilder" };
+  return { success: true, redirectPath: "/config/collectionbuilder" };
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
@@ -504,7 +458,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
 
   const session = ur.data?.session;
   if (session) {
-    const sc = auth.createSessionCookie(session._id);
+    const sc = auth.createSessionCookie(session._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
@@ -574,6 +528,7 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       const origin = new URL(event.request.url).origin;
       const baseUrl = publicEnv.HOST_PROD || origin;
       const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
+
       sendMail({
         recipientEmail: result.output.email,
         subject: "Reset your password",
@@ -585,18 +540,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
           resetLink,
         },
         languageTag: "en" as any,
-      })
-        .then((res) => {
-          if (!res.success || res.dev_mode) {
-            logger.warn(
-              `[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`,
-            );
-          }
-        })
-        .catch(() => {
-          logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
-          logger.debug("Password reset email sending failed silently");
-        });
+      }).catch(() => {
+        logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
+      });
     }
   } catch {}
 
@@ -696,10 +642,10 @@ async function consumeWebAuthnChallenge(
   challenge: string,
 ): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
   const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
-  const stored = (await cacheService.get(key, null)) as {
+  const stored = await cacheService.get<{
     userId: string;
     type: "registration" | "authentication";
-  } | null;
+  }>(key, null);
   await cacheService.delete(key, null);
   return stored;
 }
@@ -736,7 +682,7 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
   const options = buildAuthenticationOptions(
     rpId,
     challenge,
-    user.authenticators.map((a: any) => ({
+    user.authenticators.map((a) => ({
       id: a.credentialID,
       type: "public-key" as const,
       transports: a.transports,
@@ -801,7 +747,7 @@ export const verifyPasskeyAuth = command(
           message: "Passkey signature verification failed.",
         };
 
-      const updatedAuthenticators = (user.authenticators || []).map((a: any) =>
+      const updatedAuthenticators = (user.authenticators || []).map((a) =>
         a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
       );
       await auth.updateUserAttributes(
@@ -823,10 +769,9 @@ export const verifyPasskeyAuth = command(
         path: "/",
       });
 
-      const finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
       return {
         success: true,
-        redirectPath: finalCollectionPath ?? "/config/collectionbuilder",
+        redirectPath: "/config/collectionbuilder",
       };
     } catch (err: any) {
       logger.error("Passkey authentication failed:", err.message);

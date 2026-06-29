@@ -10,8 +10,27 @@ vi.mock("sharp", () => ({
     flip: vi.fn().mockReturnThis(),
     extract: vi.fn().mockReturnThis(),
     modulate: vi.fn().mockReturnThis(),
+    linear: vi.fn().mockReturnThis(),
+    grayscale: vi.fn().mockReturnThis(),
+    recomb: vi.fn().mockReturnThis(),
+    blur: vi.fn().mockReturnThis(),
+    composite: vi.fn().mockReturnThis(),
+    ensureAlpha: vi.fn().mockReturnThis(),
+    clone: vi.fn().mockReturnThis(),
+    resize: vi.fn().mockReturnThis(),
+    jpeg: vi.fn().mockReturnThis(),
+    png: vi.fn().mockReturnThis(),
+    webp: vi.fn().mockReturnThis(),
+    avif: vi.fn().mockReturnThis(),
     toBuffer: vi.fn().mockResolvedValue(Buffer.from("mock-buffer")),
   })),
+}));
+
+// Mock file I/O for manipulateMedia smoke tests
+vi.mock("@src/utils/media/media-storage.server", () => ({
+  getFile: vi.fn().mockResolvedValue(Buffer.from("fake-image-data")),
+  saveFile: vi.fn().mockResolvedValue(undefined),
+  fileExists: vi.fn().mockResolvedValue(true),
 }));
 
 const mockDbAdapter = (globalThis as any).mockDbAdapter;

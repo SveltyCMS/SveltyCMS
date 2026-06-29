@@ -767,7 +767,13 @@ async function main() {
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
-    const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
+    // All adapters (MariaDB, PostgreSQL, SQLite, MongoDB) use bun test uniformly.
+    // The v8 shim in src/utils/v8-shim.ts handles the only Bun-incompatible API
+    // (v8.isBuildingSnapshot) in the MongoDB driver chain.
+    const testCmd = "bun";
+    const testArgs = ["test", "--timeout", "60000", bunTestPath];
+
+    const { code } = await runCommand(testCmd, testArgs, {
       env: {
         ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
