@@ -154,6 +154,9 @@ jobs:
 
   unit:
     name: ⚡ Unit Tests
+    # Unit tests are enforced locally via pre-commit/pre-push hooks.
+    # Skip on next branch to reduce CI time; keep on main and PRs as safety net.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -631,5 +634,5 @@ jobs:
         run: |
           echo "::error::One or more required jobs failed or were cancelled"
           exit 1
-      - if: ${{ success() }}
+      - if: ${{ !cancelled() && !failure() }}
         run: echo "✅ All checks passed"
