@@ -11,7 +11,6 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
-import { AppError } from "@utils/error-handling";
 import { fileExists, getFile, saveFile } from "./media-storage.server";
 import type {
   IDBAdapter,
