@@ -24,7 +24,7 @@
  *   - Summary table at the end
  */
 
-import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
+import { spawn, type SpawnOptions } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
