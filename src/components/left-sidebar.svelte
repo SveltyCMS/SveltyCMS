@@ -47,9 +47,9 @@
 	import { goto } from '$app/navigation';
 	// Stores
 	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
-	import { ui, uiStateManager, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte';
+	import { ui, uiStateManager, toggleUIElement } from '@src/stores/ui-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
+	import { systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
@@ -135,7 +135,7 @@
 	);
 
 	const avatarUrl = $derived.by(() => {
-		let src = avatarSrc.value;
+		let src = user?.avatar;
 		if (!src || src === 'Default_User.svg' || src === '/Default_User.svg') {
 			return '/Default_User.svg';
 		}
@@ -184,7 +184,6 @@
 		const current = uiStateManager.uiState.value.leftSidebar;
 		const newState: SidebarState = current === 'full' ? 'collapsed' : 'full';
 		toggleUIElement('leftSidebar', newState);
-		userPreferredState.set(newState);
 	}
 
 	function handleUserClick(): void {
