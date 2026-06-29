@@ -294,7 +294,11 @@ export class TwoFactorAuthService {
       return true;
     } catch (error: any) {
       const message = `Failed to disable 2FA: ${error.message}`;
-      logger.error(message, { userId, tenantId });
+      if (error.message.includes("2FA is not enabled")) {
+        logger.warn(message, { userId, tenantId });
+      } else {
+        logger.error(message, { userId, tenantId });
+      }
       throw new Error(message);
     }
   }
