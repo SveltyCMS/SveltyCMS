@@ -20,7 +20,7 @@ class SetupWizardPage {
 
   async hardReset() {
     try {
-      await resetToSetupMode("http://127.0.0.1:4174");
+      await resetToSetupMode();
     } catch (err: any) {
       console.warn(`[E2E Setup Wizard] Cryptographic hardReset failed: ${err.message}`);
     }

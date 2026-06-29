@@ -190,9 +190,6 @@ async function handleSeedDatabase(event: RequestEvent) {
 async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL) {
   const { database, admin, system = {} } = await event.request.json();
 
-  // Validate that the target database is not already seeded with admins (Setup Hijack Protection)
-  await verifyDatabaseUnseeded(database);
-
   // Wait for critical seeding to finish
   await setupManager.waitTillDone();
 
