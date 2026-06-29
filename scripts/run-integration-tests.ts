@@ -771,7 +771,9 @@ async function main() {
     // The v8 shim in src/utils/v8-shim.ts handles the only Bun-incompatible API
     // (v8.isBuildingSnapshot) in the MongoDB driver chain.
     const testCmd = "bun";
-    const testArgs = ["test", "--timeout", "60000", bunTestPath];
+    // MongoDB and MariaDB need extra timeout for post-reset stabilize loop (up to 32s + seed + auth)
+    const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
+    const testArgs = ["test", "--timeout", dbTimeout, bunTestPath];
 
     const { code } = await runCommand(testCmd, testArgs, {
       env: {
