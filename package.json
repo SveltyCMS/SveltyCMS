@@ -110,7 +110,6 @@
     "@mcp-b/webmcp-polyfill": "^3.0.0",
     "@node-saml/node-saml": "^5.1.0",
     "@opentelemetry/api": "^1.9.1",
-    "@smithy/node-http-handler": "^4.9.0",
     "@sveltejs/kit": "^2.68.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/node": "^4.3.2",
