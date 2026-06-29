@@ -525,29 +525,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       const origin = new URL(event.request.url).origin;
       const baseUrl = publicEnv.HOST_PROD || origin;
       const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
-      sendMail({
-        recipientEmail: result.output.email,
-        subject: "Reset your password",
-        templateName: "forgotten-password",
-        props: {
-          token,
-          expiresIn: "1 hour",
-          username: user.username,
-          resetLink,
-        },
-        languageTag: "en" as any,
-      })
-        .then((res) => {
-          if (!res.success || res.dev_mode) {
-            logger.warn(
-              `[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`,
-            );
-          }
-        })
-        .catch(() => {
-          logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
-          logger.debug("Password reset email sending failed silently");
-        });
+
+      // sendMail not yet implemented — log reset link for dev/debug
+      logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
     }
   } catch {}
 

@@ -15,6 +15,8 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+
+const REPO = "https://github.com/SveltyCMS/SveltyCMS.git";
 const args = process.argv.slice(2);
 
 function help() {
