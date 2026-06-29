@@ -58,7 +58,12 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
 
     // ── Plugin Resolution ──────────────────────────────────────────
     const uiPlugin = pluginRegistry.get(pluginId);
-    const hasServerActions = !!pluginServerRegistry.getLoader(pluginId);
+    let hasServerActions = !!pluginServerRegistry.getLoader(pluginId);
+
+    // Fallback: known server-only plugins that may not be registered yet
+    if (!uiPlugin && !hasServerActions && pluginId === "smart-importer") {
+      hasServerActions = true;
+    }
 
     if (!uiPlugin && !hasServerActions) {
       throw new AppError(`Plugin not found: ${pluginId}`, 404, "NOT_FOUND");
@@ -83,7 +88,14 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
     // ── Load & cache server module actions ─────────────────────────
     let pluginActions = RESOLVED_ACTIONS.get(pluginId);
     if (!pluginActions) {
-      const loader = pluginServerRegistry.getLoader(pluginId);
+      let loader = pluginServerRegistry.getLoader(pluginId);
+      if (!loader) {
+        // Fallback: register known server-only plugin loaders on first access
+        if (pluginId === "smart-importer") {
+          const mod = await import("@plugins/smart-importer/migration-page.server");
+          loader = async () => mod;
+        }
+      }
       if (!loader) {
         throw new AppError(`Plugin '${pluginId}' has no server actions`, 404, "NOT_FOUND");
       }

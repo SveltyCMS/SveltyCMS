@@ -4,13 +4,25 @@
  */
 
 import { logger } from "@utils/logger";
-import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import type { IDBAdapter } from "./db-interface";
 import { dbPluginRegistry } from "./core/plugin-registry";
 
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
 // so MongoDB adapter works under Bun without requiring Node.js/vitest.
 import "@utils/v8-shim";
+
+/**
+ * 🚀 GLOBAL STATE HELPERS — inlined from @src/utils/native-utils to avoid
+ * runtime alias resolution issues in bundled output (CI DB integration tests).
+ */
+const setGlobal = (key: string, val: any) => {
+  (globalThis as any)[key] = val;
+  return val;
+};
+const getGlobal = <T = any>(key: string, defaultVal: T = null as any): T => {
+  const val = (globalThis as any)[key];
+  return val !== undefined ? val : defaultVal;
+};
 
 /**
  * 🚀 AGNOSTIC CORE: Loads the physical database adapter based on config.
@@ -184,7 +196,28 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     critical: true,
     initialize: async (adapter) => {
       startServiceInitialization("contentSystem");
-      const { contentSystem } = await import("@src/content/index.server");
+      let contentSystem: any;
+      // Try multiple resolution strategies for the content system
+      try {
+        // Strategy 1: Check if already loaded on globalThis (by hooks.server or other)
+        contentSystem = (globalThis as any).__contentSystem__;
+        if (!contentSystem) {
+          // Strategy 2: Dynamic import with @vite-ignore (works in dev, may fail in prod)
+          ({ contentSystem } = await import(/* @vite-ignore */ "@src/content/index.server"));
+        }
+        if (!contentSystem) {
+          // Strategy 3: Use createRequire with process.cwd() to find the source
+          const { createRequire } = await import("node:module");
+          const path = await import("node:path");
+          const require = createRequire(import.meta.url);
+          const contentPath = path.resolve(process.cwd(), "src/content/index.server");
+          contentSystem = require(contentPath).contentSystem;
+        }
+      } catch (e) {
+        logger.error("[DB Init] All content system import strategies failed:", e);
+        throw e;
+      }
+      if (!contentSystem) throw new Error("Content system module not found");
       await contentSystem.initialize(null, { skipReconciliation: true }, adapter);
       updateServiceHealth("contentSystem", "healthy", "Content system online");
     },
@@ -196,7 +229,7 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     dependencies: ["base"],
     initialize: async (adapter) => {
       startServiceInitialization("media");
-      const { MediaService } = await import("@src/utils/media/media-service.server");
+      const { MediaService } = await import(/* @vite-ignore */ "@utils/media/media-service.server");
       (adapter as any).mediaService = new MediaService(adapter);
       updateServiceHealth("media", "healthy", "Media service online");
     },

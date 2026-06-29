@@ -261,7 +261,9 @@ export function searchGlobalIndexSync(query: string): SearchData[] {
 async function searchSemanticFromServer(query: string): Promise<SemanticSearchMatch[]> {
   // Call the semantic index via internal API (not HTTP — direct function call)
   try {
-    const { semanticSearch } = await import("@src/services/intelligence/semantic-index");
+    const { semanticSearch } = await import(
+      /* @vite-ignore */ "@src/services/intelligence/semantic-index"
+    );
     const results = await semanticSearch(query, { limit: 10, minScore: 0.15 });
     return results.map((r) => ({
       id: r.id,

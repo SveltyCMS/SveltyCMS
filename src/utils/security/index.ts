@@ -14,7 +14,8 @@
  *   - safe-query.ts   — Safe query construction
  */
 
-export * from "./crypto";
+// crypto.ts removed from barrel — it uses node:module which breaks browser hydration.
+// Import directly: import { hashPassword } from "@utils/security/crypto"
 export * from "./constants";
 export * from "./auth-utils";
 export * from "./csrf-utils";

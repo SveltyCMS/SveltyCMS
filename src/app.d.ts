@@ -7,6 +7,8 @@ import type { Role, Token, User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, Theme, DatabaseId } from "@src/databases/db-interface";
 
 declare global {
+  const __SVELTY_SETUP_COMPLETE__: boolean;
+  const __FRESH_INSTALL__: boolean;
   namespace App {
     interface Locals {
       // Setup hook caching

@@ -205,8 +205,19 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
     }
     const fileList: { fullPath: string; mtime: number }[] = [];
 
-    const { isBenchmarkArtifact, isBenchmarkRuntime } =
-      await import("@src/routes/setup/preset-collections.server");
+    let isBenchmarkArtifact = (_name: string) => false;
+    let isBenchmarkRuntime = () => false;
+    try {
+      const presetCollectionsPath = new URL(
+        "../routes/setup/preset-collections.server.ts",
+        import.meta.url,
+      ).href;
+      const mod = await import(presetCollectionsPath);
+      isBenchmarkArtifact = mod.isBenchmarkArtifact;
+      isBenchmarkRuntime = mod.isBenchmarkRuntime;
+    } catch {
+      // Fallback: on platforms where dynamic TS imports fail, skip benchmark filtering
+    }
     const skipBenchmarks = !isBenchmarkRuntime();
 
     async function walk(dir: string) {
@@ -353,9 +364,12 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
   const fileSchemas = await scanCompiledCollections();
   let dbSchemas: Schema[] = [];
 
-  if (db?.collection?.listSchemas) {
+  // Resolve db adapter if not passed
+  const dbAdapter = db || (await (await import("@src/databases/db")).getDb());
+
+  if (dbAdapter?.collection?.listSchemas) {
     try {
-      const res = await db.collection.listSchemas(tenantId as DatabaseId);
+      const res = await dbAdapter.collection.listSchemas(tenantId as DatabaseId);
       if (res.success && res.data) {
         dbSchemas = res.data;
       }
@@ -412,10 +426,16 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 
   contentStore.sync(nodes as any);
 
-  if (db) {
-    if (typeof (db as any).reconcile === "function") await (db as any).reconcile();
-    if ((db.collection as any)?.ensureSystemTables)
-      await (db.collection as any).ensureSystemTables();
+  if (dbAdapter) {
+    // Create DB tables for any new/changed schemas
+    try {
+      await ensurePhysicalModels(finalSchemas, dbAdapter);
+    } catch (err) {
+      logger.error("[RECONCILE] Failed to ensure physical models:", err);
+    }
+    if (typeof (dbAdapter as any).reconcile === "function") await (dbAdapter as any).reconcile();
+    if ((dbAdapter.collection as any)?.ensureSystemTables)
+      await (dbAdapter.collection as any).ensureSystemTables();
   }
 }
 
@@ -432,8 +452,19 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
   let testDirEnsured = false;
 
   const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
-  const { isBenchmarkArtifact, isBenchmarkRuntime } =
-    await import("@src/routes/setup/preset-collections.server");
+  let isBenchmarkArtifact = (_name: string) => false;
+  let isBenchmarkRuntime = () => false;
+  try {
+    const presetCollectionsPath = new URL(
+      "../routes/setup/preset-collections.server.ts",
+      import.meta.url,
+    ).href;
+    const mod = await import(presetCollectionsPath);
+    isBenchmarkArtifact = mod.isBenchmarkArtifact;
+    isBenchmarkRuntime = mod.isBenchmarkRuntime;
+  } catch {
+    // Fallback: on platforms where dynamic TS imports fail, skip benchmark filtering
+  }
   const skipBenchmarks = !isBenchmarkRuntime();
 
   for (const schema of dbSchemas) {

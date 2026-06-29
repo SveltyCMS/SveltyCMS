@@ -635,7 +635,7 @@ export async function notifyAdminsOfDatabaseFailure(
     };
 
     // Send email directly via service
-    const { sendMail } = await import("@utils/email.server");
+    const { sendMail } = await import(/* @vite-ignore */ "@utils/email.server");
     const mailResult = await sendMail({
       recipientEmail: (emailData.recipientEmail as string[]).join(", "),
       subject: emailData.subject,

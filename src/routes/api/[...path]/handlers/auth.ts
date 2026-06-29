@@ -109,6 +109,8 @@ export async function handleAuthUserRoutes(
         return handleSAMLRoutes(event, tenantId, segments);
       case "user":
         return handleUserSpecificRoutes(event, cms, tenantId, user, method, segments);
+      case "batch":
+        return handleUserSpecificRoutes(event, cms, tenantId, user, "batch", segments);
       case "permission":
         return handlePermissionRoutes(event, cms, tenantId, segments);
 

@@ -6,6 +6,7 @@
 import { xxhash64 } from "hash-wasm";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
 import os from "node:os";
 import { isValidTenantId } from "../tenant.ts";
@@ -63,9 +64,23 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     let sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
     // Outside benchmark runtime, never compile test/ fixtures into the live tree
-    const { isBenchmarkArtifact, isBenchmarkRuntime } =
-      await import("@src/routes/setup/preset-collections.server");
-    const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths");
+    let isBenchmarkArtifact = (_name: string) => false;
+    let isBenchmarkRuntime = () => false;
+    let isBenchmarkRelativePath = (_p: string) => false;
+    try {
+      const presetCollectionsPath = path.resolve(
+        process.cwd(),
+        "src/routes/setup/preset-collections.server.ts",
+      );
+      const mod = await import(pathToFileURL(presetCollectionsPath).href);
+      isBenchmarkArtifact = mod.isBenchmarkArtifact;
+      isBenchmarkRuntime = mod.isBenchmarkRuntime;
+      const benchmarkPathsModule = path.resolve(process.cwd(), "src/utils/benchmark-paths.ts");
+      const pathsMod = await import(pathToFileURL(benchmarkPathsModule).href);
+      isBenchmarkRelativePath = pathsMod.isBenchmarkRelativePath;
+    } catch {
+      // Fallback: on platforms where dynamic TS imports fail, skip benchmark filtering
+    }
     if (!isBenchmarkRuntime()) {
       sourceFiles = sourceFiles.filter((relativePath) => {
         if (isBenchmarkRelativePath(relativePath)) return false;

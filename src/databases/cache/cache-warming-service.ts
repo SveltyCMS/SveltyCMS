@@ -130,15 +130,24 @@ export class CacheWarmingService {
       );
 
       // 1. Warm hot collections
+      // Each collection is warmed independently so that one missing/invalid id
+      // (e.g. a poisoned behavioral entry for a config route like "collectionbuilder"
+      // whose collection_* table does not exist) is skipped silently instead of
+      // rejecting the whole Promise.all and aborting warming for every collection.
       await Promise.all(
         hotCollections.map(async ({ id }) => {
-          if (db?.crud?.find) {
+          if (!db?.crud?.find) return;
+          try {
             await cacheService.getOrSetSWR(
               `collection:${id}:list`,
               () => db.crud.find(id, {}, { limit: 20, skipMeta: true }),
               300_000, // 5 min TTL
               1_800_000, // 30 min stale SWR window
               tenantId,
+            );
+          } catch (err: any) {
+            logger.debug(
+              `[PredictiveCache] Skipped warming unknown/missing collection "${id}": ${err?.message ?? err}`,
             );
           }
         }),

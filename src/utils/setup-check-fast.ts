@@ -34,6 +34,21 @@ export function isSetupComplete(): boolean {
 
     if (isTestMode && !process.env.STRICT_SETUP_CHECK) return true;
 
+    // In the browser, fs checks aren't available — use build-time constant as fallback
+    // This only runs when STRICT_SETUP_CHECK is set (server) or when not in test mode
+    if (typeof window !== "undefined") {
+      try {
+        if (
+          typeof __SVELTY_SETUP_COMPLETE__ !== "undefined" &&
+          __SVELTY_SETUP_COMPLETE__ === true
+        ) {
+          return true;
+        }
+      } catch {
+        // __SVELTY_SETUP_COMPLETE__ not defined in this context
+      }
+    }
+
     const configFileName = isTestMode ? "private.test.ts" : "private.ts";
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
