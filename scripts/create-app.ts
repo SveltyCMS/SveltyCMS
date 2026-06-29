@@ -62,9 +62,7 @@ async function main() {
   try {
     // Get latest tag
     const tag = execSync(
-      "git ls-remote --tags --sort=-v:refname " +
-        REPO +
-        " | head -1 | cut -d/ -f3",
+      "git ls-remote --tags --sort=-v:refname " + REPO + " | head -1 | cut -d/ -f3",
       {
         encoding: "utf-8",
         stdio: "pipe",
@@ -93,8 +91,7 @@ async function main() {
 
   // ── Step 4: Install dependencies ──
   console.log("\n📦 Installing dependencies...");
-  const installer =
-    process.platform === "win32" ? "npm install" : "bun install";
+  const installer = process.platform === "win32" ? "npm install" : "bun install";
   execSync(installer, { cwd: projectPath, stdio: "inherit" });
 
   // ── Step 5: Initialize git ──
