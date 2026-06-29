@@ -47,7 +47,6 @@
     "type": "git",
     "url": "https://github.com/SveltyCMS/SveltyCMS"
   },
-  "type": "module",
   "bin": {
     "create-sveltycms": "./scripts/create-app.ts"
   },
@@ -56,13 +55,14 @@
     "README.md",
     "CHANGELOG.md"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
+  "type": "module",
   "sideEffects": [
     "*.css",
     "*.svelte"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "-- DEVELOP -------------------------------------------": "",
     "dev": "vite dev",
