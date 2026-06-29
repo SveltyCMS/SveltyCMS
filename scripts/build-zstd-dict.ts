@@ -505,6 +505,7 @@ function selectAndWrite(
 
   // O(1) prefix + substring lookup via Set for fast redundancy check (O(L²) instead of O(N))
   const prefixSet = new Set<string>();
+  const selectedStrings: string[] = []; // parallel array for substring containment check
   const isRedundant = (candidate: string) => {
     // Exact match
     if (used.has(candidate)) return true;
@@ -523,7 +524,6 @@ function selectAndWrite(
     return false;
   };
 
-  selectedStrings.push(c.str);
   for (const c of candidates) {
     if (currentBytes >= target) break;
     if (used.has(c.str) || isRedundant(c.str)) continue;
@@ -534,6 +534,7 @@ function selectAndWrite(
     selected.push(c.str);
     used.add(c.str);
     // Populate prefix set for O(1) overlap checks
+    selectedStrings.push(c.str);
     for (let i = 4; i <= c.str.length; i++) prefixSet.add(c.str.slice(0, i));
     currentBytes += addition;
   }
