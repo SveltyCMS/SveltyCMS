@@ -32,7 +32,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 <!-- SUMMARY_START -->
 
-## 📊 Latest Performance Audit (Mode: MIXED — 2026-06-29 19:23:30)
+## 📊 Latest Performance Audit (Mode: MIXED — 2026-06-29 20:57:37)
 
 > ⚠️ **Note:** This report contains a combination of the last Full Matrix Run and recent surgical developer hot-fixes.
 
@@ -42,8 +42,8 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 | Metric                                 | Status | Detail                                                |
 | -------------------------------------- | ------ | ----------------------------------------------------- |
-| PHASED COLD START                      | ⚪     | established at 0.174ms (2026-06-29 19:23:00) (1 run)  |
-| ️ Edge Sync & Distributed Cache         | ⚪     | established at 1.04ms (2026-06-29 19:23:08) (1 run)   |
+| PHASED COLD START                      | ⚪     | established at 1.62ms (2026-06-29 20:57:31) (1 run)   |
+| ️ Edge Sync & Distributed Cache         | ⚪     | established at 4.15ms (2026-06-29 20:57:36) (1 run)   |
 | ️ WebSocket & Realtime Latency          | ⚪     | avg +1% (7 runs)                                      |
 | Negative Cache Performance             | ⚪     | established at 0.400ms (2026-06-29 19:22:30) (1 run)  |
 | Memory Stability & GC Behavior         | ⚪     | established at 0ms (2026-06-28 20:11:28) (1 run)      |
@@ -217,7 +217,7 @@ xychart-beta
 
 <!-- COLD_START_TABLE_START -->
 
-### 🏷 PHASED COLD START ⚪ established at 0.174ms (1 run) (2026-06-29 19:23:00) (2026-06-29 19:23:30)
+### 🏷 PHASED COLD START ⚪ established at 1.62ms (1 run) (2026-06-29 20:57:31) (2026-06-29 20:57:32)
 
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
@@ -391,7 +391,7 @@ xychart-beta
 
 <!-- EDGE_SYNC_TABLE_START -->
 
-### 🏷️ Edge Sync & Distributed Cache ⚪ established at 1.04ms (1 run) (2026-06-29 19:23:08) (2026-06-29 19:23:30)
+### 🏷️ Edge Sync & Distributed Cache ⚪ established at 4.15ms (1 run) (2026-06-29 20:57:36) (2026-06-29 20:57:37)
 
 > 📂 **Source**: [tests/benchmarks/edge-sync.test.ts](../../../tests/benchmarks/edge-sync.test.ts)
 > 🎯 **Proves**: Verifies distributed L1/L2 cache invalidation latency across simulated nodes.
