@@ -23,6 +23,7 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 import { logger } from "@utils/logger";
+import { sendMail } from "@utils/email.server";
 import { isRedirect } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -526,8 +527,20 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       const baseUrl = publicEnv.HOST_PROD || origin;
       const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
 
-      // sendMail not yet implemented — log reset link for dev/debug
-      logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
+      sendMail({
+        recipientEmail: result.output.email,
+        subject: "Reset your password",
+        templateName: "forgotten-password",
+        props: {
+          token,
+          expiresIn: "1 hour",
+          username: user.username,
+          resetLink,
+        },
+        languageTag: "en" as any,
+      }).catch(() => {
+        logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
+      });
     }
   } catch {}
 
