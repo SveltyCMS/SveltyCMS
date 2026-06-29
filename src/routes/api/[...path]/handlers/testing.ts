@@ -41,13 +41,18 @@ export async function handleTestingRoutes(
     process.env.NODE_ENV === "test";
 
   const requestSecret =
-    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
+    event.request.headers.get("x-test-secret") ||
+    event.request.headers.get("X-Test-Secret");
 
   const { getTestSecret } = await import("@src/utils/server/setup-check");
   const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
 
   if (!isTestMode || !expectedSecret || !requestSecret) {
-    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
+    throw new AppError(
+      "Unauthorized: Testing endpoints are disabled",
+      401,
+      "UNAUTHORIZED",
+    );
   }
 
   // 🛡️ TIMING-SAFE: Use constant-time comparison to prevent timing side-channel attacks
@@ -60,7 +65,11 @@ export async function handleTestingRoutes(
     secretBuffer.length !== expectedBuffer.length ||
     !timingSafeEqual(secretBuffer, expectedBuffer)
   ) {
-    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
+    throw new AppError(
+      "Unauthorized: Testing endpoints are disabled",
+      401,
+      "UNAUTHORIZED",
+    );
   }
 
   if (process.env.BENCHMARK_DEBUG === "true") {
@@ -78,11 +87,14 @@ export async function handleTestingRoutes(
       `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
     );
     if (process.env.BENCHMARK_DEBUG === "true") {
-      process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
+      process.stderr.write(
+        `[TestingHandler] Params: ${JSON.stringify(params)}\n`,
+      );
     }
 
     // 🚀 HARDENING: Wait for database to be ready
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
+    const { isDbConnected, getDbInitPromise, getDb } =
+      await import("@src/databases/db");
     if (!isDbConnected()) {
       logger.info("[testing] DB not connected, waiting for initialization...");
       await getDbInitPromise().catch((err) => {
@@ -92,7 +104,9 @@ export async function handleTestingRoutes(
       // Secondary poll for safety
       let retries = 15; // Increased for Windows/Slow DBs
       while (!isDbConnected() && retries-- > 0) {
-        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
+        logger.info(
+          `[testing] Polling for DB connection... (${15 - retries}/15)`,
+        );
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
@@ -101,7 +115,9 @@ export async function handleTestingRoutes(
     if (!initializedAdapter || !isDbConnected()) {
       const adapterStatus = initializedAdapter ? "exists" : "null";
       const connectedStatus = isDbConnected() ? "true" : "false";
-      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
+      logger.error(
+        `[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`,
+      );
       throw new AppError(
         `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
         503,
@@ -109,13 +125,15 @@ export async function handleTestingRoutes(
     }
 
     if (action === "reset") {
-      process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
+      process.stderr.write(
+        `[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`,
+      );
 
       // 1. Wipe Database (Collections + Data)
       if (initializedAdapter.clearDatabase) {
         await initializedAdapter.clearDatabase();
-      } else if (initializedAdapter.reset) {
-        await initializedAdapter.reset();
+      } else if ((initializedAdapter as any).reset) {
+        await (initializedAdapter as any).reset();
       }
 
       // Re-initialize adapter default collections/roles if available (e.g. MongoDB roles seed)
@@ -133,7 +151,8 @@ export async function handleTestingRoutes(
       }
 
       // 2. Wipe Media Folder
-      const { getPublicSettingSync } = await import("@src/services/core/settings-service");
+      const { getPublicSettingSync } =
+        await import("@src/services/core/settings-service");
       const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
       const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
       if (fs.existsSync(fullMediaRoot)) {
@@ -146,11 +165,13 @@ export async function handleTestingRoutes(
       }
 
       // Invalidate cache to reflect empty DB
-      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
+      const { invalidateSetupCache } =
+        await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, null);
 
       try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const { cacheService } =
+          await import("@src/databases/cache/cache-service");
         await cacheService.invalidateAll();
 
         try {
@@ -158,7 +179,9 @@ export async function handleTestingRoutes(
             await import("@src/services/security/response-service");
           securityResponseService.reset();
         } catch (err) {
-          console.warn(`[TestingHandler] Failed to reset security response service: ${err}`);
+          console.warn(
+            `[TestingHandler] Failed to reset security response service: ${err}`,
+          );
         }
 
         const { invalidateUserCountCache, invalidateRolesCache } =
@@ -167,7 +190,8 @@ export async function handleTestingRoutes(
         await invalidateRolesCache(tenantId);
 
         // Invalidate OpenAPI spec cache
-        const { apiSpecService } = await import("@services/system/api-spec-service");
+        const { apiSpecService } =
+          await import("@services/system/api-spec-service");
         await apiSpecService.invalidateCache(tenantId);
 
         const { ThemeManager } = await import("@src/databases/theme-manager");
@@ -176,20 +200,27 @@ export async function handleTestingRoutes(
           await themeManager.refresh();
         }
       } catch (err) {
-        console.warn(`[TestingHandler] Failed to invalidate authorization/api-spec caches: ${err}`);
+        console.warn(
+          `[TestingHandler] Failed to invalidate authorization/api-spec caches: ${err}`,
+        );
       }
 
       // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
-      const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
+      const { resetSystemState } =
+        await import("@src/stores/system/state.svelte.ts");
       resetSystemState();
-      const { resetInitializationState } = await import("@src/hooks/handle-system-state");
+      const { resetInitializationState } =
+        await import("@src/hooks/handle-system-state");
       resetInitializationState();
 
       try {
-        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
+        const { resetRateLimitBuckets } =
+          await import("@src/hooks/handle-rate-limit");
         resetRateLimitBuckets();
       } catch (err) {
-        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+        console.warn(
+          `[TestingHandler] Failed to reset rate limit buckets: ${err}`,
+        );
       }
 
       return rawResponse({
@@ -200,7 +231,8 @@ export async function handleTestingRoutes(
 
     if (action === "seed") {
       const { email, password, username } = params;
-      if (!email || !password) throw new AppError("Email and password required for seeding", 400);
+      if (!email || !password)
+        throw new AppError("Email and password required for seeding", 400);
 
       logger.debug("Seeding test user", { email, tenantId });
 
@@ -209,7 +241,9 @@ export async function handleTestingRoutes(
         const { seedRoles } = await import("@src/routes/setup/seed");
         await seedRoles(initializedAdapter, tenantId);
       } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
+        logger.warn(
+          `[TestingHandler] Non-fatal role seeding error: ${err.message}`,
+        );
       }
 
       // Create admin user
@@ -247,11 +281,14 @@ export async function handleTestingRoutes(
       try {
         await contentSystem.initialize(tenantId, { force: true });
       } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal collection seeding error: ${err.message}`);
+        logger.warn(
+          `[TestingHandler] Non-fatal collection seeding error: ${err.message}`,
+        );
       }
 
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
-      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
+      const { invalidateSetupCache } =
+        await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, true);
 
       // Invalidate roles and user count caches so they are reloaded after seeding
@@ -268,7 +305,9 @@ export async function handleTestingRoutes(
 
       return rawResponse({
         success: result.success,
-        message: result.success ? "System seeded successfully" : (result as any).message,
+        message: result.success
+          ? "System seeded successfully"
+          : (result as any).message,
         data: result.success ? result.data : null,
       });
     }
@@ -349,12 +388,16 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, data: result });
     }
 
-    if (action === "create-collection" || action === "bulk-create-collections") {
+    if (
+      action === "create-collection" ||
+      action === "bulk-create-collections"
+    ) {
       const schemas =
         action === "bulk-create-collections"
           ? params.schemas
           : [params.schema || params.data || params];
-      if (!Array.isArray(schemas)) throw new AppError("Invalid schemas format", 400);
+      if (!Array.isArray(schemas))
+        throw new AppError("Invalid schemas format", 400);
 
       const results = [];
       for (const schema of schemas) {
@@ -379,7 +422,9 @@ export async function handleTestingRoutes(
               tenantId,
             };
             const upsertRes =
-              await initializedAdapter.content.nodes.upsertContentStructureNode(node);
+              await initializedAdapter.content.nodes.upsertContentStructureNode(
+                node,
+              );
             logger.info(
               `[testing] Content node upsert result for ${collectionId}: ${upsertRes.success ? "OK" : "FAILED"}`,
             );
@@ -391,7 +436,10 @@ export async function handleTestingRoutes(
           }
           results.push({ id: collectionId, success: true });
         } catch (e: any) {
-          logger.error(`[testing] Failed to provision ${collectionId}:`, e.message);
+          logger.error(
+            `[testing] Failed to provision ${collectionId}:`,
+            e.message,
+          );
           results.push({
             id: collectionId,
             success: false,
@@ -412,7 +460,8 @@ export async function handleTestingRoutes(
       });
 
       // 🚀 INVALIDATE OpenAPI spec cache so new collections appear in the API spec
-      const { apiSpecService } = await import("@services/system/api-spec-service");
+      const { apiSpecService } =
+        await import("@services/system/api-spec-service");
       await apiSpecService.invalidateCache(tenantId);
 
       // 🚀 SDK CACHE CLEAR: Force the shared CMS instance to drop stale schemas
@@ -492,7 +541,8 @@ export async function handleTestingRoutes(
       const { from, to, status } = params;
       const source = from || params.source;
       const target = to || params.target;
-      if (!source || !target) throw new AppError("source and target required", 400);
+      if (!source || !target)
+        throw new AppError("source and target required", 400);
 
       try {
         await initializedAdapter.crud.insert("redirectsMV", {
@@ -505,7 +555,8 @@ export async function handleTestingRoutes(
         } as any);
 
         // Clear redirect cache
-        const { invalidateRedirectCache } = await import("@src/hooks/handle-redirects");
+        const { invalidateRedirectCache } =
+          await import("@src/hooks/handle-redirects");
         invalidateRedirectCache(tenantId);
 
         return rawResponse({ success: true });
@@ -524,8 +575,10 @@ export async function handleTestingRoutes(
       const collectionId = params.collectionId || params.collection;
       const data = params.data;
 
-      if (!collectionId) throw new AppError("collection or collectionId required", 400);
-      if (!data || typeof data !== "object") throw new AppError("data payload required", 400);
+      if (!collectionId)
+        throw new AppError("collection or collectionId required", 400);
+      if (!data || typeof data !== "object")
+        throw new AppError("data payload required", 400);
 
       const result = await initializedAdapter.crud.insert(collectionId, data, {
         tenantId,
@@ -551,14 +604,21 @@ export async function handleTestingRoutes(
       const id = params.id;
       const data = params.data;
 
-      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!collectionId)
+        throw new AppError("collection or collectionId required", 400);
       if (!id) throw new AppError("id required", 400);
-      if (!data || typeof data !== "object") throw new AppError("data payload required", 400);
+      if (!data || typeof data !== "object")
+        throw new AppError("data payload required", 400);
 
-      const result = await initializedAdapter.crud.update(collectionId, id, data, {
-        tenantId,
-        bypassTenantCheck: true,
-      });
+      const result = await initializedAdapter.crud.update(
+        collectionId,
+        id,
+        data,
+        {
+          tenantId,
+          bypassTenantCheck: true,
+        },
+      );
 
       const responseBody = result.success
         ? {
@@ -578,7 +638,8 @@ export async function handleTestingRoutes(
       const collectionId = params.collectionId || params.collection;
       const id = params.id;
 
-      if (!collectionId) throw new AppError("collection or collectionId required", 400);
+      if (!collectionId)
+        throw new AppError("collection or collectionId required", 400);
       if (!id) throw new AppError("id required", 400);
 
       const result = await initializedAdapter.crud.delete(collectionId, id, {
@@ -597,7 +658,8 @@ export async function handleTestingRoutes(
     }
 
     if (action === "clear-collection") {
-      const collectionId = params.collectionId || event.url.searchParams.get("collectionId");
+      const collectionId =
+        params.collectionId || event.url.searchParams.get("collectionId");
       if (!collectionId) throw new AppError("collectionId required", 400);
 
       const db = cms.db || initializedAdapter;
@@ -605,7 +667,10 @@ export async function handleTestingRoutes(
       try {
         let tableName;
         try {
-          const schema = await cms.collections.getSchema(collectionId, tenantId);
+          const schema = await cms.collections.getSchema(
+            collectionId,
+            tenantId,
+          );
           tableName = cms.collections.getCollectionName(schema._id);
         } catch {
           // 🚀 RESILIENCE: Fallback to naming convention if schema is missing from cache (common during hot-reloads)
@@ -652,7 +717,8 @@ export async function handleTestingRoutes(
 
     if (action === "bulk-seed") {
       const { collectionId, data } = params;
-      if (!collectionId || !Array.isArray(data)) throw new AppError("Invalid data", 400);
+      if (!collectionId || !Array.isArray(data))
+        throw new AppError("Invalid data", 400);
 
       const { LocalCMS } = await import("@src/services/sdk");
       const localCms = new LocalCMS(initializedAdapter);
@@ -680,7 +746,8 @@ export async function handleTestingRoutes(
 
     if (action === "create-user") {
       const { email, password, username, role = "editor" } = params;
-      if (!email || !password) throw new AppError("Email and password required", 400);
+      if (!email || !password)
+        throw new AppError("Email and password required", 400);
 
       const result = await cms.auth.createUser(
         {
@@ -785,12 +852,20 @@ export async function handleTestingRoutes(
         await cms.db.crud.deleteMany("audit_logs", { actorId: userId } as any, {
           bypassTenantCheck: true,
         });
-        await cms.db.crud.deleteMany("auth_sessions", { user_id: userId } as any, {
-          bypassTenantCheck: true,
-        });
-        await cms.db.crud.deleteMany("auth_tokens", { user_id: userId } as any, {
-          bypassTenantCheck: true,
-        });
+        await cms.db.crud.deleteMany(
+          "auth_sessions",
+          { user_id: userId } as any,
+          {
+            bypassTenantCheck: true,
+          },
+        );
+        await cms.db.crud.deleteMany(
+          "auth_tokens",
+          { user_id: userId } as any,
+          {
+            bypassTenantCheck: true,
+          },
+        );
         await cms.db.crud.delete("auth_users", userId, {
           permanent: true,
           bypassTenantCheck: true,
@@ -928,7 +1003,11 @@ export async function handleTestingRoutes(
       const localCms = new LocalCMS(initializedAdapter);
 
       for (const schema of collectionSchemas) {
-        localCms.collections.registerSchema(schema._id, schema as any, tenantId);
+        localCms.collections.registerSchema(
+          schema._id,
+          schema as any,
+          tenantId,
+        );
       }
 
       // Seed authors
@@ -975,11 +1054,15 @@ export async function handleTestingRoutes(
           )
           .then(async (res) => {
             if (!res.success) {
-              await localCms.collections.create("BenchmarkStable", stablePayload, {
-                tenantId,
-                skipValidation: true,
-                system: true,
-              });
+              await localCms.collections.create(
+                "BenchmarkStable",
+                stablePayload,
+                {
+                  tenantId,
+                  skipValidation: true,
+                  system: true,
+                },
+              );
             }
           }),
         localCms.collections.bulkCreate(
@@ -1029,7 +1112,10 @@ export async function handleTestingRoutes(
     throw new AppError(`Unknown action: ${action}`, 400);
   } catch (err: any) {
     if (err instanceof AppError) {
-      return rawResponse({ success: false, message: err.message, code: err.code }, err.status);
+      return rawResponse(
+        { success: false, message: err.message, code: err.code },
+        err.status,
+      );
     }
 
     logger.error("[TestingHandler] Error:", err);
@@ -1038,7 +1124,8 @@ export async function handleTestingRoutes(
         success: false,
         message: err.message || "Internal error in testing handler",
         stack:
-          process.env.NODE_ENV === "development" || process.env.BENCHMARK_MODE === "true"
+          process.env.NODE_ENV === "development" ||
+          process.env.BENCHMARK_MODE === "true"
             ? err.stack
             : undefined,
       },
