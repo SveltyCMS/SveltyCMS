@@ -649,6 +649,8 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/hooks/security-headers.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                |
 | `tests/unit/role-permission-access.test.ts` | `docs/tests/rbac-testing.mdx`                                                           |
 | `tests/unit/api/media-security.test.ts`     | `docs/reference/security/widget-security.mdx`                                           |
+| `tests/unit/services/media-manipulation.test.ts` | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
+| `tests/unit/services/media-service.test.ts` | `docs/tests/utility-test-coverage.mdx`                                                  |
 | `tests/benchmarks/security-audit.test.ts`   | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`     |
 | `tests/e2e/accessibility.spec.ts`           | `docs/tests/accessibility-audit.mdx`                                                    |
 | `tests/e2e/branding.spec.ts`                | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`    |
