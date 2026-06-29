@@ -1,6 +1,6 @@
 # .github/workflows/release.yml
-# Automated GitHub Releases via semantic-release on push to main.
-# Creates version tags, changelog, and GitHub Release — no npm publish.
+# Automated GitHub Releases + npm publish via semantic-release on push to main.
+# Requires NPM_TOKEN secret: npmjs.com → Access Tokens → Classic → Publish
 name: Release
 
 on:
@@ -35,4 +35,5 @@ jobs:
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: bun x semantic-release

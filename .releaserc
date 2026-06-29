@@ -8,6 +8,10 @@
       { "changelogFile": "CHANGELOG.md" }
     ],
     [
+      "@semantic-release/npm",
+      { "npmPublish": true }
+    ],
+    [
       "@semantic-release/github",
       { "successComment": false, "failComment": false }
     ],
@@ -18,6 +22,5 @@
         "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
       }
     ]
-  ],
-  "npmPublish": false
+  ]
 }

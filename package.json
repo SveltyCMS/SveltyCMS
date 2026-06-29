@@ -1,7 +1,7 @@
 {
-  "name": "sveltycms",
+  "name": "create-sveltycms",
   "version": "0.0.7",
-  "description": "A powerful Headless CMS with sveltekit power",
+  "description": "Scaffold a new SveltyCMS headless CMS project — SvelteKit 2 + Svelte 5 + 4 databases",
   "keywords": [
     "AI-Powered CMS",
     "DXP Digital",
@@ -48,6 +48,17 @@
     "url": "https://github.com/SveltyCMS/SveltyCMS"
   },
   "type": "module",
+  "bin": {
+    "create-sveltycms": "./scripts/create-app.ts"
+  },
+  "files": [
+    "scripts/create-app.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": [
     "*.css",
     "*.svelte"
