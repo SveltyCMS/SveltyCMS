@@ -118,6 +118,20 @@ export async function handleTestingRoutes(
         await initializedAdapter.reset();
       }
 
+      // Re-initialize adapter default collections/roles if available (e.g. MongoDB roles seed)
+      try {
+        if (typeof (initializedAdapter as any).ensureAuth === "function") {
+          await (initializedAdapter as any).ensureAuth();
+        }
+        if (typeof (initializedAdapter as any).ensureSystem === "function") {
+          await (initializedAdapter as any).ensureSystem();
+        }
+      } catch (err) {
+        console.warn(
+          `[TestingHandler] Non-fatal database initialization error after reset: ${err}`,
+        );
+      }
+
       // 2. Wipe Media Folder
       const { getPublicSettingSync } = await import("@src/services/core/settings-service");
       const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
