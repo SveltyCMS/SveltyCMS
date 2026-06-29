@@ -21,38 +21,67 @@ interface DbSummary {
   status: string;
 }
 
+function formatValue(val: string): string {
+  if (!val || val === "-" || val.toUpperCase() === "N/A") return "N/A";
+  // Remove existing 'ms' suffix if present, to avoid doubling it
+  const clean = val.replace(/ms$/i, "");
+  if (/^\d+(\.\d+)?$/.test(clean)) return `${clean}ms`;
+  return val;
+}
+
 async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
   try {
     const content = await fs.readFile(filePath, "utf8");
     const dbName = path.basename(filePath, ".mdx").replace("benchmark_", "").replace(/_/g, "-");
 
-    // Extract summary status
-    const statusMatch = content.match(
+    // Extract summary status.
+    // Format A (stale MDX from previous failed run):   **Status:** ❌ FAIL
+    // Format B (fresh rebuildSummary output):          **Status:** 15/20 tests recorded · 3 skipped
+    // Format C (fresh with explicit status):           **Status:** PASS
+    let status = "⏳";
+
+    // Try Format A/C first: explicit PASS/FAIL/WARN/INCOMPLETE keyword
+    const explicitMatch = content.match(
       /\*\*Status:\*\*\s*(?:[^\w\s]*)\s*(PASS|FAIL|WARN|INCOMPLETE)/i,
     );
-    const status = statusMatch ? statusMatch[1].toUpperCase() : "⏳";
+    if (explicitMatch) {
+      status = explicitMatch[1].toUpperCase();
+    } else {
+      // Try Format B: "X/Y tests recorded" — derive status from regression sections
+      const recordedMatch = content.match(/\*\*Status:\*\*\s*(\d+)\/(\d+)\s+tests recorded/i);
+      if (recordedMatch) {
+        const recorded = parseInt(recordedMatch[1], 10);
+        const total = parseInt(recordedMatch[2], 10);
+        // Check if the Needs Attention section has actual entries (not just the header)
+        const needsAttentionSection = content.match(
+          /###\s+⚠️\s+Needs Attention\s*\n\n\|\s*Metric\s*\|/i,
+        );
+        const hasRegressions = needsAttentionSection !== null;
+
+        if (recorded === 0) {
+          status = "INCOMPLETE";
+        } else if (hasRegressions) {
+          status = "FAIL";
+        } else if (recorded < total) {
+          status = "WARN";
+        } else {
+          status = "PASS";
+        }
+      }
+    }
 
     // Extract core benchmark values from the summary table
-    const truthMatch =
-      content.match(/REST \([^)]+\).*?\|\s*([\d.]+)/i) ||
-      content.match(/HTTP End-to-End.*?\|\s*([\d.]+)/i) ||
-      content.match(/Truth.*?\|\s*([\d.]+)/i);
-    const truth = truthMatch ? `${truthMatch[1]}ms` : "-";
+    const truthMatch = content.match(/\|\s*\*\*REST \(Collections\)\*\*\s*\|\s*([^\s|]+)/i);
+    const truth = truthMatch ? formatValue(truthMatch[1]) : "-";
 
-    const coldMatch =
-      content.match(/Cold Start.*?\|\s*([\d.]+)/i) || content.match(/Cold.*?\|\s*([\d.]+)/i);
-    const cold = coldMatch ? `${coldMatch[1]}ms` : "-";
+    const coldMatch = content.match(/\|\s*\*\*Cold Start\*\*\s*\|\s*([^\s|]+)/i);
+    const cold = coldMatch ? formatValue(coldMatch[1]) : "-";
 
-    const hooksMatch =
-      content.match(/Middleware Hooks.*?\|\s*([\d.]+)/i) ||
-      content.match(/Hooks Pipeline.*?\|\s*([\d.]+)/i) ||
-      content.match(/Hooks.*?\|\s*([\d.]+)/i);
-    const hooks = hooksMatch ? `${hooksMatch[1]}ms` : "-";
+    const hooksMatch = content.match(/\|\s*\*\*Middleware Hooks\*\*\s*\|\s*([^\s|]+)/i);
+    const hooks = hooksMatch ? formatValue(hooksMatch[1]) : "-";
 
-    const insertMatch =
-      content.match(/INSERT\s*[|│]\s*([\d.]+)/u) ||
-      content.match(/DB Raw \(p95\).*?\|\s*([\d.]+)/i);
-    const insert = insertMatch ? `${insertMatch[1]}ms` : "-";
+    const insertMatch = content.match(/\|\s*\*\*DB Raw \(p95\)\*\*\s*\|\s*([^\s|]+)/i);
+    const insert = insertMatch ? formatValue(insertMatch[1]) : "-";
 
     return {
       db: dbName,

@@ -560,11 +560,13 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port }}
+          DB_NAME: ${{ matrix.db == 'sqlite' && 'benchmark_shared' || 'sveltycms_test' }}
           DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: "true"
           BENCHMARK_NO_REDIS: "1"
+          BENCHMARK_RECORD: "1"
         run: |
           for test in tests/benchmarks/{truth-latency,database-performance,transaction-acid,cache-performance,hooks-performance,rest-api-performance}.test.ts; do
             echo "::group::Running $test"
