@@ -66,15 +66,12 @@ export type {
 } from "./types";
 
 // Import shared password utilities (Argon2id)
-// NOTE: Import directly from ./crypto, NOT from @utils/security barrel,
-// to avoid pulling server-only modules (cors-utils, csrf-utils, etc.) into the client bundle.
 import {
   hashPassword as cryptoHashPassword,
   verifyPassword as cryptoVerifyPassword,
-} from "@utils/security/crypto";
+} from "@utils/security";
 // Import for internal use
-import { SESSION_COOKIE_NAME } from "./constants";
-import { normalizeEmail } from "@utils/normalize-email";
+import { SESSION_COOKIE_NAME, getSessionCookieName } from "./constants";
 
 // Main Auth class
 export class Auth {
@@ -100,7 +97,7 @@ export class Auth {
     try {
       const { email, password } = userData;
 
-      if (email) userData.email = normalizeEmail(email);
+      if (email) userData.email = email.toLowerCase();
 
       // --- PASSWORD HASHING ---
       if (password) {
@@ -165,7 +162,7 @@ export class Auth {
         throw error(400, "Tenant ID is required in multi-tenant mode");
       }
 
-      const normalizedEmail = normalizeEmail(email);
+      const normalizedEmail = email.toLowerCase();
 
       // --- PASSWORD STRENGTH VALIDATION ---
       if (!oauth && !samlId && password) {
@@ -177,17 +174,8 @@ export class Auth {
         hashedPassword = await cryptoHashPassword(password);
       }
 
-      const preferences = (userData.preferences || {}) as Record<string, unknown>;
-      if (oauth) {
-        preferences.auth = {
-          ...(preferences.auth as Record<string, unknown>),
-          oauthEnabled: true,
-        };
-      }
-
       const result = await this.db.auth.createUser({
         ...userData,
-        preferences,
         email: normalizedEmail,
         password: hashedPassword,
       });
@@ -295,7 +283,7 @@ export class Auth {
     await cacheService.delete(cacheKey, options?.tenantId);
 
     if (user?.email) {
-      const emailCacheKey = `user:email:${normalizeEmail(user.email)}`;
+      const emailCacheKey = `user:email:${user.email.toLowerCase()}`;
       await cacheService.delete(emailCacheKey, options?.tenantId);
     }
   }
@@ -449,7 +437,7 @@ export class Auth {
 
     const result = await this.db.auth.createToken({
       user_id: tokenData.user_id,
-      email: normalizeEmail(user.email),
+      email: user.email.toLowerCase(),
       expires: tokenData.expires,
       type: tokenData.type,
       tenantId: tokenData.tenantId,
@@ -689,7 +677,7 @@ export class Auth {
           });
         }
 
-        await this.db.auth.updateUserAttributes(user._id, updates, options);
+        await this.db.auth.updateUserAttributes(user._id, updates);
         logger.warn("Password authentication failed", {
           email,
           failedAttempts,
@@ -699,14 +687,10 @@ export class Auth {
 
       // --- SUCCESS: RESET LOCKOUT STATE ---
       if (user.failedAttempts || user.lockoutUntil) {
-        await this.db.auth.updateUserAttributes(
-          user._id,
-          {
-            failedAttempts: 0,
-            lockoutUntil: null,
-          },
-          options,
-        );
+        await this.db.auth.updateUserAttributes(user._id, {
+          failedAttempts: 0,
+          lockoutUntil: null,
+        });
       }
 
       const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
@@ -723,14 +707,7 @@ export class Auth {
 
       return { user, sessionId: session._id };
     } catch (err: any) {
-      // Vite 8 dev-mode HMR cycle — non-fatal, retry will succeed
-      if (err.message?.includes("module runner has been closed")) {
-        logger.debug(
-          `Auth: Vite module runner closed during authenticate (HMR cycle), returning null`,
-        );
-      } else {
-        logger.error(`Authentication error: ${err.message}`);
-      }
+      logger.error(`Authentication error: ${err.message}`);
       return null;
     }
   }
@@ -804,11 +781,27 @@ export class Auth {
     throw error(500, "Failed to update user attributes");
   }
 
-  createSessionCookie(sessionId: DatabaseId): {
+  createSessionCookie(
+    sessionId: DatabaseId,
+    isSecure?: boolean,
+  ): {
     name: string;
     value: string;
     attributes: unknown;
   } {
+    if (isSecure !== undefined) {
+      return {
+        name: getSessionCookieName(isSecure),
+        value: sessionId,
+        attributes: {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: isSecure ? "strict" : "lax",
+          maxAge: 24 * 60 * 60,
+          path: "/",
+        },
+      };
+    }
     return {
       name: SESSION_COOKIE_NAME,
       value: sessionId,
