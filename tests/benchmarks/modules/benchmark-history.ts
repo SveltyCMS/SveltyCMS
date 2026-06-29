@@ -14,10 +14,11 @@ let _queryStmt: Statement | null = null;
 let _countStmt: Statement | null = null;
 
 // Lazy environment strings cached at startup initialization layer
-const cachedCommitSha = lazyDetectCommitSha();
-const cachedBranch = lazyDetectBranch();
-const cachedOS = `${process.platform} ${process.arch}`;
-const cachedRuntime = typeof Bun !== "undefined" ? `bun ${Bun.version}` : `node ${process.version}`;
+const _cachedCommitSha = lazyDetectCommitSha();
+const _cachedBranch = lazyDetectBranch();
+const _cachedOS = `${process.platform} ${process.arch}`;
+const _cachedRuntime =
+  typeof Bun !== "undefined" ? `bun ${Bun.version}` : `node ${process.version}`;
 
 function getDb(): Database {
   const dbPath = path.join(RESULTS_DIR, "history.sqlite");
