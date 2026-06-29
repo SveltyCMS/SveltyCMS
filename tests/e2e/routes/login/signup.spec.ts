@@ -8,6 +8,17 @@
  */
 import { expect, test } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
+n; /** Dismiss cookie consent banner if visible — non-blocking. */
+async function dismissCookieConsent(page: any) {
+  try {
+    const btn = page.getByRole("button", { name: /accept all/i }).first();
+    if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await btn.click({ force: true });
+    }
+  } catch {
+    /* banner not present */
+  }
+}
 
 test.describe.configure({ timeout: 60_000 });
 
