@@ -255,7 +255,8 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Setup Session Cookie Consistency**: Setup handler now uses the same `__Host-` cookie prefix logic as the authentication hook, eliminating the prefix inconsistency between setup and runtime session cookies.
 
 - ✅ **Zero-Bias Token Generation**: `generateRandomToken` uses rejection sampling to eliminate the ~3.125% modulo bias, guaranteeing uniform distribution across all characters for session tokens and API keys.
-- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login.
+- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login. Hardened with a deep database check for existing admin users to prevent setup wizard hijacking if config files are deleted.
+- ✅ **Stateless CSRF Exemption**: Excludes Bearer-authenticated API key and Website token requests from CSRF validation, allowing external headless mutations while keeping admin sessions fully protected.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
 

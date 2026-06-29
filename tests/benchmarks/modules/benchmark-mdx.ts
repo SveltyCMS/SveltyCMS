@@ -310,6 +310,8 @@ export function writeTrendAndInsight(
     const startPos = doc.indexOf(START_MARKER);
     const endPos = doc.indexOf(END);
 
+    let updated = false;
+
     if (startPos >= 0 && endPos > startPos) {
       let section = doc.slice(startPos, endPos);
       const headingRx = /^###\s+\u{1F3F7}.+$/mu;
@@ -327,6 +329,30 @@ export function writeTrendAndInsight(
         );
         section = section.slice(0, hPos) + newLine + section.slice(hPos + oldLine.length);
         doc = doc.slice(0, startPos) + section + doc.slice(endPos);
+        updated = true;
+      }
+    }
+
+    if (!updated && startPos >= 0) {
+      // Fallback: search backwards from startPos for the nearest heading
+      const beforeDoc = doc.slice(0, startPos);
+      const headingRx = /^###\s+\u{1F3F7}.+$/gmu;
+      let lastMatch: RegExpExecArray | null = null;
+      let m: RegExpExecArray | null;
+      while ((m = headingRx.exec(beforeDoc)) !== null) {
+        lastMatch = m;
+      }
+      if (lastMatch) {
+        const lastHeadingIdx = lastMatch.index;
+        const oldLine = lastMatch[0];
+        const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const labelWithTs = `${trendLabel} (${ts})`;
+        const newLine = oldLine.replace(
+          /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
+          labelWithTs,
+        );
+        doc = doc.slice(0, lastHeadingIdx) + newLine + doc.slice(lastHeadingIdx + oldLine.length);
+        updated = true;
       }
     }
 

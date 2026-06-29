@@ -16,7 +16,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "./base";
 import { safeParse } from "valibot";
-import { databaseConfigSchema } from "@src/databases/schemas";
+import { databaseConfigSchema, type DatabaseConfig } from "@src/databases/schemas";
 import { setupAdminSchema } from "@utils/schemas";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { ISODateString } from "@src/databases/db-interface";
@@ -149,6 +149,9 @@ async function handleTestDatabase(event: RequestEvent) {
 async function handleSeedDatabase(event: RequestEvent) {
   const { config: dbConfig } = await event.request.json();
 
+  // Validate that the target database is not already seeded with admins (Setup Hijack Protection)
+  await verifyDatabaseUnseeded(dbConfig);
+
   // Write private config and invalidate cache
   const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
   await writePrivateConfig(dbConfig);
@@ -186,6 +189,9 @@ async function handleSeedDatabase(event: RequestEvent) {
  */
 async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL) {
   const { database, admin, system = {} } = await event.request.json();
+
+  // Validate that the target database is not already seeded with admins (Setup Hijack Protection)
+  await verifyDatabaseUnseeded(database);
 
   // Wait for critical seeding to finish
   await setupManager.waitTillDone();
@@ -275,4 +281,42 @@ async function handleReinitialize(event: RequestEvent, cms: LocalCMS) {
 
 function notAllowed(): never {
   throw new AppError("Method not allowed", 405);
+}
+
+// Check database state to verify no existing administrators are registered.
+// This prevents Setup hijacking if config/private.ts is lost or corrupted.
+async function verifyDatabaseUnseeded(dbConfig: DatabaseConfig) {
+  const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
+  let adapterWrapper;
+  try {
+    adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
+      createIfMissing: false,
+    });
+    const dbAdapter = adapterWrapper.dbAdapter;
+    const adminCountResult = await dbAdapter.auth.getUserCount(
+      { role: "admin" },
+      { bypassTenantCheck: true },
+    );
+
+    const count =
+      typeof adminCountResult === "number"
+        ? adminCountResult
+        : adminCountResult?.success
+          ? adminCountResult.data
+          : 0;
+    if (count > 0) {
+      throw new AppError(
+        "Database contains registered administrator accounts. Setup cannot be re-run.",
+        403,
+        "SETUP_ALREADY_COMPLETE",
+      );
+    }
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    // Database or table not existing is expected and safe to seed
+  } finally {
+    if (adapterWrapper?.dbAdapter?.disconnect) {
+      await adapterWrapper.dbAdapter.disconnect();
+    }
+  }
 }

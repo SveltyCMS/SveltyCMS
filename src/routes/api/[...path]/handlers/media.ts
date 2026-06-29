@@ -463,6 +463,9 @@ export async function handleMediaManipulate(
   });
   if (!result.success) {
     if (result.error instanceof AppError) throw result.error;
+    if (result.message === "Media not found") {
+      throw new AppError("Media not found", 404, "MEDIA_NOT_FOUND");
+    }
     throw new AppError(result.message || "Manipulation conversion framework fault", 500);
   }
   return successResponse(event, result.data);

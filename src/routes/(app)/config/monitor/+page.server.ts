@@ -74,5 +74,19 @@ export const load = async ({ locals }: { locals: App.Locals }) => {
     logger.warn("[Monitor] System state unavailable", e);
   }
 
-  return { security, webhooks, system, systemState };
+  let auditLogs: any[] = [];
+  try {
+    const { queryAuditLogs } = await import("@src/services/security/audit-service");
+    const res = await queryAuditLogs({
+      tenantId: tenantId || undefined,
+      limit: 20,
+    });
+    if (res.success && res.data) {
+      auditLogs = res.data;
+    }
+  } catch (e) {
+    logger.warn("[Monitor] Audit logs unavailable", e);
+  }
+
+  return { security, webhooks, system, systemState, auditLogs };
 };
