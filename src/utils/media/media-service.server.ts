@@ -45,22 +45,10 @@ function sanitizeSvg(svg: string): string {
     previous = cleaned;
 
     // 1. Strip dangerous tags (with their content, including self-closing variants)
-    const DANGEROUS_TAGS = [
-      "script",
-      "foreignObject",
-      "iframe",
-      "object",
-      "embed",
-    ];
+    const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
     for (const tag of DANGEROUS_TAGS) {
-      cleaned = cleaned.replace(
-        new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"),
-        "",
-      );
-      cleaned = cleaned.replace(
-        new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"),
-        "",
-      );
+      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
     }
 
     // 2. Strip inline event handlers — inside loop for defense-in-depth
@@ -70,22 +58,10 @@ function sanitizeSvg(svg: string): string {
   }
 
   // 3. Strip javascript: and data: protocols in href/xlink:href attributes
-  cleaned = cleaned.replace(
-    /(href|xlink:href)\s*=\s*"\s*javascript\s*:/gi,
-    '$1="#blocked"',
-  );
-  cleaned = cleaned.replace(
-    /(href|xlink:href)\s*=\s*'\s*javascript\s*:/gi,
-    "$1='#blocked'",
-  );
-  cleaned = cleaned.replace(
-    /(href|xlink:href)\s*=\s*"\s*data\s*:/gi,
-    '$1="#blocked"',
-  );
-  cleaned = cleaned.replace(
-    /(href|xlink:href)\s*=\s*'\s*data\s*:/gi,
-    "$1='#blocked'",
-  );
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*javascript\s*:/gi, '$1="#blocked"');
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*'\s*javascript\s*:/gi, "$1='#blocked'");
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*data\s*:/gi, '$1="#blocked"');
+  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*'\s*data\s*:/gi, "$1='#blocked'");
 
   // 4. Strip CDATA-wrapped scripts (potential XSS vectors)
   cleaned = cleaned.replace(/<!\[CDATA\[[\s\S]*?\]\]>/gi, "");
@@ -110,23 +86,19 @@ const ALLOWED_MIME_PREFIXES = [
 ];
 
 function isSvgFile(mimeType: string, filename: string): boolean {
-  return (
-    mimeType === "image/svg+xml" || filename.toLowerCase().endsWith(".svg")
-  );
+  return mimeType === "image/svg+xml" || filename.toLowerCase().endsWith(".svg");
 }
 
 function validateMime(mimeType: string, filename: string) {
   if (!mimeType) {
     // Fall back to extension-based lookup
     const ext = filename.split(".").pop()?.toLowerCase();
-    if (ext && ["svg", "html", "js", "wasm"].includes(ext))
-      throw new Error("Blocked: ." + ext);
+    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
     return; // Allow through — binary sniffing will run downstream
   }
   if (!ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p))) {
     const ext = filename.split(".").pop()?.toLowerCase();
-    if (ext && ["svg", "html", "js", "wasm"].includes(ext))
-      throw new Error("Blocked: ." + ext);
+    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
     throw new Error("MIME not allowed: " + mimeType);
   }
 }
@@ -223,17 +195,13 @@ export class MediaService {
       const { hashFileContent } = await import("./media-processing.server");
 
       // For large files, we use the stream to avoid OOM
-      if (
-        file.size < 5 * 1024 * 1024 &&
-        typeof file.arrayBuffer === "function"
-      ) {
+      if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
         // Small file: Buffer is fine and faster for small items
         let buffer = Buffer.from(await file.arrayBuffer());
 
         // Binary MIME sniffing as defense-in-depth
         const sniffed = sniffMimeType(buffer.subarray(0, 2048));
-        const effectiveType =
-          file.type || sniffed?.mime || "application/octet-stream";
+        const effectiveType = file.type || sniffed?.mime || "application/octet-stream";
 
         // 🛡️ SVG Sanitization: strip scripts, event handlers, and foreignObject before storage
         if (isSvgFile(effectiveType, file.name)) {
@@ -243,17 +211,10 @@ export class MediaService {
         }
 
         const hash = await hashFileContent(buffer);
-        const relPath = await this.ensureOriginalOnDisk(
-          hash,
-          file.name,
-          buffer,
-        );
+        const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer);
 
         // 1. Check for existing file by hash (Deduplication)
-        const existing = await this.files.getByHash(
-          hash,
-          tenantId ?? undefined,
-        );
+        const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
           const record = existing.data as any;
           if (record.path !== relPath) {
@@ -317,10 +278,7 @@ export class MediaService {
         const hash = await hashPromise;
         const relPath = await this.ensureOriginalOnDisk(hash, file.name, s2);
 
-        const existing = await this.files.getByHash(
-          hash,
-          tenantId ?? undefined,
-        );
+        const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
           const record = existing.data as any;
           if (record.path !== relPath) {
@@ -388,10 +346,7 @@ export class MediaService {
     if (item.metadata && item.metadata.versions) {
       item.versions = item.metadata.versions.map((v: any) => {
         const enriched = { ...v };
-        if (
-          enriched.path &&
-          (!enriched.url || !enriched.url.startsWith("http"))
-        ) {
+        if (enriched.path && (!enriched.url || !enriched.url.startsWith("http"))) {
           enriched.url = getUrl(enriched.path, prefix);
         }
         return enriched;
@@ -418,9 +373,7 @@ export class MediaService {
         maxSizeBytes: 100 * 1024 * 1024,
       });
       if (!resp.success || !resp.body || (resp.status && resp.status >= 400))
-        throw new Error(
-          `Failed to fetch remote media: ${resp.error || resp.status}`,
-        );
+        throw new Error(`Failed to fetch remote media: ${resp.error || resp.status}`);
       const blob = new Blob([resp.body], { type: "application/octet-stream" });
       const name = url.split("/").pop() || "remote-file";
       const file = new File([blob], name, { type: blob.type });
@@ -440,25 +393,14 @@ export class MediaService {
     data: any,
     tenantId?: DatabaseId | null,
   ): Promise<void> {
-    const res = await this.db.crud.update(
-      "media",
-      mediaId as DatabaseId,
-      data,
-      {
-        tenantId: tenantId ?? undefined,
-      },
-    );
+    const res = await this.db.crud.update("media", mediaId as DatabaseId, data, {
+      tenantId: tenantId ?? undefined,
+    });
     if (!res.success) throw new Error(res.message);
   }
 
-  public async deleteMedia(
-    fileId: string,
-    tenantId?: DatabaseId | null,
-  ): Promise<void> {
-    const res = await this.files.delete(
-      fileId as DatabaseId,
-      tenantId ?? undefined,
-    );
+  public async deleteMedia(fileId: string, tenantId?: DatabaseId | null): Promise<void> {
+    const res = await this.files.delete(fileId as DatabaseId, tenantId ?? undefined);
     if (!res.success) throw new Error(res.message);
   }
 
@@ -529,13 +471,9 @@ export class MediaService {
 
     // Working dimensions after crop (used to clamp/size all composites)
     const workW =
-      crop && crop.width > 0
-        ? Math.min(Math.round(crop.width), postRotW - cropX)
-        : postRotW;
+      crop && crop.width > 0 ? Math.min(Math.round(crop.width), postRotW - cropX) : postRotW;
     const workH =
-      crop && crop.height > 0
-        ? Math.min(Math.round(crop.height), postRotH - cropY)
-        : postRotH;
+      crop && crop.height > 0 ? Math.min(Math.round(crop.height), postRotH - cropY) : postRotH;
 
     if (crop && crop.width > 0 && crop.height > 0) {
       pipeline = pipeline.extract({
@@ -567,9 +505,7 @@ export class MediaService {
         })
           .png()
           .toBuffer();
-        pipeline = pipeline
-          .ensureAlpha()
-          .composite([{ input: circleMask, blend: "dest-in" }]);
+        pipeline = pipeline.ensureAlpha().composite([{ input: circleMask, blend: "dest-in" }]);
       }
     }
 
@@ -688,9 +624,7 @@ export class MediaService {
             const wmW = Math.min(Math.round(wm.width ?? 100), workW - wmLeft);
             const wmH = Math.min(Math.round(wm.height ?? 100), workH - wmTop);
             if (wmW > 0 && wmH > 0) {
-              const wmBuf = await sharp(
-                Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"),
-              )
+              const wmBuf = await sharp(Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"))
                 .resize(wmW, wmH, { fit: "contain" })
                 .ensureAlpha()
                 .toBuffer();
@@ -748,8 +682,7 @@ export class MediaService {
     const ext = (existing.filename.split(".").pop() ?? "jpg").toLowerCase();
     const isCircle = crop?.shape === "circle";
     const outputBuffer: Buffer = await (() => {
-      if (isCircle || ext === "png")
-        return pipeline.png({ compressionLevel: 8 }).toBuffer();
+      if (isCircle || ext === "png") return pipeline.png({ compressionLevel: 8 }).toBuffer();
       if (ext === "webp") return pipeline.webp({ quality: 90 }).toBuffer();
       if (ext === "avif") return pipeline.avif({ quality: 80 }).toBuffer();
       return pipeline.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
@@ -789,9 +722,7 @@ export class MediaService {
       );
       if (!uploadResult.success || !uploadResult.data)
         throw new Error("Failed to create new media record");
-      return this.enrichMediaWithUrl(
-        uploadResult.data as any,
-      ) as unknown as MediaItem;
+      return this.enrichMediaWithUrl(uploadResult.data as any) as unknown as MediaItem;
     }
 
     // overwrite: push current file to version history, update record in place
@@ -832,11 +763,8 @@ export class MediaService {
       { _id: id as DatabaseId },
       { tenantId: tenantId ?? undefined },
     );
-    if (!finalRes.success || !finalRes.data)
-      throw new Error("Failed to retrieve updated media");
-    return this.enrichMediaWithUrl(
-      finalRes.data as any,
-    ) as unknown as MediaItem;
+    if (!finalRes.success || !finalRes.data) throw new Error("Failed to retrieve updated media");
+    return this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem;
   }
 
   public async batchProcessImages(
@@ -871,13 +799,9 @@ export class MediaService {
   /**
    * Scans all collection schemas and returns all database entries referencing a specific mediaId.
    */
-  public async getMediaReferences(
-    mediaId: string,
-    tenantId?: DatabaseId | null,
-  ): Promise<any[]> {
+  public async getMediaReferences(mediaId: string, tenantId?: DatabaseId | null): Promise<any[]> {
     try {
-      const { scanCompiledCollections } =
-        await import("@src/content/engine.server");
+      const { scanCompiledCollections } = await import("@src/content/engine.server");
       const schemas = await scanCompiledCollections();
       const references: any[] = [];
 
@@ -887,8 +811,7 @@ export class MediaService {
         { _id: mediaId as DatabaseId },
         { tenantId: tenantId ?? undefined },
       );
-      const mediaPath =
-        mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
+      const mediaPath = mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
 
       for (const schema of schemas) {
         const collectionName = `collection_${schema._id}`;
@@ -916,19 +839,11 @@ export class MediaService {
               const val = entryAny[key];
 
               // Direct match or embedded match
-              const referenced = this.isMediaReferencedInValue(
-                val,
-                mediaId,
-                mediaPath,
-              );
+              const referenced = this.isMediaReferencedInValue(val, mediaId, mediaPath);
               if (referenced) {
                 // Find a friendly name/title for the entry if possible
                 const entryName =
-                  entryAny.name ||
-                  entryAny.title ||
-                  entryAny.slug ||
-                  entryAny._id ||
-                  "Untitled";
+                  entryAny.name || entryAny.title || entryAny.slug || entryAny._id || "Untitled";
                 references.push({
                   collectionId: schema._id,
                   collectionName: schema.name || schema._id,
@@ -949,18 +864,12 @@ export class MediaService {
     }
   }
 
-  private isMediaReferencedInValue(
-    val: any,
-    mediaId: string,
-    path: string,
-  ): boolean {
+  private isMediaReferencedInValue(val: any, mediaId: string, path: string): boolean {
     if (val === mediaId || (path && val === path)) {
       return true;
     }
     if (Array.isArray(val)) {
-      return val.some((item) =>
-        this.isMediaReferencedInValue(item, mediaId, path),
-      );
+      return val.some((item) => this.isMediaReferencedInValue(item, mediaId, path));
     }
     if (val && typeof val === "object") {
       if (
@@ -970,9 +879,7 @@ export class MediaService {
       ) {
         return true;
       }
-      return Object.values(val).some((item) =>
-        this.isMediaReferencedInValue(item, mediaId, path),
-      );
+      return Object.values(val).some((item) => this.isMediaReferencedInValue(item, mediaId, path));
     }
     if (typeof val === "string") {
       return val.includes(mediaId) || !!(path && val.includes(path));
@@ -1016,10 +923,7 @@ export class MediaService {
       // the file under a new hash/path.
       const { hashFileContent } = await import("./media-processing.server");
       let hash = "";
-      if (
-        file.size < 5 * 1024 * 1024 &&
-        typeof file.arrayBuffer === "function"
-      ) {
+      if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
         const buffer = Buffer.from(await file.arrayBuffer());
         hash = await hashFileContent(buffer);
       } else {
@@ -1043,14 +947,9 @@ export class MediaService {
           thumbnails: {},
           access: existing.access || "public",
           tenantId: tenantId ?? undefined,
-          stream:
-            typeof file.stream === "function"
-              ? file.stream.bind(file)
-              : undefined,
+          stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
           arrayBuffer:
-            typeof file.arrayBuffer === "function"
-              ? file.arrayBuffer.bind(file)
-              : undefined,
+            typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
         } as any,
         tenantId ?? undefined,
       );
@@ -1075,8 +974,7 @@ export class MediaService {
         size: existing.size,
         filename: existing.filename,
         mimeType: existing.mimeType,
-        createdAt:
-          existing.updatedAt || existing.createdAt || new Date().toISOString(),
+        createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString(),
         createdBy: existing.updatedBy || existing.createdBy || userId,
         action: "replace",
       };
@@ -1114,9 +1012,7 @@ export class MediaService {
       if (finalRes.success && finalRes.data) {
         return {
           success: true,
-          data: this.enrichMediaWithUrl(
-            finalRes.data as any,
-          ) as unknown as MediaItem,
+          data: this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem,
         };
       }
       throw new Error("Failed to retrieve updated media item");
@@ -1152,9 +1048,7 @@ export class MediaService {
       const existing = res.data as any;
 
       const versions = existing.metadata?.versions || [];
-      const targetVersion = versions.find(
-        (v: any) => v.version === versionNumber,
-      );
+      const targetVersion = versions.find((v: any) => v.version === versionNumber);
       if (!targetVersion) {
         throw new Error(`Version ${versionNumber} not found`);
       }
@@ -1169,8 +1063,7 @@ export class MediaService {
         size: existing.size,
         filename: existing.filename,
         mimeType: existing.mimeType,
-        createdAt:
-          existing.updatedAt || existing.createdAt || new Date().toISOString(),
+        createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString(),
         createdBy: existing.updatedBy || existing.createdBy || userId,
         action: "restore",
       };
@@ -1204,9 +1097,7 @@ export class MediaService {
       if (finalRes.success && finalRes.data) {
         return {
           success: true,
-          data: this.enrichMediaWithUrl(
-            finalRes.data as any,
-          ) as unknown as MediaItem,
+          data: this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem,
         };
       }
       throw new Error("Failed to retrieve restored media item");
