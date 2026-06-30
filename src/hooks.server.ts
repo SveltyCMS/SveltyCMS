@@ -53,7 +53,7 @@ import { handleTurboGet } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
-import { getTestSecret } from "./utils/server/setup-check";
+import { getTestSecret } from "@utils/server/setup-check";
 
 // 🚀 HYPER-TURBO BYPASS (Enterprise)
 // In benchmark mode, injects a system admin user for non-auth requests

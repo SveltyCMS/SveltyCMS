@@ -18,7 +18,7 @@ import {
   SetupState,
   isSetupComplete,
   getTestSecret,
-} from "../utils/server/setup-check";
+} from "@utils/server/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
