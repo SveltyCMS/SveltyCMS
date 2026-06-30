@@ -25,9 +25,7 @@ function cleanCollectionFiles() {
     join(process.cwd(), "config", "global", "collections"),
   ]) {
     if (!existsSync(dir)) continue;
-    const files = readdirSync(dir).filter(
-      (f) => f.endsWith(".ts") && f !== "new.ts",
-    );
+    const files = readdirSync(dir).filter((f) => f.endsWith(".ts") && f !== "new.ts");
     for (const f of files) {
       rmSync(join(dir, f), { force: true });
     }
@@ -116,7 +114,9 @@ test.describe("Collection Builder — Empty State", () => {
 
     // Close the modal using Escape key (Cancel button may be outside viewport in portal)
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: /quick-start templates/i }).first()).not.toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: /quick-start templates/i }).first(),
+    ).not.toBeVisible();
   });
 
   test("should install a Quick Start template from empty state", async ({ page }) => {

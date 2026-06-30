@@ -91,7 +91,7 @@ describe("Modal Utilities", () => {
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-error-500/10 !border-error-500/20",
           meta: {
-            buttonConfirmClasses: "variant-filled-error",
+            buttonConfirmClasses: "preset-filled-error-500",
             buttonCancelClasses: "preset-outlined-surface-500",
           },
         },
@@ -110,7 +110,7 @@ describe("Modal Utilities", () => {
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-warning-500/10 !border-warning-500/20",
           meta: {
-            buttonConfirmClasses: "variant-filled-warning",
+            buttonConfirmClasses: "preset-filled-warning-500",
             buttonCancelClasses: "preset-outlined-surface-500",
           },
         },

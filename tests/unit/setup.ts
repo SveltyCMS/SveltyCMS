@@ -19,6 +19,10 @@ const isBenchmark =
   process.env.BENCHMARK_STABLE === "true" ||
   currentTest?.includes("benchmark");
 
+// Enable STRICT_SETUP_CHECK so setup route redirects are consistent in test mode
+// (IS_GK_TEST_MODE is true under vitest, which skips /setup→/login redirect without this)
+process.env.STRICT_SETUP_CHECK = "true";
+
 if (isBenchmark) {
   (globalThis as any).__SVELTY_QUIET__ = true;
 }

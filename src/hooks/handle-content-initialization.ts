@@ -5,9 +5,15 @@
 
 import { redirect, type Handle } from "@sveltejs/kit";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
+import { MediaService } from "@utils/media/media-service.server";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
+
+// Register on globalThis so db-init.ts can find these modules without
+// dynamic import (which fails in built output due to alias resolution).
+(globalThis as any).__contentSystem__ = contentSystem;
+(globalThis as any).__MediaService__ = MediaService;
 
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;

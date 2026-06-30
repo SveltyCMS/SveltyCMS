@@ -74,8 +74,12 @@ test.describe("Full Collection & Widget Flow", () => {
     await expect(page.getByRole("menu").first()).toBeVisible({ timeout: 5000 });
 
     // Verify key action buttons exist in the dropdown
-    await expect(page.getByRole("menuitem", { name: /publish/i }).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole("menuitem", { name: /unpublish/i }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("menuitem", { name: /publish/i }).first()).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByRole("menuitem", { name: /unpublish/i }).first()).toBeVisible({
+      timeout: 5000,
+    });
 
     // Close dropdown
     await page.keyboard.press("Escape");

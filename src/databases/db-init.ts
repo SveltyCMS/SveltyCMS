@@ -201,17 +201,40 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
       try {
         // Strategy 1: Check if already loaded on globalThis (by hooks.server or other)
         contentSystem = (globalThis as any).__contentSystem__;
+
+        // Strategy 2: Dynamic import with @vite-ignore (works in dev; fails silently in built output)
         if (!contentSystem) {
-          // Strategy 2: Dynamic import with @vite-ignore (works in dev, may fail in prod)
-          ({ contentSystem } = await import(/* @vite-ignore */ "@src/content/index.server"));
+          try {
+            const contentModule = "@src/content/index.server";
+            ({ contentSystem } = await import(/* @vite-ignore */ contentModule));
+          } catch {}
         }
+
+        // Strategy 3: Use createRequire to find the compiled or source file
         if (!contentSystem) {
-          // Strategy 3: Use createRequire with process.cwd() to find the source
-          const { createRequire } = await import("node:module");
-          const path = await import("node:path");
-          const require = createRequire(import.meta.url);
-          const contentPath = path.resolve(process.cwd(), "src/content/index.server");
-          contentSystem = require(contentPath).contentSystem;
+          try {
+            const { createRequire } = await import("node:module");
+            const path = await import("node:path");
+            const { fileURLToPath } = await import("node:url");
+            const require = createRequire(import.meta.url);
+            const here = path.dirname(fileURLToPath(import.meta.url));
+            const candidates = [
+              path.resolve(here, "../content/index.server.js"),
+              path.resolve(here, "../../content/index.server.js"),
+              path.resolve(
+                process.cwd(),
+                ".svelte-kit/output/server/chunks/content/index.server.js",
+              ),
+              path.resolve(process.cwd(), "src/content/index.server.ts"),
+              path.resolve(process.cwd(), "src/content/index.server"),
+            ];
+            for (const candidate of candidates) {
+              try {
+                contentSystem = require(candidate).contentSystem;
+                if (contentSystem) break;
+              } catch {}
+            }
+          } catch {}
         }
       } catch (e) {
         logger.error("[DB Init] All content system import strategies failed:", e);
@@ -229,7 +252,39 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     dependencies: ["base"],
     initialize: async (adapter) => {
       startServiceInitialization("media");
-      const { MediaService } = await import(/* @vite-ignore */ "@utils/media/media-service.server");
+      let MediaService: any;
+      // Strategy 1: Check if already loaded on globalThis (by handle-content-initialization)
+      MediaService = (globalThis as any).__MediaService__;
+      // Strategy 2: Dynamic import with @vite-ignore (works in dev; fails silently in built output)
+      if (!MediaService) {
+        try {
+          const mediaModule = "@utils/media/media-service.server";
+          ({ MediaService } = await import(/* @vite-ignore */ mediaModule));
+        } catch {}
+      }
+      // Strategy 3: Use createRequire to find the compiled or source file
+      if (!MediaService) {
+        try {
+          const { createRequire } = await import("node:module");
+          const path = await import("node:path");
+          const { fileURLToPath } = await import("node:url");
+          const require = createRequire(import.meta.url);
+          const here = path.dirname(fileURLToPath(import.meta.url));
+          const candidates = [
+            path.resolve(here, "../media/media-service.server.js"),
+            path.resolve(here, "../../media/media-service.server.js"),
+            path.resolve(process.cwd(), "src/utils/media/media-service.server.ts"),
+            path.resolve(process.cwd(), "src/utils/media/media-service.server"),
+          ];
+          for (const candidate of candidates) {
+            try {
+              ({ MediaService } = require(candidate));
+              if (MediaService) break;
+            } catch {}
+          }
+        } catch {}
+      }
+      if (!MediaService) throw new Error("MediaService module not found");
       (adapter as any).mediaService = new MediaService(adapter);
       updateServiceHealth("media", "healthy", "Media service online");
     },

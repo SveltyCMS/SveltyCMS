@@ -31,7 +31,7 @@ export const UserSchema = new Schema(
     email: { type: String, required: true, unique: true }, // User's email, required field
     tenantId: { type: String }, // Tenant identifier for multi-tenancy
     password: { type: String }, // User's password
-    role: { type: String, required: true }, // User's role
+    role: { type: String, required: true, default: "user" }, // User's role
     permissions: [{ type: String }], // User-specific permissions
     username: String,
     firstName: String,
