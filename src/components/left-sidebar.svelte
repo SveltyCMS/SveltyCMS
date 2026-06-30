@@ -40,7 +40,6 @@
 		applayout_systemconfiguration,
 		applayout_systemlanguage,
 		applayout_userprofile,
-		Collections_MediaGallery
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
@@ -398,7 +397,7 @@
 					>
 						<span class="flex items-center gap-1.5">
 							<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}{Collections_MediaGallery()}{/if}
+							{#if isSidebarFull}Media Gallery{/if}
 						</span>
 						{#if isSidebarFull}
 							<iconify-icon
