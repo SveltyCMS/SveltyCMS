@@ -20,8 +20,16 @@ import * as settingsService from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
-import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
+
+let _MediaService: any = null;
+async function getMediaServiceClass() {
+  if (!_MediaService) {
+    const mod = await import("@utils/media/media-service.server");
+    _MediaService = mod.MediaService;
+  }
+  return _MediaService;
+}
 
 abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}
@@ -300,6 +308,7 @@ export class ImporterNamespace {
         mapping: finalMapping,
         sampleData: externalData.items.slice(0, 3),
       };
+    const MediaService = await getMediaServiceClass();
     const mediaService = new MediaService(this._dbAdapter);
     let importedCount = 0,
       errorCount = 0;

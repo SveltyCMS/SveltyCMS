@@ -5,20 +5,29 @@
 
 import { redirect, type Handle } from "@sveltejs/kit";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
+import { MediaService } from "@utils/media/media-service.server";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
+
+// Register on globalThis so db-init.ts can find these modules without
+// dynamic import (which fails in built output due to alias resolution).
+(globalThis as any).__contentSystem__ = contentSystem;
+(globalThis as any).__MediaService__ = MediaService;
 
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;
 
 // Cache stampede containment: tracks active in-flight tenant initializations
-const tenantInitializationFlights = new Map<string, Promise<void>>();
+const tenantInitializationFlights = new Map<string | null, Promise<void>>();
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
   const { pathname } = url;
-  const tenantId = locals.tenantId ? String(locals.tenantId) : "default-tenant";
+  // Use locals.tenantId directly — null in single-tenant setups maps to "global" in contentStore.
+  // Previously defaulted to "default-tenant" which didn't match how collections are registered,
+  // causing getCollections("default-tenant") to return empty and triggering false redirects.
+  const tenantId = locals.tenantId ? String(locals.tenantId) : null;
 
   // Phase 1: Gated initialization (static import — no per-request dynamic import)
   const setupState = (locals as any).__setupState || (await getSetupState());

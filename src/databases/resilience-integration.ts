@@ -10,12 +10,7 @@
  */
 
 import type { IDBAdapter } from "./db-interface";
-import {
-  getDatabaseResilience,
-  notifyAdminsOfDatabaseFailure,
-  type ConnectionPoolDiagnostics,
-  type ResilienceMetrics,
-} from "./database-resilience";
+import type { ConnectionPoolDiagnostics, ResilienceMetrics } from "./database-resilience";
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 import { logger } from "@utils/logger";
 
@@ -69,6 +64,7 @@ export async function connectDatabaseWithResilience(
   adapter: IDBAdapter,
   operationName = "Database Connection",
 ): Promise<{ success: boolean; message?: string }> {
+  const { getDatabaseResilience } = await import("./database-resilience");
   const resilience = getDatabaseResilience();
 
   try {
@@ -121,6 +117,8 @@ async function runAdapterReconnection(adapter: IDBAdapter, reason: string): Prom
   reconnectInFlight = true;
 
   try {
+    const { getDatabaseResilience, notifyAdminsOfDatabaseFailure } =
+      await import("./database-resilience");
     const resilience = getDatabaseResilience();
     const ok = await resilience.attemptReconnection(
       async () => {
@@ -196,6 +194,7 @@ export function createPostgresOnCloseHandler(adapter: IDBAdapter): () => void {
  * Unified system status for dashboards, alerts, and `/api/database/status`.
  */
 export async function getSystemStatus(adapter?: IDBAdapter | null): Promise<SystemStatus> {
+  const { getDatabaseResilience } = await import("./database-resilience");
   const resilience = getDatabaseResilience();
   const db = adapter ?? (await import("./db")).getDb();
 

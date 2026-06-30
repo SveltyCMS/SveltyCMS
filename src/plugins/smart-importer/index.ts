@@ -140,7 +140,6 @@ export const smartImporterPlugin: Plugin = {
         zone: "plugin_workspace",
         position: 0,
         component: () => import("./ui/migration-wizard.svelte").then((m) => m.default as any),
-        server: () => import("./migration-page.server") as any,
         permissions: ["admin", "developer"],
         condition: (ctx: { activePluginId?: string }) => ctx?.activePluginId === "smart-importer",
       },

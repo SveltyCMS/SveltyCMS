@@ -30,6 +30,13 @@ import type {
 } from "./types";
 
 // ============================================================================
+// Server Actions (re-exported so the plugin API dispatcher resolves `actions`
+// regardless of which `.server.ts` glob match it picks)
+// ============================================================================
+
+export { actions } from "./migration-page.server";
+
+// ============================================================================
 // Migrations
 // ============================================================================
 

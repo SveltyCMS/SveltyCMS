@@ -22,6 +22,19 @@ import { dev } from "$app/environment";
 import { version } from "../../package.json";
 import type { LayoutServerLoad } from "./$types";
 
+function sanitizeUserForClient(user: App.Locals["user"] | null | undefined) {
+  if (!user) return null;
+  const {
+    password: _password,
+    totpSecret: _totpSecret,
+    backupCodes: _backupCodes,
+    authenticators: _authenticators,
+    last2FAVerification: _last2FAVerification,
+    ...safeUser
+  } = user;
+  return safeUser;
+}
+
 export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   // Use cached setup status from hooks instead of re-checking
   // The handleSetup hook already sets locals.__setupConfigExists
@@ -134,7 +147,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   return {
     systemLanguage,
     contentLanguage,
-    user: locals.user ?? null,
+    user: sanitizeUserForClient(locals.user),
     isAdmin: locals.isAdmin ?? false,
     isMultiTenant,
     cspNonce: locals.cspNonce,

@@ -94,6 +94,18 @@ class ModalManager {
   showConfirm(options: ConfirmModalOptions) {
     const theme = options.theme || DEFAULT_THEMES.default;
 
+    const variantMap: Record<string, string> = {
+      filled: "preset-filled",
+      soft: "preset-tonal",
+      ghost: "preset-ghost",
+      glass: "preset-glass",
+    };
+    const presetPrefix = variantMap[theme.variant] || "preset-filled";
+    const buttonConfirmClasses =
+      theme.color === "primary"
+        ? `${presetPrefix}-tertiary-500 dark:${presetPrefix}-primary-500`
+        : `${presetPrefix}-${theme.color}-500`;
+
     this.trigger(
       ConfirmDialog,
       {
@@ -103,7 +115,7 @@ class ModalManager {
         buttonTextCancel: options.cancelText || m.button_cancel?.() || "Cancel",
         modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
         meta: {
-          buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
+          buttonConfirmClasses,
           buttonCancelClasses: "preset-outlined-surface-500",
         },
       },
@@ -136,7 +148,7 @@ class ModalManager {
 
     const adminWarning =
       isAdmin && !isArchive
-        ? `<div class="alert variant-filled-warning mt-4">
+        ? `<div class="alert preset-filled-warning-500 mt-4">
           <i class="fa-solid fa-triangle-exclamation"></i>
           <div><h3>Important</h3><p>This action is irreversible.</p></div>
          </div>`

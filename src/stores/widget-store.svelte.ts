@@ -435,7 +435,11 @@ export function getWidget(name: string) {
 }
 
 export function getWidgetFunction(name: string) {
-  return widgetStateInstance.widgetFunctions[name];
+  const fn = widgetStateInstance.widgetFunctions[name];
+  if (fn) return fn;
+  // PascalCase fallback
+  const pascalName = name.charAt(0).toUpperCase() + name.slice(1);
+  return widgetStateInstance.widgetFunctions[pascalName];
 }
 
 /** Returns all registered widget names (keys) */

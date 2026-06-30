@@ -76,6 +76,19 @@ async function refreshUser(
   }
 }
 
+function sanitizeUserForClient(user: User | null | undefined) {
+  if (!user) return null;
+  const {
+    password: _password,
+    totpSecret: _totpSecret,
+    backupCodes: _backupCodes,
+    authenticators: _authenticators,
+    last2FAVerification: _last2FAVerification,
+    ...safeUser
+  } = user;
+  return safeUser;
+}
+
 function createLayoutError(err: unknown, fallbackMessage: string): LayoutError {
   const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -101,9 +114,17 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
 
     // Extract collection ID from path: /en/posts/entry-id → posts
     const pathParts = currentPath.split("/").filter(Boolean);
-    // pathParts: ["en", "posts", "entry-id"] or ["dashboard"] or ["config"]
+    // pathParts: ["en", "posts", "entry-id"] or ["dashboard"] or ["config", "collectionbuilder"]
     const collectionId = pathParts.length >= 2 ? pathParts[1] : pathParts[0] || "root";
-    if (collectionId && !collectionId.startsWith("config") && collectionId !== "dashboard") {
+    // Skip config/admin routes — their sub-paths (e.g. "collectionbuilder", "new",
+    // "system-settings") are NOT content collections. Recording them poisons the
+    // behavioral learner, which later drives cache-warming findMany() against
+    // non-existent collection_* tables (causing boot-time 500s / hangs).
+    const isConfigOrAdminRoute =
+      pathParts[0] === "config" ||
+      pathParts[0] === "dashboard" ||
+      (collectionId && collectionId.startsWith("config"));
+    if (collectionId && !isConfigOrAdminRoute) {
       recordCollectionAccess(tid, collectionId);
     }
 
@@ -168,7 +189,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         });
       }),
 
-      user: freshUser,
+      user: sanitizeUserForClient(freshUser),
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
