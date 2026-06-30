@@ -649,6 +649,7 @@ async function run() {
     // ── Phase 4: Finalize report (batch MDX write) ──
     process.stdout.write(`  Finalizing report...`);
     try {
+      process.env.DB_TYPE = db;
       const { finalizeReport } = await import("../../tests/benchmarks/modules/benchmark-reporting");
       await finalizeReport(BENCHMARK_RUN_ID);
       process.stdout.write(" OK\n");

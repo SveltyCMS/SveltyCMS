@@ -3,22 +3,10 @@
  * @description Slim history store — persist/load benchmark runs for trend analysis.
  * Uses a local SQLite database. Kept minimal; the MDX report is the primary display.
  */
-import { Database, type Statement } from "bun:sqlite";
+import { Database } from "bun:sqlite";
 import path from "node:path";
 
 const RESULTS_DIR = path.resolve("tests/benchmarks/results");
-
-// Reusable cached prepared statement bindings
-let _insertStmt: Statement | null = null;
-let _queryStmt: Statement | null = null;
-let _countStmt: Statement | null = null;
-
-// Lazy environment strings cached at startup initialization layer
-const _cachedCommitSha = lazyDetectCommitSha();
-const _cachedBranch = lazyDetectBranch();
-const _cachedOS = `${process.platform} ${process.arch}`;
-const _cachedRuntime =
-  typeof Bun !== "undefined" ? `bun ${Bun.version}` : `node ${process.version}`;
 
 function getDb(): Database {
   const dbPath = path.join(RESULTS_DIR, "history.sqlite");

@@ -13,7 +13,7 @@
  *   bun run scripts/security-audit.ts --auth --ci              # full authenticated CI audit
  *
  * ### Audit Categories (OWASP 2021 mapped)
- * - A01: Broken Access Control → auth bypass, endpoint protection, GraphQL auth
+ * - A01: Broken Access Control → auth bypass, endpoint protection, GraphQL auth, CSRF
  * - A02: Cryptographic Failures → cookie security, HSTS, token handling
  * - A03: Injection → SQLi, NoSQLi, XSS reflection, path traversal
  * - A04: Insecure Design → GraphQL depth/alias limits, rate limiting
@@ -28,7 +28,7 @@ const BASE = process.argv.includes("--base")
 const IS_CI = process.argv.includes("--ci");
 const AUTH_MODE = process.argv.includes("--auth");
 
-const AUDITOR_UA = "SveltyCMS-Security-Audit/2.0";
+const AUDITOR_UA = "SveltyCMS-Security-Audit/3.0";
 
 interface Finding {
   endpoint: string;
@@ -74,13 +74,23 @@ async function probe(
     });
     const elapsed = performance.now() - start;
 
-    // Capture cookies from response
-    const setCookie = res.headers.get("set-cookie");
+    // Use getSetCookie() for correct parsing — split(",") mangles date commas
     const cookies: Record<string, string> = {};
-    if (setCookie) {
-      for (const part of setCookie.split(",")) {
-        const m = part.trim().match(/^([^=]+)=([^;]*)/);
+    try {
+      const setCookieHeaders = res.headers.getSetCookie?.() ?? [];
+      for (const sc of setCookieHeaders) {
+        const m = sc.trim().match(/^([^=]+)=([^;]*)/);
         if (m) cookies[m[1].trim()] = m[2];
+      }
+    } catch {
+      // Fallback for environments without getSetCookie()
+      const setCookie = res.headers.get("set-cookie");
+      if (setCookie) {
+        // Split on \n (not comma) — set-cookie values contain date commas
+        for (const part of setCookie.split("\n")) {
+          const m = part.trim().match(/^([^=]+)=([^;]*)/);
+          if (m) cookies[m[1].trim()] = m[2];
+        }
       }
     }
 
@@ -101,13 +111,22 @@ async function probe(
 async function setupAuth(): Promise<boolean> {
   console.log("\n🔑 Setting up authenticated audit session...");
 
+  const testSecret = process.env.TEST_API_SECRET;
+  if (!testSecret || testSecret === "test-secret-dev") {
+    console.warn("  ⚠️  TEST_API_SECRET not set or using dev default — set in CI!");
+    if (IS_CI && !testSecret) {
+      console.log("  ❌ CI requires TEST_API_SECRET — skipping auth setup");
+      return false;
+    }
+  }
+
   // Step 1: Try to seed a test admin user via testing endpoint
   const seedRes = await probe(
     "POST",
     "/api/testing",
     {
       "Content-Type": "application/json",
-      "x-test-secret": process.env.TEST_API_SECRET || "test-secret-dev",
+      "x-test-secret": testSecret || "test-secret-dev",
     },
     JSON.stringify({
       action: "seed",
@@ -137,10 +156,11 @@ async function setupAuth(): Promise<boolean> {
     return false;
   }
 
-  // Extract session cookie
-  const cookieHeader = loginRes.headers.get("set-cookie");
+  // Extract session cookie — use getSetCookie() or cookies map (not split on comma)
+  const cookieHeader =
+    loginRes.headers.getSetCookie?.()?.[0] ?? loginRes.headers.get("set-cookie")?.split("\n")[0];
   if (cookieHeader) {
-    authCookie = cookieHeader.split(",")[0].split(";")[0].trim();
+    authCookie = cookieHeader.split(";")[0].trim();
   }
 
   // Extract CSRF token
@@ -150,6 +170,32 @@ async function setupAuth(): Promise<boolean> {
   console.log(`     Session cookie: ${authCookie ? "present" : "missing"}`);
   console.log(`     CSRF token: ${csrfToken ? "present" : "missing"}`);
   return true;
+}
+
+// ── TEARDOWN (clean up test admin) ─────────────────────────────────────
+
+async function teardownAuth() {
+  if (!authCookie) return;
+  console.log("\n🧹 Cleaning up test admin user...");
+  try {
+    const testSecret = process.env.TEST_API_SECRET || "test-secret-dev";
+    await probe(
+      "POST",
+      "/api/testing",
+      {
+        "Content-Type": "application/json",
+        "x-test-secret": testSecret,
+      },
+      JSON.stringify({
+        action: "wipe-user",
+        email: "audit@security.test",
+      }),
+      5000,
+    );
+    console.log("  ✅ Test admin user removed");
+  } catch {
+    console.log("  ⚠️  Could not clean up test admin (non-fatal)");
+  }
 }
 
 // ── A01: BROKEN ACCESS CONTROL ──────────────────────────────────────────
@@ -190,6 +236,74 @@ async function auditAuth() {
   );
 }
 
+// ── A01: CSRF PROTECTION ─────────────────────────────────────────────────
+
+async function auditCSRF() {
+  console.log("\n🛡️  [A01] CSRF Protection");
+  if (!authCookie) {
+    console.log("  ⚠️  No auth session — skipping CSRF audit (requires --auth)");
+    return;
+  }
+
+  const mutations = [
+    {
+      method: "POST",
+      path: "/api/collections",
+      body: JSON.stringify({ name: "csrf-test" }),
+    },
+    {
+      method: "PUT",
+      path: "/api/collections/csrf-test",
+      body: JSON.stringify({ data: {} }),
+    },
+    { method: "DELETE", path: "/api/collections/csrf-test" },
+  ];
+
+  for (const mut of mutations) {
+    // Request WITHOUT CSRF token (but with session cookie)
+    const noCsrf = await probe(
+      mut.method,
+      mut.path,
+      {
+        "Content-Type": "application/json",
+        Origin: "https://evil.example.com",
+        // Explicitly do NOT send CSRF token
+      },
+      mut.body,
+    );
+
+    if (!noCsrf) continue;
+
+    if (noCsrf.status === 403 || noCsrf.status === 401) {
+      console.log(`  ✅ ${mut.method} ${mut.path}: rejected without CSRF token (${noCsrf.status})`);
+    } else if (noCsrf.status < 400) {
+      report(
+        mut.path,
+        "CSRF bypass",
+        "A01",
+        "HIGH",
+        `${mut.method} accepted ${noCsrf.status} without CSRF token — cross-site request forgery risk`,
+      );
+    }
+
+    // Request WITH CSRF token (should succeed if valid)
+    if (csrfToken) {
+      const withCsrf = await probe(
+        mut.method,
+        mut.path,
+        {
+          "Content-Type": "application/json",
+          "x-csrf-token": csrfToken,
+        },
+        mut.body,
+      );
+      if (withCsrf && withCsrf.status < 400) {
+        console.log(`  ✅ ${mut.method} ${mut.path}: CSRF token validation works`);
+      }
+    }
+  }
+}
+
 // ── A03: INJECTION ──────────────────────────────────────────────────────
 
 async function auditXSS() {
@@ -199,6 +313,8 @@ async function auditXSS() {
     "<img src=x onerror=alert(1)>",
     "javascript:alert(1)",
   ];
+
+  let htmlReported = false; // Only report HTML content-type once
 
   await Promise.all(
     payloads.map(async (payload) => {
@@ -215,7 +331,8 @@ async function auditXSS() {
         );
       }
       const ct = res.headers.get("content-type") || "";
-      if (ct.includes("text/html")) {
+      if (ct.includes("text/html") && !htmlReported) {
+        htmlReported = true;
         report(
           "/api/system/health",
           "HTML response",
@@ -239,7 +356,13 @@ async function auditSQLi() {
       const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
       if (!res) return;
       if (res.status === 401 || res.status === 403) {
-        console.log(`  ✅ Auth blocked SQLi probe (${res.status})`);
+        // Distinguish: 401 = no auth (skipped), 403 = actively blocked
+        if (res.status === 403) {
+          blocked++;
+          console.log(`  ✅ SQLi actively rejected (403)`);
+        } else {
+          console.log(`  ⚠️  SQLi probe requires auth (401) — run with --auth for full test`);
+        }
       } else if (res.status === 400 || res.status === 422) {
         blocked++;
         console.log(`  ✅ SQLi blocked (${res.status})`);
@@ -255,7 +378,7 @@ async function auditSQLi() {
     }),
   );
 
-  // NoSQLi: test via collection query parameters (not GraphQL variables — those never reach mapQuery)
+  // NoSQLi: test via collection query parameters (not GraphQL variables)
   if (authCookie) {
     const nosqlPayloads = ['{"$where":"1"}', '{"$expr":{"$gt":["$_id",""]}}'];
     await Promise.all(
@@ -333,13 +456,15 @@ async function auditGraphQL() {
     return;
   }
 
-  // Depth limit (max 7)
-  const deepQuery = Array.from({ length: 9 }, (_, i) => `a${i}: __typename`).join(" ");
+  // Depth limit test — sends actually nested query, not flat aliases
+  const buildDeepQuery = (depth: number): string =>
+    depth === 0 ? "name" : `child { ${buildDeepQuery(depth - 1)} }`;
+  const depthQuery = `{ ${buildDeepQuery(9)} }`;
   const depthRes = await probe(
     "POST",
     "/api/graphql",
     { "Content-Type": "application/json" },
-    JSON.stringify({ query: `{ ${deepQuery} }` }),
+    JSON.stringify({ query: depthQuery }),
   );
   if (depthRes && depthRes.status === 400) {
     console.log("  ✅ GraphQL depth limiting active");
@@ -363,7 +488,7 @@ async function auditGraphQL() {
       "No alias limit",
       "A04",
       "MEDIUM",
-      "Bathed alias query accepted — DoS risk",
+      "Batched alias query accepted — DoS risk",
     );
   }
 }
@@ -436,11 +561,17 @@ async function auditCookieSecurity() {
     return;
   }
 
-  // Test the login endpoint to capture set-cookie
+  // Login WITHOUT the existing authCookie to get a fresh Set-Cookie response.
+  // If we re-use authCookie, the server may return 200 without a new Set-Cookie
+  // because the session is already authenticated — causing a false negative.
   const res = await probe(
     "POST",
     "/api/auth/login",
-    { "Content-Type": "application/json" },
+    {
+      "Content-Type": "application/json",
+      // Explicitly clear auth cookie for this probe
+      Cookie: "",
+    },
     JSON.stringify({ email: "audit@security.test", password: "AuditPass123!" }),
   );
 
@@ -449,7 +580,11 @@ async function auditCookieSecurity() {
     return;
   }
 
-  const setCookie = res.headers.get("set-cookie") || "";
+  // Use getSetCookie() for correct parsing
+  const setCookieHeaders = res.headers.getSetCookie?.() ?? [];
+  const setCookie =
+    setCookieHeaders.length > 0 ? setCookieHeaders.join(", ") : res.headers.get("set-cookie") || "";
+
   const hasHttpOnly = setCookie.toLowerCase().includes("httponly");
   const hasSecure = setCookie.toLowerCase().includes("secure");
   const hasSameSite = setCookie.toLowerCase().includes("samesite");
@@ -502,16 +637,20 @@ async function auditCookieSecurity() {
 async function auditRateLimit() {
   console.log("\n⏱️  [A07] Rate Limiting & Account Lockout");
 
-  const responses: { status: number; elapsed: number }[] = [];
-  for (let i = 0; i < 15; i++) {
-    const res = await probe(
+  // Use Promise.all for concurrent requests — rate limiters use sliding windows
+  // that won't trigger on slow sequential await-in-a-loop requests
+  const probeFns = Array.from({ length: 15 }, (_, i) =>
+    probe(
       "POST",
       "/api/auth/login",
       { "Content-Type": "application/json" },
       JSON.stringify({ email: `brute${i}@test.com`, password: "wrong" }),
-    );
-    if (res) responses.push({ status: res.status, elapsed: res.elapsed });
-  }
+    ),
+  );
+  const results = await Promise.all(probeFns);
+  const responses = results
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+    .map((r) => ({ status: r.status, elapsed: r.elapsed }));
 
   const throttled = responses.filter((r) => r.status === 429).length;
   const locked = responses.filter((r) => r.status === 403).length;
@@ -538,7 +677,7 @@ async function auditRateLimit() {
       "No rate limit or lockout",
       "A07",
       "HIGH",
-      "15 rapid login attempts not throttled/locked — brute force risk",
+      "15 concurrent login attempts not throttled/locked — brute force risk",
     );
   }
 
@@ -562,7 +701,6 @@ async function auditRateLimit() {
 async function auditInfoLeakage() {
   console.log("\n⚠️  [A05] Information Leakage");
 
-  // Probe a non-existent API path to see if it leaks stack trace, database framework details, or node_modules
   const res = await probe("GET", "/api/collections/nonexistent_collection_name_94812");
   if (res) {
     const bodyLower = res.body.toLowerCase();
@@ -603,7 +741,7 @@ async function auditSelfTest() {
 // ── MAIN ───────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("🛡️  SveltyCMS Enterprise Security Audit v2.0");
+  console.log("🛡️  SveltyCMS Enterprise Security Audit v3.0");
   console.log(`   Target: ${BASE}`);
   console.log(`   Mode: ${AUTH_MODE ? "Authenticated (--auth)" : "Unauthenticated"}`);
   console.log(`   CI: ${IS_CI ? "Yes (exit on findings)" : "No"}`);
@@ -619,6 +757,7 @@ async function main() {
 
   // Run all audits
   await auditAuth(); // A01
+  if (AUTH_MODE) await auditCSRF(); // A01 — CSRF requires auth
   await auditXSS(); // A03
   await auditSQLi(); // A03
   await auditPathTraversal(); // A03
@@ -628,6 +767,11 @@ async function main() {
   await auditCookieSecurity(); // A02
   await auditRateLimit(); // A07
   await auditInfoLeakage(); // A05
+
+  // Teardown: clean up seeded test admin
+  if (AUTH_MODE) {
+    await teardownAuth();
+  }
 
   // ── SUMMARY ──────────────────────────────────────────────────────
   console.log("\n" + "═".repeat(55));
@@ -679,6 +823,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Security audit crashed:", err);
+  console.error("Audit crashed:", err);
   process.exit(1);
 });

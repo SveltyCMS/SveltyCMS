@@ -1150,6 +1150,10 @@ export default defineConfig((): any => {
             if (id.includes("node_modules/valibot")) {
               return "vendor-validate";
             }
+            // Group database ORM
+            if (id.includes("node_modules/drizzle-orm")) {
+              return "vendor-drizzle";
+            }
           },
         },
         onwarn(warning: any, warn: any) {

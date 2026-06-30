@@ -825,10 +825,12 @@ export async function exportResult(r: any) {
   const dbType = getDbType();
 
   // Detect test file
-  let testFile = process.env.BENCH_FILE || "";
+  let testFile = process.env.BEN_FILE || process.env.BENCH_FILE || "";
   if (!testFile) {
     const m = (process.argv[1] || "").match(/tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/);
-    if (m) testFile = m[1];
+    if (m) {
+      testFile = m[1].replace(/\.test$/, "");
+    }
   }
 
   const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";

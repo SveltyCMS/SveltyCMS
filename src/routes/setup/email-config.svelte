@@ -698,7 +698,7 @@
 		</label>
 
 		<!-- SMTP Password -->
-		<label class="label">
+		<label class="label" for="smtp-password">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{setup_email_password()} <span class="text-error-500">*</span></span>
@@ -715,6 +715,7 @@
 			</div>
 			<div class="relative">
 				<Input
+					id="smtp-password"
 					type={showPassword ? 'text' : 'password'}
 					bind:value={wizard.emailSettings.password}
 					placeholder={setup_email_password_placeholder()}

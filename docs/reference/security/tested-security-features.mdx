@@ -146,6 +146,20 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ---
 
+### 9. June 2026 Threat Modeling & Gating Hardening
+
+**Assessment Outcome**: Resolved critical race conditions in setup gating and corrected CSRF constraints for stateless external API integrations.
+
+- **Setup Wizard DB-Level Fallback Gate**: Implemented a deep unseeded database validation check in `handleSeedDatabase` and `handleCompleteSetup` (`src/routes/api/[...path]/handlers/setup.ts`). Before seeding or completion, the handler queries the database to check if any user with the `admin` role is already registered. If present, it throws a `403 SETUP_ALREADY_COMPLETE` error. This blocks setup hijacking attempts even if `config/private.ts` is deleted or corrupted on the server filesystem.
+- **CSRF Bypass for Header-Authenticated APIs**: Updated SveltyCMS dispatcher in `src/routes/api/[...path]/+server.ts` to bypass CSRF token validation if the request is authenticated via `user.isApiKey` or `user.isApiToken`. Cookie-based admin dashboard sessions remain fully protected, while decoupled integration clients can execute write operations cleanly.
+- **Vite Compilation OOM Protection**: Configured chunk-splitting in `vite.config.ts` to output `drizzle-orm` in a dedicated bundle, preventing Vite/rollup compiler memory exhaustion on low-memory servers.
+
+**Security Tests**: Added unit and integration tests confirming deep setup wizard gating and CSRF token bypass on Bearer auth. All 65 defense-in-depth regression tests pass successfully.
+
+**Files Modified**: `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/+server.ts`, `vite.config.ts`.
+
+---
+
 ## No Backdoor Policy
 
 SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test support:

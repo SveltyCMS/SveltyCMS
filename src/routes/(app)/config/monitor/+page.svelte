@@ -229,4 +229,61 @@ function formatUptime(seconds: number): string {
             </AdminCard>
         </div>
     </div>
+
+    <!-- Cryptographic Audit Logs -->
+    <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+        <div class="mb-6 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold">Cryptographic Audit Trail</h2>
+                <p class="text-xs text-surface-500 dark:text-surface-400">Verifiable SHA-256 tamper-evident log chain isolation</p>
+            </div>
+            <Button variant="ghost" size="sm" onclick={() => window.open('/api/logs/download?type=latest&format=text', '_blank')}>Export Raw Chain</Button>
+        </div>
+
+        {#if data.auditLogs && data.auditLogs.length > 0}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-start border-collapse table-auto">
+                    <thead>
+                        <tr class="border-b border-surface-200 text-start dark:border-surface-700 opacity-50 text-xs font-bold uppercase">
+                            <th class="pb-2 text-start">Timestamp</th>
+                            <th class="pb-2 text-start">User / Actor</th>
+                            <th class="pb-2 text-start">Event Type</th>
+                            <th class="pb-2 text-start">Result</th>
+                            <th class="pb-2 text-start hidden md:table-cell">Details</th>
+                            <th class="pb-2 text-end hidden lg:table-cell">SHA-256 Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each data.auditLogs as log (log._id)}
+                            <tr class="border-b border-surface-100 dark:border-surface-800 text-xs hover:bg-surface-50 dark:hover:bg-surface-850">
+                                <td class="py-2.5 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                                <td class="py-2.5 whitespace-nowrap font-medium">{log.actorEmail || 'system'}</td>
+                                <td class="py-2.5 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-tertiary-500/15 text-tertiary-600 dark:text-primary-500">
+                                        {log.eventType}
+                                    </span>
+                                </td>
+                                <td class="py-2.5 whitespace-nowrap">
+                                    <Badge size="sm" variant={log.result === 'success' ? 'primary' : 'error'}>
+                                        {log.result}
+                                    </Badge>
+                                </td>
+                                <td class="py-2.5 max-w-xs truncate hidden md:table-cell opacity-70">
+                                    {JSON.stringify(log.details)}
+                                </td>
+                                <td class="py-2.5 text-end font-mono hidden lg:table-cell text-xs opacity-40">
+                                    {log.hash ? log.hash.substring(0, 12) + '...' : '--'}
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        {:else}
+            <div class="py-8 text-center italic opacity-35">
+                <iconify-icon icon="mdi:script-text-outline" width="32" class="mb-2"></iconify-icon>
+                <p>No audit trail records found for this tenant.</p>
+            </div>
+        {/if}
+    </AdminCard>
 </AdminPageShell>

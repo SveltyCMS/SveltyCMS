@@ -379,6 +379,8 @@ export const _handler = async (event: RequestEvent) => {
   if (
     !(locals as any).__testBypass &&
     process.env.TEST_MODE !== "true" &&
+    !(user as any)?.isApiKey &&
+    !(user as any)?.isApiToken &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
   ) {
     const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");

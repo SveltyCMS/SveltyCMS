@@ -320,10 +320,16 @@ describe("2FA API Unit Tests", () => {
       const user = createMockUser({ _id: "user-1" });
       mockTwoFactorService.complete2FASetup.mockResolvedValue(true);
 
-      const event = createMockEvent({ code: "123456" }, user, undefined, "verify-setup", {
-        headers: { "X-CSRF-Token": "mock-csrf-token" },
-        cookies: { csrf_token: "mock-csrf-token" },
-      });
+      const event = createMockEvent(
+        { code: "123456", secret: "JBSWY3DPEHPK3PXP" },
+        user,
+        undefined,
+        "verify-setup",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
       const response = await POST_VERIFY_SETUP(event);
       const result = await response!.json();
 
@@ -334,10 +340,16 @@ describe("2FA API Unit Tests", () => {
       const user = createMockUser({ _id: "user-1" });
       mockTwoFactorService.complete2FASetup.mockResolvedValue(false);
 
-      const event = createMockEvent({ code: "000000" }, user, undefined, "verify-setup", {
-        headers: { "X-CSRF-Token": "mock-csrf-token" },
-        cookies: { csrf_token: "mock-csrf-token" },
-      });
+      const event = createMockEvent(
+        { code: "000000", secret: "JBSWY3DPEHPK3PXP" },
+        user,
+        undefined,
+        "verify-setup",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
       await expect(POST_VERIFY_SETUP(event)).rejects.toThrow("Invalid verification code");
     });
   });

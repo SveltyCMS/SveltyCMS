@@ -75,6 +75,7 @@ import {
 // Import for internal use
 import { SESSION_COOKIE_NAME, getSessionCookieName } from "./constants";
 
+/** Normalize email to lowercase for consistent lookups */
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }

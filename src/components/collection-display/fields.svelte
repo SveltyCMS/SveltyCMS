@@ -20,6 +20,7 @@
 - `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
+import { tick } from "svelte";
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -403,6 +404,37 @@
     if ((collectionValue as any).value?._id) {
       apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
     }
+  });
+
+  // visual edit click-to-edit event handler
+  $effect(() => {
+    const handleFocusField = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ fieldName: string }>;
+      const fieldName = customEvent.detail?.fieldName;
+      if (!fieldName) return;
+
+      // 1. Switch back to the edit tab (tab "0")
+      localTabSet = "0";
+
+      // 2. Wait for Svelte to flush DOM updates, then wait for browser paint
+      await tick();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const inputEl = document.getElementById(fieldName) as HTMLElement | null;
+      if (inputEl) {
+        inputEl.focus();
+        inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        // Fallback: search by name attribute if ID matches db_fieldName
+        const inputByName = document.querySelector(`[name="${fieldName}"]`) as HTMLElement | null;
+        if (inputByName) {
+          inputByName.focus();
+          inputByName.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    };
+
+    window.addEventListener("svelty:focus-field" as any, handleFocusField);
+    return () => window.removeEventListener("svelty:focus-field" as any, handleFocusField);
   });
 
   // --- 7. PLUGIN SLOTS ---
