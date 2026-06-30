@@ -440,7 +440,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-    `CREATE INDEX IF NOT EXISTS "404_logs_path_tenant_idx" ON "404_logs" (path, "tenantId")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "404_logs_path_tenant_idx" ON "404_logs" (path, "tenantId")`,
 
     // Redirects MV
     `CREATE TABLE IF NOT EXISTS redirects_mv (

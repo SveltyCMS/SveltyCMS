@@ -419,7 +419,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			metadata JSON NOT NULL,
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX path_tenant_idx (path, tenantId)
+			UNIQUE INDEX path_tenant_idx (path, tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // Redirects MV

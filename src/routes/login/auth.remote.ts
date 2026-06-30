@@ -237,6 +237,55 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
   return { success: true, message: "Setup has been reset." };
 });
 
+/**
+ * Checks which authentication methods are available for a given email address.
+ * Used by the sign-in form to dynamically show/hide auth method buttons.
+ */
+export const checkAuthMethods = query("unchecked", async (email: string) => {
+  await dbInitPromise;
+  if (!auth)
+    return {
+      success: false,
+      hasPassword: true,
+      hasPasskey: false,
+      hasMagicLink: false,
+      hasOAuth: false,
+    };
+  try {
+    const user = await auth.checkUser({
+      email: String(email).trim().toLowerCase(),
+    });
+    if (!user) {
+      return {
+        success: true,
+        hasPassword: true,
+        hasPasskey: false,
+        hasMagicLink: false,
+        hasOAuth: false,
+      };
+    }
+    const hasPassword = !!(user as any).password;
+    const hasPasskey =
+      Array.isArray((user as any).authenticators) && (user as any).authenticators.length > 0;
+    const hasMagicLink = !!(user as any).email;
+    return {
+      success: true,
+      hasPassword,
+      hasPasskey,
+      hasMagicLink,
+      hasOAuth: false,
+    };
+  } catch {
+    return {
+      success: false,
+      hasPassword: true,
+      hasPasskey: false,
+      hasMagicLink: false,
+      hasOAuth: false,
+    };
+  }
+});
+
 export const prefetchFirstCollection = query("unchecked", async () => {
   try {
     const path = await getCachedFirstCollectionPath("en" as any);
@@ -380,7 +429,18 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  return { success: true, redirectPath: "/config/collectionbuilder" };
+  // Determine redirect: user's first collection if available, otherwise builder
+  let redirectPath = "/config/collectionbuilder";
+  try {
+    const { getCachedFirstCollectionPath } = await import("@utils/server/collection-utils.server");
+    const userLanguage = (user as any).locale || (user as any).language || "en";
+    const path = await getCachedFirstCollectionPath(userLanguage as any);
+    if (path) redirectPath = path;
+  } catch {
+    // Fall back to builder
+  }
+
+  return { success: true, redirectPath };
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
