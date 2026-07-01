@@ -2,7 +2,14 @@
 # =============================================================================
 # SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Runs lint-staged: format, lint, and slop scan on STAGED FILES ONLY.
+# Runs scripts/pre-commit-lint.ts which executes all checks SEQUENTIALLY
+# in a single bun process to avoid OOM/SIGKILL on Windows (lint-staged
+# spawns too many parallel processes).
+#
+# Checks: oxfmt, oxlint, slop-scanner on source files;
+#         lint-admin-theme on (app) svelte files;
+#         lint-docs on documentation files.
+#
 # Heavy checks (type check, unit tests) are deferred to pre-push.
 # Production builds and integration tests are CI-only.
 #
@@ -22,4 +29,4 @@ echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-bun x lint-staged
+bun run scripts/pre-commit-lint.ts
