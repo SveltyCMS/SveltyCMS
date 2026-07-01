@@ -96,21 +96,6 @@ async function main() {
   const installer = process.platform === "win32" ? "npm install" : "bun install";
   execSync(installer, { cwd: projectPath, stdio: "inherit" });
 
-  // ── Step 4b: Write secure .env.example template ──
-  console.log("\n🔒 Writing security defaults to .env.example...");
-  const envExample = [
-    "# Security defaults — change these before deploying to production",
-    "JWT_ROTATION_ENABLED=true",
-    "JWT_ROTATION_INTERVAL_HOURS=24",
-    "SESSION_MAX_AGE_DAYS=7",
-    "PASSWORD_MIN_LENGTH=12",
-    "CSRF_PROTECTION=true",
-    "RATE_LIMIT_ENABLED=true",
-    "CSP_REPORT_ONLY=false",
-    "",
-  ].join("\n");
-  fs.writeFileSync(path.join(projectPath, ".env.example"), envExample);
-
   // ── Step 5: Initialize git ──
   console.log("\n📝 Initializing git repository...");
   execSync("git init", { cwd: projectPath, stdio: "pipe" });
@@ -133,6 +118,8 @@ The setup wizard will guide you through:
   • Database configuration (${dbType})
   • Admin account creation
   • Collection template selection (${template})
+  • Security hardening — auto-generates secure keys (JWT, encryption, rate limiting)
+  • Password policy — enforces PASSWORD_MIN_LENGTH: 12 by default
 
 Templates available: blog, agency, saas, corporate, ecommerce
 

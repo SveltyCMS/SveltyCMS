@@ -497,7 +497,15 @@ Security issues should be reported to:
 
 ### Scaffolding Security Defaults
 
-When creating a new SveltyCMS project via `create-sveltycms`, a `.env.example` file is automatically generated with secure defaults: JWT rotation enabled, password minimum length of 12, CSRF protection, rate limiting, and enforced CSP. These defaults ensure new deployments start with a hardened security posture. Review and customize all values before deploying to production.
+When a new SveltyCMS project is created via `create-sveltycms`, the setup wizard automatically generates `config/private.ts` with:
+
+- **`PASSWORD_MIN_LENGTH: 12`** — enforces strong passwords
+- **`RATE_LIMIT_SECRET`** — 32-character CSPRNG-generated secret for rate limiting
+- **`JWT_SECRET_KEY`** — 32-character CSPRNG-generated signing key
+- **`ENCRYPTION_KEY`** — 32-character CSPRNG-generated encryption key
+- **RSA-2048 SAML signing keys** — auto-generated key pair
+
+These defaults ensure new deployments start with a hardened security posture. Review and customize all values in `config/private.ts` before deploying to production.
 
 ### Deployment
 

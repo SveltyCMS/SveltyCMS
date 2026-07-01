@@ -92,6 +92,10 @@ export const privateEnv = {
 	MULTI_TENANT: ${system.multiTenant ? "true" : "false"},
 	DEMO: ${system.demoMode ? "true" : "false"},
 
+	// --- Security Hardening Defaults (change in production if needed) ---
+	PASSWORD_MIN_LENGTH: 12,
+	RATE_LIMIT_SECRET: '${generateSecureToken(32)}',
+
 	/* * NOTE: All other settings (SMTP, Google OAuth, Redis, feature flags, etc.)
 	 * are loaded dynamically from the database after the application starts.
 	 */
