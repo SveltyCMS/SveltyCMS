@@ -86,9 +86,9 @@ async function run(): Promise<void> {
     if (existingPerms?.isKind(SyntaxKind.ObjectLiteralExpression)) {
       for (const [key, values] of Object.entries(newPermissions)) {
         const existingKey = existingPerms.getProperty(key);
-        if (existingKey) {
+        if (existingKey?.isKind(SyntaxKind.PropertyAssignment)) {
           existingKey.setInitializer(JSON.stringify(values));
-        } else {
+        } else if (!existingKey) {
           existingPerms.addPropertyAssignment({
             name: key,
             initializer: JSON.stringify(values),

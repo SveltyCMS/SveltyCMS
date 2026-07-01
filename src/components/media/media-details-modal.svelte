@@ -20,7 +20,6 @@
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { mediaUrl } from "@utils/media/media-utils";
-  import { screen } from "@src/stores/screen-size-store.svelte.ts";
 
   // Props
   let {
@@ -37,16 +36,8 @@
     close?: () => void;
   } = $props();
 
-  // Adaptive modal width based on screen size
-  const modalWidth = $derived(
-    screen.width < 768 ? undefined       // mobile: let max-width:100% handle it
-      : screen.width < 1024 ? '90vw'     // tablet: 90% viewport
-      : screen.width < 1440 ? '850px'    // standard desktop
-      : '1024px'                         // large desktop: more room
-  );
-
-  // Tab State
-  let activeTab = $state<"info" | "versions" | "references" | "share">("info");
+  	// Tab State
+  	let activeTab = $state<"info" | "versions" | "references" | "share">("info");
 
   // Info Tab State
   let newTagInput = $state("");
@@ -454,7 +445,7 @@
 
   <!-- Asset preview -->
   <div
-    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-200 bg-surface-50 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-[18rem] lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40"
+    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-200 bg-surface-50 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-72 lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40"
   >
     {#if file.type === 'image'}
       <div
