@@ -2,13 +2,7 @@
  * @file scripts/codemods/_utils.ts
  * @description Shared utilities for SveltyCMS codemods using ts-morph.
  */
-import {
-  Project,
-  type SourceFile,
-  type ObjectLiteralExpression,
-  type ArrayLiteralExpression,
-  SyntaxKind,
-} from "ts-morph";
+import { Project, type SourceFile, type ObjectLiteralExpression, SyntaxKind } from "ts-morph";
 import path from "node:path";
 import fs from "node:fs/promises";
 
@@ -25,21 +19,16 @@ export function createCodemodProject(): Project {
 export function getDefaultExportedObject(
   sourceFile: SourceFile,
 ): ObjectLiteralExpression | undefined {
-  const exportAssignment = sourceFile.getExportAssignment(
-    (exp: any) => !exp.isExportEquals(),
-  );
+  const exportAssignment = sourceFile.getExportAssignment((exp: any) => !exp.isExportEquals());
   if (!exportAssignment) return undefined;
-  return exportAssignment.getExpressionIfKind(
-    SyntaxKind.ObjectLiteralExpression,
-  );
+  return exportAssignment.getExpressionIfKind(SyntaxKind.ObjectLiteralExpression);
 }
 
 export function isCollectionSchema(sourceFile: SourceFile): boolean {
   const filePath = sourceFile.getFilePath().toLowerCase();
   const fileName = path.basename(filePath);
 
-  if (fileName.includes("collection") || fileName.includes("schema"))
-    return true;
+  if (fileName.includes("collection") || fileName.includes("schema")) return true;
 
   const text = sourceFile.getFullText().toLowerCase();
   return (

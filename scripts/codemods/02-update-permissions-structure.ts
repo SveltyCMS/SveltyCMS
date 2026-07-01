@@ -23,11 +23,8 @@ interface StructuredPermissions {
 
 async function run(): Promise<void> {
   const isDryRun = process.argv.includes("--dry-run");
-  console.log(
-    pc.bold(pc.blue("\n🚀 Running Update Permissions Structure Codemod")),
-  );
-  if (isDryRun)
-    console.log(pc.yellow(" DRY-RUN MODE — No files will be modified\n"));
+  console.log(pc.bold(pc.blue("\n🚀 Running Update Permissions Structure Codemod")));
+  if (isDryRun) console.log(pc.yellow(" DRY-RUN MODE — No files will be modified\n"));
 
   const project = createCodemodProject();
   const collectionsDir = path.join(process.cwd(), "config/collections");
@@ -36,14 +33,10 @@ async function run(): Promise<void> {
   try {
     const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
     files = entries
-      .filter(
-        (e) => e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js")),
-      )
+      .filter((e) => e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js")))
       .map((e) => path.join(collectionsDir, e.name));
   } catch {
-    console.log(
-      pc.yellow(" ⚠️ No config/collections directory found. Skipping."),
-    );
+    console.log(pc.yellow(" ⚠️ No config/collections directory found. Skipping."));
     return;
   }
 
@@ -64,11 +57,7 @@ async function run(): Promise<void> {
 
     const existingPerms = obj.getProperty("permissions");
     if (existingPerms?.isKind(SyntaxKind.ObjectLiteralExpression)) {
-      console.log(
-        pc.dim(
-          ` ⏭️ Permissions already structured: ${path.basename(filePath)}`,
-        ),
-      );
+      console.log(pc.dim(` ⏭️ Permissions already structured: ${path.basename(filePath)}`));
       skippedCount++;
       continue;
     }
@@ -113,17 +102,11 @@ async function run(): Promise<void> {
     validateSchema(obj);
 
     if (isDryRun) {
-      console.log(
-        pc.yellow(
-          ` [DRY] Would migrate permissions: ${path.basename(filePath)}`,
-        ),
-      );
+      console.log(pc.yellow(` [DRY] Would migrate permissions: ${path.basename(filePath)}`));
     } else {
       await backupFile(filePath);
       await sourceFile.save();
-      console.log(
-        pc.green(` ✅ Migrated permissions: ${path.basename(filePath)}`),
-      );
+      console.log(pc.green(` ✅ Migrated permissions: ${path.basename(filePath)}`));
     }
     migratedCount++;
   }

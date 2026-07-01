@@ -3,7 +3,6 @@
  * @file scripts/codemods/04-migrate-role-names.ts
  */
 import { pc } from "../../src/utils/native-utils";
-import { createCodemodProject } from "./_utils";
 
 async function run() {
   console.log(pc.bold(pc.blue("\n🚀 Running Migrate Role Names Codemod")));

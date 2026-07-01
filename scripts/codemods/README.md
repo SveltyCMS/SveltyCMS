@@ -33,15 +33,15 @@ It scans your collection files and automatically rewrites them to match the new 
 
 ## What happens when I run `bun run upgrade`?
 
-| Step | What it does |
-| :--- | :--- |
-| 1. Check | Verifies your working tree is clean (no uncommitted files) |
-| 2. Backup | Creates a git rollback tag so you can undo everything |
-| 3. Fetch | Pulls the latest SveltyCMS code from upstream |
-| 4. Dependencies | Runs `bun install` to update packages |
-| 5. **Codemods** | Executes scripts that rewrite your collection files |
-| 6. DB | Runs `bun run db:push` to sync database schema |
-| 7. Tests | Runs the unit test suite to verify nothing is broken |
+| Step            | What it does                                               |
+| :-------------- | :--------------------------------------------------------- |
+| 1. Check        | Verifies your working tree is clean (no uncommitted files) |
+| 2. Backup       | Creates a git rollback tag so you can undo everything      |
+| 3. Fetch        | Pulls the latest SveltyCMS code from upstream              |
+| 4. Dependencies | Runs `bun install` to update packages                      |
+| 5. **Codemods** | Executes scripts that rewrite your collection files        |
+| 6. DB           | Runs `bun run db:push` to sync database schema             |
+| 7. Tests        | Runs the unit test suite to verify nothing is broken       |
 
 Each codemod creates a `.bak` backup of every file it touches, so you can always revert.
 
@@ -50,17 +50,17 @@ Each codemod creates a `.bak` backup of every file it touches, so you can always
 ## Example: before and after
 
 **Before** `bun run upgrade` (your current file):
+
 ```ts
 export default {
   name: "posts",
   publicAccess: true,
-  fields: [
-    { name: "title", type: "string" }
-  ]
-}
+  fields: [{ name: "title", type: "string" }],
+};
 ```
 
 **After** (automatically rewritten by codemods):
+
 ```ts
 export default {
   name: "posts",
@@ -68,13 +68,13 @@ export default {
   permissions: {
     public: ["read"],
     authenticated: ["read", "write"],
-    apiKey: []
+    apiKey: [],
   },
   fields: [
     { name: "title", type: "string" },
-    { name: "isDeleted", type: "boolean", defaultValue: false }
-  ]
-}
+    { name: "isDeleted", type: "boolean", defaultValue: false },
+  ],
+};
 ```
 
 Three codemods ran on this single file without you touching a line of code.
@@ -133,10 +133,10 @@ A: Yes: `bun run upgrade --dry-run`
 
 ## Current codemods
 
-| # | File | What it does |
-| :--- | :--- | :--- |
-| 01 | `01-migrate-collection-schema-v2.ts` | Adds `version: 2` and renames deprecated fields |
-| 02 | `02-update-permissions-structure.ts` | Converts `publicAccess` → structured `permissions` object |
-| 03 | `03-add-soft-delete-fields.ts` | Injects `isDeleted` boolean field into every collection |
-| 04 | `04-migrate-role-names.ts` | Role name standardization (coming soon) |
-| — | `_utils.ts` | Shared utilities (not executed directly) |
+| #   | File                                 | What it does                                              |
+| :-- | :----------------------------------- | :-------------------------------------------------------- |
+| 01  | `01-migrate-collection-schema-v2.ts` | Adds `version: 2` and renames deprecated fields           |
+| 02  | `02-update-permissions-structure.ts` | Converts `publicAccess` → structured `permissions` object |
+| 03  | `03-add-soft-delete-fields.ts`       | Injects `isDeleted` boolean field into every collection   |
+| 04  | `04-migrate-role-names.ts`           | Role name standardization (coming soon)                   |
+| —   | `_utils.ts`                          | Shared utilities (not executed directly)                  |

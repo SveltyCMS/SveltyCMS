@@ -495,6 +495,10 @@ Security issues should be reported to:
 6. **Log security events** - Enable audit trail
 7. **Keep dependencies updated** - Regular security patches
 
+### Scaffolding Security Defaults
+
+When creating a new SveltyCMS project via `create-sveltycms`, a `.env.example` file is automatically generated with secure defaults: JWT rotation enabled, password minimum length of 12, CSRF protection, rate limiting, and enforced CSP. These defaults ensure new deployments start with a hardened security posture. Review and customize all values before deploying to production.
+
 ### Deployment
 
 1. **Use HTTPS everywhere** - Encrypt all traffic

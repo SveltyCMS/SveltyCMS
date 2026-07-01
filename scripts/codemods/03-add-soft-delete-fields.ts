@@ -20,15 +20,13 @@ const SOFT_DELETE_FIELD = {
   type: "boolean",
   defaultValue: false,
   label: "Soft Deleted",
-  description:
-    "Soft-delete flag — entries with isDeleted=true are hidden from public APIs",
+  description: "Soft-delete flag — entries with isDeleted=true are hidden from public APIs",
 };
 
 async function run(): Promise<void> {
   const isDryRun = process.argv.includes("--dry-run");
   console.log(pc.bold(pc.blue("\n🚀 Running Add Soft-Delete Fields Codemod")));
-  if (isDryRun)
-    console.log(pc.yellow(" DRY-RUN MODE — No files will be modified\n"));
+  if (isDryRun) console.log(pc.yellow(" DRY-RUN MODE — No files will be modified\n"));
 
   const project = createCodemodProject();
   const collectionsDir = path.join(process.cwd(), "config/collections");
@@ -37,14 +35,10 @@ async function run(): Promise<void> {
   try {
     const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
     files = entries
-      .filter(
-        (e) => e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js")),
-      )
+      .filter((e) => e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js")))
       .map((e) => path.join(collectionsDir, e.name));
   } catch {
-    console.log(
-      pc.yellow(" ⚠️ No config/collections directory found. Skipping."),
-    );
+    console.log(pc.yellow(" ⚠️ No config/collections directory found. Skipping."));
     return;
   }
 
@@ -69,9 +63,7 @@ async function run(): Promise<void> {
       continue;
     }
 
-    const fieldsArray = fieldsProp.getInitializerIfKind(
-      SyntaxKind.ArrayLiteralExpression,
-    );
+    const fieldsArray = fieldsProp.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
     if (!fieldsArray) {
       skippedCount++;
       continue;
@@ -104,29 +96,22 @@ async function run(): Promise<void> {
     // Optional: sanitize collection name
     const nameProp = obj.getProperty("name");
     if (nameProp?.isKind(SyntaxKind.PropertyAssignment)) {
-      const currentName =
-        nameProp.getInitializer()?.getText().replace(/"/g, "") || "";
+      const currentName = nameProp.getInitializer()?.getText().replace(/"/g, "") || "";
       const sanitized = sanitizeHeadlessCollectionName(currentName);
       if (sanitized !== currentName) {
         nameProp.setInitializer(`"${sanitized}"`);
-        console.log(
-          pc.cyan(` 🔧 Sanitized name: ${currentName} → ${sanitized}`),
-        );
+        console.log(pc.cyan(` 🔧 Sanitized name: ${currentName} → ${sanitized}`));
       }
     }
 
     validateSchema(obj);
 
     if (isDryRun) {
-      console.log(
-        pc.yellow(` [DRY] Would inject isDeleted: ${path.basename(filePath)}`),
-      );
+      console.log(pc.yellow(` [DRY] Would inject isDeleted: ${path.basename(filePath)}`));
     } else {
       await backupFile(filePath);
       await sourceFile.save();
-      console.log(
-        pc.green(` ✅ Injected isDeleted: ${path.basename(filePath)}`),
-      );
+      console.log(pc.green(` ✅ Injected isDeleted: ${path.basename(filePath)}`));
     }
     injectedCount++;
   }

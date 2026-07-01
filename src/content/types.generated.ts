@@ -7,27 +7,9 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "authors" | "categories" | "posts" | (string & {});
+export type ContentTypes = string & {};
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
-  authors: CollectionEntry & {
-    name: string;
-    bio: string;
-    avatar: string | string[];
-    email: string;
-  };
-  categories: CollectionEntry & { name: string; slug: string; description: string };
-  posts: CollectionEntry & {
-    title: string;
-    slug: string;
-    content: string;
-    excerpt: string;
-    featuredImage: string | string[];
-    author: DatabaseId;
-    categories: DatabaseId;
-    tags: string;
-    seo: string;
-  };
 }
 /* AUTOGEN_END: ContentTypes */

@@ -80,6 +80,25 @@ Codemods in `scripts/codemods/` follow a specific naming pattern:
 - **`NN-description.ts`**: Numbered prefix (e.g., `01-migrate-schema.ts`) determines the execution order.
 - **`_name.ts`**: Files starting with an underscore are treated as internal utilities and are **not** executed by the upgrade runner.
 
+### Codemod Utilities (`_utils.ts`)
+
+The shared utilities module provides reusable helpers used by all codemod scripts:
+
+- **`MigrationManager`** — Chains multiple migration rules and tracks which changes were applied per file.
+- **`deepUpsertProperty(obj, path, value)`** — Inserts or updates a nested property using dot-notation paths, creating intermediate objects as needed.
+- **`validateSchema(obj)`** — Post-migration validation that checks required fields (`name`, `fields`) still exist after transformation.
+- **`upsertProperty` / `renameProperty`** — Single-level property insertion, update, and rename operations.
+
+### Current Codemods
+
+| #   | File                                 | What it does                                                                                                                             |
+| :-- | :----------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | `01-migrate-collection-schema-v2.ts` | Adds `version: 2` marker and renames deprecated schema fields                                                                            |
+| 02  | `02-update-permissions-structure.ts` | Converts legacy `publicAccess` to structured `permissions` object with merge logic preserving existing role permissions                  |
+| 03  | `03-add-soft-delete-fields.ts`       | Injects `isDeleted` boolean field into every collection schema for soft-delete support                                                   |
+| 04  | `04-migrate-role-names.ts`           | Role name standardization (planned)                                                                                                      |
+| --  | `_utils.ts`                          | Shared utilities: `MigrationManager`, `deepUpsertProperty`, `validateSchema`, `upsertProperty`, `renameProperty`, `createCodemodProject` |
+
 ## Best Practices
 
 - **Review the Rollback Tag**: Before starting, the tool provides a rollback tag. If anything goes wrong, you can return to your previous state using `git reset --hard <tag-name>`.

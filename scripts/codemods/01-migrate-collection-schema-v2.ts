@@ -20,8 +20,7 @@ const MIGRATION_VERSION = 2;
 const manager = new MigrationManager()
   .addRule({
     name: "Add version field",
-    apply: (obj) =>
-      deepUpsertProperty(obj, "version", MIGRATION_VERSION.toString()),
+    apply: (obj) => deepUpsertProperty(obj, "version", MIGRATION_VERSION.toString()),
   })
   .addRule({
     name: "Rename old_prop → new_prop",
@@ -33,11 +32,8 @@ async function run() {
   const project = createCodemodProject();
   const collectionsDir = path.join(process.cwd(), "config/collections");
 
-  console.log(
-    pc.bold(pc.blue("\n🚀 Running 2026 Schema Migration Codemod (v2)")),
-  );
-  if (isDryRun)
-    console.log(pc.yellow(" DRY-RUN MODE — No files will be modified\n"));
+  console.log(pc.bold(pc.blue("\n🚀 Running 2026 Schema Migration Codemod (v2)")));
+  if (isDryRun) console.log(pc.yellow(" DRY-RUN MODE — No files will be modified\n"));
 
   try {
     project.addSourceFilesAtPaths(path.join(collectionsDir, "**/*.ts"));
@@ -59,15 +55,11 @@ async function run() {
         validateSchema(schemaObj);
 
         if (isDryRun) {
-          console.log(
-            pc.yellow(` [DRY] Would apply: ${manager.getChanges().join(", ")}`),
-          );
+          console.log(pc.yellow(` [DRY] Would apply: ${manager.getChanges().join(", ")}`));
         } else {
           await backupFile(sourceFile.getFilePath());
           await sourceFile.save();
-          console.log(
-            pc.green(` ✅ Migrated: ${manager.getChanges().join(", ")}`),
-          );
+          console.log(pc.green(` ✅ Migrated: ${manager.getChanges().join(", ")}`));
         }
       } else {
         console.log(pc.dim(` No changes needed`));
@@ -81,9 +73,7 @@ async function run() {
     if (isDryRun) {
       console.log(pc.yellow("\nDry run completed — no files were changed."));
     } else if (modifiedCount > 0) {
-      console.log(
-        pc.green(`\n🎉 Successfully migrated ${modifiedCount} schema(s).`),
-      );
+      console.log(pc.green(`\n🎉 Successfully migrated ${modifiedCount} schema(s).`));
     } else {
       console.log(pc.green("\n✨ All schemas are already up to date!"));
     }
