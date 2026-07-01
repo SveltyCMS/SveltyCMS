@@ -101,6 +101,7 @@ jobs:
 
   format:
     name: 🖌️ Format Check
+    # Enforced locally via pre-commit — run in CI only for main and PRs as safety net
     if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
@@ -126,6 +127,7 @@ jobs:
 
   lint:
     name: 🔎 Lint
+    # Enforced locally via pre-commit — run in CI only for main and PRs as safety net
     if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
@@ -141,7 +143,9 @@ jobs:
       - run: bun run lint
 
   check:
-    name: ✅ Type Check
+    name: ✅ Quality Gate (format + lint)
+    # Enforced locally via pre-push — run in CI only for main and PRs as safety net
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 6
@@ -597,6 +601,7 @@ jobs:
   bench-summary:
     name: 📊 Bench Summary
     needs: [bench-core]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -606,10 +611,12 @@ jobs:
           node-version: 24
       - name: Download all benchmark reports
         uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           pattern: benchmark-report-*
           path: docs/project/benchmarks
           merge-multiple: true
+          if-no-files-found: ignore
       - name: Generate CI Summary
         run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 
@@ -631,7 +638,6 @@ jobs:
       - e2e-prep
       - e2e
       - db-tests
-      - bench-core
     steps:
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |
