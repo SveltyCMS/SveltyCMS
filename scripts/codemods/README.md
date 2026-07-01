@@ -2,6 +2,21 @@
 
 > **Automatic code migrations** that run during `bun run upgrade`
 
+## ❓ Why Codemods? (vs. `bun update`)
+
+A common point of confusion is the difference between `bun update` and `bun run upgrade`:
+
+| Feature | `bun update` | `bun run upgrade` (Codemods) |
+| :--- | :--- | :--- |
+| **Target** | **External Libraries** (Svelte, Vite, etc.) | **Internal Source Code** (Your own schemas) |
+| **What it updates** | The `node_modules` folder | Your `.ts`, `.svelte`, and `.json` files |
+| **Mechanism** | Version Matching (SemVer) | **AST Transformation** (Understanding code logic) |
+| **Analogy** | **Updating your tools** (getting a newer hammer). | **Remodeling your house** (moving the kitchen walls). |
+
+**In short**: `bun update` ensures the "engine" is current. **Codemods** are how we evolve the product's features and data structures safely at scale. Without codemods, updating a single field name in 50 different collections would require 50 manual file edits; with codemods, it takes one script.
+
+---
+
 ## How It Works
 
 When you run `bun run upgrade`, the system scans the `scripts/codemods/` directory and executes each migration script in alphabetical order (excluding utility files beginning with `_`).
@@ -77,10 +92,13 @@ Our codemod framework is optimized for speed and safety:
 
 ## Current Codemods
 
-| File                                 | Description               | Status      | Safe to Re-run |
-| ------------------------------------ | ------------------------- | ----------- | -------------- |
-| `01-migrate-collection-schema-v2.ts` | v1 → v2 collection schema | ✅ Active   | ✅ Yes         |
-| `_utils.ts`                          | Shared AST utilities      | 📦 Internal | N/A            |
+| File | Description | Status | Safe to Re-run |
+| :--- | :--- | :--- | :--- |
+| `01-migrate-collection-schema-v2.ts` | v1 → v2 collection schema | ✅ Active | ✅ Yes |
+| `02-update-permissions-structure.ts` | Legacy `publicAccess` → structured RBAC | ✅ Active | ✅ Yes |
+| `03-add-soft-delete-fields.ts` | Inject `isDeleted` flag into all collections | ✅ Active | ✅ Yes |
+| `04-migrate-role-names.ts` | Role name standardization (placeholder) | 📋 Planned | — |
+| `_utils.ts` | Shared AST utilities (MigrationManager, etc.) | 📦 Internal | N/A |
 
 ---
 
