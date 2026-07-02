@@ -853,6 +853,39 @@ function browserShimsPlugin(): Plugin {
 }
 
 /**
+ * Client-only `process.env` polyfill.
+ *
+ * Server-only files that reference `process.env` (e.g. cors-utils.ts reads
+ * ALLOWED_ORIGINS at module top-level) crash the browser bundle when they
+ * accidentally leak into it. The global `define: { "process.env": "{}" }`
+ * that was previously used also rewrote the SSR/server bundle, turning
+ * runtime `process.env.TEST_MODE` checks into `{}.TEST_MODE` (always
+ * `undefined`). That silently disabled every TEST_MODE bypass (CSRF,
+ * gatekeeper, rate-limit) in the built server.
+ *
+ * This plugin replaces bare `process.env` references with an empty object
+ * literal ONLY for client-side modules (options.ssr !== true), leaving the
+ * server build with full runtime `process.env` access.
+ */
+function clientProcessEnvPolyfillPlugin(): Plugin {
+  return {
+    name: "client-process-env-polyfill",
+    enforce: "pre",
+    apply: "build",
+    transform(code, id, options) {
+      // Skip SSR / server builds — they need real process.env at runtime.
+      if (options?.ssr) return null;
+      // Only touch actual source modules (skip node_modules, virtual ids, etc.).
+      if (id.includes("node_modules") || id.includes("\0") || !id.includes("/src/")) return null;
+      // Replace `process.env` (property access) with an empty object so reads
+      // return undefined instead of throwing in the browser.
+      const patched = code.replace(/\bprocess\.env\b(?!\.)/g, "{}");
+      return patched === code ? null : { code: patched };
+    },
+  };
+}
+
+/**
  * Patches vite-plus client module to inject Svelte Inspector.
  * The built-in inspector only matches `vite/dist/client/client.mjs`,
  * but vite-plus serves its client from `@voidzero-dev/vite-plus-core/dist/vite/client/client.mjs`.
@@ -900,6 +933,7 @@ export default defineConfig((): any => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       browserShimsPlugin(),
+      clientProcessEnvPolyfillPlugin(),
       sveltekit({
         preprocess: [vitePreprocess()],
         compilerOptions: {
@@ -1070,7 +1104,6 @@ export default defineConfig((): any => {
       __FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
       __SVELTY_SETUP_COMPLETE__: setupComplete,
       global: "globalThis", // `global` polyfill for libraries that expect it (e.g., older crypto libs)
-      "process.env": "{}", // polyfill for server-only files (e.g. cors-utils) accidentally bundled client-side
       "import.meta.env.VITE_LOG_LEVELS": JSON.stringify(
         process.env.LOG_LEVELS || (isBuild ? "info,warn,error" : "info,warn,error,debug"),
       ),
