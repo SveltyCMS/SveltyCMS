@@ -300,7 +300,9 @@ export async function writePresetCollectionFiles(
       compiledCollections: compiledDir,
       tenantId: options.tenantId ?? undefined,
     });
+    logger.info(`[Preset] Compiled ${collections.length} collection(s) to ${compiledDir}`);
   } catch (e) {
-    logger.warn("[Preset] Compilation after preset file write failed:", e);
+    logger.error("[Preset] Compilation after preset file write failed:", e);
+    throw e; // Re-throw so callers know compilation failed
   }
 }

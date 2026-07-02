@@ -13,6 +13,7 @@ Features:
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import { page } from "$app/state";
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
@@ -58,7 +59,10 @@ Features:
 		try {
 			const response = await fetch('/api/media/ai-tag', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({ mediaId: file._id })
 			});
 			const result = await response.json();
@@ -87,7 +91,10 @@ Features:
 		try {
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({
 					metadata: {
 						...file.metadata,
@@ -126,7 +133,10 @@ Features:
 
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
@@ -160,7 +170,10 @@ Features:
 
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
@@ -193,7 +206,10 @@ Features:
 
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({
 					metadata: {
 						...file.metadata,
@@ -332,7 +348,7 @@ Features:
 									<Badge variant="primary" preset="tonal" size="sm" class="gap-1 pe-1">
 										<button
 											type="button"
-											class="max-w-[8.5rem] truncate"
+											class="max-w-34 truncate"
 											onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
 											aria-label="Edit tag {tag}"
 										>
@@ -430,7 +446,7 @@ Features:
 									<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
 										<button
 											type="button"
-											class="max-w-[8.5rem] truncate"
+											class="max-w-34 truncate"
 											onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
 											aria-label="Edit tag {tag}"
 										>

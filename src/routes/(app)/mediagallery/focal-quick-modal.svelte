@@ -205,11 +205,11 @@ const imageUrl = $derived(
 						<!-- Border -->
 						<div class="absolute inset-0 border border-white/20"></div>
 						<!-- Horizontal lines -->
-						<div class="absolute top-1/3 start-0 end-0 h-px bg-white/30"></div>
-						<div class="absolute top-2/3 start-0 end-0 h-px bg-white/30"></div>
+						<div class="absolute top-1/3 inset-s-0 inset-e-0 h-px bg-white/30"></div>
+						<div class="absolute top-2/3 inset-s-0 inset-e-0 h-px bg-white/30"></div>
 						<!-- Vertical lines -->
-						<div class="absolute start-1/3 top-0 bottom-0 w-px bg-white/30"></div>
-						<div class="absolute start-2/3 top-0 bottom-0 w-px bg-white/30"></div>
+						<div class="absolute inset-s-1/3 top-0 bottom-0 w-px bg-white/30"></div>
+						<div class="absolute inset-s-2/3 top-0 bottom-0 w-px bg-white/30"></div>
 					</div>
 
 					<!-- Crosshair -->

@@ -51,7 +51,7 @@ runs:
     - name: Install dependencies
       if: inputs.pnpm-run-install != 'true'
       shell: bash
-      run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      run: bun install --prefer-offline --cache-dir .bun-cache
 
     - name: Install dependencies (pnpm fallback)
       if: inputs.pnpm-run-install == 'true'

@@ -194,7 +194,6 @@ Features:
     {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
-      {const isPublishedReferenced = publishedMediaIds.has(fileId)}
 
       <div
         class="group relative flex h-full flex-col focus-within:outline-none
@@ -211,7 +210,9 @@ Features:
           <div
             class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
             in:scale={{ duration: 180 }}
+            role="presentation"
             onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
           >
             <Checkbox
               checked={isSelected}
@@ -292,21 +293,42 @@ Features:
                 <span class="font-serif text-sm font-semibold italic leading-none text-primary-500">i</span>
               {/snippet}
               {#snippet content()}
-                <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-surface-500">Details</p>
-                <dl class="space-y-1.5 text-[11px]">
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-surface-500">Size</dt>
-                    <dd class="font-medium tabular-nums text-surface-800">{formatBytes(file.size)}</dd>
+                <div class="flex flex-col text-[11px] text-surface-800 dark:text-surface-200 min-w-[240px]">
+                  <div class="border-b border-surface-300 dark:border-surface-700 pb-2 mb-0 text-center text-[13px]">
+                    File NAME : {file.filename}
                   </div>
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-surface-500">Dimensions</dt>
-                    <dd class="font-medium tabular-nums text-surface-800">{getDimensionsLabel(file)}</dd>
-                  </div>
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-surface-500">Type</dt>
-                    <dd class="font-medium uppercase text-surface-800">{formatMimeType(file.mimeType)}</dd>
-                  </div>
-                </dl>
+                  <table class="w-full text-left border-collapse mt-2">
+                    <thead>
+                      <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-400">
+                        <th class="font-bold py-1 px-2 border-r border-surface-300 dark:border-surface-700 text-left">Format</th>
+                        <th class="font-bold py-1 px-2 border-r border-surface-300 dark:border-surface-700 text-center">Pixel</th>
+                        <th class="font-bold py-1 px-2 text-center">Size</th>
+                      </tr>
+                    </thead>
+                    <tbody class="text-surface-700 dark:text-surface-300">
+                      <tr class="border-b border-surface-300 dark:border-surface-700">
+                        <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-r border-surface-300 dark:border-surface-700 text-left">original</td>
+                        <td class="py-1 px-2 text-center border-r border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
+                        <td class="py-1 px-2 text-right tabular-nums">{formatBytes(file.size)}</td>
+                      </tr>
+                      {#if file.thumbnails}
+                        {#each Object.keys(file.thumbnails) as sizeKey}
+                          {#if file.thumbnails[sizeKey]}
+                            <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
+                              <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-r border-surface-300 dark:border-surface-700 text-left">{sizeKey}</td>
+                              <td class="py-1 px-2 text-center border-r border-surface-300 dark:border-surface-700">
+                                {file.thumbnails[sizeKey].width}x{file.thumbnails[sizeKey].height}
+                              </td>
+                              <td class="py-1 px-2 text-right tabular-nums">
+                                {(file.thumbnails[sizeKey] as any).size ? formatBytes((file.thumbnails[sizeKey] as any).size) : '-'}
+                              </td>
+                            </tr>
+                          {/if}
+                        {/each}
+                      {/if}
+                    </tbody>
+                  </table>
+                </div>
               {/snippet}
             </MediaGridActionTooltip>
 

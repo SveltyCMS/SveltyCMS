@@ -2,7 +2,7 @@
  * @file tests/unit/security/security-response-service-dos.bun.test.ts
  * @description Persistent DoS protection tests: dump/restore, corrupt files, concurrency.
  */
-import { test, expect, describe, beforeEach, afterEach } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach } from "vitest";
 import { securityResponseService } from "@src/services/security/response-service";
 import fs from "node:fs/promises";
 import path from "node:path";

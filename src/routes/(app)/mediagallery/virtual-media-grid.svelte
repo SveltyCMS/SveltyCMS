@@ -101,7 +101,7 @@ onMount(() => {
 		style:height="{totalRows * itemHeight}px"
 	>
 		<div
-			class="absolute top-0 start-0 w-full grid gap-4 p-4"
+			class="absolute top-0 inset-s-0 w-full grid gap-4 p-4"
 			style:transform="translateY({startRow * itemHeight}px)"
 			style:grid-template-columns="repeat({itemsPerRow}, 1fr)"
 		>
@@ -130,7 +130,7 @@ onMount(() => {
 				>
 					<!-- Selection Overlay -->
 					{#if isSelectionMode || isSelected}
-						<div class="absolute start-2 top-2 z-20">
+						<div class="absolute inset-s-2 top-2 z-20">
 							<div class="h-6 w-6 rounded-full bg-white shadow-md flex items-center justify-center">
 								<input aria-label="Input"
 									type="checkbox"
@@ -154,7 +154,7 @@ onMount(() => {
 						{/if}
 
 						<!-- Action Dock (Hover) -->
-						<div class="absolute end-2 top-2 z-30 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+						<div class="absolute inset-e-2 top-2 z-30 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 							<Button variant="ghost"
 								onclick={(e: MouseEvent) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
 								aria-label="Edit {file.filename}"

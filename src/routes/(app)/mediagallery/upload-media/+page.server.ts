@@ -90,11 +90,10 @@ export const actions: Actions = {
             continue;
           }
           const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
           const contentType = response.headers.get("content-type") || "application/octet-stream";
           const filename = url.substring(url.lastIndexOf("/") + 1);
 
-          const file = new File([buffer], filename, { type: contentType });
+          const file = new File([arrayBuffer], filename, { type: contentType });
 
           await mediaService.saveMedia(file, user._id as any, access, locals.tenantId as any);
           logger.info(`Remote file uploaded successfully: ${file.name}`);
