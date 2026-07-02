@@ -250,6 +250,35 @@ function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
 async function startPreviewServer() {
   const db = getDbDefaults();
 
+  // 🚀 HARDENING: For SQLite, delete stale database file BEFORE starting the server.
+  // This ensures the server creates a fresh DB and runs Drizzle migrations on connect.
+  // Without this, an empty SQLite file from a previous aborted run would have zero
+  // tables, causing "no such table: roles" errors.
+  if (db.type === "sqlite") {
+    // Use the same path as generatePrivateTestConfig (config/database/sveltycms.db)
+    // The DB_NAME env var might differ from what's in the config file.
+    const dbPath = join(ROOT, "config", "database", "sveltycms.db");
+    if (existsSync(dbPath)) {
+      try {
+        unlinkSync(dbPath);
+        console.log(`Deleted stale SQLite database: ${relative(ROOT, dbPath)}`);
+      } catch (err: any) {
+        console.warn(`Could not delete SQLite database at ${dbPath}: ${err.message}`);
+      }
+    }
+    // Also clean up WAL and SHM files
+    for (const suffix of ["-wal", "-shm"]) {
+      const walPath = dbPath + suffix;
+      if (existsSync(walPath)) {
+        try {
+          unlinkSync(walPath);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
   const entryPoint = join(ROOT, "build", "index.js");
   if (!existsSync(entryPoint)) {
     throw new Error("Could not find server entry point (build/index.js)");
@@ -434,12 +463,18 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
 
       const text = await response.text().catch(() => "");
       if (response.status === 503 && i < maxRetries - 1) {
-        console.log(`⏳ /api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
+        console.log(`/api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
 
-      throw new Error(`/api/testing ${action} failed with HTTP ${response.status}: ${text}`);
+      // Enhanced diagnostics for test failures
+      console.error(
+        `/api/testing ${action} FAILED (HTTP ${response.status}): ${text.slice(0, 500)}`,
+      );
+      throw new Error(
+        `/api/testing ${action} failed with HTTP ${response.status}: ${text.slice(0, 300)}`,
+      );
     } catch (err: any) {
       lastError = err;
       if (i < maxRetries - 1) {
