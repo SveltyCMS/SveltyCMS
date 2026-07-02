@@ -628,7 +628,7 @@ for the image editor canvas with reactive rendering.
 </script>
 
 <div
-	class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none"
+		class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none min-h-0 h-full bg-[var(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a))] border-none rounded-none shadow-none outline-none"
 	role="region"
 	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
@@ -636,7 +636,7 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-	class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none"
+		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-[var(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a))] bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none"
 	class:border-2={isDragging}
 	class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
 	class:border-dashed={isDragging}
@@ -691,7 +691,7 @@ for the image editor canvas with reactive rendering.
 
 	<!-- Empty state overlay - shown when no image -->
 	{#if !hasImage}
-		<div class="empty-state pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+		<div class="empty-state pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[rgba(8,8,8,0.5)] backdrop-blur-lg">
 			<div class="empty-state-content flex max-w-md flex-col items-center gap-6 p-8 text-center max-md:p-6">
 				<div
 					class="empty-icon flex h-20 w-20 items-center justify-center rounded-full bg-surface-200 ring-4 ring-surface-300 dark:bg-surface-700 dark:ring-surface-600 max-md:h-16 max-md:w-16"
@@ -746,40 +746,10 @@ for the image editor canvas with reactive rendering.
 </div>
 
 <style>
-	.editor-canvas-wrapper {
-		min-height: 0;
-		height: 100%;
-		background-color: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
-		border: none;
-		border-radius: 0;
-		box-shadow: none;
-		outline: none;
-	}
-
-	.canvas-container {
-		background-color: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
-		background-image: none;
-		border: none;
-		border-radius: 0;
-		box-shadow: none;
-		outline: none;
-	}
-
-	.canvas-container:focus-visible {
-		outline: none;
-	}
-
 	.editor-canvas-wrapper :global(canvas) {
 		display: block;
 		border: none;
 		border-radius: 0;
 		outline: none;
 	}
-
-	.empty-state {
-		background: rgba(8, 8, 8, 0.5);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-	}
-
 </style>

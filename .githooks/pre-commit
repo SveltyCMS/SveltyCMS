@@ -22,4 +22,8 @@ echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
+# Fast safety check: ensures config/private.test.ts is never seeded from
+# a real (possibly production) config/private.ts. Near-instant (<50ms).
+bun run scripts/check-test-db-safety.ts
+
 bun x lint-staged

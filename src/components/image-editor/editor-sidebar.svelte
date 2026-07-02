@@ -107,9 +107,9 @@ Active tool uses a soft rounded square highlight only.
 	});
 </script>
 
-<aside
+<div
 	bind:this={sidebarRef}
-	class="editor-sidebar editor-glass-sidebar flex h-auto min-h-0 w-16 shrink-0 flex-col items-center self-stretch overflow-x-hidden overflow-y-auto py-2"
+	class="editor-sidebar editor-glass-sidebar flex h-auto min-h-0 w-16 shrink-0 flex-col items-center self-stretch overflow-x-hidden overflow-y-auto py-2 bg-[--editor-chrome-bg] border-e border-[--editor-chrome-border]"
 	role="tablist"
 	aria-label="Image editing tools"
 	aria-orientation="vertical"
@@ -123,10 +123,10 @@ Active tool uses a soft rounded square highlight only.
 	<div class="sidebar-tools flex w-full flex-col items-center gap-1 px-1">
 		{#each tools as tool, idx (tool.id)}
 			<button
-				class="tool-item"
-				class:tool-active={selectedToolId === tool.id}
-				class:cursor-not-allowed={!hasImage}
-				class:opacity-40={!hasImage}
+					class="tool-item flex flex-col gap-[0.3rem] items-center justify-center w-12 h-12 p-0 cursor-pointer bg-transparent border border-transparent rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] enabled:hover:text-[--editor-chrome-text-hover] enabled:hover:bg-[--editor-chrome-elevated] enabled:hover:border-[--editor-chrome-border] focus-visible:outline-2 focus-visible:outline-white/30 focus-visible:outline-offset-2"
+					class:tool-active={selectedToolId === tool.id}
+					class:cursor-not-allowed={!hasImage}
+					class:opacity-40={!hasImage}
 				onclick={() => handleToolClick(tool)}
 				role="tab"
 				aria-selected={selectedToolId === tool.id}
@@ -136,10 +136,10 @@ Active tool uses a soft rounded square highlight only.
 				disabled={!hasImage}
 				title={tool.name}
 			>
-				<span class="tool-icon" aria-hidden="true">
+				<span class="tool-icon flex items-center justify-center leading-none" aria-hidden="true">
 					<iconify-icon icon={tool.icon} width="20"></iconify-icon>
 				</span>
-				<span class="tool-label">{tool.name}</span>
+				<span class="tool-label max-w-13 overflow-hidden text-[9px] font-medium leading-none text-center truncate tracking-[0.01em]">{tool.name}</span>
 			</button>
 		{/each}
 
@@ -159,69 +159,16 @@ Active tool uses a soft rounded square highlight only.
 			</div>
 		{/if}
 	</div>
-</aside>
+	</div>
 
 <style>
-	.tool-item {
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		align-items: center;
-		justify-content: center;
-		width: 3rem;
-		height: 3rem;
-		padding: 0;
-		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.55));
-		cursor: pointer;
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: var(--editor-radius-control, 0.5rem);
-		transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-	}
+.tool-active {
+	color: var(--editor-chrome-text-active, #fff);
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.14);
+}
 
-	.tool-item:hover:not(:disabled) {
-		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
-		background: var(--editor-chrome-elevated, rgba(255, 255, 255, 0.06));
-		border-color: var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
-	}
-
-	.tool-item.tool-active {
-		color: var(--editor-chrome-text-active, #fff);
-		background: rgba(255, 255, 255, 0.1);
-		border-color: rgba(255, 255, 255, 0.14);
-	}
-
-	.editor-glass-sidebar {
-		background: var(--editor-chrome-bg, #0a0a0a);
-		border-inline-end: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
-	}
-
-	.tool-item:focus-visible:not(.tool-active) {
-		outline: 2px solid rgba(255, 255, 255, 0.3);
-		outline-offset: 2px;
-	}
-
-	.tool-item.tool-active:focus-visible {
-		outline: 2px solid rgba(255, 255, 255, 0.45);
-		outline-offset: 2px;
-	}
-
-	.tool-icon {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		line-height: 1;
-	}
-
-	.tool-label {
-		max-width: 3.25rem;
-		overflow: hidden;
-		font-size: 0.5625rem;
-		font-weight: 500;
-		line-height: 1;
-		text-align: center;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		letter-spacing: 0.01em;
-	}
+.tool-active:focus-visible {
+	outline-color: rgba(255, 255, 255, 0.45);
+}
 </style>

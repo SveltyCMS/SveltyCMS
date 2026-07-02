@@ -19,6 +19,7 @@ import {
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isConfigSourceSafeForTesting } from "../src/utils/test-db-safety.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -418,9 +419,19 @@ function ensurePrivateTestConfig() {
     return;
   }
 
-  if (!existsSync(privateTestPath) && existsSync(privatePath)) {
-    copyFileSync(privatePath, privateTestPath);
-    console.log("✅ Copied config/private.ts to config/private.test.ts for TEST_MODE");
+  // SAFETY: config/private.ts may point at a real deployment with live user data.
+  // It must NEVER be used to seed the test config, even locally, even if
+  // private.test.ts doesn't exist yet. Always (re)generate a fresh, isolated test
+  // config instead of copying from private.ts.
+  if (existsSync(privateTestPath)) {
+    const { dbName, safe } = isConfigSourceSafeForTesting(readFileSync(privateTestPath, "utf8"));
+    if (!safe) {
+      console.warn(
+        `⚠️ config/private.test.ts has an unsafe DB_NAME ('${dbName || "unknown"}'). ` +
+          "Regenerating a safe test config instead of trusting the existing file.",
+      );
+      generatePrivateTestConfig(privateTestPath);
+    }
   }
 
   if (!existsSync(privateTestPath)) {
@@ -638,6 +649,16 @@ async function main() {
 
   CONFIG = await loadHardenedConfig();
 
+  // SAFETY: setup-check.ts resolves TEST_API_SECRET independently on the server
+  // side (env var -> test-secret.txt file -> random fallback). If the two
+  // resolutions ever diverge, every /api/testing call 401s. Writing the secret
+  // we're about to send in headers to the same file setup-check.ts reads makes
+  // them structurally impossible to disagree, regardless of env propagation.
+  const testSecretDir = join(ROOT, "tests", "e2e", ".auth");
+  const testSecretPath = join(testSecretDir, "test-secret.txt");
+  if (!existsSync(testSecretDir)) mkdirSync(testSecretDir, { recursive: true });
+  writeFileSync(testSecretPath, CONFIG.TEST_API_SECRET, "utf8");
+
   const explicitFiles = getExplicitFiles(argv);
   const hasExistingBuildOutput =
     existsSync(join(ROOT, "build")) || existsSync(join(ROOT, ".svelte-kit", "output", "server"));
@@ -672,7 +693,7 @@ async function main() {
 
     try {
       const { code } = await runCommand("bun", ["run", "build"], {
-        env: { COMPILE_ALL_ADAPTERS: "true" },
+        env: { COMPILE_ALL_ADAPTERS: "true", SKIP_COLLECTION_COMPILE: "true" },
       });
       if (code !== 0) {
         throw new Error("Build failed");

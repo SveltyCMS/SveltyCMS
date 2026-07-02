@@ -578,11 +578,17 @@ jobs:
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
         run: |
+          set -e
+          failures=0
           for test in tests/benchmarks/{truth-latency,database-performance,transaction-acid,cache-performance,hooks-performance,rest-api-performance}.test.ts; do
             echo "::group::Running $test"
-            bun test "$test" --timeout 120000 || echo "FAILED: $test"
+            bun test "$test" --timeout 120000 || { echo "FAILED: $test"; failures=$((failures + 1)); }
             echo "::endgroup::"
           done
+          if [ "$failures" -gt 0 ]; then
+            echo "$failures benchmark test(s) failed"
+            exit 1
+          fi
 
       - name: Upload benchmark report
         if: always()
@@ -616,7 +622,6 @@ jobs:
           pattern: benchmark-report-*
           path: docs/project/benchmarks
           merge-multiple: true
-          if-no-files-found: ignore
       - name: Generate CI Summary
         run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 

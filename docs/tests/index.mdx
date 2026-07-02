@@ -64,8 +64,9 @@ bun run check
 # Production build used by integration and most E2E jobs
 bun run build
 
-# Black-box integration runner (choose DB)
+# Black-box integration runner (choose DB; use --no-build if build/ exists)
 bun run scripts/run-integration-tests.ts --db=sqlite
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build  # skip rebuild
 
 # Wizard E2E against the production build
 TEST_MODE=true node build/index.js
@@ -74,8 +75,8 @@ bun x playwright test --project=wizard
 # Smart test runner — auto-detects what to test from git diff
 bun run test:smart
 
-# Run the quality gate
-bun run scripts/quality-gate.ts
+# Run the test DB safety check (also runs in pre-commit and pre-push)
+bun run scripts/check-test-db-safety.ts
 
 # Run specific contract against active database
 bun test tests/integration/databases/contract.test.ts

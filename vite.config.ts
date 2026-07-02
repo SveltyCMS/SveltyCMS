@@ -270,6 +270,16 @@ const log = {
  * Ensures collection directories exist and performs an initial compilation if needed.
  */
 async function initializeCollectionsStructure() {
+  // Skip collection compilation during integration test builds —
+  // run-integration-tests.ts already creates compiled output in
+  // .compiledCollections/test/. Compiling here would trigger a
+  // dynamic import of @src/routes/setup/preset-collections.server
+  // which fails on Windows because Node resolves the @src alias
+  // before Vite's resolver is active for config-file imports.
+  if (process.env.SKIP_COLLECTION_COMPILE === "true") {
+    return;
+  }
+
   // Prevent double compilation in the same process
   if ((globalThis as any).__COLLECTIONS_COMPILED__) {
     return;

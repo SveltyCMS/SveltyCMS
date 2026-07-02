@@ -31,8 +31,10 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFolder/
+mediaFiles/
 .compiledCollections/*
 .compiledCollections
+compiledCollections/
 bundle-report.json
 .bundle-history.json
 

@@ -57,13 +57,13 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<header class="editor-toolbar editor-glass-bar" role="toolbar" aria-label="Image editor">
-	<div class="editor-chrome-toolbar">
-		<div class="editor-chrome-zone-start">
+<header class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-[--editor-chrome-bg] border-b border-[--editor-chrome-border]" role="toolbar" aria-label="Image editor">
+	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-[--editor-control-h]">
+		<div class="flex gap-1.5 items-center justify-self-start">
 			<button
-				type="button"
-				class="editor-toolbar-solo-btn"
-				class:editor-toolbar-solo-btn-active={isComparing}
+					type="button"
+					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
+					class:editor-toolbar-solo-btn-active={isComparing}
 				onclick={toggleCompare}
 				title="Compare before / after"
 				aria-pressed={isComparing}
@@ -73,11 +73,11 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 			</button>
 		</div>
 
-		<div class="editor-chrome-zone-center">
-			<div class="editor-chrome-pill editor-toolbar-center-cluster">
+		<div class="flex gap-1.5 items-center justify-self-center">
+			<div class="inline-flex gap-0.5 items-center px-0.75 py-0.5 rounded-full border border-[--editor-chrome-border] bg-[--editor-chrome-elevated]">
 				<button
 					type="button"
-					class="editor-chrome-icon-btn"
+					class="inline-flex items-center justify-center size-[--editor-control-h] p-0 text-[--editor-chrome-text] cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-[--editor-chrome-text-hover] hover:not-disabled:bg-white/8 disabled:cursor-not-allowed disabled:opacity-28"
 					onclick={() => imageEditorStore.handleUndo()}
 					disabled={!canUndo}
 					title="Undo (Mod+Z)"
@@ -88,7 +88,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				</button>
 				<button
 					type="button"
-					class="editor-chrome-icon-btn"
+					class="inline-flex items-center justify-center size-[--editor-control-h] p-0 text-[--editor-chrome-text] cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-[--editor-chrome-text-hover] hover:not-disabled:bg-white/8 disabled:cursor-not-allowed disabled:opacity-28"
 					onclick={() => imageEditorStore.handleRedo()}
 					disabled={!canRedo}
 					title="Redo (Mod+Shift+Z)"
@@ -98,12 +98,12 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					<iconify-icon icon="mdi:redo" width="18" aria-hidden="true"></iconify-icon>
 				</button>
 
-				<div class="editor-toolbar-divider" aria-hidden="true"></div>
+				<div class="editor-toolbar-divider shrink-0 w-px h-5 mx-0.5 bg-[--editor-chrome-border]" aria-hidden="true"></div>
 
-				<div class="zoom-pill" role="group" aria-label="Zoom controls">
+				<div class="zoom-pill inline-flex items-center overflow-hidden bg-transparent border-none rounded-full" style="height:calc(var(--editor-control-h, 2.25rem) - 0.25rem)" role="group" aria-label="Zoom controls">
 					<button
 						type="button"
-						class="zoom-pill-btn"
+						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-active] hover:bg-white/8 hover:rounded-full"
 						onclick={onZoomOut}
 						title="Zoom out (-)"
 						aria-label="Zoom out"
@@ -113,7 +113,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					</button>
 					<button
 						type="button"
-						class="zoom-pill-value"
+						class="zoom-pill-value min-w-12 px-1 text-xs font-medium tabular-nums text-center cursor-pointer bg-transparent border-none border-x border-[--editor-chrome-border-subtle] text-[--editor-chrome-text-hover] hover:bg-white/5 hover:rounded"
 						onclick={onZoomReset}
 						title="Reset zoom (0)"
 						aria-label="Reset zoom to fit"
@@ -123,7 +123,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					</button>
 					<button
 						type="button"
-						class="zoom-pill-btn"
+						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-active] hover:bg-white/8 hover:rounded-full"
 						onclick={onZoomIn}
 						title="Zoom in (+)"
 						aria-label="Zoom in"
@@ -135,10 +135,10 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 			</div>
 		</div>
 
-		<div class="editor-chrome-zone-end">
+		<div class="flex gap-1.5 items-center justify-self-end">
 			<button
 				type="button"
-				class="editor-chrome-done"
+				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-[--editor-control-h] px-4.5 text-[13px] font-semibold tracking-[0.01em] text-[#111] cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-[0_1px_6px_rgba(245,197,24,0.28)] transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65"
 				onclick={onsave}
 				disabled={isSaving}
 				title="Save changes (Mod+S)"
@@ -155,15 +155,15 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 	{#if imageEditorStore.state.error}
 		<div
-			class="editor-toolbar-error"
+				class="editor-toolbar-error absolute start-1/2 top-[calc(100%+0.375rem)] z-50 flex gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-[rgba(220,38,38,0.94)] rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.35)] -translate-x-1/2"
 			transition:fade={{ duration: 200 }}
 			role="alert"
 		>
 			<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
 			<span>{imageEditorStore.state.error}</span>
 			<button
-				type="button"
-				class="editor-toolbar-error-dismiss"
+					type="button"
+					class="editor-toolbar-error-dismiss inline-flex p-0.5 text-inherit cursor-pointer bg-transparent border-none rounded-full opacity-85 hover:opacity-100 hover:bg-white/15"
 				onclick={() => imageEditorStore.setError(null)}
 				aria-label="Dismiss error"
 			>
@@ -174,138 +174,9 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 </header>
 
 <style>
-	.editor-toolbar {
-		position: relative;
-		z-index: 30;
-		flex-shrink: 0;
-		padding: 0.5rem 1rem;
-		background: var(--editor-chrome-bg, #0a0a0a);
-		border-bottom: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
-	}
-
-	.editor-toolbar-solo-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: var(--editor-control-h, 2.25rem);
-		height: var(--editor-control-h, 2.25rem);
-		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.68));
-		cursor: pointer;
-		background: var(--editor-chrome-elevated, rgba(255, 255, 255, 0.06));
-		border: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
-		border-radius: var(--editor-radius-control, 0.5rem);
-		transition:
-			background 0.15s ease,
-			color 0.15s ease,
-			border-color 0.15s ease;
-	}
-
-	.editor-toolbar-solo-btn:hover {
-		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
-		background: rgba(255, 255, 255, 0.1);
-	}
-
 	.editor-toolbar-solo-btn-active {
 		color: var(--editor-chrome-text-active, #fff);
 		background: rgba(255, 255, 255, 0.12);
 		border-color: rgba(255, 255, 255, 0.14);
-	}
-
-	.editor-toolbar-center-cluster {
-		gap: 0.125rem;
-		padding-inline: 0.1875rem;
-	}
-
-	.editor-toolbar-divider {
-		flex-shrink: 0;
-		width: 1px;
-		height: 1.25rem;
-		margin-inline: 0.125rem;
-		background: var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
-	}
-
-	.zoom-pill {
-		display: inline-flex;
-		align-items: center;
-		height: calc(var(--editor-control-h, 2.25rem) - 0.25rem);
-		overflow: hidden;
-		background: transparent;
-		border: none;
-		border-radius: var(--editor-radius-pill, 9999px);
-	}
-
-	.zoom-pill-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.75rem;
-		height: 100%;
-		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.68));
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		transition:
-			background 0.15s ease,
-			color 0.15s ease;
-	}
-
-	.zoom-pill-btn:hover {
-		color: var(--editor-chrome-text-active, #fff);
-		background: rgba(255, 255, 255, 0.08);
-		border-radius: var(--editor-radius-pill, 9999px);
-	}
-
-	.zoom-pill-value {
-		min-width: 3rem;
-		padding-inline: 0.25rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
-		text-align: center;
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		border-inline: 1px solid var(--editor-chrome-border-subtle, rgba(255, 255, 255, 0.05));
-	}
-
-	.zoom-pill-value:hover {
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 0.25rem;
-	}
-
-	.editor-toolbar-error {
-		position: absolute;
-		inset-inline-start: 50%;
-		top: calc(100% + 0.375rem);
-		z-index: 50;
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		padding: 0.4rem 0.75rem;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		color: #fff;
-		white-space: nowrap;
-		background: rgba(220, 38, 38, 0.94);
-		border-radius: var(--editor-radius-pill, 9999px);
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-		transform: translateX(-50%);
-	}
-
-	.editor-toolbar-error-dismiss {
-		display: inline-flex;
-		padding: 0.125rem;
-		color: inherit;
-		cursor: pointer;
-		background: transparent;
-		border: none;
-		border-radius: var(--editor-radius-pill, 9999px);
-		opacity: 0.85;
-	}
-
-	.editor-toolbar-error-dismiss:hover {
-		opacity: 1;
-		background: rgba(255, 255, 255, 0.15);
 	}
 </style>
