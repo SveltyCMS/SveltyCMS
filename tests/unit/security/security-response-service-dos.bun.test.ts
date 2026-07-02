@@ -64,7 +64,8 @@ describe("Persistent DoS Protection", () => {
 
   test("should handle corrupt dump file gracefully", async () => {
     await fs.writeFile((securityResponseService as any).DUMP_PATH, "{invalid json");
-    await expect((securityResponseService as any).restoreState()).resolves.not.toThrow();
+    // bun:test doesn't support .resolves.not.toThrow() — use direct await
+    await (securityResponseService as any).restoreState();
     const check = await securityResponseService.checkRateLimit(
       "5.5.5.5",
       "/test",
@@ -76,8 +77,9 @@ describe("Persistent DoS Protection", () => {
   });
 
   test("should handle missing dump file gracefully", async () => {
+    // bun:test doesn't support .resolves.not.toThrow() — use direct await
     await safeUnlink((securityResponseService as any).DUMP_PATH);
-    await expect((securityResponseService as any).restoreState()).resolves.not.toThrow();
+    await (securityResponseService as any).restoreState();
   });
 
   test("should clean up dump after successful restore", async () => {
@@ -94,6 +96,10 @@ describe("Persistent DoS Protection", () => {
     const restores = Array.from({ length: 5 }, () =>
       (securityResponseService as any).restoreState(),
     );
-    await expect(Promise.all(restores)).resolves.not.toThrow();
+    // bun:test doesn't support .resolves.not.toThrow() — use Promise.allSettled
+    const results = await Promise.allSettled(restores);
+    for (const r of results) {
+      expect(r.status).toBe("fulfilled");
+    }
   });
 });
