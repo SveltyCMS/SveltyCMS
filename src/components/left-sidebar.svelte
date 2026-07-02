@@ -437,50 +437,6 @@
 					{/if}
 				{/if}
 			</div>
-			<div class="mx-1 border-0 border-t border-surface-200/30 dark:border-surface-700/30"></div>
-
-			<!-- Search (collapsed only) -->
-			{#if !isSidebarFull}
-				<div class="flex justify-center">
-					<Button variant="ghost"
-						type="button"
-						onclick={() => {
-							toggleUIElement('leftSidebar', 'full');
-							userPreferredState.set('full');
-						}}
-						aria-label="Search collections"
-						class="flex h-10 w-10 items-center justify-center p-0! min-w-0 rounded-full hover:bg-surface-200/60 dark:hover:bg-surface-700/50"
-					>
-						<iconify-icon icon="ic:outline-search" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					</Button>
-				</div>
-			{/if}
-
-			<!-- 3. Collections -->
-			<div class="{isSidebarFull ? 'space-y-1' : ''}">
-				<Button variant="ghost"
-					type="button"
-					onclick={handleCollectionsClick}
-					class="flex w-full items-center justify-between {isSidebarFull ? 'py-2' : 'py-1.5'} text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-2' : 'justify-center'}"
-				 aria-label="Toggle collections">
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}Collections{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
-				{#if isCollectionsOpen && showCollectionsHere && isSidebarFull}
-					<div class="px-1">
-						<Collections />
-					</div>
-				{/if}
-			</div>
 		{/if}
 	</div>
 

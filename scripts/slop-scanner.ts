@@ -451,8 +451,10 @@ async function main() {
     if (warnings.length > 25) console.log(`  ... +${warnings.length - 25} more`);
   }
 
-  if (isStrict && errors.length > 0) {
-    console.log(`\n❌ Strict mode failed with ${errors.length} errors.`);
+  if (isStrict && (errors.length > 0 || warnings.length > 0)) {
+    console.log(`
+❌ Strict mode failed with ${errors.length} errors and ${warnings.length} warnings.`);
+    console.log("Fix all issues before pushing. Perfect code only.\n");
     process.exit(1);
   }
 

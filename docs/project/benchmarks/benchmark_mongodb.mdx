@@ -38,6 +38,9 @@ description: "Database performance benchmarks with trend analysis and competitiv
 > [!CAUTION]
 > **Anomalies Detected**: DB Raw p95 failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1.95s]); ACID failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1.93s]); Negative Cache failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [286.00ms]); Journey failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [286.00ms]); LocalSDK failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [277.00ms]); Failover failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [63.88s]) See console for stack trace.
 
+> [!CAUTION]
+> **Anomalies Detected**: DB Raw p95 failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1.95s]); ACID failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [1.93s]); Negative Cache failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [286.00ms]); Journey failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [286.00ms]); LocalSDK failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [277.00ms]); Failover failed (exited with code 1: 0 pass | 1 fail | Ran 1 test across 1 file. [63.88s]) See console for stack trace.
+
 **⚡ Executive Latency Matrix**
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
@@ -1568,7 +1571,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║ FINAL AUDIT SUMMARY ║
+║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Total Migration Time                               │          0.8 s        ║
 ║ Ingestion Throughput                               │    12368.000 entries/s ║
@@ -1603,7 +1606,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║ FINAL AUDIT SUMMARY ║
+║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Sorted Query (p95)                                 │        2.520 ms       ║
 ║ Filtered Query (p95)                               │        1.719 ms       ║
@@ -1839,7 +1842,7 @@ Throughput dropped 100% — check connection pool saturation or lock contention.
 
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║ FINAL AUDIT SUMMARY ║
+║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Throughput (RPS)                                   │      620.000 req/s    ║
 ║ Limiter Consistency                                │       STABLE          ║
