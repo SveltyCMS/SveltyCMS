@@ -123,7 +123,7 @@
           
           <div class="input-wrapper">
             <iconify-icon icon="mdi:lock-outline" class="input-icon" width="20"></iconify-icon>
-            <input 
+            <input aria-label="Password" 
               type="password" 
               bind:value={password}
               placeholder="Enter password..." 

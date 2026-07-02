@@ -132,7 +132,7 @@ onMount(() => {
 	<!-- Search Input -->
 	<div class="flex items-center border-b border-surface-200 px-4 dark:border-surface-700">
 		<Icon icon="mdi:magnify" class="text-xl text-surface-400" />
-		<input
+		<input aria-label="Command search"
 			bind:this={inputRef}
 			bind:value={searchQuery}
 			type="text"

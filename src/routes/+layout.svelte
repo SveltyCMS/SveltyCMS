@@ -447,7 +447,7 @@ onMount(() => {
 				<p class="text-error-600 dark:text-error-500">{error.message}</p>
 			</div>
 
-			<div class="flex space-x-4">
+			<div class="flex gap-4">
 				<Button variant="primary" onclick={reset}>
 					Try Again
 				</Button>

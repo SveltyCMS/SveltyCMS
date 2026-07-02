@@ -83,7 +83,7 @@ Renders a color input with label, helper, and validation
 		class:ring-error-500={!!error}
 	>
 		<div class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-200 dark:border-surface-700">
-			<input
+			<input aria-label="Color picker"
 				type="color"
 				value={colorValue}
 				id={fieldName + '-color'}
@@ -95,7 +95,7 @@ Renders a color input with label, helper, and validation
 
 		<div class="flex grow items-center gap-2 px-2">
 			<span class="text-surface-400 font-mono">#</span>
-			<input
+			<input aria-label="Color hex value"
 				type="text"
 				value={colorValue.replace('#', '')}
 				id={fieldName + '-hex'}

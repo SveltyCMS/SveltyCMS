@@ -765,7 +765,7 @@
               <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Upload a new file. The current name is preserved and the old version is stored in history.</p>
             </div>
 
-            <input
+            <input aria-label="Alt text"
               type="file"
               bind:this={fileInputEl}
               onchange={handleVersionUpload}

@@ -212,7 +212,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		<div class="finetune-slider-wrap">
 			<div class="slider-track finetune-slider-track">
 				<div class="finetune-center-tick" aria-hidden="true"></div>
-				<input
+				<input aria-label={finetuneLabel}
 					type="range"
 					{min}
 					{max}

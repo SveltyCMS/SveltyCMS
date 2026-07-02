@@ -495,7 +495,7 @@
 
  							{#if showLanguageDropdown}
  								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
- 									<input
+ 									<input aria-label="Search"
  										type="text"
  										bind:value={searchQuery}
  										placeholder="Search language..."

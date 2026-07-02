@@ -449,7 +449,7 @@ $effect(() => {
 						 Hidden only in open-signup mode (multiTenant + demoMode).
 						 Single-tenant demo mode still requires a token and will render this field. -->
 					{#if !isInviteFlow && !isOpenSignup}
-						<div class="flex items-center space-x-2">
+						<div class="flex items-center gap-2">
 							<FloatingInput
 								id="tokensignUp"
 								name="token"

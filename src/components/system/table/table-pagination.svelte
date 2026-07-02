@@ -121,7 +121,7 @@
 
 	<label class="relative inline-flex h-9 shrink-0 items-center">
 		<span class="sr-only">{entrylist_rows()}</span>
-		<select
+		<select aria-label="Items per page"
 			bind:value={rowsPerPage}
 			onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 			aria-label="Select number of rows per page"
@@ -201,7 +201,7 @@
 		</SystemTooltip>
 
 		<SystemTooltip title="Rows per page">
-			<select
+			<select aria-label="Go to page"
 				bind:value={rowsPerPage}
 				onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 				aria-label="Select number of rows per page"

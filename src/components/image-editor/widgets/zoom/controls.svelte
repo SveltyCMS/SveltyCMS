@@ -80,7 +80,7 @@ Pintura-style zoom bottom dock controls.
 
 		<div class="slider-block zoom-slider-block">
 			<div class="slider-track">
-				<input
+				<input aria-label="Zoom level"
 					type="range"
 					min={minZoom}
 					max={maxZoom}
@@ -92,7 +92,7 @@ Pintura-style zoom bottom dock controls.
 				/>
 				<div class="dock-pill-group zoom-value-group">
 					<label class="zoom-value-pill">
-						<input
+						<input aria-label="Zoom step"
 							type="number"
 							min={minZoom}
 							max={maxZoom}

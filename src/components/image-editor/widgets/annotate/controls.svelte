@@ -56,7 +56,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 		<div class="dock-pill-group color-group">
 			<span class="group-label">line</span>
 			<label class="color-trigger" title="Stroke color">
-				<input
+				<input aria-label="Annotation color"
 					type="color"
 					class="color-input"
 					value={strokeColor}
@@ -70,7 +70,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 		<div class="dock-pill-group color-group">
 			<span class="group-label">fill</span>
 			<label class="color-trigger" title="Fill color">
-				<input
+				<input aria-label="Font size"
 					type="color"
 					class="color-input"
 					value={fillColor}
@@ -84,7 +84,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 		{#if currentTool === 'text' && onTextDraftChange}
 			<div class="dock-pill-group text-group">
 				<span class="group-label">text</span>
-				<input
+				<input aria-label="Stroke width"
 					id="annotation-text"
 					class="dock-input text-input"
 					type="text"

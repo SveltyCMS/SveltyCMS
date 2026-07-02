@@ -214,7 +214,7 @@
       <div class="flex min-w-0 flex-1 items-center gap-2">
         <iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"
         ></iconify-icon>
-        <input
+        <input aria-label="Preview URL"
             type="text"
             class="input grow truncate text-sm font-mono"
             readonly

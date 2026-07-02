@@ -271,7 +271,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</label>
 
 		<!-- Search -->
-		<input
+		<input aria-label="Search media"
 			type="search"
 			bind:value={search}
 			oninput={handleSearch}

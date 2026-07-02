@@ -283,7 +283,7 @@ function getActionBadgeClass(action: string) {
 			<div class="absolute inset-y-0 inset-s-0 ps-3.5 flex items-center pointer-events-none text-surface-400">
 				<iconify-icon icon="material-symbols:search-rounded" width="20"></iconify-icon>
 			</div>
-			<input
+			<input aria-label="Search permissions"
 				type="text"
 				bind:value={searchTerm}
 				placeholder="Search Permissions..."
@@ -355,7 +355,7 @@ function getActionBadgeClass(action: string) {
 									<div class="flex flex-col items-center gap-1.5">
 										<span class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400">{role.name}</span>
 										<div class="flex items-center gap-1.5 mt-0.5">
-											<input
+											<input aria-label="Search roles"
 												type="checkbox"
 												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
 												checked={filteredPermissions.length > 0 && filteredPermissions.every((p) => role.permissions.includes(p._id))}
@@ -409,7 +409,7 @@ function getActionBadgeClass(action: string) {
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
 											<td class="px-5 py-3 text-center">
-												<input
+												<input aria-label="Search users"
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}

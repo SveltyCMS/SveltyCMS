@@ -39,7 +39,7 @@ Pintura-style focal point bottom dock controls.
 		<div class="dock-pill-group">
 			<label class="dock-pill" for="focal-x">
 				<span>X</span>
-				<input
+				<input aria-label="Focal X"
 					type="number"
 					id="focal-x"
 					min="0"
@@ -52,7 +52,7 @@ Pintura-style focal point bottom dock controls.
 			</label>
 			<label class="dock-pill" for="focal-y">
 				<span>Y</span>
-				<input
+				<input aria-label="Focal Y"
 					type="number"
 					id="focal-y"
 					min="0"

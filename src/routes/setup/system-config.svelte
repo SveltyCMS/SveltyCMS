@@ -430,7 +430,7 @@ Features:
 				<!-- Password Minimum Length -->
 				<!-- Min Password Length moved to system settings page -->
 				<div class="hidden">
-					<input
+					<input aria-label="Site name"
 												id="password-min-length"
 												bind:value={systemSettings.passwordMinLength}
 												type="number"

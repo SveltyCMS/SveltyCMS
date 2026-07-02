@@ -180,7 +180,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="control-group flex-1 min-w-50 max-w-75">
 		<label class="control-label" for="blur-strength-slider"> {strengthLabel}: </label>
 		<div class="flex items-center gap-2">
-			<input
+			<input aria-label="Blur sigma"
 				id="blur-strength-slider"
 				type="range"
 				min={minStrength}

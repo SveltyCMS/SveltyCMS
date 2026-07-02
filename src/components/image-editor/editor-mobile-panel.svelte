@@ -214,7 +214,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						style="--slider-progress: {sliderProgress}"
 						aria-hidden="true"
 					></div>
-					<input
+					<input aria-label={useRotationSlider ? 'Rotation angle' : 'Scale'}
 						type="range"
 						class="editor-mobile-slider-input"
 						class:editor-mobile-slider-input--scale={!useRotationSlider}
@@ -275,7 +275,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						style="--slider-progress: {finetuneSliderProgress}"
 						aria-hidden="true"
 					></div>
-					<input
+					<input aria-label={finetuneConfig?.label ?? 'Adjustment'}
 						type="range"
 						class="editor-mobile-slider-input"
 						min={finetuneMin}
@@ -308,7 +308,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						style="--slider-progress: {blurSliderProgress}"
 						aria-hidden="true"
 					></div>
-					<input
+					<input aria-label="Blur strength"
 						type="range"
 						class="editor-mobile-slider-input editor-mobile-slider-input--scale"
 						min="5"
@@ -336,7 +336,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 			{#if showAnnotateTextInput}
 				<div class="editor-mobile-annotate-text-row">
 					<div class="editor-mobile-annotate-text-pill">
-						<input
+						<input aria-label="Annotation text"
 							bind:this={annotateTextInputRef}
 							id="annotate-mobile-text"
 							class="editor-mobile-annotate-text-input"
@@ -379,7 +379,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							style="--slider-progress: {watermarkOpacityProgress}"
 							aria-hidden="true"
 						></div>
-						<input
+						<input aria-label="Watermark opacity"
 							type="range"
 							class="editor-mobile-slider-input editor-mobile-slider-input--scale"
 							min="0"
@@ -399,7 +399,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 			{#if showWatermarkTextInput}
 				<div class="editor-mobile-watermark-text-row">
 					<label class="editor-mobile-watermark-text-label" for="watermark-mobile-text">Text</label>
-					<input
+					<input aria-label="Watermark text"
 						id="watermark-mobile-text"
 						class="editor-mobile-watermark-text-input"
 						type="text"
@@ -437,7 +437,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						style="--slider-progress: {focalXProgress}"
 						aria-hidden="true"
 					></div>
-					<input
+					<input aria-label="Focal point X"
 						type="range"
 						class="editor-mobile-slider-input editor-mobile-slider-input--scale"
 						min="0"
@@ -462,7 +462,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						style="--slider-progress: {focalYProgress}"
 						aria-hidden="true"
 					></div>
-					<input
+					<input aria-label="Focal point Y"
 						type="range"
 						class="editor-mobile-slider-input editor-mobile-slider-input--scale"
 						min="0"

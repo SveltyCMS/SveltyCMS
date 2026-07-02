@@ -267,7 +267,7 @@
       <div role="presentation" class="flex items-center gap-1.5 ms-7" onclick={(e) => e.stopPropagation()}>
         <span class="text-[10px] text-surface-400 shrink-0">→</span>
         <input type="text" bind:value={node.suggestedTarget} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-md px-1.5 py-0.5 text-[10px] font-mono text-surface-700 dark:text-surface-300 focus:outline-none focus:border-tertiary-500 w-24" aria-label="Target for {node.label}" />
-        <select value={node.action} onchange={(e) => { node.action = (e.target as HTMLSelectElement).value as any; onActionChange?.(node.id, node.action); }} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-[10px] rounded-md px-1.5 py-0.5 text-surface-600 focus:outline-none" aria-label="Action">
+        <select aria-label="Action" value={node.action} onchange={(e) => { node.action = (e.target as HTMLSelectElement).value as any; onActionChange?.(node.id, node.action); }} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-[10px] rounded-md px-1.5 py-0.5 text-surface-600 focus:outline-none">
           <option value="map">Map</option>
           <option value="split">Split</option>
           <option value="merge">Merge</option>

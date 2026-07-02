@@ -56,7 +56,7 @@ function handleInput(e: Event) {
 </script>
 
 <div class={cn('relative w-full py-4', className)}>
-	<input
+	<input aria-label={ariaLabel}
 		type="range"
 		{min}
 		{max}

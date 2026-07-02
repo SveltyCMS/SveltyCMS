@@ -333,7 +333,7 @@ Features:
 						{#if pendingCount > 0}
 							{#each activeFile.metadata!.aiTags! as tag, i (tag)}
 								{#if editingTag?.type === 'ai' && editingTag.index === i}
-									<input
+									<input aria-label="Tag name"
 										type="text"
 										bind:value={editingTag.value}
 										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
@@ -431,7 +431,7 @@ Features:
 						{#if savedCount > 0}
 							{#each activeFile.metadata!.tags! as tag, i (tag)}
 								{#if editingTag?.type === 'user' && editingTag.index === i}
-									<input
+									<input aria-label="Tag color"
 										type="text"
 										bind:value={editingTag.value}
 										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"

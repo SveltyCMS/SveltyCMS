@@ -234,7 +234,7 @@
 							href={`/mediagallery?folderId=${folder._id}`}
 							onclick={handleMobileSidebarClose}
 							aria-label={`Open folder: ${folder.name}`}
-							class="w-full items-center space-x-2 p-2 justify-start"
+							class="w-full items-center gap-2 p-2 justify-start"
 							data-sveltekit-preload-data="hover"
 						>
 							<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>

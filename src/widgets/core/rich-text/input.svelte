@@ -612,7 +612,7 @@
 															>
 																<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"></iconify-icon>
 															</div>
-															<input
+															<input aria-label="Link URL"
 										type="color"
 										aria-label="Text color"
 																class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -715,7 +715,7 @@
 		The onInsert handler then redirects the inserted token to the actual Tiptap editor.
 		This prevents the Token Picker from opening whenever the user just clicks into the editor to type.
 	-->
-	<input
+	<input aria-label="Image URL"
 		type="text"
 		id={field.db_fieldName}
 		class="sr-only"
@@ -733,7 +733,7 @@
 	/>
 
 	{#if showSource}
-		<textarea
+		<textarea aria-label="Image alt text"
 			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
 			aria-label={field.label || field.db_fieldName || 'Rich text HTML editor'}
 			value={editor?.getHTML() || ''}
@@ -882,7 +882,7 @@
 		</div>
 	{/if}
 
-<input
+<input aria-label="Link text"
 	bind:this={colorInput}
 	type="color"
 	aria-label="Text color"

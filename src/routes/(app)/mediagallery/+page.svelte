@@ -469,7 +469,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
 
-			<input
+			<input aria-label="Search media"
 				type="file"
 				multiple
 				class="hidden"

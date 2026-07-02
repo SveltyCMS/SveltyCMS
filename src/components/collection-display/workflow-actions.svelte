@@ -126,7 +126,7 @@ const availableTransitions = $derived.by(() => {
 
                 {#if showComment}
                     <div class="space-y-3 pt-3 border-t border-surface-200 dark:border-surface-800" transition:slide>
-                        <textarea
+                        <textarea aria-label="Workflow note"
                             bind:value={comment}
                             placeholder="Add a comment (optional)..."
                             class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"

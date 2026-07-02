@@ -64,7 +64,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 
 		<div class="blur-slider-wrap">
 			<div class="slider-track blur-slider-track">
-				<input
+				<input aria-label="Blur amount"
 					id="blur-strength-slider"
 					type="range"
 					min="5"

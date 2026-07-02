@@ -129,7 +129,7 @@ Pintura-style watermark bottom dock controls.
 	{#if selectedType === 'text' && onTextDraftChange}
 		<div class="dock-row dock-row-scroll">
 			<label class="slider-label" for="watermark-text">text</label>
-			<input
+			<input aria-label="Opacity"
 				id="watermark-text"
 				type="text"
 				class="dock-input min-w-[10rem] flex-1"
@@ -170,7 +170,7 @@ Pintura-style watermark bottom dock controls.
 							<span class="slider-value slider-value-changed">{Math.round(currentOpacity * 100)}%</span>
 						</div>
 						<div class="slider-track">
-							<input
+							<input aria-label="Scale"
 								type="range"
 								min="0"
 								max="1"

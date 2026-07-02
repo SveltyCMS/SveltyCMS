@@ -167,7 +167,7 @@ export const widgetMeta = {
 		{#if !isCompact}
 			<!-- Controls (rich layout only) -->
 			<div class="mb-3 flex flex-wrap items-center gap-2">
-				<select
+				<select aria-label="Log level"
 					bind:value={filterLevel}
 					class="rounded border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="Filter by log level"
@@ -178,7 +178,7 @@ export const widgetMeta = {
 				</select>
 
 				<div class="relative flex-1 min-w-30">
-					<input
+					<input aria-label="Search logs"
 						type="text"
 						bind:value={searchTerm}
 						placeholder="Search..."
@@ -188,14 +188,14 @@ export const widgetMeta = {
 					<iconify-icon icon="mdi:magnify" width="14" class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"  ></iconify-icon>
 				</div>
 
-				<input
+				<input aria-label="Date from"
 					type="date"
 					bind:value={startDate}
 					class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
 					aria-label="Start date"
 				/>
 				<span class="text-xs text-surface-400">–</span>
-				<input
+				<input aria-label="Date to"
 					type="date"
 					bind:value={endDate}
 					class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"

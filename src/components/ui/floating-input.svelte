@@ -126,7 +126,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 
 <div class={cn("relative w-full", bgTransparent && "bg-transparent")}>
 	<div class="group relative flex w-full items-center" role="group" aria-labelledby={currentId}>
-		<input
+		<input aria-label={label || undefined}
 			bind:this={inputElement}
 			bind:value
 			{name}

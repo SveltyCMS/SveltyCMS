@@ -211,7 +211,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		<div class="rotate-slider-wrap">
 			<div class="slider-track rotate-slider-track">
 				<div class="rotate-center-tick" aria-hidden="true"></div>
-				<input
+				<input aria-label="Rotation angle"
 					id="rotate-slider"
 					type="range"
 					min="-180"

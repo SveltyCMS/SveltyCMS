@@ -157,7 +157,7 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	</div>
 
 	<!-- Fixed anchor for native pickers — keeps system UI on-screen on mobile -->
-	<input
+	<input aria-label="Font size"
 		bind:this={strokePickerRef}
 		type="color"
 		class="annotate-hidden-color-input"
@@ -167,7 +167,7 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		aria-hidden="true"
 		aria-label="Stroke color picker"
 	/>
-	<input
+	<input aria-label="Stroke width"
 		bind:this={fillPickerRef}
 		type="color"
 		class="annotate-hidden-color-input"

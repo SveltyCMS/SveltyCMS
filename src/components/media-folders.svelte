@@ -365,7 +365,7 @@
 	<!-- Search Header -->
 	<div class="flex items-center gap-1">
 		<div class="relative w-full min-w-0">
-			<input
+			<input aria-label="Search folders"
 				type="text"
 				bind:value={search}
 				size="1"

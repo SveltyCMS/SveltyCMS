@@ -400,7 +400,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							{/if}
 						</div>
 						<div class="relative">
-							<textarea
+							<textarea aria-label="SEO description"
 								id="seo-schemaMarkup"
 								class="textarea font-mono text-xs"
 								rows="10"

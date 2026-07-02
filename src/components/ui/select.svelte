@@ -107,7 +107,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{#if variant === 'floating' && label}
 		<!-- Floating label variant -->
 		<div class="relative">
-			<select
+			<select aria-label={label || undefined}
 				id={generatedId}
 				{disabled}
 				{required}
@@ -172,7 +172,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		{/if}
 
 		<div class="relative">
-			<select
+			<select aria-label={label || undefined}
 				id={generatedId}
 				{disabled}
 				{required}

@@ -220,7 +220,7 @@ export const widgetMeta = {
 				<!-- Search (only when >3 users) -->
 				{#if totalOnline > 3}
 					<div class="relative mb-3">
-						<input
+						<input aria-label="Search users"
 							type="text"
 							bind:value={searchTerm}
 							placeholder="Filter users..."

@@ -106,7 +106,7 @@ function onDragLeave() {
 	ondragleave={onDragLeave}
 	ondrop={onDrop}
 >
-	<input
+	<input aria-label={label}
 		type="file"
 		class="sr-only"
 		{multiple}

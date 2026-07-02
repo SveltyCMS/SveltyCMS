@@ -64,7 +64,7 @@ Usage:
 <div class="grid grid-cols-2 gap-2">
 	<div>
 		<label class="block font-bold" for="size">Size</label>
-		<input
+		<input aria-label="Watermark text"
 			class="w-full"
 			id="size"
 			type="text"
@@ -76,7 +76,7 @@ Usage:
 	</div>
 	<div>
 		<label class="block font-bold" for="opacity">Opacity</label>
-		<input
+		<input aria-label="Font size"
 			class="w-full"
 			id="opacity"
 			type="range"
@@ -90,7 +90,7 @@ Usage:
 	</div>
 	<div>
 		<label class="block font-bold" for="positionX">Position X</label>
-		<input
+		<input aria-label="Watermark color"
 			class="w-full"
 			id="positionX"
 			type="number"
@@ -101,7 +101,7 @@ Usage:
 	</div>
 	<div>
 		<label class="block font-bold" for="positionY">Position Y</label>
-		<input
+		<input aria-label="Opacity"
 			class="w-full"
 			id="positionY"
 			type="number"
@@ -112,7 +112,7 @@ Usage:
 	</div>
 	<div>
 		<label class="block font-bold" for="rotation">Rotation</label>
-		<input
+		<input aria-label="Position"
 			class="w-full"
 			id="rotation"
 			type="number"

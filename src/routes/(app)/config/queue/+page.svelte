@@ -77,7 +77,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 	{/snippet}
 
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
-		<a href={getFilterUrl()} class="block no-underline text-inherit">
+		<a aria-label="View job details" href={getFilterUrl()} class="block no-underline text-inherit">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
@@ -91,7 +91,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('pending')} class="block no-underline text-inherit">
+		<a aria-label="View job details" href={getFilterUrl('pending')} class="block no-underline text-inherit">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-surface">
@@ -105,7 +105,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('running')} class="block no-underline text-inherit">
+		<a aria-label="View job details" href={getFilterUrl('running')} class="block no-underline text-inherit">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-primary">
@@ -119,7 +119,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('completed')} class="block no-underline text-inherit">
+		<a aria-label="View job details" href={getFilterUrl('completed')} class="block no-underline text-inherit">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-success">
@@ -133,7 +133,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a href={getFilterUrl('failed')} class="block no-underline text-inherit">
+		<a aria-label="View job details" href={getFilterUrl('failed')} class="block no-underline text-inherit">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-error">

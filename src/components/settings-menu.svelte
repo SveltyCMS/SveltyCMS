@@ -53,7 +53,7 @@ Sidebar navigation for System Settings
 <div class="mt-2 flex flex-col h-full bg-transparent">
 	<!-- Search -->
 	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-33.75'}">
-		<input
+		<input aria-label="Search settings"
 			type="text"
 			bind:value={searchTerm}
 			placeholder={isFullSidebar ? 'Search settings...' : 'Search'}

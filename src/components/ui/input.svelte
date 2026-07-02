@@ -157,7 +157,7 @@ corner-shape angled corners.
       </div>
     {/if}
 
-    <input
+    <input aria-label={label || undefined}
       bind:this={_inputRef}
       {id}
       {type}

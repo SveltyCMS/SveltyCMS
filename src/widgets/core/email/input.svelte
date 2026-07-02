@@ -96,7 +96,7 @@
 
 		<div class="relative grow flex items-center px-3">
 			<iconify-icon icon="mdi:email-outline" width="18" class="text-surface-400 me-2" aria-hidden="true"></iconify-icon>
-			<input
+			<input aria-label="Email address"
 				type="email"
 				value={safeValue}
 				oninput={handleInput}
