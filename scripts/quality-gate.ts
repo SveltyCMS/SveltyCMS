@@ -172,6 +172,8 @@ async function main() {
       name: "Slop Scanner",
       ciJob: "lint",
       skip: () => !hasTsOrSvelte,
+      // --strict exits 1 on errors only; warnings are tracked but non-blocking
+      // TODO: enable --strict-warnings once all 128 pre-existing warnings are resolved
       run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts", "--strict"]),
     },
     {
