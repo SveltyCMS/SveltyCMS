@@ -20,10 +20,10 @@ tags:
 
 ## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
-| Metric                      | Value                                                           |
-| --------------------------- | --------------------------------------------------------------- |
+| Metric                      | Value                                                          |
+| --------------------------- | -------------------------------------------------------------- |
 | Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh)        |
-| Server starts/stops per run | 2 (mode switches only)                                          |
+| Server starts/stops per run | 2 (mode switches only)                                         |
 | Pass rate                   | 17/36 (known: settings, setup-actions auth bugs on non-SQLite) |
 
 **Note**: Integration test pass rate varies by database adapter. SQLite passes the majority; MariaDB/Mongo/Postgres expose auth/permission differences tracked as separate bugs. The test config safety guard (`scripts/check-test-db-safety.ts`) prevents the most common failure mode: running tests against a non-isolated (production) database.
@@ -148,9 +148,9 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 `tests/unit/utils/test-db-safety.test.ts` — 11 test DB safety classifier tests:
 
-| Test file                 | Tests | Covers                                                                                         |
-| ------------------------- | ----- | ---------------------------------------------------------------------------------------------- |
-| test-db-safety.test.ts    | 11    | `isIsolatedTestDbName` (6 cases), `extractDbNameFromConfigSource` (3), `isConfigSourceSafeForTesting` (2 incl. incident shape: DB_NAME 'sveltycms' copied verbatim from production config) |
+| Test file              | Tests | Covers                                                                                                                                                                                     |
+| ---------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| test-db-safety.test.ts | 11    | `isIsolatedTestDbName` (6 cases), `extractDbNameFromConfigSource` (3), `isConfigSourceSafeForTesting` (2 incl. incident shape: DB_NAME 'sveltycms' copied verbatim from production config) |
 
 > **Why**: The shared classifier (`src/utils/test-db-safety.ts`) is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks (`check-test-db-safety.ts`). A regression in the classifier would silently allow tests to run against production databases. These tests catch that at the pre-push unit test gate.
 
@@ -160,7 +160,7 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | ----------------- | --------------- | --------------------------------------------------------------------------- |
 | Bootstrap         | ~30s            | Dep install, codegen                                                        |
 | Lint + Type Check | ~40s            | oxlint, svelte-check, tsc                                                   |
-| Unit Tests        | ~13s            | 1,487 Vitest specs (167 files)                                             |
+| Unit Tests        | ~13s            | 1,487 Vitest specs (167 files)                                              |
 | Build             | ~30s            | Production build integrity                                                  |
 | Integration (×4)  | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL contract tests                         |
 | Benchmarks (×61)  | ~10h full suite | 61 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR |
@@ -170,12 +170,12 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ### Local Quality Gates (pre-commit / pre-push)
 
-| Gate               | Runtime  | What it catches                                                             |
-| ------------------ | -------- | --------------------------------------------------------------------------- |
-| Test Config Safety | <100ms   | Unsafe `config/private.test.ts` (non-isolated DB_NAME)                      |
-| Format + Lint      | ~2s      | oxfmt, oxlint on staged files                                               |
-| Slop Scanner       | ~400ms   | File naming, a11y, duplicate content, RTL issues                            |
-| Full Unit Tests    | ~13s     | All 1,487 Vitest specs                                                      |
+| Gate               | Runtime | What it catches                                        |
+| ------------------ | ------- | ------------------------------------------------------ |
+| Test Config Safety | <100ms  | Unsafe `config/private.test.ts` (non-isolated DB_NAME) |
+| Format + Lint      | ~2s     | oxfmt, oxlint on staged files                          |
+| Slop Scanner       | ~400ms  | File naming, a11y, duplicate content, RTL issues       |
+| Full Unit Tests    | ~13s    | All 1,487 Vitest specs                                 |
 
 ## 5. Gaps — What's NOT Tested
 
