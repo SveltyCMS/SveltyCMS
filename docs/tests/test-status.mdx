@@ -20,12 +20,13 @@ tags:
 
 ## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
-| Metric                      | Before | After                                                          |
-| --------------------------- | ------ | -------------------------------------------------------------- |
-| Execution time (SQLite)     | ~9 min | ~70 sec                                                        |
-| Server starts/stops per run | 72     | 2 (mode switches only)                                         |
-| Pass rate                   | 31/36  | **36/36** (All integration tests pass; media 404 error mapped) |
-| Speedup                     | —      | **~7.5x**                                                      |
+| Metric                      | Value                                                           |
+| --------------------------- | --------------------------------------------------------------- |
+| Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh)        |
+| Server starts/stops per run | 2 (mode switches only)                                          |
+| Pass rate                   | 17/36 (known: settings, setup-actions auth bugs on non-SQLite) |
+
+**Note**: Integration test pass rate varies by database adapter. SQLite passes the majority; MariaDB/Mongo/Postgres expose auth/permission differences tracked as separate bugs. The test config safety guard (`scripts/check-test-db-safety.ts`) prevents the most common failure mode: running tests against a non-isolated (production) database.
 
 **Coverage**: 36 spec files across 4 domains
 
@@ -45,6 +46,10 @@ tags:
 - `IDLE` state accepted in health checks → eliminates 10s settle delay
 - Widget auto-registration → fixes 404 for valid widgets in fresh DB
 - All caches + state stores cleared per-test → true isolation
+- **Test DB safety guard** (`scripts/check-test-db-safety.ts`) runs in pre-commit and pre-push hooks → blocks unsafe `config/private.test.ts` before tests start
+- **Shared classifier** (`src/utils/test-db-safety.ts`) used by server, integration runner, and git hooks → single source of truth for isolated DB name validation
+- **Secret synchronization** — integration runner writes `TEST_API_SECRET` to `tests/e2e/.auth/test-secret.txt` before server start → eliminates 401 mismatch
+- **`SKIP_COLLECTION_COMPILE`** flag prevents @src alias resolution failures during integration test builds on Windows
 
 These measures ensure zero cross-test contamination and deterministic test results.
 
@@ -80,9 +85,9 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 | Metric                | Value                                                                              |
 | --------------------- | ---------------------------------------------------------------------------------- |
-| Total tests           | **1,440+**                                                                         |
+| Total tests           | **1,487**                                                                          |
 | Pass rate             | 100%                                                                               |
-| Test files            | 163                                                                                |
+| Test files            | 167 (166 passing, 1 skipped)                                                       |
 | Security-specific     | 67 (defense-in-depth, auth, RBAC, CSRF client-bypass)                              |
 | Content-specific      | 35 (cache helpers, reconciliation, API surface, collection builder utils)          |
 | Media-specific        | 40 (sharing, MIME utils, binary sniffer)                                           |
@@ -90,6 +95,7 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | Utils integrity       | 4 (circular import detection, barrel health)                                       |
 | **Bulk delete guard** | 6 (API handler, SDK layer, 403 status, error code)                                 |
 | **Cache service**     | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh) |
+| **Test DB safety**    | 11 (DB_NAME classifier, config source extraction, incident-shape regression)       |
 
 **June 2026 additions**:
 
@@ -138,19 +144,38 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 > **Why**: Rolldown (Vite 8 config bundler) traces static imports. A circular reference `utils.ts → file.ts → @utils/utils` causes Rolldown to expand the entire dependency graph into `.svelte` files, which it cannot parse. This test prevents regressions.
 
+**July 2026 additions**:
+
+`tests/unit/utils/test-db-safety.test.ts` — 11 test DB safety classifier tests:
+
+| Test file                 | Tests | Covers                                                                                         |
+| ------------------------- | ----- | ---------------------------------------------------------------------------------------------- |
+| test-db-safety.test.ts    | 11    | `isIsolatedTestDbName` (6 cases), `extractDbNameFromConfigSource` (3), `isConfigSourceSafeForTesting` (2 incl. incident shape: DB_NAME 'sveltycms' copied verbatim from production config) |
+
+> **Why**: The shared classifier (`src/utils/test-db-safety.ts`) is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks (`check-test-db-safety.ts`). A regression in the classifier would silently allow tests to run against production databases. These tests catch that at the pre-push unit test gate.
+
 ## 4. CI Pipeline Gates
 
 | Gate              | Runtime         | What it catches                                                             |
 | ----------------- | --------------- | --------------------------------------------------------------------------- |
 | Bootstrap         | ~30s            | Dep install, codegen                                                        |
 | Lint + Type Check | ~40s            | oxlint, svelte-check, tsc                                                   |
-| Unit Tests        | ~12s            | 1,100+ Vitest specs                                                         |
+| Unit Tests        | ~13s            | 1,487 Vitest specs (167 files)                                             |
 | Build             | ~30s            | Production build integrity                                                  |
 | Integration (×4)  | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL contract tests                         |
 | Benchmarks (×61)  | ~10h full suite | 61 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR |
 | E2E Wizard        | ~30s            | Setup wizard flow                                                           |
 | E2E Auth          | ~20s            | Login + session creation                                                    |
 | E2E App (×17)     | ~15s each       | Full admin surface (signup through media gallery)                           |
+
+### Local Quality Gates (pre-commit / pre-push)
+
+| Gate               | Runtime  | What it catches                                                             |
+| ------------------ | -------- | --------------------------------------------------------------------------- |
+| Test Config Safety | <100ms   | Unsafe `config/private.test.ts` (non-isolated DB_NAME)                      |
+| Format + Lint      | ~2s      | oxfmt, oxlint on staged files                                               |
+| Slop Scanner       | ~400ms   | File naming, a11y, duplicate content, RTL issues                            |
+| Full Unit Tests    | ~13s     | All 1,487 Vitest specs                                                      |
 
 ## 5. Gaps — What's NOT Tested
 
