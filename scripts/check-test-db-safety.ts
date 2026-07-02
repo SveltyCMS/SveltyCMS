@@ -7,12 +7,17 @@
  * checks run — prevents the class of bug where a real (possibly production)
  * config/private.ts was copied as the test config.
  *
+ * Imports the shared classifier from src/utils/test-db-safety.ts so the rule
+ * can never drift between this gate, the server (config-state.ts), and the
+ * integration runner (run-integration-tests.ts).
+ *
  * Invoked by: .githooks/pre-commit and scripts/quality-gate.ts
  * Manual run: bun run scripts/check-test-db-safety.ts
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isConfigSourceSafeForTesting } from "../src/utils/test-db-safety.ts";
 
 const ROOT = process.cwd();
 const TEST_CONFIG_PATH = join(ROOT, "config", "private.test.ts");
@@ -23,8 +28,7 @@ if (!existsSync(TEST_CONFIG_PATH)) {
 }
 
 const content = readFileSync(TEST_CONFIG_PATH, "utf8");
-const match = content.match(/DB_NAME:\s*["']([^"']+)["']/);
-const dbName = match?.[1] ?? "";
+const { dbName, safe } = isConfigSourceSafeForTesting(content);
 
 if (!dbName) {
   console.error(
@@ -33,13 +37,6 @@ if (!dbName) {
   );
   process.exit(1);
 }
-
-const lower = dbName.toLowerCase();
-const safe =
-  lower.includes("test") ||
-  lower.includes("bench") ||
-  lower.includes("e2e") ||
-  lower.endsWith("_functional");
 
 if (!safe) {
   console.error(
