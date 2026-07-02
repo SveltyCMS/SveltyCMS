@@ -220,7 +220,6 @@
             readonly
             value={authorizedUrl}
             placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"}
-            aria-label="Preview URL"
           />
         <Button variant="outline"
           onclick={copyUrl}

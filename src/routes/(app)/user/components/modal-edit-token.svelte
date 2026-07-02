@@ -341,7 +341,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 					id="expires-select"
 					bind:value={tokenForm.data.expiresIn}
 					class="input bg-white text-black dark:bg-surface-700 dark:text-white"
-					aria-label="Token Validity"
 				>
 					<option value="2 hrs">2 Hours</option>
 					<option value="12 hrs">12 Hours</option>

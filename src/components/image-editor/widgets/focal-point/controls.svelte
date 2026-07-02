@@ -47,7 +47,6 @@ Pintura-style focal point bottom dock controls.
 					value={focalX}
 					oninput={(e) => updateField('x', (e.currentTarget as HTMLInputElement).value)}
 					class="dock-input w-10 text-center"
-					aria-label="Focal X percentage"
 				/>
 			</label>
 			<label class="dock-pill" for="focal-y">
@@ -60,7 +59,6 @@ Pintura-style focal point bottom dock controls.
 					value={focalY}
 					oninput={(e) => updateField('y', (e.currentTarget as HTMLInputElement).value)}
 					class="dock-input w-10 text-center"
-					aria-label="Focal Y percentage"
 				/>
 			</label>
 		</div>

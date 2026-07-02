@@ -142,8 +142,7 @@ function toggleRoleWrite(roleId: string) {
 					type="checkbox"
 					class="input checkbox-primary"
 					checked={permissions.requiredAuth ?? false}
-					onchange={(e) => updatePermissions({ requiredAuth: (e.currentTarget as HTMLInputElement).checked })}
-				 aria-label="Input" />
+					onchange={(e) => updatePermissions({ requiredAuth: (e.currentTarget as HTMLInputElement).checked })} />
 				<span class="text-sm font-semibold text-surface-100">Require authentication</span>
 			</label>
 			<p class="mt-2 text-xs leading-5 text-surface-400">When enabled, user must be logged in to access this field.</p>

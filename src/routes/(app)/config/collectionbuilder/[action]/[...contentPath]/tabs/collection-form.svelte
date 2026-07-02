@@ -181,7 +181,6 @@ const statuses = Object.values(StatusTypes);
 							bind:value={slug}
 							placeholder={collection_slug_input()}
 							class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 ps-10 pe-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-							aria-label="Collection slug"
 						/>
 					</div>
 					<Button
@@ -202,7 +201,6 @@ const statuses = Object.values(StatusTypes);
 					id="status"
 					bind:value={status}
 					class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
-					aria-label="Collection status"
 				>
 					{#each statuses as statusOption (statusOption)}
 						<option value={statusOption}>{statusOption}</option>
@@ -230,8 +228,7 @@ const statuses = Object.values(StatusTypes);
 					bind:value={description}
 					placeholder={collection_description_placeholder()}
 					class="flex-1 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-30"
-					aria-label="Collection description"
-				></textarea>
+					></textarea>
 			</div>
 		</Card>
 

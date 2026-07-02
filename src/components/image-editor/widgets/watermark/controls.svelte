@@ -178,7 +178,6 @@ Pintura-style watermark bottom dock controls.
 								value={currentOpacity}
 								oninput={handleOpacityInput}
 								class="slider-input"
-								aria-label="Watermark opacity"
 							/>
 						</div>
 					</div>

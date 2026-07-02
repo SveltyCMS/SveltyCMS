@@ -434,8 +434,7 @@ Features:
 												id="password-min-length"
 												bind:value={systemSettings.passwordMinLength}
 												type="number"
-												aria-label="password-min-length"
-											/>
+																		/>
 				</div>
 			</div>
 

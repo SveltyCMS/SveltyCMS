@@ -221,7 +221,6 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 					oninput={handleSliderInput}
 					class="slider-input finetune-slider-input"
 					style:background={sliderFillStyle}
-					aria-label="{config?.label ?? 'Adjustment'} slider"
 					aria-valuemin={min}
 					aria-valuemax={max}
 					aria-valuenow={value}

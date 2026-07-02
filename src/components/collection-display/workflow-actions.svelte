@@ -130,8 +130,8 @@ const availableTransitions = $derived.by(() => {
                             bind:value={comment}
                             placeholder="Add a comment (optional)..."
                             class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"
-                            rows="2"
-                         aria-label="Textarea"></textarea>
+                            						rows="2"
+                            					></textarea>
                         <div class="flex justify-end gap-2">
                                 <Button variant="ghost" onclick={() => showComment = false} size="sm" class="text-[10px]">Cancel</Button>
                                 <Button variant="tertiary" onclick={() => triggerTransition(selectedTargetStateId)} size="sm" class="text-[10px]">Confirm Move</Button>

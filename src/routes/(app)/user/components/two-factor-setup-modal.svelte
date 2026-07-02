@@ -213,7 +213,6 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							autocomplete="off"
 							class:border-error-500={error}
 							class:focus\:border-error-500={error}
-							aria-label="Verification code"
 						/>
 					</div>
 

@@ -288,8 +288,7 @@ function getActionBadgeClass(action: string) {
 				bind:value={searchTerm}
 				placeholder="Search Permissions..."
 				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
-				aria-label="Search permissions"
-			/>
+				/>
 		</div>
 	</div>
 
@@ -364,7 +363,6 @@ function getActionBadgeClass(action: string) {
 													!filteredPermissions.every((p) => role.permissions.includes(p._id))}
 												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
 												title={`Select/Deselect all filtered permissions for ${role.name}`}
-												aria-label={`Select all for ${role.name}`}
 											/>
 											<button
 												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
@@ -414,7 +412,6 @@ function getActionBadgeClass(action: string) {
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}
 													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
-													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
 												/>
 											</td>
 										{/if}

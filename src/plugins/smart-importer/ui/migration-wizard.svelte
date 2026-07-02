@@ -546,7 +546,6 @@
                         value={mapping.target}
                         oninput={(e) => updateMapping(mapping.source, (e.target as HTMLInputElement).value)}
                         class="w-full rounded border border-surface-200 bg-transparent px-2 py-1 font-mono text-xs text-surface-800 focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:text-surface-200 dark:focus:border-primary-500"
-                        aria-label="Target field for {mapping.source}"
                       />
                     </td>
                     <td class="px-4 py-2.5 text-center">

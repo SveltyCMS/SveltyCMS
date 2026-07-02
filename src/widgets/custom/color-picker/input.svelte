@@ -87,7 +87,6 @@ Renders a color input with label, helper, and validation
 				type="color"
 				value={colorValue}
 				id={fieldName + '-color'}
-				aria-label={field.label || 'Pick color'}
 				oninput={(e) => updateColor(e.currentTarget.value)}
 				class="absolute -inset-2 h-[150%] w-[150%] cursor-pointer border-none bg-transparent p-0"
 			/>
@@ -99,7 +98,6 @@ Renders a color input with label, helper, and validation
 				type="text"
 				value={colorValue.replace('#', '')}
 				id={fieldName + '-hex'}
-				aria-label={field.label ? field.label + ' hex value' : 'Hex color value'}
 				oninput={(e) => updateColor('#' + e.currentTarget.value)}
 				placeholder="000000"
 				maxlength="6"

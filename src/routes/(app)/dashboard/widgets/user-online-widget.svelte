@@ -225,7 +225,6 @@ export const widgetMeta = {
 							bind:value={searchTerm}
 							placeholder="Filter users..."
 							class="w-full rounded border border-surface-200 bg-surface-50 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
-							aria-label="Filter online users"
 						/>
 						<iconify-icon
 							icon="mdi:magnify"

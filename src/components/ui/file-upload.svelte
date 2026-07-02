@@ -112,7 +112,6 @@ function onDragLeave() {
 		{multiple}
 		{accept}
 		{disabled}
-		aria-label={label}
 		onchange={(e) => handleFiles(e.currentTarget.files)}
 	/>
 

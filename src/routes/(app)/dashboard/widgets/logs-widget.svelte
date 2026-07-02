@@ -170,7 +170,6 @@ export const widgetMeta = {
 				<select aria-label="Log level"
 					bind:value={filterLevel}
 					class="rounded border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
-					aria-label="Filter by log level"
 				>
 					{#each levels as opt (opt.value)}
 						<option value={opt.value}>{opt.label}</option>
@@ -183,7 +182,6 @@ export const widgetMeta = {
 						bind:value={searchTerm}
 						placeholder="Search..."
 						class="w-full rounded border border-surface-200 bg-surface-50 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
-						aria-label="Search log messages"
 					/>
 					<iconify-icon icon="mdi:magnify" width="14" class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"  ></iconify-icon>
 				</div>
@@ -192,14 +190,12 @@ export const widgetMeta = {
 					type="date"
 					bind:value={startDate}
 					class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
-					aria-label="Start date"
 				/>
 				<span class="text-xs text-surface-400">–</span>
 				<input aria-label="Date to"
 					type="date"
 					bind:value={endDate}
 					class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
-					aria-label="End date"
 				/>
 			</div>
 		{/if}

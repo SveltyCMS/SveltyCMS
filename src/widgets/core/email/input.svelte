@@ -29,12 +29,12 @@
 	import { email as emailValidator, minLength, optional, parse, pipe, string } from 'valibot';
 	import type { FieldType } from '.';
 
-	let { 
-		field, 
+	let {
+		field,
 		value = $bindable(),
-		error 
-	}: { 
-		field: FieldType; 
+		error
+	}: {
+		field: FieldType;
 		value?: string | Record<string, string> | null | undefined;
 		error?: string | null;
 	} = $props();
@@ -58,7 +58,7 @@
 
 	function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
 		const raw = e.currentTarget.value.trim().toLowerCase();
-		
+
 		if (field.translated) {
 			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: raw };
 		} else {
@@ -82,7 +82,7 @@
 </script>
 
 <div class="email-widget flex flex-col gap-1">
-	<div 
+	<div
 		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
@@ -103,7 +103,6 @@
 				placeholder={(field.placeholder as string) || 'email@example.com'}
 				class="w-full border-none bg-transparent py-2 text-sm font-medium outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
 				disabled={field.readonly as boolean}
-				aria-label={(field.label as string) || 'Email address'}
 				aria-invalid={!!error}
 				aria-describedby={error ? `${fieldName}-error` : undefined}
 				aria-required={field.required as boolean}
@@ -117,7 +116,7 @@
 		{/if}
 
 		{#if safeValue}
-			<Button variant="ghost" 
+			<Button variant="ghost"
 				type="button"
 				onclick={handleClear}
 				aria-label="Clear email"

@@ -109,7 +109,6 @@ Renders radio group with options from field.options array
 						value={option.value}
 						onchange={() => updateParent(option.value)}
 						aria-checked={localValue === option.value}
-						aria-label={option.label}
 						class={field.color ? `accent-${field.color}` : ''}
 						style={field.color ? `accent-color: ${field.color}` : ''}
 					/>

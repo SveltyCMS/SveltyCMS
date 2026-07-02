@@ -224,7 +224,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						value={useRotationSlider ? storeState.rotation : zoomPercent}
 						oninput={useRotationSlider ? handleRotationInput : handleZoomInput}
 						onchange={useRotationSlider ? handleRotationCommit : handleZoomCommit}
-						aria-label={useRotationSlider ? 'Rotation angle' : 'Scale'}
 						aria-valuetext={useRotationSlider ? `${rotationDisplay} degrees` : `${zoomPercent} percent`}
 					/>
 				</div>
@@ -284,7 +283,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						value={finetuneValue}
 						oninput={handleFinetuneInput}
 						onchange={handleFinetuneCommit}
-						aria-label="{finetuneConfig?.label ?? 'Adjustment'} value"
 						aria-valuetext={finetuneValueLabel}
 					/>
 				</div>
@@ -317,7 +315,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						value={blurStrength}
 						oninput={handleBlurInput}
 						onchange={handleBlurCommit}
-						aria-label="Blur strength"
 						aria-valuetext="{blurStrength} percent"
 					/>
 				</div>
@@ -345,7 +342,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							placeholder="Enter text"
 							oninput={handleAnnotateTextInput}
 							onkeydown={handleAnnotateTextKeydown}
-							aria-label="Annotation text"
 						/>
 						<button
 							type="button"
@@ -388,7 +384,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							value={watermarkProps?.currentOpacity ?? 0.8}
 							oninput={handleWatermarkOpacityInput}
 							onchange={handleWatermarkOpacityCommit}
-							aria-label="Watermark opacity"
 							aria-valuetext="{watermarkOpacity} percent"
 						/>
 					</div>
@@ -406,7 +401,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						value={watermarkProps?.textDraft ?? 'Watermark'}
 						placeholder="Watermark text"
 						oninput={handleWatermarkTextInput}
-						aria-label="Watermark text"
 					/>
 					<button
 						type="button"
@@ -446,7 +440,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						value={focalX}
 						oninput={handleFocalXInput}
 						onchange={handleFocalCommit}
-						aria-label="Focal point X"
 						aria-valuetext="{focalX} percent"
 					/>
 				</div>
@@ -471,7 +464,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						value={focalY}
 						oninput={handleFocalYInput}
 						onchange={handleFocalCommit}
-						aria-label="Focal point Y"
 						aria-valuetext="{focalY} percent"
 					/>
 				</div>

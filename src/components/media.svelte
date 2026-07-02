@@ -278,7 +278,6 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			placeholder="Search files..."
 			class="input flex-1"
 			id="media-search"
-			aria-label="Search media files"
 			disabled={isLoading}
 		/>
 

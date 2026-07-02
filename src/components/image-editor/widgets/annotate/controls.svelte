@@ -61,7 +61,6 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 					class="color-input"
 					value={strokeColor}
 					oninput={(e) => onStrokeColorChange(e.currentTarget.value)}
-					aria-label="Stroke color"
 				/>
 				<span class="color-swatch" style:background-color={strokeColor}></span>
 			</label>
@@ -75,7 +74,6 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 					class="color-input"
 					value={fillColor}
 					oninput={(e) => onFillColorChange(e.currentTarget.value)}
-					aria-label="Fill color"
 				/>
 				<span class="color-swatch" style:background-color={fillColor}></span>
 			</label>
@@ -91,7 +89,6 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 					value={textDraft}
 					placeholder="Enter text"
 					oninput={(e) => onTextDraftChange(e.currentTarget.value)}
-					aria-label="Annotation text"
 				/>
 			</div>
 		{/if}

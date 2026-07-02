@@ -189,7 +189,6 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 				value={blurStrength}
 				oninput={handleStrengthInput}
 				class="range range-primary flex-1"
-				aria-label="{strengthLabel} value"
 				aria-valuemin={minStrength}
 				aria-valuemax={maxStrength}
 				aria-valuenow={blurStrength}

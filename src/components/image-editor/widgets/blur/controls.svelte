@@ -74,7 +74,6 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 					oninput={handleStrengthInput}
 					class="slider-input blur-slider-input"
 					style:--slider-progress="{sliderProgress * 100}%"
-					aria-label="Blur strength"
 					aria-valuemin={5}
 					aria-valuemax={100}
 					aria-valuenow={blurStrength}

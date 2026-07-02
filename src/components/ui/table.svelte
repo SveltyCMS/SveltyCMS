@@ -191,7 +191,7 @@ function onVirtualScroll() {
                             {#if selectable}
                                 <th class="w-12 p-4">
                                     <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
-                                        checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="select-all-rows" />
+                                        checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                                 </th>
                             {/if}
                             {#each columns as col (col.key)}
@@ -231,7 +231,6 @@ function onVirtualScroll() {
                                             <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)}
-                                                aria-label={`select-row-${index + 1}`} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}
@@ -261,7 +260,7 @@ function onVirtualScroll() {
                         {#if selectable}
                             <th class="w-12 p-4">
                                 <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
-                                    checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="select-all-rows" />
+                                    checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                             </th>
                         {/if}
                         {#each columns as col (col.key)}
@@ -315,7 +314,6 @@ function onVirtualScroll() {
                                             <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)}
-                                                aria-label={`select-row-${index + 1}`} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}

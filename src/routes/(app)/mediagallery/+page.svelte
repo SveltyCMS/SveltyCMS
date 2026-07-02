@@ -112,7 +112,7 @@ const filteredFiles = $derived.by(() => {
 			if (searchCriteria.uploadedAfter && new Date(file.createdAt || 0) < searchCriteria.uploadedAfter) return false;
 			if (searchCriteria.uploadedBefore && new Date(file.createdAt || 0) > searchCriteria.uploadedBefore) return false;
 			if (searchCriteria.fileTypes && searchCriteria.fileTypes.length > 0 && !searchCriteria.fileTypes.some(t => file.mimeType?.includes(t))) return false;
-			
+
 			if (searchCriteria.tags && searchCriteria.tags.length > 0) {
 				const tags = meta?.tags as string[] | undefined;
 				if (!tags || !searchCriteria.tags.some(t => tags.includes(t))) return false;
@@ -476,7 +476,6 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				bind:this={fileUploadInput}
 				onchange={handleUpload}
 				accept="image/*,video/*,audio/*,application/pdf"
-				aria-label="upload-files"
 				data-testid="media-upload-input"
 			/>
 		</div>

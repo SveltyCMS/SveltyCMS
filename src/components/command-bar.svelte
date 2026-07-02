@@ -138,7 +138,6 @@ onMount(() => {
 			type="text"
 			placeholder="Type a command or search..."
 			class="w-full border-none bg-transparent py-4 ps-3 pe-4 text-lg outline-hidden ring-0 focus:ring-0 dark:text-white"
-			aria-label="Command search"
 		/>
 		<div class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50 px-2 py-0.5 text-xs font-medium text-surface-400 dark:border-surface-700 dark:bg-surface-800">
 			ESC

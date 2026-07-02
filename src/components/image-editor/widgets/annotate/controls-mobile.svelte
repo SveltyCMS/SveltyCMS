@@ -165,7 +165,6 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		oninput={(e) => onStrokeColorChange(e.currentTarget.value)}
 		tabindex="-1"
 		aria-hidden="true"
-		aria-label="Stroke color picker"
 	/>
 	<input aria-label="Stroke width"
 		bind:this={fillPickerRef}
@@ -175,7 +174,6 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		oninput={(e) => onFillColorChange(e.currentTarget.value)}
 		tabindex="-1"
 		aria-hidden="true"
-		aria-label="Fill color picker"
 	/>
 </div>
 

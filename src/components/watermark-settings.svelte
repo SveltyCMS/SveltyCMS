@@ -71,7 +71,6 @@ Usage:
 			bind:value={size}
 			oninput={handleSizeChange}
 			placeholder="e.g., 100px or 50%"
-			aria-label="Watermark size"
 		/>
 	</div>
 	<div>
@@ -85,7 +84,6 @@ Usage:
 			step="0.1"
 			bind:value={opacity}
 			oninput={handleOpacityChange}
-			aria-label="Watermark opacity"
 		/>
 	</div>
 	<div>
@@ -96,7 +94,6 @@ Usage:
 			type="number"
 			bind:value={positionX}
 			oninput={handlePositionXChange}
-			aria-label="Watermark horizontal position"
 		/>
 	</div>
 	<div>
@@ -107,7 +104,6 @@ Usage:
 			type="number"
 			bind:value={positionY}
 			oninput={handlePositionYChange}
-			aria-label="Watermark vertical position"
 		/>
 	</div>
 	<div>
@@ -118,7 +114,6 @@ Usage:
 			type="number"
 			bind:value={rotation}
 			oninput={handleRotationChange}
-			aria-label="Watermark rotation in degrees"
 		/>
 	</div>
 </div>

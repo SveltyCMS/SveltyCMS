@@ -342,7 +342,6 @@ Features:
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'ai')}
-										aria-label="Edit AI tag"
 									/>
 								{:else}
 									<Badge variant="primary" preset="tonal" size="sm" class="gap-1 pe-1">
@@ -440,7 +439,6 @@ Features:
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'user')}
-										aria-label="Edit saved tag"
 									/>
 								{:else}
 									<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">

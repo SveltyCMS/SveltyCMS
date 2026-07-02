@@ -371,7 +371,6 @@
 				size="1"
 				placeholder="Search folders..."
 				class="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
-				aria-label="Search media folders"
 			/>
 			{#if isSidebarFull && search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">

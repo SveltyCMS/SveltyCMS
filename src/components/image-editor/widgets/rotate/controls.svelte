@@ -221,7 +221,6 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 					oninput={handleAngleInput}
 					class="slider-input rotate-slider-input"
 					style:background={sliderFillStyle}
-					aria-label="Fine-tune rotation angle"
 					aria-valuemin={-180}
 					aria-valuemax={180}
 					aria-valuenow={rotationAngle}

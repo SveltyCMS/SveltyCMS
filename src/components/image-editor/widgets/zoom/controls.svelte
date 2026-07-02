@@ -88,7 +88,6 @@ Pintura-style zoom bottom dock controls.
 					value={sliderValue.value}
 					oninput={handleSliderChange}
 					class="slider-input"
-					aria-label="Zoom level slider"
 				/>
 				<div class="dock-pill-group zoom-value-group">
 					<label class="zoom-value-pill">
@@ -99,7 +98,6 @@ Pintura-style zoom bottom dock controls.
 							value={sliderValue.value}
 							onchange={handleInputChange}
 							class="zoom-value-input"
-							aria-label="Zoom level percentage"
 						/>
 						<span class="zoom-value-suffix" aria-hidden="true">%</span>
 					</label>

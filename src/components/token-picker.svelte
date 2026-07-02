@@ -459,7 +459,6 @@
 						rows="3"
 						class="textarea rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
 						placeholder="Edit token syntax here..."
-					 aria-label="Textarea"></textarea>
 				</div>
 
 				<div>
