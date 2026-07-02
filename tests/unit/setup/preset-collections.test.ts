@@ -31,9 +31,9 @@ describe("preset-collections.server", () => {
     const blog = PRESETS.find((p) => p.id === "blog");
     const posts = blog?.collections?.[0];
     const schema = collectionPresetToSchema(posts!);
-    const titleField = schema.fields?.find(
-      (f: { db_fieldName?: string }) => f.db_fieldName === "title",
-    ) as { widget?: { Name?: string } };
+    const titleField = schema.fields?.find((f: any) => (f as any).db_fieldName === "title") as {
+      widget?: { Name?: string };
+    };
     expect(titleField?.widget?.Name).toBe("Input");
   });
 

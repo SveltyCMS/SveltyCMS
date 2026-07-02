@@ -6,7 +6,7 @@
 
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/environment";
-import { createHash } from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -384,6 +384,8 @@ export const _handler = async (event: RequestEvent) => {
   if (
     !(locals as any).__testBypass &&
     process.env.TEST_MODE !== "true" &&
+    !(user as any)?.isApiKey &&
+    !(user as any)?.isApiToken &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
   ) {
     const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
@@ -404,13 +406,21 @@ export const _handler = async (event: RequestEvent) => {
     }
   }
 
-  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit AFTER Auth
+  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit AFTER Auth — pre-computed ETag avoids re-hash
   if (request.method === "GET") {
     const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
     if (cached) {
       if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
         console.log(`[CacheHit] Hit: ${url.pathname + url.search}`);
       }
+      // Cache tuple { body, etag } — pre-computed, zero hash overhead
+      if (typeof cached === "object" && cached !== null && "body" in cached && "etag" in cached) {
+        const entry = cached as { body: string; etag: string };
+        return new Response(entry.body, {
+          headers: { ..._jsonHeaders, "X-Cache": "HIT-L1", ETag: entry.etag },
+        });
+      }
+      // Legacy: plain string body
       if (typeof cached === "string") {
         return new Response(cached, {
           headers: { ..._jsonHeaders, "X-Cache": "HIT-L1" },
@@ -452,11 +462,37 @@ export const _handler = async (event: RequestEvent) => {
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
 
+  // ⚡ WEAK ETag FAST-PATH: Handler set apiDataHash on locals → skip body read entirely.
+  // Downstream handlers (collections, content) set this to a lightweight timestamp-based
+  // token (e.g. max updatedAt). The gateway uses it as a weak validator without cloning
+  // the response body, avoiding V8 string allocation and GC pressure on large payloads.
+  if (request.method === "GET" && response.status === 200 && !isStreaming) {
+    const apiDataHash = (event.locals as any).apiDataHash;
+    if (apiDataHash) {
+      const weakEtag = `W/"${apiDataHash}"`;
+      const ifNoneMatch = request.headers.get("if-none-match");
+
+      if (ifNoneMatch === weakEtag || ifNoneMatch === "*") {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: weakEtag,
+            "Cache-Control": "private, must-revalidate",
+            "X-API-Version": "1",
+            "X-Cache": "WEAK-304",
+          },
+        });
+      }
+
+      response.headers.set("ETag", weakEtag);
+      response.headers.set("X-API-Version", "1");
+      response.headers.set("X-Cache", "WEAK-ETAG");
+      return response;
+    }
+  }
+
   // Cache successful GET responses AND compute ETag — read body ONCE for both
   if (request.method === "GET" && response.status === 200 && !isStreaming) {
-    const responseBody = await response.text(); // Single read for cache + ETag
-
-    // Cache write (fire-and-forget)
     const pathStr = url.pathname;
     const isCacheable =
       pathStr.includes("/api/collections") ||
@@ -467,16 +503,34 @@ export const _handler = async (event: RequestEvent) => {
       pathStr.includes("/api/navigation") ||
       pathStr.includes("/api/themes") ||
       pathStr.includes("/api/config");
-    if (isCacheable) {
+
+    // 🚀 HYPER-PERFORMANCE: Read body once for ETag — cache only if cacheable
+    const responseBody = await response.text();
+
+    // Compute ETag once — works for both cacheable (cache + 304) and non-cacheable (304 only)
+    let etag = "";
+    try {
+      etag = `"${await xxhash64(responseBody)}"`;
+    } catch {
+      // Hash unavailable — body served without ETag below
+    }
+
+    if (isCacheable && etag) {
+      // Only cache cacheable endpoints — non-cacheable still get ETag for 304 support
       const { CacheCategory } = await import("@src/databases/cache/types");
       cacheService
-        .set(url.pathname + url.search, responseBody, 300, tenantId, CacheCategory.API)
+        .set(
+          url.pathname + url.search,
+          { body: responseBody, etag },
+          300,
+          tenantId,
+          CacheCategory.API,
+        )
         .catch(() => {});
     }
 
     // ETag conditional response
-    try {
-      const etag = `"${createHash("md5").update(responseBody).digest("base64").substring(0, 16)}"`;
+    if (etag) {
       const ifNoneMatch = request.headers.get("if-none-match");
 
       if (ifNoneMatch === etag || ifNoneMatch === "*") {
@@ -490,7 +544,7 @@ export const _handler = async (event: RequestEvent) => {
         });
       }
 
-      // Merge response headers with no-cache defaults + ETag — avoid new Headers() alloc
+      // Merge response headers with no-cache defaults + ETag
       const respHeaders: Record<string, string> = {
         ..._noCacheHeaders,
         ETag: etag,
@@ -503,20 +557,20 @@ export const _handler = async (event: RequestEvent) => {
         statusText: response.statusText,
         headers: respHeaders,
       });
-    } catch {
-      // Fallback: createHash unavailable (e.g., jsdom) — return body without ETag.
-      // responseBody was already read above; we must construct a new Response
-      // because the original response.body is now consumed/disturbed.
-      const fallbackHeaders: Record<string, string> = { ..._noCacheHeaders };
-      response.headers.forEach((val, key) => {
-        if (!fallbackHeaders[key]) fallbackHeaders[key] = val;
-      });
-      return new Response(responseBody, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: fallbackHeaders,
-      });
     }
+
+    // Hash unavailable — return body without ETag.
+    // responseBody was already read above; we must construct a new Response
+    // because the original response.body is now consumed/disturbed.
+    const fallbackHeaders: Record<string, string> = { ..._noCacheHeaders };
+    response.headers.forEach((val, key) => {
+      if (!fallbackHeaders[key]) fallbackHeaders[key] = val;
+    });
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: fallbackHeaders,
+    });
   }
 
   // Streaming or non-GET/non-200: add API version header, return response as-is

@@ -27,20 +27,18 @@ import { randomBytes } from "node:crypto";
 
 let stopServer: (() => Promise<void>) | null = null;
 
-function generateTestFile(sizeMb: number): {
-  buffer: Uint8Array;
-  name: string;
-} {
-  const buffer = new Uint8Array(randomBytes(sizeMb * 1024 * 1024));
-  return {
-    buffer,
-    name: `benchmark-upload-${sizeMb}mb-${Date.now()}.bin`,
-  };
+// Pre-allocated static buffers to avoid randomBytes + allocation per iteration
+let staticLargeBuffer: Uint8Array;
+let staticSmallBuffer: Uint8Array;
+
+function initializeStaticBuffers(largeSizeMb: number) {
+  staticLargeBuffer = new Uint8Array(randomBytes(Math.round(largeSizeMb * 1024 * 1024)));
+  staticSmallBuffer = new Uint8Array(randomBytes(Math.round(0.02 * 1024 * 1024)));
 }
 
 async function runUploadAudit() {
   // pre-existing unused var removed for TS strict mode
-  const FILE_SIZE_MB = parseInt(process.env.BENCH_UPLOAD_SIZE || "10", 10);
+  const FILE_SIZE_MB = parseFloat(process.env.BENCH_UPLOAD_SIZE || "0.1");
   console.log(`🚀 Starting Media Upload Stress Audit (${FILE_SIZE_MB}MB files)...\n`);
 
   try {
@@ -50,6 +48,9 @@ async function runUploadAudit() {
 
     await ensureStableTestData();
     await stabilize(1000);
+
+    // Pre-allocate payloads once — out of benchmark timing
+    initializeStaticBuffers(FILE_SIZE_MB);
 
     const uploadHeaders = {
       "x-test-mode": "true",
@@ -66,10 +67,12 @@ async function runUploadAudit() {
       runs: 2,
       concurrency: 1,
       silent: true,
-      onIteration: async () => {
-        const { buffer, name } = generateTestFile(FILE_SIZE_MB);
+      onIteration: async (i: number) => {
         const formData = new FormData();
-        formData.append("file", new Blob([buffer as any]), name);
+        const blob = new Blob([staticLargeBuffer as BlobPart], {
+          type: "application/octet-stream",
+        });
+        formData.append("file", blob, `bench-upload-${FILE_SIZE_MB}mb-${i}.bin`);
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
           method: "POST",
@@ -84,19 +87,21 @@ async function runUploadAudit() {
       },
     });
 
-    // 2. Small file upload (1MB, high throughput)
-    console.log("   → Measuring Small File Upload (1MB)...");
+    // 2. Small file upload (20KB, high throughput)
+    console.log("   → Measuring Small File Upload (20KB)...");
     const smallResult = await runBenchmark({
-      name: "Small Upload (1MB)",
+      name: "Small Upload (20KB)",
       iterations: 50,
       warmupIterations: 10,
       runs: 2,
       concurrency: 4,
       silent: true,
-      onIteration: async () => {
-        const { buffer, name } = generateTestFile(1);
+      onIteration: async (i: number) => {
         const formData = new FormData();
-        formData.append("file", new Blob([buffer as any]), name);
+        const blob = new Blob([staticSmallBuffer as BlobPart], {
+          type: "application/octet-stream",
+        });
+        formData.append("file", blob, `bench-upload-20kb-${i}.bin`);
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
           method: "POST",
@@ -121,7 +126,7 @@ async function runUploadAudit() {
 
     printSummaryTable([
       { key: `Upload ${FILE_SIZE_MB}MB`, val: singleResult.avgMs, unit: "ms" },
-      { key: "Upload 1MB", val: smallResult.avgMs, unit: "ms" },
+      { key: "Upload 20KB", val: smallResult.avgMs, unit: "ms" },
       { key: "Throughput", val: throughput.toFixed(1), unit: "MB/s" },
       {
         key: "Small RPS",

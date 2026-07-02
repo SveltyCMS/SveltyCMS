@@ -96,11 +96,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     const hasRoles = roles.length > 0;
 
     if (!hasAdmin || !hasRoles) {
-      logger
-        .channel("setupCheck")
-        .debug(
-          `Config exists but DB is missing ${!hasAdmin ? "ADMIN" : ""}${!hasAdmin && !hasRoles ? "/" : ""}${!hasRoles ? "ROLES" : ""}`,
-        );
+      if (process.env.TEST_MODE !== "true") {
+        logger
+          .channel("setupCheck")
+          .warn(
+            `Config exists but DB is missing ${!hasAdmin ? "ADMIN" : ""}${!hasAdmin && !hasRoles ? "/" : ""}${!hasRoles ? "ROLES" : ""}`,
+          );
+      }
       setupDbStatus = false;
       setupStatusCheckedDb = true;
       return false;

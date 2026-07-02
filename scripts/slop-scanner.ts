@@ -6,7 +6,7 @@
  * - Svelte 5 legacy reactivity detection (warns on $: patterns)
  * - Svelte legacy store warnings
  * - Directional Tailwind property conversions to Logical Properties (autofixable)
- * - Accessibility missing-label assertions on interactive anchors and buttons (skipping hidden inputs, supporting nested img alts)
+ * - Accessibility missing-label assertions on interactive elements
  * - Unsanitized {@html} expression risk evaluations with nested brace support
  * - Dynamic brace-balanced {#each} block key constraint validations
  * - Duplicate content duplication flags
@@ -87,7 +87,7 @@ function report(
   });
 }
 
-// RTL Logical Properties Mapping
+// RTL Logical Properties Mapping — only entries matched by dirRegex below
 const RTL_MAP: Record<string, string> = {
   pl: "ps",
   pr: "pe",
@@ -101,10 +101,10 @@ const RTL_MAP: Record<string, string> = {
   "border-r": "border-e",
   "rounded-l": "rounded-s",
   "rounded-r": "rounded-e",
-  "divide-x": "divide-s",
-  "divide-x-reverse": "divide-s-reverse",
-  "space-x": "space-s",
-  "space-x-reverse": "space-s-reverse",
+  "divide-x": "divide-x",
+  "divide-x-reverse": "divide-x-reverse",
+  "space-x": "space-x",
+  "space-x-reverse": "space-x-reverse",
 };
 
 async function scanSvelteFile(relPath: string, content: string, shouldFix: boolean) {
@@ -113,7 +113,7 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
   );
 
   const lines = cleanContent.split("\n");
-  const fixedLines = [...lines]; // clone for safe mutation
+  const fixedLines = [...lines];
   let fileWasModified = false;
 
   let inCodeBlock = false;
@@ -130,17 +130,29 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
     }
     if (inCodeBlock) continue;
 
+    // Detect script/style blocks — handles multi-line opening tags like <script\n lang="ts">
     if (/<script\b/i.test(trimmed)) inScriptBlock = true;
     if (/<\/script>/i.test(trimmed)) inScriptBlock = false;
     if (/<style\b/i.test(trimmed)) inStyleBlock = true;
     if (/<\/style>/i.test(trimmed)) inStyleBlock = false;
 
+    // Also catch script/style blocks that open across line boundaries
+    if (!inScriptBlock && !inStyleBlock) {
+      // Look ahead up to 2 lines for a multi-line <script or <style opening tag
+      const windowLines = lines.slice(i, Math.min(i + 3, lines.length)).join(" ");
+      if (/<script\b[^>]*$/i.test(windowLines) && !/<\/script>/i.test(windowLines)) {
+        inScriptBlock = true;
+      }
+      if (/<style\b[^>]*$/i.test(windowLines) && !/<\/style>/i.test(windowLines)) {
+        inStyleBlock = true;
+      }
+    }
+
     // === Legacy $: reactivity (Svelte 5) — detection only, NO auto-fix ===
-    // Auto-fixing $: → $derived() is unsafe due to:
-    //   - multi-line expressions, block statements ($: { }), conditionals ($: if (x) { })
-    //   - expressions containing forward slashes (regex, division)
-    // A broken auto-fix silently introduces runtime bugs.
-    if (inScriptBlock && /\$\s*:(?!.*(\$state|\$derived|\$effect|\$props|\$bindable))/.test(line)) {
+    // Flag ALL $: patterns inside script blocks — the negative lookahead on rune
+    // keywords (e.g. $state) is removed because it produces false-negatives on
+    // lines like `$: x = state(0).value` where `state` is not a Svelte rune.
+    if (inScriptBlock && /\$\s*:/.test(line)) {
       report(relPath, i + 1, "svelte5-legacy", "Legacy $: reactivity — migrate to runes", "error");
     }
 
@@ -159,14 +171,31 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
         continue;
       }
 
-      const combined = lines.slice(i, Math.min(i + 25, lines.length)).join(" ");
-      const textWithoutTags = combined.replace(/<(?!\/?img\b)[^>]*>/gi, "").trim();
-
+      // Only scan the opening tag's attribute string for accessible names —
+      // the previous 25-line lookahead would match aria-label from sibling
+      // elements and suppress legitimate warnings.
       const hasAccessibleName =
-        /(aria-label|aria-labelledby|title|id\s*=|for\s*=)/i.test(combined) ||
+        /(aria-label|aria-labelledby|title|id\s*=)/i.test(attrs) ||
         ((tagName === "a" || tagName === "button") &&
-          (/[a-zA-Z0-9\u00C0-\u017F]/.test(textWithoutTags) ||
-            /alt\s*=\s*["'][^"']+["']/i.test(combined)));
+          /[a-zA-Z0-9\u00C0-\u017F]/.test(line.replace(/<[^>]*>/g, "").trim())) ||
+        false;
+
+      // Separately check for wrapping <label for="id"> pattern
+      if (!hasAccessibleName && tagName === "input" && /id\s*=\s*["']([^"']+)["']/i.test(attrs)) {
+        const inputId = attrs.match(/id\s*=\s*["']([^"']+)["']/i)?.[1];
+        if (inputId) {
+          // Check if any nearby line contains <label for="inputId">
+          const nearby = lines.slice(Math.max(0, i - 3), i).join(" ");
+          if (
+            new RegExp(
+              `<label\\b[^>]*for\\s*=\\s*["']${inputId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`,
+              "i",
+            ).test(nearby)
+          ) {
+            continue; // Has wrapping label — skip
+          }
+        }
+      }
 
       if (!hasAccessibleName) {
         report(
@@ -180,8 +209,10 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
     }
 
     // === RTL / Logical Properties ===
+    // Updated to include divide-x and space-x variants that were in RTL_MAP
+    // but not matched by the previous dirRegex pattern.
     const dirRegex =
-      /(?:^|[\s"'`])(pl|pr|ml|mr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right)(-\d+|-\[[^\]]+\]|)(?=[\s"'`]|$)/g;
+      /(?:^|[\s"'`])(pl|pr|ml|mr|left|right|border-l|border-r|rounded-l|rounded-r|text-left|text-right|divide-x|divide-x-reverse|space-x|space-x-reverse)(-reverse|-\[[^\]]+\]|-\d+|)(?=[\s"'`]|$)/g;
 
     let m: RegExpExecArray | null;
     while ((m = dirRegex.exec(line)) !== null) {
@@ -189,13 +220,20 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
       const suffix = m[2];
       const full = prefix + suffix;
 
-      // Skip bare words like "left" or "right" that are not Tailwind classes
+      // Skip bare words like "left"/"right" that are not Tailwind classes
       const requiresSuffix = ["pl", "pr", "ml", "mr", "left", "right"];
       if (requiresSuffix.includes(prefix) && !suffix) continue;
 
+      // divide-x/space-x variants with modifiers (-reverse) are informational
+      // since logical property equivalents don't exist in Tailwind v4 yet
+      if (["divide-x", "divide-x-reverse", "space-x", "space-x-reverse"].includes(prefix)) {
+        report(relPath, i + 1, "rtl", `"${full}" → consider logical equivalent`, "warning", true);
+        continue; // No safe autofix available
+      }
+
       report(relPath, i + 1, "rtl", `"${full}" → use logical property`, "warning", true);
 
-      if (shouldFix && RTL_MAP[prefix]) {
+      if (shouldFix && RTL_MAP[prefix] !== full) {
         const newClass = RTL_MAP[prefix] + suffix;
         const escaped = full.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const regex = new RegExp(`(?<=^|[\\s"'\`])${escaped}(?=[\\s"'\`]|$)|\\b${escaped}\\b`, "g");
@@ -232,7 +270,6 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
   }
 
   // Svelte 5 {#each} key validation (skip code blocks)
-  // Supports nested braces up to one level (e.g., passing options objects)
   for (const m of contentNoCodeBlocks.matchAll(/\{#each\s+((?:[^{}]|\{[^{}]*\})+)\}/g)) {
     const eachBody = m[1].trim();
     const hasAs = /\bas\b/.test(eachBody);
@@ -290,13 +327,10 @@ function checkDuplicateContent(relPath: string, content: string) {
   if (norm.length < 400) return;
 
   if (contentCache.has(norm)) {
-    report(
-      relPath,
-      0,
-      "copy-paste",
-      `Very similar content to: ${contentCache.get(norm)!.join(", ")}`,
-      "warning",
-    );
+    const existing = contentCache.get(norm)!;
+    report(relPath, 0, "copy-paste", `Very similar content to: ${existing.join(", ")}`, "warning");
+    // FIX: append current file to cache so subsequent near-duplicates are also flagged
+    existing.push(relPath);
   } else {
     contentCache.set(norm, [relPath]);
   }
@@ -321,7 +355,6 @@ async function main() {
 
   if (targetFiles?.length) {
     for (const f of targetFiles) {
-      // Support both absolute paths (from lint-staged) and relative paths
       const isAbsolute = f.startsWith("/") || /^[A-Za-z]:[\\/]/.test(f);
       const full = isAbsolute ? f : join(ROOT, f);
       if (existsSync(full)) {
@@ -330,7 +363,6 @@ async function main() {
       }
     }
   } else {
-    // Target both .svelte files and ts/js files dynamically
     const allFiles = globSync("src/**/*.{svelte,ts,js}", {
       cwd: ROOT,
       ignore: [

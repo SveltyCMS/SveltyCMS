@@ -18,7 +18,7 @@ import {
   SetupState,
   isSetupComplete,
   getTestSecret,
-} from "../utils/server/setup-check";
+} from "@utils/server/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
@@ -44,7 +44,8 @@ let healthHeaders: Record<string, string> | null = null;
 let requestIdCounter = 0;
 const generateRequestId = () => {
   if (IS_BENCHMARK) return ++requestIdCounter;
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+  // Use CSPRNG for all trace IDs (security hardening)
+  return globalThis.crypto.randomUUID().slice(0, 8) + Date.now().toString(36);
 };
 
 /** Logs request performance — ONLY in development mode to avoid string interpolation overhead in production */
@@ -72,6 +73,19 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     };
   }
 
+  // 🚀 PERFORMANCE FAST-PATH: Avoid allocating system info & calling process.memoryUsage() / process.uptime()
+  // which are heavy system/V8 operations, unless verbose is requested during benchmark/health checks.
+  if (IS_BENCHMARK && !searchParams.has("verbose")) {
+    return new Response(
+      JSON.stringify({
+        status: db ? "healthy" : "initializing",
+        overallStatus: db ? "READY" : "SETUP",
+        database: !!db,
+      }),
+      { status: 200, headers: healthHeaders },
+    );
+  }
+
   const health = {
     status: db ? "healthy" : "initializing",
     overallStatus: db ? "READY" : "SETUP",
@@ -87,18 +101,6 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
       return process.memoryUsage();
     })(),
   };
-
-  // Fast path for benchmarks: skip memory and extra fields unless verbose
-  if (IS_BENCHMARK && !searchParams.has("verbose")) {
-    return new Response(
-      JSON.stringify({
-        status: health.status,
-        overallStatus: health.overallStatus,
-        database: health.database,
-      }),
-      { status: 200, headers: healthHeaders },
-    );
-  }
 
   return new Response(JSON.stringify(health), {
     status: 200,

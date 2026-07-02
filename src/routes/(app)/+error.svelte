@@ -11,6 +11,7 @@
 - Rotating animation effect for the site name to enhance visual appeal.
 - Clear call-to-action link to return to the homepage.
 - WCAG 2.2 AA Compliant + WCAG 3.0 Functional Performance focused
+- 429 Too Many Requests support with retry guidance
 
 -->
 
@@ -20,6 +21,8 @@
 import SiteName from "@src/components/site-name.svelte";
 import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
 import {
+	db_error_description,
+	db_error_title,
 	error_gofrontpage,
 	error_page_moved,
 	error_pagenotfound,
@@ -46,9 +49,37 @@ function isCMSChar(index: number): boolean {
 	const posInPattern = index % patternLength;
 	return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
 }
+
+// Dynamic Error Handling logic
+const msg = (page.error?.message || "").toLowerCase();
+const isDatabaseError =
+	page.status === 503 &&
+	(msg.includes("database") ||
+		msg.includes("connection") ||
+		msg.includes("failed to initialize"));
+const isSetupMode = page.status === 503 && msg.includes("setup");
+const isRateLimited = page.status === 429;
+
+const errorTitle = isDatabaseError
+	? db_error_title()
+	: page.status === 404
+		? error_pagenotfound()
+		: isRateLimited
+			? "Too Many Requests"
+			: "Error";
+
+const errorSummary = isDatabaseError
+	? db_error_description()
+	: isSetupMode
+		? "System in Setup Mode"
+		: page.status === 404
+			? error_pagenotfound()
+			: isRateLimited
+				? "Slow down — you're sending requests too quickly. Please wait and try again."
+				: error_wrong();
 </script>
 
-<svelte:head><title>{page.status} - {error_pagenotfound()} | {siteName}</title></svelte:head>
+<svelte:head><title>{page.status} - {errorTitle} | {siteName}</title></svelte:head>
 
 {#if page}
 	<main
@@ -94,7 +125,7 @@ function isCMSChar(index: number): boolean {
 					aria-label="Error type"
 				>
 					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
-					<div class="whitespace-nowrap">{error_pagenotfound()}</div>
+					<div class="whitespace-nowrap">{errorSummary}</div>
 				</div>
 			</div>
 

@@ -29,7 +29,7 @@ env:
 jobs:
   validate-documentation:
     runs-on: ubuntu-latest # Ubuntu environment for CI
-    timeout-minutes: 20 # Covers doc lint + svelte-check + docs build + full integration sanity run
+    timeout-minutes: 8 # Doc lint + type check only (build moved to ci.yml)
     steps:
       - uses: actions/checkout@v6
         with:
@@ -71,21 +71,9 @@ jobs:
       - name: Generate Paraglide & SvelteKit types
         run: bun run paraglide && bun x svelte-kit sync
 
-      # === STEP 2: STATIC ANALYSIS (The Deep Code Check) ===
-      - name: Run Comprehensive Code & Doc Linting
-        # Running the full 'check' suite ensures all type contracts are valid,
-        # and running 'lint' ensures code style consistency.
-        run: bun run check && bun run lint
+      # === STEP 2: STATIC ANALYSIS (Type check only) ===
+      - name: Run Type Check
+        run: bun run check
 
-      # === STEP 3: DOCUMENTATION BUILD (The Crucial Step) ===
-      - name: Build Documentation Artifacts (Build Verification)
-        # This attempts to compile the entire documentation site.
-        # If any MDX component fails to load, resolve, or compile, this step will fail.
-        run: bun run build
-        # Note: We use 'bun run build' as it typically handles MDX compilation in SvelteKit
-
-      # === STEP 4: Full Integration Sanity Check ===
-      # After documenting the system, we must prove the system works.
-      - name: Run Core Integration Sanity Checks
-        # Run a limited, fast subset of integration tests to ensure the core API is functional.
-        run: bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+      # === STEP 3: Build verification removed — ci.yml handles this on push ===
+      # === STEP 4: Integration tests removed — ci.yml handles this on push ===

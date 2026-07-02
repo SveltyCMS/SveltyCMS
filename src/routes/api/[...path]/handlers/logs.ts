@@ -66,5 +66,37 @@ export async function handleLogsRoutes(
     });
   }
 
+  if (action === "audit") {
+    if (method !== "GET") {
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
+    }
+
+    const { queryAuditLogs } = await import("@src/services/security/audit-service");
+
+    const { url } = event;
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 500);
+    const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+    const filterType = url.searchParams.get("type") || undefined;
+    const filterUser = url.searchParams.get("user") || undefined;
+
+    const filters: Record<string, any> = {};
+    if (filterType) filters.eventType = filterType;
+    if (filterUser) filters.actorEmail = filterUser;
+
+    const res = await queryAuditLogs({
+      tenantId: _tenantId,
+      limit,
+      offset,
+      filters,
+    });
+
+    if (!res.success) {
+      throw new AppError(res.message || "Failed to query audit logs", 500);
+    }
+
+    const { successResponse } = await import("./base");
+    return successResponse(event, res.data || []);
+  }
+
   throw new AppError(`Logs endpoint /api/logs/${action || ""} not implemented`, 404);
 }

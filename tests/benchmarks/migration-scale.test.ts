@@ -30,8 +30,10 @@ const BATCH_SIZE = 500;
 
 let stopServer: (() => Promise<void>) | null = null;
 
+// Pre-computed content template — avoids .repeat(8) allocation in hot loop
+const STATIC_CONTENT = "<p>Stress test content for large scale migration.</p>".repeat(8);
+
 async function runMigrationAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log(
     `🚀 Starting Migration & Scale Audit (${TOTAL_ENTRIES.toLocaleString()} entries)...\n`,
   );
@@ -45,6 +47,10 @@ async function runMigrationAudit() {
 
     // 1. Bulk Ingestion Benchmark
     console.log(`   → Ingesting ${TOTAL_ENTRIES} entries...`);
+
+    // Capture once before the benchmark clock starts — avoids Date.now() in hot loop
+    const initialRunTime = Date.now();
+
     const migrationResult = await runBenchmark({
       name: "Bulk Migration (10k)",
       iterations: Math.ceil(TOTAL_ENTRIES / BATCH_SIZE),
@@ -54,16 +60,19 @@ async function runMigrationAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async (batchIndex: number) => {
-        const batch = Array.from({ length: BATCH_SIZE }, (_, j) => ({
-          _id: `mig-${Date.now()}-${batchIndex}-${j}`,
-          title: `Bulk Entry ${batchIndex * BATCH_SIZE + j}`,
-          content: "<p>Stress test content for large scale migration.</p>".repeat(8),
-          metadata: {
-            importedAt: new Date().toISOString(),
-            batch: batchIndex,
-            tags: ["migration", "benchmark"],
-          },
-        }));
+        const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
+          const absoluteIndex = batchIndex * BATCH_SIZE + j;
+          return {
+            _id: `mig-${initialRunTime}-${absoluteIndex}`,
+            title: `Bulk Entry ${absoluteIndex}`,
+            content: STATIC_CONTENT,
+            metadata: {
+              importedAt: "2026-06-27T20:00:00.000Z",
+              batch: batchIndex,
+              tags: ["migration", "benchmark"],
+            },
+          };
+        });
 
         const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
           method: "POST",

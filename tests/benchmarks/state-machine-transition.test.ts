@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/state-machine-transition.test.ts
- * @description Self-Healing State Machine Integrity Benchmark
+ * @description Self-Healing State Machine Integrity Benchmark (Optimized)
  * @summary Simulates rapid system re-initializations and verifies valid self-healing state transitions under stress.
  *
  * ### Features:
@@ -24,7 +24,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runStateMachineAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise State Machine Integrity Audit...\n");
 
   try {
@@ -32,45 +31,51 @@ async function runStateMachineAudit() {
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
+    // Cache static immutable configuration headers outside hot iteration path
+    const requestHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+    };
+
     console.log("   → Stressing 'Self-Healing' re-initialization logic...");
 
     const results = await runBenchmark({
       name: "State Transition (READY -> IDLE -> READY)",
       iterations: 50,
       runs: 1,
-      concurrency: 1, // Must be sequential to verify state chain
+      concurrency: 1, // Must be sequential to verify step state sequence continuity
       silent: true,
       onIteration: async (i: number) => {
         // 1. Trigger Re-initialization
-        // This moves state to INITIALIZING then READY
         const res = await fetch(`${baseUrl}/api/system/reinitialize`, {
           method: "POST",
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-          },
+          headers: requestHeaders,
         });
 
         if (!res.ok) {
           throw new Error(`Re-init trigger failed: ${res.status}`);
         }
 
+        // Ensure low-level socket buffer exhaustion
+        await res.arrayBuffer();
+
         // 2. Immediate Health Probe
-        // We expect either 503 (INITIALIZING) or 200 (READY)
-        // If it returns 500 or hangs, the state machine is broken.
         const healthRes = await fetch(`${baseUrl}/api/system/health`, {
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-          },
+          method: "GET",
+          headers: requestHeaders,
         });
 
-        const data = await healthRes.json();
-        const status = data.overallStatus || data.status;
+        // Fast text extraction — check overallStatus first, then status
+        const textPayload = await healthRes.text();
+
+        // Prioritize overallStatus over status (health endpoint returns both)
+        const osMatch = textPayload.match(/"overallStatus"\s*:\s*"([^"]+)"/);
+        const sMatch = textPayload.match(/"status"\s*:\s*"([^"]+)"/);
+        const status = osMatch ? osMatch[1] : sMatch ? sMatch[1] : null;
 
         const allowed = ["INITIALIZING", "READY", "WARMING", "WARMED", "SETUP", "operational"];
-        if (!allowed.includes(status)) {
-          throw new Error(`Invalid state reached during cycle ${i}: ${status}`);
+        if (!status || !allowed.includes(status)) {
+          throw new Error(`Invalid state reached during cycle ${i}: ${status ?? "<unknown>"}`);
         }
       },
     });

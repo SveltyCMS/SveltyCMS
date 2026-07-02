@@ -31,10 +31,10 @@ import { platform } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import adapter from "svelte-adapter-uws";
+import uws from "svelte-adapter-uws/vite";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
-import uws from "svelte-adapter-uws/vite";
 import realtime from "svelte-realtime/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
@@ -330,6 +330,10 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
     /\[svelte-realtime\]/,
     // Suppress sourcemap warnings from plugins that don't generate them
     /\[SOURCEMAP_BROKEN\]/,
+    // Suppress "Module X has been externalized for browser compatibility" (informational, not an error)
+    /has been externalized for browser compatibility/,
+    // Suppress empty glob pattern warnings from dynamic imports with variable segments
+    /did not match any files/,
   ];
 
   function shouldSuppress(msg: string): boolean {
@@ -893,6 +897,7 @@ export default defineConfig((): any => {
 
   return {
     plugins: [
+      uws(),
       databaseAdapterStripperPlugin(),
       testBackdoorStripperPlugin(),
       testConfigAliasPlugin(),
@@ -1003,7 +1008,7 @@ export default defineConfig((): any => {
             },
       }),
       vitePlusInspectorPatchPlugin(),
-      uws(),
+
       realtime({ typedImports: !isBuild }),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
@@ -1069,6 +1074,7 @@ export default defineConfig((): any => {
       __FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
       __SVELTY_SETUP_COMPLETE__: setupComplete,
       global: "globalThis", // `global` polyfill for libraries that expect it (e.g., older crypto libs)
+      "process.env": "{}", // polyfill for server-only files (e.g. cors-utils) accidentally bundled client-side
       "import.meta.env.VITE_LOG_LEVELS": JSON.stringify(
         process.env.LOG_LEVELS || (isBuild ? "info,warn,error" : "info,warn,error,debug"),
       ),
@@ -1147,6 +1153,10 @@ export default defineConfig((): any => {
             // Group validation library
             if (id.includes("node_modules/valibot")) {
               return "vendor-validate";
+            }
+            // Group database ORM
+            if (id.includes("node_modules/drizzle-orm")) {
+              return "vendor-drizzle";
             }
           },
         },

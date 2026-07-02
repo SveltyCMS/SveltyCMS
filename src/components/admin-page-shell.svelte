@@ -17,6 +17,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - `highlight` (string): Partial title highlight.
 - `fullHeight` (boolean): Disable vertical scroll on shell (editor layouts).
 - `spaceY` ('4' | '6' | '8'): Vertical rhythm between sections.
+- `titleCompact` (boolean): Tighter PageTitle row with bottom border.
 - `animate` (boolean): Apply standard page entry fade (respects reduced motion).
 - `children` (Snippet): Page body content.
 - `actions` (Snippet): Trailing header actions for PageTitle.
@@ -41,6 +42,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		highlight?: string;
 		fullHeight?: boolean;
 		spaceY?: '4' | '6' | '8';
+		titleCompact?: boolean;
 		animate?: boolean;
 		children?: import('svelte').Snippet;
 		actions?: import('svelte').Snippet;
@@ -55,6 +57,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		highlight = '',
 		fullHeight = false,
 		spaceY = '6',
+		titleCompact = false,
 		animate = true,
 		children,
 		actions
@@ -79,6 +82,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{showBackButton}
 		{backUrl}
 		{highlight}
+		compact={titleCompact}
 	>
 		{#if actions}
 			{@render actions()}

@@ -19,6 +19,7 @@ import {
   convertMongoUserToISO,
 } from "@src/databases/mongodb/mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
+import { normalizeEmail } from "@src/utils/normalize-email";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 import { SessionSchema } from "./auth-session";
@@ -109,12 +110,12 @@ export class UserAdapter {
     try {
       const normalizedData = {
         ...userData,
-        email: userData.email?.toLowerCase(),
+        email: userData.email ? normalizeEmail(userData.email) : userData.email,
       };
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/security");
+        const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 
@@ -148,12 +149,12 @@ export class UserAdapter {
     try {
       const normalizedData = { ...userData };
       if (normalizedData.email) {
-        normalizedData.email = normalizedData.email.toLowerCase();
+        normalizedData.email = normalizeEmail(normalizedData.email);
       }
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/security");
+        const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 
@@ -380,7 +381,7 @@ export class UserAdapter {
   ): Promise<DatabaseResult<User | null>> {
     try {
       const filter = safeQuery(
-        { email: criteria.email.toLowerCase() } as any,
+        { email: normalizeEmail(criteria.email) } as any,
         criteria.tenantId as string,
         {
           bypassTenantCheck: options.bypassTenantCheck,

@@ -125,6 +125,11 @@ async function getDbInit() {
 
 // Centralized, idempotent system initialization.
 export async function ensureFullInitialization(): Promise<any | null> {
+  // 🚀 SAFETY: Clear the shutdown guard — any call to re-initialize, whether from
+  // reinitializeSystem(), initializeWithConfig(), or a cold start, means the previous
+  // shutdown (if any) is over and auto-reconnection should be re-enabled.
+  (globalThis as any).__SYSTEM_SHUTTING_DOWN__ = false;
+
   // 🚀 HARDENING: Double-Check Locking with Connectivity Guard
   const existingPromise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
   const phase = getBootPhase();
@@ -263,6 +268,10 @@ export async function initializeDatabase(): Promise<void> {
 
 // AGNOSTIC CORE: Shutdown helper.
 export async function shutdownSystem(): Promise<void> {
+  // 🛡️ Set shutdown guard before disconnecting so resilience hooks don't
+  // schedule competing auto-reconnections during intentional reinitialize.
+  (globalThis as any).__SYSTEM_SHUTTING_DOWN__ = true;
+
   const adapter = getGlobal<IDBAdapter>(ADAPTER_KEY);
   if (adapter && typeof adapter.disconnect === "function") {
     await adapter.disconnect();
@@ -289,6 +298,7 @@ export async function shutdownSystem(): Promise<void> {
 export async function reinitializeSystem(_force = true): Promise<void> {
   await shutdownSystem();
   await ensureFullInitialization();
+  (globalThis as any).__SYSTEM_SHUTTING_DOWN__ = false;
 }
 
 // TEST HELPERS: Manual state control for integration suites.
@@ -300,6 +310,7 @@ export function resetDbInitPromise(): void {
 export async function initializeWithConfig(config: any): Promise<any> {
   // Setup finalization can happen while the preview server is already READY on an
   // older bootstrap adapter. Force a full reconnect against the freshly written config.
+  (globalThis as any).__SYSTEM_SHUTTING_DOWN__ = true;
   clearConfigStateCache(false);
   const baseConfig = (await loadConfig(true).catch(() => null)) ?? {};
   const nextConfig = { ...baseConfig, ...config };

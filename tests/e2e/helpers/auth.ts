@@ -16,20 +16,12 @@ export const ADMIN_CREDENTIALS = {
 };
 
 /**
- * Generic login function for any user
+ * Prepare the login form by dismissing modals and clicking the sign in icon
  * @param page - Playwright page object
- * @param email - User email
- * @param password - User password
- * @param waitForUrl - URL pattern to wait for after login (default: not /login)
  */
-export async function loginAs(
-  page: Page,
-  email: string,
-  password: string,
-  waitForUrl?: string | RegExp,
-) {
+export async function prepareLoginForm(page: Page) {
   // Atomic Auth: Clear all previous session state to prevent session bleed
-  console.log(`[Auth] Logging in as ${email}...`);
+  console.log(`[Auth] Preparing login form...`);
   await page.context().clearCookies();
 
   // Navigate first to ensure we have a valid origin for localStorage access
@@ -67,7 +59,8 @@ export async function loginAs(
 
   // Navigate to login page (reload to apply init scripts)
   console.log("[Auth] Navigating to /login...");
-  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
+  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.waitForTimeout(500);
 
   // Check if we got redirected to setup (config incomplete)
   if (page.url().includes("/setup")) {
@@ -146,16 +139,14 @@ export async function loginAs(
     }
   }
 
-  // Strategy 4: Cookie consent banner (fixed bottom bar, z-9999, aria-modal)
-  const cookieBanner = page.locator('[role="dialog"][aria-modal="true"]').first();
-  if (await cookieBanner.isVisible({ timeout: 1000 }).catch(() => false)) {
-    console.log("[Auth] Cookie consent banner detected, accepting...");
-    const acceptBtn = cookieBanner.getByRole("button", { name: /accept/i });
-    if (await acceptBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await acceptBtn.click();
-      await page.waitForTimeout(500);
-      console.log("[Auth] ✓ Cookie consent accepted");
-    }
+  // Strategy 4: Cookie consent banner (defense-in-depth fallback)
+  // The addInitScript above should prevent this, but dismiss if still visible
+  const cookieAcceptBtn = page.getByTestId("cookie-accept-all");
+  if (await cookieAcceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log("[Auth] Cookie consent still visible despite init script, accepting...");
+    await cookieAcceptBtn.click();
+    await page.waitForTimeout(300);
+    console.log("[Auth] ✓ Cookie consent accepted");
   }
 
   console.log("[Auth] Modal dismissal complete.");
@@ -210,6 +201,22 @@ export async function loginAs(
       }
       throw e;
     });
+}
+
+/**
+ * Generic login function for any user
+ * @param page - Playwright page object
+ * @param email - User email
+ * @param password - User password
+ * @param waitForUrl - URL pattern to wait for after login (default: not /login)
+ */
+export async function loginAs(
+  page: Page,
+  email: string,
+  password: string,
+  waitForUrl?: string | RegExp,
+) {
+  await prepareLoginForm(page);
 
   // Fill login form using data-testid selectors
   console.log(`[Auth] Filling email: ${email}`);
@@ -234,6 +241,38 @@ export async function loginAs(
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+}
+
+/**
+ * Enable 2FA for a specific user to test the 2FA UI flow
+ * @param page - Playwright page object
+ * @param email - User email
+ */
+export async function enable2FAForTestUser(page: Page, email: string) {
+  // 1. Get user to find ID
+  const userRes = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: { action: "get-user", email },
+  });
+  const userData = await userRes.json();
+  if (!userData.success || !userData.user) {
+    throw new Error(`Failed to find user ${email}`);
+  }
+
+  // 2. Update user to enable 2FA
+  const updateRes = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "update",
+      collectionId: "auth_users",
+      id: userData.user._id,
+      data: { is2FAEnabled: true },
+    },
+  });
+  const updateData = await updateRes.json();
+  if (!updateData.success) {
+    throw new Error(`Failed to enable 2FA for user ${email}`);
+  }
 }
 
 /**

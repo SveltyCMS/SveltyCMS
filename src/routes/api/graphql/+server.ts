@@ -34,6 +34,16 @@ const depthLimitRule = createDepthLimitRule(8);
 const maxAliasesRule = createMaxAliasesRule(15);
 
 const securityValidationPlugin = {
+  onParse({ params }: any) {
+    // Cost-budget queries at parse time — no request.clone() needed
+    const query = params?.source || params?.query;
+    if (typeof query === "string") {
+      const analysis = analyzeQueryCost(query);
+      if (!analysis.allowed) {
+        throw new AppError(formatCostError(analysis.cost, 1000), 400, "QUERY_TOO_EXPENSIVE");
+      }
+    }
+  },
   onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
@@ -259,30 +269,6 @@ async function handleRequest(event: RequestEvent) {
     | "published"
     | "draft"
     | "all";
-
-  // 🚀 QUERY COST ANALYSIS: Reject over-budget queries before execution
-  if (request.method === "POST") {
-    try {
-      const clonedRequest = request.clone();
-      const body = await clonedRequest.json().catch(() => null);
-      if (body && typeof body.query === "string") {
-        const analysis = analyzeQueryCost(body.query);
-        if (!analysis.allowed) {
-          return new Response(
-            JSON.stringify({
-              errors: [{ message: formatCostError(analysis.cost, 1000) }],
-            }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-      }
-    } catch {
-      // If body parsing fails, let Yoga handle the error downstream
-    }
-  }
 
   let _loaders: any = null;
 

@@ -1,12 +1,12 @@
 ---
 path: "docs/project/roadmap-2026.mdx"
 title: "Project Roadmap 2026"
-description: "SveltyCMS 2026 roadmap — upcoming milestones, in-progress work, and recently completed items."
+description: "SveltyCMS 2026 roadmap — upcoming milestones and in-progress work. Completed items are documented in the technical evaluation."
 order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-23"
+updated: "2026-06-29"
 tags:
   - "roadmap"
   - "todo"
@@ -20,19 +20,8 @@ tags:
 
 This document is the **living roadmap** — only in-progress and planned work. Completed achievements are documented in [Technical Evaluation](./technical-evaluation-2026.mdx).
 
-## ✅ Recently Completed (June 2026)
-
-- **Content System Consolidation** — 16→9 files (engine.server.ts + loader.server.ts + unified facades). Single scanner, single init coordinator, unified `refreshContent({ mode })`, dead code removed (~200 lines), `contentSystemBase` de-duplicated. 20 new reconciliation unit tests.
-- **Media System Optimization** — 17→14 files. Duplicate MIME tables merged into `media-utils.ts` (65-type DB + reverse lookup). `sharing.ts` wired into media handler (replaced inline crypto with `createLink`/`validateLink`). `slim-sniffer.server.ts` wired as binary MIME fallback in upload flow. 40 new unit tests (sharing, MIME utils, binary sniffer).
-- **Smart Importer v2.1** — 5-step visual wizard (`/config/migration`), unified `import-runner` orchestration, SSE streaming import, delta/PII Pro gates, full CMS media parity (`saveResizedImages`), background job queue (500+ entries).
-
-- **Auto-scaffold collections** — `collection-scaffold.ts` mirrors Collection Builder pipeline (TS → compile → refresh → `createModel`); wizard Step 3 **Create Collection from Mappings** + auto-provision on import.
-- **Data-driven collection naming** — `infer-collection.ts` derives target collection from source content types (`wp:post_type` → `post`) with manual override in the wizard.
-
-- **Shared mappings & permissions** — `known-mappings.ts` (wizard + CLI); `hasCollectionBuilderPermission()` (`config:collectionbuilder`) for scaffold/import.
-- **E2E coverage** — WordPress WXR detect, dry-run scaffold UI, full import → API verification (`tests/e2e/helpers/migration-wizard.ts`).
-
-See [Technical Evaluation — Smart Importer](./technical-evaluation-2026.mdx#smart-ai-driven-migration-pro-v21) for full detail.
+> [!NOTE]
+> Completed items are documented in the [Technical Evaluation](./technical-evaluation-2026.mdx). This roadmap tracks only in-progress and planned work.
 
 ## 🗄️ Media DAM (Digital Asset Management)
 
@@ -42,9 +31,15 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 **Pending UI Wiring Only** (API endpoints complete): Bulk download archive button, analytics dashboard widget, version diff UI in media details modal, streaming upload handler integration.
 
+**Recently Completed**: Inline editing of asset metadata (name, alt text, caption) in the media details modal via `media-details-modal.svelte` — click-to-edit directly in the media drawer.
+
 ## 🏗️ In Progress
 
-- 🏗️ **Hybrid Package Model**: Monorepo with `@sveltycms/core`, `@sveltycms/widgets`. Pending: npm publishing, CI, consumer docs.
+- 🏗️ **Phased Marketplace Migration**: Widgets, plugins, themes, dashboards, and extensions moving from the monorepo to `marketplace.sveltycms.com`. Core widgets stay in repo. Doc stubs with redirect frontmatter keep `llms-full.txt` coverage at 100% via federation layer. Phase 1 (core widget doc naming) ✅; Phase 2 (custom widgets → marketplace) pending. See [Marketplace System](../reference/architecture/marketplace.mdx).
+- 🏗️ **Hybrid Package Model**: Monorepo with `@sveltycms/core`, `@sveltycms/widgets`. Pending: official npm publishing pipeline, CI, consumer docs.
+- 🏗️ **`create-sveltycms` CLI**: Scaffolding CLI (`npm create sveltycms@latest`) that sets up a new SvelteKit project with SveltyCMS as a dependency. Simplifies adoption — no manual config needed. Pending: template repo, `@src/` alias extraction, CLI script, npm publishing.
+- 🏗️ **Published DB Adapters**: `sveltycms-sqlite`, `sveltycms-mongodb`, `sveltycms-mariadb`, `sveltycms-postgresql` as separate npm packages. Users install only what they need. Pending: adapter extraction, CI publishing, consumer docs.
+- 🏗️ **Public API Surface Extraction**: Replace `@src/` internal path aliases with real package exports (`LocalCMS`, widget factory, DB adapter interfaces, type definitions). Pending: audit of internal imports, barrel export creation, compile-time alias inlining.
 - 🏗️ **AI Co-Pilot**: `@sveltycms/ai` package with field suggestions, content scoring, import mapping. Pending: MCP UI, Ghost data generation.
 - 🏗️ **Version Channels**: Core service + API endpoints for LTS/Stable/Next. Pending: UI dashboard, upgrade CLI integration.
 - 🏗️ **WebAuthn/Passkeys UI**: Login ceremony + crypto complete (✅). Pending: settings-page UI for passkey management, `db:push` for `authenticators` column on SQL deployments.
@@ -53,6 +48,7 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 ## 🚀 Planned
 
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
+- **Enterprise Infrastructure Scaling**: Generate a multi-stage production `Dockerfile` and Terraform configurations (AWS Fargate, RDS Proxy, ElastiCache) for effortless horizontal scaling by large corporations.
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.
 - **Autonomous Import Optimization**: Dynamic concurrency for 30k+ row datasets.
 

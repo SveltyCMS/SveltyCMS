@@ -130,6 +130,7 @@ search filtering, and RTL support.
         showBadges?: boolean;
         ariaLabel?: string;
         dir?: 'ltr' | 'rtl' | 'auto';
+        variant?: 'default' | 'media';
         class?: string;
         // Callbacks
         onselect?: (item: TreeItem) => void;
@@ -155,6 +156,7 @@ search filtering, and RTL support.
         showBadges = false,
         ariaLabel = 'Navigation tree',
         dir = 'ltr',
+        variant = 'default',
         class: className,
         onselect,
         onSelect,
@@ -175,11 +177,14 @@ search filtering, and RTL support.
     // Normalize items: support both `items` and `nodes` props
     const rawItems: TreeItem[] = $derived((itemsProp ?? nodesProp ?? []) as TreeItem[]);
 
-    // Sync initial isExpanded states into expandedIds set
+    // Sync initial isExpanded from node data (one-time seed only when not already tracked)
     $effect(() => {
+        if (variant === 'media') return;
         const syncExpanded = (nodes: TreeItem[]) => {
-            nodes.forEach(node => {
-                if (node.isExpanded && node.id) expandedIds.add(node.id);
+            nodes.forEach((node) => {
+                if (node.isExpanded && node.id && !expandedIds.has(node.id)) {
+                    expandedIds.add(node.id);
+                }
                 if (node.children) syncExpanded(node.children);
             });
         };
@@ -302,18 +307,39 @@ search filtering, and RTL support.
         return node.label || node.name || node.id;
     }
 
+    function setNodeExpanded(id: string, open: boolean): void {
+        const next = new SvelteSet(expandedIds);
+        if (open) {
+            next.add(id);
+        } else {
+            next.delete(id);
+        }
+        expandedIds = next;
+    }
+
     function toggleNode(node: TreeItem) {
         if (node.disabled) return;
 
-        if (node.children && node.children.length > 0) {
-            if (expandedIds.has(node.id)) {
-                expandedIds.delete(node.id);
-            } else {
-                expandedIds.add(node.id);
-                handleExpand?.(node);
+        const hasKids = !!(node.children && node.children.length > 0);
+        const isMediaRoot = variant === 'media' && node.id === 'root';
+
+        if (isMediaRoot) {
+            if (selectedId !== 'root') {
+                setNodeExpanded('root', true);
+                node.onClick?.();
+            } else if (hasKids) {
+                setNodeExpanded(node.id, !expandedIds.has(node.id));
             }
+            focusedNodeId = node.id;
+            return;
         }
-        // Per-node onClick takes priority, otherwise bubble to onselect
+
+        if (hasKids) {
+            const opening = !expandedIds.has(node.id);
+            setNodeExpanded(node.id, opening);
+            if (opening) handleExpand?.(node);
+        }
+
         if (node.onClick) {
             node.onClick();
         } else {
@@ -355,7 +381,7 @@ search filtering, and RTL support.
             case 'ArrowRight':
                 event.preventDefault();
                 if (node.children && node.children.length > 0 && !expandedIds.has(node.id)) {
-                    expandedIds.add(node.id);
+                    setNodeExpanded(node.id, true);
                     handleExpand?.(node);
                 } else if (node.children && idx < v.length - 1) {
                     focusedNodeId = v[idx + 1];
@@ -364,7 +390,7 @@ search filtering, and RTL support.
             case 'ArrowLeft':
                 event.preventDefault();
                 if (node.children && expandedIds.has(node.id)) {
-                    expandedIds.delete(node.id);
+                    setNodeExpanded(node.id, false);
                 } else {
                     const parentId = nodeMap.get(node.id)?.parentId;
                     if (parentId) focusedNodeId = parentId;
@@ -459,6 +485,14 @@ search filtering, and RTL support.
     {const isFocused = focusedNodeId === node.id}
     {const nodeLabel = getNodeLabel(node)}
     {const showBadge = shouldShowBadge(node)}
+    {const isMedia = variant === 'media'}
+    {const isRoot = depth === 0 && node.id === 'root'}
+    {const showChevron = hasChildren}
+    {const mediaIconTone = 'text-surface-300 dark:text-surface-300'}
+    {const mediaRootText = 'text-surface-200 dark:text-surface-200'}
+    {const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
+    {const mediaSelectedText = 'text-amber-400 dark:text-amber-300'}
+    {const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
 
     <div class="flex flex-col group/item relative">
         <!-- Drag drop indicator: before -->
@@ -471,21 +505,40 @@ search filtering, and RTL support.
             size="sm"
             id={`treenode-${node.id}`}
             class={cn(
-                computedDensity === 'compact'
-                    ? 'border-0 justify-center'
-                    : 'border border-transparent text-start px-2',
-                'flex w-full items-center rounded-lg transition-all cursor-pointer group focus:outline-none',
-                densityTokens.padding,
-                densityTokens.touch,
-                isSelected
-                    ? 'bg-primary-500/10! border-primary-500/30! text-primary-600! dark:text-primary-300! shadow-xs'
-                    : 'hover:bg-surface-200! dark:hover:bg-surface-800! text-surface-900! dark:text-surface-100!',
-                isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
+                'flex w-full cursor-pointer group focus:outline-none text-start',
+                isMedia
+                    ? cn(
+                        'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
+                        isRoot
+                            ? cn(
+                                'items-center gap-2 py-2.5 text-[15px] font-medium leading-none',
+                                isSelected && mediaSelectedText,
+                            )
+                            : cn(
+                                'items-center gap-2 py-1.5 text-sm leading-none',
+                                'min-h-[30px]',
+                                isSelected ? cn('font-medium', mediaSelectedText) : 'font-normal',
+                            ),
+                        isFocused && 'ring-1 ring-primary-500/40 ring-offset-1 ring-offset-transparent',
+                    )
+                    : cn(
+                        'items-center rounded-lg transition-all border border-transparent px-2',
+                        densityTokens.padding,
+                        densityTokens.touch,
+                        isSelected
+                            ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-300 shadow-xs'
+                            : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
+                        isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
+                    ),
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
                 dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
-            style={computedDensity === 'compact' ? undefined : `padding-inline-start: ${indentLeft(depth)}rem`}
+            style={!isMedia
+                ? `padding-inline-start: ${indentLeft(depth)}rem`
+                : !isRoot
+                    ? `padding-inline-start: ${1.75 + Math.max(0, depth - 1) * 1.25}rem`
+                    : undefined}
             onclick={() => toggleNode(node)}
             onkeydown={(e: KeyboardEvent) => handleKeyDown(e, node)}
             onmouseenter={() => handleHover?.(node)}
@@ -504,30 +557,28 @@ search filtering, and RTL support.
             aria-setsize={-1}
             role="treeitem"
         >
-            <!-- Expand/Collapse Chevron or Loading Spinner (hidden in compact mode) -->
-            {#if computedDensity !== 'compact'}
-                {#if hasChildren}
-                    {#if node.isLoading}
-                        <div class="flex items-center justify-center {densityTokens.dummy}">
-                            <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent" aria-label="Loading"></div>
-                        </div>
-                    {:else}
-                        <iconify-icon
-                            icon="mdi:chevron-right"
-                            width={densityTokens.chevron}
-                            class={cn(
-                                'transition-transform shrink-0 opacity-60',
-                                prefersReducedMotion ? 'duration-0' : 'duration-200',
-                                expanded && 'rotate-90',
-                                dir === 'rtl' && 'rotate-180'
-                            )}
-                            aria-hidden="true"
-                        ></iconify-icon>
-                    {/if}
+            <!-- Expand/Collapse Chevron or Loading Spinner -->
+            {#if showChevron}
+                {#if node.isLoading}
+                    <div class="flex items-center justify-center {densityTokens.dummy}">
+                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent" aria-label="Loading"></div>
+                    </div>
                 {:else}
-                    <!-- Spacer when no children, matching chevron width -->
-                    <div class={densityTokens.dummy} aria-hidden="true"></div>
+                    <iconify-icon
+                        icon="mdi:chevron-right"
+                        width={isMedia ? '16' : densityTokens.chevron}
+                        class={cn(
+                            'shrink-0 opacity-60 transition-transform',
+                            prefersReducedMotion ? 'duration-0' : 'duration-200',
+                            expanded && 'rotate-90',
+                            dir === 'rtl' && 'rotate-180'
+                        )}
+                        aria-hidden="true"
+                    ></iconify-icon>
                 {/if}
+            {:else if !isMedia}
+                <!-- Spacer when no children, matching chevron width -->
+                <div class={densityTokens.dummy} aria-hidden="true"></div>
             {/if}
 
             <!-- Node Icon -->
@@ -535,25 +586,41 @@ search filtering, and RTL support.
                 <div class="relative flex shrink-0 items-center">
                     <iconify-icon
                         icon={node.icon}
-                        width={densityTokens.icon}
-                        class={cn(isSelected && computedDensity !== 'compact' ? 'text-primary-600 dark:text-primary-500' : iconColorClass)}
+                        width={isMedia ? (isRoot ? '18' : '16') : densityTokens.icon}
+                        class={cn(
+                            isMedia
+                                ? isSelected
+                                    ? mediaSelectedText
+                                    : isRoot
+                                        ? mediaIconTone
+                                        : mediaFolderText
+                                : isSelected
+                                    ? 'text-primary-600 dark:text-primary-500'
+                                    : iconColorClass,
+                        )}
                         aria-hidden="true"
                     ></iconify-icon>
                 </div>
             {/if}
 
-            <!-- Label (hidden in compact mode) -->
-            {#if computedDensity !== 'compact'}
-                <span class={cn(
-                    'truncate transition-colors',
-                    densityTokens.font,
-                    isSelected
-                        ? 'font-bold text-primary-600 dark:text-primary-500'
-                        : 'font-medium text-surface-900 dark:text-surface-100'
-                )}>
-                    {nodeLabel}
-                </span>
-            {/if}
+            <!-- Label -->
+            <span class={cn(
+                'truncate transition-colors',
+                isMedia
+                    ? cn(
+                        isRoot ? 'text-[15px]' : 'text-sm',
+                        isSelected ? mediaSelectedText : isRoot ? mediaRootText : mediaFolderText,
+                        !isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-200',
+                    )
+                    : cn(
+                        densityTokens.font,
+                        isSelected
+                            ? 'font-bold text-primary-600 dark:text-primary-500'
+                            : 'font-medium text-surface-900 dark:text-surface-100',
+                    ),
+            )}>
+                {nodeLabel}
+            </span>
 
 	            <!-- Count Badge -->
 	            {#if showBadge}
@@ -571,13 +638,13 @@ search filtering, and RTL support.
 	            {/if}
         </Button>
 
-        <!-- Per-node Action Buttons (hover to reveal) -->
+        <!-- Per-node Action Buttons -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
             <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
                 {#each node.actions as act (act.label)}
                     <Button variant="ghost"
                         type="button"
-                        							onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(node, e); }}
+                        onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(node, e); }}
                         aria-label={act.label}
                         title={act.label}
                      class="p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700">
@@ -596,16 +663,26 @@ search filtering, and RTL support.
         {#if hasChildren}
             <div
                 id={`node-${node.id}-children`}
-                class="relative {computedDensity === 'compact' ? 'ms-1' : 'ms-4'}"
+                class={cn(
+                    'relative',
+                    isMedia && isRoot ? 'ms-0' : computedDensity === 'compact' ? 'ms-1' : 'ms-4',
+                )}
                 role="group"
                 aria-labelledby={`treenode-${node.id}`}
             >
-                <!-- Vertical Guide Line -->
-                <div
-                    class="absolute inset-s-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
-                    style="margin-inline-start: {guidelineLeft(depth)}rem; height: 100%"
-                    aria-hidden="true"
-                ></div>
+                <!-- Vertical Guide Line — media root only, aligned to home icon column -->
+                {#if isMedia && isRoot && expanded}
+                    <div
+                        class={cn('pointer-events-none absolute bottom-0 start-[23px] top-0 w-px', mediaGuideLine)}
+                        aria-hidden="true"
+                    ></div>
+                {:else if !isMedia}
+                    <div
+                        class="absolute inset-s-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
+                        style="margin-inline-start: {guidelineLeft(depth)}rem; height: 100%"
+                        aria-hidden="true"
+                    ></div>
+                {/if}
 
                 {#if expanded}
                     <div transition:fly|local={{ y: prefersReducedMotion ? 0 : -10, duration: transitionDuration }}>

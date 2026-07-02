@@ -127,6 +127,11 @@ async function handleCollectionsRefresh(event: RequestEvent, cms: LocalCMS, tena
   });
 
   const list = await cms.collections.list({ tenantId, includeFields: true });
+  // Weak ETag: use collection count + max updatedAt as lightweight version token
+  const maxTs =
+    list.data?.reduce?.((max: string, c: any) => (c.updatedAt > max ? c.updatedAt : max), "") || "";
+  (event.locals as any).apiDataHash = maxTs || `collections:${list.data?.length || 0}`;
+
   return successResponse(event, {
     success: true,
     message: "Collections cache refreshed",
@@ -150,6 +155,9 @@ async function handleGetContentStructure(
   }
 
   const nodes = await cms.collections.getStructure(tenantId);
+  // Weak ETag: use content version as lightweight token
+  (event.locals as any).apiDataHash = `structure:${(cms as any).version || "0.0.8"}`;
+
   return successResponse(event, {
     contentNodes: nodes,
     version: (cms as any).version || "0.0.8",

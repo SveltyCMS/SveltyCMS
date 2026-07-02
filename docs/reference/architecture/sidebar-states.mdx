@@ -1,0 +1,304 @@
+---
+path: "docs/reference/architecture/sidebar-states.mdx"
+title: "Sidebar States & UI Visibility"
+description: "How SveltyCMS manages sidebar, panel, and UI element visibility across screen sizes, route contexts, and edit modes."
+order: 31
+icon: "mdi:sidebar"
+author: "SveltyCMS Team"
+created: "2026-06-25"
+updated: "2026-06-25"
+tags:
+  - "architecture"
+  - "ui-store"
+  - "sidebar"
+  - "responsive"
+  - "layout"
+---
+
+# Sidebar States & UI Visibility
+
+SveltyCMS manages UI element visibility through a centralized **UIStore** (`src/stores/ui-store.svelte.ts`) using Svelte 5 runes. The store reacts to screen size changes, route context, and edit mode — automatically computing the correct layout without manual prop threading.
+
+---
+
+## 1. Visibility States (`UIVisibility`)
+
+Every UI panel uses one of three states:
+
+| State           | Sidebar behavior                                                                   | Page Header behavior                   |
+| --------------- | ---------------------------------------------------------------------------------- | -------------------------------------- |
+| **`hidden`**    | Not rendered at all. Page content fills full width.                                | Not rendered.                          |
+| **`collapsed`** | Renders as a narrow icon-only strip (~56px). Labels, search, and tree view hidden. | N/A — header uses `full`/`hidden` only |
+| **`full`**      | Fully expanded with labels, search bar, tree view, and footer icons with text.     | Rendered with all content.             |
+
+### Visual Breakdown — Left Sidebar
+
+| `hidden`                                                                       | `collapsed`                                                                                                                                                            | `full`                                                                                                                                                                                |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page-title shows a "☰ Open Sidebar" button in the header. No sidebar visible. | Narrow strip: centered logo, expand/collapse chevron, icon-only nav (collections, media), compact footer icons (avatar, theme, sign-out, language, config). No labels. | Full width (~280px): logo + site name, search bar, expandable collections tree, media folders, footer with avatar + username, theme toggle, language selector, sign-out, config gear. |
+
+---
+
+## 2. UI Elements Tracked (`UIState`)
+
+The store tracks seven independent panels:
+
+| Element        | States used                     | Default  |
+| -------------- | ------------------------------- | -------- |
+| `leftSidebar`  | `hidden` / `collapsed` / `full` | `full`   |
+| `rightSidebar` | `hidden` / `collapsed` / `full` | `hidden` |
+| `pageheader`   | `hidden` / `full`               | `full`   |
+| `pagefooter`   | `hidden` / `full`               | `hidden` |
+| `header`       | `hidden` / `full`               | `hidden` |
+| `footer`       | `hidden` / `full`               | `hidden` |
+| `chatPanel`    | `hidden` / `full`               | `hidden` |
+
+```typescript
+// src/stores/ui-store.svelte.ts
+export type UIVisibility = "hidden" | "collapsed" | "full";
+
+export interface UIState {
+  chatPanel: UIVisibility;
+  footer: UIVisibility;
+  header: UIVisibility;
+  leftSidebar: UIVisibility;
+  pagefooter: UIVisibility;
+  pageheader: UIVisibility;
+  rightSidebar: UIVisibility;
+}
+```
+
+---
+
+## 3. Screen Size Breakpoints
+
+Imported from `src/utils/screen-size.ts`:
+
+| Enum           | Width         |
+| -------------- | ------------- |
+| `XS`           | 0 – 639px     |
+| `SM`           | 640 – 767px   |
+| `MD` (tablet)  | 768 – 1023px  |
+| `LG` (desktop) | 1024 – 1279px |
+| `XL`           | 1280 – 1535px |
+| `XXL`          | 1536px+       |
+
+The `screen` store (`src/stores/screen-size-store.svelte.ts`) exposes convenience getters:
+
+```typescript
+screen.isMobile; // width < 768  (XS, SM)
+screen.isTablet; // 768 ≤ width < 1024 (MD)
+screen.isDesktop; // width ≥ 1024 (LG+)
+```
+
+---
+
+## 4. Decision Matrix: `updateFromContext(size, mode)`
+
+The heart of the system. Called automatically by the reactive `$effect.root` whenever screen size or edit mode changes. **Order matters** — special routes are checked first, then general cases by screen size.
+
+### 4.1 Route Contexts (checked first)
+
+Routes must explicitly register their context via `ui.setRouteContext({ ... })` in their `+page.svelte` `onMount`:
+
+```typescript
+// Example: Collection Builder page
+import { ui } from "@src/stores/ui-store.svelte";
+
+onMount(() => {
+  ui.setRouteContext({ isCollectionBuilder: true });
+  return () => ui.setRouteContext({ isCollectionBuilder: false });
+});
+```
+
+#### System Settings (`isSystemSettings`)
+
+| Screen Size | `leftSidebar` | Other Panels |
+| ----------- | ------------- | ------------ |
+| XS, SM      | `hidden`      | All `hidden` |
+| MD          | `collapsed`   | All `hidden` |
+| LG+         | **`full`**    | All `hidden` |
+
+> System settings uses `SettingsMenu` (not `Collections` + `MediaFolders`) — navigation is custom.
+
+#### Image Editor (`isImageEditor`)
+
+| Screen Size | `leftSidebar`   | `pageheader` | `pagefooter` |
+| ----------- | --------------- | ------------ | ------------ |
+| All         | **`collapsed`** | `full`       | `full`       |
+
+> Forces collapsed sidebar on all screen sizes to maximize canvas space. Page header + footer are always visible for toolbar actions.
+
+#### Collection Builder (`isCollectionBuilder`)
+
+| Screen Size | `leftSidebar` |
+| ----------- | ------------- |
+| XS, SM      | `hidden`      |
+| MD          | `collapsed`   |
+| LG+         | **`full`**    |
+
+> No page header — the builder has its own toolbar. Footer, header panels all hidden.
+
+### 4.2 General Routes (mode-dependent)
+
+Mode comes from `collection-store.svelte` — one of `"view"`, `"edit"`, `"create"`, `"modify"`, `"media"`.
+
+#### Mobile (XS, SM)
+
+| Element        | State                            |
+| -------------- | -------------------------------- |
+| `leftSidebar`  | `collapsed`                      |
+| `rightSidebar` | `hidden`                         |
+| `pageheader`   | `full` if editing, else `hidden` |
+
+#### Tablet (MD)
+
+| Element        | State                                         |
+| -------------- | --------------------------------------------- |
+| `leftSidebar`  | `collapsed` in view/media mode, else `hidden` |
+| `rightSidebar` | `hidden`                                      |
+| `pageheader`   | `full` if editing, else `hidden`              |
+
+#### Desktop (LG+)
+
+| Element        | State                                                    |
+| -------------- | -------------------------------------------------------- |
+| `leftSidebar`  | **`full`** in view/media, **`collapsed`** in edit/create |
+| `rightSidebar` | **`hidden`** in view/media, **`full`** in edit/create    |
+| `pageheader`   | `full` if editing, else `hidden`                         |
+
+> **Key insight**: Desktop shows the left sidebar fully in view mode (browsing content) and collapses it in edit mode (maximizing editor space). The right sidebar only appears in edit mode for metadata, publish options, etc.
+
+---
+
+## 5. Manual Toggle & Override Timer
+
+Users can manually toggle the sidebar via the expand/collapse chevron button. Calling `ui.toggle(element, visibility)`:
+
+1. Sets the requested visibility immediately
+2. Sets `manualOverrideActive = true`
+3. Starts a **600ms timer** — during this window, `updateFromContext` is **blocked** (automatic layout changes are suppressed)
+4. After 600ms, `manualOverrideActive` resets and automatic updates resume
+
+```typescript
+// Manual toggle — ignores screen size / mode for 600ms
+ui.toggle("leftSidebar", "full");
+
+// Toggle between full ↔ collapsed
+function toggleSidebar() {
+  const next = ui.state.leftSidebar === "full" ? "collapsed" : "full";
+  ui.toggle("leftSidebar", next);
+}
+```
+
+**Why 600ms?** Short enough to feel responsive, long enough to prevent the auto-update from immediately reverting the user's choice during a resize or route transition.
+
+---
+
+## 6. Reactive Pipeline
+
+The entire system is driven by a single `$effect.root` at module level:
+
+```
+screen.size changes ─┐
+                     ├─→ $effect fires ─→ untracked block
+mode.value changes  ─┘       │
+                              ├─ manualOverrideActive? → skip
+                              └─ else → updateFromContext(size, mode)
+```
+
+This is **SSR-safe** — the effect body guards with `typeof window === "undefined"` and returns early on the server.
+
+```typescript
+// src/stores/ui-store.svelte.ts (simplified)
+moduleEffectCleanup = $effect.root(() => {
+  $effect(() => {
+    if (typeof window === "undefined") return; // SSR guard
+
+    const size = screen.size;
+    const currentMode = mode.value;
+
+    untrack(() => {
+      if (!ui.manualOverrideActive) {
+        ui.updateFromContext(size, currentMode);
+      }
+    });
+  });
+});
+```
+
+---
+
+## 7. Exports & Compatibility
+
+| Export              | Type      | Purpose                                                                             |
+| ------------------- | --------- | ----------------------------------------------------------------------------------- |
+| `ui`                | `UIStore` | **Primary singleton** — use directly                                                |
+| `UIVisibility`      | Type      | `"hidden" \| "collapsed" \| "full"`                                                 |
+| `UIState`           | Interface | The 7-panel state object                                                            |
+| `toggleUIElement()` | Function  | Thin wrapper: `ui.toggle(element, visibility)`                                      |
+| `uiStateManager`    | Object    | Legacy compat for `left-sidebar.svelte` `.state`, `.toggle()`, `.show()`, `.hide()` |
+
+> **Guideline**: Always use `ui` directly. `uiStateManager` and `toggleUIElement` exist for backward compatibility with older components.
+
+---
+
+## 8. Usage in Components
+
+### Reading sidebar state
+
+```svelte
+<script>
+  import { ui } from '@src/stores/ui-store.svelte';
+
+  const isFull = $derived(ui.state.leftSidebar === 'full');
+  const isVisible = $derived(ui.isLeftSidebarVisible); // !== 'hidden'
+</script>
+
+{#if isFull}
+  <!-- Render full sidebar content -->
+{:else if isVisible}
+  <!-- Render collapsed icon-only strip -->
+{/if}
+```
+
+### Registering a route context
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+  import { ui } from '@src/stores/ui-store.svelte';
+
+  onMount(() => {
+    ui.setRouteContext({ isImageEditor: true });
+    return () => ui.setRouteContext({ isImageEditor: false });
+  });
+</script>
+```
+
+### Forcing a layout recalculation
+
+```typescript
+import { ui } from "@src/stores/ui-store.svelte";
+
+// After a route change that didn't trigger the $effect
+ui.forceUpdate();
+```
+
+---
+
+## 9. Design Rationale
+
+**Why not just use CSS media queries?** The sidebar decision depends on three orthogonal inputs (screen size, route context, edit mode) that interact in non-trivial ways. CSS can handle screen size alone, but can't express "collapse sidebar only in edit mode on tablet, but show it full in view mode." Centralizing this logic avoids duplicating breakpoint checks across 20+ page components.
+
+**Why the 600ms override timer?** Without it, any screen resize or mode change would immediately override the user's manual toggle. The timer gives the user a brief window of "I meant this" before the system resumes automatic control.
+
+---
+
+## Related
+
+- [System State & Health Architecture](./state-management.mdx)
+- [Screen Size Store](../../src/stores/screen-size-store.svelte.ts)
+- [UI Store Source](../../src/stores/ui-store.svelte.ts)
+- [Left Sidebar Component](../../src/components/left-sidebar.svelte)
+- [Modal & Dialog System](../../src/utils/modal.svelte.ts)

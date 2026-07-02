@@ -12,8 +12,6 @@ import { contentSystem } from "@src/content/index.server";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { logger } from "@utils/logger";
-import path from "node:path";
-import fs from "node:fs";
 
 export interface ContentNode {
   _id?: string;
@@ -196,35 +194,13 @@ export async function installPreset(event: RequestEvent, presetId: string) {
     });
   }
 
-  const collectionsDir = tenantId
-    ? path.resolve(process.cwd(), "config", tenantId, "collections")
-    : path.resolve(process.cwd(), "config", "collections");
-
-  fs.mkdirSync(collectionsDir, { recursive: true });
-
-  const created: string[] = [];
-  const { generateCollectionFileContent } =
+  const { writePresetCollectionFiles } =
     await import("@src/routes/setup/preset-collections.server");
-
-  for (const collection of preset.collections) {
-    const tsContent = generateCollectionFileContent(collection);
-    const filePath = path.join(collectionsDir, `${collection.name}.ts`);
-    fs.writeFileSync(filePath, tsContent, "utf-8");
-    created.push(collection.name);
-    logger.info(`Created collection template: ${collection.name}`);
-  }
-
-  // Compile the new .ts files so the content system can load them
-  const { compile } = await import("@src/utils/compilation/compile");
-  const compiledDir = tenantId
-    ? path.resolve(process.cwd(), ".compiledCollections", tenantId)
-    : path.resolve(process.cwd(), ".compiledCollections");
-  await compile({
-    userCollections: collectionsDir,
-    compiledCollections: compiledDir,
-  });
+  await writePresetCollectionFiles(preset.collections, { tenantId });
 
   await contentSystem.refresh(tenantId);
+
+  const created = preset.collections.map((c) => c.name);
   return {
     success: true,
     message: `Created ${created.length} collections: ${created.join(", ")}`,
@@ -232,10 +208,6 @@ export async function installPreset(event: RequestEvent, presetId: string) {
   };
 }
 
-/**
- * Installs collection templates from a Quick-Start preset by creating
- * collection definition files and registering them with the content system.
- */
 export async function installTemplateCollections(event: RequestEvent, presetId: string) {
   requirePermission(event);
   const tenantId = (event.locals as any).tenantId;
@@ -253,38 +225,14 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
     });
   }
 
-  const collectionsDir = tenantId
-    ? path.resolve(process.cwd(), "config", tenantId, "collections")
-    : path.resolve(process.cwd(), "config", "collections");
-
-  fs.mkdirSync(collectionsDir, { recursive: true });
-
-  const created: string[] = [];
-
-  const { generateCollectionFileContent } =
+  const { writePresetCollectionFiles } =
     await import("@src/routes/setup/preset-collections.server");
-
-  for (const collection of preset.collections) {
-    const tsContent = generateCollectionFileContent(collection);
-    const filePath = path.join(collectionsDir, `${collection.name}.ts`);
-    fs.writeFileSync(filePath, tsContent, "utf-8");
-    created.push(collection.name);
-    logger.info(`Created collection template: ${collection.name}`);
-  }
-
-  // Compile the new .ts files to .compiledCollections/ so the content system can load them
-  const { compile } = await import("@src/utils/compilation/compile");
-  const compiledDir = tenantId
-    ? path.resolve(process.cwd(), ".compiledCollections", tenantId)
-    : path.resolve(process.cwd(), ".compiledCollections");
-  await compile({
-    userCollections: collectionsDir,
-    compiledCollections: compiledDir,
-  });
+  await writePresetCollectionFiles(preset.collections, { tenantId });
 
   // Trigger content system refresh to pick up the new collections
   await contentSystem.refresh(tenantId);
 
+  const created = preset.collections.map((c) => c.name);
   return {
     success: true,
     message: `Created ${created.length} collections: ${created.join(", ")}`,

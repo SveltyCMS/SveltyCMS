@@ -6,24 +6,26 @@ Features:
 - Keyboard-accessible rows
 - Sorting and filtering
 - Multi-select integration
+- Responsive column visibility + graceful image fallbacks
 -->
 
 <script lang="ts">
-import AdminCard from '@components/admin-card.svelte';
 import TablePagination from "@src/components/system/table/table-pagination.svelte";
+import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
+import MediaTableRowMenu from "./media-table-row-menu.svelte";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
-import type { SvelteSet } from "svelte/reactivity";
-	import Badge from '@components/ui/badge.svelte';
-	import Button from '@components/ui/button.svelte';
+import { SvelteSet } from "svelte/reactivity";
 	import Checkbox from '@components/ui/checkbox.svelte';
 
 interface Props {
 	filteredFiles?: (MediaBase | MediaImage)[];
 	isSelectionMode?: boolean;
 	selectedFiles: SvelteSet<string>;
+	publishedMediaIds?: SvelteSet<string>;
 	ondeleteImage?: (file: MediaBase | MediaImage) => void;
 	onEditImage?: (file: MediaImage) => void;
+	onUpdateImage?: (file: MediaImage) => void;
 	onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 }
 
@@ -31,12 +33,26 @@ let {
 	filteredFiles = [],
 	isSelectionMode = false,
 	selectedFiles = $bindable(),
+	publishedMediaIds = $bindable(new SvelteSet<string>()),
 	ondeleteImage = () => {},
 	onEditImage = () => {},
+	onUpdateImage = () => {},
 	onOpenFileDetails = () => {},
 }: Props = $props();
 
-// Pagination
+let failedImages = $state(new SvelteSet<string>());
+let showTagModal = $state(false);
+let taggingFile = $state<MediaImage | null>(null);
+
+function openTagEditor(file: MediaImage) {
+	taggingFile = file;
+	showTagModal = true;
+}
+
+function typeLabel(file: MediaBase | MediaImage): string {
+	return (file.mimeType?.split("/")[1] || file.type || "file").toString();
+}
+
 let currentPage = $state(1);
 let rowsPerPage = $state(10);
 const pagesCount = $derived(Math.ceil(filteredFiles.length / rowsPerPage) || 1);
@@ -46,6 +62,30 @@ const paginatedFiles = $derived(
 		currentPage * rowsPerPage,
 	),
 );
+
+const pageFileIds = $derived(
+	paginatedFiles.map((file) => file._id?.toString() || file.filename),
+);
+
+const allPageSelected = $derived(
+	pageFileIds.length > 0 && pageFileIds.every((id) => selectedFiles.has(id)),
+);
+
+const somePageSelected = $derived(
+	pageFileIds.some((id) => selectedFiles.has(id)) && !allPageSelected,
+);
+
+const headerCheckboxState = $derived(
+	allPageSelected ? true : somePageSelected ? 'indeterminate' : false,
+);
+
+function toggleSelectAll() {
+	if (allPageSelected) {
+		for (const id of pageFileIds) selectedFiles.delete(id);
+	} else {
+		for (const id of pageFileIds) selectedFiles.add(id);
+	}
+}
 
 function toggleSelection(file: MediaBase | MediaImage) {
 	const fileId = file._id?.toString() || file.filename;
@@ -57,9 +97,7 @@ function toggleSelection(file: MediaBase | MediaImage) {
 }
 
 function handleRowClick(file: MediaBase | MediaImage) {
-	if (isSelectionMode) {
-		toggleSelection(file);
-	} else {
+	if (!isSelectionMode) {
 		onOpenFileDetails(file);
 	}
 }
@@ -67,96 +105,205 @@ function handleRowClick(file: MediaBase | MediaImage) {
 function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 	if (e.key === "Enter" || e.key === " ") {
 		e.preventDefault();
-		if (isSelectionMode) {
-			toggleSelection(file);
-		} else {
+		if (!isSelectionMode) {
 			onOpenFileDetails(file);
 		}
 	}
 }
 </script>
 
-<AdminCard
-	class="w-full overflow-hidden border border-surface-200 bg-white shadow-sm dark:border-surface-800 dark:bg-surface-900"
->
-	<div class="max-h-[600px] overflow-x-auto w-full">
-		<table class="w-full border-collapse text-sm">
-			<thead class="sticky top-0 z-10 bg-surface-50 dark:bg-surface-800">
-				<tr class="border-b border-surface-200 text-xs font-bold uppercase tracking-wider text-surface-500 dark:border-surface-800">
-					<th class="w-12 text-center p-4">
-						<iconify-icon icon="mdi:checkbox-marked-circle-outline" width="20"></iconify-icon>
-					</th>
-					<th class="w-20 p-4">Preview</th>
-					<th class="p-4 text-start">Name</th>
-					<th class="p-4 text-start">Type</th>
-					<th class="p-4 text-start">Size</th>
-					<th class="p-4 text-end">Actions</th>
-				</tr>
-			</thead>
+<div class="flex h-full min-h-0 w-full flex-col overflow-hidden p-2 sm:p-3">
+	{#if filteredFiles.length === 0}
+		<div class="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
+			<iconify-icon icon="mdi:image-search-outline" width="40" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+			<div class="space-y-1">
+				<h3 class="text-base font-semibold">No media found</h3>
+				<p class="text-sm text-surface-500 dark:text-surface-400">Try adjusting your search or filter.</p>
+			</div>
+		</div>
+	{:else}
+		<div class="media-table-scroll min-h-0 flex-1 overflow-auto">
+			<!-- Mobile: compact list rows (no table — fits viewport without scroll) -->
+			<div class="flex flex-col md:hidden" role="table" aria-label="Media files">
+				<div
+					class="sticky top-0 z-10 flex items-center gap-3 border-b border-surface-200 bg-surface-50/95 px-2 py-2.5 backdrop-blur-sm dark:border-surface-800 dark:bg-surface-950/95"
+					role="row"
+				>
+					<div class="shrink-0" role="columnheader" onclick={(e) => e.stopPropagation()}>
+						<Checkbox
+							class="w-auto"
+							checked={headerCheckboxState}
+							onchange={toggleSelectAll}
+							label="Select all on this page"
+							hideLabel
+							size="sm"
+						/>
+					</div>
+					<div class="w-10 shrink-0" role="columnheader" aria-hidden="true"></div>
+					<div class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
+						Name
+					</div>
+					<div class="w-9 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
+						<span class="sr-only">Actions</span>
+					</div>
+				</div>
 
-			<tbody class="divide-y divide-surface-100 dark:divide-surface-800">
 				{#each paginatedFiles as file (file._id || file.filename)}
-					{const fileId = file._id?.toString() || file.filename}
-					{const isSelected = selectedFiles.has(fileId)}
+					{@const fileId = file._id?.toString() || file.filename}
+					{@const isSelected = selectedFiles.has(fileId)}
 
-					<tr
-						class="transition-colors cursor-pointer {isSelected ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-primary-500/5' : 'hover:bg-surface-50 dark:hover:bg-surface-800/50'}"
-						onclick={() => handleRowClick(file)}
-						onkeydown={(e) => handleKeyDown(e, file)}
+					<div
+						class="flex cursor-pointer items-center gap-3 border-b border-s-2 border-s-transparent border-surface-200 px-2 py-3 transition-colors dark:border-surface-800/80
+							{isSelected ? 'border-s-primary-500 bg-primary-500/5' : 'hover:bg-surface-50 dark:hover:bg-surface-900/40'}"
+						role="row"
 						tabindex="0"
 						aria-selected={isSelected}
+						onclick={() => handleRowClick(file)}
+						onkeydown={(e) => handleKeyDown(e, file)}
 					>
-						<td class="p-4 text-center" onclick={(e) => e.stopPropagation()}>
+						<div class="shrink-0" role="cell" onclick={(e) => e.stopPropagation()}>
 							<Checkbox
+								class="w-auto"
 								checked={isSelected}
 								onchange={() => toggleSelection(file)}
 								label="Select {file.filename}"
+								hideLabel
 								size="sm"
 							/>
-						</td>
-						<td class="p-2">
-							<div class="w-12 h-12 rounded overflow-hidden bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
-								{#if file.type === 'image'}
-									<img src={file.url} alt="" class="w-full h-full object-cover" />
+						</div>
+
+						<div class="shrink-0" role="cell">
+							<div class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded">
+								{#if file.type === 'image' && !failedImages.has(fileId)}
+									<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" onerror={() => failedImages.add(fileId)} />
+								{:else if file.type === 'image'}
+									<iconify-icon icon="mdi:image-off-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 								{:else}
-									<iconify-icon icon="mdi:file-document-outline" width="24" class="opacity-40"></iconify-icon>
+									<iconify-icon icon="mdi:file-document-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 								{/if}
 							</div>
-						</td>
-						<td class="p-4">
-							<div class="flex flex-col">
-								<span class="font-medium text-sm truncate max-w-[200px]" title={file.filename}>{file.filename}</span>
-								<span class="text-[10px] opacity-50 font-mono truncate">{file.path}</span>
-							</div>
-						</td>
-						<td class="p-4 text-xs opacity-70">
-							<Badge preset="tonal" color="surface" class="uppercase">{file.mimeType.split('/')[1] || file.type}</Badge>
-						</td>
-						<td class="p-4 text-xs font-mono opacity-70">{formatBytes(file.size)}</td>
-						<td class="p-4 text-end">
-							<div class="flex justify-end gap-1">
-								<Button variant="tertiary"
-									onclick={(e: MouseEvent) => { e.stopPropagation(); onEditImage(file as MediaImage); }}
-									aria-label="Edit"
-								 class="p-0! min-w-0 hover: dark:">
-									<iconify-icon icon="mdi:pencil" width="16"></iconify-icon>
-								</Button>
-								<Button variant="error"
-									onclick={(e: MouseEvent) => { e.stopPropagation(); ondeleteImage(file); }}
-									aria-label="Delete"
-								 class="p-0! min-w-0 hover:">
-									<iconify-icon icon="mdi:trash-can-outline" width="16"></iconify-icon>
-								</Button>
-							</div>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+						</div>
 
-	<!-- Footer -->
-	<div class="p-4 bg-surface-50 dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700">
+						<div class="min-w-0 flex-1 overflow-hidden pe-1" role="cell">
+							<div class="truncate text-sm font-medium leading-snug" title={file.filename}>{file.filename}</div>
+							<div class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400" title={file.path}>
+								{formatBytes(file.size)} · {typeLabel(file).toUpperCase()}
+							</div>
+						</div>
+
+						<div class="shrink-0" role="cell" onclick={(e) => e.stopPropagation()}>
+							<MediaTableRowMenu
+								{file}
+								onDetails={() => onOpenFileDetails(file)}
+								onEdit={() => onEditImage(file as MediaImage)}
+								onTags={() => openTagEditor(file as MediaImage)}
+								onDelete={() => ondeleteImage(file)}
+							/>
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Desktop: full table -->
+			<table class="media-table hidden w-full border-collapse text-sm md:table lg:table-fixed">
+				<colgroup>
+					<col class="media-table-col-select" />
+					<col class="media-table-col-preview" />
+					<col class="media-table-col-name" />
+					<col class="media-table-col-size" />
+					<col class="media-table-col-type" />
+					<col class="media-table-col-actions" />
+				</colgroup>
+				<thead class="sticky top-0 z-10 border-b border-surface-200 bg-surface-50/95 backdrop-blur-sm dark:border-surface-800 dark:bg-surface-950/95">
+					<tr class="text-[10px] font-semibold uppercase tracking-wider text-surface-500">
+						<th class="media-table-select w-9 shrink-0 px-2 py-2 sm:px-3 sm:py-2.5" onclick={(e) => e.stopPropagation()}>
+							<div class="flex justify-center">
+								<Checkbox
+									class="w-auto"
+									checked={headerCheckboxState}
+									onchange={toggleSelectAll}
+									label="Select all on this page"
+									hideLabel
+									size="sm"
+								/>
+							</div>
+						</th>
+						<th class="media-table-preview w-16 shrink-0 px-2 py-2 text-start sm:px-3 sm:py-2.5">Preview</th>
+						<th class="media-table-name min-w-0 px-2 py-2 text-start sm:px-3 sm:py-2.5">Name</th>
+						<th class="media-table-size hidden shrink-0 whitespace-nowrap px-3 py-2.5 text-end sm:table-cell">Size</th>
+						<th class="media-table-type hidden shrink-0 whitespace-nowrap px-3 py-2.5 text-end md:table-cell">Type</th>
+						<th class="media-table-actions w-11 shrink-0 px-2 py-2 text-end sm:px-3 sm:py-2.5">Actions</th>
+					</tr>
+				</thead>
+
+				<tbody>
+					{#each paginatedFiles as file (file._id || file.filename)}
+						{@const fileId = file._id?.toString() || file.filename}
+						{@const isSelected = selectedFiles.has(fileId)}
+
+						<tr
+							class="group cursor-pointer border-b border-surface-200 align-middle transition-colors dark:border-surface-800/80
+								{isSelected
+								? 'bg-primary-500/5'
+								: 'hover:bg-surface-50 dark:hover:bg-surface-900/40'}"
+							onclick={() => handleRowClick(file)}
+							onkeydown={(e) => handleKeyDown(e, file)}
+							tabindex="0"
+							aria-selected={isSelected}
+						>
+							<td
+								class="media-table-select w-9 shrink-0 border-s-2 border-transparent px-2 py-2 sm:px-3 {isSelected ? 'border-s-primary-500' : ''}"
+								onclick={(e) => e.stopPropagation()}
+							>
+								<div class="flex justify-center">
+									<Checkbox
+										class="w-auto"
+										checked={isSelected}
+										onchange={() => toggleSelection(file)}
+										label="Select {file.filename}"
+										hideLabel
+										size="sm"
+									/>
+								</div>
+							</td>
+							<td class="media-table-preview w-16 shrink-0 px-2 py-2 sm:px-3">
+								<div class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12">
+									{#if file.type === 'image' && !failedImages.has(fileId)}
+										<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" onerror={() => failedImages.add(fileId)} />
+									{:else if file.type === 'image'}
+										<iconify-icon icon="mdi:image-off-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+									{:else}
+										<iconify-icon icon="mdi:file-document-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+									{/if}
+								</div>
+							</td>
+							<td class="media-table-name min-w-0 overflow-hidden px-2 py-2 sm:px-3">
+								<div class="truncate text-sm font-medium" title={file.filename}>{file.filename}</div>
+								<div class="media-table-path hidden font-mono text-[10px] text-surface-500 sm:block dark:text-surface-400" title={file.path}>{file.path}</div>
+							</td>
+							<td class="media-table-size hidden shrink-0 whitespace-nowrap px-3 py-2 text-end font-mono text-xs tabular-nums text-surface-500 dark:text-surface-400 sm:table-cell">
+								{formatBytes(file.size)}
+							</td>
+							<td class="media-table-type hidden shrink-0 whitespace-nowrap px-3 py-2 text-end md:table-cell">
+								<span class="font-mono text-[10px] uppercase text-surface-500 dark:text-surface-400">{typeLabel(file)}</span>
+							</td>
+							<td class="media-table-actions w-11 shrink-0 px-2 py-2 sm:px-3" onclick={(e) => e.stopPropagation()}>
+								<MediaTableRowMenu
+									{file}
+									onDetails={() => onOpenFileDetails(file)}
+									onEdit={() => onEditImage(file as MediaImage)}
+									onTags={() => openTagEditor(file as MediaImage)}
+									onDelete={() => ondeleteImage(file)}
+								/>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
+
+	<div class="flex shrink-0 items-center border-t border-surface-200 py-2.5 dark:border-surface-800 max-md:px-0 md:flex-wrap md:justify-between md:gap-3">
 		<TablePagination
 			bind:currentPage
 			bind:rowsPerPage
@@ -166,4 +313,152 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 			onUpdateRowsPerPage={(r: number) => { rowsPerPage = r; currentPage = 1; }}
 		/>
 	</div>
-</AdminCard>
+</div>
+
+<TagEditorModal bind:show={showTagModal} bind:file={taggingFile} onUpdate={onUpdateImage} hideGenerate={true} />
+
+<style>
+  .media-table {
+    --media-table-gap: 0.75rem;
+    --media-table-gap-wide: 1rem;
+  }
+
+  /* Name column always absorbs leftover space; truncates instead of collapsing */
+  .media-table-col-name {
+    width: auto;
+    min-width: 0;
+  }
+
+  .media-table-name {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .media-table-select,
+  .media-table-preview,
+  .media-table-name,
+  .media-table-type {
+    padding-inline-end: var(--media-table-gap);
+  }
+
+  .media-table-size {
+    padding-inline-end: var(--media-table-gap-wide);
+  }
+
+  .media-table-actions {
+    padding-inline-start: 0.25rem;
+    white-space: nowrap;
+  }
+
+  /* Hidden columns must not reserve width on small tablet */
+  @media (max-width: 639px) {
+    .media-table-col-size {
+      width: 0;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .media-table-col-type {
+      width: 0;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .media-table {
+      --media-table-gap: 1.5rem;
+      --media-table-gap-wide: 2rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .media-table {
+      --media-table-gap: 2rem;
+      --media-table-gap-wide: 2.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .media-table {
+      --media-table-gap: 3.5rem;
+      --media-table-gap-wide: 4.5rem;
+    }
+
+    .media-table-col-select {
+      width: 6.5rem;
+    }
+
+    .media-table-col-preview {
+      width: 7.5rem;
+    }
+
+    .media-table-col-size {
+      width: 8.5rem;
+    }
+
+    .media-table-col-type {
+      width: 7.5rem;
+    }
+
+    .media-table-col-actions {
+      width: 6.5rem;
+    }
+
+    .media-table-name {
+      width: 100%;
+      max-width: 0;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .media-table {
+      --media-table-gap: 4rem;
+      --media-table-gap-wide: 5rem;
+    }
+  }
+
+  .media-table-path {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .media-thumb-checkerboard {
+    background-color: var(--color-surface-100);
+    background-image:
+      linear-gradient(45deg, var(--color-surface-200) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--color-surface-200) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--color-surface-200) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--color-surface-200) 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+  }
+
+  :global(.dark) .media-thumb-checkerboard {
+    background-color: var(--color-surface-900);
+    background-image:
+      linear-gradient(45deg, var(--color-surface-800) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--color-surface-800) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--color-surface-800) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--color-surface-800) 75%);
+  }
+
+  .media-table-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-300) transparent;
+  }
+
+  .media-table-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .media-table-scroll::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: var(--color-surface-300);
+  }
+
+  :global(.dark) .media-table-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-surface-700);
+  }
+</style>

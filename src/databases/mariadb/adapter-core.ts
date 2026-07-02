@@ -412,11 +412,18 @@ export abstract class AdapterCore extends SqlAdapterCore {
     _conflictTarget: any[],
     options: BaseQueryOptions = {},
   ): Promise<void> {
+    // Resolve string collection name to Drizzle table object
+    const resolvedTable = typeof table === "string" ? this.getTable(table) : table;
+    if (!resolvedTable) throw new Error(`Table not found: ${table}`);
     await this.wrap(
       async () => {
         const db = this.getDrizzleInstance(options);
-        await (db.insert(table).values(values) as any).onDuplicateKeyUpdate({
-          set: values,
+        // Strip undefined values — Drizzle crashes on undefined column values
+        const cleanValues = Object.fromEntries(
+          Object.entries(values).filter(([, v]) => v !== undefined),
+        );
+        await (db.insert(resolvedTable).values(cleanValues) as any).onDuplicateKeyUpdate({
+          set: cleanValues,
         });
       },
       "UPSERT_NATIVE_FAILED",

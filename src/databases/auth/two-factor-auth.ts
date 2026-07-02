@@ -137,7 +137,15 @@ export class TwoFactorAuthService {
       return true;
     } catch (error: any) {
       const message = `Failed to complete 2FA setup: ${error.message}`;
-      logger.error(message, { userId, tenantId });
+      // Validation failures are expected during testing — log as warn
+      if (
+        error.message.includes("Invalid TOTP secret") ||
+        error.message.includes("Invalid verification")
+      ) {
+        logger.warn(message, { userId, tenantId });
+      } else {
+        logger.error(message, { userId, tenantId });
+      }
       throw new Error(message);
     }
   }
@@ -286,7 +294,11 @@ export class TwoFactorAuthService {
       return true;
     } catch (error: any) {
       const message = `Failed to disable 2FA: ${error.message}`;
-      logger.error(message, { userId, tenantId });
+      if (error.message.includes("2FA is not enabled")) {
+        logger.warn(message, { userId, tenantId });
+      } else {
+        logger.error(message, { userId, tenantId });
+      }
       throw new Error(message);
     }
   }
@@ -330,7 +342,11 @@ export class TwoFactorAuthService {
       return newBackupCodes; // Return plain codes to user
     } catch (error: any) {
       const message = `Failed to regenerate backup codes: ${error.message}`;
-      logger.error(message, { userId, tenantId });
+      if (error.message.includes("2FA is not enabled")) {
+        logger.warn(message, { userId, tenantId });
+      } else {
+        logger.error(message, { userId, tenantId });
+      }
       throw new Error(message);
     }
   }

@@ -19,9 +19,9 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** June 23, 2026
+**Last Updated:** June 29, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
@@ -58,47 +58,34 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 ````bash
 # White-box gate
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:unit
 bun run check
 
 # Production build used by integration and most E2E jobs
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run build
 
 # Black-box integration runner (choose DB)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run scripts/run-integration-tests.ts --db=sqlite
 
 # Wizard E2E against the production build
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 TEST_MODE=true node build/index.js
-bun x playwright test --project=wizard  # (runs tests/e2e/routes/setup/setup-wizard.spec.ts via project testMatch)
+bun x playwright test --project=wizard
 
 # Smart test runner — auto-detects what to test from git diff
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:smart
 
-# Run the High-Performance Quality Gate (4.4x faster)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+# Run the quality gate
 bun run scripts/quality-gate.ts
 
 # Run specific contract against active database
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun test tests/integration/databases/contract.test.ts
 
-# Run the complete Enterprise Performance Matrix (All 4 Databases)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+# Run the complete Enterprise Performance Matrix (all 4 databases)
 bun run scripts/benchmark-matrix/index.ts
 
-# Run a specific benchmark (Smart-Redirect Enabled)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-# You can use 'bun run', but the system will automatically redirect to 'bun test'
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
-# for maximum precision and automatic resource cleanup.
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+# Run a specific benchmark
 bun test tests/benchmarks/api-latency.test.ts
-```text
+```
 
 > [!TIP]
 > SveltyCMS benchmarks are **Environment-Aware**. If you execute a benchmark file with `bun run`, the system will automatically inform you and reroute the execution through the **Bun Test Engine** to ensure accurate micro-latency measurements and proper cleanup of background services.
@@ -367,19 +354,17 @@ Dedicated automated and cognitive checkpoints integrated into CI and developer q
 
 ### Parallel E2E Suite (Playwright)
 
-```
+```bash
 # Run with 4 concurrent workers
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 npx playwright test --workers=4
-```text
+```
 
 ### Unit Tests (Bun)
 
-```
+```bash
 # Run all unit tests (Component, Service & Utility)
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 bun run test:unit
-```text
+```
 
 ---
 

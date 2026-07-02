@@ -24,12 +24,16 @@
  *   - Summary table at the end
  */
 
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { spawn, type SpawnOptions } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 const ROOT = process.cwd();
+
+// ── DB allowlist — prevents injection via --db= ─────────────────────────
+
+const VALID_DBS = ["sqlite", "mongodb", "mariadb", "postgresql"] as const;
 
 // ── CLI Argument Parsing ────────────────────────────────────────────────────
 
@@ -43,7 +47,17 @@ function getArg(name: string): string | undefined {
 const singleDb = getArg("--db");
 const skipE2E = argv.includes("--skip-e2e");
 
+if (singleDb && !(VALID_DBS as readonly string[]).includes(singleDb)) {
+  console.error(`❌ Invalid --db value: "${singleDb}". Valid: ${VALID_DBS.join(", ")}`);
+  process.exit(1);
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+interface RunResult {
+  status: number | null;
+  passed: boolean;
+}
 
 function run(
   cmd: string,
@@ -53,24 +67,57 @@ function run(
     env?: Record<string, string>;
     ignoreExit?: boolean;
   } = {},
-): SpawnSyncReturns<Buffer> {
+): Promise<RunResult> {
   if (!opts.silent) {
     console.log(`  $ ${cmd} ${args.join(" ")}`);
   }
-  return spawnSync(cmd, args, {
-    stdio: opts.silent ? "pipe" : "inherit",
-    shell: true,
-    env: opts.env ? { ...process.env, ...opts.env } : process.env,
-    cwd: ROOT,
-  });
-}
 
-function ok(result: SpawnSyncReturns<Buffer>): boolean {
-  return result.status === 0;
+  return new Promise((resolve, reject) => {
+    const spawnOpts: SpawnOptions = {
+      stdio: opts.silent ? "pipe" : "inherit",
+      shell: false, // shell: false prevents injection via --db= or other args
+      env: opts.env ? { ...process.env, ...opts.env } : process.env,
+      cwd: ROOT,
+    };
+
+    // Bun requires shell:true on Windows for .ts scripts via `bun run`
+    const useShell = process.platform === "win32";
+    if (useShell) {
+      spawnOpts.shell = true;
+      // Re-validate args when shell is required — all args come from this file's constants
+      spawnOpts.windowsVerbatimArguments = true;
+    }
+
+    const proc = spawn(cmd, args, spawnOpts);
+
+    proc.on("error", (err) => {
+      if (opts.ignoreExit) {
+        resolve({ status: 1, passed: false });
+      } else {
+        reject(err);
+      }
+    });
+
+    proc.on("close", (code) => {
+      const passed = opts.ignoreExit ? true : code === 0;
+      resolve({ status: code, passed });
+    });
+  });
 }
 
 function elapsed(startMs: number): string {
   return `${((Date.now() - startMs) / 1000).toFixed(1)}s`;
+}
+
+async function runChecked(
+  name: string,
+  cmd: string,
+  args: string[],
+  opts: { env?: Record<string, string>; ignoreExit?: boolean } = {},
+): Promise<StepResult> {
+  const startMs = Date.now();
+  const result = await run(cmd, args, opts);
+  return { name, passed: result.passed, duration: elapsed(startMs) };
 }
 
 function ensureTestSecret(): string {
@@ -84,6 +131,20 @@ function ensureTestSecret(): string {
   const secret = `SVELTYCMS_LOCAL_CI_${Date.now()}_${randomUUID().slice(0, 8)}`;
   writeFileSync(secretPath, secret);
   return secret;
+}
+
+/** Read E2E project names from playwright.config.ts — stays in sync automatically. */
+function getE2EProjects(): string[] {
+  try {
+    const configPath = join(ROOT, "playwright.config.ts");
+    if (!existsSync(configPath)) return [];
+    const content = readFileSync(configPath, "utf-8");
+    const matches = content.matchAll(/name:\s*"([^"]+)"/g);
+    const exclude = new Set(["wizard", "auth-setup", "firstuser"]);
+    return [...matches].map((m) => m[1]).filter((n) => !exclude.has(n));
+  } catch {
+    return [];
+  }
 }
 
 // ── Main Pipeline ───────────────────────────────────────────────────────────
@@ -111,46 +172,33 @@ async function main() {
   console.log(`  Databases:    Using Docker Desktop (already running)`);
   console.log("");
 
+  // ── Backup config inside try block — if backup fails, nothing runs ──
   const backupDir = join(ROOT, ".tmp_config_backup");
   const pathsToBackup = [
     {
       src: join(ROOT, "config", "private.ts"),
       dest: join(backupDir, "private.ts"),
-      type: "file",
+      type: "file" as const,
     },
     {
       src: join(ROOT, "config", "private.test.ts"),
       dest: join(backupDir, "private.test.ts"),
-      type: "file",
+      type: "file" as const,
     },
     {
       src: join(ROOT, "config", "database"),
       dest: join(backupDir, "database"),
-      type: "dir",
+      type: "dir" as const,
     },
   ];
-
-  console.log("💾 Backing up local configuration...");
-  if (existsSync(backupDir)) {
-    rmSync(backupDir, { recursive: true, force: true });
-  }
-  mkdirSync(backupDir, { recursive: true });
-
-  for (const p of pathsToBackup) {
-    if (existsSync(p.src)) {
-      cpSync(p.src, p.dest, { recursive: true });
-    }
-  }
 
   const restoreConfig = () => {
     console.log("⏪ Restoring local configuration...");
     for (const p of pathsToBackup) {
       if (existsSync(p.dest)) {
-        if (p.type === "dir") {
-          rmSync(p.src, { recursive: true, force: true });
-        }
+        if (p.type === "dir") rmSync(p.src, { recursive: true, force: true });
         cpSync(p.dest, p.src, { recursive: true });
-      } else {
+      } else if (existsSync(p.src)) {
         rmSync(p.src, { recursive: true, force: true });
       }
     }
@@ -158,7 +206,22 @@ async function main() {
     console.log("   ✓ Local configuration restored.");
   };
 
+  // Handle Ctrl+C — set flag synchronously, let the main loop notice
+  let interrupted = false;
+  process.on("SIGINT", () => {
+    interrupted = true;
+    console.log("\n⚠️  SIGINT received — finishing current step, then restoring config...");
+  });
+
   try {
+    // Backup must succeed before any work begins
+    console.log("💾 Backing up local configuration...");
+    if (existsSync(backupDir)) rmSync(backupDir, { recursive: true, force: true });
+    mkdirSync(backupDir, { recursive: true });
+    for (const p of pathsToBackup) {
+      if (existsSync(p.src)) cpSync(p.src, p.dest, { recursive: true });
+    }
+
     // ── Step 0: Quality Gates ────────────────────────────────────────────────
     console.log("🛡️  Step 0: Quality Gates (Format, Lint, Type Check, Unit Tests)");
     const qualityChecks = [
@@ -168,14 +231,12 @@ async function main() {
       { name: "Unit Tests", cmd: "bun", args: ["run", "test:unit"] },
     ];
 
-    let t: number;
     for (const check of qualityChecks) {
+      if (interrupted) break;
       console.log(`\n  ── 🔎 ${check.name} ──`);
-      t = Date.now();
-      const r = run(check.cmd, check.args);
-      const passed = ok(r);
-      results.push({ name: check.name, passed, duration: elapsed(t) });
-      if (!passed) {
+      const r = await runChecked(check.name, check.cmd, check.args);
+      results.push(r);
+      if (!r.passed) {
         console.error(`  ❌ ${check.name} failed.`);
         printSummary(results, pipelineStart);
         process.exit(1);
@@ -192,99 +253,75 @@ async function main() {
       join(ROOT, "logs"),
     ];
     for (const path of dirsToClear) {
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
-      }
+      if (existsSync(path)) rmSync(path, { recursive: true, force: true });
     }
     mkdirSync(join(ROOT, "config", "database"), { recursive: true });
 
     // ── Step 1: Build ───────────────────────────────────────────────────────
-    console.log("🏗️  Step 1: Production Build (with COMPILE_ALL_ADAPTERS)");
-    t = Date.now();
-    const buildResult = run("bun", ["run", "build"], {
-      env: { COMPILE_ALL_ADAPTERS: "true" },
-    });
-    const buildPassed = ok(buildResult);
-    results.push({
-      name: "Production Build",
-      passed: buildPassed,
-      duration: elapsed(t),
-    });
-    if (!buildPassed) {
-      printSummary(results, pipelineStart);
-      process.exit(1);
+    if (!interrupted) {
+      console.log("🏗️  Step 1: Production Build (with COMPILE_ALL_ADAPTERS)");
+      const r = await runChecked("Production Build", "bun", ["run", "build"], {
+        env: { COMPILE_ALL_ADAPTERS: "true" },
+      });
+      results.push(r);
+      if (!r.passed) {
+        printSummary(results, pipelineStart);
+        process.exit(1);
+      }
     }
 
     // ── Step 2: Integration DB Matrix ─────────────────────────────────────
-    const databases = singleDb ? [singleDb] : ["sqlite", "mongodb", "mariadb", "postgresql"];
+    const databases = singleDb ? [singleDb] : [...VALID_DBS];
 
-    console.log(`\n🧪 Step 2: Integration Tests (${databases.join(", ")})`);
-    for (const db of databases) {
-      console.log(`\n  ── 🗄️  ${db.toUpperCase()} ──`);
-      t = Date.now();
-      const r = run("bun", ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"]);
-      const passed = ok(r);
-      results.push({
-        name: `Integration (${db})`,
-        passed,
-        duration: elapsed(t),
-      });
-      if (!passed) {
-        console.error(`  ❌ ${db} integration tests failed.`);
-        break; // fail-fast
+    if (!interrupted) {
+      console.log(`\n🧪 Step 2: Integration Tests (${databases.join(", ")})`);
+      for (const db of databases) {
+        if (interrupted) break;
+        console.log(`\n  ── 🗄️  ${db.toUpperCase()} ──`);
+        const r = await runChecked(`Integration (${db})`, "bun", [
+          "run",
+          "scripts/run-integration-tests.ts",
+          `--db=${db}`,
+          "--no-build",
+        ]);
+        results.push(r);
+        if (!r.passed) {
+          console.error(`  ❌ ${db} integration tests failed.`);
+          break;
+        }
       }
     }
 
     // ── Step 3: Playwright E2E ────────────────────────────────────────────
-    if (!skipE2E && results.every((r) => r.passed)) {
+    if (!interrupted && !skipE2E && results.every((r) => r.passed)) {
       console.log("\n🎭 Step 3: Playwright E2E Suite");
 
-      // Ensure browsers are installed
-      run("bun", ["x", "playwright", "install", "--with-deps", "chromium"], {
+      // Install browsers (non-fatal if already installed)
+      await run("bun", ["x", "playwright", "install", "--with-deps", "chromium"], {
         silent: true,
         ignoreExit: true,
       });
 
-      // Clear state again just in case previous integration tests left garbage
+      // Clear state again for clean E2E run
       for (const path of dirsToClear) {
-        if (existsSync(path)) {
-          rmSync(path, { recursive: true, force: true });
-        }
+        if (existsSync(path)) rmSync(path, { recursive: true, force: true });
       }
       mkdirSync(join(ROOT, "config", "database"), { recursive: true });
 
-      const e2eProjects = [
-        "wizard",
-        "auth-setup",
-        "signup",
-        "content",
-        "system",
-        "a11y",
-        "rbac",
-        "language",
-        "branding",
-        "visual-regression",
-        "users",
-        "builder",
-        "permissions",
-        "firstuser",
-        "config-routes",
-        "admin",
-        "dashboard",
-        "appearance",
-        "media",
-      ];
+      const e2eProjects = getE2EProjects();
+      console.log(`  Projects: ${e2eProjects.join(", ")}`);
+
       for (const project of e2eProjects) {
+        if (interrupted) break;
         console.log(`\n  ── 🎭 ${project} ──`);
-        t = Date.now();
-        const r = run("bun", ["x", "playwright", "test", `--project=${project}`]);
-        const passed = ok(r);
-        results.push({
-          name: `E2E (${project})`,
-          passed,
-          duration: elapsed(t),
-        });
-        if (!passed) break; // fail-fast
+        const r = await runChecked(`E2E (${project})`, "bun", [
+          "x",
+          "playwright",
+          "test",
+          `--project=${project}`,
+        ]);
+        results.push(r);
+        if (!r.passed) break;
       }
     } else if (skipE2E) {
       console.log("\n⏩ Step 3: Playwright E2E (skipped via --skip-e2e)");

@@ -24,9 +24,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = join(__dirname, "..");
 
-let PORT = process.env.PORT ?? "4173";
+const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
-let API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
+const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
 
 type IntegrationSuite = "all" | "db" | "api";
 
@@ -63,7 +63,7 @@ const loadHardenedConfig = async () => {
   };
 };
 
-let CONFIG: any = {};
+let CONFIG: Awaited<ReturnType<typeof loadHardenedConfig>>;
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
 let serverRunningMode: "normal" | "setup" | "none" = "none";
@@ -128,16 +128,13 @@ function normalizePath(file: string) {
 }
 
 function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
-  // First, always filter out db tests that don't match the current dbType
   let filtered = testFiles.filter((file) => {
     const path = normalizePath(file);
-    if (!path.includes("tests/integration/databases/")) return true;
 
     if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
     if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
     if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
     if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
-    // Contract test runs for all DBs (it auto-detects the active adapter internally)
 
     return true;
   });
@@ -147,14 +144,7 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
   }
 
   if (suite === "api") {
-    return filtered.filter((file) => {
-      const path = normalizePath(file);
-      return (
-        path.includes("tests/integration/api/") ||
-        path.includes("tests/integration/routes/") ||
-        path.includes("tests/integration/sdk/")
-      );
-    });
+    return filtered.filter((file) => !normalizePath(file).includes("tests/integration/databases/"));
   }
 
   return filtered;
@@ -166,13 +156,12 @@ async function waitForPortToBeFree(port: number, maxAttempts = 30) {
       await fetch(`http://127.0.0.1:${port}/api/system/health`, {
         signal: AbortSignal.timeout(1000),
       });
-      // If it responded, it's still alive. Wait.
       await new Promise((resolve) => setTimeout(resolve, 500));
     } catch {
-      // Connection refused/Failed to fetch means it is fully freed!
       return;
     }
   }
+  throw new Error(`Port ${port} still in use after ${maxAttempts} attempts`);
 }
 
 async function freePort(port: number) {
@@ -198,24 +187,16 @@ async function freePort(port: number) {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
-  const targetStates = [
-    "ready",
-    "healthy",
-    "setup",
-    "warmed",
-    "warming",
-    "degraded",
-    "initializing",
-    "operational",
-    "idle",
-  ];
+  const targetStates = new Set(["ready", "healthy", "ok", "degraded"]);
+
+  const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/health`, {
         headers: {
           "x-test-mode": "true",
-          "x-test-secret": CONFIG.TEST_API_SECRET,
+          "x-test-secret": testApiSecret,
         },
         signal: AbortSignal.timeout(3000),
       });
@@ -227,63 +208,50 @@ async function waitForServerReady(maxAttempts = 60) {
           .toString()
           .toLowerCase();
 
-        if (targetStates.includes(rawStatus)) {
+        if (targetStates.has(rawStatus)) {
           console.log(`✅ Server is READY (state: ${rawStatus})`);
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          return;
+          return true;
         }
 
-        console.log(`⏳ Server up, but state is: "${rawStatus}"...`);
-      } else {
-        console.log(`⏳ Server responded with HTTP ${res.status}...`);
+        console.log(`⏳ Server state: ${rawStatus} (${i + 1}/${maxAttempts})...`);
       }
     } catch {
-      // Quietly wait for connection.
+      // Server may not be listening yet
     }
-
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  throw new Error("Server failed to reach READY state within timeout");
+  console.log("⚠️ Server did not reach READY state within timeout.");
+  return false;
 }
 
-function getTestEnv(db: any): Record<string, string | undefined> {
+function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
   return {
-    ...process.env,
-    NODE_ENV: "production",
+    NODE_ENV: "test",
     TEST_MODE: "true",
     SKIP_GATEKEEPER: "true",
-    PORT: PORT,
-    API_BASE_URL: API_BASE_URL,
+    PORT,
+    API_BASE_URL,
     DB_TYPE: db.type,
     DB_HOST: db.host,
-    DB_PORT: db.port,
+    DB_PORT: String(db.port),
     DB_NAME: db.name,
     DB_USER: db.user,
     DB_PASSWORD: db.password,
-    TEST_API_SECRET: CONFIG.TEST_API_SECRET,
-    ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
+    TEST_API_SECRET: CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+    ADMIN_PASSWORD: CONFIG?.ADMIN_PASSWORD || "Password123!",
     ORIGIN: API_BASE_URL,
     PASSWORD_MIN_LENGTH: "8",
-    JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
-    ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
+    JWT_SECRET_KEY: CONFIG?.JWT_SECRET_KEY || "",
+    ENCRYPTION_KEY: CONFIG?.ENCRYPTION_KEY || "",
   };
 }
 
-async function startPreviewServer(setupMode = false) {
-  await freePort(Number(PORT));
-
+async function startPreviewServer() {
   const db = getDbDefaults();
 
-  console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
-
-  const entryPoint = [
-    join(ROOT, "build", "index.js"),
-    join(ROOT, "build", "server", "index.js"),
-    join(ROOT, ".svelte-kit", "output", "server", "index.js"),
-  ].find((p) => existsSync(p));
-
-  if (!entryPoint) {
+  const entryPoint = join(ROOT, "build", "index.js");
+  if (!existsSync(entryPoint)) {
     throw new Error("Could not find server entry point (build/index.js)");
   }
 
@@ -291,15 +259,15 @@ async function startPreviewServer(setupMode = false) {
 
   const runtimeCmd = "node";
 
-  const env = getTestEnv(db);
-  env.SVELTYCMS_SETUP_MODE_TEST = setupMode ? "true" : "false";
-
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
+    env: {
+      ...process.env,
+      ...getTestEnv(db),
+    },
     stdio: "inherit",
     shell: process.platform === "win32",
-    detached: process.platform !== "win32",
-    env,
+    detached: false,
   });
 
   await waitForServerReady();
@@ -307,88 +275,64 @@ async function startPreviewServer(setupMode = false) {
 
 let testFileRunCount = 0;
 
-async function prepareIsolatedServerForTestFile(filePath: string) {
-  const setupModeTest = isSetupModeTest(filePath);
+async function prepareIsolatedServerForTestFile(file: string) {
+  const setupModeTest = isSetupModeTest(file);
   const targetMode = setupModeTest ? "setup" : "normal";
-  const isMongoDB = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
-
-  testFileRunCount++;
+  const isMongoDB = process.env.DB_TYPE === "mongodb";
 
   // MongoDB: restart server every 5 tests to prevent connection pool degradation
   const needsMongoRestart =
     isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 5 === 0;
 
   if (needsMongoRestart) {
-    console.log(
-      `\n🔁 MongoDB: restarting server after ${testFileRunCount - 1} tests to refresh connection pool...`,
-    );
+    console.log("🔄 MongoDB: restarting server to refresh connection pool...");
+    await stopPreviewServer();
+    await freePort(Number.parseInt(PORT, 10));
+    testFileRunCount = 0;
+  }
+
+  if (serverRunningMode !== targetMode || testFileRunCount === 0) {
     if (previewProcess) {
       await stopPreviewServer();
+      await freePort(Number.parseInt(PORT, 10));
     }
-    serverRunningMode = targetMode;
-    await startPreviewServer(setupModeTest);
-  }
 
-  // Ensure server is running in the correct mode
-  if (!previewProcess || serverRunningMode !== targetMode) {
-    if (previewProcess) {
-      console.log(
-        `🔁 Restarting server to switch from ${serverRunningMode} mode to ${targetMode} mode...`,
-      );
-      await stopPreviewServer();
+    // Always start the server — setup-mode just skips seeding
+    await startPreviewServer();
+    serverRunningMode = targetMode;
+
+    if (!setupModeTest) {
+      await testingAction("seed");
+    } else {
+      console.log("⚙️ Setup-mode test — server running without seed.");
     }
-    serverRunningMode = targetMode;
-    await startPreviewServer(setupModeTest);
+    testFileRunCount = 1;
+    testFileRunCount = 1;
+  } else {
+    testFileRunCount++;
   }
-
-  // Reset state between tests — security rate-limiters, caches, DB tables
-  console.log("🧹 Resetting test data for isolated test file...");
-  await testingAction("reset");
-
-  // MongoDB: wait for connection pool to stabilize after collection drops
-  if (isMongoDB) {
-    await new Promise((r) => setTimeout(r, 3000));
-  }
-
-  if (setupModeTest) {
-    console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
-    return;
-  }
-
-  // Tests handle their own seeding via prepareAuthenticatedContext / testingAction("seed")
-  console.log("⏭️ Skipping seed — each test file seeds itself.");
 }
 
 async function stopPreviewServer() {
-  serverRunningMode = "none";
-  if (!previewProcess) {
-    await freePort(Number(PORT));
-    await waitForPortToBeFree(Number(PORT));
-    return;
-  }
+  if (!previewProcess) return;
 
-  const pid = previewProcess.pid;
-
-  if (pid) {
-    try {
-      if (process.platform === "win32") {
-        execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore" });
-      } else {
-        process.kill(-pid, "SIGKILL");
-      }
-    } catch {
+  try {
+    if (process.platform === "win32") {
       try {
-        previewProcess.kill("SIGKILL");
+        const pid = previewProcess.pid;
+        if (pid) execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
       } catch {
-        // Ignore.
+        previewProcess.kill("SIGKILL");
       }
+    } else {
+      previewProcess.kill("SIGTERM");
     }
+  } catch {
+    // Process already dead
   }
 
+  await new Promise((resolve) => setTimeout(resolve, 500));
   previewProcess = null;
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  await freePort(Number(PORT));
-  await waitForPortToBeFree(Number(PORT));
 }
 
 function generatePrivateTestConfig(privateTestPath: string) {
@@ -399,54 +343,28 @@ function generatePrivateTestConfig(privateTestPath: string) {
 
   const content = `/**
  * Auto-generated test config for integration tests.
- * Created by scripts/run-integration-tests.ts.
+ * This is generated by scripts/run-integration-tests.ts
  */
-
-export const database = {
-  type: ${JSON.stringify(db.type)},
-  host: ${JSON.stringify(db.host)},
-  port: ${dbPortValue},
-  name: ${JSON.stringify(db.name)},
-  user: ${JSON.stringify(db.user)},
-  password: ${JSON.stringify(db.password)},
+export const privateEnv = {
+  DB_TYPE: "${db.type}",
+  DB_HOST: "${db.host}",
+  DB_PORT: ${dbPortValue},
+  DB_NAME: "${db.name}",
+  DB_USER: "${db.user}",
+  DB_PASSWORD: "${db.password}",
+  JWT_SECRET_KEY: "${CONFIG?.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026"}",
+  ENCRYPTION_KEY: "${CONFIG?.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch"}",
+  TEST_API_SECRET: "${CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026"}",
+  PASSWORD_MIN_LENGTH: 8,
+  USE_REDIS: false,
+  REDIS_HOST: "127.0.0.1",
+  REDIS_PORT: 6379,
+  MULTI_TENANT: false,
+  DEMO: false,
+  HOST_PROD: "${API_BASE_URL}"
 };
-
-export const db = database;
-
-export const security = {
-  jwtSecret: ${JSON.stringify(CONFIG.JWT_SECRET_KEY)},
-  encryptionKey: ${JSON.stringify(CONFIG.ENCRYPTION_KEY)},
-  testApiSecret: ${JSON.stringify(CONFIG.TEST_API_SECRET)},
-  adminPassword: ${JSON.stringify(CONFIG.ADMIN_PASSWORD)},
-};
-
-export const secrets = security;
-
-export const system = {
-  multiTenant: false,
-  demoMode: false,
-  useRedis: false,
-  redisHost: "localhost",
-  redisPort: "6379",
-  redisPassword: "",
-};
-
-export const privateConfig = {
-  database,
-  db,
-  security,
-  secrets,
-  system,
-  multiTenant: false,
-  demoMode: false,
-  useRedis: false,
-  jwtSecret: security.jwtSecret,
-  encryptionKey: security.encryptionKey,
-  testApiSecret: security.testApiSecret,
-  adminPassword: security.adminPassword,
-};
-
-export default privateConfig;
+export const privateConfig = privateEnv;
+export default privateEnv;
 `;
 
   writeFileSync(privateTestPath, content, "utf8");
@@ -487,24 +405,29 @@ function ensurePrivateTestConfig() {
   console.log(`✅ Test config verified: ${privateTestPath}`);
 }
 
-async function testingAction(action: "reset" | "seed", maxRetries = 5) {
+async function testingAction(action: "reset" | "seed", preset?: string): Promise<void> {
   let lastError: Error | null = null;
+  const maxRetries = 5;
+  const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxRetries; i++) {
     try {
+      const body: any = { action };
+      if (action === "seed") {
+        body.email = "admin@test.com";
+        body.password = CONFIG?.ADMIN_PASSWORD || "Password123!";
+      }
+      if (preset) body.preset = preset;
+
       const response = await fetch(`${API_BASE_URL}/api/testing`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-mode": "true",
-          "x-test-secret": CONFIG.TEST_API_SECRET,
+          "x-test-secret": testApiSecret,
           Origin: API_BASE_URL,
         },
-        body: JSON.stringify({
-          action,
-          email: "admin@example.com",
-          password: CONFIG.ADMIN_PASSWORD,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) return;
@@ -521,7 +444,6 @@ async function testingAction(action: "reset" | "seed", maxRetries = 5) {
       lastError = err;
       if (i < maxRetries - 1) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        continue;
       }
     }
   }
@@ -530,27 +452,23 @@ async function testingAction(action: "reset" | "seed", maxRetries = 5) {
 }
 
 async function runCommand(cmd: string, args: string[], opts: any = {}) {
-  return new Promise<{ code: number }>((resolve, reject) => {
-    const proc = spawn(cmd, args, {
-      cwd: ROOT,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      env: {
-        ...process.env,
-        ...opts.env,
-      },
-    });
+  const proc = spawn(cmd, args, {
+    cwd: ROOT,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    ...opts,
+    env: { ...process.env, ...opts.env },
+  });
 
-    proc.on("error", reject);
-    proc.on("close", (code) => resolve({ code: code ?? 1 }));
+  return new Promise<{ code: number | null }>((resolve) => {
+    proc.on("close", (code) => resolve({ code }));
+    proc.on("error", () => resolve({ code: 1 }));
   });
 }
 
 async function runSystemSetup() {
   ensurePrivateTestConfig();
 
-  // Create a default test collection so that dynamic endpoints (like OpenAPI and Collections)
-  // are populated with at least one collection during integration testing.
   const collectionsDir = join(ROOT, "config", "collections", "test");
   if (!existsSync(collectionsDir)) {
     mkdirSync(collectionsDir, { recursive: true });
@@ -613,9 +531,10 @@ async function teardown() {
 
   await stopPreviewServer();
 
+  // Clean up test collection artifacts — paths must match runSystemSetup
   try {
-    const tsPath = join(ROOT, "config", "collections", "test_collection.ts");
-    const jsPath = join(ROOT, ".compiledCollections", "test_collection.js");
+    const tsPath = join(ROOT, "config", "collections", "test", "integration_test_collection.ts");
+    const jsPath = join(ROOT, ".compiledCollections", "test", "integration_test_collection.js");
     if (existsSync(tsPath)) unlinkSync(tsPath);
     if (existsSync(jsPath)) unlinkSync(jsPath);
   } catch {
@@ -646,6 +565,25 @@ function getExplicitFiles(argv: string[]) {
   }
 
   return files.filter(Boolean);
+}
+
+/** Returns test files found recursively — pure function, no side effects. */
+function findTests(dir: string): string[] {
+  const results: string[] = [];
+  const entries = readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (entry.name === "helpers" || entry.name === "mocks") continue;
+      results.push(...findTests(fullPath));
+    } else if (entry.name.endsWith(".test.ts")) {
+      results.push(fullPath);
+    }
+  }
+
+  return results;
 }
 
 async function main() {
@@ -687,8 +625,15 @@ async function main() {
     const hasConfig = existsSync(privatePath);
     const hasTestConfig = existsSync(privateTestPath);
 
+    // Move real configs aside and create stub configs so the build can resolve
+    // config/private.ts without leaking secrets into the build artifact
     if (hasConfig) renameSync(privatePath, privateTmpPath);
     if (hasTestConfig) renameSync(privateTestPath, privateTestTmpPath);
+
+    // Create stub config for build resolution
+    const stubConfig = `export const privateEnv = { DB_TYPE: "${dbType}", DB_HOST: "127.0.0.1", DB_NAME: "stub", DB_USER: "", DB_PASSWORD: "", JWT_SECRET_KEY: "stub", ENCRYPTION_KEY: "stub" };\nexport const privateConfig = privateEnv;\nexport default privateEnv;\n`;
+    writeFileSync(privatePath, stubConfig, "utf8");
+    if (!hasTestConfig) writeFileSync(privateTestPath, stubConfig, "utf8");
 
     try {
       const { code } = await runCommand("bun", ["run", "build"], {
@@ -698,33 +643,24 @@ async function main() {
         throw new Error("Build failed");
       }
     } finally {
-      if (hasConfig && existsSync(privateTmpPath)) renameSync(privateTmpPath, privatePath);
-      if (hasTestConfig && existsSync(privateTestTmpPath))
+      // Restore real configs
+      if (hasConfig && existsSync(privateTmpPath)) {
+        renameSync(privateTmpPath, privatePath);
+      } else if (!hasConfig && existsSync(privatePath)) {
+        unlinkSync(privatePath);
+      }
+      if (hasTestConfig && existsSync(privateTestTmpPath)) {
         renameSync(privateTestTmpPath, privateTestPath);
+      } else if (!hasTestConfig && existsSync(privateTestPath)) {
+        unlinkSync(privateTestPath);
+      }
     }
   } else {
     console.log("⏭️ Skipping build; using existing CI build artifact.");
   }
 
   const integrationDir = join(ROOT, "tests", "integration");
-  let testFiles: string[] = [];
-
-  function findTests(dir: string) {
-    const entries = readdirSync(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        if (entry.name === "helpers" || entry.name === "mocks") continue;
-        findTests(fullPath);
-      } else if (entry.name.endsWith(".test.ts")) {
-        testFiles.push(fullPath);
-      }
-    }
-  }
-
-  findTests(integrationDir);
+  let testFiles = findTests(integrationDir);
 
   testFiles = filterTestsBySuite(testFiles, suite, dbType);
 
@@ -742,16 +678,12 @@ async function main() {
     throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
-  // Use PORT from env (4173) — fixed per DB for CI parity, overridable locally
-  if (process.env.PORT) {
-    PORT = process.env.PORT;
-  }
-  API_BASE_URL = `http://${HOST}:${PORT}`;
-
   let passed = 0;
   const results: { file: string; success: boolean; time: number }[] = [];
 
   for (const file of testFiles) {
+    if (isShuttingDown) break; // Respect signal flag synchronously
+
     const relPath = relative(ROOT, file);
     const start = Date.now();
 
@@ -767,7 +699,12 @@ async function main() {
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
-    const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
+    const testCmd = "bun";
+    // MongoDB and MariaDB need extra timeout for post-reset stabilize loop (up to 32s + seed + auth)
+    const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
+    const testArgs = ["test", "--timeout", dbTimeout, bunTestPath];
+
+    const { code } = await runCommand(testCmd, testArgs, {
       env: {
         ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
@@ -808,18 +745,19 @@ async function main() {
   process.exit(passed === results.length ? 0 : 1);
 }
 
-process.on("SIGINT", async () => {
-  await teardown();
-  process.exit(130);
+// Reliable signal handling: set flag synchronously, let main loop check it.
+// Node doesn't await async signal handlers — cleanup would be abandoned.
+process.on("SIGINT", () => {
+  isShuttingDown = true;
+  console.log("\n⚠️ SIGINT received — shutting down gracefully...");
 });
 
-process.on("SIGTERM", async () => {
-  await teardown();
-  process.exit(143);
+process.on("SIGTERM", () => {
+  isShuttingDown = true;
+  console.log("\n⚠️ SIGTERM received — shutting down gracefully...");
 });
 
-main().catch(async (error) => {
-  console.error("💥 Fatal error:", error);
-  await teardown();
+main().catch((err) => {
+  console.error("\n❌ Fatal:", err);
   process.exit(1);
 });

@@ -4,7 +4,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
-import type { BaseEntity, DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
+import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 
@@ -68,20 +68,6 @@ interface GraphQLContext {
 
 type MediaResolverParent = unknown;
 
-interface MediaEntity extends BaseEntity {
-  tenantId?: DatabaseId | null;
-  url?: string;
-}
-
-// MIME type patterns for media type filtering
-const MIME_PATTERNS = {
-  images: /^image\//,
-  documents: /^(application\/(pdf|msword|vnd\.(openxmlformats|oasis|ms-)|zip|x-rar)|text\/)/,
-  audio: /^audio\//,
-  videos: /^video\//,
-  remote: /^(https?:\/\/|data:)/, // Remote URLs or data URIs
-};
-
 // Builds resolvers for querying media data with pagination support.
 export function mediaResolvers(dbAdapter: DatabaseAdapter) {
   if (!dbAdapter) {
@@ -89,7 +75,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
   }
 
   const fetchMediaByType = async (
-    mimePattern: RegExp | null,
+    mimeTypeFilter: Record<string, unknown> | null,
     pagination: { page?: number; limit?: number } | undefined,
     context: GraphQLContext,
   ) => {
@@ -106,7 +92,12 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
         filter.tenantId = context.tenantId;
       }
 
-      // Use crud.findMany to query media collection
+      // Push MIME type filter to DB — avoids loading non-matching rows into memory
+      if (mimeTypeFilter) {
+        Object.assign(filter, mimeTypeFilter);
+      }
+
+      // Use crud.findMany to query media collection with server-side filtering
       const result = await dbAdapter.crud.findMany("media", filter, {
         limit,
         offset: (page - 1) * limit,
@@ -117,16 +108,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
         throw new Error(result.error?.message || "Query failed");
       }
 
-      // Filter by MIME type pattern if specified
-      let data = result.data || [];
-      if (mimePattern) {
-        data = data.filter((item: MediaEntity) => {
-          const mimeType = (item as MediaEntity & { mimeType?: string }).mimeType;
-          return mimeType && mimePattern.test(mimeType);
-        });
-      }
-
-      return data;
+      return result.data || [];
     } catch (error) {
       logger.error("Error fetching media:", {
         error: error instanceof Error ? error.message : String(error),
@@ -138,14 +120,18 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 
   return {
     mediaImages: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-      await fetchMediaByType(MIME_PATTERNS.images, args.pagination, context),
+      await fetchMediaByType({ mimeType: { $regex: "^image/" } }, args.pagination, context),
     mediaDocuments: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-      await fetchMediaByType(MIME_PATTERNS.documents, args.pagination, context),
+      await fetchMediaByType(
+        { mimeType: { $regex: "^(application|text)/" } },
+        args.pagination,
+        context,
+      ),
     mediaAudio: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-      await fetchMediaByType(MIME_PATTERNS.audio, args.pagination, context),
+      await fetchMediaByType({ mimeType: { $regex: "^audio/" } }, args.pagination, context),
     mediaVideos: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-      await fetchMediaByType(MIME_PATTERNS.videos, args.pagination, context),
+      await fetchMediaByType({ mimeType: { $regex: "^video/" } }, args.pagination, context),
     mediaRemote: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
-      await fetchMediaByType(null, args.pagination, context), // Remote media doesn't have standard MIME types
+      await fetchMediaByType(null, args.pagination, context),
   };
 }

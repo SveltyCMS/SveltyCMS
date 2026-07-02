@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/setup-proxy.test.ts
- * @description Infrastructure Boot & Proxy Routing Benchmark
+ * @description Infrastructure Boot & Proxy Routing Benchmark (Optimized)
  * @summary Measures cold-start initialization latency and proxy header parsing overhead for enterprise deployments.
  *
  * ### Features:
@@ -25,7 +25,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSetupAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Setup & Proxy Audit...\n");
 
   try {
@@ -45,13 +44,24 @@ async function runSetupAudit() {
 
     const avgCold = coldStarts.reduce((a, b) => a + b, 0) / coldStarts.length;
     const sorted = [...coldStarts].sort((a, b) => a - b);
-    const p95Cold = sorted[Math.floor(sorted.length * 0.95)];
+    const p95Cold = sorted[Math.floor(sorted.length * 0.95)] ?? sorted[sorted.length - 1]!;
 
     // 2. Proxy Header Processing
     console.log("   → Measuring Proxy Header Parsing Overhead...");
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
+
+    // Cache environment variables and headers layout to keep allocations off the hot paths
+    const apiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    const proxyHeaders = {
+      "x-test-mode": "true",
+      "x-test-secret": apiSecret,
+      "X-Forwarded-For": "192.168.1.1, 10.0.0.1, 172.16.0.1",
+      "X-Forwarded-Proto": "https",
+      "X-Forwarded-Host": "cms.enterprise.com",
+      "X-Real-IP": "203.0.113.42",
+    };
 
     const proxyResult = await runBenchmark({
       name: "Proxy Header Parsing",
@@ -64,19 +74,17 @@ async function runSetupAudit() {
       silent: true,
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/system/health`, {
-          headers: {
-            "x-test-mode": "true",
-            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-            "X-Forwarded-For": "192.168.1.1, 10.0.0.1, 172.16.0.1",
-            "X-Forwarded-Proto": "https",
-            "X-Forwarded-Host": "cms.enterprise.com",
-            "X-Real-IP": "203.0.113.42",
-          },
+          method: "GET",
+          headers: proxyHeaders,
         });
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        await res.text();
+
+        // Native byte-stream drain eliminates client-side string composition overhead
+        await res.arrayBuffer();
       },
     });
+
     results.push({
       ...proxyResult,
       shortLabel: "Proxy",

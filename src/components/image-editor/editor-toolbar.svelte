@@ -1,17 +1,11 @@
 <!--
 @file: src/components/image-editor/editor-toolbar.svelte
 @component
-**Pintura-style professional bottom toolbar**
+**Pintura-style professional top toolbar**
 
-Features:
-- Dynamic controls based on active tool
-- Clean tool grouping with visual hierarchy
-- Keyboard shortcuts support
-- Responsive layout (mobile + desktop)
-- Smooth animations and transitions
+Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 -->
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
 	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 
@@ -32,109 +26,119 @@ Features:
 	const canUndo = $derived(imageEditorStore.canUndoState);
 	const canRedo = $derived(imageEditorStore.canRedoState);
 	const isComparing = $derived(imageEditorStore.compareSliderPosition > 0);
+	const zoomPercent = $derived(Math.round(imageEditorStore.state.zoom * 100));
 
-	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
 		const target = e.target as HTMLElement;
 		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
 		const cmdOrCtrl = e.metaKey || e.ctrlKey;
 
-		// Ctrl/Cmd+S: Save
 		if (cmdOrCtrl && e.key === 's') {
 			e.preventDefault();
 			onsave();
 		}
 
-		// Ctrl/Cmd+Z: Undo
 		if (cmdOrCtrl && !e.shiftKey && e.key === 'z') {
 			e.preventDefault();
 			imageEditorStore.handleUndo();
 		}
 
-		// Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo
 		if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
 			e.preventDefault();
 			imageEditorStore.handleRedo();
 		}
 	}
+
+	function toggleCompare() {
+		imageEditorStore.compareSliderPosition = imageEditorStore.compareSliderPosition > 0 ? 0 : 50;
+	}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div
-	class="editor-toolbar relative z-10 flex flex-col border-t border-white/10 bg-[linear-gradient(180deg,rgba(27,27,27,0.98),rgba(12,12,12,0.98))] backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.18)] shrink-0"
-	role="toolbar"
-	aria-label="Image editor"
->
-	<!-- Footer actions -->
-	<div class="footer-actions flex items-center justify-between gap-3 px-4 py-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
-		<div class="shortcut-hint flex items-center gap-1 text-xs text-surface-400">
-			<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
-			<span>Ctrl+S save, Esc cancel, Ctrl+Z or Ctrl+Y redo</span>
-		</div>
-		<div class="action-group flex items-center gap-2 max-md:w-full max-md:flex-wrap max-md:justify-between">
-			<Button variant="outline"
+<header class="editor-toolbar editor-glass-bar" role="toolbar" aria-label="Image editor">
+	<div class="editor-chrome-toolbar">
+		<div class="editor-chrome-zone-start">
+			<button
 				type="button"
-				onclick={() => imageEditorStore.compareSliderPosition = imageEditorStore.compareSliderPosition > 0 ? 0 : 50}
+				class="editor-toolbar-solo-btn"
+				class:editor-toolbar-solo-btn-active={isComparing}
+				onclick={toggleCompare}
 				title="Compare before / after"
 				aria-pressed={isComparing}
-				aria-label="Toggle split-screen compare mode"
+				aria-label="Toggle compare mode"
 			>
-				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
-				<span class="text-xs font-medium">{isComparing ? 'On' : 'Compare'}</span>
-			</Button>
-			<div class="me-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2 py-1 max-md:me-0 max-md:flex-1 max-md:justify-between">
-				<Button variant="outline"
+				<iconify-icon icon="mdi:history" width="18" aria-hidden="true"></iconify-icon>
+			</button>
+		</div>
+
+		<div class="editor-chrome-zone-center">
+			<div class="editor-chrome-pill editor-toolbar-center-cluster">
+				<button
 					type="button"
-					onclick={onZoomOut}
-					title="Zoom out (-)"
-					aria-label="Zoom out"
-					aria-keyshortcuts="-"
+					class="editor-chrome-icon-btn"
+					onclick={() => imageEditorStore.handleUndo()}
+					disabled={!canUndo}
+					title="Undo (Mod+Z)"
+					aria-label="Undo last change"
+					aria-keyshortcuts="Mod+Z"
 				>
-					<iconify-icon icon="mdi:magnify-minus" width="16"></iconify-icon>
-				</Button>
-				<Button variant="outline"
+					<iconify-icon icon="mdi:undo" width="18" aria-hidden="true"></iconify-icon>
+				</button>
+				<button
 					type="button"
-					onclick={onZoomReset}
-					title="Reset zoom (0)"
-					aria-label="Reset zoom"
-					aria-keyshortcuts="0"
+					class="editor-chrome-icon-btn"
+					onclick={() => imageEditorStore.handleRedo()}
+					disabled={!canRedo}
+					title="Redo (Mod+Shift+Z)"
+					aria-label="Redo last undone change"
+					aria-keyshortcuts="Mod+Shift+Z"
 				>
-					<iconify-icon icon="mdi:magnify" width="16"></iconify-icon>
-				</Button>
-				<Button variant="outline"
-					type="button"
-					onclick={onZoomIn}
-					title="Zoom in (+)"
-					aria-label="Zoom in"
-					aria-keyshortcuts="+"
-				>
-					<iconify-icon icon="mdi:magnify-plus" width="16"></iconify-icon>
-				</Button>
+					<iconify-icon icon="mdi:redo" width="18" aria-hidden="true"></iconify-icon>
+				</button>
+
+				<div class="editor-toolbar-divider" aria-hidden="true"></div>
+
+				<div class="zoom-pill" role="group" aria-label="Zoom controls">
+					<button
+						type="button"
+						class="zoom-pill-btn"
+						onclick={onZoomOut}
+						title="Zoom out (-)"
+						aria-label="Zoom out"
+						aria-keyshortcuts="-"
+					>
+						<iconify-icon icon="mdi:minus" width="15" aria-hidden="true"></iconify-icon>
+					</button>
+					<button
+						type="button"
+						class="zoom-pill-value"
+						onclick={onZoomReset}
+						title="Reset zoom (0)"
+						aria-label="Reset zoom to fit"
+						aria-keyshortcuts="0"
+					>
+						{zoomPercent}%
+					</button>
+					<button
+						type="button"
+						class="zoom-pill-btn"
+						onclick={onZoomIn}
+						title="Zoom in (+)"
+						aria-label="Zoom in"
+						aria-keyshortcuts="+"
+					>
+						<iconify-icon icon="mdi:plus" width="15" aria-hidden="true"></iconify-icon>
+					</button>
+				</div>
 			</div>
-			<Button variant="outline"
+		</div>
+
+		<div class="editor-chrome-zone-end">
+			<button
 				type="button"
-				onclick={() => imageEditorStore.handleUndo()}
-				disabled={!canUndo}
-				title="Undo (Mod+Z)"
-				aria-label="Undo last change"
-				aria-keyshortcuts="Mod+Z"
-			>
-				<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
-			</Button>
-			<Button variant="outline"
-				type="button"
-				onclick={() => imageEditorStore.handleRedo()}
-				disabled={!canRedo}
-				title="Redo (Mod+Shift+Z)"
-				aria-label="Redo last undone change"
-				aria-keyshortcuts="Mod+Shift+Z"
-			>
-				<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
-			</Button>
-			<Button variant="outline"
-				type="button"
+				class="editor-chrome-done"
 				onclick={onsave}
 				disabled={isSaving}
 				title="Save changes (Mod+S)"
@@ -142,75 +146,166 @@ Features:
 				aria-keyshortcuts="Mod+S"
 			>
 				{#if isSaving}
-					<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:check" width="18" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="mdi:loading" width="16" class="animate-spin" aria-hidden="true"></iconify-icon>
 				{/if}
-				<span class="text-xs font-medium">Save</span>
-			</Button>
+				<span>Done</span>
+			</button>
 		</div>
 	</div>
 
-	<!-- Mobile Safe Area -->
-	<div class="h-[env(safe-area-inset-bottom)] bg-surface-900"></div>
-
-	<!-- Error Toast -->
 	{#if imageEditorStore.state.error}
 		<div
-			class="absolute bottom-full inset-s-1/2 mb-4 -translate-x-1/2 flex items-center gap-2 rounded-full bg-error-500/95 px-5 py-2.5 text-sm font-medium text-white shadow-xl backdrop-blur-sm"
+			class="editor-toolbar-error"
 			transition:fade={{ duration: 200 }}
+			role="alert"
 		>
-			<iconify-icon icon="mdi:alert-circle" width="18"></iconify-icon>
+			<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
 			<span>{imageEditorStore.state.error}</span>
 			<button
 				type="button"
-				class="ms-2 rounded-full p-1 hover:bg-white/20"
+				class="editor-toolbar-error-dismiss"
 				onclick={() => imageEditorStore.setError(null)}
-				aria-label="Dismiss"
+				aria-label="Dismiss error"
 			>
-				<iconify-icon icon="mdi:close" width="14"></iconify-icon>
+				<iconify-icon icon="mdi:close" width="14" aria-hidden="true"></iconify-icon>
 			</button>
 		</div>
 	{/if}
-</div>
+</header>
 
 <style>
 	.editor-toolbar {
-		animation: slideUp 0.3s ease-out;
+		position: relative;
+		z-index: 30;
+		flex-shrink: 0;
+		padding: 0.5rem 1rem;
+		background: var(--editor-chrome-bg, #0a0a0a);
+		border-bottom: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
 	}
 
-	@keyframes slideUp {
-		from {
-			transform: translateY(100%);
-		}
-		to {
-			transform: translateY(0);
-		}
+	.editor-toolbar-solo-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--editor-control-h, 2.25rem);
+		height: var(--editor-control-h, 2.25rem);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.68));
+		cursor: pointer;
+		background: var(--editor-chrome-elevated, rgba(255, 255, 255, 0.06));
+		border: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
+		border-radius: var(--editor-radius-control, 0.5rem);
+		transition:
+			background 0.15s ease,
+			color 0.15s ease,
+			border-color 0.15s ease;
 	}
 
-	/* Mobile optimizations */
-	@media (max-width: 640px) {
-		.editor-toolbar {
-			font-size: 0.875rem;
-			border-radius: 1rem 1rem 0 0;
-		}
+	.editor-toolbar-solo-btn:hover {
+		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
+		background: rgba(255, 255, 255, 0.1);
+	}
 
-		.footer-actions {
-			justify-content: flex-start;
-			padding-inline: 0.75rem;
-			padding-block: 0.6rem;
-		}
+	.editor-toolbar-solo-btn-active {
+		color: var(--editor-chrome-text-active, #fff);
+		background: rgba(255, 255, 255, 0.12);
+		border-color: rgba(255, 255, 255, 0.14);
+	}
 
-		.shortcut-hint {
-			display: none;
-		}
+	.editor-toolbar-center-cluster {
+		gap: 0.125rem;
+		padding-inline: 0.1875rem;
+	}
 
-		.action-group {
-			width: 100%;
-			flex-wrap: wrap;
-			justify-content: flex-end;
-			gap: 0.375rem;
-		}
+	.editor-toolbar-divider {
+		flex-shrink: 0;
+		width: 1px;
+		height: 1.25rem;
+		margin-inline: 0.125rem;
+		background: var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
+	}
 
+	.zoom-pill {
+		display: inline-flex;
+		align-items: center;
+		height: calc(var(--editor-control-h, 2.25rem) - 0.25rem);
+		overflow: hidden;
+		background: transparent;
+		border: none;
+		border-radius: var(--editor-radius-pill, 9999px);
+	}
+
+	.zoom-pill-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 100%;
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.68));
+		cursor: pointer;
+		background: transparent;
+		border: none;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
+	}
+
+	.zoom-pill-btn:hover {
+		color: var(--editor-chrome-text-active, #fff);
+		background: rgba(255, 255, 255, 0.08);
+		border-radius: var(--editor-radius-pill, 9999px);
+	}
+
+	.zoom-pill-value {
+		min-width: 3rem;
+		padding-inline: 0.25rem;
+		font-size: 0.75rem;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+		color: var(--editor-chrome-text-hover, rgba(255, 255, 255, 0.92));
+		text-align: center;
+		cursor: pointer;
+		background: transparent;
+		border: none;
+		border-inline: 1px solid var(--editor-chrome-border-subtle, rgba(255, 255, 255, 0.05));
+	}
+
+	.zoom-pill-value:hover {
+		background: rgba(255, 255, 255, 0.05);
+		border-radius: 0.25rem;
+	}
+
+	.editor-toolbar-error {
+		position: absolute;
+		inset-inline-start: 50%;
+		top: calc(100% + 0.375rem);
+		z-index: 50;
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		padding: 0.4rem 0.75rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #fff;
+		white-space: nowrap;
+		background: rgba(220, 38, 38, 0.94);
+		border-radius: var(--editor-radius-pill, 9999px);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+		transform: translateX(-50%);
+	}
+
+	.editor-toolbar-error-dismiss {
+		display: inline-flex;
+		padding: 0.125rem;
+		color: inherit;
+		cursor: pointer;
+		background: transparent;
+		border: none;
+		border-radius: var(--editor-radius-pill, 9999px);
+		opacity: 0.85;
+	}
+
+	.editor-toolbar-error-dismiss:hover {
+		opacity: 1;
+		background: rgba(255, 255, 255, 0.15);
 	}
 </style>

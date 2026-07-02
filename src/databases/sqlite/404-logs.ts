@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, integer, text, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * 404 Logs Collection Schema
@@ -51,5 +51,6 @@ export const fourOhFourLogs = sqliteTable(
   (table) => ({
     pathIdx: index("four_oh_four_path_idx").on(table.path),
     tenantIdx: index("four_oh_four_tenant_idx").on(table.tenantId),
+    pathTenantUnique: uniqueIndex("idx_404_logs_path_tenant").on(table.path, table.tenantId),
   }),
 );

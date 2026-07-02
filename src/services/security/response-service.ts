@@ -82,7 +82,7 @@ const ENDPOINT_RATE_LIMITS: Record<string, number> = {
   "/api/testing": 100,
 };
 
-const GLOBAL_RATE_LIMIT = 100;
+const GLOBAL_RATE_LIMIT = 500;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
 const SCAN_BODY_MAX_SIZE = 32768; // 32KB
 
@@ -172,8 +172,17 @@ export class SecurityResponseService {
     const forceSecurity = request.headers.get("x-test-security") === "true";
 
     // 2. Rate Limit check (Basic protection)
-    const rateLimit = await this.checkRateLimit(clientIp, pathname, tenantId, forceSecurity);
-    if (rateLimit.action !== "allow") return rateLimit;
+    // Skip rate limiting for GET/HEAD/OPTIONS requests to non-API paths — these
+    // cannot mutate data and are often burst-heavy (page loads, Vite HMR, assets).
+    const method = request.method.toUpperCase();
+    const isApiPath = pathname.startsWith("/api/");
+    const isReadOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
+    if (!isApiPath && isReadOnly && !forceSecurity) {
+      // Pass through — read-only asset loads should never be rate-limited
+    } else {
+      const rateLimit = await this.checkRateLimit(clientIp, pathname, tenantId, forceSecurity);
+      if (rateLimit.action !== "allow") return rateLimit;
+    }
 
     // 3. Throttling check
     const throttle = await securityStore.getThrottle(clientIp);
@@ -374,11 +383,17 @@ export class SecurityResponseService {
       return { level: "none", action: "allow" };
     }
 
-    // Skip rate limiting for setup, bootstrap, and health-check routes
+    // Skip rate limiting for setup, bootstrap, login, health-check, WebSocket,
+    // static assets, and locale-prefixed routes
     if (
       endpoint.startsWith("/setup") ||
       endpoint.startsWith("/warming-up") ||
-      endpoint.startsWith("/api/system/health")
+      endpoint.startsWith("/api/system/health") ||
+      endpoint.startsWith("/login") ||
+      endpoint.startsWith("/en/") ||
+      endpoint.startsWith("/ws") ||
+      endpoint.startsWith("/_app/") ||
+      endpoint === "/favicon.ico"
     ) {
       return { level: "none", action: "allow" };
     }

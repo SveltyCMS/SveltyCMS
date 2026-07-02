@@ -16,6 +16,8 @@ corner-shape angled corners.
 - `focusColor` (string): Custom focus ring CSS color (e.g. hex, rgb).
 - `class` / `inputClass` / `labelClass` (string): CSS classes.
 - `id` (string): Custom ID (auto-generated UUID otherwise).
+- `pre` (Snippet): Content rendered before the input (inside the border).
+- `post` (Snippet): Content rendered after the input (inside the border).
 
 ### Features:
 - WCAG 3.0 ready with `aria-invalid`, `aria-describedby`, label/ID `for` linkage
@@ -23,6 +25,7 @@ corner-shape angled corners.
 - error message with `role="alert"` live region
 - custom angled corners via clip-path fallback
 - full Svelte 5 runes: $props, $bindable, $derived
+- `pre`/`post` snippets for icons, buttons, or adornments inside the input boundary
 -->
 
 <script lang="ts">
@@ -30,6 +33,7 @@ corner-shape angled corners.
   import { generateId } from '@utils/id-generator';
   import type { HTMLInputAttributes } from "svelte/elements";
   import { getThemeContext } from "./theme-context.svelte";
+  import type { Snippet } from "svelte";
 
   // Generate a hydration-safe unique ID
   const generatedId = generateId('input');
@@ -44,11 +48,14 @@ corner-shape angled corners.
     focusColor?: string;
     class?: string;
     inputRef?: HTMLInputElement | null;
+    pre?: Snippet;
+    post?: Snippet;
   };
 
   // Workaround for strict $props binding requirements
   let {
     value = $bindable(),
+    inputRef = $bindable(),
     label,
     labelClass,
     inputClass,
@@ -56,20 +63,34 @@ corner-shape angled corners.
     shape = 'round',
     focusColor,
     class: className,
-	    id = generatedId,
-	    type = "text",
-	    ...rest
-	  }: Props = $props();
+    id = generatedId,
+    type = "text",
+    pre,
+    post,
+    ...rest
+  }: Props = $props();
 
-	  // @ts-expect-error bind:this template usage not seen by TS language server
-	  let _inputRef = $state<HTMLInputElement | null>(null);
+  let _inputRef = $state<HTMLInputElement | null>(null);
+
+  // Forward internal ref to external bindable prop
+  $effect(() => {
+    if (inputRef !== _inputRef) {
+      inputRef = _inputRef;
+    }
+  });
 
   const theme = getThemeContext();
 
-  	const baseInputStyles =
-  		"flex h-10 w-full border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
+  const baseInputStyles =
+    "flex h-10 w-full border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
 
   const errorInputStyles = "border-error-500 focus-visible:ring-error-500";
+
+  const inputPadding = $derived.by(() => {
+    let prePad = pre ? "ps-9" : "ps-3";
+    let postPad = post ? "pe-9" : "pe-3";
+    return `${prePad} ${postPad}`;
+  });
 
   const customStyles = $derived.by(() => {
     let styles = '';
@@ -86,11 +107,9 @@ corner-shape angled corners.
     const scale = theme ? theme.spacingScale : 1.0;
     if (scale !== 1.0) {
       const heightValue = 40; // Default md/cozy
-      const pxValue = 12; // 3 * 4px
-      const pyValue = 8;  // 2 * 4px
       const textValue = '0.875rem';
 
-      styles += `height: ${Math.round(heightValue * scale)}px; padding-inline-start: ${Math.round(pxValue * scale * 10) / 10}px; padding-inline-end: ${Math.round(pxValue * scale * 10) / 10}px; padding-top: ${Math.round(pyValue * scale * 10) / 10}px; padding-bottom: ${Math.round(pyValue * scale * 10) / 10}px; font-size: ${textValue}; `;
+      styles += `height: ${Math.round(heightValue * scale)}px; font-size: ${textValue}; `;
     }
 
     if (shape === 'angle') {
@@ -104,6 +123,15 @@ corner-shape angled corners.
   });
 
   const errorId = $derived(error ? `${id}-error` : undefined);
+
+  const wrapperStyles = $derived.by(() => {
+    let styles = '';
+    const scale = theme ? theme.spacingScale : 1.0;
+    if (scale !== 1.0) {
+      styles += `height: ${Math.round(40 * scale)}px; `;
+    }
+    return styles || undefined;
+  });
 </script>
 
 <div class="space-y-2 w-full">
@@ -119,24 +147,42 @@ corner-shape angled corners.
     </label>
   {/if}
 
-  <input
-    bind:this={_inputRef}
-    {id}
-    {type}
-    class={cn(
-      baseInputStyles,
-      error && errorInputStyles,
-      shape === 'angle' ? 'corner-angle' : '',
-      focusColor && 'focus-custom',
-      inputClass,
-      className,
-    )}
-    style={customStyles}
-    bind:value
-    aria-invalid={!!error}
-    aria-describedby={errorId}
-    {...rest}
-  />
+  <div
+    class="relative flex items-center"
+    style={wrapperStyles}
+  >
+    {#if pre}
+      <div class="absolute inset-s-0 inset-y-0 flex items-center justify-center w-9 z-10 text-surface-500 dark:text-surface-400 pointer-events-none">
+        {@render pre()}
+      </div>
+    {/if}
+
+    <input
+      bind:this={_inputRef}
+      {id}
+      {type}
+      class={cn(
+        baseInputStyles,
+        error && errorInputStyles,
+        shape === 'angle' ? 'corner-angle' : '',
+        focusColor && 'focus-custom',
+        inputPadding,
+        inputClass,
+        className,
+      )}
+      style={customStyles}
+      bind:value
+      aria-invalid={!!error}
+      aria-describedby={errorId}
+      {...rest}
+    />
+
+    {#if post}
+      <div class="absolute inset-e-0 inset-y-0 flex items-center justify-center w-9 z-10 text-surface-500 dark:text-surface-400">
+        {@render post()}
+      </div>
+    {/if}
+  </div>
 
   {#if error}
     <p id={errorId} class="text-[0.8rem] font-medium text-error-500" role="alert">

@@ -36,6 +36,24 @@ function getMasterSecret(): string | undefined {
 const AI_BOT_RE =
   /gptbot|chatgpt-user|anthropic-ai|claude-web|claudebot|cohere-ai|perplexitybot|google-extended|omgili|omgilibot|ccbot|commoncrawl|bytespider|petalbot|facebookbot|zgrab|masscan|nmap|sqlmap|nikto|acunetix|burpsuite|gobuster|dirbuster|wfuzz|feroxbuster|rustscan|nessus|scrapy|python-requests\/2|curl\/|wget\/|axios\/|node-fetch|l9explore|l9tcpid|libwww-perl|go-http-client/i;
 
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const aBuf = encoder.encode(a);
+  const bBuf = encoder.encode(b);
+  const key = await globalThis.crypto.subtle.importKey(
+    "raw",
+    aBuf,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigA = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, bBuf));
+  const sigB = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, aBuf));
+  if (sigA.length !== sigB.length) return false;
+  return sigA.every((v, i) => v === sigB[i]);
+}
+
 const HONEYPOT_ROUTES: readonly string[] = [
   "/wp-admin",
   "/wp-login.php",
@@ -143,7 +161,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const isLocal = clientIp === "127.0.0.1" || clientIp === "::1" || url.hostname === "localhost";
   const incomingSecret = request.headers.get("x-test-secret");
   const masterSecret = getMasterSecret();
-  const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
+  const hasValidTestSecret =
+    incomingSecret && masterSecret ? await timingSafeEqual(incomingSecret, masterSecret) : false;
   if (isLocal && (IS_TEST_MODE || hasValidTestSecret) && !forceSecurity) return resolve(event);
 
   // Load shedding: use v8 heap_size_limit for reliable ceiling
@@ -212,23 +231,15 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       await new Promise((r) =>
         setTimeout(r, Math.min(5000 + Math.floor(Math.random() * 10000), 15000)),
       );
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          data: {
-            users: [],
-            config: { debug: false, environment: "production" },
-          },
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
-            "Cache-Control": "no-store",
-          },
+      return new Response("", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain",
+          "Content-Length": "0",
+          "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+          "Cache-Control": "no-store",
         },
-      );
+      });
     }
 
     const securityStatus = await securityResponseService.analyzeRequest(

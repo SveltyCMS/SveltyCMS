@@ -89,128 +89,215 @@ export async function handleTestingRoutes(
       process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
     }
 
+    // 🚀 HARDENING: Wait for database to be ready
+    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
+    if (!isDbConnected()) {
+      logger.info("[testing] DB not connected, waiting for initialization...");
+      await getDbInitPromise().catch((err) => {
+        logger.error("[testing] getDbInitPromise failed:", err);
+      });
+
+      // Secondary poll for safety
+      let retries = 15; // Increased for Windows/Slow DBs
+      while (!isDbConnected() && retries-- > 0) {
+        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+
+    const initializedAdapter = getDb();
+    if (!initializedAdapter || !isDbConnected()) {
+      const adapterStatus = initializedAdapter ? "exists" : "null";
+      const connectedStatus = isDbConnected() ? "true" : "false";
+      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
+      throw new AppError(
+        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
+        503,
+      );
+    }
+
     if (action === "reset-to-state") {
-      const targetState = params.state || event.url.searchParams.get("state");
-
-      if (!targetState || !["setup", "ready"].includes(targetState)) {
-        throw new AppError("state must be 'setup' or 'ready'", 400);
+      const { state, email, password } = params;
+      if (!state || (state !== "setup" && state !== "ready")) {
+        throw new AppError("State must be 'setup' or 'ready'", 400);
       }
 
-      // Always wipe the DB first
-      if (cms.db?.clearDatabase) {
-        await cms.db.clearDatabase();
-      } else if (cms.db?.reset) {
-        await cms.db.reset();
+      // Step 1: Wipe DB / media / caches (common to both states)
+      if (initializedAdapter.clearDatabase) {
+        await initializedAdapter.clearDatabase();
+      } else if ((initializedAdapter as any).reset) {
+        await (initializedAdapter as any).reset();
       }
 
-      if (targetState === "setup") {
-        // --- Transition to SETUP mode ---
-        // Delete config/private.test.ts so isSetupComplete() returns false
-        const { invalidateSetupCache } = await import("@src/utils/setup-check");
-        const configPath = path.resolve(process.cwd(), "config", "private.test.ts");
-        if (fs.existsSync(configPath)) {
-          fs.unlinkSync(configPath);
-          logger.info("[TestingHandler] Deleted private.test.ts for SETUP transition");
+      // Wipe Media Folder
+      const { getPublicSettingSync } = await import("@src/services/core/settings-service");
+      const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+      const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
+      if (fs.existsSync(fullMediaRoot)) {
+        try {
+          await fsp.rm(fullMediaRoot, { recursive: true, force: true });
+          await fsp.mkdir(fullMediaRoot, { recursive: true });
+        } catch (err) {
+          console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
         }
-        invalidateSetupCache(false, null);
-        (globalThis as any).__SVELTY_SETUP_COMPLETE__ = false;
-        (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = null;
+      }
 
-        const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
-        resetSystemState();
-        const { resetInitializationState } = await import("@src/hooks/handle-system-state");
-        resetInitializationState();
+      // Invalidate caches
+      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
+      invalidateSetupCache(false, null);
 
+      try {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        await cacheService.invalidateAll();
+
+        const { securityResponseService } = await import("@src/services/security/response-service");
+        securityResponseService.reset();
+
+        const { invalidateUserCountCache, invalidateRolesCache } =
+          await import("@src/hooks/handle-authorization");
+        await invalidateUserCountCache(tenantId);
+        await invalidateRolesCache(tenantId);
+
+        const { apiSpecService } = await import("@services/system/api-spec-service");
+        await apiSpecService.invalidateCache(tenantId);
+      } catch (err) {
+        console.warn(`[TestingHandler] Non-fatal cache invalidation error during reset: ${err}`);
+      }
+
+      // Reset system state store
+      const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
+      resetSystemState();
+      const { resetInitializationState } = await import("@src/hooks/handle-system-state");
+      resetInitializationState();
+
+      try {
+        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
+        resetRateLimitBuckets();
+      } catch (err) {
+        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+      }
+
+      const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+      const configFileName = isTest ? "private.test.ts" : "private.ts";
+      const privateConfigPath = path.join(process.cwd(), "config", configFileName);
+
+      if (state === "setup") {
+        // Delete private config file
+        if (fs.existsSync(privateConfigPath)) {
+          try {
+            await fsp.unlink(privateConfigPath);
+          } catch (err) {
+            console.warn(`[TestingHandler] Failed to delete config file: ${err}`);
+          }
+        }
         return rawResponse({
           success: true,
-          message: "System transitioned to SETUP state",
+          message: "Transitioned to setup mode",
         });
       }
 
-      // --- Transition to READY mode ---
-      // Create config file if it doesn't exist (so DB can reconnect on restart)
-      const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
+      if (state === "ready") {
+        // Transition to ready mode
+        // 1. Write mock private config if missing
+        if (!fs.existsSync(privateConfigPath)) {
+          const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
+          const dbType = process.env.DB_TYPE || "sqlite";
+          const dummyConfig = {
+            type: dbType as any,
+            host: process.env.DB_HOST || "localhost",
+            port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
+            name:
+              process.env.DB_NAME ||
+              (dbType === "sqlite" ? "config/database/sveltycms.db" : "sveltycms"),
+            user: process.env.DB_USER || "",
+            password: process.env.DB_PASSWORD || "",
+          };
+          await writePrivateConfig(dummyConfig);
+        }
 
-      try {
-        await writePrivateConfig({
-          type: "sqlite",
-          host: "localhost",
-          port: 0,
-          name: process.env.DB_NAME || "sveltycms_e2e.db.sqlite",
-          user: "",
-          password: "",
-        });
-        logger.info("[TestingHandler] Created private.test.ts for READY transition");
-      } catch (writeErr: any) {
-        logger.warn(
-          `[TestingHandler] Non-fatal: could not write private.test.ts: ${writeErr.message}`,
+        // Invalidate cache with complete state
+        invalidateSetupCache(false, true);
+
+        // 2. Seed roles
+        try {
+          const { seedRoles } = await import("@src/routes/setup/seed");
+          await seedRoles(initializedAdapter, tenantId);
+        } catch (err: any) {
+          logger.warn(`[TestingHandler] Role seeding error: ${err.message}`);
+        }
+
+        // 3. Create admin user
+        const seedEmail = email || "admin@test.com";
+        const seedPassword = password || "Password123!";
+        const result = await cms.auth.createUser(
+          {
+            email: seedEmail,
+            password: seedPassword,
+            username: "admin",
+            role: "admin",
+            isRegistered: true,
+            emailVerified: true,
+          },
+          { tenantId },
         );
+
+        // 4. Seed default theme and refresh ThemeManager
+        const { DEFAULT_THEME, ThemeManager } = await import("@src/databases/theme-manager");
+        const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
+        await initializedAdapter.system.themes.ensure(safeTheme);
+        const themeManager = ThemeManager.getInstance();
+        if (themeManager.isInitialized()) {
+          await themeManager.refresh();
+        }
+
+        // 5. Seed dynamic collections
+        try {
+          await contentSystem.initialize(tenantId, { force: true });
+        } catch (err: any) {
+          logger.warn(`[TestingHandler] Collection seeding error: ${err.message}`);
+        }
+
+        // Sync content store + SDK schema cache
+        const { refreshContent } = await import("@src/content/engine.server");
+        await refreshContent(tenantId, {
+          mode: "schemas",
+          adapter: initializedAdapter,
+        });
+        if (cms.collections?.refresh) {
+          await cms.collections.refresh(tenantId as any, true);
+        }
+
+        return rawResponse({
+          success: result.success,
+          message: result.success
+            ? "Transitioned to ready mode and seeded successfully"
+            : (result as any).message,
+        });
       }
-
-      // Seed default settings and roles (best-effort — after clearDatabase, adapter may
-      // need table re-creation; forced-complete below handles any edge cases).
-      const seedEmail = params.email || "admin@test.com";
-      const seedPassword = params.password || "Password123!";
-
-      try {
-        const { seedRoles, seedSettings } = await import("@src/routes/setup/seed");
-        await seedSettings(cms.db, tenantId);
-        await seedRoles(cms.db, tenantId);
-      } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal seed error: ${err.message}`);
-      }
-
-      const { Auth } = await import("@src/databases/auth");
-      const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
-      const setupAuth = new Auth(cms.db, getDefaultSessionStore());
-      await setupAuth.createUserAndSession(
-        {
-          email: seedEmail,
-          password: seedPassword,
-          username: "admin",
-          role: "admin",
-          isAdmin: true,
-          isRegistered: true,
-          emailVerified: true,
-        },
-        {
-          expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
-          tenantId,
-        },
-        { bypassTenantCheck: true },
-      );
-
-      // Initialize content system (collection tables + content_nodes)
-      try {
-        await contentSystem.initialize(tenantId, { force: true });
-        logger.info("[TestingHandler] Content system initialized for READY transition");
-      } catch (initErr: any) {
-        logger.warn(`[TestingHandler] Non-fatal content init error: ${initErr.message}`);
-      }
-
-      // Mark setup as complete
-      const { invalidateSetupCache } = await import("@src/utils/setup-check");
-      invalidateSetupCache(false, true);
-      (globalThis as any).__SVELTY_SETUP_COMPLETE__ = true;
-      (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
-
-      const { setSystemState } = await import("@src/stores/system/state.svelte.ts");
-      setSystemState("READY", "Testing API reset-to-state ready");
-
-      return rawResponse({
-        success: true,
-        message: "System transitioned to READY state",
-      });
     }
 
     if (action === "reset") {
       process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
 
       // 1. Wipe Database (Collections + Data)
-      if (cms.db?.clearDatabase) {
-        await cms.db.clearDatabase();
-      } else if (cms.db?.reset) {
-        await cms.db.reset();
+      if (initializedAdapter.clearDatabase) {
+        await initializedAdapter.clearDatabase();
+      } else if ((initializedAdapter as any).reset) {
+        await (initializedAdapter as any).reset();
+      }
+
+      // Re-initialize adapter default collections/roles if available (e.g. MongoDB roles seed)
+      try {
+        if (typeof (initializedAdapter as any).ensureAuth === "function") {
+          await (initializedAdapter as any).ensureAuth();
+        }
+        if (typeof (initializedAdapter as any).ensureSystem === "function") {
+          await (initializedAdapter as any).ensureSystem();
+        }
+      } catch (err) {
+        console.warn(
+          `[TestingHandler] Non-fatal database initialization error after reset: ${err}`,
+        );
       }
 
       // 2. Wipe Media Folder
@@ -266,9 +353,12 @@ export async function handleTestingRoutes(
       const { resetInitializationState } = await import("@src/hooks/handle-system-state");
       resetInitializationState();
 
-      // 🧪 Ensure setup is marked as incomplete for deterministic wizard testing
-      (globalThis as any).__SVELTY_SETUP_COMPLETE__ = false;
-      (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = null;
+      try {
+        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
+        resetRateLimitBuckets();
+      } catch (err) {
+        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+      }
 
       return rawResponse({
         success: true,
@@ -287,7 +377,7 @@ export async function handleTestingRoutes(
       // in beforeEach — failure shouldn't cascade to the test.
       try {
         const { seedRoles } = await import("@src/routes/setup/seed");
-        await seedRoles(cms.db, tenantId);
+        await seedRoles(initializedAdapter, tenantId);
       } catch (err: any) {
         logger.debug(
           `[TestingHandler] Role seeding skipped (likely already seeded): ${err.message}`,
@@ -301,7 +391,10 @@ export async function handleTestingRoutes(
       const setupAuth = new Auth(cms.db, getDefaultSessionStore());
 
       try {
-        const existingUser = await setupAuth.getUserByEmail({ email, tenantId });
+        const existingUser = await setupAuth.getUserByEmail({
+          email,
+          tenantId,
+        });
         if (existingUser?._id) {
           logger.debug(`[TestingHandler] Removing existing user ${email} before re-seed`);
           await setupAuth.deleteUserAndSessions(existingUser._id, tenantId);
@@ -349,7 +442,7 @@ export async function handleTestingRoutes(
       // Seed default theme
       const { DEFAULT_THEME } = await import("@src/databases/theme-manager");
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
-      await cms.db.system.themes.ensure(safeTheme);
+      await initializedAdapter.system.themes.ensure(safeTheme);
 
       const { ThemeManager } = await import("@src/databases/theme-manager");
       const themeManager = ThemeManager.getInstance();
@@ -410,7 +503,9 @@ export async function handleTestingRoutes(
       const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
       const setupAuth = new Auth(cms.db, getDefaultSessionStore());
 
-      const authnResult = await setupAuth.authenticate(email, password, { tenantId });
+      const authnResult = await setupAuth.authenticate(email, password, {
+        tenantId,
+      });
       if (!authnResult.success || !authnResult.data) {
         throw new AppError(
           `Test login failed: ${authnResult.message || "Invalid credentials"}`,
@@ -459,33 +554,6 @@ export async function handleTestingRoutes(
         success: true,
         message: "System reinitialized successfully",
       });
-    }
-
-    // 🚀 HARDENING: Wait for database to be ready
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
-    if (!isDbConnected()) {
-      logger.info("[testing] DB not connected, waiting for initialization...");
-      await getDbInitPromise().catch((err) => {
-        logger.error("[testing] getDbInitPromise failed:", err);
-      });
-
-      // Secondary poll for safety
-      let retries = 15; // Increased for Windows/Slow DBs
-      while (!isDbConnected() && retries-- > 0) {
-        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-
-    const initializedAdapter = getDb();
-    if (!initializedAdapter || !isDbConnected()) {
-      const adapterStatus = initializedAdapter ? "exists" : "null";
-      const connectedStatus = isDbConnected() ? "true" : "false";
-      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
-      throw new AppError(
-        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
-        503,
-      );
     }
 
     if (action === "ping") {

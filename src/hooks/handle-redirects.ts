@@ -44,7 +44,7 @@ function flush404Logs() {
     try {
       const table = "404_logs";
       for (const log of logsToFlush) {
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date();
         if (typeof (db as any).upsertNative === "function") {
           // Atomic single-statement upsert — no read-modify-write race
           await (db as any).upsertNative(

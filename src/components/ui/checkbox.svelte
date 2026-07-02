@@ -55,6 +55,7 @@ keyboard navigation, and motion-respecting transitions.
 		size?: 'sm' | 'md' | 'lg';
 		variant?: 'default' | 'card' | 'toggle-card';
 		class?: string;
+		hideLabel?: boolean;
 		onchange?: (checked: boolean) => void;
 	}
 
@@ -71,6 +72,7 @@ keyboard navigation, and motion-respecting transitions.
 		size = 'md',
 		variant = 'default',
 		class: className = '',
+		hideLabel = false,
 		onchange
 	}: Props = $props();
 
@@ -233,7 +235,7 @@ keyboard navigation, and motion-respecting transitions.
 			</label>
 
 			{#if label || description}
-				<label for={generatedId} class={cn('flex flex-col gap-0.5', disabled && 'cursor-not-allowed')}>
+				<label for={generatedId} class={cn('flex flex-col gap-0.5', hideLabel && 'sr-only', disabled && 'cursor-not-allowed')}>
 					{#if label}
 						<span class={cn('font-medium text-surface-900 dark:text-surface-100 leading-tight', sizeTokens.text)}>
 							{label}

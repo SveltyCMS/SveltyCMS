@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/table/table-pagination.svelte
 @component
 **Optimized table pagination component for displaying pagination controls in a CMS.**
@@ -26,7 +26,6 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { entrylist_items, entrylist_of, entrylist_page, entrylist_rows, entrylist_showing } from '@src/paraglide/messages';
 
-	// Props with default values
 	let {
 		currentPage = $bindable(),
 		pagesCount = 1,
@@ -37,7 +36,6 @@
 		onUpdateRowsPerPage
 	} = $props();
 
-	// Derived pagesCount if not provided
 	const computedPagesCount = $derived.by(() => {
 		if (pagesCount && pagesCount > 0) {
 			return pagesCount;
@@ -51,11 +49,9 @@
 	const isFirstPage = $derived(currentPage === 1);
 	const isLastPage = $derived(currentPage === computedPagesCount);
 
-	// Calculate start and end item numbers for the current page
 	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
 	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
 
-	// Go to page - IMMEDIATE
 	function goToPage(page: number) {
 		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
 			currentPage = page;
@@ -63,106 +59,202 @@
 		}
 	}
 
-	// Update rows per page with immediate reset to page 1
 	function updateRowsPerPage(rows: number) {
-		// Immediately update the bound value to ensure UI consistency
 		rowsPerPage = rows;
-		// Call the callback to handle the change
 		onUpdateRowsPerPage?.(rows);
 	}
+
+	const navButtonClass =
+		'h-8 w-9 rounded-none p-0! min-w-0 text-surface-600 hover:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-700';
 </script>
 
-<!-- Pagination info -->
-<div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
-	<div>
-		<span>{entrylist_page()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-		<span>{entrylist_of()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
-		<span class="ms-4" aria-label="Current items shown">
-			{#if totalItems > 0}
-				{entrylist_showing()} <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
-					class="text-tertiary-500 dark:text-primary-500">{endItem}</span
-				>
-				{entrylist_of()}
-				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span>
-				{entrylist_items()}
-			{:else}
-				{entrylist_showing()}
-				0 {entrylist_of()} 0 {entrylist_items()}
-			{/if}
-		</span>
-	</div>
-</div>
-
-<!-- Pagination controls -->
-<nav class="btn-group" aria-label="Table pagination">
-	<!-- First page button -->
-	<SystemTooltip title="First Page">
-		<Button variant="outline"
-			onclick={() => goToPage(1)}
-			disabled={isFirstPage}
-			type="button"
-			aria-label="Go to first page"
-			aria-disabled={isFirstPage}
-		 class="h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
-
-	<!-- Previous page button -->
-	<SystemTooltip title="Previous Page">
-		<Button variant="outline"
+<!-- Mobile-only layout -->
+<div class="flex w-full items-center gap-2 md:hidden">
+	<nav
+		class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-900"
+		aria-label="Table pagination"
+	>
+		<Button
+			variant="ghost"
+			size="sm"
 			onclick={() => goToPage(currentPage - 1)}
 			disabled={isFirstPage}
 			type="button"
 			aria-label="Go to previous page"
-			aria-disabled={isFirstPage}
-		 class="h-8 w-8 rounded-none border-e border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
-
-	<!-- Rows per page select dropdown -->
-	<SystemTooltip title="Rows per page">
-		<select
-			bind:value={rowsPerPage}
-			onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
-			aria-label="Select number of rows per page"
-			class="appearance-none bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 hover:bg-surface-200 dark:border-surface-50 dark:text-primary-500 dark:hover:bg-surface-800 sm:px-4"
+			class="table-pagination-mobile-nav-btn"
 		>
-			{#each rowsPerPageOptions as pageSize (pageSize)}
-				<option class="bg-surface-300 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
-					{pageSize}
-					{entrylist_rows()}
-				</option>
-			{/each}
-		</select>
-	</SystemTooltip>
+			<iconify-icon icon="mdi:chevron-left" width="20" aria-hidden="true"></iconify-icon>
+		</Button>
 
-	<!-- Next page button -->
-	<SystemTooltip title="Next Page">
-		<Button variant="outline"
+		<span
+			class="flex min-w-[3rem] items-center justify-center border-x border-surface-200 px-2 font-mono text-xs font-semibold tabular-nums text-surface-800 dark:border-surface-800 dark:text-surface-100"
+			aria-hidden="true"
+		>
+			{currentPage}/{computedPagesCount}
+		</span>
+
+		<Button
+			variant="ghost"
+			size="sm"
 			onclick={() => goToPage(currentPage + 1)}
 			disabled={isLastPage}
 			type="button"
 			aria-label="Go to next page"
-			aria-disabled={isLastPage}
-		 class="h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
+			class="table-pagination-mobile-nav-btn"
+		>
+			<iconify-icon icon="mdi:chevron-right" width="20" aria-hidden="true"></iconify-icon>
 		</Button>
-	</SystemTooltip>
+	</nav>
 
-	<!-- Last page button -->
-	<SystemTooltip title="Last Page">
-		<Button variant="outline"
-			onclick={() => goToPage(computedPagesCount)}
-			disabled={isLastPage}
-			type="button"
-			aria-label="Go to last page"
-			aria-disabled={isLastPage}
-		 class="h-8 w-8 rounded-none border-s border-surface-300 px-1 hover:bg-surface-200 disabled:text-surface-400 ! dark:border-surface-50 dark:text-surface-50 dark:hover:bg-surface-800 dark:disabled:text-surface-300">
-			<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
-		</Button>
-	</SystemTooltip>
+	<p
+		class="m-0 min-w-0 flex-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400"
+		role="status"
+		aria-live="polite"
+	>
+		{#if totalItems > 0}
+			<span class="tabular-nums text-surface-700 dark:text-surface-200">{startItem}–{endItem}</span>
+			<span class="text-surface-400 dark:text-surface-500"> / {totalItems}</span>
+		{:else}
+			0 / 0
+		{/if}
+	</p>
+
+	<label class="relative inline-flex h-9 shrink-0 items-center">
+		<span class="sr-only">{entrylist_rows()}</span>
+		<select
+			bind:value={rowsPerPage}
+			onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
+			aria-label="Select number of rows per page"
+			class="h-full cursor-pointer appearance-none rounded-lg border border-surface-200 bg-surface-50 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-700 dark:border-surface-800 dark:bg-surface-900 dark:text-surface-200"
+		>
+			{#each rowsPerPageOptions as pageSize (pageSize)}
+				<option value={pageSize}>{pageSize} {entrylist_rows()}</option>
+			{/each}
+		</select>
+		<iconify-icon
+			icon="mdi:chevron-down"
+			width="14"
+			class="pointer-events-none absolute inset-e-2 text-surface-400"
+			aria-hidden="true"
+		></iconify-icon>
+	</label>
+</div>
+
+<!-- Desktop layout (unchanged) -->
+<div
+	class="hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 md:flex dark:text-surface-400 md:text-sm"
+	role="status"
+	aria-live="polite"
+>
+	<span>
+		{entrylist_page()}
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+		{entrylist_of()}
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
+	</span>
+
+	<span class="hidden h-3 w-px bg-surface-300 sm:inline-block dark:bg-surface-600" aria-hidden="true"></span>
+
+	<span aria-label="Current items shown">
+		{#if totalItems > 0}
+			{entrylist_showing()}
+			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
+				class="font-semibold text-tertiary-500 dark:text-primary-500">{endItem}</span
+			>
+			{entrylist_of()}
+			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{totalItems}</span>
+			{entrylist_items()}
+		{:else}
+			{entrylist_showing()} 0 {entrylist_of()} 0 {entrylist_items()}
+		{/if}
+	</span>
+</div>
+
+<nav class="hidden items-center md:flex" aria-label="Table pagination">
+	<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-300 dark:border-surface-600">
+		<SystemTooltip title="First Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(1)}
+				disabled={isFirstPage}
+				type="button"
+				aria-label="Go to first page"
+				aria-disabled={isFirstPage}
+				class="{navButtonClass} border-e border-surface-300 dark:border-surface-600"
+			>
+				<iconify-icon icon="material-symbols:first-page" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+
+		<SystemTooltip title="Previous Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(currentPage - 1)}
+				disabled={isFirstPage}
+				type="button"
+				aria-label="Go to previous page"
+				aria-disabled={isFirstPage}
+				class="{navButtonClass} border-e border-surface-300 dark:border-surface-600"
+			>
+				<iconify-icon icon="material-symbols:chevron-left" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+
+		<SystemTooltip title="Rows per page">
+			<select
+				bind:value={rowsPerPage}
+				onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
+				aria-label="Select number of rows per page"
+				class="h-8 cursor-pointer appearance-none border-e border-surface-300 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
+			>
+				{#each rowsPerPageOptions as pageSize (pageSize)}
+					<option class="bg-surface-100 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
+						{pageSize}
+						{entrylist_rows()}
+					</option>
+				{/each}
+			</select>
+		</SystemTooltip>
+
+		<SystemTooltip title="Next Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(currentPage + 1)}
+				disabled={isLastPage}
+				type="button"
+				aria-label="Go to next page"
+				aria-disabled={isLastPage}
+				class="{navButtonClass} border-e border-surface-300 dark:border-surface-600"
+			>
+				<iconify-icon icon="material-symbols:chevron-right" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+
+		<SystemTooltip title="Last Page">
+			<Button
+				variant="ghost"
+				onclick={() => goToPage(computedPagesCount)}
+				disabled={isLastPage}
+				type="button"
+				aria-label="Go to last page"
+				aria-disabled={isLastPage}
+				class={navButtonClass}
+			>
+				<iconify-icon icon="material-symbols:last-page" width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+	</div>
 </nav>
+
+<style>
+	:global(.table-pagination-mobile-nav-btn) {
+		display: inline-flex !important;
+		width: 2.25rem !important;
+		min-width: 2.25rem !important;
+		height: 100% !important;
+		align-items: center;
+		justify-content: center;
+		padding: 0 !important;
+		border-radius: 0 !important;
+	}
+</style>

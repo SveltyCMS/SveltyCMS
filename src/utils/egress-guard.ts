@@ -30,6 +30,9 @@ const BLOCKED_IP_RANGES = [
   /^::1$/, // IPv6 loopback
   /^fe80:/, // IPv6 link-local
   /^fc00:/, // IPv6 unique local
+  /^::ffff:/, // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+  /^2002:/, // 6to4 encapsulation
+  /^2001:/, // Teredo tunneling
 ];
 
 const BLOCKED_HOSTS = [
@@ -176,9 +179,16 @@ function isBlockedHostname(hostname: string): boolean {
     return BLOCKED_IP_RANGES.some((r) => r.test(ip));
   }
 
-  // IPv6 check
+  // IPv6 check — bracketed, e.g. [::1]
   if (hostname.startsWith("[")) {
     const ip = hostname.slice(1, -1);
+    return BLOCKED_IP_RANGES.some((r) => r.test(ip));
+  }
+
+  // IPv6 check — bare (no brackets), e.g. ::1, ::ffff:127.0.0.1
+  if (hostname.includes(":")) {
+    // Strip any zone ID (e.g. fe80::1%eth0 → fe80::1)
+    const ip = hostname.split("%")[0];
     return BLOCKED_IP_RANGES.some((r) => r.test(ip));
   }
 

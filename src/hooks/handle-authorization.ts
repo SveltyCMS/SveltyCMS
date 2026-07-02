@@ -5,7 +5,7 @@
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
-import { SetupState } from "../utils/server/setup-check";
+import { SetupState } from "@utils/server/setup-check";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
@@ -244,6 +244,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
         AuthGuardService.checkPermissions(user, "manage", "user", undefined, activeRoles);
       if (isPublic && !isApi) throw redirect(302, "/");
     } else if (!locals.isFirstUser) {
+      logger.info(
+        `[Authz] No user, isFirstUser=${locals.isFirstUser}, path=${pathname}, redirecting to /login`,
+      );
       if (isApi) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
       throw redirect(302, "/login");
     }

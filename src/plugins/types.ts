@@ -12,12 +12,36 @@ import type {
   ISODateString,
 } from "@databases/db-interface";
 
+/** All possible capabilities a plugin can request */
+export type PluginCapability =
+  | "db:read" // Read database collections
+  | "db:write" // Write to database collections
+  | "db:delete" // Delete from database collections
+  | "network:fetch" // Make outbound HTTP requests
+  | "network:webhook" // Register webhook endpoints
+  | "file:read" // Read files from storage
+  | "file:write" // Write files to storage
+  | "media:read" // Access media library
+  | "media:write" // Upload/modify media
+  | "media:delete" // Delete media
+  | "user:read" // Read user data
+  | "user:write" // Create/update users
+  | "settings:read" // Read system settings
+  | "settings:write" // Modify system settings
+  | "ui:slot" // Inject UI into slot zones
+  | "ui:page" // Register custom admin pages
+  | "event:subscribe" // Subscribe to system events
+  | "event:publish"; // Publish system events
+
 /**
  * Plugin metadata and registration info
  */
 export interface PluginMetadata {
   /** Plugin author */
   author?: string;
+
+  /** Declared capabilities — enforced at runtime by the RBAC dispatcher */
+  capabilities?: PluginCapability[];
 
   /** Short description of plugin functionality */
   description: string;
@@ -205,7 +229,8 @@ export type InjectionZone =
   | "entry_list_actions" // Entry list action buttons
   | "global-toolbar" // Top-level toolbar (all routes)
   | "global-footer" // Footer (all routes)
-  | "sticky-action-bar"; // Sticky action bar at bottom
+  | "sticky-action-bar" // Sticky action bar at bottom
+  | "image_editor_tool"; // Image editor tool/widgets
 
 // Plugin Slot definition
 export interface PluginSlot {

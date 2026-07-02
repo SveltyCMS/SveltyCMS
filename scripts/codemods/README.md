@@ -1,98 +1,149 @@
+---
+title: "SveltyCMS Codemods"
+path: "scripts/codemods/README"
+description: "Automatic scripts that keep collections working after a SveltyCMS version upgrade"
+updated: "2026-07-02"
+---
+
 # 🔧 SveltyCMS Codemods
 
-> **Automatic code migrations** that run during `bun run upgrade`
+> Automatic scripts that keep your collections working after a SveltyCMS version upgrade.
 
-## How It Works
+---
 
-When you run `bun run upgrade`, the system scans the `scripts/codemods/` directory and executes each migration script in alphabetical order (excluding utility files beginning with `_`).
+## When do I need this?
 
-The flow is visualized below:
+You have SveltyCMS installed. One day you check for updates:
+
+```bash
+bun outdated        # Shows: graphql 16 → 17, oxfmt 0.56 → 0.57
+bun update          # Downloads new packages into node_modules/
+```
+
+So far so good — your dependencies are current. But what if the SveltyCMS **framework itself** changed how collections work? For example:
+
+- `publicAccess: true` is now `permissions: { public: ["read"], ... }`
+- Every collection now needs a `version: 2` marker
+- All collections must include a soft-delete field
+
+`bun update` can't help with this — it only touches `node_modules/`. **Your collection files in `config/collections/` are still written in the old format.**
+
+That's when you run:
+
+```bash
+bun run upgrade
+```
+
+It scans your collection files and automatically rewrites them to match the new format. No manual editing needed.
+
+---
+
+## What happens when I run `bun run upgrade`?
+
+| Step            | What it does                                               |
+| :-------------- | :--------------------------------------------------------- |
+| 1. Check        | Verifies your working tree is clean (no uncommitted files) |
+| 2. Backup       | Creates a git rollback tag so you can undo everything      |
+| 3. Fetch        | Pulls the latest SveltyCMS code from upstream              |
+| 4. Dependencies | Runs `bun install` to update packages                      |
+| 5. **Codemods** | Executes scripts that rewrite your collection files        |
+| 6. DB           | Runs `bun run db:push` to sync database schema             |
+| 7. Tests        | Runs the unit test suite to verify nothing is broken       |
+
+Each codemod creates a `.bak` backup of every file it touches, so you can always revert.
+
+---
+
+## Example: before and after
+
+**Before** `bun run upgrade` (your current file):
+
+```ts
+export default {
+  name: "posts",
+  publicAccess: true,
+  fields: [{ name: "title", type: "string" }],
+};
+```
+
+**After** (automatically rewritten by codemods):
+
+```ts
+export default {
+  name: "posts",
+  version: 2,
+  permissions: {
+    public: ["read"],
+    authenticated: ["read", "write"],
+    apiKey: [],
+  },
+  fields: [
+    { name: "title", type: "string" },
+    { name: "isDeleted", type: "boolean", defaultValue: false },
+  ],
+};
+```
+
+Three codemods ran on this single file without you touching a line of code.
+
+---
+
+## How it works (for maintainers)
+
+When `bun run upgrade` reaches the codemod step, it:
+
+1. Scans `scripts/codemods/` for numbered scripts (`01-*`, `02-*`, ...)
+2. Runs them in order (skipping files starting with `_`)
+3. Each script opens your collection files, transforms the code using `ts-morph` (AST parser), creates a backup, and saves
 
 ```mermaid
 graph TD
     A[bun run upgrade] --> B[Scan scripts/codemods/]
-    B --> C{File name matches?}
-    C -->|Starts with '_'| D[Skip / Internal utility]
-    C -->|Starts with 'NN-'| E[Sort Alphabetically]
-    E --> F[Initialize ts-morph Project]
-    F --> G[Scan collection config files]
-    G --> H{isCollectionSchema?}
-    H -->|No| I[Skip file]
-    H -->|Yes| J[Create Backup .bak-*]
-    J --> K[Apply migration rules]
-    K --> L[Save changes AST → File]
+    B --> C{Starts with '_'?}
+    C -->|Yes| D[Skip: internal utility]
+    C -->|No: NN-*| E[Sort by number]
+    E --> F[For each collection file]
+    F --> G[Create .bak backup]
+    G --> H[Apply transformations]
+    H --> I[Validate schema]
+    I --> J[Save file]
 ```
 
 ---
 
-## Performance Optimizations
+## Safety features
 
-Our codemod framework is optimized for speed and safety:
-
-- **AST Speedup**: The `ts-morph` compiler engine in `./_utils.ts` has `skipLoadingLibFiles: true` enabled, which stops the parser from loading standard TypeScript library definitions (`lib.d.ts`). This reduces project initialization time by **1.5s - 3s** per codemod run.
-- **Native Bun Glob**: The test hardening and helper scanners use Bun's native C++ `Glob` module instead of external npm dependencies, running up to **10x faster**.
-- **Asynchronous I/O**: File reads and writes are offloaded to Bun's asynchronous threading (`Bun.file(path).text()` / `Bun.write(...)`) to prevent blocking execution cycles.
-
----
-
-## Adding a New Codemod
-
-1. Create a new file with naming: `NN-description.ts` (e.g., `05-add-new-field.ts`)
-2. Import utilities from `./_utils.ts`
-3. Implement your migration logic
-4. **Always create backups** before modifying files using `await backupFile(filePath)`
+- **Git rollback tag**: Created before any changes — `git reset --hard pre-upgrade-...` undoes everything
+- **`.bak` backups**: Every modified file gets a timestamped backup
+- **Dry-run mode**: `bun run upgrade --dry-run` shows what would change without touching files
+- **Idempotent**: Safe to run multiple times — won't double-apply migrations
+- **Schema validation**: Checks that `name` and `fields` still exist after transformation
+- **Clean-tree gate**: Refuses to run if you have uncommitted changes
 
 ---
 
-## Best Practices
+## FAQ
 
-### ✅ DO:
+**Q: Isn't `bun update` enough?**
+A: No. `bun update` updates npm packages in `node_modules/`. Codemods update **your** collection files in `config/collections/` when the framework's expected format changes.
 
-- Use shared utilities from `./_utils.ts`.
-- Create backups with `await backupFile(filePath)`.
-- Make migrations **idempotent** (safe to run multiple times).
-- Log what you're changing clearly.
-- Exit with code 0 if nothing to migrate.
+**Q: How often do I need to run this?**
+A: Only when upgrading to a new SveltyCMS release that includes schema changes. Check the changelog.
 
-### ❌ DON'T:
+**Q: What if something breaks?**
+A: Run `git reset --hard pre-upgrade-...` to roll back everything, or restore individual files from the `.bak` backups.
 
-- Modify files without backups.
-- Assume the migration runs only once.
-- Delete user data without explicit instruction.
-- Create breaking changes without warning.
+**Q: Can I test without changing anything?**
+A: Yes: `bun run upgrade --dry-run`
 
 ---
 
-## File Naming Convention
+## Current codemods
 
-| Prefix           | Purpose                           | Example                  |
-| ---------------- | --------------------------------- | ------------------------ |
-| `NN-`            | Execution order (01, 02, 03...)   | `01-migrate-fields.ts`   |
-| `migrate-`       | Data structure migrations         | `migrate-collections.ts` |
-| `update-`        | Configuration updates             | `update-permissions.ts`  |
-| `fix-`           | Bug fixes in schema               | `fix-role-names.ts`      |
-| `_` (underscore) | Internal utilities (NOT executed) | `_utils.ts`              |
-
----
-
-## Current Codemods
-
-| File                                 | Description               | Status      | Safe to Re-run |
-| ------------------------------------ | ------------------------- | ----------- | -------------- |
-| `01-migrate-collection-schema-v2.ts` | v1 → v2 collection schema | ✅ Active   | ✅ Yes         |
-| `_utils.ts`                          | Shared AST utilities      | 📦 Internal | N/A            |
-
----
-
-## Testing a Codemod
-
-```bash
-# Test on a single file first
-bun scripts/codemods/01-migrate-collection-schema-v2.ts config/collections/test-collection.ts
-
-# Dry run (if supported)
-bun run upgrade --dry-run
-
-# Full upgrade with all codemods
-bun run upgrade
-```
+| #   | File                                 | What it does                                              |
+| :-- | :----------------------------------- | :-------------------------------------------------------- |
+| 01  | `01-migrate-collection-schema-v2.ts` | Adds `version: 2` and renames deprecated fields           |
+| 02  | `02-update-permissions-structure.ts` | Converts `publicAccess` → structured `permissions` object |
+| 03  | `03-add-soft-delete-fields.ts`       | Injects `isDeleted` boolean field into every collection   |
+| 04  | `04-migrate-role-names.ts`           | Role name standardization (coming soon)                   |
+| —   | `_utils.ts`                          | Shared utilities (not executed directly)                  |

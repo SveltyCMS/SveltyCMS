@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/build-analysis.test.ts
- * @description Enterprise Build Analysis Benchmark
+ * @description Enterprise Build Analysis Benchmark (Optimized)
  * @summary Measures compilation speed, bundle size trends, and tree-shaking efficiency
  *
  * ### Features:
@@ -29,7 +29,6 @@ async function getDirSize(dir: string): Promise<number> {
       recursive: true,
       withFileTypes: true,
     });
-
     for (const entry of entries) {
       if (entry.isFile()) {
         const stats = await fs.stat(path.join(dir, entry.name));
@@ -70,15 +69,17 @@ async function runBuildAnalysis() {
       console.log(`   ⏭️ Using pre-computed build duration: ${buildTimeMs.toFixed(0)}ms`);
     } else if (isSuite) {
       console.log("   ⏭️ Skipping redundant build (Suite Mode active).");
-      buildTimeMs = 0; // Fallback if not passed
+      buildTimeMs = 0;
     } else {
       console.log("   🔨 Running production build...");
       execSync("bun run build", {
         stdio: "inherit",
         env: { ...process.env, NODE_ENV: "production" },
+        shell: false,
       });
       buildTimeMs = performance.now() - startTime;
     }
+
     const totalSize = await getDirSize(buildDir);
 
     const files = await fs.readdir(buildDir, { recursive: true });
@@ -86,12 +87,14 @@ async function runBuildAnalysis() {
       (f) => typeof f === "string" && (f.endsWith(".js") || f.endsWith(".mjs")),
     );
 
+    const bundleSizeMB = totalSize / 1024 / 1024;
+
     const result = {
       name: "Production Build",
       avgMs: buildTimeMs,
       p95Ms: buildTimeMs,
-      rps: 1000 / buildTimeMs, // rough "builds per second"
-      bundleSizeMB: (totalSize / 1024 / 1024).toFixed(2),
+      rps: 0, // Not applicable for build
+      bundleSizeMB: bundleSizeMB.toFixed(2),
       jsChunkCount: jsFiles.length,
     };
 
@@ -104,8 +107,8 @@ async function runBuildAnalysis() {
 
     printSummaryTable([
       { key: "Build Time", val: buildTimeMs.toFixed(0), unit: "ms" },
-      { key: "Total Bundle Size", val: result.bundleSizeMB, unit: "MB" },
-      { key: "JS Chunks", val: result.jsChunkCount, unit: "" },
+      { key: "Total Bundle Size", val: bundleSizeMB.toFixed(2), unit: "MB" },
+      { key: "JS Chunks", val: jsFiles.length, unit: "" },
       {
         key: "Build Efficiency",
         val: buildTimeMs < 45000 ? "EXCELLENT" : buildTimeMs < 65000 ? "GOOD" : "SLOW",

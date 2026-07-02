@@ -472,11 +472,21 @@ export async function handle2FARoutes(
     case "verify-setup": {
       if (event.request.method !== "POST") throw notAllowed();
       const { code, verificationCode, secret, backupCodes } = await event.request.json();
+
+      // Validate input before calling service — avoids noisy ERROR logs from
+      // expected validation failures during testing with intentionally bad data
+      if (!secret || typeof secret !== "string") {
+        throw new AppError("TOTP secret is required", 400);
+      }
+      if (!code && !verificationCode) {
+        throw new AppError("Verification code is required", 400);
+      }
+
       const result = await twoFactorService.complete2FASetup(
         user._id,
         secret,
         code || verificationCode,
-        backupCodes,
+        backupCodes || [],
         tenantId,
       );
       if (!result) throw new AppError("Invalid verification code", 400);

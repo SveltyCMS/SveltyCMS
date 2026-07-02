@@ -55,8 +55,13 @@ async function runPersistenceBenchmark() {
 
   // 3. Seed 100 dynamic records
   console.log("🌱 Seeding database with 100 baseline records...");
+
+  // Pre-generate UUID array to completely decouple seeding timing from crypto-entropy cycles
+  const uuidPool = Array.from({ length: 100 }, () => generateUUID());
+
   const seedData = Array.from({ length: 100 }, (_, i) => ({
-    _id: generateUUID(),
+    ...Object.create(null),
+    _id: uuidPool[i],
     title: `Benchmark Document ${i + 1}`,
     index: i,
     payload: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
@@ -108,16 +113,16 @@ async function runPersistenceBenchmark() {
   });
   const modifyDuration = performance.now() - modifyStart;
 
-  // C. WRITE Phase: Commit the 5 modifications back to SQLite
+  // C. WRITE Phase: Commit the 5 modifications back to SQLite (parallel batch)
   const writeStart = performance.now();
-  for (const update of updatesToApply) {
-    const updateResult = (await adapter.crud.update(
-      "collection_benchmark",
-      update._id,
-      update as any,
-    )) as any;
-    if (!updateResult.success) {
-      console.error(`❌ Write phase failed for record ${update._id}:`, updateResult.message);
+  const writePromises = updatesToApply.map((update) =>
+    adapter.crud.update("collection_benchmark", update._id, update as any),
+  );
+  const writeResults = await Promise.all(writePromises);
+  for (let k = 0; k < writeResults.length; k++) {
+    const res = writeResults[k] as any;
+    if (!res?.success) {
+      console.error(`❌ Write phase failed:`, res?.message);
       await adapter.disconnect();
       process.exit(1);
     }

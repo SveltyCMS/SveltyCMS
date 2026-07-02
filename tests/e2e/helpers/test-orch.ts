@@ -55,6 +55,6 @@ export async function seedReadyState(baseUrl?: string) {
 }
 
 /** Transition system to SETUP mode: DB wiped, config deleted, system state reset. */
-export async function resetToSetupMode() {
-  await orchRequest("reset-to-state", { state: "setup" });
+export async function resetToSetupMode(baseUrl?: string) {
+  await orchRequest("reset-to-state", { state: "setup" }, baseUrl);
 }

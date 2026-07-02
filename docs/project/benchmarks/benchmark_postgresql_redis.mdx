@@ -30,27 +30,24 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (04/06/2026, 11:40:36)
+## 📊 Latest Performance Audit (28/06/2026, 02:29:39)
 
-> [!WARNING]
-> **Performance Regressions Detected for POSTGRESQL+REDIS**:
->
-> **Status:** ✅ PASS
+**Status:** ❌ FAIL
 
-> [!TIP]
-> **All Audits Passed**: 100% Graceful Degradation achieved under Chaos Resilience testing.
+> [!CAUTION]
+> **Anomalies Detected**: System setup failed See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
-| :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 282ms       | ⚪ (-20.3%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 5.675ms     | ⚪ (+22.4%) | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | N/A         | ⚪          | < 2ms         | ⚪ N/A  |
-| **GraphQL (Avg)**      | 3.929ms     | ⚪ (+0.0%)  | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | N/A         | ⚪          | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | 0.818ms     | ⚪          | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | HEALTHY     | ⚪          | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
+| :--------------------- | :---------- | :----------- | :------------ | :------ |
+| **Cold Start**         | 828ms       | ⚪ (+193.6%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 5.675ms     | 🔴 (+0.0%)   | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | N/A         | ⚪           | < 2ms         | ⚪ N/A  |
+| **GraphQL (Avg)**      | 3.929ms     | 🟢 (+0.0%)   | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | 0.818ms     | ⚪           | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -60,13 +57,13 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 ### 📈 Historical Latency Trends
 
-````mermaid
+```mermaid
 xychart-beta
   title "POSTGRESQL+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95 Latency" : [5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675, 5.675]
-```text
+```
 
 ## 📈 Core Infrastructure Trends
 
@@ -125,368 +122,316 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
-```
+````
 ║ Cold Start (IDLE → WARMED)     │       72.376 ms │ p95:      224.590 ms │ RPS:         14 ║
 ```text
-
 <!-- COLD_START_TABLE_END -->
 
 <!-- TRUTH_AUDIT_TABLE_START -->
-
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
-```
-║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,737,116 ║
-║ Local SDK (Full)               │        0.006 ms │ p95:        0.011 ms │ RPS:    157,101 ║
-║ HTTP End-to-End                │        0.526 ms │ p95:        0.831 ms │ RPS:      1,903 ║
-```text
+````
 
+║ Logic Baseline │ 0.001 ms │ p95: 0.001 ms │ RPS: 1,737,116 ║
+║ Local SDK (Full) │ 0.006 ms │ p95: 0.011 ms │ RPS: 157,101 ║
+║ HTTP End-to-End │ 0.526 ms │ p95: 0.831 ms │ RPS: 1,903 ║
+
+```text
 <!-- TRUTH_AUDIT_TABLE_END -->
 
-<!-- HOOKS_TRACE_TABLE_START -->
+<!-- INCREMENTAL_TABLE_START -->
+> ⏳ **Incremental Content Reload**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
+<!-- INCREMENTAL_TABLE_END -->
 
+<!-- HOOKS_TRACE_TABLE_START -->
 > **Measures**: High-resolution micro-benchmarks (µs) for individual middleware layers.
 > **Code**: `src/hooks.server.ts`, `src/hooks/handle-turbo-pipeline.server.ts`
 > **Why**: Middleware runs on every request. A 1ms regression compounds across all traffic.
 > **Correlates**: `rest-api-performance`, `auth-performance` | **Anti-correlates**: `database-performance`
-
 <!-- HOOKS_TRACE_TABLE_END -->
 
 <!-- STATE_MACHINE_TABLE_START -->
-
 ### 🏷️ State Machine Transitions ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
 > 🎯 **Proves**: Validates rapid IDLE -> READY self-healing cycles.
 
 ```
-║ State Transition (READY -> IDLE -> READY) │     2048.489 ms │ p95:     2161.797 ms │ RPS:          1 ║
-```text
 
+║ State Transition (READY -> IDLE -> READY) │ 2048.489 ms │ p95: 2161.797 ms │ RPS: 1 ║
+
+```text
 <!-- STATE_MACHINE_TABLE_END -->
 
 <!-- DB_RAW_P95_TABLE_START -->
-
 > **Measures**: Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.
 > **Code**: `src/databases/<db>/crud-methods.ts`, `src/databases/<db>/adapter-core.ts`
 > **Why**: Adapter bottlenecks cascade to all data operations. Check indexes, connection pools, and query plans.
 > **Correlates**: `index-pressure`, `graphql-api-performance` | **Anti-correlates**: `hooks-performance`
-
 <!-- DB_RAW_P95_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
-
 > **Measures**: Measures commit/rollback latency and transaction isolation performance.
 > **Code**: `src/databases/<db>/crud-methods.ts`
 > **Why**: Transaction speed affects write-heavy workloads and data integrity.
-
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-
 > **Measures**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
 > **Code**: `src/databases/cache/cache-service.ts`, `src/databases/cache/l1-cache.ts`
 > **Why**: Cache hit ratio directly determines response latency. Misses trigger expensive DB round-trips.
-
 <!-- CACHE_TABLE_END -->
 
 <!-- TEMPORAL_TABLE_START -->
-
 > **Measures**: Verifies timezone normalization and deterministic UTC persistence.
 > **Code**: `src/utils/date-utils.ts`, `src/databases/core/base-sql-adapter.ts`
 > **Why**: Date corruption causes data integrity issues across tenants and timezones.
-
 <!-- TEMPORAL_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
-
 > **Measures**: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
 > **Code**: `src/databases/<db>/relational-utils.ts`, `src/content/relation-service.ts`
 > **Why**: Relational queries are the most expensive DB operations. N+1 problems hide here.
-
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- AUTH_TRACE_TABLE_START -->
-
 > **Measures**: Measures JWT verification, session retrieval, and permission matrix resolution overhead.
 > **Code**: `src/hooks/handle-authentication.ts`, `src/databases/auth/session-service.ts`, `src/services/sdk/namespaces/auth-namespace.ts`
 > **Why**: Auth runs on every authenticated request. A 10ms degradation compounds across all API traffic.
 > **Correlates**: `hooks-performance`, `rest-api-performance`
-
 <!-- AUTH_TRACE_TABLE_END -->
 
 <!-- REST_TABLE_START -->
-
 ### 🏷️ REST API Performance ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
 ```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        1.016 ms │ p95:        2.075 ms │ RPS:        984 ║
-║ Collection Schema              │        3.362 ms │ p95:        6.121 ms │ RPS:        297 ║
-║ Collection Find (List)         │        3.304 ms │ p95:        5.675 ms │ RPS:        303 ║
-║ Collection Search              │        3.220 ms │ p95:        5.798 ms │ RPS:        311 ║
-```text
 
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Health Check │ 1.016 ms │ p95: 2.075 ms │ RPS: 984 ║
+║ Collection Schema │ 3.362 ms │ p95: 6.121 ms │ RPS: 297 ║
+║ Collection Find (List) │ 3.304 ms │ p95: 5.675 ms │ RPS: 303 ║
+║ Collection Search │ 3.220 ms │ p95: 5.798 ms │ RPS: 311 ║
+
+```text
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
-
 ### 🏷️ GraphQL API Performance ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
 ```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        1.434 ms │ p95:        2.556 ms │ RPS:        698 ║
-║ GQL: Collection List           │        3.929 ms │ p95:        7.212 ms │ RPS:        255 ║
-║ GQL: Concurrent Load           │        3.176 ms │ p95:        5.696 ms │ RPS:        315 ║
-```text
 
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ GQL: System Health │ 1.434 ms │ p95: 2.556 ms │ RPS: 698 ║
+║ GQL: Collection List │ 3.929 ms │ p95: 7.212 ms │ RPS: 255 ║
+║ GQL: Concurrent Load │ 3.176 ms │ p95: 5.696 ms │ RPS: 315 ║
+
+```text
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- SEO_TABLE_START -->
-
 > **Measures**: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.
 > **Code**: `src/services/SEOService.ts`, `src/hooks/handle-seo.ts`
 > **Why**: SEO features impact every page request. Slow redirects hurt Time-to-First-Byte.
-
 <!-- SEO_TABLE_END -->
 
 <!-- BROADCAST_TABLE_START -->
-
 > **Measures**: Benchmarks network-layer broadcast latency (SSE vs WebSocket).
 > **Code**: `src/services/RealtimeService.ts`
 > **Why**: Realtime features are latency-sensitive. Broadcast delays break collaborative editing.
-
 <!-- BROADCAST_TABLE_END -->
 
 <!-- REAL_TIME_TABLE_START -->
-
 > **Measures**: Benchmarks WebSocket connection/broadcast latency.
 > **Code**: `src/services/RealtimeService.ts`, `src/hooks/handle-websocket.ts`
 > **Why**: WebSocket overhead affects all realtime features including live preview and collaboration.
-
 <!-- REAL_TIME_TABLE_END -->
 
 <!-- NEGATIVE_CACHE_TABLE_START -->
-
 > **Measures**: Benchmarks 404-miss response times and cache lookup speedup.
 > **Code**: `src/databases/cache/negative-cache.ts`
 > **Why**: Negative caching provides 2392x speedup for repeated misses. Degradation means unnecessary DB lookups.
-
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
 <!-- REVISION_STRESS_TABLE_START -->
-
 > **Measures**: Benchmarks performance degradation as document history grows to 100+ versions.
 > **Code**: `src/services/RevisionService.ts`
 > **Why**: Revision growth can silently degrade write performance. Must scale linearly.
-
 <!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-
 > **Measures**: Long-running soak test to identify memory leaks and GC pressure.
 > **Code**: `src/databases/core/base-adapter.ts`, `src/widgets/*/index.ts`
 > **Why**: Memory leaks cause OOM crashes in production. Native addon leaks (sharp, argon2) are common.
 > **Correlates**: `media-performance` | **Anti-correlates**: `hooks-performance`, `database-performance`
-
 <!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
-
 > **Measures**: Stress-tests cross-tenant isolation and security boundary latency.
 > **Code**: `src/databases/core/base-adapter.ts`, `src/hooks/handle-authentication.ts`
 > **Why**: Multi-tenancy is a core differentiator. Tenant isolation must not create performance cliffs.
-
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
-
 > **Measures**: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
 > **Code**: `src/routes/api/[...path]/+server.ts`, `src/databases/<db>/crud-methods.ts`
 > **Why**: Real-world traffic patterns reveal bottlenecks invisible to isolated benchmarks.
 > **Correlates**: `index-pressure`, `rest-api-performance`, `graphql-api-performance`
-
 <!-- MIXED_TABLE_END -->
 
 <!-- GQL_STRESS_TABLE_START -->
-
 > **Measures**: High-concurrency GraphQL query stress test for resolver efficiency.
 > **Code**: `src/routes/api/graphql/+server.ts`, `src/routes/api/graphql/resolvers/`
 > **Why**: GraphQL under load reveals resolver inefficiencies and connection pool exhaustion.
-
 <!-- GQL_STRESS_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
-
 > **Measures**: Measures system ingestion limits and read performance on 10,000+ entries.
 > **Code**: `src/databases/<db>/migrations.ts`, `src/content/migration-service.ts`
 > **Why**: Bulk data operations are the most expensive. Pipeline efficiency determines migration feasibility.
-
 <!-- MIGRATION_TABLE_END -->
 
 <!-- INDEX_PRESSURE_TABLE_START -->
-
 > **Measures**: Measures complex filtering and sorting performance on 100,000+ entry collections.
 > **Code**: `src/databases/<db>/crud-methods.ts`, `src/databases/<db>/schema.ts`
 > **Why**: Index pressure reveals query plan issues. Missing indexes cause full table scans.
 > **Correlates**: `mixed-workload`, `database-performance` | **Anti-correlates**: `hooks-performance`
-
 <!-- INDEX_PRESSURE_TABLE_END -->
 
 <!-- CONTENT_STRESS_TABLE_START -->
-
 > **Measures**: Measures content scan performance on 1,000+ collections across 5 nested levels.
 > **Code**: `src/content/collectionScanner.ts`, `src/databases/cache/cache-service.ts`
 > **Why**: Collection count scales with tenant usage. Scanning must remain sub-linear at scale.
-
 <!-- CONTENT_STRESS_TABLE_END -->
 
 <!-- CACHE_EFFICIENCY_TABLE_START -->
-
 > **Measures**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
 > **Code**: `src/databases/cache/cache-service.ts`, `src/databases/cache/l1-cache.ts`
 > **Why**: Cache hit ratio directly determines response latency. Misses trigger expensive DB round-trips.
-
 <!-- CACHE_EFFICIENCY_TABLE_END -->
 
 <!-- MEDIA_UPLOAD_TABLE_START -->
-
 ### 🏷️ Media Upload Stress & Throughput ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/media-upload-stress.test.ts](../../../tests/benchmarks/media-upload-stress.test.ts)
 > 🎯 **Proves**: Measures large file upload throughput, concurrent upload handling, and streaming efficiency.
 
 ```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (10MB)           │       26.526 ms │ p95:       40.118 ms │ RPS:         38 ║
-║ Small Upload (1MB)             │        6.675 ms │ p95:       13.704 ms │ RPS:        150 ║
-```text
 
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Single Upload (10MB) │ 26.526 ms │ p95: 40.118 ms │ RPS: 38 ║
+║ Small Upload (1MB) │ 6.675 ms │ p95: 13.704 ms │ RPS: 150 ║
+
+```text
 <!-- MEDIA_UPLOAD_TABLE_END -->
 
 <!-- JOURNEY_TABLE_START -->
-
 > **Measures**: E2E journey: Login -> List -> View -> Edit -> Save -> Realtime. Measures cumulative latency.
 > **Code**: `src/hooks/handle-authentication.ts`, `src/routes/api/[...path]/+server.ts`
 > **Why**: End-to-end journey latency is what users actually feel. Individual benchmarks don't capture this.
-
 <!-- JOURNEY_TABLE_END -->
 
 <!-- CONCURRENCY_TABLE_START -->
-
 ### 🏷️ Concurrency & Race Condition ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 > 🎯 **Proves**: Verifies atomic consistency and lost-update protection.
 
 ```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Concurrent PATCH Bomb          │        2.926 ms │ p95:        2.926 ms │ RPS:        342 ║
-```text
 
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Concurrent PATCH Bomb │ 2.926 ms │ p95: 2.926 ms │ RPS: 342 ║
+
+```text
 <!-- CONCURRENCY_TABLE_END -->
 
 <!-- THROUGHPUT_TABLE_START -->
-
 ### 🏷️ Multi-Doc Concurrency Throughput ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
 ```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Local SDK                      │        0.319 ms │ p95:        0.319 ms │ RPS:      3,135 ║
-```text
 
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Local SDK │ 0.319 ms │ p95: 0.319 ms │ RPS: 3,135 ║
+
+```text
 <!-- THROUGHPUT_TABLE_END -->
 
 <!-- MAXRPS_TABLE_START -->
-
 > ⏳ **Max Throughput — No Throttle**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/concurrency-max.test.ts](../../../tests/benchmarks/concurrency-max.test.ts)
-
 <!-- MAXRPS_TABLE_END -->
 
 <!-- LOCALSDK_TABLE_START -->
-
 > ⏳ **Local SDK Throughput**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/local-api-throughput.test.ts](../../../tests/benchmarks/local-api-throughput.test.ts)
-
 <!-- LOCALSDK_TABLE_END -->
 
 <!-- FAST_FAIL_TABLE_START -->
-
 > **Measures**: Measures system overhead when downstream dependencies (DB/Redis) fail or timeout.
 > **Code**: `src/hooks.server.ts`, `src/services/circuit-breaker.ts`
 > **Why**: Failure propagation speed determines system resilience. Fast-fail prevents cascade.
-
 <!-- FAST_FAIL_TABLE_END -->
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
-
 > **Measures**: Measures system graceful degradation when external services fail.
 > **Code**: `src/services/circuit-breaker.ts`, `src/hooks.server.ts`
 > **Why**: Circuit breakers prevent cascading failures. Must trip fast and recover cleanly.
-
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
 <!-- RESILIENCE_TABLE_START -->
-
 > **Measures**: Simulates 500ms database brownouts and measures CMS availability and stability.
 > **Code**: `src/hooks.server.ts`, `src/databases/<db>/adapter-core.ts`
 > **Why**: Infrastructure failures are inevitable. The system must degrade gracefully, not crash.
-
 <!-- RESILIENCE_TABLE_END -->
 
 <!-- THROTTLING_TABLE_START -->
-
 > **Measures**: Measures rate-limiting consistency under 10x design load.
 > **Code**: `src/hooks/handle-rate-limit.ts`, `src/hooks.server.ts`
 > **Why**: Rate limiting protects against DoS. Must be consistent even under extreme load.
-
 <!-- THROTTLING_TABLE_END -->
 
 <!-- GDPR_TABLE_START -->
-
 > **Measures**: Measures performance of deep-deletion across all linked tables.
 > **Code**: `src/services/GDPRService.ts`, `src/databases/<db>/crud-methods.ts`
 > **Why**: Right-to-be-forgotten is legally mandated. Slow deletions risk compliance deadlines.
-
 <!-- GDPR_TABLE_END -->
 
 <!-- SOVEREIGNTY_TABLE_START -->
-
 > **Measures**: PII blocking and data sovereignty enforcement with cross-region failover.
 > **Code**: `src/services/DataResidencyService.ts`, `src/hooks/handle-authentication.ts`
 > **Why**: GDPR/CCPA compliance depends on fast data residency checks. Slow checks delay every request.
-
 <!-- SOVEREIGNTY_TABLE_END -->
 
 <!-- PROD_DAY_TABLE_START -->
-
 > **Measures**: Full production day with mixed workload, 100% reliability.
 > **Code**: `src/routes/api/[...path]/+server.ts`, `src/databases/<db>/crud-methods.ts`, `src/databases/cache/cache-service.ts`
 > **Why**: The ultimate test. Reveals slow memory leaks, cache churn, and connection pool drift.
-
 <!-- PROD_DAY_TABLE_END -->
 
+<!-- FAILOVER_TABLE_START -->
+> ⏳ **Database Failover & Reconnection**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/database-failover.test.ts](../../../tests/benchmarks/database-failover.test.ts)
+<!-- FAILOVER_TABLE_END -->
+
+
 ---
-description: "Database performance benchmarks with trend analysis and competitive context."
 
 ## 🔬 Host Environment
-
-| CPU                             | Cores | RAM  | Runtime                   |
-| :------------------------------ | :---- | :--- | :------------------------ |
-| Intel(R) Core(TM) Ultra 9 275HX | 24    | 63GB | Bun 1.3.14 / Node v24.3.0 |
+| CPU | Cores | RAM | Runtime |
+| :--- | :--- | :--- | :--- |
+| Intel(R) Core(TM) Ultra 9 275HX | 24 | 63GB | Bun 1.3.14 / Node v24.3.0 |
 
 <!-- BENCHMARK_END -->
 
@@ -1106,25 +1051,33 @@ description: "Database performance benchmarks with trend analysis and competitiv
 **Single test (console-only):**
 
 ```
+
 bun test tests/benchmarks/api-latency.test.ts
+
 ```text
 
 **Single test (record to this report):**
 
 ```
+
 BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
+
 ```text
 
 **Full SQLite matrix:**
 
 ```
+
 bun run scripts/benchmark-matrix/index.ts --sql
+
 ```text
 
 **History-only (no MDX mutation, useful in CI):**
 
 ```
+
 BENCHMARK_RECORD=1 BENCHMARK_HISTORY_ONLY=1 bun test tests/benchmarks/auth-performance.test.ts
+
 ```text
 
 Each recorded run updates its section immediately with a truth table, trend label, and root cause insight. The label shows change vs a rolling median baseline.
@@ -1147,7 +1100,7 @@ description: "Database performance benchmarks with trend analysis and competitiv
 - **Test metadata**: `tests/benchmarks/benchmark-meta.ts`
 - **Per-DB budgets**: `tests/benchmarks/benchmark-mdx.ts` → `PER_DIMENSION_BUDGETS`
 - **Report template**: This file — updated on each `BENCHMARK_RECORD=1` run
-````
+```
 
 ---
 

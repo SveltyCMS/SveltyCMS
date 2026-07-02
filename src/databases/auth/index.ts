@@ -66,12 +66,19 @@ export type {
 } from "./types";
 
 // Import shared password utilities (Argon2id)
+// NOTE: Import directly from ./crypto, NOT from @utils/security barrel,
+// to avoid pulling server-only modules (cors-utils, csrf-utils, etc.) into the client bundle.
 import {
   hashPassword as cryptoHashPassword,
   verifyPassword as cryptoVerifyPassword,
-} from "@utils/security";
+} from "@utils/security/crypto";
 // Import for internal use
 import { SESSION_COOKIE_NAME, getSessionCookieName } from "./constants";
+
+/** Normalize email to lowercase for consistent lookups */
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
 
 // Main Auth class
 export class Auth {
@@ -97,7 +104,7 @@ export class Auth {
     try {
       const { email, password } = userData;
 
-      if (email) userData.email = email.toLowerCase();
+      if (email) userData.email = normalizeEmail(email);
 
       // --- PASSWORD HASHING ---
       if (password) {
@@ -162,7 +169,7 @@ export class Auth {
         throw error(400, "Tenant ID is required in multi-tenant mode");
       }
 
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = normalizeEmail(email);
 
       // --- PASSWORD STRENGTH VALIDATION ---
       if (!oauth && !samlId && password) {
@@ -174,8 +181,17 @@ export class Auth {
         hashedPassword = await cryptoHashPassword(password);
       }
 
+      const preferences = (userData.preferences || {}) as Record<string, unknown>;
+      if (oauth) {
+        preferences.auth = {
+          ...(preferences.auth as Record<string, unknown>),
+          oauthEnabled: true,
+        };
+      }
+
       const result = await this.db.auth.createUser({
         ...userData,
+        preferences,
         email: normalizedEmail,
         password: hashedPassword,
       });
@@ -283,7 +299,7 @@ export class Auth {
     await cacheService.delete(cacheKey, options?.tenantId);
 
     if (user?.email) {
-      const emailCacheKey = `user:email:${user.email.toLowerCase()}`;
+      const emailCacheKey = `user:email:${normalizeEmail(user.email)}`;
       await cacheService.delete(emailCacheKey, options?.tenantId);
     }
   }
@@ -437,7 +453,7 @@ export class Auth {
 
     const result = await this.db.auth.createToken({
       user_id: tokenData.user_id,
-      email: user.email.toLowerCase(),
+      email: normalizeEmail(user.email),
       expires: tokenData.expires,
       type: tokenData.type,
       tenantId: tokenData.tenantId,
@@ -677,7 +693,7 @@ export class Auth {
           });
         }
 
-        await this.db.auth.updateUserAttributes(user._id, updates);
+        await this.db.auth.updateUserAttributes(user._id, updates, options);
         logger.warn("Password authentication failed", {
           email,
           failedAttempts,
@@ -687,10 +703,14 @@ export class Auth {
 
       // --- SUCCESS: RESET LOCKOUT STATE ---
       if (user.failedAttempts || user.lockoutUntil) {
-        await this.db.auth.updateUserAttributes(user._id, {
-          failedAttempts: 0,
-          lockoutUntil: null,
-        });
+        await this.db.auth.updateUserAttributes(
+          user._id,
+          {
+            failedAttempts: 0,
+            lockoutUntil: null,
+          },
+          options,
+        );
       }
 
       const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours

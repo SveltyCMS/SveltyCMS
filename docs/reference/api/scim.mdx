@@ -1,0 +1,86 @@
+---
+path: "docs/reference/api/scim.mdx"
+title: "SCIM 2.0 (scim.ts)"
+description: "Reference for SCIM 2.0 (RFC 7644) user provisioning — automated identity lifecycle management for Okta and Azure AD."
+order: 55
+icon: "mdi:account-sync-outline"
+author: "SveltyCMS Team"
+created: "2026-03-24"
+updated: "2026-04-12"
+tags:
+  - "api"
+  - "scim"
+  - "provisioning"
+  - "enterprise"
+---
+
+# SCIM 2.0 Reference (`scim.ts`)
+
+SveltyCMS provides a native implementation of the **System for Cross-domain Identity Management (SCIM) 2.0** protocol (RFC 7644). This allows enterprise identity providers (IdPs) like Okta or Azure AD to automatically provision and manage users and groups within SveltyCMS.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature         | HTTP Endpoint             | Method   | Permission Required |
+| :-------------- | :------------------------ | :------- | :------------------ |
+| **List Users**  | `/api/scim/v2/Users`      | `GET`    | `manage:user`       |
+| **Get User**    | `/api/scim/v2/Users/{id}` | `GET`    | `manage:user`       |
+| **Create User** | `/api/scim/v2/Users`      | `POST`   | `manage:user`       |
+| **Update User** | `/api/scim/v2/Users/{id}` | `PATCH`  | `manage:user`       |
+| **Delete User** | `/api/scim/v2/Users/{id}` | `DELETE` | `manage:user`       |
+| **Bulk Ops**    | `/api/scim/v2/Bulk`       | `POST`   | `manage:user`       |
+
+---
+
+## 1. The Goal
+
+Automate the user lifecycle (Joiners, Movers, Leavers) by allowing the enterprise IdP to be the source of truth, reducing manual administrative overhead and ensuring security compliance.
+
+---
+
+## 2. The Solution
+
+### Endpoint Configuration
+
+The SCIM API is located at `/api/scim/v2/`. Most IdPs will require a **SCIM Base URL** and an **API Token** (generated via [Tokens API](./tokens.mdx)).
+
+### Supported Attributes
+
+SveltyCMS filters and maps SCIM standard attributes to its internal user model:
+
+- `userName` → `username`
+- `emails[type=work]` → `email`
+- `active` → `status`
+- `displayName` → `metadata.fullName`
+
+---
+
+## 3. The Mechanics
+
+### SCIM Compliance
+
+The `scim.ts` handler implements complex filtering (e.g., `filter=userName eq "john"`) and pagination according to the RFC 7644 specification.
+
+````mermaid
+sequenceDiagram
+    participant IdP as Okta / Azure AD
+    participant SCIM as SCIM Handler (scim.ts)
+    participant SDK as LocalCMS SDK
+    participant DB as Database
+
+    IdP->>SCIM: POST /scim/v2/Users
+    SCIM->>SCIM: Parse SCIM Schema
+    SCIM->>SDK: cms.auth.createUser(data)
+    SDK->>DB: INSERT INTO users ...
+    SCIM-->>IdP: 201 Created (SCIM JSON)
+```text
+
+---
+
+## Related Documents
+
+- [Authentication & Identity (auth.ts)](./auth.mdx)
+- [Token Management (tokens.ts)](./tokens.mdx)
+- [Multi-Tenant Architecture Guide](../architecture/multi-tenancy.mdx)
+````

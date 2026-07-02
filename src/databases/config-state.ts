@@ -372,7 +372,9 @@ const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
     protocol: "mongodb",
     buildConnectionString: (c) => {
       const auth = c.user && c.user.trim() ? `${c.user}:${c.password}@` : "";
-      return `mongodb://${auth}${c.host}:${c.port}/${c.name}`;
+      // authSource=admin is required for root users created via
+      // MONGO_INITDB_ROOT_USERNAME (docker-compose standard).
+      return `mongodb://${auth}${c.host}:${c.port}/${c.name}?authSource=admin`;
     },
   },
   "mongodb+srv": {

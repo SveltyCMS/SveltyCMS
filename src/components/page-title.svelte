@@ -64,6 +64,8 @@
 		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
 		showBackButton?: boolean;
 		truncate?: boolean;
+		/** Tighter title row with bottom border — for data-dense pages (e.g. media gallery). */
+		compact?: boolean;
 	}
 
 	const {
@@ -77,6 +79,7 @@
 		truncate = true,
 		description = '',
 		onBackClick,
+		compact = false,
 		children
 	}: Props = $props();
 
@@ -109,30 +112,35 @@
 	}
 </script>
 
-<div class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-4 bg-surface-50/95 py-1.5 backdrop-blur-sm dark:bg-surface-950/95">
+<div
+	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 bg-surface-50/95 backdrop-blur-sm dark:bg-surface-950/95
+		{compact ? 'px-2 py-2.5 sm:px-3' : 'gap-4 py-1.5'}"
+>
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<div transition:fade={{ duration: 300 }}>
-			<Button variant="ghost"
+			<Button variant="outline"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500"
-			>
-				<iconify-icon icon="bi:list" width="24" class="text-surface-700 dark:text-surface-200"></iconify-icon>
+			 class="p-0! min-w-0 shrink-0">
+				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
-			</div>
 		{/if}
 		<div class="flex flex-col ms-2 min-w-0">
 			<h1
 				class="transition-max-width h1 relative flex items-center gap-1 font-bold"
-				style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"
+				style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.5rem, 3vw + 1rem, 2.25rem)'};"
 				aria-live="polite"
 				data-cms-field="pageTitle"
 				data-cms-type="text"
 			>
 				{#if icon}
-					<iconify-icon {icon} width={iconSize} class={`me-1 shrink-0 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
+					<iconify-icon
+						{icon}
+						width={compact ? '22' : iconSize}
+						class={`me-1 shrink-0 ${iconColor} sm:mr-2`}
+						aria-hidden="true"
+					></iconify-icon>
 				{/if}
 
 				<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
@@ -144,13 +152,12 @@
 				<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
 			</h1>
 			{#if description}
-				<span class="text-sm font-medium opacity-50 mt-1">{description}</span>
+				<span class="mt-0.5 text-xs font-medium text-surface-500 dark:text-surface-400 {compact ? '' : 'opacity-50'}">{description}</span>
 			{/if}
 		</div>
 	</div>
 
-	<div class="flex flex-wrap items-center gap-2 shrink-0">
-		<!-- Action Buttons -->
+	<div class="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
 		{#if children}
 			{@render children()}
 		{/if}
@@ -161,12 +168,13 @@
 					<a
 						href={backUrl}
 						aria-label="Go back"
-						class="flex h-10 w-10 items-center justify-center rounded-full border border-surface-500 dark:border-surface-200 hover:bg-surface-500/10 transition-colors shrink-0"
+						class="flex shrink-0 items-center justify-center rounded-full border border-surface-500 transition-colors hover:bg-surface-500/10 dark:border-surface-200
+							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
 						data-cms-action="back"
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}
 					>
-						<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
 					</a>
 				</SystemTooltip>
 			{:else}
@@ -174,10 +182,10 @@
 					onclick={(e: MouseEvent) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
-					class="flex h-10 w-10 items-center justify-center rounded-full p-0! min-w-0 shrink-0"
+					class="flex min-w-0 shrink-0 items-center justify-center rounded-full p-0! {compact ? 'h-9 w-9' : 'h-10 w-10'}"
 					data-cms-action="back"
 				>
-					<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
 				</Button>
 			{/if}
 		{/if}

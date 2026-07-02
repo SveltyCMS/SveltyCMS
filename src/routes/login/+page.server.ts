@@ -153,12 +153,14 @@ async function shouldShowGithubOAuth(_hasInvite?: boolean): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
-  const demoMode = getPrivateSettingSync("DEMO");
-  const multiTenant = getPrivateSettingSync("MULTI_TENANT");
   const userLanguage = getUserLanguage();
-  const isOpenSignup = !!(multiTenant && demoMode);
 
   const defaultBranding = await loadLoginBranding(locals?.tenantId);
+
+  // Default values — updated after DB init once settings cache is loaded
+  let demoMode = false;
+  let multiTenant = false;
+  let isOpenSignup = false;
 
   const errorDefaults = {
     hasAdminUser: true,
@@ -195,6 +197,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     }
 
     await dbInitPromise;
+
+    // Re-read multi-tenancy and demo mode from settings cache (now guaranteed loaded)
+    demoMode = !!getPrivateSettingSync("DEMO");
+    multiTenant = !!getPrivateSettingSync("MULTI_TENANT");
+    isOpenSignup = multiTenant && demoMode;
+
     const dbHealth = await checkDatabaseHealth();
     if (!dbHealth.healthy) {
       return {
@@ -406,10 +414,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     const showGoogleOAuth = await shouldShowGoogleOAuth();
     const showGithubOAuth = await shouldShowGithubOAuth();
     const showPasskey = !!(
-      getPrivateSettingSync("WEBAUTHN_RP_ID") || getPrivateSettingSync("PASSKEY_ENABLED")
+      (await getUntypedSetting("WEBAUTHN_RP_ID", "private")) ||
+      (await getUntypedSetting("PASSKEY_ENABLED", "private"))
     );
     const showMagicLink = !!(
-      getPrivateSettingSync("SMTP_HOST") || getPrivateSettingSync("MAGIC_LINK_ENABLED")
+      (await getUntypedSetting("SMTP_HOST", "private")) ||
+      (await getUntypedSetting("MAGIC_LINK_ENABLED", "private"))
     );
 
     const pkgVersion = pkg.version;
@@ -417,6 +427,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     return {
       ...errorDefaults,
+      demoMode,
+      isOpenSignup,
       hasAdminUser,
       showGoogleOAuth,
       showGithubOAuth,
@@ -457,6 +469,7 @@ export const actions: Actions = {
       data[k] = v;
     });
     const result = await signInFn(data);
+    logger.info(`[SignInAction] result: ${JSON.stringify(result)}`);
     if (result?.success && result?.redirectPath) {
       throw redirect(303, result.redirectPath);
     }

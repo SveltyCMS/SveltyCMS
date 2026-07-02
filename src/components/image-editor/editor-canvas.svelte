@@ -64,6 +64,16 @@ for the image editor canvas with reactive rendering.
 
 	const storeState = imageEditorStore.state;
 
+	function resolveCanvasBackground(): string {
+		if (!containerRef) return '#1a1a1a';
+		const styles = getComputedStyle(containerRef);
+		return (
+			styles.getPropertyValue('--editor-canvas-bg').trim() ||
+			styles.getPropertyValue('--editor-chrome-bg').trim() ||
+			(imageEditorStore.isMobile ? '#1a1a1a' : '#0a0a0a')
+		);
+	}
+
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		if (!hasImage) {
@@ -95,13 +105,26 @@ for the image editor canvas with reactive rendering.
 	let touchStartZoom = $state(1);
 	let touchStartMidpoint = $state({ x: 0, y: 0 });
 	let isMultiTouch = $state(false);
+	let lastToolCanvasPoint = { x: 0, y: 0 };
 
 	// Interactive Panning & Tool Delegation
+	function canvasPointer(e: MouseEvent | Touch, el: EventTarget | null) {
+		const node = el as HTMLElement;
+		const rect = node.getBoundingClientRect();
+		return {
+			x: e.clientX - rect.left,
+			y: e.clientY - rect.top
+		};
+	}
+
 	function handleMouseDown(e: MouseEvent) {
 		if (!hasImage) return;
 
+		const pt = canvasPointer(e, e.currentTarget);
+		lastToolCanvasPoint = pt;
+
 		if (activeTool?.handleMouseDown) {
-			activeTool.handleMouseDown(e, containerWidth, containerHeight);
+			activeTool.handleMouseDown(e, containerWidth, containerHeight, pt.x, pt.y);
 		} else {
 			isPanning = true;
 			lastPos = { x: e.clientX, y: e.clientY };
@@ -128,7 +151,9 @@ for the image editor canvas with reactive rendering.
 		}
 
 		if (activeTool?.handleMouseMove) {
-			activeTool.handleMouseMove(e, containerWidth, containerHeight);
+			const pt = canvasPointer(e, e.currentTarget);
+			lastToolCanvasPoint = pt;
+			activeTool.handleMouseMove(e, containerWidth, containerHeight, pt.x, pt.y);
 		} else if (isPanning) {
 			const dx = e.clientX - lastPos.x;
 			const dy = e.clientY - lastPos.y;
@@ -140,7 +165,9 @@ for the image editor canvas with reactive rendering.
 
 	function handleMouseUp(e: MouseEvent) {
 		if (activeTool?.handleMouseUp) {
-			activeTool.handleMouseUp(e, containerWidth, containerHeight);
+			const pt = canvasPointer(e, e.currentTarget);
+			lastToolCanvasPoint = pt;
+			activeTool.handleMouseUp(e, containerWidth, containerHeight, pt.x, pt.y);
 		}
 		isPanning = false;
 	}
@@ -184,12 +211,16 @@ for the image editor canvas with reactive rendering.
 			touchStartZoom = storeState.zoom;
 			touchStartMidpoint = getTouchMidpoint(e.touches);
 		} else if (e.touches.length === 1 && activeTool?.handleMouseDown) {
-			// Single touch with active tool: simulate mousedown for tool
+			e.preventDefault();
 			const touch = e.touches[0];
+			const pt = canvasPointer(touch, e.currentTarget);
+			lastToolCanvasPoint = pt;
 			activeTool.handleMouseDown(
 				new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY }),
 				containerWidth,
-				containerHeight
+				containerHeight,
+				pt.x,
+				pt.y
 			);
 		} else if (e.touches.length === 1) {
 			// Single touch: start panning
@@ -223,11 +254,16 @@ for the image editor canvas with reactive rendering.
 			storeState.translateY += dy;
 			lastPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		} else if (e.touches.length === 1 && activeTool?.handleMouseMove) {
+			e.preventDefault();
 			const touch = e.touches[0];
+			const pt = canvasPointer(touch, e.currentTarget);
+			lastToolCanvasPoint = pt;
 			activeTool.handleMouseMove(
 				new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY }),
 				containerWidth,
-				containerHeight
+				containerHeight,
+				pt.x,
+				pt.y
 			);
 		}
 	}
@@ -239,7 +275,9 @@ for the image editor canvas with reactive rendering.
 			activeTool.handleMouseUp(
 				new MouseEvent('mouseup', {}),
 				containerWidth,
-				containerHeight
+				containerHeight,
+				lastToolCanvasPoint.x,
+				lastToolCanvasPoint.y
 			);
 		}
 	}
@@ -486,7 +524,16 @@ for the image editor canvas with reactive rendering.
 	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters, blurRegions, compareSliderPosition } = storeState;
 
+		context.fillStyle = resolveCanvasBackground();
+		context.fillRect(0, 0, width, height);
+
 		if (!imageElement) return;
+
+		context.imageSmoothingEnabled = true;
+		context.imageSmoothingQuality = 'high';
+
+		// During crop editing show the full image; the viewport frame selects the region
+		const drawCrop = imageEditorStore.state.activeState === 'crop' ? null : crop;
 
 		const isComparing = compareSliderPosition > 0;
 		const activeFilters = isComparing
@@ -505,7 +552,7 @@ for the image editor canvas with reactive rendering.
 			context.translate(width / 2 + translateX, height / 2 + translateY);
 			context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
 			context.rotate((rotation * Math.PI) / 180);
-			drawSourceImage(context, imageElement, crop);
+			drawSourceImage(context, imageElement, drawCrop);
 			context.restore();
 
 			// Draw edited (end side)
@@ -518,9 +565,9 @@ for the image editor canvas with reactive rendering.
 			context.rotate((rotation * Math.PI) / 180);
 			const editedFilterString = buildFilterString(filters);
 			if (editedFilterString) context.filter = editedFilterString;
-			drawSourceImage(context, imageElement, crop);
+			drawSourceImage(context, imageElement, drawCrop);
 			applySharpness(context, width, height, filters);
-			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], crop);
+			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], drawCrop);
 			context.restore();
 
 			// Draw divider line
@@ -542,9 +589,9 @@ for the image editor canvas with reactive rendering.
 
 			const filterString = buildFilterString(activeFilters);
 			if (filterString) context.filter = filterString;
-			drawSourceImage(context, imageElement, crop);
+			drawSourceImage(context, imageElement, drawCrop);
 			applySharpness(context, width, height, activeFilters);
-			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], crop);
+			drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], drawCrop);
 			context.restore();
 		}
 	};
@@ -581,7 +628,7 @@ for the image editor canvas with reactive rendering.
 </script>
 
 <div
-	class="editor-canvas-wrapper relative flex-1 overflow-hidden rounded border border-surface-200 transition-all duration-300 ease-in-out focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:ring-offset-surface-50 dark:focus-within:ring-offset-surface-900 md:rounded md:border md:border-surface-200 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-t"
+	class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none"
 	role="region"
 	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
@@ -618,7 +665,12 @@ for the image editor canvas with reactive rendering.
 	aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
 	>
 		{#if containerWidth > 0 && containerHeight > 0}
-			<Canvas width={containerWidth} height={containerHeight}>
+			<Canvas
+				width={containerWidth}
+				height={containerHeight}
+				autoplay={hasImage}
+				contextSettings={{ alpha: false }}
+			>
 				<Layer render={renderImage} />
 				<!-- Additional layers for widgets can be added here or via children snippet -->
 				{@render children?.()}
@@ -695,38 +747,39 @@ for the image editor canvas with reactive rendering.
 
 <style>
 	.editor-canvas-wrapper {
-		min-height: 400px;
-		background-color: rgb(var(--color-surface-50) / 1);
-		border-color: rgb(var(--color-surface-200) / 1);
-	}
-
-	:global(.dark) .editor-canvas-wrapper {
-		background-color: rgb(var(--color-surface-900) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
+		min-height: 0;
+		height: 100%;
+		background-color: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		outline: none;
 	}
 
 	.canvas-container {
-		background-color: rgb(var(--color-surface-100) / 1);
-		background-image: repeating-conic-gradient(rgba(0, 0, 0, 0.05) 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+		background-color: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
+		background-image: none;
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		outline: none;
 	}
 
-	:global(.dark) .canvas-container {
-		background-color: rgb(var(--color-surface-800) / 1);
-		background-image: repeating-conic-gradient(rgba(255, 255, 255, 0.03) 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+	.canvas-container:focus-visible {
+		outline: none;
+	}
+
+	.editor-canvas-wrapper :global(canvas) {
+		display: block;
+		border: none;
+		border-radius: 0;
+		outline: none;
 	}
 
 	.empty-state {
-		background: linear-gradient(to bottom end, rgb(var(--color-surface-50) / 0.95), rgb(var(--color-surface-100) / 0.95));
+		background: rgba(8, 8, 8, 0.5);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
 	}
 
-	:global(.dark) .empty-state {
-		background: linear-gradient(to bottom end, rgb(var(--color-surface-900) / 1), rgb(var(--color-surface-800) / 1));
-	}
-
-	/* Responsive adjustments */
-	@media (max-width: 768px) {
-		.editor-canvas-wrapper {
-			min-height: 40vh;
-		}
-	}
 </style>

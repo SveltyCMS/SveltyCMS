@@ -124,6 +124,10 @@ const TEST_FILE_TO_TAG: Record<string, string> = {
   "cache-hit-ratio": "CACHE_EFFICIENCY",
   "client-journey": "JOURNEY",
   "state-machine-transition": "STATE_MACHINE",
+  "database-performance": "DB_RAW_P95",
+  "transaction-acid": "ACID",
+  "cache-performance": "CACHE",
+  "rest-api-performance": "REST",
 };
 
 function tagExistsInDoc(doc: string, tag: string): boolean {
@@ -165,6 +169,18 @@ export function discoverTag(doc: string, testFile: string, shortLabel?: string):
 
 /** Write to temp file first, then rename into place — prevents half-written reports. */
 function atomicWrite(docPath: string, content: string): void {
+  // Clean up stale temp files from previous crashes
+  const dir = path.dirname(docPath);
+  const base = path.basename(docPath);
+  const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
+  for (const sf of staleFiles) {
+    try {
+      fs.unlinkSync(path.join(dir, sf));
+    } catch {
+      /* best-effort */
+    }
+  }
+
   const tmpPath = docPath + ".tmp." + Date.now();
   fs.writeFileSync(tmpPath, content, "utf8");
   fs.renameSync(tmpPath, docPath);
@@ -174,37 +190,7 @@ function atomicWrite(docPath: string, content: string): void {
 // MDX Write Operations
 // ─────────────────────────────────────────────────────────────
 
-/** Find the correct tag occurrence — prefer the one after BENCHMARK_END (educational section). */
-function findSectionPosition(doc: string, tag: string): { idx: number } | null {
-  const START = `<!-- ${tag}_TABLE_START -->`;
-  const BENCH_END = "<!-- BENCHMARK_END -->";
-  let benchEnd = -1;
-  let searchFrom = 0;
-  while (true) {
-    const next = doc.indexOf(BENCH_END, searchFrom);
-    if (next < 0) break;
-    benchEnd = next;
-    searchFrom = next + BENCH_END.length;
-  }
-
-  // Collect all occurrences
-  const starts: number[] = [];
-  let idx = 0;
-  while ((idx = doc.indexOf(START, idx)) !== -1) {
-    starts.push(idx);
-    idx += START.length;
-  }
-  if (starts.length === 0) return null;
-
-  // Prefer the one after BENCHMARK_END (educational section)
-  if (benchEnd > 0) {
-    const eduStart = starts.find((s) => s > benchEnd);
-    if (eduStart !== undefined) return { idx: eduStart };
-  }
-
-  // Fall back to first occurrence
-  return { idx: starts[0] };
-}
+/* findSectionPosition removed — writeTruthTable now updates ALL occurrences via loop */
 
 /** Write the truth table between TABLE_START / TABLE_END. Returns the tag name. */
 export function writeTruthTable(
@@ -212,32 +198,17 @@ export function writeTruthTable(
   testFile: string,
   shortLabel?: string,
 ): string | null {
+  const docPath = getDocPath();
+  if (!fs.existsSync(docPath)) return null;
+  if (!acquireMdxLock(docPath)) return null;
+
   try {
-    const docPath = getDocPath();
-    if (!fs.existsSync(docPath)) return null;
-
-    if (!acquireMdxLock(docPath)) return null;
-
     let doc = fs.readFileSync(docPath, "utf8");
     const tag = discoverTag(doc, testFile, shortLabel);
-    if (!tag) {
-      releaseMdxLock(docPath);
-      return null;
-    }
-
-    const pos = findSectionPosition(doc, tag);
-    if (!pos) {
-      releaseMdxLock(docPath);
-      return null;
-    }
+    if (!tag) return null;
 
     const START = `<!-- ${tag}_TABLE_START -->`;
     const END = `<!-- ${tag}_TABLE_END -->`;
-    const endIdx = doc.indexOf(END, pos.idx);
-    if (endIdx < 0) {
-      releaseMdxLock(docPath);
-      return null;
-    }
 
     const block = [
       "<!-- INSIGHT_PLACEHOLDER -->",
@@ -249,63 +220,72 @@ export function writeTruthTable(
       "<!-- SUMMARY_PLACEHOLDER -->",
     ].join("\n");
 
-    doc = doc.slice(0, pos.idx) + START + "\n" + block + "\n" + doc.slice(endIdx);
+    // Update ALL occurrences of START/END to ensure both the main
+    // section and educational section get the latest data
+    let startIdx = 0;
+    let replaced = false;
+    while (true) {
+      const pos = doc.indexOf(START, startIdx);
+      if (pos < 0) break;
+      const endIdx = doc.indexOf(END, pos + START.length);
+      if (endIdx < 0) break;
+
+      doc = doc.slice(0, pos) + START + "\n" + block + "\n" + doc.slice(endIdx + END.length);
+      replaced = true;
+      startIdx = pos + START.length + block.length + 1;
+    }
+
+    if (!replaced) return null;
 
     atomicWrite(docPath, doc);
-    releaseMdxLock(docPath);
     return tag;
-  } catch {
+  } catch (err: any) {
+    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+      console.error(`[MDX Debug] writeTruthTable failed:`, err);
+    }
     return null;
+  } finally {
+    releaseMdxLock(docPath);
   }
 }
 
-/** Append summary table before TABLE_END. */
 export function writeSummary(
   summaryTable: string,
   testFile: string,
   tag?: string | null,
   shortLabel?: string,
 ): void {
-  try {
-    const docPath = getDocPath();
-    if (!fs.existsSync(docPath)) return;
-    if (!acquireMdxLock(docPath)) return;
+  const docPath = getDocPath();
+  if (!fs.existsSync(docPath)) return;
+  if (!acquireMdxLock(docPath)) return;
 
+  try {
     let doc = fs.readFileSync(docPath, "utf8");
     const resolvedTag = tag || discoverTag(doc, testFile, shortLabel);
-    if (!resolvedTag) {
-      releaseMdxLock(docPath);
-      return;
-    }
+    if (!resolvedTag) return;
 
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
-    const pos = findSectionPosition(doc, resolvedTag);
-    if (!pos || !doc.includes(END, pos.idx)) {
-      releaseMdxLock(docPath);
-      return;
-    }
-
-    const endIdx = doc.indexOf(END, pos.idx);
     const summaryBlock = ["```text", summaryTable, "```"].join("\n");
-    const section = doc.slice(pos.idx, endIdx + END.length);
 
-    if (section.includes("<!-- SUMMARY_PLACEHOLDER -->")) {
-      doc =
-        doc.slice(0, pos.idx) +
-        section.replace("<!-- SUMMARY_PLACEHOLDER -->", summaryBlock) +
-        doc.slice(endIdx + END.length);
+    // Replace ALL SUMMARY_PLACEHOLDER occurrences globally (simple, no position-shift bugs)
+    const placeholder = "<!-- SUMMARY_PLACEHOLDER -->";
+    if (doc.includes(placeholder)) {
+      doc = doc.split(placeholder).join(summaryBlock);
     } else {
-      doc = doc.slice(0, endIdx) + "\n" + summaryBlock + "\n" + doc.slice(endIdx);
+      // Fallback: insert before each END tag
+      doc = doc.split(END).join(summaryBlock + "\n" + END);
     }
 
     atomicWrite(docPath, doc);
+  } catch (err: any) {
+    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+      console.error(`[MDX Debug] writeSummary failed:`, err);
+    }
+  } finally {
     releaseMdxLock(docPath);
-  } catch {
-    /* best-effort */
   }
 }
 
-/** Update the ### 🏷️ label and append insight before TABLE_END. */
 export function writeTrendAndInsight(
   trendLabel: string,
   insight: string,
@@ -313,54 +293,85 @@ export function writeTrendAndInsight(
   tag?: string | null,
   shortLabel?: string,
 ): void {
-  try {
-    const docPath = getDocPath();
-    if (!fs.existsSync(docPath)) return;
-    if (!acquireMdxLock(docPath)) return;
+  const docPath = getDocPath();
+  if (!fs.existsSync(docPath)) return;
+  if (!acquireMdxLock(docPath)) return;
 
+  try {
     let doc = fs.readFileSync(docPath, "utf8");
     const resolvedTag = tag || discoverTag(doc, testFile, shortLabel);
-    if (!resolvedTag) {
-      releaseMdxLock(docPath);
-      return;
-    }
+    if (!resolvedTag) return;
 
-    // Find the correct tag position (prefer educational section)
-    const pos = findSectionPosition(doc, resolvedTag);
-    if (!pos) {
-      releaseMdxLock(docPath);
-      return;
-    }
-
-    // Update the ### 🏷️ label
-    const before = doc.slice(0, pos.idx);
-    const li = before.lastIndexOf("### " + "\u{1F3F7}");
-    if (li > 0) {
-      const le = doc.indexOf("\n", li);
-      const old = doc.slice(li, le);
-      // Handle both "⚪ — ..." (fresh) and "⚪ avg 0% ..." (previously updated)
-      const newHeading = old.replace(
-        /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
-        trendLabel,
-      );
-      doc = doc.slice(0, li) + newHeading + doc.slice(le);
-    }
-
-    // Replace INSIGHT_PLACEHOLDER or append after END
+    const START_MARKER = `<!-- ${resolvedTag}_TABLE_START -->`;
     const END = `<!-- ${resolvedTag}_TABLE_END -->`;
     const insightBlock = "\n> " + insight + "\n";
 
-    if (doc.includes("<!-- INSIGHT_PLACEHOLDER -->")) {
-      doc = doc.replace("<!-- INSIGHT_PLACEHOLDER -->", insightBlock);
-    } else if (doc.includes(END)) {
-      // Insert insight AFTER the END marker (outside the table block)
-      doc = doc.replace(END, END + insightBlock);
+    // ── Update only the heading inside this specific section block ──
+    const startPos = doc.indexOf(START_MARKER);
+    const endPos = doc.indexOf(END);
+
+    let updated = false;
+
+    if (startPos >= 0 && endPos > startPos) {
+      let section = doc.slice(startPos, endPos);
+      const headingRx = /^###\s+\u{1F3F7}.+$/mu;
+      const hMatch = section.match(headingRx);
+      if (hMatch) {
+        const oldLine = hMatch[0];
+        const hPos = section.indexOf(oldLine);
+        // Append last-run timestamp to trend label
+        const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const labelWithTs = `${trendLabel} (${ts})`;
+        // Replace the icon + any text after it with our trend label
+        const newLine = oldLine.replace(
+          /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
+          labelWithTs,
+        );
+        section = section.slice(0, hPos) + newLine + section.slice(hPos + oldLine.length);
+        doc = doc.slice(0, startPos) + section + doc.slice(endPos);
+        updated = true;
+      }
+    }
+
+    if (!updated && startPos >= 0) {
+      // Fallback: search backwards from startPos for the nearest heading
+      const beforeDoc = doc.slice(0, startPos);
+      const headingRx = /^###\s+\u{1F3F7}.+$/gmu;
+      let lastMatch: RegExpExecArray | null = null;
+      let m: RegExpExecArray | null;
+      while ((m = headingRx.exec(beforeDoc)) !== null) {
+        lastMatch = m;
+      }
+      if (lastMatch) {
+        const lastHeadingIdx = lastMatch.index;
+        const oldLine = lastMatch[0];
+        const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const labelWithTs = `${trendLabel} (${ts})`;
+        const newLine = oldLine.replace(
+          /(?:\u26AA|\u{1F7E2}|\u{1F7E1}|\u{1F7E0}|\u{1F534})\s*(?:\u2014\s*)?.*$/u,
+          labelWithTs,
+        );
+        doc = doc.slice(0, lastHeadingIdx) + newLine + doc.slice(lastHeadingIdx + oldLine.length);
+        updated = true;
+      }
+    }
+
+    // Replace INSIGHT_PLACEHOLDER in ALL occurrences
+    const insightPlaceholder = "<!-- INSIGHT_PLACEHOLDER -->";
+    if (doc.includes(insightPlaceholder)) {
+      doc = doc.split(insightPlaceholder).join(insightBlock);
+    } else {
+      // Fallback: insert before each END tag
+      doc = doc.split(END).join(insightBlock + "\n" + END);
     }
 
     atomicWrite(docPath, doc);
+  } catch (err: any) {
+    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+      console.error(`[MDX Debug] writeTrendAndInsight failed:`, err);
+    }
+  } finally {
     releaseMdxLock(docPath);
-  } catch {
-    /* best-effort */
   }
 }
 
@@ -413,5 +424,171 @@ export function writeExecutiveSummary(
     releaseMdxLock(docPath);
   } catch {
     /* best-effort */
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Report Rebuilder — compact summary from section data
+// ─────────────────────────────────────────────────────────────
+
+interface SectionStatus {
+  name: string;
+  icon: string;
+  detail: string;
+  runs: number;
+  lastRun: string;
+  pending: boolean;
+}
+
+/**
+ * Parse a single `### 🏷️` trend heading line into structured data.
+ *
+ * Supports formats:
+ *   ### 🏷️ Name 🔴 avg +86% p95 +81% rps -49% (14 runs)
+ *   ### 🏷️ Name 🟢 avg 1.1ms | stable (3 runs) (2026-06-28 18:00:00)
+ *   ### 🏷️ Name ⚪ — baseline established (1 run)
+ *   ### 🏷️ Name ⚪ stable at 0.1ms (±0.0ms) (2 runs) (2026-06-28 18:44:55)
+ */
+function parseTrendHeading(line: string): SectionStatus {
+  const pending = line.includes("Pending");
+
+  // Icon regex — matches ⚪ 🟢 🟠 🔴
+  const iconRx = /([\u{26AA}\u{1F7E2}\u{1F7E1}\u{1F534}])/u;
+  const iconMatch = line.match(iconRx);
+  const icon = iconMatch ? iconMatch[1] : "⏳";
+
+  // Clean tag emoji prefix (matches both 🏷️ with or without Variation Selector)
+  const cleanLine = line.replace(/^###\s+\u{1F3F7}\s*/u, "").trim();
+
+  // Split by any status circle emoji to extract name
+  const parts = cleanLine.split(/[\u{26AA}\u{1F7E2}\u{1F7E1}\u{1F534}]/u);
+  const name = parts[0]?.trim() ?? "Unknown Test";
+
+  // Detail: everything after the icon up to the optional outer timestamp
+  const detailRx =
+    /[\u{26AA}\u{1F7E2}\u{1F7E1}\u{1F534}]\s+(.+?)(?:\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\))?$/u;
+  const detailMatch = line.match(detailRx);
+  const detail = detailMatch ? detailMatch[1].trim() : icon;
+
+  // Run count: extract "(N runs)" or "(N run)" from the detail
+  const runRx = /\((\d+)\s+run[s]?\)/;
+  const runMatch = detail.match(runRx);
+  const runs = runMatch ? parseInt(runMatch[1], 10) : 0;
+
+  // Outer timestamp at end of line
+  const tsRx = /\((\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\)$/;
+  const tsMatch = line.match(tsRx);
+  const lastRun = tsMatch ? tsMatch[1] : "-";
+
+  return { name, icon, detail, runs, lastRun, pending };
+}
+
+export function rebuildSummary(_dbLabel: string): void {
+  const docPath = getDocPath();
+  if (!fs.existsSync(docPath)) return;
+  if (!acquireMdxLock(docPath)) return;
+
+  try {
+    let doc = fs.readFileSync(docPath, "utf8");
+
+    // Parse all ### 🏷️ headings
+    const sections: SectionStatus[] = [];
+    const headingRx = /^###\s+\u{1F3F7}.+/gmu;
+    let m: RegExpExecArray | null;
+    while ((m = headingRx.exec(doc)) !== null) {
+      const line = m[0];
+      sections.push(parseTrendHeading(line));
+    }
+
+    // Determine run mode
+    const isMatrix = typeof process !== "undefined" && process.env.BENCHMARK_MATRIX === "1";
+
+    // Timestamp from most recent section, or now
+    const latestTs = sections.reduce((latest, s) => {
+      if (s.lastRun !== "-" && s.lastRun > latest) return s.lastRun;
+      return latest;
+    }, "");
+    const displayTs = latestTs || new Date().toISOString().replace("T", " ").slice(0, 19);
+
+    // Group sections
+    const regressions = sections.filter((s) => s.icon === "\u{1F534}"); // 🔴
+    const stable = sections.filter(
+      (s) => s.icon === "\u{1F7E2}" || s.icon === "\u{1F7E1}", // 🟢 or 🟠
+    );
+    const baselines = sections.filter((s) => s.icon === "\u{26AA}"); // ⚪
+    const pending = sections.filter((s) => s.pending);
+
+    const total = sections.length;
+    const recorded = sections.filter((s) => !s.pending).length;
+    const skippedCount = pending.length;
+
+    // Build the new summary block
+    let summary = "";
+    if (isMatrix) {
+      summary += `\n## 📊 Latest Performance Audit (Mode: FULL MATRIX — ${displayTs})\n\n`;
+    } else {
+      summary += `\n## 📊 Latest Performance Audit (Mode: MIXED — ${displayTs})\n\n`;
+      summary += `> ⚠️ **Note:** This report contains a combination of the last Full Matrix Run and recent surgical developer hot-fixes.\n\n`;
+    }
+    summary += `**Status:** ${recorded}/${total} tests recorded`;
+    if (skippedCount > 0) summary += ` · ${skippedCount} skipped`;
+    summary += `\n\n`;
+
+    // ── Needs Attention (🔴) ──
+    if (regressions.length > 0) {
+      summary += `### ⚠️ Needs Attention\n\n`;
+      summary += `| Metric | Status | Detail |\n`;
+      summary += `|--------|--------|--------|\n`;
+      for (const s of regressions) {
+        const detailClean = s.detail.replace(/\((\d+)\s+run[s]?\)/, "").trim();
+        summary += `| ${s.name} | 🔴 | ${detailClean} (${s.runs} run${s.runs !== 1 ? "s" : ""}) |\n`;
+      }
+      summary += `\n`;
+    }
+
+    // ── Stable Tests (🟢 / 🟠) ──
+    if (stable.length > 0) {
+      summary += `### ✅ Stable Tests\n\n`;
+      summary += `| Metric | Status | Detail |\n`;
+      summary += `|--------|--------|--------|\n`;
+      for (const s of stable) {
+        const detailClean = s.detail.replace(/\((\d+)\s+run[s]?\)/, "").trim();
+        const iconLabel = s.icon === "\u{1F7E1}" ? "🟠" : "🟢";
+        summary += `| ${s.name} | ${iconLabel} | ${detailClean} (${s.runs} run${s.runs !== 1 ? "s" : ""}) |\n`;
+      }
+      summary += `\n`;
+    }
+
+    // ── First Run / Baseline (⚪) ──
+    if (baselines.length > 0) {
+      summary += `### ⚪ First Run (Baseline)\n\n`;
+      summary += `| Metric | Status | Detail |\n`;
+      summary += `|--------|--------|--------|\n`;
+      for (const s of baselines) {
+        const detailClean = s.detail.replace(/\((\d+)\s+run[s]?\)/, "").trim();
+        summary += `| ${s.name} | ⚪ | ${detailClean} (${s.runs} run${s.runs !== 1 ? "s" : ""}) |\n`;
+      }
+      summary += `\n`;
+    }
+
+    // Insert/replace between SUMMARY_START and SUMMARY_END
+    const sm = "<!-- SUMMARY_START -->";
+    const se = "<!-- SUMMARY_END -->";
+    if (doc.includes(sm)) {
+      const start = doc.indexOf(sm);
+      const end = doc.indexOf(se, start);
+      if (end > start) doc = doc.slice(0, start + sm.length) + "\n" + summary + doc.slice(end);
+    } else {
+      const h2 = doc.indexOf("\n## ");
+      if (h2 > 0) doc = doc.slice(0, h2) + "\n" + sm + "\n" + summary + se + "\n" + doc.slice(h2);
+    }
+
+    atomicWrite(docPath, doc);
+  } catch (err: any) {
+    if (process.env.LOG_LEVEL === "debug" || process.env.BENCHMARK_DEBUG === "true") {
+      console.error(`[MDX Debug] rebuildSummary failed:`, err);
+    }
+  } finally {
+    releaseMdxLock(docPath);
   }
 }

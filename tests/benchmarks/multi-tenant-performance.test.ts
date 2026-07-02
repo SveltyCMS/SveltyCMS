@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/multi-tenant-performance.test.ts
- * @description Multi-Tenant Performance Audit
+ * @description Multi-Tenant Performance Audit (Optimized)
  * @summary Measures the overhead of tenant isolation, context switching, and data partitioning across many tenants.
  *
  * ### Features:
@@ -31,7 +31,6 @@ const CONCURRENCY = 8;
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runMultiTenantAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log(`🚀 Starting Enterprise Multi-Tenancy Audit (${TENANT_COUNT} tenants)...\n`);
 
   try {
@@ -39,15 +38,19 @@ async function runMultiTenantAudit() {
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    // Pre-seed multiple tenants
-    console.log(`   → Pre-seeding ${TENANT_COUNT} tenants...`);
-    for (let i = 0; i < TENANT_COUNT; i++) {
-      await ensureStableTestData(undefined, `tenant-${i}`);
-    }
+    // Cache security variables outside hot iterations to prevent process.env lookup penalties
+    const apiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+
+    // 1. Parallelize tenant provisioning to optimize database seed time
+    console.log(`   → Pre-seeding ${TENANT_COUNT} tenants concurrently...`);
+    const seedPromises = Array.from({ length: TENANT_COUNT }, (_, i) =>
+      ensureStableTestData(undefined, `tenant-${i}`),
+    );
+    await Promise.all(seedPromises);
 
     await stabilize(1500);
 
-    // Baseline (single tenant)
+    // 2. Baseline (Single Tenant)
     console.log("   → Measuring Baseline (Single Tenant)...");
     const baseline = await runBenchmark({
       name: "Single Tenant Baseline",
@@ -60,16 +63,23 @@ async function runMultiTenantAudit() {
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
           headers: {
             "x-test-mode": "true",
-            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+            "x-test-secret": apiSecret,
           },
         });
         if (!res.ok) throw new Error(`Baseline failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer(); // Uniform network flushing
       },
     });
 
-    // Multi-tenant switching
+    // 3. Multi-Tenant Switching Evaluation
     console.log(`   → Measuring Multi-Tenant Context Switching...`);
+
+    // Pre-calculate tenant strings to keep allocations out of the execution time window
+    const tenantLookups = Array.from(
+      { length: ITERATIONS },
+      (_, i) => `tenant-${i % TENANT_COUNT}`,
+    );
+
     const multi = await runBenchmark({
       name: "Multi-Tenant Context Switching",
       iterations: ITERATIONS,
@@ -78,17 +88,17 @@ async function runMultiTenantAudit() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async (i: number) => {
-        const tenantId = `tenant-${i % TENANT_COUNT}`;
+        const tenantId = tenantLookups[i] ?? `tenant-0`;
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
           headers: {
             "x-test-mode": "true",
-            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+            "x-test-secret": apiSecret,
             "x-tenant-id": tenantId,
           },
         });
 
         if (!res.ok) throw new Error(`Multi-tenant request failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
 

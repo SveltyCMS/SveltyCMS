@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/concurrency-race.test.ts
- * @description Concurrency & Race Condition Audit
+ * @description Concurrency & Race Condition Audit (Optimized)
  * @summary Simulates high-concurrency writes to a single document to prove atomic consistency and lost update protection.
  *
  * ### Features:
@@ -29,7 +29,6 @@ const ENTRY_ID = "bench-shared-001";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runConcurrencyAudit() {
-  // pre-existing unused var removed for TS strict mode
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
@@ -38,9 +37,9 @@ async function runConcurrencyAudit() {
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
 
-    // Common headers for all benchmark requests
+    // Canonical lowercase structural header format
     const headers = {
-      "Content-Type": "application/json",
+      "content-type": "application/json",
       "x-test-mode": "true",
       "x-test-secret": TEST_API_SECRET,
       "x-tenant-id": "global",
@@ -49,10 +48,9 @@ async function runConcurrencyAudit() {
     // 1. Check current state by reading the entry
     const checkRes = await fetch(
       `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true`,
-      {
-        headers,
-      },
+      { method: "GET", headers },
     );
+
     if (checkRes.ok) {
       const checkData = await checkRes.json();
       if (checkData?.data != null) {
@@ -61,12 +59,9 @@ async function runConcurrencyAudit() {
         console.log(`   → Entry returned null. Purging existing and creating _id=${ENTRY_ID}...`);
         const delRes = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?permanent=true`,
-          {
-            method: "DELETE",
-            headers,
-          },
+          { method: "DELETE", headers },
         );
-        console.log(`   → DELETE response status: ${delRes.status}, body: ${await delRes.text()}`);
+        await delRes.text().catch(() => {});
 
         const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
           method: "POST",
@@ -103,22 +98,13 @@ async function runConcurrencyAudit() {
       headers,
       body: JSON.stringify({ count: 0 }),
     });
-    const resetBody = resetRes.ok
-      ? "OK"
-      : `${resetRes.status} ${await resetRes
-          .text()
-          .then((t) => t.substring(0, 200))
-          .catch(() => "")}`;
-    console.log(`   → PATCH reset count=0: ${resetBody}`);
+    if (!resetRes.ok) await resetRes.text().catch(() => {});
 
-    // 2. Force cache refresh and get initial state
     await forceRefreshServer(baseUrl);
 
     const getRes = await fetch(
       `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true&_t=${Date.now()}`,
-      {
-        headers,
-      },
+      { method: "GET", headers },
     );
     if (!getRes.ok) throw new Error("Failed to fetch initial state");
     const initialData = await getRes.json();
@@ -127,76 +113,86 @@ async function runConcurrencyAudit() {
 
     console.log(`   → Initial count: ${initialCount}`);
 
-    // Per-adapter concurrency tuning:
-    // SQLite: file lock needs batching. MongoDB: connection pool handles full blast.
-    // PG/MariaDB: pooled connections, full parallelism via connection pools.
     const dbType = getDbType().toLowerCase();
+    const BATCH = dbType.includes("mongodb") ? 100 : 50;
+    const GAP = 0;
+    const CONCURRENCY = 100;
 
-    const BATCH = dbType.includes("mongodb") ? 100 : 50; // MariaDB and PG both use 50
-    const GAP = dbType.includes("sqlite") ? 0 : 0; // The write-drain queue handles serialization natively, no artificial gap needed
     console.log(`   → Blasting 100 concurrent increments (batch ${BATCH}, ${dbType})...`);
 
-    // 2. Blast 100 concurrent atomic increments
-    const CONCURRENCY = 100;
-    const t0 = performance.now();
-
-    const promises = Array.from({ length: CONCURRENCY }).map(async () => {
-      const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ field: "count", amount: 1 }),
-      });
-      return res;
-    });
+    // Pre-allocate static request configuration components
+    const targetIncrementUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`;
+    const bodyPayload = JSON.stringify({ field: "count", amount: 1 });
 
     const responses: Response[] = [];
-    if (BATCH < 100) {
-      // SQLite: batched execution to avoid SQLITE_BUSY
-      for (let i = 0; i < promises.length; i += BATCH) {
-        const wave = promises.slice(i, i + BATCH);
-        const waveRes = await Promise.all(wave);
+    const t0 = performance.now();
+
+    // Fix the async promise execution defect using a lazy closure executor graph
+    const taskQueue = Array.from(
+      { length: CONCURRENCY },
+      () => () =>
+        fetch(targetIncrementUrl, {
+          method: "POST",
+          headers,
+          body: bodyPayload,
+        }),
+    );
+
+    if (BATCH < CONCURRENCY) {
+      // Execute true sequentialized waves for locking-sensitive adapters (e.g., SQLite)
+      for (let i = 0; i < taskQueue.length; i += BATCH) {
+        const waveThunks = taskQueue.slice(i, i + BATCH);
+        const wavePromises = waveThunks.map((thunk) => thunk());
+        const waveRes = await Promise.all(wavePromises);
         responses.push(...waveRes);
-        if (i + BATCH < promises.length) await new Promise((r) => setTimeout(r, GAP));
+
+        if (i + BATCH < taskQueue.length && GAP > 0) {
+          await new Promise((r) => setTimeout(r, GAP));
+        }
       }
     } else {
-      // PG/MongoDB/MariaDB: full parallelism via connection pools
-      const allRes = await Promise.all(promises);
+      // Full parallelism via connection pools for enterprise backends
+      const allPromises = taskQueue.map((thunk) => thunk());
+      const allRes = await Promise.all(allPromises);
       responses.push(...allRes);
     }
     const duration = performance.now() - t0;
     const successCount = responses.filter((r) => r.ok).length;
 
-    // 3. Find the maximum count returned across all successful increment response bodies
+    // 3. Evaluate returning metrics
     let maxCountFromResponses = 0;
     let loggedFailed = false;
+
     for (const res of responses) {
       if (res.ok) {
         try {
-          const body = await res.clone().json();
+          const body = await res.json();
           const data = body?.data ?? body;
           const count = data?.count ?? data?.data?.count ?? 0;
           if (count > maxCountFromResponses) {
             maxCountFromResponses = count;
           }
-        } catch {}
+        } catch {
+          // Suppress parsing anomalies
+        }
       } else if (!loggedFailed) {
         loggedFailed = true;
         try {
-          const errBody = await res.clone().text();
+          const errBody = await res.text();
           console.error(`   → FAILED RESPONSE STATUS: ${res.status}, BODY: ${errBody}`);
         } catch {
           console.error(`   → FAILED RESPONSE STATUS: ${res.status}`);
         }
+      } else {
+        // Drain remaining socket loops to preserve pooled descriptors
+        await res.arrayBuffer().catch(() => {});
       }
     }
 
-    // Also fetch the final state from the database directly, bypassing cache
     let finalCount = maxCountFromResponses;
     const finalRes = await fetch(
       `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true&_t=${Date.now()}`,
-      {
-        headers,
-      },
+      { method: "GET", headers },
     );
     if (finalRes.ok) {
       const finalData = await finalRes.json();
@@ -207,7 +203,6 @@ async function runConcurrencyAudit() {
       finalCount = Math.max(maxCountFromResponses, dbCount);
     }
 
-    // 4. Print results and verify
     console.log(`   → Final count: ${finalCount}`);
 
     const isPerfect = finalCount === initialCount + CONCURRENCY;
@@ -221,7 +216,7 @@ async function runConcurrencyAudit() {
         {
           name: "Concurrent PATCH Bomb",
           avgMs: duration / CONCURRENCY,
-          p95Ms: duration / CONCURRENCY, // Simplified for this specific test
+          p95Ms: duration / CONCURRENCY,
           rps: (CONCURRENCY / duration) * 1000,
           layer: "Database Locks",
         },

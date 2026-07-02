@@ -177,6 +177,7 @@
             onclick={handleAcceptAll}
             variant="primary"
             class="flex-1"
+            data-testid="cookie-accept-all"
            >
              {cookie_button_accept()}
           </Button>

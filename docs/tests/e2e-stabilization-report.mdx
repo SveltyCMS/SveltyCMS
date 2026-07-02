@@ -19,12 +19,12 @@ tags:
 
 **Date:** 2026-06-17
 **Branch:** `next`
-**Status:** All 4 databases passing (MongoDB, MariaDB, PostgreSQL, SQLite) — 12 E2E projects, 1,122 unit tests
+**Status:** All 4 databases passing (MongoDB, MariaDB, PostgreSQL, SQLite) — 12 E2E projects, 1,100+ unit tests
 **Security:** Fail-Closed Gatekeeper Verified ✅
 
 ## Summary
 
-E2E tests have been fully stabilized and integrated with the new **Fail-Closed API Security Model**. As of June 2026, all 14 E2E app projects run in CI (plus `wizard` and `auth-setup`) with 1,114+ unit tests passing. This report confirms that the central gatekeeper correctly enforces permissions across all database adapters while maintaining high performance.
+E2E tests have been fully stabilized and integrated with the new **Fail-Closed API Security Model**. As of June 2026, all 14 E2E app projects run in CI (plus `wizard` and `auth-setup`) with 1,100+ unit tests passing. This report confirms that the central gatekeeper correctly enforces permissions across all database adapters while maintaining high performance.
 
 ## 2026 Security Hardening Fixes
 
@@ -40,11 +40,11 @@ E2E tests have been fully stabilized and integrated with the new **Fail-Closed A
 
 ## CI Status (June 17, 2026 Update)
 
-**All tests passing** (1,122 unit + 12 E2E projects + integration):
+**All tests passing** (1,100+ unit + 12 E2E projects + integration):
 
 | Job                         | Status  |
 | --------------------------- | ------- |
-| Unit Tests (1,122)          | success |
+| Unit Tests (1,100+)         | success |
 | Build Production (Rolldown) | success |
 | Integration (SQLite)        | success |
 | Integration (MongoDB)       | success |
@@ -104,4 +104,4 @@ All 12 E2E projects now run in CI (up from 6). New coverage includes:
 
 - [Test Documentation](./index.mdx)
 - [Security Testing](./security-testing.mdx)
-- [Architecture Overview](../architecture/index.mdx)
+- [Architecture Overview](../reference/architecture/index.mdx)

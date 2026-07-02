@@ -11,7 +11,9 @@
  * - Server-only plugin action dispatch (no UI metadata required)
  * - Role-based permission gating via hasPermissionWithRoles
  * - Unified error handling via AppError + handleApiError
- * - Request body cloning to avoid "body already used" errors
+ * - Single-pass body parsing (URL/header short-circuit to avoid request.clone())
+ * - Memoized server module action resolution
+ * - Short-lived plugin state cache (30s TTL)
  */
 
 import { json } from "@sveltejs/kit";
@@ -22,28 +24,26 @@ import { AppError, handleApiError, getErrorMessage } from "@utils/error-handling
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
 
-/**
- * Extracts the action name from the request body.
- * Supports both FormData (multipart) and JSON (application/json) payloads.
- */
-async function extractActionName(request: Request): Promise<string | null> {
-  const contentType = request.headers.get("content-type") || "";
+// Module-level action cache — import() fires once per plugin, cached forever
+const RESOLVED_ACTIONS = new Map<string, Record<string, Function>>();
 
-  if (contentType.includes("application/json")) {
-    try {
-      const body = await request.json();
-      return (body.__action || body.action) as string | null;
-    } catch {
-      return null;
-    }
+// Short-lived state cache — plugin enabled/disabled changes infrequently (30s TTL)
+const _stateCache = new Map<string, { enabled: boolean; ts: number }>();
+const STATE_CACHE_TTL = 30_000; // 30 seconds
+
+async function getCachedPluginState(pluginId: string, tenantId: string) {
+  const key = `${pluginId}:${tenantId}`;
+  const cached = _stateCache.get(key);
+  if (cached && Date.now() - cached.ts < STATE_CACHE_TTL) {
+    return cached.enabled;
   }
-
-  // Default: parse as FormData (multipart or urlencoded)
   try {
-    const formData = await request.formData();
-    return (formData.get("__action") as string) || null;
+    const state = await pluginRegistry.getPluginState(pluginId, tenantId);
+    const enabled = state ? state.enabled : false;
+    _stateCache.set(key, { enabled, ts: Date.now() });
+    return enabled;
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -74,45 +74,60 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
     const tenantId = (locals.tenantId as string) ?? "default";
 
     if (uiPlugin) {
-      let enabled = uiPlugin.metadata.enabled;
-      try {
-        const state = await pluginRegistry.getPluginState(pluginId, tenantId);
-        if (state) enabled = state.enabled;
-      } catch {
-        enabled = false;
-      }
-
+      const enabled = await getCachedPluginState(pluginId, tenantId);
       if (!enabled) {
         throw new AppError(`Plugin '${pluginId}' is not enabled`, 403, "FORBIDDEN");
       }
     }
 
-    // ── Load Server Module ─────────────────────────────────────────
-    const loader = pluginServerRegistry.getLoader(pluginId);
-    if (!loader) {
-      throw new AppError(`Plugin '${pluginId}' has no server actions`, 404, "NOT_FOUND");
+    // ── Load & cache server module actions ─────────────────────────
+    let pluginActions = RESOLVED_ACTIONS.get(pluginId);
+    if (!pluginActions) {
+      const loader = pluginServerRegistry.getLoader(pluginId);
+      if (!loader) {
+        throw new AppError(`Plugin '${pluginId}' has no server actions`, 404, "NOT_FOUND");
+      }
+      const serverMod = await loader();
+      pluginActions = serverMod.actions || {};
+      RESOLVED_ACTIONS.set(pluginId, pluginActions);
     }
 
-    // ── Extract Action Name ────────────────────────────────────────
-    const clonedRequest = originalRequest.clone();
-    const actionName =
-      (await extractActionName(clonedRequest)) ||
-      new URL(originalRequest.url).searchParams.get("action");
+    // ── Fast action resolution: URL/header first (0 alloc), body fallback (1 parse) ────
+    let actionName =
+      new URL(originalRequest.url).searchParams.get("action") ||
+      originalRequest.headers.get("x-plugin-action");
+    let parsedBody: any = null;
+
+    if (!actionName) {
+      const ct = originalRequest.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        parsedBody = await originalRequest.json().catch(() => null);
+        actionName = parsedBody?.__action || parsedBody?.action;
+      } else {
+        // FormData — parse once, extract action, keep for handler
+        try {
+          const fd = await originalRequest.formData();
+          actionName = (fd.get("__action") as string) || null;
+          parsedBody = fd;
+        } catch {
+          /* ignore */
+        }
+      }
+    }
 
     if (!actionName) {
       throw new AppError("Missing __action or action parameter", 400, "VALIDATION_ERROR");
     }
 
-    // ── Dispatch ────────────────────────────────────────────────────
-    const serverMod = await loader();
-    const handler = serverMod.actions?.[actionName];
-
+    // ── Dispatch with pre-parsed body ──────────────────────────────
+    const handler = pluginActions[actionName];
     if (!handler) {
       throw new AppError(`Unknown action: ${actionName}`, 404, "NOT_FOUND");
     }
 
     const result = await handler({
       request: originalRequest,
+      parsedBody, // Handlers use this instead of re-parsing request
       locals: locals as unknown as Record<string, unknown>,
       params: { pluginId },
     });

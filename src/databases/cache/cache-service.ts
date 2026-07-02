@@ -25,7 +25,6 @@ export class CacheService {
   private readonly INVALIDATION_CHANNEL = "svelty:cache:invalidation";
   private tagMap: Map<string, Set<string>> = new Map();
   private keyToTags: Map<string, Set<string>> = new Map(); // Reverse mapping for O(tags) cleanup
-  private keyCache: LRUCache<string, string>; // Memoization for generated keys
   private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
 
   // Single-flight request coalescing
@@ -63,8 +62,6 @@ export class CacheService {
         this.removeFromPrefixMap(key);
       },
     });
-
-    this.keyCache = new LRUCache<string, string>({ max: 1000 });
 
     // Initialize Hybrid Negative Cache
     this.negativeBloom = new BloomFilter(100000, 0.01);
@@ -708,7 +705,9 @@ export class CacheService {
         const swrEntry = { value, storedAt: Date.now() };
         const ttlSeconds = Math.max(1, Math.ceil(staleMs / 1000));
         this.l1.set(fullKey, swrEntry, { ttl: staleMs });
-        this.negativeInvalidated.add(fullKey);
+        if (this.negativeBloom.has(fullKey)) {
+          this.negativeInvalidated.add(fullKey);
+        }
         this.addToPrefixMap(fullKey);
         cacheMetrics.recordSet(fullKey, category || CacheCategory.GENERAL, ttlSeconds, tenantId);
 
@@ -775,7 +774,9 @@ export class CacheService {
           const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
           // Use the original staleMs for L1 TTL so subsequent reads can serve stale
           this.l1.set(fullKey, swrEntry, { ttl: ttlMs * 2 });
-          this.negativeInvalidated.add(fullKey);
+          if (this.negativeBloom.has(fullKey)) {
+            this.negativeInvalidated.add(fullKey);
+          }
 
           if (this.isL2Ready()) {
             try {
@@ -810,7 +811,9 @@ export class CacheService {
     const finalTTL = ttl > 0 ? ttl : 300;
 
     this.l1.set(fullKey, value, { ttl: finalTTL * 1000 });
-    this.negativeInvalidated.add(fullKey); // Override bloom filter
+    if (this.negativeBloom.has(fullKey)) {
+      this.negativeInvalidated.add(fullKey); // Override bloom filter only if needed
+    }
     this.addToPrefixMap(fullKey);
     cacheMetrics.recordSet(fullKey, _category, finalTTL, tenantId);
 
@@ -896,7 +899,9 @@ export class CacheService {
     for (const k of keys) {
       const fullKey = this.generateKey(k, tenantId);
       this.l1.delete(fullKey);
-      this.negativeInvalidated.add(fullKey); // Override bloom filter
+      if (this.negativeBloom.has(fullKey)) {
+        this.negativeInvalidated.add(fullKey); // Override bloom filter
+      }
       cacheMetrics.recordDelete(fullKey, CacheCategory.GENERAL, tenantId);
       if (this.isL2Ready()) {
         try {
@@ -985,15 +990,7 @@ export class CacheService {
    * Generates a consistent cache key, memoized for performance.
    */
   public generateKey(key: string, tenantId?: string | null): string {
-    const tid = tenantId || "default";
-    const cacheLookupKey = `${key}:${tid}`;
-
-    const cached = this.keyCache.get(cacheLookupKey);
-    if (cached) return cached;
-
-    const fullKey = this.buildKey(key, tenantId);
-    this.keyCache.set(cacheLookupKey, fullKey);
-    return fullKey;
+    return this.buildKey(key, tenantId);
   }
 
   /**
@@ -1222,7 +1219,6 @@ export class CacheService {
     this.l1.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
-    this.keyCache.clear();
   }
 
   getRedisClient() {

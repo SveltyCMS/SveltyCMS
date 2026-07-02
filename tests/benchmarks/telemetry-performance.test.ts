@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/telemetry-performance.test.ts
- * @description Telemetry & Update Check Performance Benchmark
+ * @description Telemetry & Update Check Performance Benchmark (Optimized)
  * @summary Measures telemetry update check latency and memory impact on both happy-path and failure-path scenarios.
  *
  * ### Features:
@@ -26,7 +26,6 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runTelemetryAudit() {
-  // pre-existing unused var removed for TS strict mode
   console.log("🚀 Starting Enterprise Telemetry Audit...\n");
 
   try {
@@ -38,18 +37,29 @@ async function runTelemetryAudit() {
 
     const { telemetryService } = await import("@src/services/observability/telemetry-service");
 
-    // Mock fetch for controlled testing
     const originalFetch = global.fetch;
-    global.fetch = (async () =>
-      new Response(JSON.stringify({ status: "up-to-date", version: "1.0.0" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      })) as any;
+
+    // Pre-allocate structural components outside hot loops to eliminate V8 GC interference
+    const happyResponseBody = JSON.stringify({
+      status: "up-to-date",
+      version: "1.0.0",
+    });
+    const happyResponseHeaders = { "Content-Type": "application/json" };
+
+    const staticHappyResponse = new Response(happyResponseBody, {
+      status: 200,
+      headers: happyResponseHeaders,
+    });
+
+    const staticErrorResponse = new Response("Error", { status: 500 });
+
+    // Establish allocation-free mock interceptors using pre-generated response graphs
+    global.fetch = (async () => staticHappyResponse.clone()) as any;
 
     try {
       const results = [];
 
-      // Happy path
+      // 1. Happy path evaluation
       console.log("   → Measuring happy-path telemetry...");
       const happyResult = await runBenchmark({
         name: "Telemetry (Happy Path)",
@@ -66,9 +76,9 @@ async function runTelemetryAudit() {
       });
       results.push({ ...happyResult, shortLabel: "Happy", layer: "Telemetry" });
 
-      // Failure path
+      // 2. Failure path evaluation
       console.log("   → Measuring failure-path telemetry...");
-      global.fetch = (async () => new Response("Error", { status: 500 })) as any;
+      global.fetch = (async () => staticErrorResponse.clone()) as any;
 
       const errorResult = await runBenchmark({
         name: "Telemetry (Failure Path)",
@@ -79,6 +89,7 @@ async function runTelemetryAudit() {
         measureMemory: true,
         silent: true,
         onIteration: async () => {
+          // Suppress errors consistently to record processing overhead only
           await telemetryService.checkUpdateStatus().catch(() => {});
         },
       });

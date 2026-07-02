@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/concurrency-throughput.test.ts
- * @description Multi-Document Concurrency Throughput
+ * @description Multi-Document Concurrency Throughput (Optimized)
  * @summary 100 writes across 10, 100, 1000 docs. Same work, different parallelism.
  * SQLite flat-lines (file lock); PG/MongoDB scale with doc count.
  */
@@ -18,9 +18,6 @@ import {
 import "../unit/bun-preload.ts";
 
 const COLLECTION_ID = "BenchmarkStable";
-// Per-adapter concurrency tuning:
-// SQLite: file lock needs batching. MongoDB: connection pool handles full blast.
-// MariaDB/PG: pooled connections, full parallelism via connection pools.
 let BATCH = 20;
 let GAP_MS = 25;
 
@@ -34,23 +31,20 @@ async function run() {
   await ensureStableTestData();
   await forceRefreshServer(baseUrl);
 
+  // Canonical lowercase header layout mapping
   const H = {
-    "Content-Type": "application/json",
+    "content-type": "application/json",
     "x-test-mode": "true",
     "x-test-secret": TEST_API_SECRET,
     "x-tenant-id": "global",
   };
   const dbType = getDbType();
 
-  // Per-adapter concurrency tuning (matching concurrency-race.test.ts):
-  // SQLite: file lock needs batching. MongoDB: connection pool handles full blast.
-  // MariaDB/PG: pooled connections, full parallelism via connection pools.
   const dbLower = dbType.toLowerCase();
   BATCH = dbLower.includes("sqlite") ? 20 : dbLower.includes("mongodb") ? 100 : 50;
   GAP_MS = dbLower.includes("sqlite") ? 25 : 0;
   console.log(`   → Throughput config: batch ${BATCH}, gap ${GAP_MS}ms (${dbType})`);
 
-  // Pre-seed all the documents we'll need via the testing API
   const maxDocs = 1000;
   console.log(`   → Pre-seeding ${maxDocs} throughput documents via testing API...`);
   await fetch(`${baseUrl}/api/testing`, {
@@ -59,15 +53,20 @@ async function run() {
     body: JSON.stringify({ action: "seed-throughput-docs", count: maxDocs }),
   }).catch(() => {});
 
+  // Pre-serialize common payloads out of time-sensitive paths
+  const resetPayload = JSON.stringify({ count: 0 });
+  const incrementPayload = JSON.stringify({ field: "count", amount: 1 });
+
   // Reset all counts to 0
   for (let i = 0; i < maxDocs; i += 50) {
     const batch = [];
-    for (let j = i; j < Math.min(i + 50, maxDocs); j++) {
+    const limit = Math.min(i + 50, maxDocs);
+    for (let j = i; j < limit; j++) {
       batch.push(
         fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${j}`, {
           method: "PATCH",
           headers: H,
-          body: JSON.stringify({ count: 0 }),
+          body: resetPayload,
         }).catch(() => {}),
       );
     }
@@ -87,31 +86,49 @@ async function run() {
     const total = s.docs * s.perDoc;
     console.log(`   ═══ ${s.label} (${total} writes) ═══`);
 
-    const t0 = performance.now();
     const tasks: (() => Promise<Response>)[] = [];
     for (let d = 0; d < s.docs; d++) {
+      const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`;
+      const timeoutSignal = AbortSignal.timeout(30000);
+
       for (let w = 0; w < s.perDoc; w++) {
-        const id = `tp-${d}`;
         tasks.push(() =>
-          fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${id}/increment`, {
+          fetch(targetUrl, {
             method: "POST",
             headers: H,
-            body: JSON.stringify({ field: "count", amount: 1 }),
-            signal: AbortSignal.timeout(30000),
+            body: incrementPayload,
+            signal: timeoutSignal,
           }),
         );
       }
     }
 
     const out: Response[] = [];
+    const t0 = performance.now();
+
+    // Phased batch/wave processing loop execution
     for (let i = 0; i < tasks.length; i += BATCH) {
       const wave = tasks.slice(i, i + BATCH);
-      out.push(...(await Promise.all(wave.map((t) => t()))));
-      if (i + BATCH < tasks.length) await new Promise((r) => setTimeout(r, GAP_MS));
+      const waveResponses = await Promise.all(wave.map((thunk) => thunk()));
+
+      for (const res of waveResponses) {
+        out.push(res);
+      }
+
+      if (i + BATCH < tasks.length && GAP_MS > 0) {
+        await new Promise((r) => setTimeout(r, GAP_MS));
+      }
     }
 
     const duration = performance.now() - t0;
-    const ok = out.filter((r) => r.ok).length;
+
+    let ok = 0;
+    for (const res of out) {
+      if (res.ok) ok++;
+      // Drain buffers immediately to prevent raw socket exhaustion
+      await res.arrayBuffer().catch(() => {});
+    }
+
     const rps = (total / duration) * 1000;
     results.push({ label: s.label, rps, total, ok });
     console.log(`   → ${ok}/${total} OK, ${rps.toFixed(0)} RPS, ${ok === total ? "✅" : "❌"}`);
@@ -132,6 +149,7 @@ async function run() {
 
   const sf =
     results[2] && results[0] ? (results[2].rps / Math.max(1, results[0].rps)).toFixed(1) : "N/A";
+
   printSummaryTable([
     { key: "Database", val: dbType.toUpperCase(), unit: "" },
     ...results.map((r) => ({
@@ -142,7 +160,8 @@ async function run() {
     { key: "Scaling (1000÷10)", val: sf + "×", unit: "" },
   ]);
 
-  if (results.some((r) => r.ok !== r.total)) throw new Error("Throughput failed");
+  if (results.some((r) => r.ok !== r.total))
+    throw new Error("Throughput failed due to lost updates");
 }
 
 test("Multi-Doc Throughput", async () => {

@@ -66,17 +66,17 @@ Account lockout (22 with edge cases), session management (22), fail-closed API v
 
 Automated penetration testing against live endpoints. Probes for auth bypass, XSS reflection, SQLi injection, path traversal, missing security headers, and rate limiting gaps.
 
-````bash
+```bash
 bun run audit:security                 # audit running server
 bun run audit:security --ci            # CI mode (fail on critical/high)
 bun run audit:security --base=http://.. # custom URL
-```text
+```
 
 **Requires a running server** (preview or dev mode). Run in a separate terminal:
 
 ```
 node build/index.js   # or: bun run dev
-```text
+```
 
 Audit categories with real payloads:
 
@@ -99,7 +99,7 @@ bun run slop                    # XSS, legacy patterns, ARIA
 bun run mutate                  # Verify sanitizer kill rate
 bun run audit:security          # Endpoint probing (needs running server)
 bun run test:smart              # Smart orchestrator
-```text
+```
 
 | Category            | Tests              | Pass Rate | Enforcement                |
 | ------------------- | ------------------ | --------- | -------------------------- |
@@ -114,6 +114,5 @@ bun run test:smart              # Smart orchestrator
 
 ## Related Documentation
 
-- [Security Overview](../architecture/security/index.mdx)
+- [Security Overview](../reference/security/index.mdx)
 - [Testing Strategy](./testing-strategy.mdx)
-````

@@ -1,3 +1,7 @@
+/**
+ * @file scripts\codemods\harden-tests.ts
+ * @deprecated Hardens test files by ensuring proper error handling in catch blocks.
+ */
 import { Glob } from "bun";
 
 const glob = new Glob("tests/{benchmarks,integration}/**/*.test.ts");

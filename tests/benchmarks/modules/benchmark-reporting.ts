@@ -1,267 +1,25 @@
 /**
- * @file tests/benchmark./modules/benchmark-reporting.ts
- * @description Public facade for the benchmark intelligence pipeline.
+ * @file tests/benchmarks/modules/benchmark-reporting.ts
+ * @description Record benchmark results, analyze trend, write to MDX.
  *
- * ### Contract
- *
- * ```typescript
- * await reportBenchmark(result, {
- *   source: "single-test",
- *   mode: "partial",
- *   testFile: "tests/benchmarks/auth-performance.test.ts",
- *   phase: "warm",
- * });
- * ```
- *
- * ### Record Modes
- *
- * | Mode      | Console | SQLite | MDX Write |
- * |-----------|:-------:|:------:|:---------:|
- * | `none`    | ✅      | ❌     | ❌        |
- * | `history` | ✅      | ✅     | ❌        |
- * | `partial` | ✅      | ✅     | ✅ (one section + watermark) |
- * | `full`    | ✅      | ✅     | ✅ (all sections) |
- *
- * ### Internals
- * - normalize → persist (SQLite, WAL, transactions)
- * - analyze → trend + root cause + budgets
- * - update → MDX section + executive summary (with file lock)
+ * Called by exportResult() in benchmark-utils.ts. Both single tests and
+ * the matrix runner use this same pipeline.
  */
-import {
-  persistRun,
-  detectCommitSha,
-  detectBranch,
-  detectOS,
-  detectRuntime,
-  type HistoryEntry,
-} from "./benchmark-history";
-import { runAnalysis } from "./benchmark-analysis";
-import {
-  writeTruthTable,
-  writeSummary,
-  writeTrendAndInsight,
-  writeExecutiveSummary,
-  getDocPath,
-} from "./benchmark-mdx";
-import { buildExecutiveSummary, formatSummaryAsMdx } from "./benchmark-summary";
-import { crossCorrelate } from "./benchmark-cross-correlate";
-import fs from "node:fs";
+import { persistRun, type HistoryEntry } from "./benchmark-history";
+import { analyzeTrend, classifyRootCause, checkBudgets } from "./benchmark-analysis";
+import { writeTruthTable, writeSummary, type BenchmarkReportOptions } from "./benchmark-mdx";
 import path from "node:path";
+import fs from "node:fs";
 
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
+// Re-export for the matrix runner
+export type BenchmarkRecordMode = "partial" | "full";
 
-export type BenchmarkRecordMode = "none" | "history" | "partial" | "full";
-
-export interface BenchmarkReportOptions {
-  /** Which runner produced this result */
-  source: "single-test" | "matrix";
-  /** Recording mode — controls persistence + MDX mutation */
-  mode: BenchmarkRecordMode;
-  /** Path to the test file (e.g. "tests/benchmarks/auth-performance.test.ts") */
-  testFile: string;
-  /** Stable test identifier (e.g. "auth-performance") */
-  testId?: string;
-  /** Short label for MDX tag matching (e.g. "Auth Trace") */
-  shortLabel?: string;
-  /** Execution phase: cold start, warm request, or mixed workload */
-  phase?: "cold" | "warm" | "mixed";
-  /** Scenario name for multi-scenario benchmarks */
-  scenario?: string;
-  /** Unique run ID to prevent duplicate history rows on retry */
-  runId?: string;
-  /** Git commit SHA (auto-detected if omitted) */
-  commitSha?: string;
-  /** Git branch (auto-detected if omitted) */
-  branch?: string;
-}
-
-// ─────────────────────────────────────────────────────────────
-// Config
-// ─────────────────────────────────────────────────────────────
+let _lastTag: string | null = null;
+let _lastTestFile = "unknown";
 
 function getDbType(): string {
-  return typeof process !== "undefined" ? process.env.DB_TYPE || "sqlite" : "sqlite";
+  return process.env.DB_TYPE || "sqlite";
 }
-
-function isRedisEnabled(): boolean {
-  return process.env.REDIS_ENABLED === "1" || process.env.REDIS_ENABLED === "true";
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/(^_|_$)/g, "");
-}
-
-// ─────────────────────────────────────────────────────────────
-// Test Metadata Registry (educational context)
-// ─────────────────────────────────────────────────────────────
-
-interface TestMeta {
-  proves: string;
-  codePaths: string[];
-  impact: string;
-}
-
-const META_REGISTRY: Record<string, TestMeta> = {};
-
-export function registerTestMeta(
-  testFile: string,
-  proves: string,
-  codePaths: string[],
-  impact: string,
-) {
-  META_REGISTRY[slugify(testFile)] = { proves, codePaths, impact };
-}
-
-export function getTestMeta(testFile: string): TestMeta {
-  const key = slugify(testFile);
-  const registered = META_REGISTRY[key];
-  if (registered) return registered;
-
-  // Fallback: try to read @description from the test file
-  let proves = "";
-  try {
-    const c = fs.readFileSync(path.resolve(process.cwd(), testFile), "utf-8");
-    const dm = c.match(/@description\s+(.+)/i);
-    if (dm) proves = dm[1].trim();
-  } catch {
-    /* best-effort */
-  }
-
-  return { proves, codePaths: [], impact: "" };
-}
-
-// ─────────────────────────────────────────────────────────────
-// Main API
-// ─────────────────────────────────────────────────────────────
-
-let _trendEmitted = false;
-
-export function resetTrendGuard(): void {
-  _trendEmitted = false;
-}
-
-/**
- * Report a benchmark result through the full intelligence pipeline.
- *
- * Called by both single-test runner (`bun test`) and the full matrix runner.
- * The `mode` parameter controls what gets persisted and mutated.
- */
-export async function reportBenchmark(
-  result: {
-    name: string;
-    avgMs: number;
-    p50Ms?: number;
-    p95Ms?: number;
-    p99Ms?: number;
-    minMs?: number;
-    maxMs?: number;
-    rps: number;
-    cv?: number;
-    ci95MarginMs?: number;
-    memoryHeapMb?: number;
-    memoryRssMb?: number;
-    errorCount?: number;
-    status?: string;
-  },
-  options: BenchmarkReportOptions,
-): Promise<void> {
-  // ── Guard: prevent duplicate trend emission per test run ──
-  if (_trendEmitted && options.mode !== "none") return;
-  if (options.mode !== "none") _trendEmitted = true;
-
-  const dbType = getDbType();
-  const redisEnabled = isRedisEnabled();
-  const phase = options.phase || "warm";
-  const testId = options.testId || path.basename(options.testFile, path.extname(options.testFile));
-  const meta = getTestMeta(options.testFile);
-
-  // ── Step 1: Persist to SQLite (if recording) ──
-  if (options.mode !== "none") {
-    const entry: HistoryEntry = {
-      testId,
-      testFile: options.testFile,
-      dbType,
-      redisEnabled,
-      phase,
-      scenario: options.scenario || "",
-      commitSha: options.commitSha || detectCommitSha(),
-      branch: options.branch || detectBranch(),
-      os: detectOS(),
-      runtime: detectRuntime(),
-      avgMs: result.avgMs,
-      p50Ms: result.p50Ms || 0,
-      p95Ms: result.p95Ms || 0,
-      p99Ms: result.p99Ms || 0,
-      p99_9Ms: 0,
-      minMs: result.minMs || 0,
-      maxMs: result.maxMs || 0,
-      rps: result.rps,
-      cv: result.cv || 0,
-      ci95MarginMs: result.ci95MarginMs || 0,
-      memoryHeapMb: result.memoryHeapMb,
-      memoryRssMb: result.memoryRssMb,
-      errorCount: result.errorCount || 0,
-      status: result.status || "SUCCESS",
-      runId: options.runId,
-      extra: { runId: options.runId },
-    };
-    persistRun(entry);
-  }
-
-  // ── Step 2: Analyze trends ──
-  const isSingleTest = options.source === "single-test";
-  const analysis = runAnalysis(
-    {
-      name: result.name,
-      avgMs: result.avgMs,
-      p95Ms: result.p95Ms || 0,
-      rps: result.rps,
-    },
-    testId,
-    options.testFile,
-    dbType,
-    redisEnabled,
-    phase,
-    isSingleTest,
-    meta.codePaths,
-  );
-
-  // ── Cross-test correlation for single-test runs ──
-  if (isSingleTest && Math.abs(analysis.trend.deltaPct) > 5) {
-    const correlation = crossCorrelate(testId, dbType, analysis.trend.deltaPct);
-    if (correlation.isConfirmed) {
-      // Upgrade insight with correlation evidence
-      analysis.rootCause.insight += "  \n**Cross-correlation**: " + correlation.explanation;
-      analysis.rootCause.confidence = "confirmed";
-      analysis.rootCause.isSuspected = false;
-    }
-  }
-
-  // ── Step 3: Update MDX (if recording mode allows) ──
-  if (options.mode === "partial" || options.mode === "full") {
-    // Write trend label + insight to MDX section
-    writeTrendAndInsight(
-      analysis.trend.label,
-      analysis.rootCause.insight,
-      options.testFile,
-      null,
-      options.shortLabel,
-    );
-
-    // Write executive summary
-    const isPartial = options.mode === "partial";
-    writeExecutiveSummary(result.name, analysis.trend.label, isPartial);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Gate
-// ─────────────────────────────────────────────────────────────
 
 function shouldRecord(): boolean {
   return (
@@ -271,34 +29,13 @@ function shouldRecord(): boolean {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Compatibility bridges for benchmark-utils.ts
-// These adapt the old API (title + shortLabel) to the new modules (testFile)
-// ─────────────────────────────────────────────────────────────
-
-let _lastTag: string | null = null;
-let _lastTestFile = "unknown";
-
 function discoverTestFile(): string {
   try {
     const err = new Error();
     const stack = err.stack || "";
     for (const line of stack.split("\n")) {
       const n = line.replace(/\\/g, "/");
-      // Must be a test file, not an infrastructure module
-      if (
-        n.includes("tests/benchmarks/") &&
-        !n.includes("tests/benchmarks/modules/") &&
-        !n.includes("benchmark-utils") &&
-        !n.includes("benchmark-reporting") &&
-        !n.includes("benchmark-mdx") &&
-        !n.includes("benchmark-analysis") &&
-        !n.includes("benchmark-history") &&
-        !n.includes("benchmark-summary") &&
-        !n.includes("benchmark-cross-correlate") &&
-        !n.includes("benchmark-meta") &&
-        !n.includes("benchmark-intelligence")
-      ) {
+      if (n.includes("tests/benchmarks/") && !n.includes("modules/")) {
         const m = n.match(/tests\/benchmarks\/([\w.-]+)/i);
         if (m) {
           return `tests/benchmarks/${m[1].split(":")[0].split("?")[0]}`;
@@ -311,10 +48,45 @@ function discoverTestFile(): string {
   return "unknown";
 }
 
-/**
- * Bridge: called by benchmark-utils.ts printTruthTable()
- * Gated — only writes MDX when BENCHMARK_RECORD=1 or BENCHMARK_MATRIX=1.
- */
+/** @deprecated Use finalizeReport() instead. Trends are now computed by finalizeReport(). */
+export async function reportBenchmark(
+  result: {
+    name: string;
+    avgMs: number;
+    p95Ms?: number;
+    rps?: number;
+    errorCount?: number;
+    status?: string;
+  },
+  options: BenchmarkReportOptions,
+): Promise<void> {
+  const dbType = options.dbType || getDbType();
+  const redisEnabled = options.redisEnabled ?? false;
+  const phase = options.phase || "warm";
+  const testId = options.testId || path.basename(options.testFile || "unknown");
+
+  // ── Persist passing runs to SQLite (for trend history) ──
+  const isPassing =
+    (result.status === "SUCCESS" || result.status === undefined) && (result.errorCount || 0) === 0;
+
+  if (isPassing && options.mode !== "none") {
+    const entry: HistoryEntry = {
+      runId: options.runId,
+      testId,
+      dbType,
+      redisEnabled,
+      phase,
+      avgMs: result.avgMs,
+      p95Ms: result.p95Ms || 0,
+      rps: result.rps || 0,
+      errorCount: result.errorCount || 0,
+      status: "SUCCESS",
+    };
+    persistRun(entry);
+  }
+}
+
+// Bridge: called by benchmark-utils.ts printTruthTable()
 export function pushTableToMdx(_title: string, table: string, shortLabel?: string): void {
   if (!shouldRecord()) return;
   const testFile = discoverTestFile();
@@ -322,132 +94,192 @@ export function pushTableToMdx(_title: string, table: string, shortLabel?: strin
   _lastTag = writeTruthTable(table, testFile, shortLabel);
 }
 
-/**
- * Bridge: called by benchmark-utils.ts printSummaryTable()
- * Gated — only writes MDX when BENCHMARK_RECORD=1 or BENCHMARK_MATRIX=1.
- */
+// Bridge: called by benchmark-utils.ts printSummaryTable()
 export function appendSummaryToMdx(summaryTable: string, shortLabel?: string): void {
   if (!shouldRecord()) return;
   writeSummary(summaryTable, _lastTestFile, _lastTag, shortLabel);
 }
 
-/**
- * Compatibility wrapper — called by benchmark-utils.ts exportResult().
- * Uses the old history.jsonl + new SQLite pipeline.
- */
-export async function computeAndApplyTrend(
-  result: any,
-  shortLabel?: string,
-  mode: "cold" | "warm" | "mixed" = "warm",
-): Promise<void> {
-  // Discover test file from env or call stack (legacy behavior)
-  let testFile = process.env.BENCH_FILE || "unknown";
-
-  if (testFile === "unknown") {
-    try {
-      const err = new Error();
-      const stack = err.stack || "";
-      for (const line of stack.split("\n")) {
-        const n = line.replace(/\\/g, "/");
-        // Must be a test file, not an infrastructure module
-        if (
-          n.includes("tests/benchmarks/") &&
-          !n.includes("tests/benchmarks/modules/") &&
-          !n.includes("benchmark-utils") &&
-          !n.includes("benchmark-reporting") &&
-          !n.includes("benchmark-mdx") &&
-          !n.includes("benchmark-analysis") &&
-          !n.includes("benchmark-history") &&
-          !n.includes("benchmark-summary") &&
-          !n.includes("benchmark-cross-correlate") &&
-          !n.includes("benchmark-meta") &&
-          !n.includes("benchmark-intelligence")
-        ) {
-          const m = n.match(/tests\/benchmarks\/([\w.-]+)/i);
-          if (m) {
-            testFile = `tests/benchmarks/${m[1].split(":")[0].split("?")[0]}`;
-            break;
-          }
-        }
-      }
-    } catch {
-      /* best-effort */
-    }
-  }
-
-  // Determine mode from environment
-  const recordMode: BenchmarkRecordMode =
-    process.env.BENCHMARK_MATRIX === "1"
-      ? "full"
-      : process.env.BENCHMARK_RECORD === "1"
-        ? "partial"
-        : process.env.BENCHMARK_HISTORY_ONLY === "1"
-          ? "history"
-          : "none";
-
-  return reportBenchmark(result, {
-    source: process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "single-test",
-    mode: recordMode,
-    testFile,
-    shortLabel,
-    phase: mode,
-  });
+/** @deprecated Use finalizeReport() instead. Kept for backward compatibility. */
+export async function computeAndApplyTrend(_result: any, _shortLabel?: string): Promise<void> {
+  // No-op: trends are now computed by finalizeReport()
 }
 
-// ─────────────────────────────────────────────────────────────
-// 6. Ranked Executive Summary (called by matrix runner)
-// ─────────────────────────────────────────────────────────────
-
 /**
- * Build and write a ranked executive summary to the MDX report.
- * Called by the matrix runner after all benchmarks complete.
- *
- * Reads all tracked tests from history.sqlite across all databases,
- * computes cross-test correlation, and writes ranked results.
+ * Finalize report for a benchmark run.
+ * Reads all history entries for this runId, filters by mode,
+ * calculates mode-aware trends, writes MDX once (batched).
  */
-export function buildAndWriteExecutiveSummary(
-  trackedTests: Array<{
-    testId: string;
-    dbType: string;
-    phase: string;
-    redisEnabled: boolean;
-  }>,
-  isPartial: boolean,
-): string {
-  if (!shouldRecord()) return "";
-
-  const summary = buildExecutiveSummary(trackedTests, isPartial);
-  const mdx = formatSummaryAsMdx(summary);
-
-  // Write to the MDX report
+export async function finalizeReport(runId: string): Promise<void> {
   try {
-    const docPath = getDocPath();
-    if (!fs.existsSync(docPath)) return mdx;
+    // 1. Read history.jsonl
+    const historyPath = path.resolve(process.cwd(), "tests/benchmarks/results/history.jsonl");
+    if (!fs.existsSync(historyPath)) return;
 
-    let doc = fs.readFileSync(docPath, "utf8");
-    const marker = "## \u{1F4CA} Executive Summary";
-    if (!doc.includes(marker)) return mdx;
+    const raw = fs.readFileSync(historyPath, "utf8").trim().split("\n").filter(Boolean);
+    const allEntries = raw.map((line) => JSON.parse(line));
 
-    // Replace everything between Executive Summary and the next ## heading
-    const nextHeading = doc.indexOf("## ", doc.indexOf(marker) + marker.length);
-    if (nextHeading > 0) {
-      doc =
-        doc.slice(0, doc.indexOf("\n", doc.indexOf(marker)) + 1) +
-        "\n" +
-        mdx +
-        "\n\n" +
-        doc.slice(nextHeading);
-    } else {
-      doc = doc.slice(0, doc.indexOf("\n", doc.indexOf(marker)) + 1) + "\n" + mdx + "\n";
+    // 2. Filter to this runId
+    const runEntries = allEntries.filter((e) => e.runId === runId);
+    if (runEntries.length === 0) return;
+
+    // 3. Determine mode and db
+    const runMode = runEntries[0].runMode;
+    const db = runEntries[0].db;
+    const redis = runEntries[0].redis;
+    const dbLabel = redis ? `${db}-redis` : db;
+
+    // 4. Group by testFile + metric
+    const groups = new Map<string, any[]>();
+    for (const entry of runEntries) {
+      const key = `${entry.testFile}:${entry.metric}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(entry);
     }
 
-    // Atomic write
-    const tmpPath = docPath + ".tmp." + Date.now();
-    fs.writeFileSync(tmpPath, doc, "utf8");
-    fs.renameSync(tmpPath, docPath);
-  } catch {
-    /* best-effort */
-  }
+    // 5. Get previous same-mode history for comparison
+    const previousSameMode = allEntries.filter((e) => e.runMode === runMode && e.runId !== runId);
 
-  return mdx;
+    // 6. Build trend sections
+    for (const [key, entries] of groups) {
+      const current = entries[entries.length - 1];
+
+      // Find previous same-mode, same-metric entries
+      const prevEntries = previousSameMode.filter((e) => `${e.testFile}:${e.metric}` === key);
+
+      const trend = analyzeTrend(
+        {
+          name: current.metric,
+          avgMs: current.avgMs,
+          p95Ms: current.p95Ms || 0,
+          rps: current.rps || 0,
+        },
+        prevEntries,
+        current.testFile,
+        db,
+        redis,
+        (current.phase || "warm") as "cold" | "warm" | "mixed",
+      );
+
+      let trendLabel = trend.label;
+
+      // Add timestamp
+      const ts = current.timestamp.replace("T", " ").substring(0, 19);
+      trendLabel += ` (${ts})`;
+
+      // Get testFile and shortLabel for MDX section discovery
+      const testFile = current.testFile;
+      const shortLabel = current.layer || undefined;
+
+      // Root Cause Classification
+      const rootCause = classifyRootCause(
+        trend.deltaPct,
+        trend.p95DeltaPct,
+        trend.rpsDeltaPct,
+        runMode === "standalone",
+        trend.sampleSize,
+      );
+
+      // Budget checking — auto-detect phase from test file
+      const testFileLower = (current.testFile || "").toLowerCase();
+      const isColdTest =
+        testFileLower.includes("cold-start") || testFileLower.includes("setup-proxy");
+      const phase = isColdTest ? "cold" : current.phase || "warm";
+      const budgetViolations = checkBudgets(db, {
+        [`${phase}_avg`]: current.avgMs,
+        [`${phase}_p95`]: current.p95Ms || 0,
+      });
+
+      // Build dynamic SWOT Good/Bad points
+      const goods: string[] = [];
+      const bads: string[] = [];
+
+      // Evaluation of Budgets
+      if (budgetViolations.length === 0) {
+        goods.push("Within performance budget limits");
+      } else {
+        for (const v of budgetViolations) {
+          bads.push(`Violates budget limits: ${v}`);
+        }
+      }
+
+      // Evaluation of Trend
+      if (trend.isBaseline) {
+        goods.push("Baseline performance successfully established");
+      } else {
+        if (trend.severity === "stable" || trend.severity === "watch") {
+          goods.push(`Performance is stable (${trend.deltaPct.toFixed(1)}% delta)`);
+        } else if (trend.deltaPct < -3) {
+          goods.push(
+            `Performance improved significantly (${Math.abs(trend.deltaPct).toFixed(0)}% faster)`,
+          );
+        } else {
+          bads.push(`Performance regressed significantly (+${trend.deltaPct.toFixed(0)}% slower)`);
+        }
+      }
+
+      // Evaluation of Throughput (RPS)
+      if (trend.rpsDeltaPct > 5) {
+        goods.push(`Throughput increased (+${trend.rpsDeltaPct.toFixed(0)}% RPS)`);
+      } else if (trend.rpsDeltaPct < -10) {
+        bads.push(`Throughput dropped (-${Math.abs(trend.rpsDeltaPct).toFixed(0)}% RPS)`);
+      }
+
+      // Evaluation of Consistency (CV)
+      if (current.cv !== undefined) {
+        if (current.cv < 0.15) {
+          goods.push(`Highly consistent latency profile (CV: ${current.cv.toFixed(2)})`);
+        } else if (current.cv > 0.35) {
+          bads.push(`High latency variance/jitter detected (CV: ${current.cv.toFixed(2)})`);
+        }
+      }
+
+      let insight = rootCause.insight;
+      if (goods.length > 0 || bads.length > 0) {
+        insight += "  \n\n> [!NOTE]\n> **Performance SWOT Analysis**\n>\n";
+        if (goods.length > 0) {
+          insight += goods.map((g) => `> * ✅ ${g}`).join("\n") + "\n>\n";
+        }
+        if (bads.length > 0) {
+          insight += bads.map((b) => `> * ❌ ${b}`).join("\n") + "\n";
+        }
+      }
+
+      // Write trend to MDX
+      try {
+        const { writeTrendAndInsight } = await import("./benchmark-mdx");
+        writeTrendAndInsight(
+          trendLabel,
+          insight,
+          `tests/benchmarks/${testFile}.test.ts`,
+          null,
+          shortLabel,
+        );
+      } catch {
+        // Best effort
+      }
+    }
+
+    // 7. Rebuild summary
+    try {
+      const { rebuildSummary } = await import("./benchmark-mdx");
+      await rebuildSummary(dbLabel);
+    } catch {
+      // Best effort
+    }
+
+    // 8. Print summary to console
+    const totalTime = runEntries.reduce((s, e) => Math.max(s, e.wallClockMs || 0), 0);
+    const avgMetric = runEntries.reduce((s, e) => s + e.avgMs, 0) / runEntries.length;
+    console.log(
+      `\n  [${runMode.toUpperCase()}] ${runEntries.length} metrics recorded · avg ${avgMetric.toFixed(2)}ms · ${(totalTime / 1000).toFixed(1)}s wall clock`,
+    );
+  } catch (err: any) {
+    console.error(`  finalizeReport error: ${err.message}`);
+  }
+}
+
+// Helper to reset emitted trend flags in tests
+export function resetTrendGuard(): void {
+  // No-op: trend guard removed in favor of batched finalizeReport()
 }

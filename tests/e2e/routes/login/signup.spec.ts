@@ -9,6 +9,18 @@
 import { expect, test } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 
+/** Dismiss cookie consent banner if visible. */
+async function dismissCookieConsent(page: any) {
+  try {
+    const btn = page.getByRole("button", { name: /accept all/i }).first();
+    if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await btn.click({ force: true });
+    }
+  } catch {
+    /* banner not present */
+  }
+}
+
 test.describe.configure({ timeout: 60_000 });
 
 test("Test loading homepage and login screen", async ({ page }) => {
@@ -16,6 +28,7 @@ test("Test loading homepage and login screen", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
 
   await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await dismissCookieConsent(page);
 
   await expect(page.getByText(/sign up/i)).toBeVisible();
   await expect(page.getByText(/sign in/i)).toBeVisible();
@@ -23,9 +36,8 @@ test("Test loading homepage and login screen", async ({ page }) => {
 
 test("Check language selection updates UI text", async ({ page }) => {
   await page.goto("/login");
+  await dismissCookieConsent(page);
 
-  // Language selector is a custom Dropdown with a <div role="button"> trigger
-  // (NOT a native <button>) showing current language name, then Button options.
   const languageTrigger = page.locator('.language-selector [role="button"]').first();
   await expect(languageTrigger).toBeVisible({ timeout: 5000 });
 
@@ -37,8 +49,6 @@ test("Check language selection updates UI text", async ({ page }) => {
   ];
 
   for (const lang of languages) {
-    // If the dropdown is already open from a previous selection, clicking the
-    // trigger toggles it closed — only click when the dropdown is not yet open.
     const option = page.locator(`button[aria-label="${lang.label}"]`).first();
     if ((await option.isVisible({ timeout: 500 }).catch(() => false)) === false) {
       await languageTrigger.click();
@@ -57,9 +67,9 @@ test("Check language selection updates UI text", async ({ page }) => {
 test("SignUp First User", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/login");
+  await dismissCookieConsent(page);
   await page.getByText(/sign up/i).click();
 
-  // All sign-up fields use FloatingInput with placeholder=" " — use id selectors
   await page.locator("#usernamesignUp").fill("T");
   await page.locator("#usernamesignUp").press("Tab");
   await page.locator("#usernamesignUp").fill("Test");
@@ -75,13 +85,10 @@ test("SignUp First User", async ({ page }) => {
 
   await page.locator("#confirm_passwordsignUp").fill("Test123!");
 
-  // Registration Token (if required) — token field has minlength=32
   await page.locator("#tokensignUp").fill("svelty-secret-key-with-32-chars-min!");
 
-  // Submit the signup form
   await page.locator("#signup-form button[type='submit']").click();
 
-  // After signup, user is redirected to /config/collectionbuilder
   await expect(page).toHaveURL(/\/config\/collectionbuilder/);
 });
 
@@ -102,6 +109,7 @@ test.describe("SignIn & SignOut Flows", () => {
 
   test("SignOut after login", async ({ page }) => {
     await page.goto("/login");
+    await dismissCookieConsent(page);
 
     await page.getByText(/sign in/i).click();
     await page.getByTestId("signin-email").fill("test@test.de");
@@ -117,6 +125,7 @@ test.describe("SignIn & SignOut Flows", () => {
 
   test("Login First User", async ({ page }) => {
     await page.goto("/login");
+    await dismissCookieConsent(page);
 
     await page.getByText(/sign in/i).click();
     await page.getByTestId("signin-email").fill("test@test2.de");
@@ -130,15 +139,14 @@ test.describe("SignIn & SignOut Flows", () => {
 test("Forgot Password Flow", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/login");
+  await dismissCookieConsent(page);
 
   await page.getByText(/sign in/i).click();
   await page.getByTestId("signin-forgot-password").click();
 
-  // Forgot password form — email field uses FloatingInput with placeholder=" "
   await page.locator("#emailforgot").fill("test@test2.de");
   await page.getByRole("button", { name: /reset password/i }).click();
 
-  // After submitting forgot form, the reset form appears (P_WRESET becomes true)
   await page.locator("#passwordreset").fill("NewPass123!");
   await page.locator("#confirm_passwordreset").fill("NewPass123!");
   await page.getByRole("button", { name: /save new password/i }).click();

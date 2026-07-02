@@ -4,7 +4,7 @@ title: Competitive Comparison
 description: A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus.
 author: SveltyCMS Team
 created: 2026-03-21
-updated: "2026-06-25"
+updated: "2026-06-27"
 tags:
   - comparison
   - benchmarks
@@ -19,13 +19,13 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 ## Comprehensive Comparison Matrix (March 2026)
 
-| CMS             | License / Cost                                    | Tech Stack                                                 | Approach                     | Admin UI                                | Databases                                            | APIs                | Bundle Size / Perf            | Maturity (2026)                                                                                       | Best For                                                                  |
-| :-------------- | :------------------------------------------------ | :--------------------------------------------------------- | :--------------------------- | :-------------------------------------- | :--------------------------------------------------- | :------------------ | :---------------------------- | :---------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------ |
-| **SveltyCMS**   | BSL 1.1 (free if finances < $1M; converts to MIT) | SvelteKit 2 + Svelte 5, 5-Pillar Content Core, Drizzle ORM | Code-first + GUI collections | Svelte + Native UI (native, very light) | Any SQL (Postgres, MySQL, SQLite, MariaDB) + MongoDB | REST + GraphQL Yoga | **~843 KB Brotli** (smallest) | **Production Ready** (A++ Security Grade, see [Security Docs](/docs/architecture/security/index.mdx)) | Performance-obsessed devs, Svelte ecosystem fans, enterprise-grade speed. |
-| **Sveltia CMS** | MIT (open source)                                 | Svelte (SPA)                                               | Git-based (Local)            | Svelte (Lightweight browser-based)      | N/A (Git Repos)                                      | Git Pull/Push       | **< 500 KB** (lightest)       | High (rapid UX iterations)                                                                            | Static sites, Git-centric workflows, zero-ops deployments.                |
+| CMS             | License / Cost                                    | Tech Stack                                                 | Approach                     | Admin UI                                | Databases                                            | APIs                | Bundle Size / Perf            | Maturity (2026)                                                                                    | Best For                                                                  |
+| :-------------- | :------------------------------------------------ | :--------------------------------------------------------- | :--------------------------- | :-------------------------------------- | :--------------------------------------------------- | :------------------ | :---------------------------- | :------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------ |
+| **SveltyCMS**   | BSL 1.1 (free if finances < $1M; converts to MIT) | SvelteKit 2 + Svelte 5, 5-Pillar Content Core, Drizzle ORM | Code-first + GUI collections | Svelte + Native UI (native, very light) | Any SQL (Postgres, MySQL, SQLite, MariaDB) + MongoDB | REST + GraphQL Yoga | **~843 KB Brotli** (smallest) | **Production Ready** (A++ Security Grade, see [Security Docs](/docs/reference/security/index.mdx)) | Performance-obsessed devs, Svelte ecosystem fans, enterprise-grade speed. |
+| **Sveltia CMS** | MIT (open source)                                 | Svelte (SPA)                                               | Git-based (Local)            | Svelte (Lightweight browser-based)      | N/A (Git Repos)                                      | Git Pull/Push       | **< 500 KB** (lightest)       | High (rapid UX iterations)                                                                         | Static sites, Git-centric workflows, zero-ops deployments.                |
 
-| **Payload CMS** | MIT (open source); Cloud paid tier | Next.js / React, Drizzle ORM | Code-first (GUI is secondary) | React (heavier, full Next.js rebuilds required for changes) | Postgres, MongoDB | REST + GraphQL | ~3-5 MB app bundle | Very mature, deeply funded, v3 launched | React-heavy teams wanting strict code-first schema control. |
-| **Directus** | BSL 1.1 (free for non-cloud; enterprise paid) | Vue.js, Node.js, Knex.js | Engine-first (wraps existing SQL DBs) | Vue.js (highly polished data studio) | Any SQL (Postgres, MySQL, SQLite, Oracle) | REST + GraphQL | Medium/Large | Highly mature (v11), massive enterprise adoption | Turning an existing messy SQL database into a clean API instantly. |
+| **Payload CMS** | MIT (open source); Cloud paid tier | Next.js / React, Drizzle ORM | Code-first (GUI is secondary) | React (heavier, full Next.js rebuilds required for changes) | Postgres, MongoDB | REST + GraphQL | ~3-5 MB app bundle | Very mature, deeply funded, v4 in development (Figma acquisition) | React-heavy teams wanting strict code-first schema control. |
+| **Directus** | MSCL-1.0-GPL (free for individuals & <$5M revenue; active license enforcement in v12) | Vue.js, Node.js, Knex.js | Engine-first (wraps existing SQL DBs) | Vue.js (highly polished data studio) | Any SQL (Postgres, MySQL, SQLite, Oracle) | REST + GraphQL | Medium/Large | Highly mature (v12), massive enterprise adoption | Turning an existing messy SQL database into a clean API instantly. |
 
 | **Strapi** | Enterprise (Core is free; SSO, Audit Logs cost extra) | React, Node.js, Koa | GUI-first (schemas saved as JSON) | React (Admin UI is its own separate app) | Postgres, MySQL, SQLite, MariaDB | REST + GraphQL | Largest bundle; slowest cold starts | Very mature, massive community (v5) | Non-technical content teams needing a basic GUI out-of-the-box. |
 | **NodeHive** | Paid SaaS (Open Source core available) | Next.js, React | Decoupled (acts more as a middleware/frontend hub) | React | Usually SaaS managed | GraphQL | Varies, relies on Next.js | Growing, highly niche to Next.js | Agencies building Next.js sites exclusively. |
@@ -39,16 +39,13 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 | **Scheduled Publishing**    | ✅ Adaptive job scheduler — 1s polling, exponential retries, audit-chained | ✅ Job queue     | ⚠️ Cron (manual) | ✅ Flows    | ⚠️ WP-Cron |
 | **Draft/Publish Workflow**  | ✅ Full CRUD with batch operations                                         | ✅ Version-based | ✅               | ✅          | ✅         |
 | **Content Version History** | ✅ Per-item revisions — snapshot on save, diff, restore, auto-cleanup      | ✅ Auto          | ⚠️ Plugin        | ✅          | ⚠️ Plugin  |
+| **Crypto-Chained Audit**    | ✅ SHA-256 per-entry chain, tamper verification                            | ❌ Basic hooks   | ⚠️ Plugin        | ⚠️ Activity | ❌ Plugin  |
 
-| Feature                    | SveltyCMS                                       | Payload 3.x    | Strapi 5            | Directus 11 | WordPress |
-| -------------------------- | ----------------------------------------------- | -------------- | ------------------- | ----------- | --------- |
-| **Crypto-Chained Audit**   | ✅ SHA-256 per-entry chain, tamper verification | ❌ Basic hooks | ⚠️ Plugin           | ⚠️ Activity | ❌ Plugin |
-| **Per-Field Localization** | ✅ Record<Locale,string> + inline AI translate  | ✅             | ⚠️ Separate entries | ✅ Sidebar  | ⚠️ WPML   |
-
-| Feature                 | SveltyCMS                                                    | Payload 3.x | Strapi 5  | Directus 11  | WordPress |
-| ----------------------- | ------------------------------------------------------------ | ----------- | --------- | ------------ | --------- |
-| **Full-Text Search**    | ✅ Zero-dependency DB-native (PG/MariaDB/SQLite/Mongo)       | ⚠️ Plugin   | ⚠️ Plugin | ⚠️ Extension | ⚠️ Plugin |
-| **Smart CMS Migration** | ✅ AI-powered — 5 formats, 30+ field mappings, ACF detection | ❌          | ❌        | ❌           | ❌        |
+| Feature                    | SveltyCMS                                                    | Payload 3.x | Strapi 5            | Directus 11  | WordPress |
+| -------------------------- | ------------------------------------------------------------ | ----------- | ------------------- | ------------ | --------- |
+| **Per-Field Localization** | ✅ Record<Locale,string> + inline AI translate               | ✅          | ⚠️ Separate entries | ✅ Sidebar   | ⚠️ WPML   |
+| **Full-Text Search**       | ✅ Zero-dependency DB-native (PG/MariaDB/SQLite/Mongo)       | ⚠️ Plugin   | ⚠️ Plugin           | ⚠️ Extension | ⚠️ Plugin |
+| **Smart CMS Migration**    | ✅ AI-powered — 5 formats, 30+ field mappings, ACF detection | ❌          | ❌                  | ❌           | ❌        |
 
 | Feature                   | SveltyCMS                                        | Payload 3.x         | Strapi 5           | Directus 11      | WordPress     |
 | ------------------------- | ------------------------------------------------ | ------------------- | ------------------ | ---------------- | ------------- |
@@ -63,6 +60,7 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 | **Semantic Search (NPU)** | ✅ Ollama embeddings + TF-IDF fallback, local NPU/GPU acceleration | ❌ | ❌ | ❌ | ❌ |
 
 | **AI Widget Scaffolder** | ✅ Generate 3-pillar widgets from config object (LLM-ready) | ❌ | ❌ | ❌ | ❌ |
+| **Admin table performance** | SSR-first data + `$derived` (no deep proxy) + row virtualization + `content-visibility: auto` + connection-aware preload + URL-state navigation. Only visible rows render as DOM. | ❌ Renders full page through React VDOM (Payload). Not documented (Strapi, Directus). | ❌ | ❌ | ❌ |
 | **Hardware-Aware Rate Lim** | ✅ Adaptive 0.8x-2.0x based on CPU/memory/event-loop pressure | ❌ | ❌ | ❌ | ❌ |
 | **Token Security** | ✅ SHA-256 hashed across all 4 adapters, atomic TOCTOU guards | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 
@@ -90,7 +88,7 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 | **Compression Ratio (Brotli)** | **~65% avg** on CMS JSON payloads | `bun test tests/benchmarks/hooks-performance.test.ts` |
 | **Setup Seeding** | **~80 round-trips → 1 batch query** (setMany + bulkUpdate) | `bun test tests/benchmarks/database-performance.test.ts` |
 | **Cold Start (to READY)** | **404-445ms** (progressive warmup) | `bun test tests/benchmarks/cold-start-phased.test.ts` |
-| **Content Scan (1k)** | **0.006ms** (dirty-bit tree) | `bun test tests/benchmarks/content-scale-stress.bench.ts` |
+| **Content Scan (1k)** | **0.006ms** (dirty-bit tree) | `bun test tests/benchmarks/content-scale-stress.test.ts` |
 
 > **Competitive context**: SveltyCMS achieves 1.90-5.47ms full-pipeline REST responses on SQLite (Intel i7-13700H, Bun 1.3.14) by eliminating VDOM, using compiled Svelte 5 runes, pre-compressing cache HITs, and batching relational upserts into single queries. To our knowledge based on publicly available documentation as of June 2026, typical headless CMS REST reads range from 8-50ms (Payload, Strapi, Directus) due to React/Vue hydration and Express/Koa middleware overhead. The relational batch optimization (3a/3c) reduced content sync queries by ~98%. The fire-and-forget audit (P1) eliminated blocking logger.info from the mutation hot path. Compression metrics are now exported on every benchmark run. We encourage independent comparative verification on identical hardware.
 
@@ -98,25 +96,25 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 
 ## 🏆 Competitive Context — Is SveltyCMS Really That Fast?
 
-Yes. **SveltyCMS operates in a different performance league.** Here's the evidence from our June 2026 benchmark matrix — 48 tests across 4 databases, measuring every adapter under extreme concurrent load:
+Yes. **SveltyCMS operates in a different performance league.** Here's the evidence from our June 2026 benchmark matrix — 60 tests across 4 databases, measuring every adapter under extreme concurrent load:
 
-| CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Concurrent Writes (RPS) | Notes / Conditions            |
-| -------------------------- | ----------------- | --------------- | ----------------------- | ----------------------------- |
-| **SveltyCMS (MariaDB)**    | **0.06 - 0.367**  | **~0.1**        | **1,054 RPS**           | **atomicIncrement RETURNING** |
-| **SveltyCMS (PostgreSQL)** | **0.06 - 0.367**  | **~0.1**        | **1,037 RPS**           | UPDATE RETURNING + pool retry |
-| **SveltyCMS (MongoDB)**    | **0.06 - 0.367**  | **~0.1**        | **729 RPS**             | Native $inc, batch 100        |
-| **SveltyCMS (SQLite)**     | **0.06 - 0.367**  | **~0.1**        | **504 RPS**             | In-process, batch 20          |
-| **SveltyCMS (Local SDK)**  | **0.003**         | —               | **41,009 RPS** (SQLite) | Direct adapter, no HTTP       |
-| **SveltyCMS (Neg Cache)**  | **0.003**         | —               | —                       | Hot-Miss (404 Cache Hit)      |
-| **Payload CMS 3.x**        | 4–12              | 3–10            | 150–250                 | React/Next.js hydration tax   |
-| **Directus 11**            | 3–18              | 4–12            | 100–300                 | Express-based                 |
+| CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Concurrent Writes (RPS) | Notes / Conditions                                       |
+| -------------------------- | ----------------- | --------------- | ----------------------- | -------------------------------------------------------- |
+| **SveltyCMS (MariaDB)**    | **0.06 - 0.367**  | **~0.1**        | **1,054 RPS**           | **atomicIncrement RETURNING**                            |
+| **SveltyCMS (PostgreSQL)** | **0.06 - 0.367**  | **~0.1**        | **1,037 RPS**           | UPDATE RETURNING + pool retry                            |
+| **SveltyCMS (MongoDB)**    | **0.06 - 0.367**  | **~0.1**        | **729 RPS**             | Native $inc, batch 100                                   |
+| **SveltyCMS (SQLite)**     | **0.06 - 0.367**  | **~0.1**        | **504 RPS**             | In-process, batch 20                                     |
+| **SveltyCMS (Local SDK)**  | **0.003**         | —               | **41,009 RPS** (SQLite) | Direct adapter, no HTTP                                  |
+| **SveltyCMS (Neg Cache)**  | **0.003**         | —               | —                       | Hot-Miss (404 Cache Hit)                                 |
+| **Payload CMS 4.x**        | 4–12              | 3–10            | 150–250                 | React/Next.js hydration tax (v4 w/ Figma, TanStack, MCP) |
+| **Directus 12**            | 3–18              | 4–12            | 100–300                 | Express-based (Vue.js admin, no row virtualization)      |
 
 | **Strapi v5** | 6–25 | 5–15 | 50–200 | Koa middleware overhead |
-| **Drupal 10** | 15–50 | 10–30 | 30–100 | PHP/Symfony, no native pooling |
+| **Drupal 12** | 15–50 | 10–30 | 30–100 | PHP/Symfony, no native pooling |
 | **WordPress 6.x** | 20–80 | 15–50 | 10–50 | PHP, per-request DB connect |
 | **SveltyCMS (June 2026 post-opt)** | **1.90 (mutation) - 5.47 (full auth)** | **0.094-0.125** | **146-471 RPS (relational)** | 19-file multi-phase optimization |
 
-_Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 48 tests across 4 databases, measuring every adapter under extreme concurrent load. Competitor figures are approximate ranges from publicly documented framework overhead; we encourage independent verification._
+_Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 60 tests across 4 databases, measuring every adapter under extreme concurrent load. Competitor figures are approximate ranges from publicly documented framework overhead; we encourage independent verification._
 
 ### Key Takeaways
 
@@ -132,6 +130,7 @@ _Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 48 
 - **6 additional gaps closed (June 2026)**: SVG polyglot sanitization, S3 endpoint SSRF prevention, Ollama prompt injection defense, GraphQL introspection blocking, Tiptap link protocol hardening, rate-limiter dependency hygiene.
 
 - **Feature parity achieved**: SveltyCMS now matches or exceeds Payload, Strapi, and Directus in every editor-facing feature while maintaining its 2–20× performance advantage.
+- **Admin table: only SSR-first entry list with row virtualization**: SveltyCMS is the only self-hosted CMS where the admin entry table renders server-side HTML props, then uses Svelte 5 `$derived` (shallow, no per-cell proxy overhead) + row virtualization (>25 rows triggers `visibleRows` slice with 5-row buffer) + `content-visibility: auto` for browser-level offscreen optimization. All filter/sort/page state lives in URL params — browser back button restores exact position without client-side cache. Connection-aware preloading disables prefetch on slow-2g/saveData networks. Based on publicly available documentation and code inspection, no other major headless CMS ships this combination in their admin panel as of June 2026.
 - **Crypto-chained audits**: Tamper-evident audit logs with SHA-256 chain verification — a capability not publicly documented by other headless CMS platforms as of June 2026.
 - **AI-smart migration**: The only headless CMS we are aware of with a universal 5-format importer using heuristic field mapping and ACF detection (based on publicly available documentation through June 2026).
 - **Per-field AI translation**: One-click field translation with caching, rate limiting, and audit logging.
@@ -149,8 +148,7 @@ _Note: All SveltyCMS metrics sourced from our June 2026 benchmark matrix — 48 
 
 SveltyCMS's relentless improvement is powered by an enterprise-grade benchmark intelligence system:
 
-- **48-Test Matrix Across 9 Dimensions**: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance — all four databases (SQLite, MongoDB, MariaDB, PostgreSQL) with Redis variants.
-
+- **60-Test Matrix Across 9 Dimensions**: Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance — all four databases (SQLite, MongoDB, MariaDB, PostgreSQL) with Redis variants.
 - **Smart Trend Analysis**: Rolling median baselines, 7 root cause categories, confidence levels (suspected/confirmed/watch), and adaptive budgets that learn from history.
 
 - **Cross-Test Correlation**: Single test regressions are checked against related tests in history.sqlite — "is this just auth, or is the entire middleware pipeline degraded?"
@@ -231,9 +229,11 @@ Are we faster? Yes, significantly, but more importantly, we are a **high-frequen
 - **The Zero-Latency Illusion**: With REST entry retrieval at **0.06ms**, the CMS has effectively removed itself as a bottleneck. Latency is now limited by the physical speed of the network, not the application logic.
 - **High-Volume Ingestion**: SveltyCMS handles bulk I/O at **8,223 entries/second** in benchmark conditions. Real-world throughput varies by schema complexity, index count, and storage hardware.
 - **Infinite History Stability**: Our revision strategy achieves **0% performance degradation** even with 100+ versions of a document. Reading the latest version is just as fast on Day 1000 as it was on Day 1.
+
 - **Content Scanning**: Using a **Persistent Dirty Bit Tree**, scanning 1,000 collections takes **0.05ms** — the system tracks which collections changed rather than re-scanning everything.
 - **Enterprise-Grade Monitoring**: By implementing request-level caching for health probes, monitoring overhead is **0.45ms**, ensuring frequent health checks don't tax production CPU.
 - **Admin UX**: Complex 50-field forms are prepared by the server in **0.05ms**. The Admin Dashboard responds at native-app speed for content editors.
+
 - **AI-Native Efficiency**: CMS-side AI logic (enrichment, layout generation, field suggestions) adds a negligible **1.3ms tax**. 99.9% of the user's wait time is the LLM itself, ensuring a seamless "Intelligence-first" experience.
 - **AI Co-Pilot**: `suggestFields()` for schema-aware field type recommendations, `scoreContent()` for SEO/readability quality scoring. `@sveltycms/ai` scoped package for AI service consumption.
 - **Hybrid Package Model**: Scoped packages `@sveltycms/core`, `@sveltycms/widgets`, `@sveltycms/ai` for modular consumption while maintaining monorepo flexibility.
@@ -254,12 +254,16 @@ SveltyCMS treats security as a core architectural feature, not a bolt-on plugin.
 
 - **AI Bot Defense Shield**: Proactive User-Agent fingerprinting detects and blocks 28 known AI crawler patterns (GPTBot, Claude, Perplexity, CommonCrawl) and reconnaissance tools (Nmap, SQLMap, Burp Suite, Nessus). A 45-route honeypot grid traps automated scanners with progressive tarpit delays (5-15s) and response poisoning (fake JSON payloads).
 - **Cross-Origin Isolation**: All API responses enforce `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`, preventing Spectre/Meltdown side-channel attacks — a protection level we have not observed in the public documentation of Payload, Strapi, or Directus as of June 2026.
+
 - **Zero-Bias Cryptographic Tokens**: Session and API key tokens use rejection-sampling CSPRNG with mathematically uniform distribution, eliminating the ~3.125% modulo bias found in naive implementations used by most competitors.
 - **Fail-Closed API Dispatcher**: Exhaustive endpoint registration ensuring 100% security coverage by default. Unmapped routes are denied, eliminating "Shadow API" vulnerabilities.
+
 - **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, providing SOC 2-aligned controls and GDPR-ready audit trails. Recently enhanced with strict IP resolution in all authentication flows.
 - **Per-Content Audit Viewer**: New dedicated `AuditHistory` component provides filtered audit trails per content item with visual chain indicators. Editors can verify the cryptographic integrity of any content's history with a single click, achieving SOC 2 and GDPR Article 30 compliance out of the box.
+
 - **OAuth State Integrity (HMAC)**: Cryptographically guarantees the authenticity of OAuth states, neutralizing authorization code replay attacks.
 - **Compartmentalized Secrets**: Rate limiters and internal systems utilize strictly separated, fallback-secured encryption keys (e.g. `RATE_LIMIT_SECRET`), ensuring lateral security breaches are impossible if a single secret is compromised.
+
 - **SCIM 2.0 & SAML**: Native support for automated user provisioning and enterprise SSO.
 - **Multi-Tenancy**: Native `tenantId` isolation at the database adapter level, preventing cross-tenant data leaks. Includes strict demo capacity limits.
 - **Timing-Safe Cryptography**: All security-sensitive comparisons (test secrets, TOTP codes) use crypto.timingSafeEqual, neutralizing side-channel timing attacks.

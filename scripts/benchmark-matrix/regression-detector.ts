@@ -89,7 +89,8 @@ export async function detectRegressions(
     }
 
     // ── PASS 1: Build MetricTrend[] per adapter ──
-    for (const res of results) {
+    for (let r = 0; r < results.length; r++) {
+      const res = results[r]!;
       if (res.status !== "SUCCESS") continue;
 
       const m = extractMetrics(res.metrics || {}, res.db.replace("-redis", ""));
@@ -152,7 +153,8 @@ export async function detectRegressions(
 
       const adapterTrends: MetricTrend[] = [];
 
-      for (const check of checks) {
+      for (let c = 0; c < checks.length; c++) {
+        const check = checks[c]!;
         if (!check.value || check.value <= 0) continue;
 
         // Load raw history and compute statistical trend
@@ -194,7 +196,7 @@ export async function detectRegressions(
           history.length,
         );
 
-        const trend: MetricTrend = {
+        adapterTrends.push({
           adapter: dbKey,
           metric: check.trendMetric || check.key,
           category: check.key === "memGrowth" ? "native_memory" : "latency",
@@ -208,9 +210,7 @@ export async function detectRegressions(
           confidence,
           forecastModel: check.key === "memGrowth" ? "exponential" : "linear",
           forecastRunsToBreach: null,
-        };
-
-        adapterTrends.push(trend);
+        });
       }
 
       // ── PASS 2: Classify root cause across all adapter trends ──
@@ -225,7 +225,8 @@ export async function detectRegressions(
       }
 
       // Emit enriched regression results
-      for (const trend of adapterTrends) {
+      for (let t = 0; t < adapterTrends.length; t++) {
+        const trend = adapterTrends[t]!;
         if (trend.direction !== "degrading" && trend.direction !== "critical") continue;
 
         const pct =
@@ -258,7 +259,8 @@ export async function detectRegressions(
       }
 
       // Also flag budget violations even without regression
-      for (const check of checks) {
+      for (let c = 0; c < checks.length; c++) {
+        const check = checks[c]!;
         if (!check.value || check.value <= 0) continue;
         const budget = getEffectiveBudget(dbKey, check.key);
         if (check.value > budget) {

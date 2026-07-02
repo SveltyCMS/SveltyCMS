@@ -10,7 +10,7 @@
  * - Per-IP sliding window rate limiting
  * - Adaptive cost multiplier from SystemMonitor (0.8x idle → 2.0x critical)
  * - Mutation rejection when heap > 90%
- * - Returns 429 with Retry-After + X-RateLimit-* headers
+ * - Returns 429 with Retry-After + X-RateLimit-* headers + styled HTML page
  * - Skips setup/health/POST-only public paths
  * - Zero external dependencies (in-memory tracking)
  *
@@ -20,9 +20,10 @@
  * - Auto-cleanup: expired entries pruned every 60s
  */
 
-import crypto from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { renderRateLimitPage } from "@utils/rate-limit-page";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ const EXCLUDED_PREFIXES = [
   "/favicon.ico",
   "/.well-known",
   "/warming-up",
+  "/api/testing",
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -53,14 +55,11 @@ const _buckets = new Map<string, RateLimitEntry>();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function getClientKey(event: Parameters<Handle>[0]["event"]): string {
+async function getClientKey(event: Parameters<Handle>[0]["event"]): Promise<string> {
   // Use X-Forwarded-For if behind proxy, otherwise remote address
   const forwarded = event.request.headers.get("x-forwarded-for");
   const rawIp = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
-  return crypto
-    .createHash("sha1")
-    .update(rawIp || "unknown")
-    .digest("hex");
+  return xxhash64(rawIp || "unknown");
 }
 
 function isExcluded(pathname: string): boolean {
@@ -95,13 +94,18 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // Bypass rate limiting in test/benchmark mode
+  if (process.env.TEST_MODE === "true" || event.request.headers.get("x-test-mode") === "true") {
+    return resolve(event);
+  }
+
   // Skip non-mutating GET/HEAD/OPTIONS unless under critical pressure
   const method = event.request.method;
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
     return resolve(event);
   }
 
-  const clientKey = getClientKey(event);
+  const clientKey = await getClientKey(event);
   const now = Date.now();
 
   // Get or create bucket
@@ -156,15 +160,16 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
       { pathname, method },
     );
     return new Response(
-      JSON.stringify({
-        error: "Too many requests",
-        code: "RATE_LIMITED",
-        retryAfter: resetTime,
+      renderRateLimitPage({
+        retryAfter: `${resetTime} second${resetTime === 1 ? "" : "s"}`,
+        retryAfterSeconds: resetTime,
+        pathname,
+        reason: "Too Many Requests",
       }),
       {
         status: 429,
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "text/html; charset=utf-8",
           "Retry-After": String(resetTime),
           "X-RateLimit-Limit": String(DEFAULT_MAX_REQUESTS),
           "X-RateLimit-Remaining": "0",

@@ -109,9 +109,9 @@ describe("skeleton-preset-mapper", () => {
     expect(expanded["--color-surface-500"]).toContain("color-mix");
   });
 
-  it("maps corporate.json shorthand properties to customCss", () => {
-    const corporate = JSON.parse(
-      readFileSync(join(process.cwd(), "src", "themes", "corporate.json"), "utf-8"),
+  it("maps default.json shorthand properties to customCss", () => {
+    const preset = JSON.parse(
+      readFileSync(join(process.cwd(), "src", "themes", "default.json"), "utf-8"),
     );
     const mapped = mapPresetToAdminTheme(preset);
     expect(mapped.customCss).toContain("--color-primary-500: #0f766e");

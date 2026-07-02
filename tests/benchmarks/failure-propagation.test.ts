@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/failure-propagation.test.ts
- * @description Failure Propagation & Fast-Fail Audit
+ * @description Failure Propagation & Fast-Fail Audit (Optimized)
  * @summary Measures the system's ability to reject invalid requests quickly with minimal resource waste.
  *
  * ### Features:
@@ -34,11 +34,10 @@ beforeAll(async () => {
 }, 120000);
 
 afterAll(async () => {
-  if (stopServer) await stopServer();
+  if (stopServer) await stopServer().catch(() => {});
 });
 
 export async function runFailurePropagationAudit() {
-  // pre-existing unused var removed for TS strict mode
   await stabilize();
 
   console.log("\n🚀 Starting World Life Data: Failure Propagation Audit...\n");
@@ -47,14 +46,20 @@ export async function runFailurePropagationAudit() {
   const RUNS = 1;
   const allResults: any[] = [];
 
-  const headers = {
+  // Canonical lowercase header structures
+  const baseHeaders = {
     "x-test-mode": "true",
     "x-test-secret": TEST_API_SECRET,
-    "Content-Type": "application/json",
+    "content-type": "application/json",
+  };
+
+  const invalidAuthHeaders = {
+    ...baseHeaders,
+    "x-test-secret": "WRONG_SECRET",
   };
 
   // 1. Baseline: Valid Health Check
-  console.log("   → Measuring Baseline (Valid Health Check)...");
+  console.log("    → Measuring Baseline (Valid Health Check)...");
   const validRes = await runBenchmark({
     name: "Success: Health Check @ 4c",
     iterations: ITERATIONS,
@@ -63,15 +68,18 @@ export async function runFailurePropagationAudit() {
     concurrency: 4,
     silent: true,
     onIteration: async () => {
-      const res = await fetch(`${apiBaseUrl}/api/system/health`, { headers });
+      const res = await fetch(`${apiBaseUrl}/api/system/health`, {
+        method: "GET",
+        headers: baseHeaders,
+      });
       if (!res.ok) throw new Error("Health check failed");
-      await res.json();
+      await res.arrayBuffer(); // Low-level socket flush prevents V8 allocation drift
     },
   });
   allResults.push(validRes);
 
-  // 2. Failure Path: Invalid Auth Secret (Triggers early middleware rejection)
-  console.log("   → Measuring Failure Path (Invalid Auth Secret)...");
+  // 2. Failure Path: Invalid Auth Secret (Early Gateway/Middleware Intercept)
+  console.log("    → Measuring Failure Path (Invalid Auth Secret)...");
   const failAuthRes = await runBenchmark({
     name: "Failure: Invalid Auth @ 4c",
     iterations: ITERATIONS,
@@ -82,18 +90,19 @@ export async function runFailurePropagationAudit() {
     abortOnErrors: false,
     onIteration: async () => {
       const res = await fetch(`${apiBaseUrl}/api/user`, {
-        headers: { ...headers, "x-test-secret": "WRONG_SECRET" },
+        method: "GET",
+        headers: invalidAuthHeaders, // Using hoisted reference to insulate timing loops from allocations
       });
-      if (res.ok) throw new Error("Request should have failed");
-      // DO NOT THROW HERE - we want to return the result of the benchmark measurement
-      // runBenchmark handles the timing. We just need to ensure the iteration logic
-      // doesn't bubble an error to the test runner.
+      if (res.ok) throw new Error("Request should have failed early via auth gate");
+
+      // Clear socket buffers directly out of rejection paths to protect connection boundaries
+      await res.arrayBuffer().catch(() => {});
     },
   });
   allResults.push(failAuthRes);
 
-  // 3. Failure Path: Invalid Collection (Triggers deeper logic failure)
-  console.log("   → Measuring Failure Path (Invalid Collection)...");
+  // 3. Failure Path: Invalid Collection (Deeper Application Core Resolution Fallback)
+  console.log("    → Measuring Failure Path (Invalid Collection)...");
   const failDataRes = await runBenchmark({
     name: "Failure: 404 Collection @ 4c",
     iterations: ITERATIONS,
@@ -103,8 +112,12 @@ export async function runFailurePropagationAudit() {
     silent: true,
     abortOnErrors: false,
     onIteration: async () => {
-      const res = await fetch(`${apiBaseUrl}/api/collections/NON_EXISTENT_COLLECTION`, { headers });
-      if (res.ok) throw new Error("Request should have failed");
+      const res = await fetch(`${apiBaseUrl}/api/collections/NON_EXISTENT_COLLECTION`, {
+        method: "GET",
+        headers: baseHeaders,
+      });
+      if (res.ok) throw new Error("Request should have failed with a 404 handler exception");
+      await res.arrayBuffer().catch(() => {});
     },
   });
   allResults.push(failDataRes);

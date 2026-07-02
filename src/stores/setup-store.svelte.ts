@@ -683,7 +683,13 @@ function createSetupStore() {
       wizard.redisTestPassed = false;
       return false;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
+      // Surface real error — query() wrapper may throw without proper Error type
+      const errorMsg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : (e as any)?.message || String(e) || "A server error occurred.";
       wizard.errorMessage = `Redis Error: ${errorMsg}`;
       wizard.redisTestPassed = false;
       return false;

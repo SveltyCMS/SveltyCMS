@@ -4,17 +4,19 @@
  */
 
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
+import { validateNumericFields, sanitizeCollectionFields } from "@src/content/content-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import * as crypto from "node:crypto";
+import { xxhash64 } from "hash-wasm";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { Schema, FieldInstance } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { pluginRegistry } from "@src/plugins/registry";
+import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-ids";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 
 type ContentSystem = typeof serverContentSystem;
@@ -537,10 +539,7 @@ export class CollectionsNamespace {
       if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0 && !sort) {
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:id:${query._id}`;
       } else {
-        const queryHash = crypto
-          .createHash("md5")
-          .update(JSON.stringify({ query, limit, offset, sort }))
-          .digest("hex");
+        const queryHash = await xxhash64(JSON.stringify({ query, limit, offset, sort }));
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:${queryHash}`;
       }
     }
@@ -892,9 +891,9 @@ export class CollectionsNamespace {
     const formattedUpdates = updates.map((u) => ({
       id: u.id as DatabaseId,
       data: {
-        ...u.data,
+        ...(copyDataWithFreshRowIds(u.data) as Record<string, unknown>),
         updatedBy: user?._id,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString() as ISODateString,
       },
     }));
 
@@ -914,6 +913,13 @@ export class CollectionsNamespace {
     const { user, tenantId } = options;
     if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+    if (schema?.disableBulkDelete) {
+      throw new AppError(
+        `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
+        403,
+        "BULK_DELETE_DISABLED",
+      );
+    }
 
     const result = await this._dbAdapter.batch.bulkDelete(
       this.getCollectionName(schema._id as string),
@@ -1081,12 +1087,22 @@ export class CollectionsNamespace {
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
 
+    // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
+    const sanitizedData = sanitizeCollectionFields(data, schema);
+
     const entryData = {
-      ...data,
+      ...sanitizedData,
       tenantId,
       createdBy: system ? "system" : user?._id,
       createdAt: new Date().toISOString(),
     };
+
+    // 🛡️ Validate numeric field ranges before they reach the database adapter
+    const rangeErrors = validateNumericFields(entryData, schema);
+    if (rangeErrors.length > 0) {
+      throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+    }
+
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
     const finalData = await this.triggerLifecycleHook(
@@ -1144,11 +1160,21 @@ export class CollectionsNamespace {
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
 
+    // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
+    const sanitizedData = sanitizeCollectionFields(data, schema);
+
     const updateData = {
-      ...data,
+      ...sanitizedData,
       updatedBy: system ? "system" : user?._id,
       updatedAt: new Date().toISOString(),
     };
+
+    // 🛡️ Validate numeric field ranges before they reach the database adapter
+    const rangeErrors = validateNumericFields(updateData, schema);
+    if (rangeErrors.length > 0) {
+      throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+    }
+
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
     const finalData = await this.triggerLifecycleHook(
@@ -1160,6 +1186,7 @@ export class CollectionsNamespace {
     );
 
     const collectionModel = await this._getModelResilient(schema);
+
     await modifyRequest({
       data: [finalData],
       fields: schema.fields as FieldInstance[],

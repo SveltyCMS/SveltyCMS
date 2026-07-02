@@ -28,6 +28,7 @@ This component provides a tooltip for any element.
 		children?: import('svelte').Snippet;
 		content?: import('svelte').Snippet;
 		contentClass?: string;
+		arrowClass?: string;
 		positioning?: {
 			placement?:
 				| 'top'
@@ -56,6 +57,7 @@ This component provides a tooltip for any element.
 		title = '',
 		content: contentProp,
 		contentClass = '',
+		arrowClass = '',
 		triggerClass = '',
 		triggerStyle = '',
 		wFull = false,
@@ -78,6 +80,7 @@ This component provides a tooltip for any element.
 	{positioning}
 	class={`${TOOLTIP_CLASS} ${contentClass}`}
 	triggerClass={resolvedTriggerClass}
+	{arrowClass}
 	style={triggerStyle}
 	{role}
 	{tabindex}

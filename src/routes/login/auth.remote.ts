@@ -17,13 +17,13 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import { getClientIp } from "@utils/hook-utils";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { sendMail } from "@utils/email.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 import { logger } from "@utils/logger";
+import { sendMail } from "@utils/email.server";
 import { isRedirect } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -180,7 +180,7 @@ export const verify2FA = command(
 export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
   const { shutdownSystem } = await import("@src/databases/db");
-  const { invalidateSetupCache } = await import("../../utils/server/setup-check");
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   const { logger } = await import("@utils/logger");
   const event = getRequestEvent();
 
@@ -235,6 +235,55 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
 
   invalidateSetupCache(true);
   return { success: true, message: "Setup has been reset." };
+});
+
+/**
+ * Checks which authentication methods are available for a given email address.
+ * Used by the sign-in form to dynamically show/hide auth method buttons.
+ */
+export const checkAuthMethods = query("unchecked", async (email: string) => {
+  await dbInitPromise;
+  if (!auth)
+    return {
+      success: false,
+      hasPassword: true,
+      hasPasskey: false,
+      hasMagicLink: false,
+      hasOAuth: false,
+    };
+  try {
+    const user = await auth.checkUser({
+      email: String(email).trim().toLowerCase(),
+    });
+    if (!user) {
+      return {
+        success: true,
+        hasPassword: true,
+        hasPasskey: false,
+        hasMagicLink: false,
+        hasOAuth: false,
+      };
+    }
+    const hasPassword = !!(user as any).password;
+    const hasPasskey =
+      Array.isArray((user as any).authenticators) && (user as any).authenticators.length > 0;
+    const hasMagicLink = !!(user as any).email;
+    return {
+      success: true,
+      hasPassword,
+      hasPasskey,
+      hasMagicLink,
+      hasOAuth: false,
+    };
+  } catch {
+    return {
+      success: false,
+      hasPassword: true,
+      hasPasskey: false,
+      hasMagicLink: false,
+      hasOAuth: false,
+    };
+  }
 });
 
 export const prefetchFirstCollection = query("unchecked", async () => {
@@ -321,7 +370,7 @@ async function signInInternal(event: RequestEvent, input: any) {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
         primeSessionMemoryCache(ar.sessionId!, user);
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
-        const { invalidateSetupCache } = await import("../../utils/server/setup-check");
+        const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch {}
     } else {
@@ -380,7 +429,18 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  return { success: true, redirectPath: "/config/collectionbuilder" };
+  // Determine redirect: user's first collection if available, otherwise builder
+  let redirectPath = "/config/collectionbuilder";
+  try {
+    const { getCachedFirstCollectionPath } = await import("@utils/server/collection-utils.server");
+    const userLanguage = (user as any).locale || (user as any).language || "en";
+    const path = await getCachedFirstCollectionPath(userLanguage as any);
+    if (path) redirectPath = path;
+  } catch {
+    // Fall back to builder
+  }
+
+  return { success: true, redirectPath };
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
@@ -420,7 +480,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
     if ((await auth.getUserCount({}, { bypassTenantCheck: true })) >= 100)
       return { success: false, message: "Demo capacity reached." };
     role = "admin";
-    tid = crypto.randomUUID();
+    // Use the demo_tenant_id cookie if present (set by handleDemoTenantAssignment)
+    // to keep tenant IDs consistent between the middleware and the sign-up flow.
+    tid = event.cookies.get("demo_tenant_id") || crypto.randomUUID();
   } else {
     if (!t) return { success: false, message: "Invitation required." };
     const td = await auth.validateRegistrationToken(t);
@@ -526,6 +588,7 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       const origin = new URL(event.request.url).origin;
       const baseUrl = publicEnv.HOST_PROD || origin;
       const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
+
       sendMail({
         recipientEmail: result.output.email,
         subject: "Reset your password",
@@ -537,18 +600,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
           resetLink,
         },
         languageTag: "en" as any,
-      })
-        .then((res) => {
-          if (!res.success || res.dev_mode) {
-            logger.warn(
-              `[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`,
-            );
-          }
-        })
-        .catch(() => {
-          logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
-          logger.debug("Password reset email sending failed silently");
-        });
+      }).catch(() => {
+        logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
+      });
     }
   } catch {}
 
@@ -648,10 +702,10 @@ async function consumeWebAuthnChallenge(
   challenge: string,
 ): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
   const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
-  const stored = (await cacheService.get(key, null)) as {
+  const stored = await cacheService.get<{
     userId: string;
     type: "registration" | "authentication";
-  } | null;
+  }>(key, null);
   await cacheService.delete(key, null);
   return stored;
 }
@@ -688,7 +742,7 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
   const options = buildAuthenticationOptions(
     rpId,
     challenge,
-    user.authenticators.map((a: any) => ({
+    user.authenticators.map((a) => ({
       id: a.credentialID,
       type: "public-key" as const,
       transports: a.transports,
@@ -753,7 +807,7 @@ export const verifyPasskeyAuth = command(
           message: "Passkey signature verification failed.",
         };
 
-      const updatedAuthenticators = (user.authenticators || []).map((a: any) =>
+      const updatedAuthenticators = (user.authenticators || []).map((a) =>
         a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
       );
       await auth.updateUserAttributes(

@@ -94,6 +94,7 @@ export function getRoleBitset(role: Role): Uint32Array {
 }
 
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
+// Supports multiple roles — grants access if ANY role has the permission.
 export function hasPermissionWithRoles(
   user: User,
   permissionId: string,
@@ -105,11 +106,11 @@ export function hasPermissionWithRoles(
   }
 
   const safeRoles = roles || [];
-  let userRole = safeRoles.find((role) => role._id === user.role);
 
-  // Fallback: user.role may reference a default role name ('admin', 'developer', 'editor')
-  // but tenant-scoped roles have UUID IDs. Match by name instead.
-  if (!userRole) {
+  // Find ALL roles matching the user (supports multiple roles)
+  const userRoles = safeRoles.filter((role) => {
+    if (role._id === user.role) return true;
+    // Fallback: match by name for default roles
     const DEFAULT_ROLE_NAMES: Record<string, string> = {
       admin: "Administrator",
       developer: "Developer",
@@ -117,12 +118,10 @@ export function hasPermissionWithRoles(
       author: "Author",
     };
     const roleName = DEFAULT_ROLE_NAMES[(user.role || "").toLowerCase()];
-    if (roleName) {
-      userRole = safeRoles.find((role) => role.name === roleName);
-    }
-  }
+    return roleName ? role.name === roleName : false;
+  });
 
-  if (!userRole) {
+  if (userRoles.length === 0) {
     logger.warn("Role not found for user", {
       email: user.email,
       userRoleId: user.role,
@@ -131,17 +130,18 @@ export function hasPermissionWithRoles(
     return false;
   }
 
-  // ADMIN OVERRIDE: Admins automatically have ALL permissions
-  if (userRole.isAdmin) {
-    logger.trace("Admin user granted permission", {
-      email: user.email,
-      permissionId,
-      userRole,
-    });
-    return true;
+  // ADMIN OVERRIDE: If ANY role is admin, grant all permissions
+  for (let ri = 0; ri < userRoles.length; ri++) {
+    if (userRoles[ri].isAdmin) {
+      logger.trace("Admin role granted permission", {
+        email: user.email,
+        permissionId,
+      });
+      return true;
+    }
   }
 
-  // Bitset Fast Path Check
+  // Bitset Fast Path Check — OR across ALL user roles
   const index = permissionToBitIndex.get(permissionId);
   if (index === undefined) {
     logger.warn("Permission denied (unregistered ID) for user", {
@@ -152,32 +152,30 @@ export function hasPermissionWithRoles(
     return false;
   }
 
-  const bitset = getRoleBitset(userRole);
+  const bitMask = 1 << (index & 31);
   const wordIndex = index >> 5;
-  if (wordIndex >= bitset.length) {
-    return false;
+
+  for (let ri = 0; ri < userRoles.length; ri++) {
+    const bitset = getRoleBitset(userRoles[ri]);
+    if (wordIndex < bitset.length && (bitset[wordIndex] & bitMask) !== 0) {
+      return true;
+    }
   }
 
-  const hasPermission = (bitset[wordIndex] & (1 << (index & 31))) !== 0;
-
-  if (!hasPermission) {
-    logger.warn("Permission denied for user", {
-      email: user.email,
-      userId: user._id,
-      userRoleId: user.role,
-      userRole,
-      permissionId,
-      userPermissions: userRole.permissions,
-      rolesAvailable: roles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
-    });
-  }
+  logger.warn("Permission denied for user across all roles", {
+    email: user.email,
+    userId: user._id,
+    userRoleIds: userRoles.map((r) => r._id),
+    permissionId,
+    rolesAvailable: roles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
+  });
   logger.trace("Permission check for user", {
     permissionId,
-    granted: hasPermission,
+    granted: false,
     email: user.email,
   });
 
-  return hasPermission;
+  return false;
 }
 
 // Add cache invalidation function

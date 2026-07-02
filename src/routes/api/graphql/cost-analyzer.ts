@@ -19,9 +19,10 @@ import { parse, visit, type ASTNode, type FieldNode } from "graphql";
 /** Default maximum query cost before rejection. */
 export const DEFAULT_MAX_COST = 1000;
 
-/** LRU cache for parsed query cost — avoids re-parsing repeated queries. */
-const costCache = new Map<string, CostAnalysisResult>();
+/** Dual-map sliding cache: O(1) eviction via window swap instead of O(N) iterator deletion. */
 const MAX_CACHE_SIZE = 500;
+let currentCache = new Map<string, CostAnalysisResult>();
+let oldCache = new Map<string, CostAnalysisResult>();
 
 export interface CostAnalysisResult {
   /** Total computed cost of the query */
@@ -47,9 +48,16 @@ export function analyzeQueryCost(
   queryString: string,
   maxCost: number = DEFAULT_MAX_COST,
 ): CostAnalysisResult {
-  // Cache hit — skip parse for repeated queries
-  const cached = costCache.get(queryString);
+  // Dual-map cache: check current → old → promote → compute
+  let cached = currentCache.get(queryString);
   if (cached) return cached;
+
+  cached = oldCache.get(queryString);
+  if (cached) {
+    // Promote to fresh window
+    currentCache.set(queryString, cached);
+    return cached;
+  }
 
   let document: ReturnType<typeof parse>;
 
@@ -102,12 +110,12 @@ export function analyzeQueryCost(
     fields,
   };
 
-  // Cache the result (LRU eviction when full)
-  if (costCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = costCache.keys().next().value;
-    if (firstKey !== undefined) costCache.delete(firstKey);
+  // O(1) sliding window: when current fills, swap — no iterator allocation
+  if (currentCache.size >= MAX_CACHE_SIZE) {
+    oldCache = currentCache;
+    currentCache = new Map();
   }
-  costCache.set(queryString, result);
+  currentCache.set(queryString, result);
 
   return result;
 }

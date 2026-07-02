@@ -378,18 +378,25 @@ Every configuration workspace must invoke the global `<PageTitle>` primitive. Wr
 
 All content grids, data tables, metrics feeds, and system blocks must reside inside an explicit bounding card. No content may lay bare on the application viewport background.
 
-```
-<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
-     style="border-radius: var(--admin-radius-card, 0.75rem);">
+Use the **`<AdminCard>`** component instead of raw `<div class="card...">`:
+
+```svelte
+<script lang="ts">
+  import AdminCard from '@components/admin-card.svelte';
+</script>
+
+<AdminCard>
   <!-- Tables, grids, forms, stats — everything goes inside a card -->
-</div>
+</AdminCard>
 ```
+
+The `AdminCard` component (`src/components/admin-card.svelte`) automatically applies `--admin-radius-card`, `--admin-border-width`, and `--admin-shadow-elevation` from the active admin theme. It also supports optional `variant` and `preset` props for preset styling.
 
 **Rules**:
 
-- Always wrap content blocks in cards, never bare `<div>` sections.
+- Always wrap content blocks in `<AdminCard>`, never bare `<div>` sections.
 - Use `space-y-4` or `space-y-6` inside cards for internal spacing.
-- Always include `style="border-radius: var(--admin-radius-card, 0.75rem);"` to respect the active admin theme.
+- The component handles theme CSS variable fallbacks automatically.
 
 ## 💎 Enterprise Layout Principles
 
@@ -559,5 +566,5 @@ Before submitting a PR:
 ## Related
 
 - [Getting Started](../getting-started.mdx)
-- [Architecture Overview](../architecture/index.mdx)
-- [Security Overview](../architecture/security/index.mdx)
+- [Architecture Overview](../reference/architecture/index.mdx)
+- [Security Overview](../reference/security/index.mdx)

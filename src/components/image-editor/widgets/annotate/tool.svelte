@@ -10,6 +10,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import AnnotateControls from './controls.svelte';
+	import AnnotateControlsMobile from './controls-mobile.svelte';
 
 	type ToolType = 'text' | 'arrow' | 'rectangle' | 'circle' | null;
 
@@ -48,6 +49,9 @@ Allows users to add text, arrows, rectangles, and circles to images.
 
 	// Drawing state
 	let isDrawing = $state(false);
+	let isDraggingAnnotation = $state(false);
+	let dragStart = { x: 0, y: 0 };
+	let dragAnnotationOrigin = $state<Annotation | null>(null);
 	let startPoint = { x: 0, y: 0 };
 	let currentPoint = { x: 0, y: 0 };
 	let previewPoint = $state<{ x: number; y: number } | null>(null);
@@ -84,7 +88,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		storeState.annotations = [...annotations, newAnnotation];
 		selectedAnnotationId = newAnnotation.id;
 		imageEditorStore.takeSnapshot();
-		updateToolbar();
+		refreshToolbar();
 	}
 
 	function updateSelectedTextAnnotation(text: string) {
@@ -111,30 +115,137 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		}
 
 		imageEditorStore.takeSnapshot();
-		updateToolbar();
+		refreshToolbar();
+	}
+
+	function getSelectedAnnotationType(): Annotation['type'] | null {
+		if (!selectedAnnotationId) {
+			return null;
+		}
+
+		return annotations.find((ann) => ann.id === selectedAnnotationId)?.type ?? null;
+	}
+
+	function applyTextDraft() {
+		const trimmed = textDraft.trim() || 'Text';
+		textDraft = trimmed;
+
+		if (selectedAnnotationId) {
+			const selected = annotations.find((ann) => ann.id === selectedAnnotationId);
+			if (selected?.type === 'text') {
+				updateSelectedTextAnnotation(trimmed);
+				imageEditorStore.takeSnapshot();
+				refreshToolbar();
+				return;
+			}
+		}
+
+		if (currentTool === 'text') {
+			const img = storeState.imageElement;
+			if (!img) {
+				return;
+			}
+			addTextAnnotation(img.width / 2, img.height / 2, trimmed);
+		}
 	}
 
 	function resetLocalState() {
 		isDrawing = false;
+		isDraggingAnnotation = false;
+		dragAnnotationOrigin = null;
 		currentTool = null;
 		textDraft = 'Text';
 		previewPoint = null;
 		selectedAnnotationId = null;
 	}
 
-	// Mouse event handlers
-	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
-		const pos = screenToImage(e.offsetX, e.offsetY, width, height);
+	function resolveScreenPoint(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX: number | undefined = undefined,
+		canvasY: number | undefined = undefined
+	) {
+		if (canvasX !== undefined && canvasY !== undefined) {
+			return { x: canvasX, y: canvasY };
+		}
+		const target = e.currentTarget as HTMLElement | null;
+		if (target?.getBoundingClientRect) {
+			const rect = target.getBoundingClientRect();
+			return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+		}
+		return { x: e.offsetX, y: e.offsetY };
+	}
+
+	function imagePos(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX: number | undefined = undefined,
+		canvasY: number | undefined = undefined
+	) {
+		const screen = resolveScreenPoint(e, width, height, canvasX, canvasY);
+		return screenToImage(screen.x, screen.y, width, height);
+	}
+
+	function hitMargin() {
+		const screenPx = imageEditorStore.isMobile ? 28 : 10;
+		return screenPx / Math.max(storeState.zoom, 0.1);
+	}
+
+	function minShapeSize() {
+		return imageEditorStore.isMobile ? 8 : 5;
+	}
+
+	function cloneAnnotation(ann: Annotation): Annotation {
+		return { ...ann };
+	}
+
+	function moveAnnotationBy(ann: Annotation, dx: number, dy: number): Annotation {
+		if (ann.type === 'arrow') {
+			return {
+				...ann,
+				x: ann.x + dx,
+				y: ann.y + dy,
+				x2: (ann.x2 ?? ann.x) + dx,
+				y2: (ann.y2 ?? ann.y) + dy
+			};
+		}
+
+		return {
+			...ann,
+			x: ann.x + dx,
+			y: ann.y + dy
+		};
+	}
+
+	function updateAnnotationById(id: string, next: Annotation) {
+		storeState.annotations = annotations.map((ann) => (ann.id === id ? next : ann));
+	}
+
+	// Pointer handlers (mouse + touch via canvas coordinates)
+	export function handleMouseDown(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX: number | undefined = undefined,
+		canvasY: number | undefined = undefined
+	) {
+		const pos = imagePos(e, width, height, canvasX, canvasY);
 		previewPoint = pos;
 
-		// Check if clicking on existing annotation
+		// Check if tapping an existing annotation — select and drag
 		for (const ann of annotations) {
 			if (isPointInAnnotation(pos, ann)) {
 				selectedAnnotationId = ann.id;
+				isDraggingAnnotation = true;
+				isDrawing = false;
+				dragStart = { x: pos.x, y: pos.y };
+				dragAnnotationOrigin = cloneAnnotation(ann);
 				if (ann.type === 'text') {
 					textDraft = ann.text || 'Text';
 				}
-				updateToolbar();
+				refreshToolbar();
 				return;
 			}
 		}
@@ -147,33 +258,69 @@ Allows users to add text, arrows, rectangles, and circles to images.
 			}
 
 			isDrawing = true;
+			isDraggingAnnotation = false;
+			dragAnnotationOrigin = null;
 			startPoint = pos;
 			currentPoint = pos;
 			selectedAnnotationId = null;
 		} else {
 			selectedAnnotationId = null;
+			isDraggingAnnotation = false;
+			dragAnnotationOrigin = null;
 		}
 
-		updateToolbar();
+		refreshToolbar();
 	}
 
-	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
-		const pos = screenToImage(e.offsetX, e.offsetY, width, height);
+	export function handleMouseMove(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX: number | undefined = undefined,
+		canvasY: number | undefined = undefined
+	) {
+		const pos = imagePos(e, width, height, canvasX, canvasY);
 		previewPoint = pos;
+
+		if (isDraggingAnnotation && selectedAnnotationId && dragAnnotationOrigin) {
+			const dx = pos.x - dragStart.x;
+			const dy = pos.y - dragStart.y;
+			updateAnnotationById(selectedAnnotationId, moveAnnotationBy(dragAnnotationOrigin, dx, dy));
+			return;
+		}
+
 		if (!isDrawing) return;
 		currentPoint = pos;
 	}
 
-	export function handleMouseUp(e: MouseEvent, width: number, height: number) {
+	export function handleMouseUp(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX: number | undefined = undefined,
+		canvasY: number | undefined = undefined
+	) {
+		if (isDraggingAnnotation) {
+			isDraggingAnnotation = false;
+			dragAnnotationOrigin = null;
+			imageEditorStore.takeSnapshot();
+			refreshToolbar();
+			return;
+		}
+
 		if (!isDrawing || !currentTool) {
 			isDrawing = false;
 			return;
 		}
 
-		const endPoint = screenToImage(e.offsetX, e.offsetY, width, height);
+		const endPoint =
+			canvasX !== undefined && canvasY !== undefined
+				? screenToImage(canvasX, canvasY, width, height)
+				: currentPoint;
 
 		// Create annotation based on tool
 		let newAnnotation: Annotation | null = null;
+		const minSize = minShapeSize();
 
 		if (currentTool === 'arrow' || currentTool === 'rectangle' || currentTool === 'circle') {
 			const minX = Math.min(startPoint.x, endPoint.x);
@@ -182,6 +329,12 @@ Allows users to add text, arrows, rectangles, and circles to images.
 			const maxY = Math.max(startPoint.y, endPoint.y);
 
 			if (currentTool === 'arrow') {
+				if (
+					Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y) < minSize
+				) {
+					isDrawing = false;
+					return;
+				}
 				newAnnotation = {
 					id: generateId(),
 					type: 'arrow',
@@ -194,7 +347,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 					strokeWidth
 				};
 			} else if (currentTool === 'rectangle') {
-				if (Math.abs(maxX - minX) < 5 || Math.abs(maxY - minY) < 5) {
+				if (Math.abs(maxX - minX) < minSize || Math.abs(maxY - minY) < minSize) {
 					isDrawing = false;
 					return;
 				}
@@ -210,8 +363,8 @@ Allows users to add text, arrows, rectangles, and circles to images.
 					strokeWidth
 				};
 			} else if (currentTool === 'circle') {
-				const radius = Math.sqrt(Math.pow(maxX - minX, 2) + Math.pow(maxY - minY, 2)) / 2;
-				if (radius < 5) {
+				const radius = Math.hypot(maxX - minX, maxY - minY) / 2;
+				if (radius < minSize) {
 					isDrawing = false;
 					return;
 				}
@@ -235,60 +388,113 @@ Allows users to add text, arrows, rectangles, and circles to images.
 		}
 
 		isDrawing = false;
-		updateToolbar();
+		refreshToolbar();
 	}
 
 	// Check if point is inside annotation
 	function isPointInAnnotation(point: { x: number; y: number }, ann: Annotation): boolean {
-		const margin = 10;
+		const margin = hitMargin();
 		switch (ann.type) {
 			case 'rect':
-				return point.x >= ann.x! - margin && point.x <= ann.x! + ann.width! + margin && point.y >= ann.y! - margin && point.y <= ann.y! + ann.height! + margin;
-			case 'circle':
-				const dist = Math.sqrt(Math.pow(point.x - ann.x, 2) + Math.pow(point.y - ann.y, 2));
+				return (
+					point.x >= ann.x! - margin &&
+					point.x <= ann.x! + ann.width! + margin &&
+					point.y >= ann.y! - margin &&
+					point.y <= ann.y! + ann.height! + margin
+				);
+			case 'circle': {
+				const dist = Math.hypot(point.x - ann.x, point.y - ann.y);
 				return dist <= (ann.radius || 0) + margin;
-			case 'text':
-				return point.x >= ann.x - margin && point.x <= ann.x + (ann.text?.length || 0) * (ann.fontSize || 24) / 2 + margin && point.y >= ann.y - (ann.fontSize || 24) - margin && point.y <= ann.y + margin;
-			case 'arrow':
-				return Math.abs(point.x - ann.x!) < margin && Math.abs(point.y - ann.y!) < margin;
+			}
+			case 'text': {
+				const fontSize = ann.fontSize || 24;
+				const textWidth = (ann.text?.length || 1) * fontSize * 0.55;
+				return (
+					point.x >= ann.x - margin &&
+					point.x <= ann.x + textWidth + margin &&
+					point.y >= ann.y - fontSize - margin &&
+					point.y <= ann.y + margin
+				);
+			}
+			case 'arrow': {
+				if (ann.x2 === undefined || ann.y2 === undefined) {
+					return Math.abs(point.x - ann.x!) < margin && Math.abs(point.y - ann.y!) < margin;
+				}
+				const minX = Math.min(ann.x, ann.x2) - margin;
+				const maxX = Math.max(ann.x, ann.x2) + margin;
+				const minY = Math.min(ann.y, ann.y2) - margin;
+				const maxY = Math.max(ann.y, ann.y2) + margin;
+				return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+			}
 		}
 		return false;
+	}
+
+	function isAnnotateToolbarComponent(component: unknown): boolean {
+		return component === AnnotateControls || component === AnnotateControlsMobile;
+	}
+
+	function setTool(next: ToolType) {
+		currentTool = next;
+		if (!next) {
+			previewPoint = null;
+		}
 	}
 
 	// Toolbar update
 	$effect(() => {
 		const activeState = imageEditorStore.state.activeState;
+		const viewportWidth = imageEditorStore.state.viewportWidth;
+		const isMobile = viewportWidth < imageEditorStore.mobileBreakpoint;
+		const tool = currentTool;
+		const stroke = strokeColor;
+		const fill = fillColor;
+		const draft = textDraft;
+		const hasSelection = !!selectedAnnotationId;
+		const selectedType = getSelectedAnnotationType();
+
 		if (activeState === 'annotate') {
-			updateToolbar();
-		} else if (imageEditorStore.state.toolbarControls?.component === AnnotateControls) {
+			updateToolbar(isMobile, tool, stroke, fill, draft, hasSelection, selectedType);
+		} else if (!activeState && isAnnotateToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
 
-	function updateToolbar() {
+	function updateToolbar(
+		isMobile: boolean,
+		tool: ToolType,
+		stroke: string,
+		fill: string,
+		draft: string,
+		hasSelection: boolean,
+		selectedType: Annotation['type'] | null
+	) {
+		const ControlsComponent = isMobile ? AnnotateControlsMobile : AnnotateControls;
+
 		imageEditorStore.setToolbarControls({
-			component: AnnotateControls,
+			component: ControlsComponent,
 			props: {
-				currentTool,
-				strokeColor,
-				fillColor,
-				textDraft,
-				onSetTool: (t: ToolType) => {
-					currentTool = t;
-					if (!t) {
-						previewPoint = null;
-					}
+				currentTool: tool,
+				strokeColor: stroke,
+				fillColor: fill,
+				textDraft: draft,
+				selectedType,
+				onSetTool: setTool,
+				onStrokeColorChange: (v: string) => {
+					strokeColor = v;
 				},
-				onStrokeColorChange: (v: string) => (strokeColor = v),
-				onFillColorChange: (v: string) => (fillColor = v),
+				onFillColorChange: (v: string) => {
+					fillColor = v;
+				},
 				onTextDraftChange: (v: string) => {
 					textDraft = v;
 					updateSelectedTextAnnotation(v);
 				},
-				hasSelection: !!selectedAnnotationId,
+				onApplyText: applyTextDraft,
+				hasSelection,
 				onDeleteAnnotation: deleteSelectedAnnotation,
 				onAddText: () => {
-					if (currentTool === 'text') {
+					if (tool === 'text') {
 						const img = storeState.imageElement;
 						if (!img) return;
 						addTextAnnotation(img.width / 2, img.height / 2);
@@ -296,6 +502,18 @@ Allows users to add text, arrows, rectangles, and circles to images.
 				}
 			}
 		});
+	}
+
+	function refreshToolbar() {
+		updateToolbar(
+			imageEditorStore.state.viewportWidth < imageEditorStore.mobileBreakpoint,
+			currentTool,
+			strokeColor,
+			fillColor,
+			textDraft,
+			!!selectedAnnotationId,
+			getSelectedAnnotationType()
+		);
 	}
 
 	// Render function
@@ -450,7 +668,6 @@ Allows users to add text, arrows, rectangles, and circles to images.
 
 	export function beforeExit() {
 		resetLocalState();
-		imageEditorStore.setToolbarControls(null);
 	}
 </script>
 

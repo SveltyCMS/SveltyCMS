@@ -407,6 +407,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_themes_name_tenant" ON "themes" ("name", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_404_logs_path_tenant" ON "404_logs" ("path", "tenantId");
 
       -- Full-text search virtual table (not auto-created by Drizzle ORM)
       -- Keep an internal mirror keyed by _id so we don't depend on nonexistent title/content columns

@@ -572,10 +572,8 @@ function handleFinalize(e: CustomEvent, targetParentId: string | null) {
 	const flatAfterMove = flattenTree(newTreeRoots);
 	const withPaths = recalculatePaths(flatAfterMove);
 	const treeWithPaths = buildTree(withPaths);
-	// Update state - JSON round-trip to strip proxies for svelte-dnd-action
-	treeRoots = JSON.parse(
-		JSON.stringify(treeWithPaths),
-	) as EnhancedTreeViewItem[];
+	// Update state - Svelte 5 native snapshot to strip proxies cleanly without triggering unmounts/flickers
+	treeRoots = $state.snapshot(treeWithPaths) as EnhancedTreeViewItem[];
 
 	// Save and notify parent (path/parentId already correct in treeRoots)
 	saveTreeData();
@@ -1048,7 +1046,7 @@ const flipDurationMs = 200;
 				type="button"
 				onclick={clearSearch}
 				aria-label="Clear search"
-			 class="p-0! min-w-0 absolute end-2 top-1/2 -translate-y-1/2 z-10">
+			 class="p-0! min-w-0 absolute inset-e-2 top-1/2 -translate-y-1/2 z-10">
 				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
 			</Button>
 		{/if}

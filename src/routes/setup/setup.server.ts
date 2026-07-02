@@ -404,9 +404,13 @@ export async function completeSetup(
         logger.error("Failed to update architectural modes in private.ts:", modeError);
       }
 
-      // Invalidate the cache to ensure the new settings are picked up instantly
+      // Invalidate settings cache + reload private config to pick up MULTI_TENANT/DEMO changes
       const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
       invalidateSettingsCache();
+      const { clearPrivateConfigCache, loadPrivateConfig } =
+        await import("@src/databases/config-state");
+      clearPrivateConfigCache();
+      await loadPrivateConfig(true);
     } catch (e) {
       logger.error("Failed to save custom system preferences during setup:", e);
     }

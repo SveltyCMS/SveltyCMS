@@ -1,12 +1,6 @@
 /**
  * @file tests/benchmarks/auth-performance.test.ts
- * @description Authentication & RBAC Pipeline Benchmark
- * @summary Measures HTTP auth pipeline performance including session verification and RBAC resolution at 1c and 8c concurrency levels.
- *
- * ### Features:
- * - Session verification throughput at single-concurrency (1c)
- * - Full HTTP auth pipeline stress at 8-concurrent connections
- * - Memory footprint (RSS delta) measurement during auth operations
+ * @description Authentication & RBAC Pipeline Benchmark (Production Optimized)
  */
 
 import {
@@ -25,6 +19,13 @@ import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
+// Reusable static structure layout
+const STATIC_AUTH_HEADERS = new Headers([
+  ["x-test-mode", "true"],
+  ["x-test-secret", TEST_API_SECRET],
+  ["connection", "keep-alive"],
+]);
+
 async function runAuthAudit() {
   console.log(`🚀 Starting Enterprise Auth & RBAC Audit (${getDbType().toUpperCase()})...\n`);
 
@@ -35,9 +36,11 @@ async function runAuthAudit() {
 
     await stabilize(1000);
 
-    const authHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+    const targetUrl = `${baseUrl}/api/user/me`;
+    const fetchConfig: RequestInit = {
+      method: "GET",
+      headers: STATIC_AUTH_HEADERS,
+      keepalive: true,
     };
 
     const results = [];
@@ -54,11 +57,9 @@ async function runAuthAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/user/me`, {
-          headers: authHeaders,
-        });
+        const res = await fetch(targetUrl, fetchConfig);
         if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
     results.push({ ...lightResult, layer: "HTTP", shortLabel: "Auth-1c" });
@@ -70,16 +71,14 @@ async function runAuthAudit() {
       iterations: 600,
       warmupIterations: 80,
       runs: 2,
-      concurrency: 8,
+      concurrency: 8, // High-concurrency stress profile
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/user/me`, {
-          headers: authHeaders,
-        });
+        const res = await fetch(targetUrl, fetchConfig);
         if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-        await res.json();
+        await res.arrayBuffer();
       },
     });
     results.push({ ...httpResult, layer: "HTTP", shortLabel: "Auth-8c" });
@@ -87,7 +86,7 @@ async function runAuthAudit() {
     printTruthTable({
       title: "SVELTYCMS — AUTHENTICATION TELEMETRY",
       shortLabel: "Auth",
-      subtitle: `Session Verification \u2022 RBAC Resolution \u2022 ${getDbType().toUpperCase()}`,
+      subtitle: `Session Verification • RBAC Resolution • ${getDbType().toUpperCase()}`,
       results,
     });
 
@@ -95,11 +94,7 @@ async function runAuthAudit() {
       { key: "Auth Latency (1c)", val: lightResult.avgMs, unit: "ms" },
       { key: "Auth Pipeline (8c)", val: httpResult.avgMs, unit: "ms" },
       { key: "Peak Auth RPS", val: Math.round(httpResult.rps), unit: "req/s" },
-      {
-        key: "Auth Memory RSS \u0394",
-        val: (httpResult.rssDelta || 0).toFixed(2),
-        unit: "MB",
-      },
+      { key: "Auth Memory RSS Δ", val: (httpResult.rssDelta || 0).toFixed(2), unit: "MB" },
     ]);
 
     for (const r of results) exportResult(r);

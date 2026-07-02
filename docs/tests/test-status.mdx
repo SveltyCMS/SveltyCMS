@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-26"
+updated: "2026-06-29"
 tags:
   - "testing"
   - "status"
@@ -20,12 +20,12 @@ tags:
 
 ## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
-| Metric                      | Before | After                                                                  |
-| --------------------------- | ------ | ---------------------------------------------------------------------- |
-| Execution time (SQLite)     | ~9 min | ~70 sec                                                                |
-| Server starts/stops per run | 72     | 2 (mode switches only)                                                 |
-| Pass rate                   | 31/36  | **35/36** (2 FormData subtests fail in `media.test.ts`, [#regression]) |
-| Speedup                     | —      | **~7.5x**                                                              |
+| Metric                      | Before | After                                                          |
+| --------------------------- | ------ | -------------------------------------------------------------- |
+| Execution time (SQLite)     | ~9 min | ~70 sec                                                        |
+| Server starts/stops per run | 72     | 2 (mode switches only)                                         |
+| Pass rate                   | 31/36  | **36/36** (All integration tests pass; media 404 error mapped) |
+| Speedup                     | —      | **~7.5x**                                                      |
 
 **Coverage**: 36 spec files across 4 domains
 
@@ -78,15 +78,18 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 3. Unit Tests
 
-| Metric            | Value                                                                     |
-| ----------------- | ------------------------------------------------------------------------- |
-| Total tests       | **1,221**                                                                 |
-| Pass rate         | 100%                                                                      |
-| Test files        | 127                                                                       |
-| Security-specific | 64 (defense-in-depth, auth, RBAC)                                         |
-| Content-specific  | 35 (cache helpers, reconciliation, API surface, collection builder utils) |
-| Media-specific    | 40 (sharing, MIME utils, binary sniffer)                                  |
-| Utils integrity   | 4 (circular import detection, barrel health)                              |
+| Metric                | Value                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| Total tests           | **1,440+**                                                                         |
+| Pass rate             | 100%                                                                               |
+| Test files            | 163                                                                                |
+| Security-specific     | 67 (defense-in-depth, auth, RBAC, CSRF client-bypass)                              |
+| Content-specific      | 35 (cache helpers, reconciliation, API surface, collection builder utils)          |
+| Media-specific        | 40 (sharing, MIME utils, binary sniffer)                                           |
+| Image editor          | 35 (widget registry validation, plugin slot rendering, defaults + sorting)         |
+| Utils integrity       | 4 (circular import detection, barrel health)                                       |
+| **Bulk delete guard** | 6 (API handler, SDK layer, 403 status, error code)                                 |
+| **Cache service**     | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh) |
 
 **June 2026 additions**:
 
@@ -120,6 +123,13 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | media-utils.test.ts  | 15    | MIME lookup, reverse extension mapping, filename sanitization, file/buffer validation, hash-path resolution |
 | slim-sniffer.test.ts | 12    | Binary MIME detection for JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM                                   |
 
+`tests/unit/components/image-editor/` — 35 image editor widget and plugin slot tests:
+
+| Test file                | Tests | Covers                                                                                                                                                    |
+| ------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| widget-registry.test.ts  | 27    | isValidWidget validation (12 cases), default value application (8), sorting by order/title (3), disabled filtering (2), category + key lookup (2)         |
+| plugin-tool-slot.test.ts | 8     | image_editor_tool InjectionZone acceptance, slot registration/deduplication, zone isolation, server actions, prop passthrough, condition filtering, clear |
+
 `tests/unit/utils/` — 4 barrel integrity tests:
 
 | Test file                | Tests | Covers                                                                                   |
@@ -130,35 +140,37 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 4. CI Pipeline Gates
 
-| Gate              | Runtime    | What it catches                                   |
-| ----------------- | ---------- | ------------------------------------------------- |
-| Bootstrap         | ~30s       | Dep install, codegen                              |
-| Lint + Type Check | ~40s       | oxlint, svelte-check, tsc                         |
-| Unit Tests        | ~12s       | 1,174 Vitest specs                                |
-| Build             | ~30s       | Production build integrity                        |
-| DB Matrix (×4)    | ~3min each | SQLite, MongoDB, MariaDB, PostgreSQL integration  |
-| E2E Wizard        | ~30s       | Setup wizard flow                                 |
-| E2E Auth          | ~20s       | Login + session creation                          |
-| E2E App (×17)     | ~15s each  | Full admin surface (signup through media gallery) |
+| Gate              | Runtime         | What it catches                                                             |
+| ----------------- | --------------- | --------------------------------------------------------------------------- |
+| Bootstrap         | ~30s            | Dep install, codegen                                                        |
+| Lint + Type Check | ~40s            | oxlint, svelte-check, tsc                                                   |
+| Unit Tests        | ~12s            | 1,100+ Vitest specs                                                         |
+| Build             | ~30s            | Production build integrity                                                  |
+| Integration (×4)  | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL contract tests                         |
+| Benchmarks (×61)  | ~10h full suite | 61 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR |
+| E2E Wizard        | ~30s            | Setup wizard flow                                                           |
+| E2E Auth          | ~20s            | Login + session creation                                                    |
+| E2E App (×17)     | ~15s each       | Full admin surface (signup through media gallery)                           |
 
 ## 5. Gaps — What's NOT Tested
 
-| Gap                            | Risk                                                                       | Priority  |
-| ------------------------------ | -------------------------------------------------------------------------- | --------- |
-| **Image editor save E2E**      | Editor open + crop/focal tools covered; manipulate save not browser-tested | 🟢 Low    |
-| **GraphQL E2E**                | Only integration-tested; no browser-level GQL query test                   | 🟡 Medium |
-| **SSO/OAuth integration**      | Mock-only test; no real IdP flow validation                                | 🟡 Medium |
-| **Dashboard drag-reorder E2E** | Widget grid smoke covered; drag-and-drop reorder not browser-tested        | 🟢 Low    |
-| **Performance regression**     | Benchmarks gated to `main` only; no per-PR perf diff                       | 🟡 Medium |
+| Gap                            | Risk                                                                       | Priority                                        |
+| ------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------- |
+| **GraphQL E2E**                | Only integration-tested; no browser-level GQL query test                   | 🟡 Medium                                       |
+| **SSO/OAuth integration**      | Mock-only test; no real IdP flow validation                                | 🟡 Medium                                       |
+| **Dashboard drag-reorder E2E** | Widget grid smoke covered; drag-and-drop reorder not browser-tested        | 🟢 Low                                          |
+| - **Performance regression**   | Benchmarks now using per-test multi-DB runner; 61 tests × 8 DB variants    | 🟡 Medium — see database-tests.mdx for strategy |
+| **Image editor E2E save**      | Editor open + crop/focal tools covered; manipulate save not browser-tested | 🟢 Low                                          |
 
-| Gap                                      | Risk                                                                                         | Priority |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------- | -------- |
-| **Plugin/extension E2E**                 | Stripe, cookie-consent, editable-website untested at browser level                           | 🟢 Low   |
-| **Mobile viewport**                      | All tests run Desktop Chrome only                                                            | 🟢 Low   |
-| **Multi-tenant E2E**                     | No cross-tenant isolation test at browser level                                              | 🟢 Low   |
-| **✅ Media sharing & MIME** (resolved)   | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)           | —        |
-| **✅ Content reconciliation** (resolved) | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                     | —        |
-| **✅ Proxy & tenant filter** (resolved)  | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests) | —        |
+| Gap                                                          | Risk                                                                                                    | Priority |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | -------- |
+| **Plugin/extension E2E**                                     | Stripe, cookie-consent, editable-website untested at browser level                                      | 🟢 Low   |
+| **Mobile viewport**                                          | All tests run Desktop Chrome only                                                                       | 🟢 Low   |
+| **Multi-tenant E2E**                                         | No cross-tenant isolation test at browser level                                                         | 🟢 Low   |
+| **✅ Media sharing & MIME** (resolved)                       | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)                      | —        |
+| **✅ Content reconciliation** (resolved)                     | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                                | —        |
+| **✅ Proxy & tenant filter** (resolved)                      | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests)            | —        |
+| **✅ Image editor widget registry + plugin slot** (resolved) | Now covered by `tests/unit/components/image-editor/` (35 tests: registry validation, plugin tool slots) | —        |
 
 ## 6. Recommended Next Actions
 

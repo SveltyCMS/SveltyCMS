@@ -96,6 +96,7 @@ bulk actions, and predictive preloading.
 	// @ts-ignore - IDE module resolution issue
 	import { dndzone } from 'svelte-dnd-action';
 	import { browser } from '$app/environment';
+	import { ROW_HEIGHT, VIRTUAL_BUFFER } from '@utils/table-constants';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import EntryListMultiButton from './entry-list-multi-button.svelte';
@@ -177,6 +178,36 @@ bulk actions, and predictive preloading.
 	const filterDebounce = debounce(500);
 	const searchDebounce = debounce(400);
 	const useRowVirtualization = $derived(serverPagination.pageSize > 25);
+
+	// Virtual scroll state for large pages (>25 rows per page)
+	let scrollContainerEl = $state<HTMLDivElement | null>(null);
+	let virtualScrollTop = $state(0);
+	let containerHeight = $state(600);
+
+	const virtualStartIndex = $derived(
+	  useRowVirtualization
+	    ? Math.max(0, Math.floor(virtualScrollTop / ROW_HEIGHT) - VIRTUAL_BUFFER)
+	    : 0
+	);
+	const virtualEndIndex = $derived(
+	  useRowVirtualization
+	    ? Math.min(tableData.length, Math.ceil((virtualScrollTop + containerHeight) / ROW_HEIGHT) + VIRTUAL_BUFFER)
+	    : tableData.length
+	);
+	const visibleRows = $derived(
+	  useRowVirtualization
+	    ? tableData.slice(virtualStartIndex, virtualEndIndex)
+	    : tableData
+	);
+	const spacerTop = $derived(useRowVirtualization ? virtualStartIndex * ROW_HEIGHT : 0);
+	const spacerBottom = $derived(useRowVirtualization ? (tableData.length - virtualEndIndex) * ROW_HEIGHT : 0);
+
+	function onVirtualScroll() {
+	  if (scrollContainerEl) {
+	    virtualScrollTop = scrollContainerEl.scrollTop;
+	    containerHeight = scrollContainerEl.clientHeight || 600;
+	  }
+	}
 
 	function onFilterChange(filterName: string, value: string) {
 		filterDebounce(() => {
@@ -885,7 +916,7 @@ bulk actions, and predictive preloading.
 				</h1>
 			</div>
 		</div>
-		<div class="flex items-center justify-between gap-1 overflow-x-auto flex-shrink-0 max-w-full">
+		<div class="flex items-center justify-between gap-1 overflow-x-auto shrink-0 max-w-full">
 			<!-- Expand/Collapse -->
 			<Button variant="outline"
 				type="button"
@@ -906,7 +937,7 @@ bulk actions, and predictive preloading.
 			</div>
 
 			<!-- MultiButton -->
-			<div class="flex items-center justify-end sm:mt-0 sm:w-auto flex-shrink-0">
+			<div class="flex items-center justify-end sm:mt-0 sm:w-auto sshrink-0">
 				<EntryListMultiButton
 					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
@@ -976,7 +1007,7 @@ bulk actions, and predictive preloading.
 	{/if}
 
 	{#if tableData.length > 0 || hasActiveFilters}
-		<div class="table-container max-h-[calc(100dvh)] overflow-auto">
+		<div bind:this={scrollContainerEl} onscroll={onVirtualScroll} class="table-container max-h-[calc(100dvh)] overflow-auto">
 			<table class="table table-interactive table-hover">
 				<!-- Table Header -->
 				<thead class="sticky top-0 z-10 bg-secondary-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
@@ -1064,19 +1095,23 @@ bulk actions, and predictive preloading.
 					</tr>
 				</thead>
 				<tbody>
+					{#if useRowVirtualization && spacerTop > 0}
+						<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
+					{/if}
 					{#if tableData.length > 0}
-						{#each tableData as entry, index (entry._id)}
+						{#each visibleRows as entry, idx (entry._id)}
+							{@const realIndex = useRowVirtualization ? virtualStartIndex + idx : idx}
 							<tr
-								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
+								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[realIndex] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
 								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
 								<TableIcons
-									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
-									checked={selectedMap[index]}
+									cellClass={`w-10 text-center ${selectedMap[realIndex] ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+									checked={selectedMap[realIndex]}
 									onCheck={(isChecked: boolean) => {
-										selectedMap[index] = isChecked;
+										selectedMap[realIndex] = isChecked;
 									}}
 								/>
 								{#if visibleTableHeaders}
@@ -1200,6 +1235,9 @@ bulk actions, and predictive preloading.
 								{/if}
 							</tr>
 						{/each}
+						{#if useRowVirtualization && spacerBottom > 0}
+							<tr style="height: {spacerBottom}px" aria-hidden="true"></tr>
+						{/if}
 					{:else}
 						<tr>
 							<td colspan={visibleTableHeaders.length + 1} class="p-4 text-center text-surface-500 dark:text-surface-50">No results found.</td>

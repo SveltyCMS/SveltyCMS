@@ -148,6 +148,37 @@ function wiggle(el: HTMLFormElement | null) {
 }
 
 // ---------------------------------------------------------------------------
+// Dynamic Auth Methods Checking
+// ---------------------------------------------------------------------------
+let allowedMethods = $state({
+	hasPassword: true,
+	hasPasskey: false,
+	hasMagicLink: false,
+	hasOAuth: false,
+});
+let checkTimeout: ReturnType<typeof setTimeout> | undefined;
+
+function onEmailInput() {
+	if (checkTimeout) clearTimeout(checkTimeout);
+	checkTimeout = setTimeout(async () => {
+		const email = (loginForm.data.email || "").trim().toLowerCase();
+		if (!email || !email.includes('@')) {
+			allowedMethods = { hasPassword: true, hasPasskey: false, hasMagicLink: false, hasOAuth: false };
+			return;
+		}
+		try {
+			const { checkAuthMethods } = await import("../auth.remote");
+			const res = await checkAuthMethods(email);
+			if (res.success) {
+				allowedMethods = { ...allowedMethods, ...res };
+			}
+		} catch (e) {
+			console.error("Failed to check auth methods", e);
+		}
+	}, 400);
+}
+
+// ---------------------------------------------------------------------------
 // Login form
 // ---------------------------------------------------------------------------
 
@@ -194,6 +225,7 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 		}
 
 		if (result.success && result.redirectPath) {
+			console.log('[SignIn Client] redirectPath:', result.redirectPath);
 			isAuthenticating = true;
 			sessionStorage.setItem(
 				"flashMessage",
@@ -619,6 +651,7 @@ $effect(() => {
 								autocapitalize="none"
 								spellcheck={false}
 								bind:value={loginForm.data.email}
+								oninput={onEmailInput}
 								label={email()}
 								required
 								icon="mdi:email"
@@ -651,7 +684,7 @@ $effect(() => {
 						</form>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto">
+							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto transition-all">
 								<Button
 									type="button"
 									variant="surface"
@@ -664,7 +697,11 @@ $effect(() => {
 									{form_signin()}
 								</Button>
 
-								<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} {firstCollectionPath} />
+								{#if allowedMethods.hasOAuth}
+								<div class="animate-fade-in w-full sm:w-auto">
+									<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} {firstCollectionPath} />
+								</div>
+								{/if}
 							</div>
 
 							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto gap-2">

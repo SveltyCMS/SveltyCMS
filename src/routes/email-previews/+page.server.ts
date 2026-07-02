@@ -49,7 +49,7 @@ export async function load({
     throw error(403, "Insufficient permissions - admin access required");
   }
 
-  const emailListData = await emailList({ path: "/src/components/emails" });
+  const emailListData = await emailList({ path: "src/components/emails" });
 
   return {
     user: userData,

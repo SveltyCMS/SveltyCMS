@@ -1152,6 +1152,12 @@ moduleMock("sharp", () => {
     extract: mock(() => sharpInstance),
     modulate: mock(() => sharpInstance),
     png: mock(() => sharpInstance),
+    linear: mock(() => sharpInstance),
+    grayscale: mock(() => sharpInstance),
+    greyscale: mock(() => sharpInstance),
+    recomb: mock(() => sharpInstance),
+    blur: mock(() => sharpInstance),
+    ensureAlpha: mock(() => sharpInstance),
   };
   sharpInstance.clone = mock(() => sharpInstance);
   const sharpMock = mock(() => sharpInstance);

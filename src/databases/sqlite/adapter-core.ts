@@ -788,7 +788,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     conflictTarget: any[],
     options: BaseQueryOptions = {},
   ): Promise<void> {
-    const tableName = getTableName(table);
+    // Resolve string collection name to Drizzle table object
+    const resolvedTable = typeof table === "string" ? this.getTable(table) : table;
+    if (!resolvedTable) throw new Error(`Table not found: ${table}`);
+    const tableName = getTableName(resolvedTable);
     if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
       logger.info(
         `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
@@ -801,9 +804,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`,
         );
         const rawTarget = sql.raw(rawNames.join(", "));
-        await (db.insert(table).values(values) as any).onConflictDoUpdate({
+        // Strip undefined values — Drizzle SQLite insert crashes on undefined column values
+        const cleanValues = Object.fromEntries(
+          Object.entries(values).filter(([, v]) => v !== undefined),
+        );
+        await (db.insert(resolvedTable).values(cleanValues) as any).onConflictDoUpdate({
           target: rawTarget,
-          set: values,
+          set: cleanValues,
         });
       },
       "UPSERT_NATIVE_FAILED",
@@ -1126,10 +1133,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     safeExec("PRAGMA synchronous=NORMAL");
     safeExec("PRAGMA foreign_keys=ON");
     safeExec("PRAGMA page_size=8192");
-    safeExec("PRAGMA busy_timeout=30000");
+    safeExec("PRAGMA busy_timeout=5000");
     safeExec("PRAGMA temp_store=MEMORY");
     safeExec("PRAGMA mmap_size=536870912");
-    safeExec("PRAGMA cache_size=-128000");
+    safeExec("PRAGMA cache_size=-20000");
     safeExec("PRAGMA wal_autocheckpoint=1000");
   }
 

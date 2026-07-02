@@ -452,12 +452,12 @@
 </script>
 
 <form
-	class="space-y-4"
-	onsubmit={(e) => {
-		e.preventDefault();
-		testConnection();
-	}}
->
+		class="fade-in space-y-4"
+		onsubmit={(e) => {
+			e.preventDefault();
+			testConnection();
+		}}
+	>
 	<!-- Why SMTP is Needed -->
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->

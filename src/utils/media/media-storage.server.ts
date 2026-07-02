@@ -1,26 +1,22 @@
 /**
  * @file src/utils/media/media-storage.server.ts
- * @description Core media storage (local + cloud) with resizing & avatar handling
+ * @description Core media storage operations, delegating to the unified StorageAdapter interface.
  *
  * Features:
- * - Unified local/cloud save/delete
- * - Sharp-based resizing
- * - Avatar processing (200x200)
- * - Safe path handling
- * - No DB logic
+ * - Resizing (sharp)
+ * - Avatar processing
+ * - Video thumbnail capturing (ffmpeg)
+ * - PDF thumbnail generation (imagemagick)
  */
 
 import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
 import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
-import { getPublicSettingSync } from "@src/services/core/settings-service";
-import { publicEnv } from "@src/stores/global-settings.svelte";
 import mime from "mime-types";
 import { logger } from "@utils/logger";
-
-import { exists, getConfig, getUrl, isCloud, remove, upload, download } from "./cloud-storage";
-
+import { publicEnv } from "@src/stores/global-settings.svelte";
+import { getStorageAdapter, getConfig } from "./storage-adapters";
 import type { ResizedImage } from "./media-models";
 
 /** Global lazy-loaded sharp instance to eliminate module resolution overhead */
@@ -73,55 +69,15 @@ export function getImageSizes() {
   return SIZES;
 }
 
-function resolveMediaRoot(): string {
-  return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
-}
-
-/** Save buffer or stream to storage (local or cloud) */
+/** Save buffer or stream to storage using adapter */
 export async function saveFile(
   data: Buffer | ReadableStream | import("node:stream").Readable,
   relPath: string,
 ): Promise<string> {
-  const mediaRoot = resolveMediaRoot();
-  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
-  const fullRelPath = path.resolve(process.cwd(), mediaRoot, relPath);
-
-  if (!fullRelPath.startsWith(MEDIA_ROOT_FULL)) {
-    throw new Error("Invalid path: Potential traversal attack");
-  }
-
-  if (isCloud()) {
-    await upload(data, relPath);
-    return getUrl(relPath);
-  }
-
-  // Local
-  const fs = await import("node:fs/promises");
-  await fs.mkdir(path.dirname(fullRelPath), { recursive: true });
-
-  if (data instanceof Buffer) {
-    await fs.writeFile(fullRelPath, data);
-  } else {
-    const { createWriteStream } = await import("node:fs");
-    const { Readable } = await import("node:stream");
-    const writeStream = createWriteStream(fullRelPath);
-    const nodeStream =
-      data instanceof ReadableStream
-        ? Readable.fromWeb(data as any)
-        : (data as import("node:stream").Readable);
-
-    await new Promise((resolve, reject) => {
-      nodeStream.pipe(writeStream);
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-      nodeStream.on("error", reject);
-    });
-  }
-
-  return `/files/${relPath}`;
+  return await getStorageAdapter().upload(data, relPath);
 }
 
-/** Delete file from storage */
+/** Delete file from storage using adapter */
 export async function deleteFile(url: string): Promise<void> {
   let rel = url;
 
@@ -129,46 +85,22 @@ export async function deleteFile(url: string): Promise<void> {
     rel = new URL(url).pathname;
   }
 
-  if (isCloud()) {
-    // Strip prefix if needed (cloud handles full key)
-    const cfg = getConfig();
-    if (
-      cfg &&
-      "prefix" in cfg &&
-      typeof cfg.prefix === "string" &&
-      rel.startsWith(`/${cfg.prefix}/`)
-    ) {
-      rel = rel.slice(cfg.prefix.length + 1);
-    }
-    await remove(rel);
-    return;
+  const cfg = getConfig();
+  if (
+    cfg &&
+    "prefix" in cfg &&
+    typeof cfg.prefix === "string" &&
+    rel.startsWith(`/${cfg.prefix}/`)
+  ) {
+    rel = rel.slice(cfg.prefix.length + 1);
   }
 
-  // Local
   if (rel.startsWith("/files/")) {
     rel = rel.slice(7);
   }
   rel = rel.replace(/^\/+/, "");
 
-  // Path Traversal Protection
-  const mediaRoot = resolveMediaRoot();
-  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
-  const full = path.resolve(process.cwd(), mediaRoot, rel);
-
-  if (!full.startsWith(MEDIA_ROOT_FULL)) {
-    const { logger } = await import("@utils/logger");
-    logger.error("Attempted path traversal delete blocked", {
-      path: rel,
-      resolved: full,
-    });
-    return;
-  }
-
-  const fs = await import("node:fs/promises");
-  const fullPath = path.join(process.cwd(), resolveMediaRoot(), rel);
-  await fs.unlink(fullPath).catch(() => {
-    logger.debug("Best-effort file deletion failed silently");
-  }); // best effort
+  await getStorageAdapter().remove(rel);
 }
 
 /** Alias for backward compatibility */
@@ -177,38 +109,14 @@ export const saveAvatarImage = saveAvatar;
 export const saveFileToDisk = saveFile;
 export const saveResizedImages = saveResized;
 
-/** Check if file exists */
+/** Check if file exists using adapter */
 export async function fileExists(rel: string): Promise<boolean> {
-  if (rel.includes("..")) return false;
-  if (isCloud()) {
-    return await exists(rel);
-  }
-  const fs = await import("node:fs/promises");
-  const full = path.join(process.cwd(), resolveMediaRoot(), rel);
-  try {
-    await fs.access(full);
-    return true;
-  } catch {
-    return false;
-  }
+  return await getStorageAdapter().exists(rel);
 }
 
-/** Get file buffer */
+/** Get file buffer using adapter */
 export async function getFile(rel: string): Promise<Buffer> {
-  if (isCloud()) {
-    return await download(rel);
-  }
-
-  const mediaRoot = resolveMediaRoot();
-  const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
-  const fullPath = path.resolve(process.cwd(), mediaRoot, rel);
-
-  if (!fullPath.startsWith(MEDIA_ROOT_FULL)) {
-    throw new Error("Invalid path: Potential traversal attack");
-  }
-
-  const fs = await import("node:fs/promises");
-  return await fs.readFile(fullPath);
+  return await getStorageAdapter().download(rel);
 }
 
 /** Resize & save image variants with multi-format optimization */

@@ -30,24 +30,24 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (25/06/2026, 14:21:16)
+## 📊 Latest Performance Audit (28/06/2026, 10:31:57)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: Environment unready See console for stack trace.
+> **Anomalies Detected**: Fail-fast See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
-| :--------------------- | :---------- | :--------- | :------------ | :------ |
-| **Cold Start**         | 358ms       | ⚪ (-9.3%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 1034.333ms  | ⚪ (+0.0%) | < 5ms         | 🔴 FAIL |
-| **Middleware Hooks**   | 1018.004ms  | ⚪         | < 2ms         | 🔴 FAIL |
-| **GraphQL (Avg)**      | N/A         | ⚪ (—)     | < 5ms         | ⚪ N/A  |
-| **Million-Row Index**  | N/A         | ⚪         | < 250ms       | ⚪ N/A  |
-| **DB Raw (p95)**       | N/A         | ⚪         | < 50ms        | ⚪ N/A  |
-| **Setup Quality**      | HEALTHY     | ⚪         | 100%          | PASS    |
+| Scenario               | Avg Latency | Trend        | Target Budget | Result  |
+| :--------------------- | :---------- | :----------- | :------------ | :------ |
+| **Cold Start**         | 1225ms      | ⚪ (+242.2%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 1032.709ms  | ⚪ (-0.2%)   | < 5ms         | 🔴 FAIL |
+| **Middleware Hooks**   | 511.133ms   | ⚪           | < 2ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | N/A         | ⚪ (—)       | < 5ms         | ⚪ N/A  |
+| **Million-Row Index**  | N/A         | ⚪           | < 250ms       | ⚪ N/A  |
+| **DB Raw (p95)**       | N/A         | ⚪           | < 50ms        | ⚪ N/A  |
+| **Setup Quality**      | HEALTHY     | ⚪           | 100%          | PASS    |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -75,7 +75,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 1018.004ms | **Target:** < 2ms | **Trend:** ⚪ (+5.0%)
+**Middleware p95:** 511.133ms | **Target:** < 2ms | **Trend:** ⚪ (-49.8%)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -95,7 +95,7 @@ xychart-beta
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
 
-**Relational p95:** 4.656ms | **Trend:** ⚪ (-22.5%)
+**Relational p95:** 0.000ms | **Trend:** ⚪ (—)
 
 > Tests performance of complex JOINs and nested relationship population.
 
@@ -117,45 +117,60 @@ xychart-beta
 
 <!-- COLD_START_TABLE_START -->
 
-### 🏷️ PHASED COLD START ⚪ —
+### 🏷 PHASED COLD START ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 > 🎯 **Proves**: Measures the time to READY state (serving traffic) vs WARMED state (background tasks).
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
+║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
+║       Measures server cold-start latency to READY state, using the built server.        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start (IDLE → READY)      │        0.101 ms │ p95:        0.213 ms │ RPS:          0 ║
+║ Cold Start (IDLE → READY)      │        0.095 ms │ p95:        0.239 ms │ RPS:          0 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- COLD_START_TABLE_END -->
 
 <!-- TRUTH_AUDIT_TABLE_START -->
 
-### 🏷️ SRE TRUTH AUDIT ⚪ —
+### 🏷 SRE TRUTH AUDIT ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
 > 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
+║                      File: tests/benchmarks/truth-latency.test.ts                       ║
+║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,682,558 ║
-║ Local SDK (Full)               │        0.007 ms │ p95:        0.012 ms │ RPS:    151,012 ║
-║ HTTP End-to-End                │      512.639 ms │ p95:     1034.333 ms │ RPS:          2 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,864,512 ║
+║ Local SDK (Full)               │        0.009 ms │ p95:        0.016 ms │ RPS:    111,882 ║
+║ HTTP End-to-End                │      513.108 ms │ p95:     1032.709 ms │ RPS:          2 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- TRUTH_AUDIT_TABLE_END -->
 
 <!-- INCREMENTAL_TABLE_START -->
 
-### 🏷️ Incremental Content Reload ⚪ —
+### 🏷 Incremental Content Reload ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/content-incremental-reload.test.ts](../../../tests/benchmarks/content-incremental-reload.test.ts)
 > 🎯 **Proves**: Measures surgical single-file fullReload vs full reconciliation + SCHEMA cache wipe.
 
 ```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                       ║
+║                File: tests/benchmarks/content-incremental-reload.test.ts                ║
+║          Measures surgical single-file fullReload vs full reconciliation path           ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │        0.323 ms │ p95:        0.654 ms │ RPS:      3,099 ║
-║ Full Reconciliation Reload     │        1.935 ms │ p95:        3.108 ms │ RPS:        517 ║
+║ Incremental fullReload (1 file) │        0.275 ms │ p95:        0.578 ms │ RPS:      3,642 ║
+║ Full Reconciliation Reload     │       22.041 ms │ p95:       26.431 ms │ RPS:         45 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- INCREMENTAL_TABLE_END -->
@@ -191,21 +206,26 @@ xychart-beta
 
 <!-- ACID_TABLE_START -->
 ### 🏷️ ACID Transaction Overhead ⚪ —
-
 > 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](../../../tests/benchmarks/transaction-acid.test.ts)
 > 🎯 **Proves**: Measures commit/rollback latency and transaction isolation performance.
 
-```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                      │        0.286 ms │ p95:        0.424 ms │ RPS:      2,476 ║
-║ TX Rollback Integrity          │        0.149 ms │ p95:        0.187 ms │ RPS:      6,718 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ TX Commit                      │        0.248 ms │ p95:        0.473 ms │ RPS:      3,291 ║
+║ TX Rollback Integrity          │        0.195 ms │ p95:        0.244 ms │ RPS:      5,140 ║
+```
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-> **Measures**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
-> **Code**: `src/databases/cache/cache-service.ts`, `src/databases/cache/l1-cache.ts`
-> **Why**: Cache hit ratio directly determines response latency. Misses trigger expensive DB round-trips.
+### 🏷️ System Cache Efficiency ⚪ —
+> 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](../../../tests/benchmarks/cache-performance.test.ts)
+> 🎯 **Proves**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ First Miss (DB)                │        0.124 ms │ p95:        0.150 ms │ RPS:      8,033 ║
+║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    566,098 ║
+```
 <!-- CACHE_TABLE_END -->
 
 <!-- TEMPORAL_TABLE_START -->
@@ -250,20 +270,15 @@ xychart-beta
 
 <!-- GRAPHQL_TABLE_START -->
 ### 🏷️ GraphQL API Performance ⚪ —
-
 > 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](../../../tests/benchmarks/graphql-api-performance.test.ts)
 > 🎯 **Proves**: Resolver execution time and throughput for common queries.
 
-```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        5.158 ms │ p95:        8.228 ms │ RPS:        175 ║
-║ GQL: 10c Light                 │        9.510 ms │ p95:       14.333 ms │ RPS:        104 ║
-║ GQL: 20c Moderate              │       17.825 ms │ p95:       27.449 ms │ RPS:         56 ║
-║ GQL: 40c Heavy                 │       32.719 ms │ p95:       51.616 ms │ RPS:         30 ║
-║ GQL: 60c Stress                │       45.109 ms │ p95:       69.158 ms │ RPS:         22 ║
-║ GQL: 80c Extreme               │       46.110 ms │ p95:       91.525 ms │ RPS:         22 ║
-║ GQL: 100c Max                  │       66.216 ms │ p95:      116.297 ms │ RPS:         15 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ GQL: 5c Warmup                 │       11.232 ms │ p95:       16.813 ms │ RPS:         74 ║
+║ GQL: 10c Light                 │       12.346 ms │ p95:       16.624 ms │ RPS:         76 ║
+║ GQL: 20c Moderate              │       18.473 ms │ p95:       24.315 ms │ RPS:         55 ║
+```
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- SEO_TABLE_START -->
@@ -285,9 +300,15 @@ xychart-beta
 <!-- REAL_TIME_TABLE_END -->
 
 <!-- NEGATIVE_CACHE_TABLE_START -->
-> **Measures**: Benchmarks 404-miss response times and cache lookup speedup.
-> **Code**: `src/databases/cache/negative-cache.ts`
-> **Why**: Negative caching provides 2392x speedup for repeated misses. Degradation means unnecessary DB lookups.
+### 🏷️ Negative Cache Performance ⚪ —
+> 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
+> 🎯 **Proves**: Benchmarks 404-miss response times and cache lookup speedup.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ First Miss (DB)                │        0.124 ms │ p95:        0.150 ms │ RPS:      8,033 ║
+║ Cached Miss (Negative Cache)   │        0.002 ms │ p95:        0.004 ms │ RPS:    566,098 ║
+```
 <!-- NEGATIVE_CACHE_TABLE_END -->
 
 <!-- REVISION_STRESS_TABLE_START -->
@@ -297,10 +318,14 @@ xychart-beta
 <!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-> **Measures**: Long-running soak test to identify memory leaks and GC pressure.
-> **Code**: `src/databases/core/base-adapter.ts`, `src/widgets/*/index.ts`
-> **Why**: Memory leaks cause OOM crashes in production. Native addon leaks (sharp, argon2) are common.
-> **Correlates**: `media-performance` | **Anti-correlates**: `hooks-performance`, `database-performance`
+### 🏷️ Memory Stability & GC Behavior ⚪ —
+> 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
+> 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     18,075 ║
+```
 <!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
@@ -380,14 +405,13 @@ xychart-beta
 
 <!-- THROUGHPUT_TABLE_START -->
 ### 🏷️ Multi-Doc Concurrency Throughput ⚪ —
-
 > 📂 **Source**: [tests/benchmarks/concurrency-throughput.test.ts](../../../tests/benchmarks/concurrency-throughput.test.ts)
 > 🎯 **Proves**: Measures throughput scaling across 10, 100, 1000 documents.
 
-```
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Local SDK                      │        0.130 ms │ p95:        0.130 ms │ RPS:      7,697 ║
 ```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Full Blast                     │        0.441 ms │ p95:        0.441 ms │ RPS:      2,267 ║
+```
 <!-- THROUGHPUT_TABLE_END -->
 
 <!-- MAXRPS_TABLE_START -->
@@ -407,9 +431,14 @@ xychart-beta
 <!-- FAST_FAIL_TABLE_END -->
 
 <!-- CIRCUIT_BREAKER_TABLE_START -->
-> **Measures**: Measures system graceful degradation when external services fail.
-> **Code**: `src/services/circuit-breaker.ts`, `src/hooks.server.ts`
-> **Why**: Circuit breakers prevent cascading failures. Must trip fast and recover cleanly.
+### 🏷️ Circuit Breaker Failover ⚪ —
+> 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
+> 🎯 **Proves**: Measures system graceful degradation when external services fail.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Circuit Breaker Fallback       │        0.347 ms │ p95:        1.599 ms │ RPS:      2,879 ║
+```
 <!-- CIRCUIT_BREAKER_TABLE_END -->
 
 <!-- RESILIENCE_TABLE_START -->
@@ -419,9 +448,14 @@ xychart-beta
 <!-- RESILIENCE_TABLE_END -->
 
 <!-- THROTTLING_TABLE_START -->
-> **Measures**: Measures rate-limiting consistency under 10x design load.
-> **Code**: `src/hooks/handle-rate-limit.ts`, `src/hooks.server.ts`
-> **Why**: Rate limiting protects against DoS. Must be consistent even under extreme load.
+### 🏷️ Throttling & Backoff Stress ⚪ —
+> 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
+> 🎯 **Proves**: Measures rate-limiting consistency under 10x design load.
+
+```text
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Throttling Enforcement         │        0.972 ms │ p95:        4.296 ms │ RPS:      1,029 ║
+```
 <!-- THROTTLING_TABLE_END -->
 
 <!-- GDPR_TABLE_START -->

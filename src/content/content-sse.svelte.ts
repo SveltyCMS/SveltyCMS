@@ -5,10 +5,10 @@
  * Replaces old polling mechanism for lower latency and zero overhead.
  */
 
-import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
 import { contentSystem } from "@src/content";
 
+const browser = typeof window !== "undefined";
 let eventSource: EventSource | null = null;
 
 /**
