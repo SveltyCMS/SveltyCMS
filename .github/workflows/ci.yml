@@ -22,7 +22,6 @@ permissions:
 
 env:
   BUN_CACHE_DIR: .bun-cache
-  NODE_OPTIONS: "--no-warnings --no-deprecation"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   DO_NOT_TRACK: 1
 

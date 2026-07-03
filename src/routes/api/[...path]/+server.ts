@@ -370,7 +370,8 @@ export const _handler = async (event: RequestEvent) => {
     const testModeHeader = request.headers.get("x-test-mode");
     const testSecretHeader = request.headers.get("x-test-secret");
     if (testModeHeader === "true" && testSecretHeader) {
-      const expectedSecret = process.env.TEST_API_SECRET;
+      const { getTestSecret } = await import("@utils/server/setup-check");
+      const expectedSecret = (globalThis as any).process?.env?.TEST_API_SECRET || getTestSecret();
       if (expectedSecret && testSecretHeader === expectedSecret) {
         user = {
           _id: "system" as DatabaseId,
@@ -405,7 +406,7 @@ export const _handler = async (event: RequestEvent) => {
   // --- CSRF Protection ---
   if (
     !(locals as any).__testBypass &&
-    process.env.TEST_MODE !== "true" &&
+    (globalThis as any).process?.env?.TEST_MODE !== "true" &&
     !(user as any)?.isApiKey &&
     !(user as any)?.isApiToken &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)

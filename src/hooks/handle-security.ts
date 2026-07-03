@@ -14,12 +14,17 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp } from "@utils/hook-utils";
 
 const IS_TEST_MODE =
-  process.env.TEST_MODE === "true" ||
-  process.env.VITE_TEST_MODE === "true" ||
-  process.env.PLAYWRIGHT_TEST === "true" ||
-  process.env.BENCHMARK === "true";
+  typeof globalThis !== "undefined" &&
+  ((globalThis as any).process?.env?.TEST_MODE === "true" ||
+    (globalThis as any).process?.env?.VITE_TEST_MODE === "true" ||
+    (globalThis as any).process?.env?.PLAYWRIGHT_TEST === "true" ||
+    (globalThis as any).process?.env?.BENCHMARK === "true");
 
-const TEST_API_SECRET = process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
+const TEST_API_SECRET =
+  typeof globalThis !== "undefined"
+    ? (globalThis as any).process?.env?.TEST_API_SECRET ||
+      (globalThis as any).process?.env?.VITE_TEST_API_SECRET
+    : undefined;
 let cachedMasterSecret: string | null = null;
 
 function getMasterSecret(): string | undefined {
