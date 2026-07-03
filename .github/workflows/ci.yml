@@ -371,6 +371,10 @@ jobs:
 
           cp config/private.test.ts config/private.ts
 
+          # Overwrite the random test-secret.txt with the actual repo secret
+          # so test-orch.ts and the server agree on TEST_API_SECRET
+          echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+
           # Start the built server
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
@@ -577,6 +581,10 @@ jobs:
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
         run: |
+          # Benchmarks need TEST_API_SECRET to call /api/testing for seed/reset
+          export TEST_API_SECRET="${{ secrets.TEST_API_SECRET }}"
+          mkdir -p tests/e2e/.auth
+          echo "${{ secrets.TEST_API_SECRET }}" > tests/e2e/.auth/test-secret.txt
           set -e
           failures=0
           for test in tests/benchmarks/{truth-latency,database-performance,transaction-acid,cache-performance,hooks-performance,rest-api-performance}.test.ts; do
