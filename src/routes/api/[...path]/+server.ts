@@ -361,6 +361,33 @@ export const _handler = async (event: RequestEvent) => {
     }
   }
 
+  // 🧪 TEST-MODE BYPASS: Allow E2E/integration testing endpoints to bypass auth
+  // when x-test-mode and x-test-secret headers are present and valid.
+  // This is a defense-in-depth layer beneath the turbo-pipeline bypass,
+  // ensuring testing endpoints work even when the turbo pipeline hasn't
+  // populated locals (e.g., early in server startup or after hot-reload).
+  if (namespace === "testing" && !user && !(locals as any).__testBypass) {
+    const testModeHeader = request.headers.get("x-test-mode");
+    const testSecretHeader = request.headers.get("x-test-secret");
+    if (testModeHeader === "true" && testSecretHeader) {
+      const expectedSecret = process.env.TEST_API_SECRET;
+      if (expectedSecret && testSecretHeader === expectedSecret) {
+        user = {
+          _id: "system" as DatabaseId,
+          role: "admin",
+          isAdmin: true,
+          email: "system@sveltycms",
+        } as any;
+        locals.user = user;
+        (locals as any).__testBypass = true;
+        if (!tenantId) {
+          tenantId = (request.headers.get("x-tenant-id") as DatabaseId) || null;
+          locals.tenantId = tenantId as any;
+        }
+      }
+    }
+  }
+
   // Fail-closed authentication
   const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
   if (!user && !isPublic) {

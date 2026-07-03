@@ -466,7 +466,7 @@
               <div class="mt-5 border-t border-surface-200 pt-4 dark:border-surface-700">
                 <div class="flex items-center justify-between mb-2">
                   <h4 class="text-sm font-semibold text-surface-700 dark:text-surface-300">Content Types Found</h4>
-                  <button onclick={toggleAllContentTypes} class="text-xs text-tertiary-500 hover:underline">
+                  <button aria-label="Start migration" onclick={toggleAllContentTypes} class="text-xs text-tertiary-500 hover:underline">
                     {selectAllContentTypes ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
@@ -541,12 +541,11 @@
                     <td class="px-4 py-2.5 font-mono text-xs text-surface-700 dark:text-surface-300">{mapping.source}</td>
                     <td class="px-2 py-2.5 text-center text-surface-400">→</td>
                     <td class="px-4 py-2.5">
-                      <input
+                      <input aria-label="Source URL"
                         type="text"
                         value={mapping.target}
                         oninput={(e) => updateMapping(mapping.source, (e.target as HTMLInputElement).value)}
                         class="w-full rounded border border-surface-200 bg-transparent px-2 py-1 font-mono text-xs text-surface-800 focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:text-surface-200 dark:focus:border-primary-500"
-                        aria-label="Target field for {mapping.source}"
                       />
                     </td>
                     <td class="px-4 py-2.5 text-center">

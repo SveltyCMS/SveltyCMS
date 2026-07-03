@@ -116,8 +116,9 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 			<div
 				bind:this={menuEl}
 				role="menu"
+				tabindex="-1"
 				aria-label="Actions for {file.filename}"
-				class="fixed z-200 w-44 min-w-[11rem] rounded-lg border border-surface-200 bg-surface-100 p-1 shadow-xl dark:border-surface-800 dark:bg-surface-900"
+				class="fixed z-200 w-44 min-w-44 rounded-lg border border-surface-200 bg-surface-100 p-1 shadow-xl dark:border-surface-800 dark:bg-surface-900"
 				style={menuStyle}
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}

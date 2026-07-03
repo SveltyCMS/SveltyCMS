@@ -129,7 +129,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 					class="sticky top-0 z-10 flex items-center gap-3 border-b border-surface-200 bg-surface-50/95 px-2 py-2.5 backdrop-blur-sm dark:border-surface-800 dark:bg-surface-950/95"
 					role="row"
 				>
-					<div class="shrink-0" role="columnheader" onclick={(e) => e.stopPropagation()}>
+					<div class="shrink-0" role="columnheader" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
 						<Checkbox
 							class="w-auto"
 							checked={headerCheckboxState}
@@ -161,7 +161,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 					>
-						<div class="shrink-0" role="cell" onclick={(e) => e.stopPropagation()}>
+						<div class="shrink-0" role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
 							<Checkbox
 								class="w-auto"
 								checked={isSelected}
@@ -191,7 +191,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							</div>
 						</div>
 
-						<div class="shrink-0" role="cell" onclick={(e) => e.stopPropagation()}>
+						<div class="shrink-0" role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
 							<MediaTableRowMenu
 								{file}
 								onDetails={() => onOpenFileDetails(file)}

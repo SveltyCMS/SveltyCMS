@@ -173,7 +173,7 @@ Features:
         <iconify-icon icon="mdi:plus" width="18"></iconify-icon>
         <span>Upload First File</span>
       </Button>
-      <input
+      <input aria-label="Filter media"
         type="file"
         multiple
         class="hidden"
@@ -194,7 +194,6 @@ Features:
     {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
-      {const isPublishedReferenced = publishedMediaIds.has(fileId)}
 
       <div
         class="group relative flex h-full flex-col focus-within:outline-none
@@ -211,7 +210,9 @@ Features:
           <div
             class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
             in:scale={{ duration: 180 }}
+            role="presentation"
             onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
           >
             <Checkbox
               checked={isSelected}
@@ -267,7 +268,7 @@ Features:
               </div>
             {/if}
 
-            <!-- Filename: always on mobile; hover on desktop -->
+
             <div
               class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
             >
@@ -277,7 +278,7 @@ Features:
             </div>
           </button>
 
-          <!-- Action dock: always visible on mobile; hover-only on sm+ -->
+
           <div
             class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
             data-testid="media-grid-actions"
@@ -292,21 +293,42 @@ Features:
                 <span class="font-serif text-sm font-semibold italic leading-none text-primary-500">i</span>
               {/snippet}
               {#snippet content()}
-                <p class="mb-2 text-[10px] font-bold uppercase tracking-wide text-surface-500">Details</p>
-                <dl class="space-y-1.5 text-[11px]">
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-surface-500">Size</dt>
-                    <dd class="font-medium tabular-nums text-surface-800">{formatBytes(file.size)}</dd>
+                <div class="flex flex-col text-[11px] text-surface-800 dark:text-surface-200 min-w-[240px]">
+                  <div class="border-b border-surface-300 dark:border-surface-700 pb-2 mb-0 text-center text-[13px]">
+                    File NAME : {file.filename}
                   </div>
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-surface-500">Dimensions</dt>
-                    <dd class="font-medium tabular-nums text-surface-800">{getDimensionsLabel(file)}</dd>
-                  </div>
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-surface-500">Type</dt>
-                    <dd class="font-medium uppercase text-surface-800">{formatMimeType(file.mimeType)}</dd>
-                  </div>
-                </dl>
+                  <table class="w-full text-start border-collapse mt-2">
+                    <thead>
+                      <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-400">
+                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Format</th>
+                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-center">Pixel</th>
+                        <th class="font-bold py-1 px-2 text-center">Size</th>
+                      </tr>
+                    </thead>
+                    <tbody class="text-surface-700 dark:text-surface-300">
+                      <tr class="border-b border-surface-300 dark:border-surface-700">
+                        <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
+                        <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
+                        <td class="py-1 px-2 text-end tabular-nums">{formatBytes(file.size)}</td>
+                      </tr>
+                      {#if file.thumbnails}
+                        {#each Object.keys(file.thumbnails) as sizeKey (sizeKey)}
+                          {#if file.thumbnails[sizeKey]}
+                            <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
+                              <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>
+                              <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">
+                                {file.thumbnails[sizeKey].width}x{file.thumbnails[sizeKey].height}
+                              </td>
+                              <td class="py-1 px-2 text-end tabular-nums">
+                                {(file.thumbnails[sizeKey] as any).size ? formatBytes((file.thumbnails[sizeKey] as any).size) : '-'}
+                              </td>
+                            </tr>
+                          {/if}
+                        {/each}
+                      {/if}
+                    </tbody>
+                  </table>
+                </div>
               {/snippet}
             </MediaGridActionTooltip>
 

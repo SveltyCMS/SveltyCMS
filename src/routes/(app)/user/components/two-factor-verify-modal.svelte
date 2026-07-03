@@ -172,7 +172,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Toggle Code Type -->
 	<div class="mb-6 text-center">
-		<button onclick={toggleCodeType} class="text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600">
+		<button aria-label="Verify code" onclick={toggleCodeType} class="text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600">
 			{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
 		</button>
 	</div>

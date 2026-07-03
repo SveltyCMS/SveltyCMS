@@ -57,6 +57,7 @@ import {
 	initializeThemeStore,
 	themeStore,
 } from "@src/stores/theme-store.svelte";
+import { screen } from "@src/stores/screen-size-store.svelte";
 
 
 // Props
@@ -218,6 +219,10 @@ $effect(() => {
 onMount(() => {
 	console.log("[RootLayout] Mounting in", browser ? "browser" : "server");
 
+	// Initialize screen size tracking (resize listener + window.innerWidth)
+	// Without this, screen.isMobile/isDesktop use SSR defaults (1024px)
+	screen.mount();
+
 	// URL is the source of truth on initial load
 	const urlLocale = getLocale();
 	if (
@@ -275,6 +280,10 @@ onMount(() => {
 			}, 150);
 		}
 	}
+
+	return () => {
+		screen.destroy();
+	};
 });
 
 /**
@@ -438,7 +447,7 @@ onMount(() => {
 				<p class="text-error-600 dark:text-error-500">{error.message}</p>
 			</div>
 
-			<div class="flex space-x-4">
+			<div class="flex gap-4">
 				<Button variant="primary" onclick={reset}>
 					Try Again
 				</Button>
@@ -459,7 +468,7 @@ onMount(() => {
 <!-- Progressive Session Timeout Warning Overlay/Banners -->
 {#if sessionPhase === 'warning'}
 	<div
-		class="fixed bottom-4 end-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
+		class="fixed bottom-4 inset-e-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
 		role="status"
 		aria-live="polite"
 	>

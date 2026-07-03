@@ -13,6 +13,9 @@ import { page } from "$app/state";
 import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
+import AdvancedSearchModal from "./advanced-search-modal.svelte";
+import Portal from "@components/ui/portal.svelte";
+import type { SearchCriteria } from "@utils/media/advanced-search";
 import { mediaUrl } from "@utils/media/media-utils";
 import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
 import { IMAGE_EDITOR_MODAL_CLASSES, IMAGE_EDITOR_MODAL_SIZE } from "@src/components/image-editor/image-editor-modal.ts";
@@ -47,6 +50,18 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
 	let isUploading = $state(false);
+	let showAdvancedSearch = $state(false);
+	let searchCriteria = $state<SearchCriteria | null>(null);
+	let sortBy = $state("newest");
+
+const sortOptions = [
+	{ value: "newest", label: "Newest first" },
+	{ value: "oldest", label: "Oldest first" },
+	{ value: "name-asc", label: "Name (A-Z)" },
+	{ value: "name-desc", label: "Name (Z-A)" },
+	{ value: "size-desc", label: "Size (Largest)" },
+	{ value: "size-asc", label: "Size (Smallest)" },
+];
 
 // Keep the grid in sync with server data: re-runs whenever `load` re-fetches
 // (e.g. after invalidateAll following an upload), so new media appears without
@@ -74,14 +89,65 @@ const publishedMediaIds = $derived(new SvelteSet<string>((data as { publishedMed
 
 // Derived
 const filteredFiles = $derived.by(() => {
-	return files.filter((file) => {
-		const matchesSearch = (file.filename || "")
-			.toLowerCase()
-			.includes(globalSearchValue.toLowerCase());
-		const matchesType =
-			selectedMediaType === "All" || file.type === selectedMediaType;
-		return matchesSearch && matchesType;
+	let result = files.filter((file) => {
+		if (globalSearchValue) {
+			const matchesSearch = (file.filename || "").toLowerCase().includes(globalSearchValue.toLowerCase());
+			if (!matchesSearch) return false;
+		}
+		if (selectedMediaType !== "All" && file.type !== selectedMediaType) {
+			return false;
+		}
+
+		if (searchCriteria) {
+			const img = file as MediaImage;
+			const meta = file.metadata as Record<string, any> | undefined;
+
+			if (searchCriteria.filename && !file.filename?.toLowerCase().includes(searchCriteria.filename.toLowerCase())) return false;
+			if (searchCriteria.minSize && file.size < searchCriteria.minSize) return false;
+			if (searchCriteria.maxSize && file.size > searchCriteria.maxSize) return false;
+			if (searchCriteria.minWidth && (!img.width || img.width < searchCriteria.minWidth)) return false;
+			if (searchCriteria.maxWidth && (!img.width || img.width > searchCriteria.maxWidth)) return false;
+			if (searchCriteria.minHeight && (!img.height || img.height < searchCriteria.minHeight)) return false;
+			if (searchCriteria.maxHeight && (!img.height || img.height > searchCriteria.maxHeight)) return false;
+			if (searchCriteria.uploadedAfter && new Date(file.createdAt || 0) < searchCriteria.uploadedAfter) return false;
+			if (searchCriteria.uploadedBefore && new Date(file.createdAt || 0) > searchCriteria.uploadedBefore) return false;
+			if (searchCriteria.fileTypes && searchCriteria.fileTypes.length > 0 && !searchCriteria.fileTypes.some(t => file.mimeType?.includes(t))) return false;
+
+			if (searchCriteria.tags && searchCriteria.tags.length > 0) {
+				const tags = meta?.tags as string[] | undefined;
+				if (!tags || !searchCriteria.tags.some(t => tags.includes(t))) return false;
+			}
+			if (searchCriteria.camera && (!meta?.exif || (meta.exif as any).camera !== searchCriteria.camera)) return false;
+			if (searchCriteria.location && (!meta?.exif || (meta.exif as any).location !== searchCriteria.location)) return false;
+			if (searchCriteria.dominantColor && meta?.dominantColor !== searchCriteria.dominantColor) return false;
+			if (searchCriteria.hasEXIF !== undefined) {
+				const hasExif = !!meta?.exif;
+				if (hasExif !== searchCriteria.hasEXIF) return false;
+			}
+			if (searchCriteria.aspectRatio) {
+				if (!img.width || !img.height) return false;
+				const ratio = img.width / img.height;
+				if (searchCriteria.aspectRatio === 'landscape' && ratio <= 1) return false;
+				if (searchCriteria.aspectRatio === 'portrait' && ratio >= 1) return false;
+				if (searchCriteria.aspectRatio === 'square' && ratio !== 1) return false;
+			}
+		}
+		return true;
 	});
+
+	result.sort((a, b) => {
+		switch (sortBy) {
+			case 'oldest': return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+			case 'name-asc': return (a.filename || '').localeCompare(b.filename || '');
+			case 'name-desc': return (b.filename || '').localeCompare(a.filename || '');
+			case 'size-desc': return b.size - a.size;
+			case 'size-asc': return a.size - b.size;
+			case 'newest':
+			default: return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+		}
+	});
+
+	return result;
 });
 
 // Breadcrumb trail mirroring the sidebar folder path. Each ancestor segment of
@@ -198,7 +264,7 @@ async function handleEditorSave(detail: any) {
 		});
 
 		if (response.ok) {
-			const { data: updatedMedia } = await response.json();
+			await response.json();
 			toast.success("Image processed and saved");
 
 			await invalidateAll();
@@ -403,14 +469,13 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
 
-			<input
+			<input aria-label="Search media"
 				type="file"
 				multiple
 				class="hidden"
 				bind:this={fileUploadInput}
 				onchange={handleUpload}
 				accept="image/*,video/*,audio/*,application/pdf"
-				aria-label="upload-files"
 				data-testid="media-upload-input"
 			/>
 		</div>
@@ -455,9 +520,29 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						bind:value={selectedMediaType}
 						options={mediaTypeOptions}
 						placeholder="Type"
-						class="w-full sm:w-36"
+						class="w-full sm:w-28"
 					/>
 				{/if}
+
+				<label for="sort-by-filter" class="sr-only">Sort by</label>
+				<Select
+					id="sort-by-filter"
+					bind:value={sortBy}
+					options={sortOptions}
+					placeholder="Sort"
+					class="w-full sm:w-36"
+				/>
+
+				<Button
+					variant={searchCriteria ? 'tertiary' : 'ghost'}
+					size="sm"
+					onclick={() => showAdvancedSearch = true}
+					aria-label="Advanced Search"
+					class="h-10 text-sm {searchCriteria ? 'preset-filled-tertiary-500 text-white' : ''}"
+				>
+					<iconify-icon icon="mdi:filter-variant" width="18"></iconify-icon>
+					<span class="hidden sm:inline">{searchCriteria ? 'Filtered' : 'Filter'}</span>
+				</Button>
 
 				<div class="flex h-10 items-center gap-0.5" role="group" aria-label="View mode">
 					<Button
@@ -520,7 +605,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						{/if}
 						{#if i === breadcrumbs.length - 1}
 							<span
-								class="max-w-[12rem] shrink-0 truncate font-medium text-surface-800 sm:max-w-[16rem] dark:text-surface-100"
+								class="max-w-48 shrink-0 truncate font-medium text-surface-800 sm:max-w-[16rem] dark:text-surface-100"
 								aria-current="page"
 							>{crumb.name}</span>
 						{:else}
@@ -543,6 +628,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					{gridSize}
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
+					publishedMediaIds={publishedMediaIds}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
 					ondeleteImage={handleDeleteImage}
@@ -553,6 +639,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					filteredFiles={filteredFiles}
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
+					publishedMediaIds={publishedMediaIds}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
 					ondeleteImage={handleDeleteImage}
@@ -563,4 +650,22 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	</div>
 
 	<Slot name="media_gallery" />
+
+	{#if showAdvancedSearch}
+		<Portal>
+			<div class="fixed inset-0 z-100 bg-surface-900/50 backdrop-blur-sm transition-all" aria-hidden="true"></div>
+			<div class="fixed inset-0 z-101 flex items-center justify-center p-4">
+				<AdvancedSearchModal
+					files={files}
+					onSearch={(criteria) => {
+						searchCriteria = criteria;
+						showAdvancedSearch = false;
+					}}
+					onClose={() => {
+						showAdvancedSearch = false;
+					}}
+				/>
+			</div>
+		</Portal>
+	{/if}
 </AdminPageShell>

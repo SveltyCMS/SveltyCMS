@@ -47,6 +47,7 @@
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import { page } from '$app/state';
 
 	type DefaultBehaviorFn = () => void;
 
@@ -108,6 +109,39 @@
 			window.history.back();
 		}
 		// Otherwise, let the <a> tag handle navigation with preloading
+	}
+
+	// Bookmark this page as a floating-nav favorite
+	const FAVORITES_KEY = 'floatingNav_favorites';
+	let isFavorited = $state(false);
+
+	$effect(() => {
+		try {
+			const saved = localStorage.getItem(FAVORITES_KEY);
+			const existing = saved ? JSON.parse(saved) : [];
+			isFavorited = existing.some((f: any) => f.path === page.url.pathname);
+		} catch { /* ignore */ }
+	});
+
+	function toggleFavorite() {
+		try {
+			const saved = localStorage.getItem(FAVORITES_KEY);
+			let favorites = saved ? JSON.parse(saved) : [];
+			const pathname = page.url.pathname;
+			if (isFavorited) {
+				favorites = favorites.filter((f: any) => f.path !== pathname);
+			} else {
+				favorites.push({
+					id: 'fav_' + Date.now(),
+					tooltip: name,
+					url: { external: false, path: pathname },
+					icon: icon || 'mdi:bookmark',
+					color: 'bg-amber-500',
+				});
+			}
+			localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+			isFavorited = !isFavorited;
+		} catch { /* ignore */ }
 	}
 </script>
 
@@ -188,5 +222,17 @@
 				</Button>
 			{/if}
 		{/if}
+
+		<!-- Bookmark: add/remove this page from floating-nav favorites -->
+		<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
+			<button
+				type="button"
+				onclick={toggleFavorite}
+				aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+				class="flex shrink-0 items-center justify-center rounded-full border transition-colors {compact ? 'h-9 w-9' : 'h-10 w-10'} {isFavorited ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-surface-300 hover:bg-surface-500/10 dark:border-surface-600'}"
+			>
+				<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
+			</button>
+		</SystemTooltip>
 	</div>
 </div>

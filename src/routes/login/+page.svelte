@@ -446,13 +446,12 @@ function handleSignUpPointerEnter() {
 
 				{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
 					<div class="px-2 pb-2 mb-2 border-b border-white/10">
-						<input
+						<input aria-label="Username or email"
 							type="text"
 							bind:this={searchInput}
 							bind:value={searchQuery}
 							placeholder="Search language..."
 							class="w-full rounded bg-white/10 px-3 py-2 text-sm placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 text-white border-none"
-							aria-label="Search languages"
 							onclick={(e) => e.stopPropagation()}
 						/>
 					</div>

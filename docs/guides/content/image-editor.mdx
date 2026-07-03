@@ -318,10 +318,11 @@ These are stored in `media.metadata` and consumed by the `MediaGrid` component.
 The Image Editor is built for creators of all abilities:
 
 - **Keyboard Navigation**: Arrow keys navigate between tool buttons. Enter/Space activates a tool. All crop handles are focusable and adjustable via arrow keys. Home/End jump to first/last tool. Zoom shortcuts: `+`/`-`/`0`.
-- **ARIA Integration**: The editor root uses `role="application"`. Tool buttons use `role="radio"` with `aria-checked` and `aria-posinset`/`aria-setsize`. The sidebar toolbar uses `role="toolbar"` with `aria-orientation`. Status changes are announced via `aria-live="assertive"`.
-- **Focus Management**: When the editor opens, focus moves to the first tool button. TAB loops inside the modal (focus trap). When closing, focus returns to the trigger button (Media Gallery or widget).
-- **High Contrast**: All UI elements meet 4.5:1 contrast ratio. Tooltip text and shortcut hints are displayed at legible sizes.
+- **ARIA Integration**: The editor modal uses `role="dialog"` with `aria-modal="true"` and a focus trap. The sidebar uses `role="tablist"` with `orientation="vertical"`; tool buttons use `role="tab"` with `aria-selected` and `aria-posinset`/`aria-setsize`. The toolbar uses `role="toolbar"`. Status changes are announced via `aria-live="assertive"`.
+- **Focus Management**: When the editor opens, focus moves to the modal container. TAB loops inside the modal (focus trap). When closing, focus returns to the trigger element (Media Gallery or widget). `Mod+S` saves, `Escape` closes with confirmation.
+- **Contrast**: Primary actions (Save button) exceed 12:1 contrast ratio. Chrome text uses subdued opacity typical of professional dark editing UIs (similar to Lightroom / Pintura). All functional UI elements have accessible names via `aria-label` or visible text.
 - **Touch Accessibility**: Pinch-to-zoom and two-finger pan support on mobile/tablet devices.
+- **CSS Architecture**: Styling uses 100% Tailwind CSS v4 utilities inline — zero external CSS files. Design tokens (`--editor-chrome-*` custom properties) are defined in a single component for consistent theming.
 
 ### ATAG 2.0 Compliance (Authoring Tools)
 

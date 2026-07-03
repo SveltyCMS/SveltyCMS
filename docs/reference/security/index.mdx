@@ -495,6 +495,18 @@ Security issues should be reported to:
 6. **Log security events** - Enable audit trail
 7. **Keep dependencies updated** - Regular security patches
 
+### Scaffolding Security Defaults
+
+When a new SveltyCMS project is created via `create-sveltycms`, the setup wizard automatically generates `config/private.ts` with:
+
+- **`PASSWORD_MIN_LENGTH: 12`** — enforces strong passwords
+- **`RATE_LIMIT_SECRET`** — 32-character CSPRNG-generated secret for rate limiting
+- **`JWT_SECRET_KEY`** — 32-character CSPRNG-generated signing key
+- **`ENCRYPTION_KEY`** — 32-character CSPRNG-generated encryption key
+- **RSA-2048 SAML signing keys** — auto-generated key pair
+
+These defaults ensure new deployments start with a hardened security posture. Review and customize all values in `config/private.ts` before deploying to production.
+
 ### Deployment
 
 1. **Use HTTPS everywhere** - Encrypt all traffic

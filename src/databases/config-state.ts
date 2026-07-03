@@ -9,6 +9,7 @@
 import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { isIsolatedTestDbName } from "@utils/test-db-safety";
 import { safeParse, type InferOutput } from "valibot";
 
 if (
@@ -121,6 +122,17 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       return privateEnv;
     } catch (error: unknown) {
       logger.error("Unexpected error during config loading:", error);
+
+      // A test-DB safety violation means we nearly booted against a non-isolated
+      // (potentially production) database. Never let boot continue in that state —
+      // continuing previously caused the server to limp forward with DB_TYPE
+      // undefined, producing confusing "no such table" errors downstream instead
+      // of a clear, immediate failure.
+      if (error instanceof AppError && error.code === "TEST_DB_SAFETY_VIOLATION") {
+        logger.error("Aborting startup: refusing to boot with an unsafe test DB config.");
+        process.exit(1);
+      }
+
       return null;
     }
   })();
@@ -232,17 +244,10 @@ function getEnvOverrides() {
   return overrides;
 }
 
-/** Test isolation enforcement */
+/** Test isolation enforcement — uses the shared classifier for consistency. */
 async function enforceTestSafety(config: any) {
   if ((process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test") && config?.DB_NAME) {
-    const dbName = String(config.DB_NAME).toLowerCase();
-    const looksIsolatedTestDb =
-      dbName.includes("test") ||
-      dbName.includes("bench") ||
-      dbName.includes("e2e") ||
-      dbName.endsWith("_functional");
-
-    if (!looksIsolatedTestDb) {
+    if (!isIsolatedTestDbName(String(config.DB_NAME))) {
       const msg = `SAFETY VIOLATION: Test mode DB_NAME '${config.DB_NAME}' does not indicate a test database.`;
       logger.error(msg);
       throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");

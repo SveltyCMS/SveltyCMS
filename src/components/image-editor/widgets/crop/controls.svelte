@@ -8,26 +8,26 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 
 	let {
-		crop,
-		onRotateLeft,
-		onRotateRight,
-		onFlipHorizontal,
-		onFlipVertical,
-		onCropShapeChange,
-		onAspectRatio,
-		onCropChange,
-		cropShape
-	}: {
-		crop: { x: number; y: number; width: number; height: number };
-		onRotateLeft: () => void;
-		onRotateRight: () => void;
-		onFlipHorizontal: () => void;
-		onFlipVertical?: () => void;
-		onCropShapeChange: (shape: CropShape) => void;
-		onAspectRatio: (ratio: number | null) => void;
-		onCropChange: (nextCrop: { x: number; y: number; width: number; height: number }) => void;
-		cropShape: CropShape;
-	} = $props();
+			crop,
+			onRotateLeft,
+			onRotateRight,
+			onFlipHorizontal,
+			onFlipVertical,
+			onCropShapeChange,
+			onAspectRatio,
+			onCropChange,
+			cropShape
+		}: {
+			crop: { x: number; y: number; width: number; height: number };
+			onRotateLeft: () => void;
+			onRotateRight: () => void;
+			onFlipHorizontal: () => void;
+			onFlipVertical?: () => void;
+			onCropShapeChange: (shape: CropShape) => void;
+			onAspectRatio: (ratio: number | null) => void;
+			onCropChange: (nextCrop: { x: number; y: number; width: number; height: number }) => void;
+			cropShape: CropShape;
+		} = $props();
 
 	interface AspectPreset {
 		label: string;
@@ -137,13 +137,13 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="editor-dock crop-controls" role="toolbar" aria-label="Crop controls">
-	<div class="dock-row dock-row-scroll">
+<div class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Crop controls">
+	<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
 		{#each aspectPresets as preset, i (preset.label)}
 			<button
 				type="button"
-				class="dock-pill"
-				class:dock-pill-active={activePreset === i}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+				class:text-white={activePreset === i}
 				onclick={() => selectPreset(preset, i)}
 				title="{preset.label}{preset.shortcut ? ` (${preset.shortcut})` : ''}"
 				aria-label="Aspect ratio {preset.label}"
@@ -155,12 +155,12 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		{/each}
 	</div>
 
-	<div class="dock-row dock-row-scroll">
+	<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
 		{#each shapes as shape (shape.id)}
 			<button
 				type="button"
-				class="dock-pill"
-				class:dock-pill-active={cropShape === shape.id}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+				class:text-white={cropShape === shape.id}
 				onclick={() => onCropShapeChange(shape.id)}
 				title={shape.label}
 				aria-label={shape.label}
@@ -171,87 +171,42 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 			</button>
 		{/each}
 
-		<button type="button" class="dock-pill" onclick={onRotateLeft} title="Rotate left (L)" aria-label="Rotate left">
+		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onRotateLeft} title="Rotate left (L)" aria-label="Rotate left">
 			<iconify-icon icon="mdi:rotate-left" width="15" aria-hidden="true"></iconify-icon>
 			<span>Left</span>
 		</button>
-		<button type="button" class="dock-pill" onclick={onRotateRight} title="Rotate right (R)" aria-label="Rotate right">
+		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onRotateRight} title="Rotate right (R)" aria-label="Rotate right">
 			<iconify-icon icon="mdi:rotate-right" width="15" aria-hidden="true"></iconify-icon>
 			<span>Right</span>
 		</button>
-		<button type="button" class="dock-pill" onclick={onFlipHorizontal} title="Flip horizontal (F)" aria-label="Flip horizontal">
+		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onFlipHorizontal} title="Flip horizontal (F)" aria-label="Flip horizontal">
 			<iconify-icon icon="mdi:flip-horizontal" width="15" aria-hidden="true"></iconify-icon>
 			<span>Flip H</span>
 		</button>
 		{#if onFlipVertical}
-			<button type="button" class="dock-pill" onclick={onFlipVertical} title="Flip vertical" aria-label="Flip vertical">
+			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onFlipVertical} title="Flip vertical" aria-label="Flip vertical">
 				<iconify-icon icon="mdi:flip-vertical" width="15" aria-hidden="true"></iconify-icon>
 				<span>Flip V</span>
 			</button>
 		{/if}
 	</div>
 
-	<div class="value-row">
-		<label class="value-field" for="crop-x">
-			<span>x</span>
-			<input id="crop-x" type="number" value={crop.x} min="0" oninput={(e) => updateCropField('x', (e.currentTarget as HTMLInputElement).value)} />
+	<div class="flex flex-wrap gap-2 items-center justify-center w-full">
+		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-x">
+			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">x</span>
+			<input id="crop-x" type="number" value={crop.x} min="0" oninput={(e) => updateCropField('x', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
 		</label>
-		<label class="value-field" for="crop-y">
-			<span>y</span>
-			<input id="crop-y" type="number" value={crop.y} min="0" oninput={(e) => updateCropField('y', (e.currentTarget as HTMLInputElement).value)} />
+		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-y">
+			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">y</span>
+			<input id="crop-y" type="number" value={crop.y} min="0" oninput={(e) => updateCropField('y', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
 		</label>
-		<label class="value-field" for="crop-w">
-			<span>w</span>
-			<input id="crop-w" type="number" value={crop.width} min="1" oninput={(e) => updateCropField('width', (e.currentTarget as HTMLInputElement).value)} />
+		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-w">
+			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">w</span>
+			<input id="crop-w" type="number" value={crop.width} min="1" oninput={(e) => updateCropField('width', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
 		</label>
-		<label class="value-field" for="crop-h">
-			<span>h</span>
-			<input id="crop-h" type="number" value={crop.height} min="1" oninput={(e) => updateCropField('height', (e.currentTarget as HTMLInputElement).value)} />
+		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-h">
+			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">h</span>
+			<input id="crop-h" type="number" value={crop.height} min="1" oninput={(e) => updateCropField('height', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
 		</label>
 	</div>
 </div>
-
-<style>
-	@import '../../editor-dock.css';
-
-	.value-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-	}
-
-	.value-field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		align-items: center;
-		min-width: 3rem;
-	}
-
-	.value-field span {
-		font-size: 0.625rem;
-		font-weight: 400;
-		color: rgba(255, 255, 255, 0.4);
-		text-transform: lowercase;
-	}
-
-	.value-field input {
-		width: 3.25rem;
-		height: 1.625rem;
-		padding-inline: 0.35rem;
-		font-size: 0.6875rem;
-		color: #fff;
-		text-align: center;
-		background: rgba(255, 255, 255, 0.06);
-		border: none;
-		border-radius: 0.375rem;
-		outline: none;
-	}
-
-	.value-field input:focus {
-		background: rgba(255, 255, 255, 0.1);
-	}
-</style>

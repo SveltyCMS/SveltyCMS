@@ -102,14 +102,13 @@ Renders radio group with options from field.options array
 		<div class="flex flex-col gap-y-2">
 			{#each field.options || [] as option (option.value)}
 				<label class="flex cursor-pointer items-center gap-2 text-base text-surface-800 dark:text-surface-50">
-					<input
+					<input aria-label="Radio value"
 						type="radio"
 						name={field.db_fieldName}
 						group={localValue}
 						value={option.value}
 						onchange={() => updateParent(option.value)}
 						aria-checked={localValue === option.value}
-						aria-label={option.label}
 						class={field.color ? `accent-${field.color}` : ''}
 						style={field.color ? `accent-color: ${field.color}` : ''}
 					/>

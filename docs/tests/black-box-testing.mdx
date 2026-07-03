@@ -194,6 +194,10 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 > [!IMPORTANT]
 > **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the source of truth, and any temporary `config/private.ts` created during CI/runtime parity must be an ephemeral mirror of that test config only. Live credentials and production data are never valid in `TEST_MODE`.
 >
+> The safety check runs automatically in **pre-commit** and **pre-push** hooks via `scripts/check-test-db-safety.ts`. It blocks any `config/private.test.ts` with a non-isolated `DB_NAME`. Run it manually with `bun run scripts/check-test-db-safety.ts`.
+>
+> The shared classifier lives in `src/utils/test-db-safety.ts` and is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks so the rule can never drift between them.
+>
 > For SQLite-based black-box jobs, database names must be obviously isolated test names such as `*_test*`, `*_bench*`, or `e2e_*`. Reusing the server's active SQLite file is forbidden because it breaks setup isolation and can corrupt the runtime under concurrent access.
 
 > [!IMPORTANT]

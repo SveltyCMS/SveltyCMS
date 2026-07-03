@@ -78,6 +78,7 @@ interface LayoutData {
 	darkMode: boolean;
 	nonce: string;
 	theme: import("@src/databases/db-interface").Theme;
+	predictedNextPath?: string | null;
 }
 
 interface Props {
@@ -321,6 +322,14 @@ onMount(() => {
 		},
 		"Close Overlays/Command Palette",
 		false,
+	);
+
+	registerHotkey(
+		"alt+s",
+		() => {
+			isSearchVisible.update((v) => !v);
+		},
+		"Toggle Global Search",
 	);
 });
 

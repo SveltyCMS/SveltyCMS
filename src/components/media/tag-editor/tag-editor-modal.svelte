@@ -13,6 +13,7 @@ Features:
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import { page } from "$app/state";
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
@@ -58,7 +59,10 @@ Features:
 		try {
 			const response = await fetch('/api/media/ai-tag', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({ mediaId: file._id })
 			});
 			const result = await response.json();
@@ -87,7 +91,10 @@ Features:
 		try {
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({
 					metadata: {
 						...file.metadata,
@@ -126,7 +133,10 @@ Features:
 
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
@@ -160,7 +170,10 @@ Features:
 
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
@@ -193,7 +206,10 @@ Features:
 
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? ''
+				},
 				body: JSON.stringify({
 					metadata: {
 						...file.metadata,
@@ -317,7 +333,7 @@ Features:
 						{#if pendingCount > 0}
 							{#each activeFile.metadata!.aiTags! as tag, i (tag)}
 								{#if editingTag?.type === 'ai' && editingTag.index === i}
-									<input
+									<input aria-label="Tag name"
 										type="text"
 										bind:value={editingTag.value}
 										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
@@ -326,13 +342,12 @@ Features:
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'ai')}
-										aria-label="Edit AI tag"
 									/>
 								{:else}
 									<Badge variant="primary" preset="tonal" size="sm" class="gap-1 pe-1">
 										<button
 											type="button"
-											class="max-w-[8.5rem] truncate"
+											class="max-w-34 truncate"
 											onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
 											aria-label="Edit tag {tag}"
 										>
@@ -415,7 +430,7 @@ Features:
 						{#if savedCount > 0}
 							{#each activeFile.metadata!.tags! as tag, i (tag)}
 								{#if editingTag?.type === 'user' && editingTag.index === i}
-									<input
+									<input aria-label="Tag color"
 										type="text"
 										bind:value={editingTag.value}
 										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
@@ -424,13 +439,12 @@ Features:
 											if (e.key === 'Escape') editingTag = null;
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'user')}
-										aria-label="Edit saved tag"
 									/>
 								{:else}
 									<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
 										<button
 											type="button"
-											class="max-w-[8.5rem] truncate"
+											class="max-w-34 truncate"
 											onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
 											aria-label="Edit tag {tag}"
 										>

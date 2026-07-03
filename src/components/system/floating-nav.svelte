@@ -44,6 +44,7 @@
 	interface Endpoint {
 		color?: string;
 		icon: string;
+		id: string;
 		tooltip: string;
 		url: {
 			external: boolean;
@@ -54,70 +55,53 @@
 	// Get user from page data
 	const user = $derived(page.data.user as User | undefined);
 
-	// Endpoint definitions
+	// Endpoint definitions — all available routes the user can pin
 	const ALL_ENDPOINTS: Endpoint[] = [
-		{
-			tooltip: 'Home',
-			url: { external: false, path: '/' },
-			icon: 'solar:home-bold'
-		},
-		{
-			tooltip: 'Dashboard',
-			url: { external: false, path: '/dashboard' },
-			icon: 'mdi:view-dashboard',
-			color: 'bg-blue-500'
-		},
-		{
-			tooltip: 'User Profile',
-			url: { external: false, path: '/user' },
-			icon: 'radix-icons:avatar',
-			color: 'bg-orange-500'
-		},
-		{
-			tooltip: 'Collection Builder',
-			url: { external: false, path: '/config/collectionbuilder' },
-			icon: 'fluent-mdl2:build-definition',
-			color: 'bg-green-500'
-		},
-
-		{
-			tooltip: 'GraphQL Explorer',
-			url: { external: true, path: '/api/graphql' },
-			icon: 'teenyicons:graphql-outline',
-			color: 'bg-pink-500'
-		},
-		{
-			tooltip: 'System Configuration',
-			url: { external: false, path: '/config' },
-			icon: 'mynaui:config',
-			color: 'bg-surface-400'
-		},
-		{
-			tooltip: 'Access Management',
-			url: { external: false, path: '/config/access-management' },
-			icon: 'mdi:shield-account',
-			color: 'bg-purple-500'
-		},
-		{
-			tooltip: 'Marketplace',
-			url: { external: true, path: 'https://www.sveltycms.com' },
-			icon: 'icon-park-outline:shopping-bag',
-			color: 'bg-primary-700'
-		}
+		{ id: 'home', tooltip: 'Home', url: { external: false, path: '/' }, icon: 'solar:home-bold' },
+		{ id: 'dashboard', tooltip: 'Dashboard', url: { external: false, path: '/dashboard' }, icon: 'mdi:view-dashboard', color: 'bg-blue-500' },
+		{ id: 'user', tooltip: 'User Profile', url: { external: false, path: '/user' }, icon: 'radix-icons:avatar', color: 'bg-orange-500' },
+		{ id: 'collectionbuilder', tooltip: 'Collection Builder', url: { external: false, path: '/config/collectionbuilder' }, icon: 'fluent-mdl2:build-definition', color: 'bg-green-500' },
+		{ id: 'graphql', tooltip: 'GraphQL Explorer', url: { external: true, path: '/api/graphql' }, icon: 'teenyicons:graphql-outline', color: 'bg-pink-500' },
+		{ id: 'config', tooltip: 'System Configuration', url: { external: false, path: '/config' }, icon: 'mynaui:config', color: 'bg-surface-400' },
+		{ id: 'access', tooltip: 'Access Management', url: { external: false, path: '/config/access-management' }, icon: 'mdi:shield-account', color: 'bg-purple-500' },
+		{ id: 'marketplace', tooltip: 'Marketplace', url: { external: true, path: 'https://www.sveltycms.com' }, icon: 'icon-park-outline:shopping-bag', color: 'bg-primary-700' },
+		{ id: 'media', tooltip: 'Media Gallery', url: { external: false, path: '/mediagallery' }, icon: 'mdi:image-multiple', color: 'bg-teal-500' },
+		{ id: 'settings', tooltip: 'System Settings', url: { external: false, path: '/config/system-settings' }, icon: 'mdi:cog', color: 'bg-slate-500' },
 	];
 
-	// Filter endpoints based on user role
-	const endpoints = $derived(
-		ALL_ENDPOINTS.filter((endpoint) => {
-			if (user?.role === 'admin') {
-				return true;
-			}
-			if (endpoint.url.path === '/collection') {
-				return false;
-			}
-			return true;
-		})
-	);
+	// User-pinned endpoint IDs stored in localStorage
+	const PINNED_KEY = 'floatingNav_pins';
+	let pinnedIds = $state<string[]>(['home']);
+
+	$effect(() => {
+		try {
+			const saved = localStorage.getItem(PINNED_KEY);
+			if (saved) pinnedIds = JSON.parse(saved);
+		} catch { /* ignore corrupt localStorage */ }
+	});
+
+	// Filter endpoints: role-based rules + pin filter + user favorites
+	const FAVORITES_KEY = 'floatingNav_favorites';
+
+	const endpoints = $derived.by(() => {
+		// Read favorites from localStorage
+		let favorites: Endpoint[] = [];
+		try {
+			const saved = localStorage.getItem(FAVORITES_KEY);
+			if (saved) favorites = JSON.parse(saved);
+		} catch { /* ignore */ }
+
+		const pinned = ALL_ENDPOINTS.filter((endpoint) => {
+			if (user?.role !== 'admin' && endpoint.id === 'collectionbuilder') return false;
+			return endpoint.id === 'home' || pinnedIds.includes(endpoint.id);
+		});
+
+		// Merge favorites after pinned defaults (dedup by path)
+		const pinnedPaths = new Set(pinned.map((e) => e.url.path));
+		const uniqueFavorites = favorites.filter((f) => !pinnedPaths.has(f.url.path));
+
+		return [...pinned, ...uniqueFavorites];
+	});
 
 	// State
 	let showRoutes = $state(false);

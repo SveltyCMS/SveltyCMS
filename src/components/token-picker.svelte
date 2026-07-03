@@ -454,12 +454,11 @@
 			<div class="mt-4 space-y-3 border-t border-surface-500/30 pt-4">
 				<div>
 					<div class="mb-1 text-[10px] uppercase opacity-50">Token Editor</div>
-					<textarea
+					<textarea aria-label="Token value"
 						bind:value={editablePreview}
 						rows="3"
 						class="textarea rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
 						placeholder="Edit token syntax here..."
-					 aria-label="Textarea"></textarea>
 				</div>
 
 				<div>

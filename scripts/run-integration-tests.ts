@@ -19,6 +19,7 @@ import {
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isConfigSourceSafeForTesting } from "../src/utils/test-db-safety.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -250,6 +251,35 @@ function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
 async function startPreviewServer() {
   const db = getDbDefaults();
 
+  // 🚀 HARDENING: For SQLite, delete stale database file BEFORE starting the server.
+  // This ensures the server creates a fresh DB and runs Drizzle migrations on connect.
+  // Without this, an empty SQLite file from a previous aborted run would have zero
+  // tables, causing "no such table: roles" errors.
+  if (db.type === "sqlite") {
+    // Use the same path as generatePrivateTestConfig (config/database/sveltycms.db)
+    // The DB_NAME env var might differ from what's in the config file.
+    const dbPath = join(ROOT, "config", "database", "sveltycms.db");
+    if (existsSync(dbPath)) {
+      try {
+        unlinkSync(dbPath);
+        console.log(`Deleted stale SQLite database: ${relative(ROOT, dbPath)}`);
+      } catch (err: any) {
+        console.warn(`Could not delete SQLite database at ${dbPath}: ${err.message}`);
+      }
+    }
+    // Also clean up WAL and SHM files
+    for (const suffix of ["-wal", "-shm"]) {
+      const walPath = dbPath + suffix;
+      if (existsSync(walPath)) {
+        try {
+          unlinkSync(walPath);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
   const entryPoint = join(ROOT, "build", "index.js");
   if (!existsSync(entryPoint)) {
     throw new Error("Could not find server entry point (build/index.js)");
@@ -389,9 +419,19 @@ function ensurePrivateTestConfig() {
     return;
   }
 
-  if (!existsSync(privateTestPath) && existsSync(privatePath)) {
-    copyFileSync(privatePath, privateTestPath);
-    console.log("✅ Copied config/private.ts to config/private.test.ts for TEST_MODE");
+  // SAFETY: config/private.ts may point at a real deployment with live user data.
+  // It must NEVER be used to seed the test config, even locally, even if
+  // private.test.ts doesn't exist yet. Always (re)generate a fresh, isolated test
+  // config instead of copying from private.ts.
+  if (existsSync(privateTestPath)) {
+    const { dbName, safe } = isConfigSourceSafeForTesting(readFileSync(privateTestPath, "utf8"));
+    if (!safe) {
+      console.warn(
+        `⚠️ config/private.test.ts has an unsafe DB_NAME ('${dbName || "unknown"}'). ` +
+          "Regenerating a safe test config instead of trusting the existing file.",
+      );
+      generatePrivateTestConfig(privateTestPath);
+    }
   }
 
   if (!existsSync(privateTestPath)) {
@@ -434,12 +474,18 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
 
       const text = await response.text().catch(() => "");
       if (response.status === 503 && i < maxRetries - 1) {
-        console.log(`⏳ /api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
+        console.log(`/api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
 
-      throw new Error(`/api/testing ${action} failed with HTTP ${response.status}: ${text}`);
+      // Enhanced diagnostics for test failures
+      console.error(
+        `/api/testing ${action} FAILED (HTTP ${response.status}): ${text.slice(0, 500)}`,
+      );
+      throw new Error(
+        `/api/testing ${action} failed with HTTP ${response.status}: ${text.slice(0, 300)}`,
+      );
     } catch (err: any) {
       lastError = err;
       if (i < maxRetries - 1) {
@@ -603,6 +649,16 @@ async function main() {
 
   CONFIG = await loadHardenedConfig();
 
+  // SAFETY: setup-check.ts resolves TEST_API_SECRET independently on the server
+  // side (env var -> test-secret.txt file -> random fallback). If the two
+  // resolutions ever diverge, every /api/testing call 401s. Writing the secret
+  // we're about to send in headers to the same file setup-check.ts reads makes
+  // them structurally impossible to disagree, regardless of env propagation.
+  const testSecretDir = join(ROOT, "tests", "e2e", ".auth");
+  const testSecretPath = join(testSecretDir, "test-secret.txt");
+  if (!existsSync(testSecretDir)) mkdirSync(testSecretDir, { recursive: true });
+  writeFileSync(testSecretPath, CONFIG.TEST_API_SECRET, "utf8");
+
   const explicitFiles = getExplicitFiles(argv);
   const hasExistingBuildOutput =
     existsSync(join(ROOT, "build")) || existsSync(join(ROOT, ".svelte-kit", "output", "server"));
@@ -637,7 +693,7 @@ async function main() {
 
     try {
       const { code } = await runCommand("bun", ["run", "build"], {
-        env: { COMPILE_ALL_ADAPTERS: "true" },
+        env: { COMPILE_ALL_ADAPTERS: "true", SKIP_COLLECTION_COMPILE: "true" },
       });
       if (code !== 0) {
         throw new Error("Build failed");
