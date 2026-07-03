@@ -195,9 +195,7 @@ export async function handleTestingRoutes(
             type: dbType as any,
             host: process.env.DB_HOST || "localhost",
             port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
-            name:
-              process.env.DB_NAME ||
-              (dbType === "sqlite" ? "config/database/sveltycms.db" : "sveltycms"),
+            name: process.env.DB_NAME || "sveltycms_test",
             user: process.env.DB_USER || "",
             password: process.env.DB_PASSWORD || "",
           };

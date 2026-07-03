@@ -25,7 +25,15 @@
  */
 
 import { spawn, type SpawnOptions } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  cpSync,
+  rmSync,
+  readdirSync,
+} from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -147,6 +155,39 @@ function getE2EProjects(): string[] {
   }
 }
 
+function hasTopLevelCollectionFiles(dir: string): boolean {
+  if (!existsSync(dir)) return false;
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    return entries.some((entry) => entry.isFile() && /\.(ts|js)$/.test(entry.name));
+  } catch {
+    return false;
+  }
+}
+
+function assertDisposableWorkspace() {
+  if (process.env.SVELTYCMS_DISPOSABLE_TEST_WORKSPACE === "true") return;
+
+  const liveArtifacts = [
+    existsSync(join(ROOT, "config", "private.ts")) ? "config/private.ts" : "",
+    hasTopLevelCollectionFiles(join(ROOT, "config", "collections"))
+      ? "config/collections/*.ts"
+      : "",
+    hasTopLevelCollectionFiles(join(ROOT, ".compiledCollections"))
+      ? ".compiledCollections/*.js"
+      : "",
+  ].filter(Boolean);
+
+  if (liveArtifacts.length === 0) return;
+
+  console.error("Refusing to run local CI against a workspace with live CMS setup artifacts.");
+  console.error(`Detected: ${liveArtifacts.join(", ")}`);
+  console.error(
+    "Use a disposable clone/worktree for full CI parity, or set SVELTYCMS_DISPOSABLE_TEST_WORKSPACE=true only after confirming this workspace has no live user data.",
+  );
+  process.exit(1);
+}
+
 // ── Main Pipeline ───────────────────────────────────────────────────────────
 
 interface StepResult {
@@ -156,6 +197,8 @@ interface StepResult {
 }
 
 async function main() {
+  assertDisposableWorkspace();
+
   const pipelineStart = Date.now();
   const results: StepResult[] = [];
   const testSecret = ensureTestSecret();

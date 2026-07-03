@@ -15,11 +15,10 @@ import {
   readFileSync,
   mkdirSync,
   writeFileSync,
-  renameSync,
 } from "node:fs";
-import { join, relative, dirname } from "node:path";
+import { isAbsolute, join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isConfigSourceSafeForTesting } from "../src/utils/test-db-safety.ts";
+import { isConfigSourceSafeForTesting, isIsolatedTestDbName } from "../src/utils/test-db-safety.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -126,6 +125,35 @@ function getArgValue(argv: string[], name: string) {
 
 function normalizePath(file: string) {
   return file.replace(/\\/g, "/");
+}
+
+function resolveSqliteTestDbPath(db: ReturnType<typeof getDbDefaults>): string {
+  const fileName =
+    db.name.endsWith(".sqlite") || db.name.endsWith(".db") ? db.name : `${db.name}.sqlite`;
+  const host = db.host;
+  const isNetworkHost =
+    !host ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
+
+  if (isNetworkHost) return join(ROOT, "config", "database", fileName);
+
+  const isPathLike =
+    host.startsWith("/") ||
+    host.startsWith("./") ||
+    host.startsWith("../") ||
+    host.includes("/") ||
+    host.includes("\\") ||
+    /^[a-zA-Z]:/.test(host);
+
+  if (isPathLike) {
+    const base = isAbsolute(host) ? host : resolve(ROOT, host);
+    return join(base, fileName);
+  }
+
+  return join(ROOT, "config", "database", fileName);
 }
 
 function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
@@ -256,9 +284,13 @@ async function startPreviewServer() {
   // Without this, an empty SQLite file from a previous aborted run would have zero
   // tables, causing "no such table: roles" errors.
   if (db.type === "sqlite") {
-    // Use the same path as generatePrivateTestConfig (config/database/sveltycms.db)
-    // The DB_NAME env var might differ from what's in the config file.
-    const dbPath = join(ROOT, "config", "database", "sveltycms.db");
+    if (!isIsolatedTestDbName(db.name)) {
+      throw new Error(
+        `Refusing to delete SQLite database '${db.name}' because it is not an isolated test DB name.`,
+      );
+    }
+
+    const dbPath = resolveSqliteTestDbPath(db);
     if (existsSync(dbPath)) {
       try {
         unlinkSync(dbPath);
@@ -673,43 +705,25 @@ async function main() {
 
   if (!skipBuild) {
     console.log("🏗️ Building project (with COMPILE_ALL_ADAPTERS)...");
-    const privatePath = join(ROOT, "config", "private.ts");
-    const privateTmpPath = join(ROOT, "config", "private.ts.tmp");
-    const privateTestPath = join(ROOT, "config", "private.test.ts");
-    const privateTestTmpPath = join(ROOT, "config", "private.test.ts.tmp");
-
-    const hasConfig = existsSync(privatePath);
-    const hasTestConfig = existsSync(privateTestPath);
-
-    // Move real configs aside and create stub configs so the build can resolve
-    // config/private.ts without leaking secrets into the build artifact
-    if (hasConfig) renameSync(privatePath, privateTmpPath);
-    if (hasTestConfig) renameSync(privateTestPath, privateTestTmpPath);
-
-    // Create stub config for build resolution
-    const stubConfig = `export const privateEnv = { DB_TYPE: "${dbType}", DB_HOST: "127.0.0.1", DB_NAME: "stub", DB_USER: "", DB_PASSWORD: "", JWT_SECRET_KEY: "stub", ENCRYPTION_KEY: "stub" };\nexport const privateConfig = privateEnv;\nexport default privateEnv;\n`;
-    writeFileSync(privatePath, stubConfig, "utf8");
-    if (!hasTestConfig) writeFileSync(privateTestPath, stubConfig, "utf8");
-
-    try {
-      const { code } = await runCommand("bun", ["run", "build"], {
-        env: { COMPILE_ALL_ADAPTERS: "true", SKIP_COLLECTION_COMPILE: "true" },
-      });
-      if (code !== 0) {
-        throw new Error("Build failed");
-      }
-    } finally {
-      // Restore real configs
-      if (hasConfig && existsSync(privateTmpPath)) {
-        renameSync(privateTmpPath, privatePath);
-      } else if (!hasConfig && existsSync(privatePath)) {
-        unlinkSync(privatePath);
-      }
-      if (hasTestConfig && existsSync(privateTestTmpPath)) {
-        renameSync(privateTestTmpPath, privateTestPath);
-      } else if (!hasTestConfig && existsSync(privateTestPath)) {
-        unlinkSync(privateTestPath);
-      }
+    const db = getDbDefaults();
+    const { code } = await runCommand("bun", ["run", "build"], {
+      env: {
+        TEST_MODE: "true",
+        DB_TYPE: db.type,
+        DB_HOST: db.host,
+        DB_PORT: String(db.port),
+        DB_NAME: db.name,
+        DB_USER: db.user,
+        DB_PASSWORD: db.password,
+        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
+        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
+        COMPILE_ALL_ADAPTERS: "true",
+        SKIP_COLLECTION_COMPILE: "true",
+      },
+    });
+    if (code !== 0) {
+      throw new Error("Build failed");
     }
   } else {
     console.log("⏭️ Skipping build; using existing CI build artifact.");

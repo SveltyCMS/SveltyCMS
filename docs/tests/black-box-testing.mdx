@@ -4,7 +4,7 @@ title: "Black-Box Testing Architecture"
 description: "SveltyCMS black-box integration and E2E testing architecture, safety rules, and CI execution model."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-06-17"
+updated: "2026-07-03"
 tags:
   - "testing"
   - "architecture"
@@ -104,8 +104,8 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 ## Test Execution Flow
 
-1. **Build**: `bun run build` generates the production bundle.
-2. **Preview**: `TEST_MODE=true node build/index.js` starts the production build used by CI black-box jobs. The auth-setup E2E bootstrap is the main exception and still uses a dev server for first-run setup state generation.
+1. **Build**: `scripts/run-integration-tests.ts` generates `config/private.test.ts`, then runs `bun run build` with `TEST_MODE=true`, `COMPILE_ALL_ADAPTERS=true`, and `SKIP_COLLECTION_COMPILE=true`. Vite aliases `@config/private` to `config/private.test.ts`, so local builds never rename or read the user's `config/private.ts`.
+2. **Preview**: `TEST_MODE=true node build/index.js` starts the production build used by CI black-box jobs. Playwright local runs use `playwright.config.ts` web servers on ports `4173` (ready state) and `4174` (setup wizard state).
    When the suite must mimic production setup gating, `STRICT_SETUP_CHECK=true` is enabled so completed `/setup` routes redirect the same way they do outside test mode.
 3. **Orchestrate**: Test helper calls `/api/testing` (with secure handshake) to prepare the database.
 4. **Login**: Test helper calls `/api/auth/login` to obtain a session cookie.
@@ -192,7 +192,7 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 ---
 
 > [!IMPORTANT]
-> **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the source of truth, and any temporary `config/private.ts` created during CI/runtime parity must be an ephemeral mirror of that test config only. Live credentials and production data are never valid in `TEST_MODE`.
+> **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the local source of truth. Local integration and E2E runs must never rename, copy from, delete, or otherwise mutate the user's `config/private.ts`. CI may create an ephemeral `config/private.ts` only on fresh runners for build parity, and that file must be a mirror of the isolated test config.
 >
 > The safety check runs automatically in **pre-commit** and **pre-push** hooks via `scripts/check-test-db-safety.ts`. It blocks any `config/private.test.ts` with a non-isolated `DB_NAME`. Run it manually with `bun run scripts/check-test-db-safety.ts`.
 >

@@ -48,7 +48,7 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+      MARIADB_ROOT_PASSWORD: mariadb
       MARIADB_DATABASE: sveltycms_test
       MARIADB_USER: testuser
       MARIADB_PASSWORD: testpass
@@ -66,11 +66,11 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: testuser
-      POSTGRES_PASSWORD: testpass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sveltycms_test
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "testuser"]
+      test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
       timeout: 5s
       retries: 10
