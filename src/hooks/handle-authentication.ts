@@ -81,7 +81,8 @@ function initRotationRateLimiter() {
   if (rotationRateLimiter) return rotationRateLimiter;
 
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
-  if (!secret && !dev) {
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
+  if (!secret && !dev && !isTestMode) {
     logger.error(
       "CRITICAL: JWT_SECRET_KEY is missing in production. Rate limiting will be unreliable.",
     );

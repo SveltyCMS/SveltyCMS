@@ -108,7 +108,9 @@ export class ThemeManager {
       const allThemes = await this.db.system.themes.getAllThemes();
 
       if (!Array.isArray(allThemes) || allThemes.length === 0) {
-        logger.warn("No themes found in database. Using DEFAULT_THEME fallback.");
+        if (process.env.TEST_MODE !== "true") {
+          logger.warn("No themes found in database. Using DEFAULT_THEME fallback.");
+        }
         this.themeCache.set("global", DEFAULT_THEME);
         try {
           const { cacheService } = await import("./cache/cache-service");
