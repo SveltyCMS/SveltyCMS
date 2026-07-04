@@ -267,7 +267,12 @@ async function main() {
   // ── CLI flags ───────────────────────────────────────────────────────────
   const runAll = argv.includes("--all");
   const listOnly = argv.includes("--list");
+  const unitOnly = argv.includes("--unit-only");
   const suiteFilter = argv.includes("--suite") ? argv[argv.indexOf("--suite") + 1] : null;
+
+  if (unitOnly) {
+    FULL_CORE_SUITE.command = "bun run test:unit";
+  }
 
   // ── Determine changed files ─────────────────────────────────────────────
   const changedFiles = runAll ? ["*"] : getChangedFiles();
@@ -287,6 +292,10 @@ async function main() {
 
   // ── Select suites ───────────────────────────────────────────────────────
   let suites = selectSuites(changedFiles);
+
+  if (unitOnly) {
+    suites = suites.filter((s) => s.rule.gate === 1 || s.rule.gate === 0);
+  }
 
   if (suiteFilter) {
     suites = suites.filter((s) => s.rule.label.toLowerCase().includes(suiteFilter.toLowerCase()));

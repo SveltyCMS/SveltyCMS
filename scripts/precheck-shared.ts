@@ -283,12 +283,14 @@ const BASE_TASKS: TaskSpec[] = [
     ciJob: "format",
     estimatedMs: 3000,
     remediation: "bun run format",
+    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
     run: () => runCommand("bun", ["run", "format"]),
   },
   {
     name: "Post-Format Tree Clean Check",
     ciJob: "format",
     estimatedMs: 500,
+    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
     run: () => {
       if (hasUnstagedChanges()) {
         console.error("\n❌ Working tree is dirty after formatting.");
@@ -318,6 +320,7 @@ const BASE_TASKS: TaskSpec[] = [
     ciJob: "lint",
     estimatedMs: 5000,
     remediation: "bun run lint",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "lint"]),
   },
   {
@@ -332,12 +335,14 @@ const BASE_TASKS: TaskSpec[] = [
     name: "Docs Lint",
     // Always runs — no corresponding CI job (local-only validation)
     estimatedMs: 2000,
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasDocs && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "lint:docs"]),
   },
   {
     name: "Benchmark MDX Lint",
     // Always runs — no corresponding CI job (local-only validation)
     estimatedMs: 2000,
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasDocs && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "lint:benchmark-mdx"]),
   },
   {
@@ -366,14 +371,26 @@ const BASE_TASKS: TaskSpec[] = [
     ciJob: "unit",
     estimatedMs: 60000,
     remediation: "bun test --reporter=verbose",
-    run: () => runCommand("bun", ["run", "test:unit"], { silent: true, timeout: 600_000 }),
+    shouldSkip: (ctx) =>
+      ctx.tier === "push" &&
+      !ctx.profile.hasSourceCode &&
+      !ctx.profile.hasInfra &&
+      !ctx.profile.hasDbInfra,
+    run: (ctx) =>
+      runCommand(
+        "bun",
+        ctx.tier === "push"
+          ? ["run", "scripts/test-smart.ts", "--unit-only"]
+          : ["run", "test:unit"],
+        { silent: true, timeout: 600_000 },
+      ),
   },
   {
     name: "Production Build",
     ciJob: "build",
     estimatedMs: 120000,
     remediation: "bun run build",
-    shouldSkip: (ctx) => ctx.tier !== "full" && ctx.profile.paths.length === 0,
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () =>
       runCommand("bun", ["run", "build"], {
         env: { COMPILE_ALL_ADAPTERS: "true" },
