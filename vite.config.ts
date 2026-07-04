@@ -1073,7 +1073,7 @@ export default defineConfig((): any => {
         "mongodb",
         "postgres",
         "mysql2",
-        "prettier",
+        "@tailwindcss/node",
       ],
     },
     resolve: {
