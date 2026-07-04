@@ -94,7 +94,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       1_800_000, // Stale: 30 min (serve stale while refreshing)
     );
 
-    const serializedVirtualFolders = virtualFoldersData.map((folder) =>
+    const serializedVirtualFolders = (virtualFoldersData || []).map((folder) =>
       serializeIds(folder as unknown),
     );
 
@@ -459,10 +459,9 @@ export const actions: Actions = {
               return;
             }
             const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
             const contentType = response.headers.get("content-type") || "application/octet-stream";
             const filename = url.substring(url.lastIndexOf("/") + 1);
-            const file = new File([buffer], filename, { type: contentType });
+            const file = new File([arrayBuffer], filename, { type: contentType });
             await mediaService.saveMedia(
               file,
               user._id as any,

@@ -433,7 +433,7 @@ export async function registerCollections(tenantId?: string | null) {
     typeDefs: finalTypeDefs,
     queryFields,
     resolvers,
-    collections,
+    collections: filtered,
   };
 }
 

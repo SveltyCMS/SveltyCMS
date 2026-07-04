@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-28"
+updated: "2026-07-04"
 tags:
   - "roadmap"
   - "todo"
@@ -31,17 +31,18 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 **Pending UI Wiring Only** (API endpoints complete): Bulk download archive button, analytics dashboard widget, version diff UI in media details modal, streaming upload handler integration.
 
+**Recently Completed**: Inline editing of asset metadata (name, alt text, caption) in the media details modal via `media-details-modal.svelte` — click-to-edit directly in the media drawer.
+
 ## 🏗️ In Progress
 
-- 🏗️ **Phased Marketplace Migration**: Widgets, plugins, themes, dashboards, and extensions moving from the monorepo to `marketplace.sveltycms.com`. Core widgets stay in repo. Doc stubs with redirect frontmatter keep `llms-full.txt` coverage at 100% via federation layer. Phase 1 (core widget doc naming) ✅; Phase 2 (custom widgets → marketplace) pending. See [Marketplace System](../reference/architecture/marketplace.mdx).
-- 🏗️ **Hybrid Package Model**: Monorepo with `@sveltycms/core`, `@sveltycms/widgets`. Pending: official npm publishing pipeline, CI, consumer docs.
-- 🏗️ **`create-sveltycms` CLI**: Scaffolding CLI (`npm create sveltycms@latest`) that sets up a new SvelteKit project with SveltyCMS as a dependency. Simplifies adoption — no manual config needed. Pending: template repo, `@src/` alias extraction, CLI script, npm publishing.
-- 🏗️ **Published DB Adapters**: `sveltycms-sqlite`, `sveltycms-mongodb`, `sveltycms-mariadb`, `sveltycms-postgresql` as separate npm packages. Users install only what they need. Pending: adapter extraction, CI publishing, consumer docs.
-- 🏗️ **Public API Surface Extraction**: Replace `@src/` internal path aliases with real package exports (`LocalCMS`, widget factory, DB adapter interfaces, type definitions). Pending: audit of internal imports, barrel export creation, compile-time alias inlining.
-- 🏗️ **AI Co-Pilot**: `@sveltycms/ai` package with field suggestions, content scoring, import mapping. Pending: MCP UI, Ghost data generation.
-- 🏗️ **Version Channels**: Core service + API endpoints for LTS/Stable/Next. Pending: UI dashboard, upgrade CLI integration.
-- 🏗️ **WebAuthn/Passkeys UI**: Login ceremony + crypto complete (✅). Pending: settings-page UI for passkey management, `db:push` for `authenticators` column on SQL deployments.
-- 🏗️ **API Key Management UI**: Admin REST API complete (✅). Pending: admin dashboard page for creating, listing, and revoking API keys.
+- 🏗️ **Phased Marketplace Migration**: Phase 1 (core widget doc naming) ✅. Phase 2 pending: custom widgets → `marketplace.sveltycms.com`. Backend API ✅ (`marketplace-service.ts`, `marketplace-client.ts`, `/api/marketplace` endpoint), but **no in-app catalog/browse UI yet** — Extensions page links externally. See [Marketplace System](../reference/architecture/marketplace.mdx).
+- ✅ **Hybrid Package Model + Public API Surface (Complete)**: Monorepo workspaces with `@sveltycms/core` (LocalCMS, IDBAdapter, types, AppError) and `@sveltycms/widgets` (createWidget, FieldConfig, validation, scanner). Type-safe barrel exports, esbuild bundling pipeline (`bun run packages:build`), consumer READMEs. See `packages/core/` and `packages/widgets/`. ⚠️ Main codebase still uses `@src/` aliases internally — migration to package imports is a future optimization.
+- 🏗️ **Published DB Adapters**: `sveltycms-sqlite`, `sveltycms-mongodb`, `sveltycms-mariadb`, `sveltycms-postgresql` as separate npm packages. Pending: adapter extraction from `src/databases/`, CI publishing, consumer docs.
+- ✅ **`create-sveltycms` CLI (Complete)**: `scripts/create-app.ts` — clones latest release, `--template` (blog/agency/saas/corporate/ecommerce), `--db` (sqlite/postgresql/mariadb/mongodb), published as `create-sveltycms` in `package.json` bin + files.
+- ✅ **Version Channels (Complete)**: `src/services/core/version-service.ts` (LTS/Stable/Next), `src/routes/api/[...path]/handlers/version.ts` (channels + check endpoints), `scripts/upgrade.ts` (automated core updates). ⚠️ Missing: docs MDX, settings-page UI channel switcher.
+- 🏗️ **WebAuthn/Passkeys UI**: Backend ✅ (`webauthn-service.ts`, attestation parsing, unit tests). User page has only a checkbox toggle — **missing: settings-page UI for passkey management** (add/remove/list registered passkeys), `db:push` for `authenticators` column on SQL deployments.
+- ✅ **MCP / AI Integration (Complete)**: Hosted Knowledge Core (`mcp.sveltycms.com/mcp`), Local RAG (Ollama + LanceDB), WebMCP Browser Bridge (7 tools, draft-gated), AI Co-Pilot (chat, scoring, suggestions, translation, generative layouts, behavioral learning, anomaly detection, semantic index, AI widget scaffolder). All via `/api/ai/*` dispatcher → `src/services/core/ai-service.ts` + `src/services/intelligence/`. See [ai-integration.mdx](/docs/development/ai-integration.mdx).
+- 🏗️ **API Key Management UI**: Backend ✅ (`api-keys.ts` handler — POST create, GET list, DELETE revoke). Access Management page has Permissions/Roles/Website Tokens tabs but **no API Keys tab**. Pending: admin dashboard section for creating, listing, and revoking API keys.
 
 ## 🚀 Planned
 
@@ -66,11 +67,6 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 - **Deep JSON/Object Field Filtering**: Path-based SQL/NoSQL filtering across REST, GraphQL, LocalCMS.
 - **AI Command Bar Guardrails**: Permission-aware gating, diff previews, audit logging.
 - **[TSV](https://tsv.fuz.dev/) Integration**: Waiting for upstream native Node.js libraries so we can use TSV for even faster testing.
+- **Aggressive Adoption Onboarding**: One-click deploy buttons (Vercel, Netlify, Railway, Fly.io), 0-config Setup Wizard with auto-detection, `create-sveltycms` scaffolding with interactive template picker, interactive example gallery (20+ use-cases), and live interactive playground at `try.sveltycms.com` — eliminating friction for first-time users while ensuring instant enterprise trial readiness.
 
 ---
-
-## Related
-
-- [Technical Evaluation](./technical-evaluation-2026.mdx) — Detailed implementation reports and performance data
-- [Competitive Comparison](./competitive-comparison.mdx) — Feature matrix and benchmark context
-- [Performance Benchmarks](./benchmarks/index.mdx) — Reproducible benchmark results

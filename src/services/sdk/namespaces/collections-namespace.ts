@@ -17,6 +17,7 @@ import type { Schema, FieldInstance } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { pluginRegistry } from "@src/plugins/registry";
 import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-ids";
+import { resolvePopulatedRelations } from "./populate-resolver";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 
 type ContentSystem = typeof serverContentSystem;
@@ -567,7 +568,7 @@ export class CollectionsNamespace {
         offset,
         sort,
         fields: options.fields,
-        tenantId: tenantId as DatabaseId,
+        populate: options.populate,
       },
     );
 
@@ -602,6 +603,24 @@ export class CollectionsNamespace {
       for (let i = 0; i < items.length; i++) {
         items[i]._collection = collectionMeta;
       }
+    }
+
+    // Relational population: resolve referenced entries when populate is requested
+    if (
+      result.success &&
+      result.data &&
+      Array.isArray(result.data) &&
+      options.populate &&
+      options.populate.length > 0
+    ) {
+      await resolvePopulatedRelations(
+        result.data,
+        schema,
+        options.populate,
+        tenantId,
+        this._dbAdapter,
+        (id: string) => this.getCollectionName(id),
+      );
     }
 
     if (result.success && !bypassCache && cacheKey) {

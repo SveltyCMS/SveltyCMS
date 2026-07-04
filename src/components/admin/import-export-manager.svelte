@@ -446,7 +446,7 @@
 				<div>
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
-						<div class="space-x-2">
+						<div class="flex gap-2">
 							<Button variant="outline" onclick={selectAllCollections} aria-label="Select all collections">Select All</Button>
 							<Button variant="outline" onclick={clearCollectionSelection} aria-label="Clear collection selection">Clear All</Button>
 						</div>
@@ -455,7 +455,7 @@
 					<div class="max-h-48 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
 						{#each collections as collection (collection.id)}
 							{const inputId = `export-collection-${collection.id}`}
-							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
+							<label for={inputId} class="flex cursor-pointer items-center gap-3 py-2">
 								<input id={inputId} type="checkbox" checked={exportOptions.collections.includes(String(collection.id))} onchange={() => toggleCollectionSelection(String(collection.id))} class="rounded" />
 
 								<div class="font-medium">
@@ -479,7 +479,7 @@
 				</div>
 			</div>
 
-			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex justify-end gap-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Cancel export">Cancel</Button>
 				<Button variant="tertiary" aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
@@ -532,7 +532,7 @@
 				</div>
 			</div>
 
-			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex justify-end gap-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Cancel import">Cancel</Button>
 				<Button variant="tertiary" onclick={handleImport} disabled={loading || !importFiles} aria-label="Import data from file" class="dark:">Import Data</Button>
 			</div>
@@ -577,7 +577,7 @@
 								<div class="rounded border border-gray-200 p-3 dark:border-gray-700">
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
-										<div class="flex space-x-4 text-sm">
+										<div class="flex gap-4 text-sm">
 											<span class="text-tertiary-500 dark:text-primary-500">+{result.imported}</span>
 											<span class="text-waring-500">~{result.skipped}</span>
 											<span class="text-error-500">!{result.errors.length}</span>

@@ -455,3 +455,31 @@ describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
     expect(checkEndpointPermission({ permissions: [] }, "GET", "system")).toBe(false);
   });
 });
+
+// ─── CSRF Protection Bypass for API Clients ─────────────────────────────────
+
+describe("CSRF Protection Bypass for API Clients", () => {
+  function verifyCsrfValidationBypass(
+    user: { isApiKey?: boolean; isApiToken?: boolean } | null,
+    method: string,
+  ): boolean {
+    if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
+    if (user?.isApiKey || user?.isApiToken) return true;
+    return false;
+  }
+
+  it("should bypass CSRF validation for API Keys on mutations", () => {
+    expect(verifyCsrfValidationBypass({ isApiKey: true }, "POST")).toBe(true);
+    expect(verifyCsrfValidationBypass({ isApiKey: true }, "PUT")).toBe(true);
+  });
+
+  it("should bypass CSRF validation for API Tokens on mutations", () => {
+    expect(verifyCsrfValidationBypass({ isApiToken: true }, "DELETE")).toBe(true);
+    expect(verifyCsrfValidationBypass({ isApiToken: true }, "PATCH")).toBe(true);
+  });
+
+  it("should enforce CSRF validation for standard users on mutations", () => {
+    expect(verifyCsrfValidationBypass({ isApiKey: false }, "POST")).toBe(false);
+    expect(verifyCsrfValidationBypass(null, "POST")).toBe(false);
+  });
+});

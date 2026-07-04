@@ -106,13 +106,12 @@ function onDragLeave() {
 	ondragleave={onDragLeave}
 	ondrop={onDrop}
 >
-	<input
+	<input aria-label={label}
 		type="file"
 		class="sr-only"
 		{multiple}
 		{accept}
 		{disabled}
-		aria-label={label}
 		onchange={(e) => handleFiles(e.currentTarget.files)}
 	/>
 

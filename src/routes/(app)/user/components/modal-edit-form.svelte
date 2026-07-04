@@ -16,7 +16,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import PermissionGuard from '@src/components/permission-guard.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// Paraglide Messages
 	import { button_cancel, button_delete, button_save, form_confirmpassword, modaleditform_newpassword } from '@src/paraglide/messages';
@@ -352,12 +351,11 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{/if}
 		{/if}
 		<!-- Role Select -->
-		<PermissionGuard config={modaleEditFormConfig} silent={true}>
-			{#if !isOwnProfile}
+		{#if !isOwnProfile}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
 					<div class="flex-auto">
-						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
+						<div class="flex flex-wrap justify-center gap-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
 							{#if roles && roles.length > 0}
 								{#each roles as r (r._id)}
 									<Button
@@ -410,8 +408,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					</div>
 				</div>
 			{/if}
-		</PermissionGuard>
-	</form>
+		</form>
 
 	<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4">
 		<div class="flex items-center gap-4">
@@ -420,12 +417,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			<!-- Delete User Button (only if perm allows) -->
 			{#if showDeleteButton}
-				<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
-					<Button variant="error" type="button" onclick={deleteUser}>
-						<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
-						<span class="hidden sm:block">{button_delete()}</span>
-					</Button>
-				</PermissionGuard>
+				<Button variant="error" type="button" onclick={deleteUser}>
+					<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
+					<span class="hidden sm:block">{button_delete()}</span>
+				</Button>
 			{/if}
 		</div>
 

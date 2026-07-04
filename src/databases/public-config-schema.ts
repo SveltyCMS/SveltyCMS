@@ -51,15 +51,16 @@ export const publicConfigSchema = object({
   MEDIASERVER_URL: optional(string()),
   MEDIA_BUCKET_NAME: optional(pipe(string(), minLength(1))),
 
-  // --- Cloud Storage Configuration ---
-  MEDIA_CLOUD_REGION: optional(string()),
-  MEDIA_CLOUD_ENDPOINT: optional(string()),
-  MEDIA_CLOUD_PUBLIC_URL: optional(string()),
   IMAGE_SIZES: object({}),
   MAX_FILE_SIZE: optional(pipe(number(), minValue(1))),
   BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))),
   EXTRACT_DATA_PATH: optional(string()),
   USE_ARCHIVE_ON_DELETE: optional(boolean()),
+
+  // --- Cloud Storage Configuration ---
+  MEDIA_CLOUD_REGION: optional(string()),
+  MEDIA_CLOUD_ENDPOINT: optional(string()),
+  MEDIA_CLOUD_PUBLIC_URL: optional(string()),
 
   // --- Seasons Icons ---
   SEASONS: optional(boolean()),

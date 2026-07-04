@@ -428,9 +428,8 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
   const fs = await import("node:fs/promises");
   const baseDir = path.resolve(process.cwd(), "config", "collections");
   await fs.mkdir(baseDir, { recursive: true });
-  // Ensure test subdirectory exists for bench/test collections
   const testDir = path.join(baseDir, "test");
-  await fs.mkdir(testDir, { recursive: true });
+  let testDirEnsured = false;
 
   const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
   const { isBenchmarkArtifact, isBenchmarkRuntime } =
@@ -451,6 +450,11 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     const isTestCollection =
       slug.startsWith("bench") || slug.startsWith("mock") || slug.startsWith("test");
     const targetDir = isTestCollection ? testDir : baseDir;
+    // Only create test/ dir when a test collection actually needs to be written
+    if (isTestCollection && !testDirEnsured) {
+      await fs.mkdir(testDir, { recursive: true });
+      testDirEnsured = true;
+    }
     const filePath = path.join(targetDir, fileName);
 
     // Skip if file already exists

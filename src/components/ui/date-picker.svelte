@@ -80,7 +80,7 @@ const classes = $derived(cn(
 	{/if}
 
 	<div class="relative group">
-		<input
+		<input aria-label={label || undefined}
 			{id}
 			{type}
 			bind:value

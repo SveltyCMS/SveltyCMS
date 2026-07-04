@@ -334,9 +334,13 @@ function registerServerTools(db: IDBAdapter): void {
   // get_collections — server
   async function getCollections() {
     try {
-      const collections = await db.collection.listSchemas();
+      const result = await db.collection.listSchemas();
+      const collections =
+        result && typeof result === "object" && "success" in result && result.success
+          ? ((result as any).data ?? [])
+          : [];
       return {
-        collections: collections.map((c: any) => ({
+        collections: (Array.isArray(collections) ? collections : []).map((c: any) => ({
           id: c._id,
           name: c.name,
           fields: c.fields,
@@ -367,10 +371,9 @@ function registerServerTools(db: IDBAdapter): void {
       const result = await db.crud.findMany(collectionId, filter, {
         limit: Math.min(opts.limit || 25, 100),
         offset: opts.offset || 0,
-        sort: {
-          field: opts.sortField || "updatedAt",
-          direction: (opts.sortDirection as "asc" | "desc") || "desc",
-        },
+        sort: opts.sortField
+          ? { [opts.sortField]: (opts.sortDirection as "asc" | "desc") || "desc" }
+          : { updatedAt: "desc" },
       });
       return result;
     } catch (err: any) {

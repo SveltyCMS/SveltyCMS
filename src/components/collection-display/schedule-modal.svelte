@@ -123,7 +123,7 @@
 			{/if}
 		</form>
 
-		<footer class="modal-footer flex items-center justify-end space-x-4">
+		<footer class="modal-footer flex items-center justify-end gap-4">
 			<Button variant="outline" onclick={() => modalState.close()}>{button_cancel()}</Button>
 			<Button variant="tertiary" onclick={() => handleSubmission()} disabled={!isFormValid} class="dark:preset-filled-primary-500">
 								{entrylist_multibutton_schedule()}

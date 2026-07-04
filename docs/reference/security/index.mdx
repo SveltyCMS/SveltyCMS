@@ -255,7 +255,8 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Setup Session Cookie Consistency**: Setup handler now uses the same `__Host-` cookie prefix logic as the authentication hook, eliminating the prefix inconsistency between setup and runtime session cookies.
 
 - ✅ **Zero-Bias Token Generation**: `generateRandomToken` uses rejection sampling to eliminate the ~3.125% modulo bias, guaranteeing uniform distribution across all characters for session tokens and API keys.
-- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login.
+- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login. Hardened with a deep database check for existing admin users to prevent setup wizard hijacking if config files are deleted.
+- ✅ **Stateless CSRF Exemption**: Excludes Bearer-authenticated API key and Website token requests from CSRF validation, allowing external headless mutations while keeping admin sessions fully protected.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
 
@@ -493,6 +494,18 @@ Security issues should be reported to:
 5. **Implement least privilege** - Minimal permissions
 6. **Log security events** - Enable audit trail
 7. **Keep dependencies updated** - Regular security patches
+
+### Scaffolding Security Defaults
+
+When a new SveltyCMS project is created via `create-sveltycms`, the setup wizard automatically generates `config/private.ts` with:
+
+- **`PASSWORD_MIN_LENGTH: 12`** — enforces strong passwords
+- **`RATE_LIMIT_SECRET`** — 32-character CSPRNG-generated secret for rate limiting
+- **`JWT_SECRET_KEY`** — 32-character CSPRNG-generated signing key
+- **`ENCRYPTION_KEY`** — 32-character CSPRNG-generated encryption key
+- **RSA-2048 SAML signing keys** — auto-generated key pair
+
+These defaults ensure new deployments start with a hardened security posture. Review and customize all values in `config/private.ts` before deploying to production.
 
 ### Deployment
 

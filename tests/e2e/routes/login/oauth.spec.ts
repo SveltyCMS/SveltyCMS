@@ -28,7 +28,9 @@ test.describe("OAuth First User Signup", () => {
 
     // Wrap in try/catch since OAuth may not be configured in all environments
     try {
-      await expect(googleOAuthForm.or(googleOAuthButton).first()).toBeVisible({ timeout: 10000 });
+      await expect(googleOAuthForm.or(googleOAuthButton).first()).toBeVisible({
+        timeout: 10000,
+      });
       console.log("✓ Google OAuth button is visible - OAuth is properly configured");
 
       // Verify the button text shows Google (avoids iconify web component loading issues)
@@ -136,7 +138,7 @@ test.describe("OAuth First User Signup", () => {
     const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid&__test_oauth_mock__=true&__test_is_first__=true&__test_email=ci-test-user@example.com&__test_name=CI+Test+User&__test_given_name=CI&__test_family_name=User&__test_picture=https://example.com/test-avatar.jpg`;
 
     await page.goto(testUrl, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
     });
 
     // Wait for either redirect to collection page, login, or error handling
@@ -206,7 +208,7 @@ test.describe("OAuth First User Signup", () => {
     await page.goto(testUrl);
 
     // Wait for the response
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Check if OAuth callback redirected to login (expected when OAuth not configured)
     try {
@@ -257,7 +259,7 @@ test.describe("OAuth First User Signup", () => {
     const testUrl = `${baseURL}/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid&__test_oauth_mock__=true&__test_is_first__=true&__test_email=avatar-test-user@example.com&__test_name=Avatar+Test+User&__test_given_name=Avatar&__test_family_name=User&__test_picture=https://example.com/test-avatar.jpg`;
 
     await page.goto(testUrl, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
     });
 
     // Wait for processing

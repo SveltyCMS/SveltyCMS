@@ -49,11 +49,11 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 }
 
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
-import { handleTurboGet } from "./hooks/handle-turbo-get";
+import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
-import { getTestSecret } from "./utils/server/setup-check";
+import { getTestSecret } from "@utils/server/setup-check";
 
 // 🚀 HYPER-TURBO BYPASS (Enterprise)
 // In benchmark mode, injects a system admin user for non-auth requests
@@ -608,6 +608,19 @@ export const handleError = async ({ error, event, status }: any) => {
 
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
+
+/**
+ * Invalidate all turbo-auth cache entries for a specific user.
+ * Called when roles change or the user is blocked/deleted/unblocked
+ * so privilege changes take effect immediately without waiting for TTL expiry.
+ */
+export function invalidateTurboAuthForUser(userId: string) {
+  for (const [key, ctx] of turboAuthCache.entries()) {
+    if (ctx.user?._id === userId || ctx.user?.id === userId) {
+      turboAuthCache.delete(key);
+    }
+  }
+}
 
 import { TokenRegistry } from "@src/services/token/engine";
 

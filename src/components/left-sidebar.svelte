@@ -40,14 +40,14 @@
 		applayout_systemconfiguration,
 		applayout_systemlanguage,
 		applayout_userprofile,
-		Collections_MediaGallery
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-	import { goto } from '$app/navigation';
+import { goto, invalidateAll } from '$app/navigation';
 	// Stores
-	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
-	import { ui, uiStateManager, toggleUIElement } from '@src/stores/ui-store.svelte';
+import { contentStructure } from '@src/stores/collection-store.svelte';
+import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
+import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
@@ -266,7 +266,7 @@
 	<!-- Expand/Collapse Button -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: 'end' }}
+		positioning={{ placement: 'right-end' }}
 		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
@@ -398,7 +398,7 @@
 					>
 						<span class="flex items-center gap-1.5">
 							<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}{Collections_MediaGallery()}{/if}
+							{#if isSidebarFull}Media Gallery{/if}
 						</span>
 						{#if isSidebarFull}
 							<iconify-icon
@@ -496,13 +496,12 @@
 
  							{#if showLanguageDropdown}
  								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
- 									<input
+									<input aria-label="Search"
  										type="text"
  										bind:value={searchQuery}
  										placeholder="Search language..."
- 										class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
- 										aria-label="Search languages"
- 										onclick={(e) => e.stopPropagation()}
+										class="w-full rounded bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
+										onclick={(e) => e.stopPropagation()}
  									/>
  								</div>
 

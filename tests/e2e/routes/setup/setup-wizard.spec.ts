@@ -19,22 +19,12 @@ class SetupWizardPage {
   }
 
   async hardReset() {
-    await this.goto();
-    const resetBtn = await this.firstVisible([
-      this.page.locator('button[aria-label="Reset data"]').first(),
-      this.page.getByRole("button", { name: /reset data/i }).first(),
-    ]);
-    if (resetBtn && (await resetBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-      await resetBtn.click({ force: true });
-      const confirmBtn = await this.firstVisible([
-        this.page.getByRole("button", { name: /confirm/i }).first(),
-        this.page.getByRole("button", { name: /yes/i }).first(),
-      ]);
-      if (confirmBtn && (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-        await confirmBtn.click({ force: true });
-        await this.page.waitForLoadState("networkidle").catch(() => {});
-      }
+    try {
+      await resetToSetupMode();
+    } catch (err: any) {
+      console.warn(`[E2E Setup Wizard] Cryptographic hardReset failed: ${err.message}`);
     }
+    await this.goto();
   }
 
   async dismissModals() {

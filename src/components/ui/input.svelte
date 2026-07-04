@@ -55,6 +55,7 @@ corner-shape angled corners.
   // Workaround for strict $props binding requirements
   let {
     value = $bindable(),
+    inputRef = $bindable(),
     label,
     labelClass,
     inputClass,
@@ -69,8 +70,14 @@ corner-shape angled corners.
     ...rest
   }: Props = $props();
 
-  // @ts-expect-error bind:this template usage not seen by TS language server
   let _inputRef = $state<HTMLInputElement | null>(null);
+
+  // Forward internal ref to external bindable prop
+  $effect(() => {
+    if (inputRef !== _inputRef) {
+      inputRef = _inputRef;
+    }
+  });
 
   const theme = getThemeContext();
 
@@ -150,7 +157,7 @@ corner-shape angled corners.
       </div>
     {/if}
 
-    <input
+    <input aria-label={label || undefined}
       bind:this={_inputRef}
       {id}
       {type}

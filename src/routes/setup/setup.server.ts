@@ -110,7 +110,9 @@ export async function testDatabaseConnection(
     if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
       // In test mode, the test harness resets the DB before each file — skip the
       // emptiness warning to avoid false positives from test collection seeding.
-      const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+      const isTest =
+        (globalThis as any).process?.env?.TEST_MODE === "true" ||
+        (globalThis as any).process?.env?.VITE_TEST_MODE === "true";
       if (!isTest) {
         await dbAdapter.disconnect();
         const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
@@ -233,7 +235,7 @@ export async function completeSetup(
 
   // Wait for critical background seeding to complete
   const { setupManager } = await import("./setup-manager");
-  if (process.env.TEST_MODE === "true" || database.type === "sqlite") {
+  if ((globalThis as any).process?.env?.TEST_MODE === "true" || database.type === "sqlite") {
     await setupManager.waitAll();
   } else {
     await setupManager.waitTillDone();

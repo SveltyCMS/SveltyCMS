@@ -118,6 +118,8 @@ The setup wizard will guide you through:
   • Database configuration (${dbType})
   • Admin account creation
   • Collection template selection (${template})
+  • Security hardening — auto-generates secure keys (JWT, encryption, rate limiting)
+  • Password policy — enforces PASSWORD_MIN_LENGTH: 12 by default
 
 Templates available: blog, agency, saas, corporate, ecommerce
 

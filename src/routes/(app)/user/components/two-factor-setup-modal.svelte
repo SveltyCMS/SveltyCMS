@@ -202,7 +202,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						{twofa_verify_setup_description()}
 					</label>
 					<div class="relative">
-						<input
+						<input aria-label="Verification code"
 							id="verification-code"
 							type="text"
 							bind:value={verificationCode}
@@ -213,7 +213,6 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							autocomplete="off"
 							class:border-error-500={error}
 							class:focus\:border-error-500={error}
-							aria-label="Verification code"
 						/>
 					</div>
 

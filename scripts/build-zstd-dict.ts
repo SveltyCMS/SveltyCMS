@@ -185,7 +185,8 @@ function generateCorpus(knowledge: Set<string>): string[] {
     // Sprinkle known tokens for training value (repetition is gold for dicts)
     for (let i = 0; i < 8; i++) {
       const token = k[(i * 7 + 13) % k.length] || "title";
-      s = s.replace(/__TOKEN__/g, token).replace(/__ID__/g, "507f1f77bcf86cd7994390" + i);
+      s = s.replace("__TOKEN__", token);
+      s = s.replace("__ID__", "507f1f77bcf86cd7994390" + i);
     }
     return s;
   };
@@ -504,6 +505,7 @@ function selectAndWrite(
 
   // O(1) prefix + substring lookup via Set for fast redundancy check (O(L²) instead of O(N))
   const prefixSet = new Set<string>();
+  const selectedStrings: string[] = []; // parallel array for substring containment check
   const isRedundant = (candidate: string) => {
     // Exact match
     if (used.has(candidate)) return true;
@@ -532,6 +534,7 @@ function selectAndWrite(
     selected.push(c.str);
     used.add(c.str);
     // Populate prefix set for O(1) overlap checks
+    selectedStrings.push(c.str);
     for (let i = 4; i <= c.str.length; i++) prefixSet.add(c.str.slice(0, i));
     currentBytes += addition;
   }
@@ -552,9 +555,8 @@ function selectAndWrite(
   dictContent = dictContent.subarray(0, target);
 
   // Proper zstd dictionary header (magic 0x37A430EC is the on-disk form for 0xEC30A437 value)
-  const MAGIC = Buffer.from([0x37, 0xa4, 0x30, 0xec]); // zstd dictionary magic
-  const DICT_ID = Buffer.from([0x53, 0x56, 0x4c, 0x54]); // 'SVLT' deterministic ID for this CMS
-  const finalDict = Buffer.concat([MAGIC, DICT_ID, dictContent]);
+  // Raw content dictionary (null-separated entries) — use with zstd --train or Brotli custom dict
+  const finalDict = dictContent;
 
   const outDir = join(process.cwd(), "static", "dictionaries");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });

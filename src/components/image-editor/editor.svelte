@@ -427,7 +427,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		</div>
 	{/if}
 
-	<div class="editor-layout flex min-h-0 min-w-0 flex-1 overflow-hidden">
+	<div class="editor-layout flex min-h-0 min-w-0 flex-1 overflow-hidden items-stretch">
 		{#if !isMobileEditor}
 			<EditorSidebar
 				hasImage={hasImage}
@@ -436,12 +436,12 @@ Comprehensive image editing interface with svelte-canvas integration.
 		{/if}
 
 		<div
-			class="editor-workspace relative min-h-0 min-w-0 flex-1 overflow-hidden"
+				class="editor-workspace relative min-h-0 min-w-0 flex-1 overflow-hidden"
 			style:--editor-dock-h="{isMobileEditor ? 0 : dockHeight}px"
 		>
 			<div class="editor-canvas-slot flex min-h-0 flex-col overflow-hidden">
 				<div class="canvas-wrapper relative flex min-h-0 flex-1 flex-col">
-					<div class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden">
+					<div class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden bg-[var(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a))] border-none rounded-none shadow-none outline-none">
 						<EditorCanvas
 							bind:containerRef
 							bind:containerWidth
@@ -467,7 +467,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			{#if toolbarControls?.component && !isMobileEditor}
 				<div
 					bind:this={bottomDockRef}
-					class="editor-bottom-dock editor-desktop-dock editor-glass-dock absolute inset-x-0 bottom-0 z-20 overflow-x-auto px-2 py-1 md:px-3"
+					class="editor-bottom-dock editor-desktop-dock editor-glass-dock absolute inset-x-0 bottom-0 z-20 overflow-x-auto px-2 py-1.5 md:px-3 w-full h-fit max-h-fit bg-[--editor-chrome-bg] border-t border-[--editor-chrome-border]"
 				>
 					{#key toolbarControls.component}
 						{const Component = toolbarControls.component}
@@ -489,17 +489,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 </div>
 
 <style>
-	.editor-layout {
-		align-items: stretch;
-		min-height: 0;
-		flex: 1 1 auto;
-	}
-
-	.editor-workspace {
-		min-height: 0;
-	}
-
-	/* Desktop layout — restored absolute canvas + bottom dock */
 	.editor-canvas-slot {
 		position: absolute;
 		inset-inline: 0;
@@ -509,23 +498,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 		flex-direction: column;
 		min-height: 0;
 		background: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
-	}
-
-	.editor-glass-dock {
-		width: 100%;
-		height: fit-content;
-		max-height: fit-content;
-		padding-block: 0.375rem;
-		background: var(--editor-chrome-bg, #0a0a0a);
-		border-top: 1px solid var(--editor-chrome-border, rgba(255, 255, 255, 0.07));
-	}
-
-	.editor-canvas-frame {
-		background: var(--editor-canvas-bg, var(--editor-chrome-bg, #0a0a0a));
-		border: none;
-		border-radius: 0;
-		box-shadow: none;
-		outline: none;
 	}
 
 	.canvas-edge-vignette {
@@ -562,7 +534,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 	.image-editor--mobile .canvas-wrapper,
 	.image-editor--mobile .editor-canvas-frame,
-	.image-editor--mobile .editor-canvas-wrapper {
+	.image-editor--mobile :global(.editor-canvas-wrapper) {
 		flex: 1 1 auto;
 		min-height: 0;
 	}

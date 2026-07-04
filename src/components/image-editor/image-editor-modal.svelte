@@ -19,8 +19,6 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 -->
 
 <script lang="ts">
-    import './editor-chrome.css';
-    import './editor-mobile.css';
     import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
     import type { MediaImage, WatermarkOptions } from '@src/utils/media/media-models';
     import { onMount, setContext } from 'svelte';
@@ -236,8 +234,9 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
         bind:this={modalContainer}
         class="image-editor-panel relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
         class:image-editor-panel--mobile={isMobileEditor}
-        role="region"
+        role="dialog"
         aria-label="Image Editor — edit and transform your image"
+        aria-modal="true"
         tabindex="-1"
         onkeydown={trapFocus}
     >
@@ -273,7 +272,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
         {/if}
 
         {#if isMobileEditor}
-            <div class="editor-mobile-header">
+            <div class="flex shrink-0 flex-col gap-1.5 px-4 pt-[calc(env(safe-area-inset-top,0px)+2.5)] pb-1.5 bg-[--editor-chrome-bg]">
                 <EditorMobileToolbar onclose={handleCancelClick} onsave={handleSaveClick} {isSaving} />
                 <EditorMobileQuickActions />
             </div>
@@ -303,11 +302,37 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 {/if}
 
 <style>
+	/* Shared design tokens for the image editor chrome */
 	.image-editor-panel {
+		--editor-chrome-bg: #0a0a0a;
+		--editor-chrome-surface: #0f0f0f;
+		--editor-chrome-elevated: rgba(255, 255, 255, 0.06);
+		--editor-chrome-border: rgba(255, 255, 255, 0.07);
+		--editor-chrome-border-subtle: rgba(255, 255, 255, 0.05);
+		--editor-chrome-text: rgba(255, 255, 255, 0.68);
+		--editor-chrome-text-hover: rgba(255, 255, 255, 0.92);
+		--editor-chrome-text-active: #fff;
+		--editor-accent: #f5c518;
+		--editor-accent-hover: #ffd43b;
+		--editor-canvas-bg: var(--editor-chrome-bg);
+		--editor-control-h: 2.25rem;
+		--editor-control-h-compact: 1.875rem;
+		--editor-radius-pill: 9999px;
+		--editor-radius-control: 0.5rem;
 		background: var(--editor-chrome-bg);
 	}
 
 	.image-editor-panel--mobile {
+		--editor-chrome-bg: #1a1a1a;
+		--editor-chrome-surface: #1a1a1a;
+		--editor-canvas-bg: #1a1a1a;
+		--editor-chrome-elevated: rgba(255, 255, 255, 0.08);
+		--editor-chrome-border: rgba(255, 255, 255, 0.1);
+		--editor-chrome-border-subtle: transparent;
+		--editor-control-h: 2.25rem;
+		--editor-pill-pad: 0.1875rem;
+		--editor-accent: #f4c430;
+		--editor-accent-hover: #ffd54f;
 		height: 100dvh;
 		min-height: 100dvh;
 		max-height: 100dvh;

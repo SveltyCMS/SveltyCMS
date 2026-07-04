@@ -245,13 +245,15 @@ export { InMemorySessionManager, RedisSessionManager };
 export { InMemorySessionManager as InMemorySessionStore, RedisSessionManager as RedisSessionStore };
 
 // Default session manager instance
-let defaultManager: SessionStore | null = null;
+const SESSION_STORE_GLOBAL_KEY = "__SVELTY_SESSION_STORE__";
 
 export function getDefaultSessionManager(): SessionStore {
-  if (!defaultManager) {
-    defaultManager = createSessionManager();
+  let manager = (globalThis as any)[SESSION_STORE_GLOBAL_KEY];
+  if (!manager) {
+    manager = createSessionManager();
+    (globalThis as any)[SESSION_STORE_GLOBAL_KEY] = manager;
   }
-  return defaultManager;
+  return manager;
 }
 
 export function setDefaultSessionManager(manager: SessionStore): void {

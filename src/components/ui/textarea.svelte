@@ -80,7 +80,7 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 		</label>
 	{/if}
 
-	<textarea
+	<textarea aria-label={label || undefined}
 		{id}
 		{rows}
 		class={cn(baseStyles, error && errorStyles, textareaClass)}

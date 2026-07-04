@@ -3,22 +3,10 @@
  * @description Slim history store — persist/load benchmark runs for trend analysis.
  * Uses a local SQLite database. Kept minimal; the MDX report is the primary display.
  */
-import { Database, type Statement } from "bun:sqlite";
+import { Database } from "bun:sqlite";
 import path from "node:path";
 
 const RESULTS_DIR = path.resolve("tests/benchmarks/results");
-
-// Reusable cached prepared statement bindings
-let _insertStmt: Statement | null = null;
-let _queryStmt: Statement | null = null;
-let _countStmt: Statement | null = null;
-
-// Lazy environment strings cached at startup initialization layer
-const _cachedCommitSha = lazyDetectCommitSha();
-const _cachedBranch = lazyDetectBranch();
-const _cachedOS = `${process.platform} ${process.arch}`;
-const _cachedRuntime =
-  typeof Bun !== "undefined" ? `bun ${Bun.version}` : `node ${process.version}`;
 
 function getDb(): Database {
   const dbPath = path.join(RESULTS_DIR, "history.sqlite");
@@ -68,7 +56,7 @@ export function persistRun(entry: HistoryEntry): void {
     const db = getDb();
     db.run(
       "INSERT OR IGNORE INTO runs (run_id, run_mode, test_id, db_type, redis, phase, avg_ms, p95_ms, rps, error_count, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      entry.runId || null,
+      entry.runId ?? (null as any),
       entry.runMode || "standalone",
       entry.testId,
       entry.dbType,
@@ -83,8 +71,8 @@ export function persistRun(entry: HistoryEntry): void {
     // Keep only last 50 runs per test to stay lean
     db.run(
       "DELETE FROM runs WHERE id IN (SELECT id FROM runs WHERE test_id = ? AND db_type = ? ORDER BY id DESC LIMIT -1 OFFSET 50)",
-      entry.testId,
-      entry.dbType,
+      entry.testId as any,
+      entry.dbType as any,
     );
     db.close();
   } catch {
@@ -144,6 +132,21 @@ export function buildBenchmarkMetricId(opts: {
 }): string {
   const redis = opts.redisEnabled ? "redis-on" : "redis-off";
   return `${opts.testId}/${opts.dbType}/${redis}/${opts.phase}/${opts.metric || "avg"}`;
+}
+
+export function loadDistinctTestIds(dbType: string): string[] {
+  try {
+    const db = getDb();
+    const rows = db
+      .query(
+        "SELECT DISTINCT test_id FROM runs WHERE db_type = ? AND status = 'SUCCESS' ORDER BY test_id ASC",
+      )
+      .all(dbType) as { test_id: string }[];
+    db.close();
+    return rows.map((r) => r.test_id);
+  } catch {
+    return [];
+  }
 }
 
 export function closeHistory(): void {

@@ -5,7 +5,7 @@
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
-import { SetupState } from "../utils/server/setup-check";
+import { SetupState } from "@utils/server/setup-check";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
@@ -25,9 +25,14 @@ import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
 import { getRoleBitset } from "@src/databases/auth/permissions";
 
-const IS_BUN_TEST = !!process.env.BUN_TEST;
-const IS_TEST_MODE = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
-const IS_BENCHMARK = process.env.BENCHMARK === "true";
+const IS_BUN_TEST =
+  typeof globalThis !== "undefined" && !!(globalThis as any).process?.env?.BUN_TEST;
+const IS_TEST_MODE =
+  typeof globalThis !== "undefined" &&
+  ((globalThis as any).process?.env?.TEST_MODE === "true" ||
+    (globalThis as any).process?.env?.VITE_TEST_MODE === "true");
+const IS_BENCHMARK =
+  typeof globalThis !== "undefined" && (globalThis as any).process?.env?.BENCHMARK === "true";
 
 let multiTenantCached: boolean | null = null;
 const userCountCache = new Map<string, { count: number; timestamp: number }>();

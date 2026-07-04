@@ -190,8 +190,8 @@ function onVirtualScroll() {
                         <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                             {#if selectable}
                                 <th class="w-12 p-4">
-                                    <input type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
-                                        checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="select-all-rows" />
+                                    <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
+                                        checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                                 </th>
                             {/if}
                             {#each columns as col (col.key)}
@@ -228,10 +228,9 @@ function onVirtualScroll() {
                                     }}>
                                     {#if selectable}
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                            <input type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
+                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)}
-                                                aria-label={`select-row-${index + 1}`} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}
@@ -260,8 +259,8 @@ function onVirtualScroll() {
                     <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                         {#if selectable}
                             <th class="w-12 p-4">
-                                <input type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
-                                    checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} aria-label="select-all-rows" />
+                                <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
+                                    checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                             </th>
                         {/if}
                         {#each columns as col (col.key)}
@@ -312,10 +311,9 @@ function onVirtualScroll() {
                                     }}>
                                     {#if selectable}
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                            <input type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
+                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)}
-                                                aria-label={`select-row-${index + 1}`} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}

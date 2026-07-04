@@ -267,7 +267,12 @@ async function main() {
   // ── CLI flags ───────────────────────────────────────────────────────────
   const runAll = argv.includes("--all");
   const listOnly = argv.includes("--list");
+  const unitOnly = argv.includes("--unit-only");
   const suiteFilter = argv.includes("--suite") ? argv[argv.indexOf("--suite") + 1] : null;
+
+  if (unitOnly) {
+    FULL_CORE_SUITE.command = "bun run test:unit";
+  }
 
   // ── Determine changed files ─────────────────────────────────────────────
   const changedFiles = runAll ? ["*"] : getChangedFiles();
@@ -287,6 +292,10 @@ async function main() {
 
   // ── Select suites ───────────────────────────────────────────────────────
   let suites = selectSuites(changedFiles);
+
+  if (unitOnly) {
+    suites = suites.filter((s) => s.rule.gate === 1 || s.rule.gate === 0);
+  }
 
   if (suiteFilter) {
     suites = suites.filter((s) => s.rule.label.toLowerCase().includes(suiteFilter.toLowerCase()));
@@ -332,41 +341,59 @@ async function main() {
   console.log("\n" + "═".repeat(60));
   console.log("🚀 Executing test suites...\n");
 
-  const results: { label: string; gate: number; code: number }[] = [];
-  let hasFailures = false;
+  let suitesToRun = [...suites];
 
-  for (const { rule } of suites) {
-    const start = Date.now();
-    console.log(`\n▶ ${rule.label} (Gate ${rule.gate})`);
-    console.log(`  $ ${rule.command}`);
+  while (suitesToRun.length > 0) {
+    const results: { label: string; gate: number; code: number }[] = [];
+    const failedSuites: SelectedSuite[] = [];
 
-    const { code } = await runCommand(rule.command, ROOT);
-    const duration = ((Date.now() - start) / 1000).toFixed(1);
+    for (const suite of suitesToRun) {
+      const rule = suite.rule;
+      const start = Date.now();
+      console.log(`\n▶ ${rule.label} (Gate ${rule.gate})`);
+      console.log(`  $ ${rule.command}`);
 
-    results.push({ label: rule.label, gate: rule.gate, code });
+      const { code } = await runCommand(rule.command, ROOT);
+      const duration = ((Date.now() - start) / 1000).toFixed(1);
 
-    if (code === 0) {
-      console.log(`  ✅ Passed (${duration}s)`);
+      results.push({ label: rule.label, gate: rule.gate, code });
+
+      if (code === 0) {
+        console.log(`  ✅ Passed (${duration}s)`);
+      } else {
+        console.log(`  ❌ Failed (${duration}s)`);
+        failedSuites.push(suite);
+      }
+    }
+
+    // ── Summary ─────────────────────────────────────────────────────────────
+    console.log("\n" + "═".repeat(60));
+    console.log("📊 Test Summary:");
+    for (const r of results) {
+      const status = r.code === 0 ? "✅" : "❌";
+      console.log(`  ${status} Gate ${r.gate}: ${r.label}`);
+    }
+
+    if (failedSuites.length > 0) {
+      if (process.stdout.isTTY && process.stdin.isTTY) {
+        console.log("\n❌ Some suites failed.");
+        const answer = prompt(
+          "   Would you like to fix them and re-run only the failed suites? [Y/n] ",
+        );
+        if (answer === null || answer.trim().toLowerCase() !== "n") {
+          prompt("   Make your changes, then press [Enter] to re-run only the failed suites...");
+          suitesToRun = failedSuites;
+          console.log("\n🔄 Re-running failed suites...");
+          continue;
+        }
+      }
+      console.log("\n❌ Some suites failed. Root-cause each failure. Do NOT retry until green.");
+      process.exit(1);
     } else {
-      console.log(`  ❌ Failed (${duration}s)`);
-      hasFailures = true;
+      console.log("\n✅ All selected suites passed.\n");
+      break;
     }
   }
-
-  // ── Summary ─────────────────────────────────────────────────────────────
-  console.log("\n" + "═".repeat(60));
-  console.log("📊 Test Summary:");
-  for (const r of results) {
-    const status = r.code === 0 ? "✅" : "❌";
-    console.log(`  ${status} Gate ${r.gate}: ${r.label}`);
-  }
-
-  if (hasFailures) {
-    console.log("\n❌ Some suites failed. Root-cause each failure. Do NOT retry until green.");
-    process.exit(1);
-  }
-
-  console.log("\n✅ All selected suites passed.\n");
 }
 
 main().catch((err) => {

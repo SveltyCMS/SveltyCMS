@@ -15,18 +15,19 @@ import {
   readFileSync,
   mkdirSync,
   writeFileSync,
-  renameSync,
 } from "node:fs";
-import { join, relative, dirname } from "node:path";
+import { isAbsolute, join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getDockerDefaultDbCredentials } from "../src/utils/test-db-credentials.ts";
+import { isConfigSourceSafeForTesting, isIsolatedTestDbName } from "../src/utils/test-db-safety.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = join(__dirname, "..");
 
-let PORT = process.env.PORT ?? "4173";
+const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
-let API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
+const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
 
 type IntegrationSuite = "all" | "db" | "api";
 
@@ -63,10 +64,9 @@ const loadHardenedConfig = async () => {
   };
 };
 
-let CONFIG: any = {};
+let CONFIG: Awaited<ReturnType<typeof loadHardenedConfig>>;
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
-let serverRunningMode: "normal" | "setup" | "none" = "none";
 
 function getEnvValue(name: string): string | undefined {
   if (Object.prototype.hasOwnProperty.call(process.env, name)) {
@@ -89,24 +89,9 @@ function getDbDefaults() {
 
   const dbPort = getEnvValue("DB_PORT") ?? defaultPort;
 
-  const dbUser =
-    getEnvValue("DB_USER") ??
-    (dbType === "mariadb"
-      ? "root"
-      : dbType === "postgresql"
-        ? "postgres"
-        : dbType === "sqlite"
-          ? ""
-          : "testuser");
-  const dbPassword =
-    getEnvValue("DB_PASSWORD") ??
-    (dbType === "mariadb"
-      ? "mariadb"
-      : dbType === "postgresql"
-        ? "postgres"
-        : dbType === "sqlite"
-          ? ""
-          : "testpass");
+  const defaults = getDockerDefaultDbCredentials(dbType);
+  const dbUser = getEnvValue("DB_USER") ?? defaults.user;
+  const dbPassword = getEnvValue("DB_PASSWORD") ?? defaults.password;
 
   return {
     type: dbType,
@@ -127,17 +112,43 @@ function normalizePath(file: string) {
   return file.replace(/\\/g, "/");
 }
 
+function resolveSqliteTestDbPath(db: ReturnType<typeof getDbDefaults>): string {
+  const fileName =
+    db.name.endsWith(".sqlite") || db.name.endsWith(".db") ? db.name : `${db.name}.sqlite`;
+  const host = db.host;
+  const isNetworkHost =
+    !host ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
+
+  if (isNetworkHost) return join(ROOT, "config", "database", fileName);
+
+  const isPathLike =
+    host.startsWith("/") ||
+    host.startsWith("./") ||
+    host.startsWith("../") ||
+    host.includes("/") ||
+    host.includes("\\") ||
+    /^[a-zA-Z]:/.test(host);
+
+  if (isPathLike) {
+    const base = isAbsolute(host) ? host : resolve(ROOT, host);
+    return join(base, fileName);
+  }
+
+  return join(ROOT, "config", "database", fileName);
+}
+
 function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
-  // First, always filter out db tests that don't match the current dbType
   let filtered = testFiles.filter((file) => {
     const path = normalizePath(file);
-    if (!path.includes("tests/integration/databases/")) return true;
 
     if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
     if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
     if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
     if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
-    // Contract test runs for all DBs (it auto-detects the active adapter internally)
 
     return true;
   });
@@ -147,14 +158,7 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
   }
 
   if (suite === "api") {
-    return filtered.filter((file) => {
-      const path = normalizePath(file);
-      return (
-        path.includes("tests/integration/api/") ||
-        path.includes("tests/integration/routes/") ||
-        path.includes("tests/integration/sdk/")
-      );
-    });
+    return filtered.filter((file) => !normalizePath(file).includes("tests/integration/databases/"));
   }
 
   return filtered;
@@ -166,13 +170,12 @@ async function waitForPortToBeFree(port: number, maxAttempts = 30) {
       await fetch(`http://127.0.0.1:${port}/api/system/health`, {
         signal: AbortSignal.timeout(1000),
       });
-      // If it responded, it's still alive. Wait.
       await new Promise((resolve) => setTimeout(resolve, 500));
     } catch {
-      // Connection refused/Failed to fetch means it is fully freed!
       return;
     }
   }
+  throw new Error(`Port ${port} still in use after ${maxAttempts} attempts`);
 }
 
 async function freePort(port: number) {
@@ -198,24 +201,15 @@ async function freePort(port: number) {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
-  const targetStates = [
-    "ready",
-    "healthy",
-    "setup",
-    "warmed",
-    "warming",
-    "degraded",
-    "initializing",
-    "operational",
-    "idle",
-  ];
+  const targetStates = new Set(["ready", "healthy", "ok", "degraded"]);
+  const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/health`, {
         headers: {
           "x-test-mode": "true",
-          "x-test-secret": CONFIG.TEST_API_SECRET,
+          "x-test-secret": testApiSecret,
         },
         signal: AbortSignal.timeout(3000),
       });
@@ -227,63 +221,113 @@ async function waitForServerReady(maxAttempts = 60) {
           .toString()
           .toLowerCase();
 
-        if (targetStates.includes(rawStatus)) {
+        if (targetStates.has(rawStatus)) {
           console.log(`✅ Server is READY (state: ${rawStatus})`);
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          return;
+
+          // 🚀 RACE CONDITION FIX: The system state machine reports READY
+          // before SQLite migrations complete (bootAll runs asynchronously).
+          // Wait for migrations to finish before returning, otherwise seed
+          // operations fail with "no such table: roles".
+          console.log("⏳ Waiting for database migrations to settle...");
+          for (let settle = 0; settle < 15; settle++) {
+            await new Promise((r) => setTimeout(r, 1000));
+            try {
+              const settleRes = await fetch(`${API_BASE_URL}/api/system/health`, {
+                headers: {
+                  "x-test-mode": "true",
+                  "x-test-secret": testApiSecret,
+                  "x-refresh": "true",
+                },
+                signal: AbortSignal.timeout(3000),
+              });
+              if (settleRes.ok) {
+                const settleData = await settleRes.json().catch(() => ({}));
+                const db = settleData?.data?.database || "";
+                if (db === "connected") {
+                  console.log("✅ Database migrations settled.");
+                  return true;
+                }
+              }
+            } catch {
+              // Server still settling
+            }
+          }
+          console.log("⚠️ Database migrations did not settle — proceeding anyway.");
+          return true;
         }
 
-        console.log(`⏳ Server up, but state is: "${rawStatus}"...`);
-      } else {
-        console.log(`⏳ Server responded with HTTP ${res.status}...`);
+        console.log(`⏳ Server state: ${rawStatus} (${i + 1}/${maxAttempts})...`);
       }
     } catch {
-      // Quietly wait for connection.
+      // Server may not be listening yet
     }
-
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  throw new Error("Server failed to reach READY state within timeout");
+  console.log("⚠️ Server did not reach READY state within timeout.");
+  return false;
 }
 
-function getTestEnv(db: any): Record<string, string | undefined> {
+function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
   return {
-    ...process.env,
-    NODE_ENV: "production",
+    NODE_ENV: "test",
     TEST_MODE: "true",
     SKIP_GATEKEEPER: "true",
-    PORT: PORT,
-    API_BASE_URL: API_BASE_URL,
+    PORT,
+    API_BASE_URL,
     DB_TYPE: db.type,
     DB_HOST: db.host,
-    DB_PORT: db.port,
+    DB_PORT: String(db.port),
     DB_NAME: db.name,
     DB_USER: db.user,
     DB_PASSWORD: db.password,
-    TEST_API_SECRET: CONFIG.TEST_API_SECRET,
-    ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
+    TEST_API_SECRET: CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+    ADMIN_PASSWORD: CONFIG?.ADMIN_PASSWORD || "Password123!",
     ORIGIN: API_BASE_URL,
     PASSWORD_MIN_LENGTH: "8",
-    JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
-    ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
+    JWT_SECRET_KEY: CONFIG?.JWT_SECRET_KEY || "",
+    ENCRYPTION_KEY: CONFIG?.ENCRYPTION_KEY || "",
   };
 }
 
-async function startPreviewServer(setupMode = false) {
-  await freePort(Number(PORT));
-
+async function startPreviewServer() {
   const db = getDbDefaults();
 
-  console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
+  // 🚀 HARDENING: For SQLite, delete stale database file BEFORE starting the server.
+  // This ensures the server creates a fresh DB and runs Drizzle migrations on connect.
+  // Without this, an empty SQLite file from a previous aborted run would have zero
+  // tables, causing "no such table: roles" errors.
+  if (db.type === "sqlite") {
+    if (!isIsolatedTestDbName(db.name)) {
+      throw new Error(
+        `Refusing to delete SQLite database '${db.name}' because it is not an isolated test DB name.`,
+      );
+    }
 
-  const entryPoint = [
-    join(ROOT, "build", "index.js"),
-    join(ROOT, "build", "server", "index.js"),
-    join(ROOT, ".svelte-kit", "output", "server", "index.js"),
-  ].find((p) => existsSync(p));
+    const dbPath = resolveSqliteTestDbPath(db);
+    if (existsSync(dbPath)) {
+      try {
+        unlinkSync(dbPath);
+        console.log(`Deleted stale SQLite database: ${relative(ROOT, dbPath)}`);
+      } catch (err: any) {
+        console.warn(`Could not delete SQLite database at ${dbPath}: ${err.message}`);
+      }
+    }
+    // Also clean up WAL and SHM files
+    for (const suffix of ["-wal", "-shm"]) {
+      const walPath = dbPath + suffix;
+      if (existsSync(walPath)) {
+        try {
+          unlinkSync(walPath);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
 
-  if (!entryPoint) {
+  const entryPoint = join(ROOT, "build", "index.js");
+  if (!existsSync(entryPoint)) {
     throw new Error("Could not find server entry point (build/index.js)");
   }
 
@@ -291,104 +335,57 @@ async function startPreviewServer(setupMode = false) {
 
   const runtimeCmd = "node";
 
-  const env = getTestEnv(db);
-  env.SVELTYCMS_SETUP_MODE_TEST = setupMode ? "true" : "false";
-
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
+    env: {
+      ...process.env,
+      ...getTestEnv(db),
+    },
     stdio: "inherit",
     shell: process.platform === "win32",
-    detached: process.platform !== "win32",
-    env,
+    detached: false,
   });
 
   await waitForServerReady();
 }
 
-let testFileRunCount = 0;
+async function prepareIsolatedServerForTestFile(file: string) {
+  const setupModeTest = isSetupModeTest(file);
 
-async function prepareIsolatedServerForTestFile(filePath: string) {
-  const setupModeTest = isSetupModeTest(filePath);
-  const targetMode = setupModeTest ? "setup" : "normal";
-  const isMongoDB = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+  // Force restart server before EVERY test file to prevent database clobbering/session leaks
+  console.log(`🔄 Restarting server for isolated test run of ${file}...`);
+  await stopPreviewServer();
+  await freePort(Number.parseInt(PORT, 10));
 
-  testFileRunCount++;
+  await startPreviewServer();
 
-  // MongoDB: restart server every 5 tests to prevent connection pool degradation
-  const needsMongoRestart =
-    isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 5 === 0;
-
-  if (needsMongoRestart) {
-    console.log(
-      `\n🔁 MongoDB: restarting server after ${testFileRunCount - 1} tests to refresh connection pool...`,
-    );
-    if (previewProcess) {
-      await stopPreviewServer();
-    }
-    serverRunningMode = targetMode;
-    await startPreviewServer(setupModeTest);
+  if (!setupModeTest) {
+    await testingAction("seed");
+  } else {
+    console.log("⚙️ Setup-mode test — server running without seed.");
   }
-
-  // Ensure server is running in the correct mode
-  if (!previewProcess || serverRunningMode !== targetMode) {
-    if (previewProcess) {
-      console.log(
-        `🔁 Restarting server to switch from ${serverRunningMode} mode to ${targetMode} mode...`,
-      );
-      await stopPreviewServer();
-    }
-    serverRunningMode = targetMode;
-    await startPreviewServer(setupModeTest);
-  }
-
-  // Reset state between tests — security rate-limiters, caches, DB tables
-  console.log("🧹 Resetting test data for isolated test file...");
-  await testingAction("reset");
-
-  // MongoDB: wait for connection pool to stabilize after collection drops
-  if (isMongoDB) {
-    await new Promise((r) => setTimeout(r, 3000));
-  }
-
-  if (setupModeTest) {
-    console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
-    return;
-  }
-
-  // Tests handle their own seeding via prepareAuthenticatedContext / testingAction("seed")
-  console.log("⏭️ Skipping seed — each test file seeds itself.");
 }
 
 async function stopPreviewServer() {
-  serverRunningMode = "none";
-  if (!previewProcess) {
-    await freePort(Number(PORT));
-    await waitForPortToBeFree(Number(PORT));
-    return;
-  }
+  if (!previewProcess) return;
 
-  const pid = previewProcess.pid;
-
-  if (pid) {
-    try {
-      if (process.platform === "win32") {
-        execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore" });
-      } else {
-        process.kill(-pid, "SIGKILL");
-      }
-    } catch {
+  try {
+    if (process.platform === "win32") {
       try {
-        previewProcess.kill("SIGKILL");
+        const pid = previewProcess.pid;
+        if (pid) execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
       } catch {
-        // Ignore.
+        previewProcess.kill("SIGKILL");
       }
+    } else {
+      previewProcess.kill("SIGTERM");
     }
+  } catch {
+    // Process already dead
   }
 
+  await new Promise((resolve) => setTimeout(resolve, 500));
   previewProcess = null;
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  await freePort(Number(PORT));
-  await waitForPortToBeFree(Number(PORT));
 }
 
 function generatePrivateTestConfig(privateTestPath: string) {
@@ -399,54 +396,28 @@ function generatePrivateTestConfig(privateTestPath: string) {
 
   const content = `/**
  * Auto-generated test config for integration tests.
- * Created by scripts/run-integration-tests.ts.
+ * This is generated by scripts/run-integration-tests.ts
  */
-
-export const database = {
-  type: ${JSON.stringify(db.type)},
-  host: ${JSON.stringify(db.host)},
-  port: ${dbPortValue},
-  name: ${JSON.stringify(db.name)},
-  user: ${JSON.stringify(db.user)},
-  password: ${JSON.stringify(db.password)},
+export const privateEnv = {
+  DB_TYPE: "${db.type}",
+  DB_HOST: "${db.host}",
+  DB_PORT: ${dbPortValue},
+  DB_NAME: "${db.name}",
+  DB_USER: "${db.user}",
+  DB_PASSWORD: "${db.password}",
+  JWT_SECRET_KEY: "${CONFIG?.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026"}",
+  ENCRYPTION_KEY: "${CONFIG?.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch"}",
+  TEST_API_SECRET: "${CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026"}",
+  PASSWORD_MIN_LENGTH: 8,
+  USE_REDIS: false,
+  REDIS_HOST: "127.0.0.1",
+  REDIS_PORT: 6379,
+  MULTI_TENANT: false,
+  DEMO: false,
+  HOST_PROD: "${API_BASE_URL}"
 };
-
-export const db = database;
-
-export const security = {
-  jwtSecret: ${JSON.stringify(CONFIG.JWT_SECRET_KEY)},
-  encryptionKey: ${JSON.stringify(CONFIG.ENCRYPTION_KEY)},
-  testApiSecret: ${JSON.stringify(CONFIG.TEST_API_SECRET)},
-  adminPassword: ${JSON.stringify(CONFIG.ADMIN_PASSWORD)},
-};
-
-export const secrets = security;
-
-export const system = {
-  multiTenant: false,
-  demoMode: false,
-  useRedis: false,
-  redisHost: "localhost",
-  redisPort: "6379",
-  redisPassword: "",
-};
-
-export const privateConfig = {
-  database,
-  db,
-  security,
-  secrets,
-  system,
-  multiTenant: false,
-  demoMode: false,
-  useRedis: false,
-  jwtSecret: security.jwtSecret,
-  encryptionKey: security.encryptionKey,
-  testApiSecret: security.testApiSecret,
-  adminPassword: security.adminPassword,
-};
-
-export default privateConfig;
+export const privateConfig = privateEnv;
+export default privateEnv;
 `;
 
   writeFileSync(privateTestPath, content, "utf8");
@@ -471,9 +442,19 @@ function ensurePrivateTestConfig() {
     return;
   }
 
-  if (!existsSync(privateTestPath) && existsSync(privatePath)) {
-    copyFileSync(privatePath, privateTestPath);
-    console.log("✅ Copied config/private.ts to config/private.test.ts for TEST_MODE");
+  // SAFETY: config/private.ts may point at a real deployment with live user data.
+  // It must NEVER be used to seed the test config, even locally, even if
+  // private.test.ts doesn't exist yet. Always (re)generate a fresh, isolated test
+  // config instead of copying from private.ts.
+  if (existsSync(privateTestPath)) {
+    const { dbName, safe } = isConfigSourceSafeForTesting(readFileSync(privateTestPath, "utf8"));
+    if (!safe) {
+      console.warn(
+        `⚠️ config/private.test.ts has an unsafe DB_NAME ('${dbName || "unknown"}'). ` +
+          "Regenerating a safe test config instead of trusting the existing file.",
+      );
+      generatePrivateTestConfig(privateTestPath);
+    }
   }
 
   if (!existsSync(privateTestPath)) {
@@ -487,41 +468,51 @@ function ensurePrivateTestConfig() {
   console.log(`✅ Test config verified: ${privateTestPath}`);
 }
 
-async function testingAction(action: "reset" | "seed", maxRetries = 5) {
+async function testingAction(action: "reset" | "seed", preset?: string): Promise<void> {
   let lastError: Error | null = null;
+  const maxRetries = 5;
+  const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxRetries; i++) {
     try {
+      const body: any = { action };
+      if (action === "seed") {
+        body.email = "admin@test.com";
+        body.password = CONFIG?.ADMIN_PASSWORD || "Password123!";
+      }
+      if (preset) body.preset = preset;
+
       const response = await fetch(`${API_BASE_URL}/api/testing`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-mode": "true",
-          "x-test-secret": CONFIG.TEST_API_SECRET,
+          "x-test-secret": testApiSecret,
           Origin: API_BASE_URL,
         },
-        body: JSON.stringify({
-          action,
-          email: "admin@example.com",
-          password: CONFIG.ADMIN_PASSWORD,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) return;
 
       const text = await response.text().catch(() => "");
       if (response.status === 503 && i < maxRetries - 1) {
-        console.log(`⏳ /api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
+        console.log(`/api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
 
-      throw new Error(`/api/testing ${action} failed with HTTP ${response.status}: ${text}`);
+      // Enhanced diagnostics for test failures
+      console.error(
+        `/api/testing ${action} FAILED (HTTP ${response.status}): ${text.slice(0, 500)}`,
+      );
+      throw new Error(
+        `/api/testing ${action} failed with HTTP ${response.status}: ${text.slice(0, 300)}`,
+      );
     } catch (err: any) {
       lastError = err;
       if (i < maxRetries - 1) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        continue;
       }
     }
   }
@@ -530,27 +521,23 @@ async function testingAction(action: "reset" | "seed", maxRetries = 5) {
 }
 
 async function runCommand(cmd: string, args: string[], opts: any = {}) {
-  return new Promise<{ code: number }>((resolve, reject) => {
-    const proc = spawn(cmd, args, {
-      cwd: ROOT,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      env: {
-        ...process.env,
-        ...opts.env,
-      },
-    });
+  const proc = spawn(cmd, args, {
+    cwd: ROOT,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    ...opts,
+    env: { ...process.env, ...opts.env },
+  });
 
-    proc.on("error", reject);
-    proc.on("close", (code) => resolve({ code: code ?? 1 }));
+  return new Promise<{ code: number | null }>((resolve) => {
+    proc.on("close", (code) => resolve({ code }));
+    proc.on("error", () => resolve({ code: 1 }));
   });
 }
 
 async function runSystemSetup() {
   ensurePrivateTestConfig();
 
-  // Create a default test collection so that dynamic endpoints (like OpenAPI and Collections)
-  // are populated with at least one collection during integration testing.
   const collectionsDir = join(ROOT, "config", "collections", "test");
   if (!existsSync(collectionsDir)) {
     mkdirSync(collectionsDir, { recursive: true });
@@ -613,9 +600,10 @@ async function teardown() {
 
   await stopPreviewServer();
 
+  // Clean up test collection artifacts — paths must match runSystemSetup
   try {
-    const tsPath = join(ROOT, "config", "collections", "test_collection.ts");
-    const jsPath = join(ROOT, ".compiledCollections", "test_collection.js");
+    const tsPath = join(ROOT, "config", "collections", "test", "integration_test_collection.ts");
+    const jsPath = join(ROOT, ".compiledCollections", "test", "integration_test_collection.js");
     if (existsSync(tsPath)) unlinkSync(tsPath);
     if (existsSync(jsPath)) unlinkSync(jsPath);
   } catch {
@@ -648,6 +636,25 @@ function getExplicitFiles(argv: string[]) {
   return files.filter(Boolean);
 }
 
+/** Returns test files found recursively — pure function, no side effects. */
+function findTests(dir: string): string[] {
+  const results: string[] = [];
+  const entries = readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (entry.name === "helpers" || entry.name === "mocks") continue;
+      results.push(...findTests(fullPath));
+    } else if (entry.name.endsWith(".test.ts")) {
+      results.push(fullPath);
+    }
+  }
+
+  return results;
+}
+
 async function main() {
   console.log("🚀 Starting SveltyCMS Black-Box Integration Test Suite...\n");
 
@@ -665,6 +672,16 @@ async function main() {
 
   CONFIG = await loadHardenedConfig();
 
+  // SAFETY: setup-check.ts resolves TEST_API_SECRET independently on the server
+  // side (env var -> test-secret.txt file -> random fallback). If the two
+  // resolutions ever diverge, every /api/testing call 401s. Writing the secret
+  // we're about to send in headers to the same file setup-check.ts reads makes
+  // them structurally impossible to disagree, regardless of env propagation.
+  const testSecretDir = join(ROOT, "tests", "e2e", ".auth");
+  const testSecretPath = join(testSecretDir, "test-secret.txt");
+  if (!existsSync(testSecretDir)) mkdirSync(testSecretDir, { recursive: true });
+  writeFileSync(testSecretPath, CONFIG.TEST_API_SECRET, "utf8");
+
   const explicitFiles = getExplicitFiles(argv);
   const hasExistingBuildOutput =
     existsSync(join(ROOT, "build")) || existsSync(join(ROOT, ".svelte-kit", "output", "server"));
@@ -679,52 +696,32 @@ async function main() {
 
   if (!skipBuild) {
     console.log("🏗️ Building project (with COMPILE_ALL_ADAPTERS)...");
-    const privatePath = join(ROOT, "config", "private.ts");
-    const privateTmpPath = join(ROOT, "config", "private.ts.tmp");
-    const privateTestPath = join(ROOT, "config", "private.test.ts");
-    const privateTestTmpPath = join(ROOT, "config", "private.test.ts.tmp");
-
-    const hasConfig = existsSync(privatePath);
-    const hasTestConfig = existsSync(privateTestPath);
-
-    if (hasConfig) renameSync(privatePath, privateTmpPath);
-    if (hasTestConfig) renameSync(privateTestPath, privateTestTmpPath);
-
-    try {
-      const { code } = await runCommand("bun", ["run", "build"], {
-        env: { COMPILE_ALL_ADAPTERS: "true" },
-      });
-      if (code !== 0) {
-        throw new Error("Build failed");
-      }
-    } finally {
-      if (hasConfig && existsSync(privateTmpPath)) renameSync(privateTmpPath, privatePath);
-      if (hasTestConfig && existsSync(privateTestTmpPath))
-        renameSync(privateTestTmpPath, privateTestPath);
+    const db = getDbDefaults();
+    const { code } = await runCommand("bun", ["run", "build"], {
+      env: {
+        TEST_MODE: "true",
+        DB_TYPE: db.type,
+        DB_HOST: db.host,
+        DB_PORT: String(db.port),
+        DB_NAME: db.name,
+        DB_USER: db.user,
+        DB_PASSWORD: db.password,
+        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
+        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
+        COMPILE_ALL_ADAPTERS: "true",
+        SKIP_COLLECTION_COMPILE: "true",
+      },
+    });
+    if (code !== 0) {
+      throw new Error("Build failed");
     }
   } else {
     console.log("⏭️ Skipping build; using existing CI build artifact.");
   }
 
   const integrationDir = join(ROOT, "tests", "integration");
-  let testFiles: string[] = [];
-
-  function findTests(dir: string) {
-    const entries = readdirSync(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        if (entry.name === "helpers" || entry.name === "mocks") continue;
-        findTests(fullPath);
-      } else if (entry.name.endsWith(".test.ts")) {
-        testFiles.push(fullPath);
-      }
-    }
-  }
-
-  findTests(integrationDir);
+  let testFiles = findTests(integrationDir);
 
   testFiles = filterTestsBySuite(testFiles, suite, dbType);
 
@@ -742,16 +739,12 @@ async function main() {
     throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
-  // Use PORT from env (4173) — fixed per DB for CI parity, overridable locally
-  if (process.env.PORT) {
-    PORT = process.env.PORT;
-  }
-  API_BASE_URL = `http://${HOST}:${PORT}`;
-
   let passed = 0;
   const results: { file: string; success: boolean; time: number }[] = [];
 
   for (const file of testFiles) {
+    if (isShuttingDown) break; // Respect signal flag synchronously
+
     const relPath = relative(ROOT, file);
     const start = Date.now();
 
@@ -767,11 +760,10 @@ async function main() {
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
-    // All adapters (MariaDB, PostgreSQL, SQLite, MongoDB) use bun test uniformly.
-    // The v8 shim in src/utils/v8-shim.ts handles the only Bun-incompatible API
-    // (v8.isBuildingSnapshot) in the MongoDB driver chain.
     const testCmd = "bun";
-    const testArgs = ["test", "--timeout", "60000", bunTestPath];
+    // MongoDB and MariaDB need extra timeout for post-reset stabilize loop (up to 32s + seed + auth)
+    const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
+    const testArgs = ["test", "--timeout", dbTimeout, bunTestPath];
 
     const { code } = await runCommand(testCmd, testArgs, {
       env: {
@@ -814,18 +806,19 @@ async function main() {
   process.exit(passed === results.length ? 0 : 1);
 }
 
-process.on("SIGINT", async () => {
-  await teardown();
-  process.exit(130);
+// Reliable signal handling: set flag synchronously, let main loop check it.
+// Node doesn't await async signal handlers — cleanup would be abandoned.
+process.on("SIGINT", () => {
+  isShuttingDown = true;
+  console.log("\n⚠️ SIGINT received — shutting down gracefully...");
 });
 
-process.on("SIGTERM", async () => {
-  await teardown();
-  process.exit(143);
+process.on("SIGTERM", () => {
+  isShuttingDown = true;
+  console.log("\n⚠️ SIGTERM received — shutting down gracefully...");
 });
 
-main().catch(async (error) => {
-  console.error("💥 Fatal error:", error);
-  await teardown();
+main().catch((err) => {
+  console.error("\n❌ Fatal:", err);
   process.exit(1);
 });

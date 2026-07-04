@@ -138,12 +138,11 @@ function toggleRoleWrite(roleId: string) {
 
 		<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
 			<label class="flex cursor-pointer items-center gap-3 rounded border border-surface-200-800 bg-surface-50-950 p-3">
-				<input
+				<input aria-label="Permission role"
 					type="checkbox"
 					class="input checkbox-primary"
 					checked={permissions.requiredAuth ?? false}
-					onchange={(e) => updatePermissions({ requiredAuth: (e.currentTarget as HTMLInputElement).checked })}
-				 aria-label="Input" />
+					onchange={(e) => updatePermissions({ requiredAuth: (e.currentTarget as HTMLInputElement).checked })} />
 				<span class="text-sm font-semibold text-surface-100">Require authentication</span>
 			</label>
 			<p class="mt-2 text-xs leading-5 text-surface-400">When enabled, user must be logged in to access this field.</p>

@@ -283,13 +283,12 @@ function getActionBadgeClass(action: string) {
 			<div class="absolute inset-y-0 inset-s-0 ps-3.5 flex items-center pointer-events-none text-surface-400">
 				<iconify-icon icon="material-symbols:search-rounded" width="20"></iconify-icon>
 			</div>
-			<input
+			<input aria-label="Search permissions"
 				type="text"
 				bind:value={searchTerm}
 				placeholder="Search Permissions..."
 				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
-				aria-label="Search permissions"
-			/>
+				/>
 		</div>
 	</div>
 
@@ -355,7 +354,7 @@ function getActionBadgeClass(action: string) {
 									<div class="flex flex-col items-center gap-1.5">
 										<span class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400">{role.name}</span>
 										<div class="flex items-center gap-1.5 mt-0.5">
-											<input
+											<input aria-label="Search roles"
 												type="checkbox"
 												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
 												checked={filteredPermissions.length > 0 && filteredPermissions.every((p) => role.permissions.includes(p._id))}
@@ -364,7 +363,6 @@ function getActionBadgeClass(action: string) {
 													!filteredPermissions.every((p) => role.permissions.includes(p._id))}
 												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
 												title={`Select/Deselect all filtered permissions for ${role.name}`}
-												aria-label={`Select all for ${role.name}`}
 											/>
 											<button
 												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
@@ -409,12 +407,11 @@ function getActionBadgeClass(action: string) {
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
 											<td class="px-5 py-3 text-center">
-												<input
+												<input aria-label="Search users"
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}
 													onchange={() => toggleRole(permission._id, role._id)}
 													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
-													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
 												/>
 											</td>
 										{/if}

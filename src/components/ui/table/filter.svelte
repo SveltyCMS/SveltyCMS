@@ -77,7 +77,7 @@ const densityIcon = $derived.by(() => {
                     width="18"
                     class="absolute inset-s-3 top-1/2 -translate-y-1/2 text-surface-400 group-focus-within:text-tertiary-500 dark:text-primary-500 transition-colors"
                 ></iconify-icon>
-                <input
+                <input aria-label="Search records"
                     type="text"
                     bind:value={search}
                     oninput={onfilter}

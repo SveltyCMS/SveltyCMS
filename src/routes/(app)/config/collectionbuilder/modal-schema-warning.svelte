@@ -148,7 +148,7 @@ function handleKeydown(e: KeyboardEvent) {
 			<!-- Confirmation checkbox for data loss -->
 			{#if hasDataLoss}
 				<label class="flex cursor-pointer items-start gap-3 rounded bg-surface-200/50 p-3 dark:bg-surface-700/50">
-					<input
+					<input aria-label="Confirmation text"
 						type="checkbox"
 						bind:checked={confirmed}
 						class="mt-1 h-5 w-5 cursor-pointer rounded border-surface-400 text-error-500 focus:ring-error-500"

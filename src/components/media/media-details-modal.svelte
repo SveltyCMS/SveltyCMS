@@ -20,7 +20,6 @@
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { mediaUrl } from "@utils/media/media-utils";
-  import { screen } from "@src/stores/screen-size-store.svelte.ts";
 
   // Props
   let {
@@ -37,20 +36,25 @@
     close?: () => void;
   } = $props();
 
-  // Adaptive modal width based on screen size
-  const modalWidth = $derived(
-    screen.width < 768 ? undefined       // mobile: let max-width:100% handle it
-      : screen.width < 1024 ? '90vw'     // tablet: 90% viewport
-      : screen.width < 1440 ? '850px'    // standard desktop
-      : '1024px'                         // large desktop: more room
-  );
-
-  // Tab State
-  let activeTab = $state<"info" | "versions" | "references" | "share">("info");
+  	// Tab State
+  	let activeTab = $state<"info" | "versions" | "references" | "share">("info");
 
   // Info Tab State
   let newTagInput = $state("");
   let isSavingTags = $state(false);
+
+  // Inline editable asset fields
+  let isEditingName = $state(false);
+  let editName = $state('');
+  let isSavingName = $state(false);
+
+  let isEditingAlt = $state(false);
+  let editAlt = $state('');
+  let isSavingAlt = $state(false);
+
+  let isEditingCaption = $state(false);
+  let editCaption = $state('');
+  let isSavingCaption = $state(false);
 
   // Versions Tab State
   let isUploadingVersion = $state(false);
@@ -83,6 +87,94 @@
       scanReferences();
     }
   });
+
+  // ── Inline editable asset field helpers ─────────────────────────────────────
+  function startEditName() {
+    editName = file.metadata?.name || file.filename || '';
+    isEditingName = true;
+  }
+  async function saveName() {
+    if (!file?._id) return;
+    isSavingName = true;
+    try {
+      const response = await fetch(`/api/media/${file._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
+      });
+      const body = await response.json();
+      if (response.ok) {
+        file = body?.data ?? body ?? file;
+        onUpdate(file);
+        toast.success('Name saved');
+      } else {
+        toast.error(body?.error || 'Failed to save name');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save name');
+    } finally {
+      isSavingName = false;
+      isEditingName = false;
+    }
+  }
+
+  function startEditAlt() {
+    editAlt = file.metadata?.alt || '';
+    isEditingAlt = true;
+  }
+  async function saveAlt() {
+    if (!file?._id) return;
+    isSavingAlt = true;
+    try {
+      const response = await fetch(`/api/media/${file._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
+      });
+      const body = await response.json();
+      if (response.ok) {
+        file = body?.data ?? body ?? file;
+        onUpdate(file);
+        toast.success('Alt text saved');
+      } else {
+        toast.error(body?.error || 'Failed to save alt text');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save alt text');
+    } finally {
+      isSavingAlt = false;
+      isEditingAlt = false;
+    }
+  }
+
+  function startEditCaption() {
+    editCaption = file.metadata?.caption || '';
+    isEditingCaption = true;
+  }
+  async function saveCaption() {
+    if (!file?._id) return;
+    isSavingCaption = true;
+    try {
+      const response = await fetch(`/api/media/${file._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
+      });
+      const body = await response.json();
+      if (response.ok) {
+        file = body?.data ?? body ?? file;
+        onUpdate(file);
+        toast.success('Caption saved');
+      } else {
+        toast.error(body?.error || 'Failed to save caption');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save caption');
+    } finally {
+      isSavingCaption = false;
+      isEditingCaption = false;
+    }
+  }
 
   // ── Info Tab logic ──────────────────────────────────────────────────────────
   async function handleAddTag(e: KeyboardEvent | MouseEvent) {
@@ -353,7 +445,7 @@
 
   <!-- Asset preview -->
   <div
-    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-200 bg-surface-50 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-[18rem] lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40"
+    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-200 bg-surface-50 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-72 lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40"
   >
     {#if file.type === 'image'}
       <div
@@ -490,6 +582,103 @@
     <div class="min-h-0 flex-1 overflow-y-auto pe-0 sm:pe-1">
       {#if activeTab === 'info'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
+          <!-- Editable Asset Fields -->
+          <div class="rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-900/60">
+            <dl class="space-y-3">
+              <!-- Asset Name -->
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">Name</dt>
+                <dd class="min-w-0">
+                  {#if isEditingName}
+                    <div class="flex items-center gap-1.5">
+                      <Input
+                        type="text"
+                        bind:value={editName}
+                        class="flex-1"
+                        onkeydown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') isEditingName = false; }}
+                      />
+                      <Button size="sm" variant="ghost" onclick={saveName} aria-label="Save name" disabled={isSavingName}>
+                        {#if isSavingName}
+                          <iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
+                        {:else}
+                          <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
+                        {/if}
+                      </Button>
+                    </div>
+                  {:else}
+                    <button
+                      class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100"
+                      onclick={startEditName}
+                      aria-label="Edit asset name"
+                    >{file.metadata?.name || file.filename || 'Untitled'}</button>
+                  {/if}
+                </dd>
+              </div>
+
+              <!-- Alt Text (images only) -->
+              {#if file.type === 'image'}
+                <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                  <dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">Alt Text</dt>
+                  <dd class="min-w-0">
+                    {#if isEditingAlt}
+                      <div class="flex items-center gap-1.5">
+                        <Input
+                          type="text"
+                          bind:value={editAlt}
+                          class="flex-1"
+                          onkeydown={(e) => { if (e.key === 'Enter') saveAlt(); if (e.key === 'Escape') isEditingAlt = false; }}
+                        />
+                        <Button size="sm" variant="ghost" onclick={saveAlt} aria-label="Save alt text" disabled={isSavingAlt}>
+                          {#if isSavingAlt}
+                            <iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
+                          {:else}
+                            <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
+                          {/if}
+                        </Button>
+                      </div>
+                    {:else}
+                      <button
+                        class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100"
+                        onclick={startEditAlt}
+                        aria-label="Edit alt text"
+                      >{file.metadata?.alt || 'Add alt text…'}</button>
+                    {/if}
+                  </dd>
+                </div>
+              {/if}
+
+              <!-- Caption -->
+              <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+                <dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">Caption</dt>
+                <dd class="min-w-0">
+                  {#if isEditingCaption}
+                    <div class="flex items-center gap-1.5">
+                      <Input
+                        type="text"
+                        bind:value={editCaption}
+                        class="flex-1"
+                        onkeydown={(e) => { if (e.key === 'Enter') saveCaption(); if (e.key === 'Escape') isEditingCaption = false; }}
+                      />
+                      <Button size="sm" variant="ghost" onclick={saveCaption} aria-label="Save caption" disabled={isSavingCaption}>
+                        {#if isSavingCaption}
+                          <iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
+                        {:else}
+                          <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
+                        {/if}
+                      </Button>
+                    </div>
+                  {:else}
+                    <button
+                      class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100"
+                      onclick={startEditCaption}
+                      aria-label="Edit caption"
+                    >{file.metadata?.caption || 'Add caption…'}</button>
+                  {/if}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
           <div class="rounded-lg border border-surface-200 bg-surface-50 p-3 font-mono text-xs dark:border-surface-800 dark:bg-surface-900/60">
             <dl class="space-y-2.5">
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
@@ -576,13 +765,12 @@
               <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Upload a new file. The current name is preserved and the old version is stored in history.</p>
             </div>
 
-            <input
-              type="file"
-              bind:this={fileInputEl}
-              onchange={handleVersionUpload}
-              class="hidden"
-              aria-label="Upload new version"
-            />
+		<input aria-label="Upload new version"
+			type="file"
+			bind:this={fileInputEl}
+			onchange={handleVersionUpload}
+			class="hidden"
+		/>
             <Button
               variant="surface"
               size="sm"

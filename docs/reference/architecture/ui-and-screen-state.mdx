@@ -164,6 +164,160 @@ const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapse
 
 ---
 
+## 📱 Floating Navigation (`FloatingNav`)
+
+The `FloatingNav` component (`src/components/system/floating-nav.svelte`) provides a **draggable radial navigation menu** designed for mobile viewports. It renders as a floating action button (FAB) that users can drag to any screen edge, tap to open a radial menu of quick-access links, and use for rapid navigation without the sidebar.
+
+### When It Renders
+
+`FloatingNav` is conditionally rendered in `src/routes/(app)/+layout.svelte` based on `screen.isMobile`:
+
+```svelte
+{#if screen.isMobile}
+  <Portal>
+    <FloatingNav />
+  </Portal>
+{/if}
+```
+
+> [!IMPORTANT]
+> The `screen` store requires `screen.mount()` to be called during client-side initialization (in the root `+layout.svelte` `onMount`). Without this call, `screen.width` retains its SSR default of `1024`, making `isMobile` permanently `false`.
+
+### Features
+
+| Feature                     | Description                                                                                                      |
+| :-------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **Draggable FAB**           | Users can drag the button anywhere; it snaps to the nearest edge on release                                      |
+| **Radial Menu**             | Tap to open a circular menu of navigation endpoints with SVG connector lines                                     |
+| **User Pinning** _(v0.0.8)_ | Users can customize which endpoints appear via `localStorage` key `floatingNav_pins`. Unpinned items are hidden. |
+| **Position Persistence**    | Button position is saved per-route in `localStorage` under the `navigation` key                                  |
+| **Role-Based Filtering**    | Menu items are filtered based on user role (admin vs editor)                                                     |
+| **Reduced Motion**          | Respects `prefers-reduced-motion` — disables animations when enabled                                             |
+| **Accessibility**           | Full keyboard support (Enter/Space to toggle, Escape to close, Tab for focus)                                    |
+| **Haptic Feedback**         | Uses `navigator.vibrate()` for tactile open/close feedback on supported devices                                  |
+
+### Available Endpoints
+
+Users can pin/unpin any of these 10 endpoints. Home is always visible.
+
+| Label                | ID              | Path                        | Icon                             | Admin Only |
+| :------------------- | :-------------- | :-------------------------- | :------------------------------- | :--------- |
+| Home                 | `home`          | `/`                         | `solar:home-bold`                | No         |
+| Dashboard            | `dashboard`     | `/dashboard`                | `mdi:view-dashboard`             | No         |
+| User Profile         | `user`          | `/user`                     | `radix-icons:avatar`             | No         |
+| Collection Builder   | `col...builder` | `/config/collectionbuilder` | `fluent-mdl2:build-definition`   | Yes        |
+| GraphQL Explorer     | `graphql`       | `/api/graphql` (external)   | `teenyicons:graphql-outline`     | No         |
+| System Configuration | `config`        | `/config`                   | `mynaui:config`                  | No         |
+| Access Management    | `access`        | `/config/access-management` | `mdi:shield-account`             | No         |
+| Marketplace          | `marketplace`   | `sveltycms.com` (external)  | `icon-park-outline:shopping-bag` | No         |
+| Media Gallery        | `media`         | `/mediagallery`             | `mdi:image-multiple`             | No         |
+| System Settings      | `settings`      | `/config/system-settings`   | `mdi:cog`                        | No         |
+
+---
+
+## 🔍 Global Search
+
+The Global Search system provides a unified search overlay accessible from any page in the admin interface.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│  isSearchVisible (writable store)                    │
+│  └─ toggled by: Alt+S hotkey, Escape to close        │
+├──────────────────────────────────────────────────────┤
+│  SearchComponent (search-component.svelte)           │
+│  ├─ Fuzzy search via edit-distance algorithm          │
+│  ├─ Keyboard nav: ↑↓ arrows, Enter, Escape           │
+│  ├─ Debounced input (150ms)                           │
+│  └─ Max 8 results, sorted by relevance                │
+├──────────────────────────────────────────────────────┤
+│  globalSearchIndex (writable store)                  │
+│  ├─ 15 built-in admin page entries                    │
+│  ├─ Plugin-extensible via addToGlobalSearchIndex()    │
+│  └─ Semantic search fallback via semantic-index.ts    │
+└──────────────────────────────────────────────────────┘
+```
+
+### Opening Global Search
+
+| Method     | Shortcut | Description                                    |
+| :--------- | :------- | :--------------------------------------------- |
+| **Hotkey** | `Alt+S`  | Toggle search overlay (Alt+S on all platforms) |
+| **Escape** | `Escape` | Close search overlay                           |
+
+### Search Strategy
+
+1. **Semantic search** (server-side, NPU-accelerated via Ollama when available)
+2. **Fuzzy substring fallback** (client-side, instant, works offline)
+3. Results are merged, deduplicated, and ranked by relevance score
+
+### Plugin Integration
+
+Plugins can register their own search entries at initialization:
+
+```typescript
+import { addToGlobalSearchIndex } from "@utils/global-search-index";
+
+addToGlobalSearchIndex({
+  title: "My Plugin",
+  description: "Does something amazing",
+  keywords: ["plugin", "amazing"],
+  triggers: { "Open My Plugin": { path: "/config/my-plugin" } },
+});
+```
+
+---
+
+## ⌨️ Hotkey Reference
+
+All admin hotkeys are registered via `src/utils/hotkeys.ts` using `registerHotkey()`. The `Mod` key normalizes to `Ctrl` on Windows/Linux and `⌘ Meta` on macOS.
+
+### Global Hotkeys (Root Layout)
+
+| Shortcut | Action                  | Registered In           |
+| :------- | :---------------------- | :---------------------- |
+| `?`      | Open Accessibility Help | `+layout.svelte` (root) |
+| `Alt+T`  | Toggle Dark Mode        | `+layout.svelte` (root) |
+
+### Admin Hotkeys (App Layout)
+
+| Shortcut | Action                               | Registered In          |
+| :------- | :----------------------------------- | :--------------------- |
+| `Mod+K`  | Toggle Command Bar (AI-powered)      | `(app)/+layout.svelte` |
+| `Mod+S`  | Global Save                          | `(app)/+layout.svelte` |
+| `Alt+S`  | Toggle Global Search                 | `(app)/+layout.svelte` |
+| `Escape` | Close Overlays (Command Bar, Search) | `(app)/+layout.svelte` |
+
+### Context-Specific Hotkeys
+
+| Shortcut      | Action                | Context                       |
+| :------------ | :-------------------- | :---------------------------- |
+| `Delete`      | Delete selected items | Entry lists, media gallery    |
+| `Mod+Z`       | Undo                  | Image editor                  |
+| `Mod+Shift+Z` | Redo                  | Image editor                  |
+| `Mod+D`       | Duplicate field       | Collection Builder (BuzzForm) |
+| `Mod+Enter`   | Advance / Confirm     | Steppers, modals              |
+| `Mod+F`       | Focus search input    | Media Gallery                 |
+| `Mod+A`       | Select all            | Entry lists                   |
+| `Mod+O`       | Open Media Library    | Upload widget                 |
+
+### Adding New Hotkeys
+
+```typescript
+import { registerHotkey } from "@src/utils/hotkeys";
+import { onMount } from "svelte";
+
+onMount(() => {
+  registerHotkey("mod+s", () => handleSave(), "Save changes");
+});
+```
+
+> [!NOTE]
+> Hotkeys automatically skip events from `INPUT`, `TEXTAREA`, `SELECT`, and `contenteditable` elements. Cleanup is automatic via `onDestroy`.
+
+---
+
 ## 🔍 Related Documentation
 
 - **[State Management](./state-management.mdx)** - System lifecycle and health architecture.
@@ -171,6 +325,7 @@ const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapse
 - **[Code Structure](./code-structure.mdx)** - Project folder organization.
 - **[Admin Theme Settings](../../guides/configuration/admin-theme-settings.mdx)** - User guide for the 6-region theme shell.
 - **[Admin Theme Plan](../../project/admin-theme-plan.mdx)** - Architecture blueprint for the admin theme system.
+- **[Hover Preloading](./hover-preloading.mdx)** - Predictive preloading architecture.
 
 ---
 

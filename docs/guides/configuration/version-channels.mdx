@@ -1,0 +1,137 @@
+---
+path: "docs/guides/configuration/version-channels.mdx"
+title: "Version Channels"
+description: "Manage SveltyCMS release channels — LTS, Stable, and Next — with automated update checking and channel-aware upgrades."
+order: 6
+icon: "mdi:source-branch"
+author: "SveltyCMS Team"
+created: "2026-07-04"
+updated: "2026-07-04"
+tags:
+  - "version"
+  - "channels"
+  - "lts"
+  - "upgrade"
+  - "configuration"
+---
+
+# Version Channels
+
+SveltyCMS provides three release channels so you can choose the right balance of stability and features for your deployment.
+
+> [!TIP]
+> **API Status:** Fully implemented. Version channels and update checking are available via REST API. The settings-page UI channel switcher is planned.
+
+---
+
+## Channel Overview
+
+| Channel    | Target            | Version Range | Use Case                                                                |
+| ---------- | ----------------- | ------------- | ----------------------------------------------------------------------- |
+| **LTS**    | Long-Term Support | `v0.0.x`      | Production deployments requiring maximum stability — patch-only updates |
+| **Stable** | Current Release   | `v0.0.x`      | General production use — latest stable features                         |
+| **Next**   | Preview           | `v0.1.x`      | Development and staging — upcoming features ahead of stable release     |
+
+---
+
+## API Endpoints
+
+### List Available Channels
+
+```http
+GET /api/system/version/channels
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "channels": [
+      { "name": "lts", "range": "v0.0.x", "label": "LTS (Long-Term Support)" },
+      { "name": "stable", "range": "v0.0.x", "label": "Stable" },
+      { "name": "next", "range": "v0.1.x", "label": "Next (Preview)" }
+    ],
+    "current": {
+      "channel": "stable",
+      "version": "0.0.7"
+    }
+  }
+}
+```
+
+### Check for Updates
+
+```http
+GET /api/system/version/check
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "channel": "stable",
+    "currentVersion": "0.0.7",
+    "latestVersion": "0.0.8",
+    "updateAvailable": true,
+    "checkedAt": "2026-07-04T12:00:00.000Z"
+  }
+}
+```
+
+Update checking queries the GitHub Releases API with graceful degradation — if GitHub is unreachable, the endpoint returns `latestVersion: null` with no error.
+
+---
+
+## Automated Upgrades
+
+SveltyCMS includes an automated upgrade CLI:
+
+```bash
+# Fetch and merge latest upstream changes
+bun run scripts/upgrade.ts
+```
+
+The script:
+
+1. Fetches the latest release from GitHub
+2. Merges changes into your local branch
+3. Refreshes dependencies (`bun install`)
+
+> [!TIP]
+> Always run `bun run check && bun run test:unit` after an upgrade to ensure system integrity.
+
+---
+
+## Channel Auto-Detection
+
+The version service (`src/services/core/version-service.ts`) automatically detects your active channel based on the installed version in `package.json`:
+
+- **Patch versions** (`0.0.x`) → LTS or Stable
+- **Minor versions** (`0.x.0`) → Next (preview)
+
+---
+
+## Architecture
+
+```
+src/services/core/version-service.ts   ← Core logic: channels, detection, update checking
+src/routes/api/[...path]/handlers/version.ts ← REST handler: /api/system/version/*
+scripts/upgrade.ts                      ← Automated upgrade CLI
+```
+
+The version handler is wired through the unified API dispatcher:
+
+```typescript
+// src/routes/api/[...path]/+server.ts
+"version": { handler: "version", fn: "handleVersionRoutes" }
+```
+
+---
+
+## Related
+
+- [Upgrading SveltyCMS](./Upgrading.mdx) — Manual upgrade process
+- [System Settings](./system-settings.mdx) — Configure your SveltyCMS instance
+- [Enterprise Monitor](./enterprise-monitor.mdx) — Production monitoring

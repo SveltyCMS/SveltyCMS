@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/share/[token]/+page.svelte
 @component
 **Premium public share landing page with password protection support and file download**
@@ -59,7 +59,7 @@
     try {
       // Test the password against the download API endpoint
       const res = await fetch(`/api/media/share?id=${data.mediaId}&token=${data.token}&password=${encodeURIComponent(password)}`);
-      
+
       if (res.ok) {
         const body = await res.json().catch(() => null);
         if (body && body.passwordRequired) {
@@ -110,7 +110,7 @@
       </div>
 
       <h1 class="file-title" title={data.filename}>{data.filename}</h1>
-      
+
       <div class="file-meta">
         <span class="meta-tag">{formatMime(data.mimeType)}</span>
         <span class="meta-separator">•</span>
@@ -120,20 +120,19 @@
       {#if data.passwordRequired}
         <form onsubmit={handleVerifyPassword} class="password-form">
           <p class="form-instruction">This shared file is password protected.</p>
-          
+
           <div class="input-wrapper">
             <iconify-icon icon="mdi:lock-outline" class="input-icon" width="20"></iconify-icon>
-            <input 
-              type="password" 
+            			<input aria-label="Password"
+              type="password"
               bind:value={password}
-              placeholder="Enter password..." 
+              placeholder="Enter password..."
               class="password-input {passwordError ? 'error' : ''}"
-              required
-              aria-label="File password"
-            />
+              			required
+              		/>
           </div>
 
-          <Button variant="outline" 
+          <Button variant="outline"
             type="submit"
             disabled={isVerifying}
            class="download- glow-effect">
@@ -149,7 +148,7 @@
       {:else}
         <div class="download-action-area">
           <p class="form-instruction">Click the button below to download the file directly.</p>
-          
+
           <Button
             href="/api/media/share?id={data.mediaId}&token={data.token}"
             onclick={handleDownloadClick}

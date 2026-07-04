@@ -1080,6 +1080,7 @@ export async function handleExportRoutes(
     const { type } = await request.json().catch(() => ({}));
     if (type === "users") {
       const result = await cms.auth.listUsers({ tenantId });
+      if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
       return successResponse(event, result.data);
     }
     return successResponse(event, { success: true, message: "Export started" });

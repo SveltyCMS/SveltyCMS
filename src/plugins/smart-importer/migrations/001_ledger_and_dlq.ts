@@ -141,8 +141,8 @@ export const migrations: PluginMigration[] = [
           slug: "plugin_importer_delta",
           fields: [
             {
-              label: "Collection",
-              name: "collection",
+              label: "Collection Name",
+              name: "collectionName",
               type: "text",
               required: true,
             },

@@ -134,14 +134,16 @@ export async function prepareAuthenticatedContext(
         }
 
         // 2. Seed database
+        const dbType = process.env.DB_TYPE || "unknown";
         console.log(
-          `\u{1F331} Seeding test database (attempt ${seedAttempt}/${maxSeedRetries})...`,
+          `Seeding test database (attempt ${seedAttempt}/${maxSeedRetries}, DB: ${dbType})...`,
         );
         const seedResp = await safeFetch(`${API_BASE_URL}/api/testing`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-test-secret": TEST_API_SECRET,
+            "x-test-mode": "true",
             Origin: API_BASE_URL,
           },
           body: JSON.stringify({
@@ -151,14 +153,21 @@ export async function prepareAuthenticatedContext(
           }),
         });
 
-        if (seedResp.ok) break; // Success
+        if (seedResp.ok) {
+          const seedBody = await seedResp.json().catch(() => ({}));
+          console.log(`Seed succeeded: ${JSON.stringify(seedBody).slice(0, 200)}`);
+          break; // Success
+        }
 
         const error = await seedResp.text();
         if (seedAttempt >= maxSeedRetries) {
+          console.error(
+            `Seed FAILED after ${maxSeedRetries} attempts. DB: ${dbType}. HTTP ${seedResp.status}: ${error.slice(0, 500)}`,
+          );
           throw new Error(`Failed to seed database after ${maxSeedRetries} attempts: ${error}`);
         }
         console.log(
-          `\u23F3 Seed attempt ${seedAttempt} failed (${error.slice(0, 100)}). Retrying in 3s...`,
+          `Seed attempt ${seedAttempt} failed (HTTP ${seedResp.status}: ${error.slice(0, 200)}). Retrying in 3s...`,
         );
         await new Promise((r) => setTimeout(r, 3000));
       } catch (err: any) {
@@ -210,7 +219,8 @@ export async function prepareAuthenticatedContext(
   const csrfCookie = initialCookies.split(";")[0];
 
   // 3. Login as admin (with retries and CSRF awareness)
-  console.log("🔑 Logging in as admin...");
+  const dbType = process.env.DB_TYPE || "unknown";
+  console.log(`🔑 Logging in as admin (DB: ${dbType})...`);
   let loginResp: Response | null = null;
   for (let i = 0; i < 5; i++) {
     try {
@@ -230,17 +240,31 @@ export async function prepareAuthenticatedContext(
       if (loginResp.ok) break;
 
       const errText = await loginResp.text();
-      console.log(
-        `⏳ Login attempt ${i + 1} failed (HTTP ${loginResp.status}: ${errText}). Retrying...`,
-      );
-    } catch {
-      console.log(`⏳ Login attempt ${i + 1} crashed. Retrying...`);
+      // 🔍 Enhanced diagnostics for non-SQLite adapter failures
+      if (dbType !== "sqlite") {
+        const respHeaders: Record<string, string> = {};
+        loginResp.headers.forEach((v, k) => {
+          respHeaders[k] = v;
+        });
+        console.log(
+          `⏳ Login attempt ${i + 1} failed (HTTP ${loginResp.status}): ${errText.slice(0, 300)}`,
+        );
+        console.log(`   Response headers: ${JSON.stringify(respHeaders)}`);
+        console.log(`   DB type: ${dbType}, API base: ${API_BASE_URL}`);
+      } else {
+        console.log(
+          `⏳ Login attempt ${i + 1} failed (HTTP ${loginResp.status}: ${errText}). Retrying...`,
+        );
+      }
+    } catch (err: any) {
+      console.log(`⏳ Login attempt ${i + 1} crashed: ${err.message}. Retrying...`);
     }
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
 
   if (!loginResp || !loginResp.ok) {
     const error = loginResp ? await loginResp.text() : "No response";
+    console.error(`❌ Login FAILED after 5 retries. DB: ${dbType}. Error: ${error.slice(0, 500)}`);
     throw new Error(`Login failed after retries: ${error}`);
   }
 

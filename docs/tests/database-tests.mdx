@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:database-check"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-17"
+updated: "2026-07-03"
 tags:
   - "testing"
   - "database"
@@ -60,7 +60,7 @@ SveltyCMS enforces a hard boundary between production and testing:
 
 1. **TEST_MODE**: Automatically enabled during `bun run test:*`.
 2. **Config Redirect**: The system is hard-coded to look for `config/private.test.ts` when testing.
-3. **Safety Guard**: `src/databases/db.ts` will throw a fatal error if it detects `config/private.ts` (Live) being loaded while in test mode.
+3. **Safety Guard**: `src/databases/config-state.ts` fails startup if `TEST_MODE` tries to use a non-isolated `DB_NAME`.
 4. **Triple-Lock Security**: Testing routes are physically removed from production builds and require a cryptographic handshake for activation.
 
 ### Database Test Sequence
@@ -105,21 +105,61 @@ sequenceDiagram
 
 ## Running Database Tests
 
-### 1. The Standard Suite (SQLite)
+### 1. Standard Suite (SQLite, No Docker)
 
-This is the recommended way to test locally:
+SQLite is the fastest local path and uses `config/private.test.ts` plus test database names only:
 
+```bash
+bun run scripts/run-integration-tests.ts --db=sqlite
+bun run scripts/run-integration-tests.ts --db=sqlite --suite=api
+bun run scripts/run-integration-tests.ts --db=sqlite --suite=db
 ```
-bun run test:integration
-```text
 
-### 2. Parallel E2E Testing
+### 2. Docker-Backed Adapter Suites
 
-Run the full browser suite with 4 workers:
+Start the matching profile from `tests/docker-compose.yml` before running a networked adapter:
 
+```bash
+docker compose -f tests/docker-compose.yml --profile mongodb up -d
+docker compose -f tests/docker-compose.yml --profile postgresql up -d
+docker compose -f tests/docker-compose.yml --profile mariadb up -d
+docker compose -f tests/docker-compose.yml --profile redis up -d
 ```
-npx playwright test --workers=4
-```text
+
+| Adapter | Compose profile | Default test credentials |
+| :------ | :-------------- | :----------------------- |
+| MongoDB | `mongodb` | no auth on port `27017` (official image default) |
+| PostgreSQL | `postgresql` | `postgres` / `postgres` on port `5432` |
+| MariaDB | `mariadb` | `root` / `mariadb` on port `3306` |
+| Redis | `redis` | no password on port `6379`; benchmark cache variants only |
+
+Then run:
+
+```bash
+bun run scripts/run-integration-tests.ts --db=mongodb
+bun run scripts/run-integration-tests.ts --db=postgresql
+bun run scripts/run-integration-tests.ts --db=mariadb
+```
+
+### 3. Automated 4-DB Gate (Pre-Push)
+
+You do not need to run each adapter manually before every push. The pre-push hook (`scripts/precheck.ts --tier=push`) runs integration and core benchmarks for **all four adapters** when code, scripts, or database files changed:
+
+```bash
+bun run verify:push       # same as git push hook
+bun run verify:full       # always runs full matrix (manual)
+```
+
+Env blocks and credentials are centralized in `src/utils/test-db-credentials.ts` — the same source used by `ci.yml`, `run-integration-tests.ts`, and `run-core-benchmarks.ts`.
+
+### 4. Parallel E2E Testing
+
+Playwright local runs use `playwright.config.ts`; it starts the ready server on `127.0.0.1:4173` and setup server on `127.0.0.1:4174` when `CI` is not set:
+
+```bash
+bun run build
+bun x playwright test --workers=4
+```
 
 ---
 
@@ -132,7 +172,7 @@ This usually happens if multiple workers share the same database file.
 
 ### "Database connection failed"
 
-Ensure your `config/private.test.ts` has the correct credentials. Always use `127.0.0.1` instead of `localhost` to avoid IPv6 resolution issues.
+Ensure `config/private.test.ts` has a test-scoped `DB_NAME` and credentials matching `tests/docker-compose.yml`. Prefer `127.0.0.1` in env overrides to avoid IPv6 resolution differences.
 
 ---
 

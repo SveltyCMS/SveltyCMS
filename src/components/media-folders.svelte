@@ -365,13 +365,12 @@
 	<!-- Search Header -->
 	<div class="flex items-center gap-1">
 		<div class="relative w-full min-w-0">
-			<input
+			<input aria-label="Search folders"
 				type="text"
 				bind:value={search}
 				size="1"
 				placeholder="Search folders..."
 				class="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
-				aria-label="Search media folders"
 			/>
 			{#if isSidebarFull && search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
@@ -466,7 +465,7 @@
 						{#if rootHasChildren && rootExpanded}
 							<div class="relative">
 								<div
-									class="pointer-events-none absolute bottom-0 start-[22px] top-0 w-px bg-surface-600/50 dark:bg-white/10"
+									class="pointer-events-none absolute bottom-0 inset-s-5.5 top-0 w-px bg-surface-600/50 dark:bg-white/10"
 									aria-hidden="true"
 								></div>
 								{#each rootNode.children ?? [] as folder (folder.id)}

@@ -144,10 +144,15 @@ let cachedTestSecret: string | null = null;
  * @throws {Error} If no secret is configured — fails fast to prevent accidental use
  *   of a hardcoded credential against production systems.
  */
+/** Read env at runtime — avoids Vite inlining `process.env.*` to `{}` in production builds. */
+function readRuntimeEnv(key: string): string | undefined {
+  return (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env?.[key];
+}
+
 export function getTestSecret(): string {
   if (cachedTestSecret) return cachedTestSecret;
 
-  const envSecret = process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
+  const envSecret = readRuntimeEnv("TEST_API_SECRET") || readRuntimeEnv("VITE_TEST_API_SECRET");
   if (envSecret) {
     cachedTestSecret = envSecret;
     return envSecret;

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-23"
+updated: "2026-07-03"
 tags:
   - "testing"
   - "documentation"
@@ -21,7 +21,7 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** June 29, 2026
+**Last Updated:** July 3, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
@@ -57,67 +57,139 @@ tags:
 ### Running Tests Locally
 
 ````bash
-# White-box gate
+# 1. White-box unit gate (Vitest via vitest.config.ts)
 bun run test:unit
 bun run check
 
-# Production build used by integration and most E2E jobs
+# 2. Production build used by black-box integration and Playwright webServer
 bun run build
 
-# Black-box integration runner (choose DB)
+# 3. Black-box integration runner (SQLite needs no Docker)
 bun run scripts/run-integration-tests.ts --db=sqlite
+bun run scripts/run-integration-tests.ts --db=sqlite --suite=api
+bun run scripts/run-integration-tests.ts --db=sqlite --suite=db
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build
 
-# Wizard E2E against the production build
-TEST_MODE=true node build/index.js
+# 4. Playwright E2E (playwright.config.ts starts ports 4173 and 4174 locally)
 bun x playwright test --project=wizard
+bun x playwright test --project=auth-setup
+bun x playwright test --project=chromium
 
-# Smart test runner — auto-detects what to test from git diff
+# 5. Smart runner - auto-detects what to test from git diff
 bun run test:smart
 
-# Run the quality gate
-bun run scripts/quality-gate.ts
+# Safety guard for generated test config
+bun run scripts/check-test-db-safety.ts
 
-# Run specific contract against active database
+# Single integration contract against the active test database
 bun test tests/integration/databases/contract.test.ts
 
-# Run the complete Enterprise Performance Matrix (all 4 databases)
+# Complete Enterprise Performance Matrix
 bun run scripts/benchmark-matrix/index.ts
 
-# Run a specific benchmark
+# Single benchmark
 bun test tests/benchmarks/api-latency.test.ts
 ```
 
 > [!TIP]
 > SveltyCMS benchmarks are **Environment-Aware**. If you execute a benchmark file with `bun run`, the system will automatically inform you and reroute the execution through the **Bun Test Engine** to ensure accurate micro-latency measurements and proper cleanup of background services.
 
+### Local Docker Database Setup
+
+`tests/docker-compose.yml` is the canonical local database stack. Start only the profiles you need:
+
+```bash
+docker compose -f tests/docker-compose.yml --profile mongodb up -d
+docker compose -f tests/docker-compose.yml --profile postgresql up -d
+docker compose -f tests/docker-compose.yml --profile mariadb up -d
+docker compose -f tests/docker-compose.yml --profile redis up -d
+```
+
+| Profile | Port | Runner default credentials |
+| :------ | :--- | :------------------------- |
+| `mongodb` | `27017` | no auth (official image default) |
+| `postgresql` | `5432` | `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=sveltycms_test` |
+| `mariadb` | `3306` | `DB_USER=root`, `DB_PASSWORD=mariadb`, `DB_NAME=sveltycms_test` |
+| `redis` | `6379` | Used by benchmark `*-redis` variants |
+
+Run DB-backed suites after the matching profile is healthy:
+
+```bash
+bun run scripts/run-integration-tests.ts --db=mongodb
+bun run scripts/run-integration-tests.ts --db=postgresql
+bun run scripts/run-integration-tests.ts --db=mariadb
+bun run scripts/benchmark-matrix/index.ts --db=postgresql --no-build
+```
+
+Stop profiles with:
+
+```bash
+docker compose -f tests/docker-compose.yml --profile mongodb down
+docker compose -f tests/docker-compose.yml --profile postgresql down
+docker compose -f tests/docker-compose.yml --profile mariadb down
+docker compose -f tests/docker-compose.yml --profile redis down
+```
+
+### Files Used By Each Runner
+
+| Runner | Main config/scripts | Test files | Test-only state |
+| :----- | :------------------ | :--------- | :-------------- |
+| Unit | `vitest.config.ts`, `tests/unit/setup.ts`, `tests/unit/bun-preload.ts` | `tests/unit/**/*.test.ts` | In-memory mocks and `$app` / `$env` aliases under `tests/unit/mocks/` |
+| Integration | `scripts/run-integration-tests.ts`, `scripts/check-test-db-safety.ts` | `tests/integration/**/*.test.ts` | `config/private.test.ts`, `tests/e2e/.auth/test-secret.txt`, `config/collections/test/integration_test_collection.ts`, `.compiledCollections/test/integration_test_collection.js` |
+| E2E | `playwright.config.ts`, `tests/e2e/global.setup.ts`, `tests/e2e/helpers/` | `tests/e2e/**/*.spec.ts`, `tests/e2e/auth.setup.ts` | `config/private.test.ts`, `tests/e2e/.auth/`, temp SQLite DB names containing `e2e` or `test` |
+| Benchmarks | `scripts/benchmark-matrix/`, `tests/benchmarks/modules/benchmark-utils.ts` | `tests/benchmarks/**/*.test.ts` | `bench_tmp_<db>_<pid>` databases, `tests/benchmarks/results/`, `.compiledCollections/test/<workspace>/` |
+
+### Live Config Safety Contract
+
+Local tests and benchmarks must not mutate a user's live CMS setup:
+
+- `config/private.ts` is never renamed, copied from, deleted, or used by local integration tests. `run-integration-tests.ts` builds with `TEST_MODE=true`, so Vite aliases `@config/private` to `config/private.test.ts`.
+- `config/private.test.ts` must contain an isolated DB name. `src/utils/test-db-safety.ts` allows names containing `test`, `bench`, `e2e`, or ending in `_functional`; `scripts/check-test-db-safety.ts` blocks unsafe files.
+- `config/collections/` root and `.compiledCollections/` root are user-owned. Test fixtures go under `config/collections/test/`, tenant-specific test paths such as `config/test-setup-presets/collections/`, or `.compiledCollections/test/<workspace>/`.
+- `bun run ci:local` backs up `config/private.ts` (and related paths), runs the full precheck manifest, optionally Playwright E2E, then restores your live config. A warning is printed when live CMS artifacts are detected.
+
 ### Tiered Local Testing
 
-SveltyCMS enforces a **three-tier** local testing strategy to catch bugs at the right stage:
+SveltyCMS enforces a **three-tier** local testing strategy. All tiers share the task manifest in `scripts/precheck-shared.ts`:
 
-```
-# Tier 1: Pre-Commit (automatic, < 5s) — format, lint, types, unit tests, build
+```bash
+# Tier 1: Pre-Commit (automatic, ~2–3s) — lint-staged on staged files + DB safety
 git commit -m "feat: my change"
 
-# Tier 2: Pre-Push (automatic, ~3 min) — SQLite integration + Playwright E2E
-git push origin my-branch
+# Tier 2: Pre-Push (automatic, ~15–45 min) — build + 4-DB integration + benchmarks
+bun run git push origin my-branch
 
-# Tier 3: Full CI Parity (manual, ~10 min) — 4-DB matrix + full E2E
+# Tier 3a: Full CI core (manual) — same checks as push, always-on scans
+bun run verify:full
+
+# Tier 3b: Full CI + E2E (manual, ~30–60 min)
 bun run ci:local
-bun run ci:local --db=sqlite       # single DB
-bun run ci:local --skip-e2e         # skip Playwright
+bun run ci:local -- --db=sqlite
+bun run ci:local -- --skip-e2e
+bun run ci:local -- --skip-benchmarks
 ```
 
-See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for the full tiered strategy, scripts audit, and bypass instructions.
+| Command | Build | 4-DB integration | Benchmarks | E2E |
+| :------ | :---: | :--------------: | :--------: | :-: |
+| `git push` (hook) | when code changed | when code changed | when code changed | — |
+| `bun run verify:push` | same as hook | same | same | — |
+| `bun run verify:full` | always | always | always | — |
+| `bun run ci:local` | always | always | optional `--skip-benchmarks` | optional `--skip-e2e` |
+
+See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for Docker prerequisites, credential parity, and scripts audit.
 
 ## Current GitHub Actions Gate
 
 The `next` branch workflow currently validates changes in this order:
 
 1. `bootstrap` — Bun install, codegen verification, E2E secret generation.
-2. `lint`, `check`, `unit` — White-box quality gates.
+2. `format`, `lint`, `check`, `unit`, `security-audit` — White-box quality gates.
 3. `build` — Production bundle generation.
 4. `db-tests` — Black-box integration matrix across SQLite, MongoDB, MariaDB, and PostgreSQL.
-5. `e2e-wizard`, `e2e-auth`, `e2e-app` — Playwright browser validation.
+5. `bench-core` — Core performance benchmarks per adapter (also runs on pre-push precheck).
+6. `e2e-wizard`, `e2e-auth`, `e2e-app` — Playwright browser validation (local: `bun run ci:local` only).
+
+Pre-push precheck mirrors steps 2–5. Only sharded E2E remains GitHub-only unless you run `ci:local`.
 
 This matters because integration and E2E failures are not just "test" failures. They also validate production build output, redirect logic, auth cookies, and database bootstrap behavior.
 
@@ -262,17 +334,17 @@ graph TD
 
 | Artifact | Unit | Integration | E2E | Benchmark |
 | :------- | :--: | :---------: | :-: | :-------: |
-| **config/private.ts** | Never touched | Ephemeral TEST_MODE mirror only | Setup wizard mirror | Never touched |
+| **config/private.ts** | Never touched | Never touched locally | Never touched in TEST_MODE | Never touched |
 | **config/private.test.ts** | bun-preload mocks | Auto-generated | Generated test config | `writeTestConfig` |
-| **config/collections/** (root) | Never reads | Never reads | Never reads | Never writes — purge on matrix boot |
+| **config/collections/** (root) | Never reads | Never reads | Never reads | Never writes; matrix purge removes known benchmark debris only |
 | **config/collections/test/** | Never reads | Writes `integration_test_collection.ts` | Never reads | Benchmark TS sources (if any) |
-| **.compiledCollections/** (root) | Never reads | Never reads | Never reads | Read-only for user files; purge removes leaked artifacts |
+| **.compiledCollections/** (root) | Never reads | Never reads | Never reads | Read-only for user files; purge removes known benchmark debris only |
 | **.compiledCollections/test/** | Never reads | Integration fixture JS | Never reads | Scan/stress/incremental workspaces only |
 | **User database** | In-memory mocks | Temp DB only | Temp DB only | `bench_tmp_<db>_<pid>` |
 | **Content store** | Mocked singleton | Per-process | Per-browser | Per matrix server + temp DB |
 
 > [!IMPORTANT]
-> Integration and E2E may mirror `config/private.test.ts` into a disposable `TEST_MODE` workspace. That mirror must use test-only databases and secrets, never live infrastructure.
+> Local `TEST_MODE` uses `config/private.test.ts` as the only file-based private config. CI may create an ephemeral `config/private.ts` only on fresh runners for build parity; local developer workspaces must not rely on or mutate the live file.
 
 ### How Benchmarks Use Collections
 

@@ -175,13 +175,12 @@ const statuses = Object.values(StatusTypes);
 				<div class="flex gap-2">
 					<div class="relative flex-1">
 						<iconify-icon icon="mdi:link" class="absolute inset-s-3 top-1/2 -translate-y-1/2 text-surface-500" width="18"></iconify-icon>
-						<input
+						<input aria-label="Collection name"
 							type="text"
 							id="slug"
 							bind:value={slug}
 							placeholder={collection_slug_input()}
 							class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 ps-10 pe-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-							aria-label="Collection slug"
 						/>
 					</div>
 					<Button
@@ -198,11 +197,10 @@ const statuses = Object.values(StatusTypes);
 
 			<div class="space-y-2">
 				<label for="status" class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50">{collection_status()}</label>
-				<select
+				<select aria-label="Collection type"
 					id="status"
 					bind:value={status}
 					class="flex h-10 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 appearance-none cursor-pointer"
-					aria-label="Collection status"
 				>
 					{#each statuses as statusOption (statusOption)}
 						<option value={statusOption}>{statusOption}</option>
@@ -225,13 +223,12 @@ const statuses = Object.values(StatusTypes);
 
 			<div class="space-y-2 flex flex-col flex-1">
 				<label for="description" class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50">{collectionname_description()}</label>
-				<textarea
+				<textarea aria-label="Collection description"
 					id="description"
 					bind:value={description}
 					placeholder={collection_description_placeholder()}
 					class="flex-1 w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-30"
-					aria-label="Collection description"
-				></textarea>
+					></textarea>
 			</div>
 		</Card>
 

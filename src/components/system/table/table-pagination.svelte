@@ -121,10 +121,9 @@
 
 	<label class="relative inline-flex h-9 shrink-0 items-center">
 		<span class="sr-only">{entrylist_rows()}</span>
-		<select
+		<select aria-label="Items per page"
 			bind:value={rowsPerPage}
 			onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
-			aria-label="Select number of rows per page"
 			class="h-full cursor-pointer appearance-none rounded-lg border border-surface-200 bg-surface-50 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-700 dark:border-surface-800 dark:bg-surface-900 dark:text-surface-200"
 		>
 			{#each rowsPerPageOptions as pageSize (pageSize)}
@@ -201,10 +200,9 @@
 		</SystemTooltip>
 
 		<SystemTooltip title="Rows per page">
-			<select
+			<select aria-label="Go to page"
 				bind:value={rowsPerPage}
 				onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
-				aria-label="Select number of rows per page"
 				class="h-8 cursor-pointer appearance-none border-e border-surface-300 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
 			>
 				{#each rowsPerPageOptions as pageSize (pageSize)}

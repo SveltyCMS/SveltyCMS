@@ -9,6 +9,8 @@ import { safeFetch } from "../helpers/server";
  */
 import { beforeAll, describe, expect, it } from "bun:test";
 
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
+
 const BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
 
 // Check if server is available before running tests
@@ -16,12 +18,12 @@ let serverAvailable = false;
 
 beforeAll(async () => {
   try {
-    const res = await safeFetch(`${BASE_URL}/`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    serverAvailable = res.ok || res.status === 302 || res.status === 307;
-  } catch {
-    console.warn(`⚠️ Server at ${BASE_URL} is not reachable. Security tests will be skipped.`);
+    await prepareAuthenticatedContext();
+    serverAvailable = true;
+  } catch (err: any) {
+    console.warn(
+      `⚠️ Failed to prepare test context: ${err.message}. Security tests will be skipped.`,
+    );
     serverAvailable = false;
   }
 });

@@ -150,7 +150,7 @@ keyboard navigation, and motion-respecting transitions.
 		role="group"
 	>
 		<!-- Hidden native checkbox for form/AT compatibility -->
-		<input
+		<input aria-label={label || undefined}
 			type="checkbox"
 			id={generatedId}
 			{name}

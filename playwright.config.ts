@@ -83,7 +83,7 @@ export default defineConfig({
     // ── SETUP-STATE projects (port 4174) ──
     {
       name: "wizard",
-      use: { baseURL: "http://127.0.0.1:4174" },
+      use: { baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4174" },
       testMatch: "routes/setup/setup-wizard.spec.ts",
       workers: 1,
     },

@@ -47,12 +47,12 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 		<!-- Branding: Left on desktop, between on mobile -->
 		<div class="flex items-center justify-between lg:justify-start">
 			<div class="flex items-center gap-2 sm:gap-4">
-				<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer" class="shrink-0">
+				<a aria-label="SveltyCMS home" href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer" class="shrink-0">
 					<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-9 w-auto sm:h-12" />
 				</a>
 				<div class="flex min-w-0 flex-col justify-center overflow-hidden">
 					<h1 class="truncate text-lg font-bold leading-none sm:text-2xl lg:text-3xl">
-						<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
+						<a aria-label="Documentation" href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
 							<SiteName {siteName} highlight="CMS" />
 						</a>
 					</h1>

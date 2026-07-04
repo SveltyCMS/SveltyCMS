@@ -23,6 +23,7 @@ import { spawn, execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { getDockerDefaultDbCredentials } from "../../src/utils/test-db-credentials.ts";
 
 const DBS = ["sqlite", "mariadb", "postgresql", "mongodb"];
 const filter =
@@ -409,24 +410,29 @@ async function run() {
 
     process.stdout.write(`  Starting server... `);
 
+    const dbCreds = getDockerDefaultDbCredentials(db);
+
     const serverEnv = {
       ...process.env,
       DB_TYPE: db,
       PORT: String(port),
       API_BASE_URL: baseUrl,
       TEST_MODE: "true",
+      BENCHMARK: "true",
+      NODE_ENV: "test",
       USE_REDIS: "false",
       LOG_LEVEL: "fatal",
       QUIET: "true",
-      JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026",
+      JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-32ch",
       ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-32ch",
       TEST_API_SECRET: apiSecret,
       ADMIN_PASSWORD: adminPassword,
       SVELTY_BENCHMARK_SUITE: "true",
+      BENCHMARK_RECORD: "1",
       DB_NAME: "sveltycms_test",
       DB_HOST: "127.0.0.1",
-      DB_USER: db === "sqlite" ? "" : "testuser",
-      DB_PASSWORD: db === "sqlite" ? "" : "testpass",
+      DB_USER: dbCreds.user,
+      DB_PASSWORD: dbCreds.password,
       DB_PORT:
         db === "mariadb" ? "3306" : db === "postgresql" ? "5432" : db === "mongodb" ? "27017" : "",
     } as Record<string, string>;
@@ -462,7 +468,7 @@ async function run() {
     }
     console.log("OK");
 
-    // ── Phase 2: System setup + seed ──
+    // ── Phase 2: System setup (best-effort) + testing API seed ──
     process.stdout.write(`  Setting up system... `);
     try {
       execSync("bun run scripts/setup-system.ts", {
@@ -473,10 +479,10 @@ async function run() {
       } as any);
       console.log("OK");
     } catch (e: any) {
-      console.log("FAILED");
-      console.error(`  Setup error: ${e.stderr?.toString().slice(0, 300) || e.message}`);
-      server.kill("SIGKILL");
-      process.exit(1);
+      // Wizard seed can fail when live config/private.ts exists — testing API seed below is authoritative.
+      console.log("SKIP");
+      const note = e.stderr?.toString().slice(0, 200) || e.message;
+      if (note) console.error(`  Setup note: ${note}`);
     }
 
     // Seed benchmark data via testing API
@@ -495,13 +501,21 @@ async function run() {
           password: adminPassword,
         }),
       });
-      if (seedRes.ok) console.log("OK");
-      else {
+      if (seedRes.ok) {
+        console.log("OK");
+      } else {
         const txt = await seedRes.text().catch(() => "");
-        console.log(`WARN (${seedRes.status}: ${txt.slice(0, 100)})`);
+        console.log("FAILED");
+        console.error(`  Seed error (${seedRes.status}): ${txt.slice(0, 300)}`);
+        server.kill("SIGKILL");
+        process.exit(1);
       }
-    } catch {
-      console.log("WARN (seed endpoint not available, will be seeded per-test)");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log("FAILED");
+      console.error(`  Seed error: ${msg}`);
+      server.kill("SIGKILL");
+      process.exit(1);
     }
 
     // ── Phase 3: Run tests ──
@@ -649,6 +663,8 @@ async function run() {
     // ── Phase 4: Finalize report (batch MDX write) ──
     process.stdout.write(`  Finalizing report...`);
     try {
+      process.env.DB_TYPE = db;
+      process.env.BENCHMARK_MATRIX = "1";
       const { finalizeReport } = await import("../../tests/benchmarks/modules/benchmark-reporting");
       await finalizeReport(BENCHMARK_RUN_ID);
       process.stdout.write(" OK\n");

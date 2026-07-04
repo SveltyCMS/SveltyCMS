@@ -271,14 +271,13 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		</label>
 
 		<!-- Search -->
-		<input
+		<input aria-label="Search media"
 			type="search"
 			bind:value={search}
 			oninput={handleSearch}
 			placeholder="Search files..."
 			class="input flex-1"
 			id="media-search"
-			aria-label="Search media files"
 			disabled={isLoading}
 		/>
 

@@ -672,7 +672,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                 Quick-apply curated presets or import from Skeleton.dev theme builder.
               </p>
               <p class="text-sm mb-4">
-                <a href="/config/design-system" class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1">
+                <a aria-label="Theme preview" href="/config/design-system" class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1">
                   <iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
                   Browse the Design System playground
                 </a>

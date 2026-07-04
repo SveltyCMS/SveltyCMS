@@ -37,16 +37,22 @@ SveltyCMS features a **Self-Healing Setup Wizard** that automates database confi
 
 ### Quick Install
 
+#### Option A: Scaffolding CLI (recommended)
+
 ```bash
-# 1. Clone the repository
+npx create-sveltycms@latest my-cms
+cd my-cms
+bun run dev
+```
+
+Templates: `blog`, `agency`, `saas`, `corporate`, `ecommerce` · Databases: `sqlite` (default), `postgresql`, `mariadb`, `mongodb`
+
+#### Option B: Clone from GitHub
+
+```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
-
-# 2. Install dependencies (Bun recommended, 3-4× faster than Node.js)
 bun install
-# Windows: if bun install fails, use `npm install` instead (upstream Bun bug)
-
-# 3. Start — auto-launches Setup Wizard on first run
 bun run dev
 ```
 

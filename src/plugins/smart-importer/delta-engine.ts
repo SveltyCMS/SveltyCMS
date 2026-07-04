@@ -25,7 +25,7 @@ import type { SNCEnvelope, SNCEntry } from "./types";
 export type ConflictStrategy = "skip" | "overwrite" | "merge" | "keep_both";
 
 export interface DeltaState {
-  collection: string;
+  collectionName: string;
   sourcePlatform: string;
   lastHighwater: string; // ISO timestamp of last import
   importedCount: number;
@@ -126,7 +126,7 @@ export async function loadDeltaState(
   try {
     const row = unwrapDoc<Record<string, unknown>>(
       await dbAdapter.crud.findOne(DELTA_STATE_COLLECTION, {
-        collection,
+        collectionName: collection,
         sourcePlatform,
       }),
     );
@@ -142,7 +142,7 @@ export async function loadDeltaState(
     }
 
     return {
-      collection: String(row.collection),
+      collectionName: String(row.collectionName),
       sourcePlatform: String(row.sourcePlatform),
       lastHighwater: String(row.lastHighwater || ""),
       importedCount: Number(row.importedCount || 0),
@@ -166,7 +166,7 @@ export async function saveDeltaState(
   state: DeltaState,
 ): Promise<void> {
   const payload = {
-    collection: state.collection,
+    collectionName: state.collectionName,
     sourcePlatform: state.sourcePlatform,
     lastHighwater: state.lastHighwater,
     importedCount: state.importedCount,
@@ -177,7 +177,7 @@ export async function saveDeltaState(
 
   const existing = unwrapDoc<{ _id: string }>(
     await dbAdapter.crud.findOne(DELTA_STATE_COLLECTION, {
-      collection: state.collection,
+      collectionName: state.collectionName,
       sourcePlatform: state.sourcePlatform,
     }),
   );
@@ -186,7 +186,7 @@ export async function saveDeltaState(
     await dbAdapter.crud.updateOne(DELTA_STATE_COLLECTION, { _id: existing._id }, payload);
   } else {
     await dbAdapter.crud.insert(DELTA_STATE_COLLECTION, {
-      _id: `${state.sourcePlatform}_${state.collection}`,
+      _id: `${state.sourcePlatform}_${state.collectionName}`,
       ...payload,
     });
   }
@@ -211,7 +211,7 @@ export function buildDeltaStateFromImport(
   }
 
   return {
-    collection,
+    collectionName: collection,
     sourcePlatform,
     lastHighwater: lastHighwater || nowISODateString(),
     importedCount: (previous?.importedCount ?? 0) + importedEntries.length,

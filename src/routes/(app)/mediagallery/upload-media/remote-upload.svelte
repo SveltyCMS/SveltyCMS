@@ -79,13 +79,12 @@ async function uploadRemoteUrls() {
 </script>
 
 <div class="space-y-4">
-	<textarea
+	<textarea aria-label="Remote URL"
 		bind:value={remoteUrls}
 		placeholder="Paste Remote URLs here, one per line..."
 		rows="6"
 		class="textarea w-full bg-secondary-50 dark:bg-secondary-800"
 		oninput={handleRemoteUrlInput}
-		aria-label="Remote URLs to upload"
 	></textarea>
 	<!-- Upload Button -->
 	<Button variant="tertiary" onclick={uploadRemoteUrls} class="mt-2 dark:">Upload URLs</Button>

@@ -102,7 +102,7 @@
 			{/each}
 		{/if}
 
-		<input
+		<input aria-label="Search tags"
 			id={`${fieldName}-input`}
 			type="text"
 			bind:value={inputValue}

@@ -12,6 +12,7 @@
 
 // --- Domain-scoped re-exports (new files, canonical source) ---
 export { systemLanguage, contentLanguage, translationProgress } from "./locale-store.svelte";
+import { _syncLanguageState } from "./locale-store.svelte";
 export { validationStore } from "./validation-store.svelte";
 export { dataChangeStore } from "./data-change-store.svelte";
 
@@ -44,9 +45,8 @@ class AppStore {
   }
   set systemLanguage(v: string) {
     this._systemLanguage = v;
-    import("./locale-store.svelte").then(({ _syncLanguageState }) =>
-      _syncLanguageState(v, this._contentLanguage),
-    );
+    // locale-store is statically imported above — call directly (no async microtask needed)
+    _syncLanguageState(v, this._contentLanguage);
   }
 
   get contentLanguage() {
@@ -54,9 +54,8 @@ class AppStore {
   }
   set contentLanguage(v: string) {
     this._contentLanguage = v;
-    import("./locale-store.svelte").then(({ _syncLanguageState }) =>
-      _syncLanguageState(this._systemLanguage, v),
-    );
+    // locale-store is statically imported above — call directly (no async microtask needed)
+    _syncLanguageState(this._systemLanguage, v);
   }
 }
 

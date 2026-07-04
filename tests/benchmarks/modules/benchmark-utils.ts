@@ -197,7 +197,7 @@ afterAll(async () => {
   if (process.env.BENCHMARK_MATRIX !== "1") {
     try {
       const { finalizeReport } = await import("./benchmark-reporting");
-      await finalizeReport(_currentRunId);
+      await finalizeReport(_currentRunId, { invokedTestFiles: _reportedFiles });
     } catch {}
   }
 
@@ -758,12 +758,18 @@ export async function setupBenchmarkServer() {
   process.env.TEST_API_SECRET = secret;
   process.env.ADMIN_PASSWORD = adminPw;
   TEST_API_SECRET = secret;
+  process.env.TEST_MODE = "true";
+  process.env.BENCHMARK = "true";
   process.env.SVELTY_BENCHMARK_SUITE = "true";
 
   const serverProcess = spawn("node", ["build/index.js"], {
     env: {
       ...process.env,
       PORT: String(port),
+      TEST_MODE: "true",
+      BENCHMARK: "true",
+      TEST_API_SECRET: secret,
+      NODE_ENV: "test",
     },
     stdio: "pipe",
     shell: process.platform === "win32",
@@ -790,17 +796,17 @@ export async function setupBenchmarkServer() {
     throw new Error(`Server at ${healthUrl} did not become healthy within 30s`);
   }
 
-  // Run system setup
-  const { execSync } = await import("child_process");
-  execSync("bun run scripts/setup-system.ts", {
-    env: {
-      ...process.env,
-      API_BASE_URL: process.env.API_BASE_URL,
-      PRESET: "demo",
-    },
-    stdio: "pipe",
-    shell: process.platform === "win32" ? "cmd.exe" : undefined,
-  });
+  // Run system setup (non-fatal — data seeding handled by /api/testing)
+  try {
+    const { execSync } = await import("child_process");
+    execSync("bun run scripts/setup-system.ts", {
+      env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL, PRESET: "demo" },
+      stdio: "pipe",
+      shell: process.platform === "win32" ? "cmd.exe" : undefined,
+    });
+  } catch {
+    // setup-system.ts may fail for non-SQLite DBs — benchmark data is seeded below
+  }
 
   // Seed benchmark data in-process
   await ensureStableTestData(undefined, "global");
@@ -825,10 +831,12 @@ export async function exportResult(r: any) {
   const dbType = getDbType();
 
   // Detect test file
-  let testFile = process.env.BENCH_FILE || "";
+  let testFile = process.env.BEN_FILE || process.env.BENCH_FILE || "";
   if (!testFile) {
     const m = (process.argv[1] || "").match(/tests[/\\]benchmarks[/\\]([\w.-]+)\.ts/);
-    if (m) testFile = m[1];
+    if (m) {
+      testFile = m[1].replace(/\.test$/, "");
+    }
   }
 
   const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
@@ -888,7 +896,7 @@ export async function exportResult(r: any) {
 export async function runFinalizeReport(): Promise<void> {
   if (!_reportedFiles.size) return;
   const { finalizeReport } = await import("./benchmark-reporting");
-  await finalizeReport(_currentRunId);
+  await finalizeReport(_currentRunId, { invokedTestFiles: _reportedFiles });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1043,6 +1051,40 @@ export let TEST_API_SECRET = (() => {
   return "SVELTYCMS_TEST_SECRET_2026";
 })();
 
+const testingRequestHeaders = (tenantId = "global") => ({
+  "Content-Type": "application/json",
+  "x-test-mode": "true",
+  "x-test-secret": TEST_API_SECRET,
+  "x-tenant-id": tenantId,
+});
+
+/** POST to `/api/testing` with benchmark auth headers. */
+export async function postTestingApi(
+  action: string,
+  params: Record<string, unknown> = {},
+  tenantId = "global",
+): Promise<Response> {
+  const baseUrl = process.env.API_BASE_URL;
+  if (!baseUrl) throw new Error("postTestingApi: API_BASE_URL is not set");
+  return fetch(`${baseUrl}/api/testing`, {
+    method: "POST",
+    headers: testingRequestHeaders(tenantId),
+    body: JSON.stringify({ action, ...params }),
+  });
+}
+
+/** Fail fast when the testing API rejects benchmark setup (e.g. 401 secret mismatch). */
+export async function requireTestingApi(
+  action: string,
+  params: Record<string, unknown> = {},
+  tenantId = "global",
+): Promise<void> {
+  const res = await postTestingApi(action, params, tenantId);
+  if (res.ok) return;
+  const txt = await res.text().catch(() => "");
+  throw new Error(`Testing API '${action}' failed (${res.status}): ${txt.slice(0, 240)}`);
+}
+
 /** Track files that have already reported their MDX recording message */
 const _reportedFiles = new Set<string>();
 
@@ -1058,16 +1100,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
   // DB env vars (MongoDB/PostgreSQL/MariaDB) in the benchmark child process.
   if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
     try {
-      const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
-        },
-        body: JSON.stringify({
-          action: "create-collection",
+      const res = await postTestingApi(
+        "create-collection",
+        {
           schema: {
             _id: STABLE_COLLECTION,
             name: STABLE_COLLECTION,
@@ -1117,8 +1152,15 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
               },
             ],
           },
-        }),
-      });
+        },
+        tenantId,
+      );
+      if (!res.ok && process.env.BENCHMARK_MATRIX === "1") {
+        const txt = await res.text().catch(() => "");
+        throw new Error(
+          `ensureStableTestData: testing API unavailable (${res.status}): ${txt.slice(0, 200)}`,
+        );
+      }
       if (res.ok && process.env.BENCHMARK_DEBUG === "true") {
         process.stderr.write(`[DEBUG] Stable collection created via API\n`);
       }

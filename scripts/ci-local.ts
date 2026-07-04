@@ -1,37 +1,44 @@
 /**
  * @file scripts/ci-local.ts
  * @description
- * Local CI runner — 100% parity with GitHub Actions CI pipeline.
+ * Local CI runner — parity with GitHub Actions CI pipeline.
  *
- * Runs the full integration test matrix against your already-running
- * Docker Desktop databases (MongoDB, MariaDB, PostgreSQL) plus SQLite,
- * then executes the complete Playwright E2E suite.
+ * Runs the unified precheck manifest (full tier: static analysis, build,
+ * 4-DB integration, benchmarks) then optionally Playwright E2E.
  *
  * ### Prerequisites:
- *   - Docker Desktop running with MongoDB (27017), MariaDB (3306),
- *     PostgreSQL (5432) containers up and accessible at 127.0.0.1
- *   - `bun run build` must succeed (handled automatically)
+ *   - Docker Desktop with MongoDB (27017), MariaDB (3306), PostgreSQL (5432)
+ *   - `bun run build` succeeds (handled by precheck)
  *
  * ### Usage:
- *   bun run scripts/ci-local.ts                    # full matrix + E2E
- *   bun run scripts/ci-local.ts --db=sqlite        # single DB only
- *   bun run scripts/ci-local.ts --skip-e2e         # skip Playwright
+ *   bun run ci:local                         # full precheck + E2E
+ *   bun run ci:local -- --db=sqlite          # single DB only
+ *   bun run ci:local -- --skip-e2e           # skip Playwright
+ *   bun run ci:local -- --skip-benchmarks    # skip bench-core suite
  *
  * ### Features:
- *   - Mirrors ci.yml §4 (DB Matrix) and §5-7 (E2E) exactly
- *   - Fail-fast: stops on first failure
- *   - Elapsed time tracking per step
- *   - Summary table at the end
+ *   - Mirrors ci.yml db-tests, bench-core, and E2E
+ *   - Backs up and restores config/private.ts (safe on live workspaces)
+ *   - Fail-fast with elapsed time summary
  */
 
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from "node:fs";
+import { spawn, type SpawnOptions } from "node:child_process";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  cpSync,
+  rmSync,
+  readdirSync,
+} from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { INTEGRATION_DB_MATRIX, type IntegrationDbType } from "../src/utils/test-db-credentials.ts";
+import { runPrecheckCli } from "./precheck.ts";
 
 const ROOT = process.cwd();
-
-// ── CLI Argument Parsing ────────────────────────────────────────────────────
+const VALID_DBS = INTEGRATION_DB_MATRIX;
 
 const argv = process.argv.slice(2);
 
@@ -40,10 +47,25 @@ function getArg(name: string): string | undefined {
   return argv.find((a) => a.startsWith(prefix))?.slice(prefix.length);
 }
 
-const singleDb = getArg("--db");
+const singleDb = getArg("--db") as IntegrationDbType | undefined;
 const skipE2E = argv.includes("--skip-e2e");
+const skipBenchmarks = argv.includes("--skip-benchmarks");
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+if (singleDb && !VALID_DBS.includes(singleDb)) {
+  console.error(`❌ Invalid --db value: "${singleDb}". Valid: ${VALID_DBS.join(", ")}`);
+  process.exit(1);
+}
+
+interface RunResult {
+  status: number | null;
+  passed: boolean;
+}
+
+interface StepResult {
+  name: string;
+  passed: boolean;
+  duration: string;
+}
 
 function run(
   cmd: string,
@@ -53,24 +75,55 @@ function run(
     env?: Record<string, string>;
     ignoreExit?: boolean;
   } = {},
-): SpawnSyncReturns<Buffer> {
+): Promise<RunResult> {
   if (!opts.silent) {
     console.log(`  $ ${cmd} ${args.join(" ")}`);
   }
-  return spawnSync(cmd, args, {
-    stdio: opts.silent ? "pipe" : "inherit",
-    shell: true,
-    env: opts.env ? { ...process.env, ...opts.env } : process.env,
-    cwd: ROOT,
-  });
-}
 
-function ok(result: SpawnSyncReturns<Buffer>): boolean {
-  return result.status === 0;
+  return new Promise((resolve, reject) => {
+    const spawnOpts: SpawnOptions = {
+      stdio: opts.silent ? "pipe" : "inherit",
+      shell: false,
+      env: opts.env ? { ...process.env, ...opts.env } : process.env,
+      cwd: ROOT,
+    };
+
+    const useShell = process.platform === "win32";
+    if (useShell) {
+      spawnOpts.shell = true;
+      spawnOpts.windowsVerbatimArguments = true;
+    }
+
+    const proc = spawn(cmd, args, spawnOpts);
+
+    proc.on("error", (err) => {
+      if (opts.ignoreExit) {
+        resolve({ status: 1, passed: false });
+      } else {
+        reject(err);
+      }
+    });
+
+    proc.on("close", (code) => {
+      const passed = opts.ignoreExit ? true : code === 0;
+      resolve({ status: code, passed });
+    });
+  });
 }
 
 function elapsed(startMs: number): string {
   return `${((Date.now() - startMs) / 1000).toFixed(1)}s`;
+}
+
+async function runChecked(
+  name: string,
+  cmd: string,
+  args: string[],
+  opts: { env?: Record<string, string>; ignoreExit?: boolean } = {},
+): Promise<StepResult> {
+  const startMs = Date.now();
+  const result = await run(cmd, args, opts);
+  return { name, passed: result.passed, duration: elapsed(startMs) };
 }
 
 function ensureTestSecret(): string {
@@ -86,215 +139,60 @@ function ensureTestSecret(): string {
   return secret;
 }
 
-// ── Main Pipeline ───────────────────────────────────────────────────────────
-
-interface StepResult {
-  name: string;
-  passed: boolean;
-  duration: string;
+function getE2EProjects(): string[] {
+  try {
+    const configPath = join(ROOT, "playwright.config.ts");
+    if (!existsSync(configPath)) return [];
+    const content = readFileSync(configPath, "utf-8");
+    const matches = content.matchAll(/name:\s*"([^"]+)"/g);
+    const exclude = new Set(["wizard", "auth-setup", "firstuser"]);
+    return [...matches].map((m) => m[1]).filter((n) => !exclude.has(n));
+  } catch {
+    return [];
+  }
 }
 
-async function main() {
-  const pipelineStart = Date.now();
-  const results: StepResult[] = [];
-  const testSecret = ensureTestSecret();
-  process.env.TEST_API_SECRET = testSecret;
-
-  console.log("╔══════════════════════════════════════════════════════════════╗");
-  console.log("║              SveltyCMS Local CI Simulator                    ║");
-  console.log("╚══════════════════════════════════════════════════════════════╝");
-  console.log("");
-  console.log(
-    `  Target DB:    ${singleDb || "full matrix (sqlite, mongodb, mariadb, postgresql)"}`,
-  );
-  console.log(`  E2E Tests:    ${skipE2E ? "skipped" : "enabled"}`);
-  console.log(`  Databases:    Using Docker Desktop (already running)`);
-  console.log("");
-
-  const backupDir = join(ROOT, ".tmp_config_backup");
-  const pathsToBackup = [
-    {
-      src: join(ROOT, "config", "private.ts"),
-      dest: join(backupDir, "private.ts"),
-      type: "file",
-    },
-    {
-      src: join(ROOT, "config", "private.test.ts"),
-      dest: join(backupDir, "private.test.ts"),
-      type: "file",
-    },
-    {
-      src: join(ROOT, "config", "database"),
-      dest: join(backupDir, "database"),
-      type: "dir",
-    },
-  ];
-
-  console.log("💾 Backing up local configuration...");
-  if (existsSync(backupDir)) {
-    rmSync(backupDir, { recursive: true, force: true });
-  }
-  mkdirSync(backupDir, { recursive: true });
-
-  for (const p of pathsToBackup) {
-    if (existsSync(p.src)) {
-      cpSync(p.src, p.dest, { recursive: true });
-    }
-  }
-
-  const restoreConfig = () => {
-    console.log("⏪ Restoring local configuration...");
-    for (const p of pathsToBackup) {
-      if (existsSync(p.dest)) {
-        if (p.type === "dir") {
-          rmSync(p.src, { recursive: true, force: true });
-        }
-        cpSync(p.dest, p.src, { recursive: true });
-      } else {
-        rmSync(p.src, { recursive: true, force: true });
-      }
-    }
-    rmSync(backupDir, { recursive: true, force: true });
-    console.log("   ✓ Local configuration restored.");
-  };
-
+function hasTopLevelCollectionFiles(dir: string): boolean {
+  if (!existsSync(dir)) return false;
   try {
-    // ── Step 0: Quality Gates ────────────────────────────────────────────────
-    console.log("🛡️  Step 0: Quality Gates (Format, Lint, Type Check, Unit Tests)");
-    const qualityChecks = [
-      { name: "Format Check", cmd: "bun", args: ["run", "format"] },
-      { name: "Lint Check", cmd: "bun", args: ["run", "lint"] },
-      { name: "Type Check", cmd: "bun", args: ["run", "check"] },
-      { name: "Unit Tests", cmd: "bun", args: ["run", "test:unit"] },
-    ];
-
-    let t: number;
-    for (const check of qualityChecks) {
-      console.log(`\n  ── 🔎 ${check.name} ──`);
-      t = Date.now();
-      const r = run(check.cmd, check.args);
-      const passed = ok(r);
-      results.push({ name: check.name, passed, duration: elapsed(t) });
-      if (!passed) {
-        console.error(`  ❌ ${check.name} failed.`);
-        printSummary(results, pipelineStart);
-        process.exit(1);
-      }
-    }
-    console.log("");
-
-    // Clear active state for E2E setup wizard and build parity with CI
-    const dirsToClear = [
-      join(ROOT, "config", "private.ts"),
-      join(ROOT, "config", "private.test.ts"),
-      join(ROOT, "config", "database"),
-      join(ROOT, "tests", "e2e", ".auth", "user.json"),
-      join(ROOT, "logs"),
-    ];
-    for (const path of dirsToClear) {
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
-      }
-    }
-    mkdirSync(join(ROOT, "config", "database"), { recursive: true });
-
-    // ── Step 1: Build ───────────────────────────────────────────────────────
-    console.log("🏗️  Step 1: Production Build (with COMPILE_ALL_ADAPTERS)");
-    t = Date.now();
-    const buildResult = run("bun", ["run", "build"], {
-      env: { COMPILE_ALL_ADAPTERS: "true" },
-    });
-    const buildPassed = ok(buildResult);
-    results.push({
-      name: "Production Build",
-      passed: buildPassed,
-      duration: elapsed(t),
-    });
-    if (!buildPassed) {
-      printSummary(results, pipelineStart);
-      process.exit(1);
-    }
-
-    // ── Step 2: Integration DB Matrix ─────────────────────────────────────
-    const databases = singleDb ? [singleDb] : ["sqlite", "mongodb", "mariadb", "postgresql"];
-
-    console.log(`\n🧪 Step 2: Integration Tests (${databases.join(", ")})`);
-    for (const db of databases) {
-      console.log(`\n  ── 🗄️  ${db.toUpperCase()} ──`);
-      t = Date.now();
-      const r = run("bun", ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"]);
-      const passed = ok(r);
-      results.push({
-        name: `Integration (${db})`,
-        passed,
-        duration: elapsed(t),
-      });
-      if (!passed) {
-        console.error(`  ❌ ${db} integration tests failed.`);
-        break; // fail-fast
-      }
-    }
-
-    // ── Step 3: Playwright E2E ────────────────────────────────────────────
-    if (!skipE2E && results.every((r) => r.passed)) {
-      console.log("\n🎭 Step 3: Playwright E2E Suite");
-
-      // Ensure browsers are installed
-      run("bun", ["x", "playwright", "install", "--with-deps", "chromium"], {
-        silent: true,
-        ignoreExit: true,
-      });
-
-      // Clear state again just in case previous integration tests left garbage
-      for (const path of dirsToClear) {
-        if (existsSync(path)) {
-          rmSync(path, { recursive: true, force: true });
-        }
-      }
-      mkdirSync(join(ROOT, "config", "database"), { recursive: true });
-
-      const e2eProjects = [
-        "wizard",
-        "auth-setup",
-        "signup",
-        "content",
-        "system",
-        "a11y",
-        "rbac",
-        "language",
-        "branding",
-        "visual-regression",
-        "users",
-        "builder",
-        "permissions",
-        "firstuser",
-        "config-routes",
-        "admin",
-        "dashboard",
-        "appearance",
-        "media",
-      ];
-      for (const project of e2eProjects) {
-        console.log(`\n  ── 🎭 ${project} ──`);
-        t = Date.now();
-        const r = run("bun", ["x", "playwright", "test", `--project=${project}`]);
-        const passed = ok(r);
-        results.push({
-          name: `E2E (${project})`,
-          passed,
-          duration: elapsed(t),
-        });
-        if (!passed) break; // fail-fast
-      }
-    } else if (skipE2E) {
-      console.log("\n⏩ Step 3: Playwright E2E (skipped via --skip-e2e)");
-    }
-  } finally {
-    restoreConfig();
+    const entries = readdirSync(dir, { withFileTypes: true });
+    return entries.some((entry) => entry.isFile() && /\.(ts|js)$/.test(entry.name));
+  } catch {
+    return false;
   }
+}
 
-  printSummary(results, pipelineStart);
-  process.exit(results.every((r) => r.passed) ? 0 : 1);
+function warnLiveWorkspaceArtifacts() {
+  const liveArtifacts = [
+    existsSync(join(ROOT, "config", "private.ts")) ? "config/private.ts" : "",
+    hasTopLevelCollectionFiles(join(ROOT, "config", "collections"))
+      ? "config/collections/*.ts"
+      : "",
+    hasTopLevelCollectionFiles(join(ROOT, ".compiledCollections"))
+      ? ".compiledCollections/*.js"
+      : "",
+  ].filter(Boolean);
+
+  if (liveArtifacts.length === 0) return;
+
+  console.warn("⚠️  Live CMS artifacts detected — config will be backed up and restored:");
+  for (const artifact of liveArtifacts) console.warn(`   • ${artifact}`);
+  console.warn("");
+}
+
+const dirsToClearForE2E = [
+  join(ROOT, "config", "private.ts"),
+  join(ROOT, "config", "private.test.ts"),
+  join(ROOT, "config", "database"),
+  join(ROOT, "tests", "e2e", ".auth", "user.json"),
+  join(ROOT, "logs"),
+];
+
+function clearE2EState() {
+  for (const path of dirsToClearForE2E) {
+    if (existsSync(path)) rmSync(path, { recursive: true, force: true });
+  }
+  mkdirSync(join(ROOT, "config", "database"), { recursive: true });
 }
 
 function printSummary(results: StepResult[], pipelineStart: number) {
@@ -317,6 +215,127 @@ function printSummary(results: StepResult[], pipelineStart: number) {
     console.log(`║  ❌ ${failCount} FAILED                         Total: ${total.padStart(8)}  ║`);
   }
   console.log("╚══════════════════════════════════════════════════════════════╝");
+}
+
+async function main() {
+  warnLiveWorkspaceArtifacts();
+
+  const pipelineStart = Date.now();
+  const results: StepResult[] = [];
+  const testSecret = ensureTestSecret();
+  process.env.TEST_API_SECRET = testSecret;
+
+  console.log("╔══════════════════════════════════════════════════════════════╗");
+  console.log("║              SveltyCMS Local CI Simulator                    ║");
+  console.log("╚══════════════════════════════════════════════════════════════╝");
+  console.log("");
+  console.log(
+    `  Target DB:    ${singleDb || "full matrix (sqlite, mongodb, mariadb, postgresql)"}`,
+  );
+  console.log(`  E2E Tests:    ${skipE2E ? "skipped" : "enabled"}`);
+  console.log(`  Benchmarks:   ${skipBenchmarks ? "skipped" : "enabled (bench-core parity)"}`);
+  console.log(`  Databases:    Using Docker Desktop (already running)`);
+  console.log("");
+
+  const backupDir = join(ROOT, ".tmp_config_backup");
+  const pathsToBackup = [
+    {
+      src: join(ROOT, "config", "private.ts"),
+      dest: join(backupDir, "private.ts"),
+      type: "file" as const,
+    },
+    {
+      src: join(ROOT, "config", "private.test.ts"),
+      dest: join(backupDir, "private.test.ts"),
+      type: "file" as const,
+    },
+    {
+      src: join(ROOT, "config", "database"),
+      dest: join(backupDir, "database"),
+      type: "dir" as const,
+    },
+  ];
+
+  const restoreConfig = () => {
+    console.log("⏪ Restoring local configuration...");
+    for (const p of pathsToBackup) {
+      if (existsSync(p.dest)) {
+        if (p.type === "dir") rmSync(p.src, { recursive: true, force: true });
+        cpSync(p.dest, p.src, { recursive: true });
+      } else if (existsSync(p.src)) {
+        rmSync(p.src, { recursive: true, force: true });
+      }
+    }
+    rmSync(backupDir, { recursive: true, force: true });
+    console.log("   ✓ Local configuration restored.");
+  };
+
+  let interrupted = false;
+  process.on("SIGINT", () => {
+    interrupted = true;
+    console.log("\n⚠️  SIGINT received — finishing current step, then restoring config...");
+  });
+
+  try {
+    console.log("💾 Backing up local configuration...");
+    if (existsSync(backupDir)) rmSync(backupDir, { recursive: true, force: true });
+    mkdirSync(backupDir, { recursive: true });
+    for (const p of pathsToBackup) {
+      if (existsSync(p.src)) cpSync(p.src, p.dest, { recursive: true });
+    }
+
+    console.log("\n🛡️  Step 1: Unified Precheck (full CI core parity)");
+    const precheckStart = Date.now();
+    const precheckCode = await runPrecheckCli({
+      tier: "full",
+      skipBenchmarks,
+      singleDb,
+    });
+    results.push({
+      name: "Precheck (full tier)",
+      passed: precheckCode === 0,
+      duration: elapsed(precheckStart),
+    });
+
+    if (precheckCode !== 0 || interrupted) {
+      printSummary(results, pipelineStart);
+      process.exit(1);
+    }
+
+    if (!skipE2E) {
+      console.log("\n🎭 Step 2: Playwright E2E Suite");
+
+      await run("bun", ["x", "playwright", "install", "--with-deps", "chromium"], {
+        silent: true,
+        ignoreExit: true,
+      });
+
+      clearE2EState();
+
+      const e2eProjects = getE2EProjects();
+      console.log(`  Projects: ${e2eProjects.join(", ")}`);
+
+      for (const project of e2eProjects) {
+        if (interrupted) break;
+        console.log(`\n  ── 🎭 ${project} ──`);
+        const r = await runChecked(`E2E (${project})`, "bun", [
+          "x",
+          "playwright",
+          "test",
+          `--project=${project}`,
+        ]);
+        results.push(r);
+        if (!r.passed) break;
+      }
+    } else {
+      console.log("\n⏩ Step 2: Playwright E2E (skipped via --skip-e2e)");
+    }
+  } finally {
+    restoreConfig();
+  }
+
+  printSummary(results, pipelineStart);
+  process.exit(results.every((r) => r.passed) ? 0 : 1);
 }
 
 main().catch((err) => {

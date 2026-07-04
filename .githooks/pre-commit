@@ -2,14 +2,20 @@
 # =============================================================================
 # SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Runs lint-staged: format, lint, and slop scan on STAGED FILES ONLY.
-# Heavy checks (type check, unit tests) are deferred to pre-push.
-# Production builds and integration tests are CI-only.
+# Runs on STAGED FILES ONLY via lint-staged (.lintstagedrc.json):
+#   • oxfmt (auto-format), oxlint --deny-warnings, slop-scanner (src/**)
+#   • lint-admin-theme (src/routes/(app)/**)
+#   • lint-docs (docs/**)
+#   • check-test-db-safety (pre-check)
 #
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit' instead.
-# In a true emergency, use the full path to raw git: /usr/bin/git commit --no-verify
+# Full gate runs on pre-push via scripts/precheck.ts (push tier):
+#   • static analysis, lint, unit tests, production build
+#   • progress dashboard with ETA and error remediation
+#   • DB integration + benchmarks are CI-only (opt in: --include-db-tasks)
+#
+# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
-set -e
+set -euo pipefail
 
 if [ "${CI:-false}" = "true" ]; then
     echo "⏩ CI environment detected. Bypassing pre-commit gates."
@@ -22,4 +28,6 @@ echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-bun x lint-staged
+bun run scripts/check-test-db-safety.ts
+
+bun run gate:fast

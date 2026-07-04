@@ -35,7 +35,7 @@ class PluginRegistry implements IPluginService {
   async register(plugin: Plugin): Promise<DatabaseResult<void>> {
     try {
       if (this.plugins.has(plugin.metadata.id)) {
-        logger.warn(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
+        logger.info(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
       }
 
       this.plugins.set(plugin.metadata.id, {

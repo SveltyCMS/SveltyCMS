@@ -29,14 +29,14 @@ Contextual transform shortcuts — sits below top toolbar, above canvas (mobile 
 </script>
 
 {#if visible}
-	<div class="editor-mobile-quick-actions" role="toolbar" aria-label="Transform quick actions">
-		<button type="button" class="editor-mobile-quick-btn" onclick={handleRotateLeft} aria-label="Rotate left">
+		<div class="grid shrink-0 grid-cols-3 gap-0 items-center justify-items-center w-full max-w-48 mx-auto py-0.5 pb-1 bg-transparent border-b-0 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]" role="toolbar" aria-label="Transform quick actions">
+		<button type="button" class="inline-flex items-center justify-center size-8 p-0 text-[rgba(255,255,255,0.94)] cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-white active:opacity-72" onclick={handleRotateLeft} aria-label="Rotate left">
 			<iconify-icon icon="mdi:rotate-left" width="17" aria-hidden="true"></iconify-icon>
 		</button>
-		<button type="button" class="editor-mobile-quick-btn" onclick={handleFlipHorizontal} aria-label="Flip horizontal">
+		<button type="button" class="inline-flex items-center justify-center size-8 p-0 text-[rgba(255,255,255,0.94)] cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-white active:opacity-72" onclick={handleFlipHorizontal} aria-label="Flip horizontal">
 			<iconify-icon icon="mdi:flip-horizontal" width="17" aria-hidden="true"></iconify-icon>
 		</button>
-		<button type="button" class="editor-mobile-quick-btn" onclick={handleFlipVertical} aria-label="Flip vertical">
+		<button type="button" class="inline-flex items-center justify-center size-8 p-0 text-[rgba(255,255,255,0.94)] cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-white active:opacity-72" onclick={handleFlipVertical} aria-label="Flip vertical">
 			<iconify-icon icon="mdi:flip-vertical" width="17" aria-hidden="true"></iconify-icon>
 		</button>
 	</div>

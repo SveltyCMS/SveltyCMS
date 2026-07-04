@@ -1,13 +1,15 @@
 /**
  * @file scripts/benchmark-matrix/generate-benchmark-reports.ts
- * @description Generates all 8 database-specific benchmark MDX reports from the SQLite template.
+ * @description Generates clean per-DB benchmark MDX shells (one LEDGER tag per test).
  *
  * Usage: bun run scripts/benchmark-matrix/generate-benchmark-reports.ts
+ *        bun run scripts/benchmark-matrix/generate-benchmark-reports.ts --force-all
+ *        bun run scripts/benchmark-matrix/generate-benchmark-reports.ts --force-sqlite
  */
 import fs from "node:fs";
 import path from "node:path";
-
-const TEMPLATE = path.resolve(process.cwd(), "docs/project/benchmarks/benchmark_sqlite.mdx");
+import { buildReportShell } from "../../tests/benchmarks/modules/benchmark-mdx";
+import { BENCHMARK_SCRIPTS } from "./benchmark-scripts";
 
 interface DbConfig {
   key: string;
@@ -17,7 +19,14 @@ interface DbConfig {
   codePathPrefix: string;
 }
 
-const DBS: DbConfig[] = [
+const ALL_DBS: DbConfig[] = [
+  {
+    key: "sqlite",
+    title: "SQLite Performance Audit",
+    order: 5,
+    adapterName: "SQLite",
+    codePathPrefix: "sqlite",
+  },
   {
     key: "sqlite_redis",
     title: "SQLite + Redis Performance Audit",
@@ -69,55 +78,42 @@ const DBS: DbConfig[] = [
   },
 ];
 
+const scripts = BENCHMARK_SCRIPTS.map((s) => ({
+  path: s.path,
+  label: s.label,
+  shortLabel: s.shortLabel,
+  desc: s.desc,
+  strategy: s.strategy,
+  section: s.section,
+}));
+
 function generate() {
-  const template = fs.readFileSync(TEMPLATE, "utf8");
+  const forceAll = process.argv.includes("--force-all");
+  const forceSqlite = process.argv.includes("--force-sqlite") || forceAll;
+  const outDir = path.resolve(process.cwd(), "docs/project/benchmarks");
+  fs.mkdirSync(outDir, { recursive: true });
 
-  for (const db of DBS) {
-    // 🚀 Never regenerate from template — individual test runs populate it
-    if (db.key === "sqlite") continue;
+  for (const db of ALL_DBS) {
+    if (db.key === "sqlite" && !forceSqlite) {
+      console.log("⏭️  Skipped benchmark_sqlite.mdx (use --force-sqlite or --force-all)");
+      continue;
+    }
 
-    let content = template;
+    const content = buildReportShell({
+      dbKey: db.key,
+      title: db.title,
+      adapterName: db.adapterName,
+      order: db.order,
+      scripts,
+      codePathPrefix: db.codePathPrefix,
+    });
 
-    // Replace database-specific identifiers
-    content = content.replace(
-      /path: docs\/project\/benchmarks\/benchmark_sqlite\.mdx/g,
-      `path: docs/project/benchmarks/benchmark_${db.key}.mdx`,
-    );
-    content = content.replace(/title: SQLite Performance Audit/g, `title: ${db.title}`);
-    content = content.replace(/order: 5/g, `order: ${db.order}`);
-    content = content.replace(/- sqlite/g, `- ${db.key}`);
-
-    // Replace title heading
-    content = content.replace(
-      /# 🚀 SQLite Performance Ledger/g,
-      `# 🚀 ${db.adapterName} Performance Ledger`,
-    );
-
-    // Replace adapter-specific code paths
-    content = content.replace(/src\/databases\/sqlite\//g, `src/databases/${db.codePathPrefix}/`);
-
-    // Replace "on SQLite" references
-    content = content.replace(/on SQLite/g, `on ${db.adapterName}`);
-
-    // Replace the database name in descriptions
-    content = content.replace(/the SQLite adapter/g, `the ${db.adapterName} adapter`);
-
-    // Replace results path reference
-    content = content.replace(/results\/sqlite\//g, `results/${db.key}/`);
-
-    // Update metrics source
-    content = content.replace(
-      /\*\*Canonical history\*\*: `tests\/benchmarks\/results\/history\.sqlite`/g,
-      `**Canonical history**: \`tests/benchmarks/results/history.sqlite\` (shared across all databases)`,
-    );
-
-    // Write the file
-    const outPath = path.resolve(process.cwd(), `docs/project/benchmarks/benchmark_${db.key}.mdx`);
+    const outPath = path.join(outDir, `benchmark_${db.key}.mdx`);
     fs.writeFileSync(outPath, content, "utf8");
     console.log(`✅ Generated: benchmark_${db.key}.mdx`);
   }
 
-  console.log(`\nDone! Generated ${DBS.length} reports.`);
+  console.log("\nDone! One LEDGER tag pair per applicable benchmark script.");
 }
 
 generate();

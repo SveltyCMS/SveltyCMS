@@ -84,10 +84,10 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline**. Developers do NOT need to manually run the full chain — git hooks handle it automatically:
-  - **Pre-commit** (`git commit`): `lint-staged` runs format, lint, and slop scanner on **staged files only** (~2-3s)
-  - **Pre-push** (`git push`): `quality-gate.ts` runs full type checking (svelte-check) and all 915+ unit tests (~15-45s)
-  - **CI** (GitHub PR): Production build, DB matrix (4 adapters), E2E Playwright (18 projects), benchmarks
-  - Manual: `bun run gate:fast` (pre-commit checks), `bun run gate` (pre-push checks), `bun run ci:local` (full CI simulation)
+  - **Pre-commit** (`git commit`): `gate:fast` runs format, lint, and slop scanner on **staged files only** (~2-3s)
+  - **Pre-push** (`git push`): `verify:push` runs `scripts/precheck.ts` (push tier) — static analysis, format, lint, unit tests, production build, with **progress dashboard, adaptive ETA, and error remediation hints** (~1-3min). Heavy DB integration + benchmarks are CI-only; opt in with `--include-db-tasks`.
+  - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (18 projects), benchmarks
+  - Manual: `bun run gate:fast` (pre-commit checks), `bun run verify:push` (pre-push checks), `bun run verify:full` (local CI parity — static + unit + build + DB matrix + benchmarks), `bun run ci:local` (adds Playwright E2E), `bun run scripts/precheck.ts --plan` (dry-run task inspection)
 
 | Category          | Convention           | Examples                                                                         |
 | :---------------- | :------------------- | :------------------------------------------------------------------------------- |
@@ -322,9 +322,12 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
 | **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                          |
 | **API**               | `docs/reference/api/`                                       | Relevant service docs                                 |
 | **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `technical-evaluation-2026.mdx`                       |
+| **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                   |
+| **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                |
 | **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
 | **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`         |
 | **Marketplace**       | `docs/reference/architecture/marketplace.mdx`               | `ai-integration.mdx`                                  |
+| **Packages / SDK**    | `docs/development/package-model.mdx`                        | `docs/development/local-vs-http-api.mdx`              |
 
 **Key Documentation Files:**
 
@@ -652,6 +655,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/services/media-manipulation.test.ts` | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
 | `tests/unit/services/media-service.test.ts`      | `docs/tests/utility-test-coverage.mdx`                                                              |
 | `tests/benchmarks/security-audit.test.ts`        | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
+| `tests/benchmarks/**/*.test.ts`                  | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
 | `tests/e2e/accessibility.spec.ts`                | `docs/tests/accessibility-audit.mdx`                                                                |
 | `tests/e2e/branding.spec.ts`                     | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`                |
 | `tests/e2e/visual-regression.spec.ts`            | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`                           |
@@ -659,16 +663,16 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ## Key Files Reference
 
-| Category        | Key Files                                                                                                                                  |
-| :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                     |
-| **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                    |
-| **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                  |
-| **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                              |
-| **API**         | `routes/api/`, `hooks.server.ts`                                                                                                           |
-| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`, `lint-admin-theme.ts`                         |
-| **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-summary.ts`, `benchmark-meta.ts` |
-| **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                 |
+| Category        | Key Files                                                                                                                                                                                                        |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                                                                                           |
+| **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                                                                                          |
+| **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                                                                                        |
+| **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                                                                                                    |
+| **API**         | `routes/api/`, `hooks.server.ts`                                                                                                                                                                                 |
+| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`, `lint-admin-theme.ts`                                                                                               |
+| **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-executive.ts`, `scripts/benchmark-matrix/` (16 files — regression-detector, reporting, runner, config) |
+| **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                                                                                       |
 
 ## Path Aliases
 
@@ -691,20 +695,25 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - Branches: `next` (dev), `main` (stable).
 - **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
 - Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
-- **Pre-commit 100% enforcement (hardened)**: The `.githooks/pre-commit`, `.githooks/pre-push`, and `scripts/quality-gate.ts` have been made as strict as client-side Git hooks reasonably allow:
+- **Pre-commit 100% enforcement (hardened)**: The `.githooks/pre-commit`, `.githooks/pre-push`, and `scripts/precheck.ts` have been made as strict as client-side Git hooks reasonably allow:
   - No convenient local `GIT_HOOK_SKIP` (only real CI envs bypass).
+  - **Enhanced pre-push**: Progress dashboard with adaptive ETA, per-task timing, and error remediation hints (`→ Run: bun run check`). Dry-run with `--plan` to inspect task selection without executing.
+  - **ciJob parity validation**: `validateCiParity()` scans `ci.yml` on every local run to ensure task `ciJob` fields match actual CI job names — prevents drift.
   - The gate **ends with a literal final re-execution** of the documented parity commands (including `lint:docs`).
   - Multiple fail-closed "tree must be clean" checks (after format + at the absolute end).
-  - Both pre-commit (fast full gate) and pre-push (build + integration + E2E) are required.
+  - Both pre-commit (fast full gate) and pre-push (build + unit tests) are required. Production build always runs on push when any files changed.
   - **Import validation**: `scripts/validate-imports.ts` scans ALL imports in `src/` and `tests/` — catches stale paths from file moves without a full build. Runs in ~200ms as part of pre-push.
 
   - **Hardened Git Wrapper**: `scripts/git-safe.ts` blocks `--no-verify` on `commit` and `push`. Use it via `bun run git commit` / `bun run git push` or alias `git` to `bun run scripts/git-safe.ts`. Using raw `git --no-verify` requires explicitly invoking `/usr/bin/git` (or the full system path), making bypass a conscious and deliberate act rather than a muscle-memory flag. **If the gate fails, FIX the underlying issue — never bypass the gate.**
 
   **Realistic maximum**: Client-side hooks can always be bypassed (you control your own machine). The only true 100% guarantee is GitHub branch protection rules that require green status checks before merge to `next` or `main`. The hardened wrapper, local hooks, and final parity re-verification are defense-in-depth + team culture.
 
-- **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
-- [ ] Benchmark MDX reports show full truth tables (borders, titles, all data) matching single-test console output
+- **Roadmap Checklist**: Benchmark MDX reports show full truth tables matching single-test console output.
+- [x] **Smart Benchmark Regression Detection**: Statistical slope analysis, flapping detection, cross-DB correlation, budget forecasting. See `docs/tests/benchmark-matrix.mdx`.
+- [x] **Progress Dashboard on Pre-Push**: Enhanced git hooks with live progress bar, ETA, per-task timing, and error remediation hints.
+- [x] **CI Build Hardening**: Production build job gated to main/PR only; depends on check + unit passing first.
+- [ ] **Benchmark MDX reports show full truth tables (borders, titles, all data) matching single-test console output**
 
 ---
 
-_Last Updated: 2026-06-26_
+_Last Updated: 2026-07-04_

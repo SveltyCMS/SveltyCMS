@@ -171,11 +171,13 @@ export async function ensureFullInitialization(): Promise<any | null> {
 
         // 🚀 INTEGRATION BRIDGE: Use physical file to share data between seeder and server
         const auditFile = "./config/database/integration_audit.sqlite";
-        const mutableCfg = cfg as any;
+        // Clone cfg so we can mutate it (config may be frozen/readonly)
+        let mutableCfg: any = cfg ? Object.assign({}, cfg) : null;
         if (!cfg) {
           cfg = { DB_TYPE: testEngine, host: auditFile } as any;
-        } else if (!mutableCfg.DB_TYPE) {
-          mutableCfg.DB_TYPE = testEngine;
+          mutableCfg = cfg as any;
+        } else {
+          if (!mutableCfg.DB_TYPE) mutableCfg.DB_TYPE = testEngine;
           if (
             mutableCfg.DB_TYPE === "sqlite" &&
             (!mutableCfg.host || mutableCfg.host === ":memory:")
@@ -183,6 +185,14 @@ export async function ensureFullInitialization(): Promise<any | null> {
             mutableCfg.host = auditFile;
           }
         }
+
+        // Allow env vars to override connection params at runtime (benchmarks/integration)
+        if (process.env.DB_NAME) mutableCfg.DB_NAME = process.env.DB_NAME;
+        if (process.env.DB_HOST) mutableCfg.DB_HOST = process.env.DB_HOST;
+        if (process.env.DB_PORT) mutableCfg.DB_PORT = Number(process.env.DB_PORT);
+        if (process.env.DB_USER) mutableCfg.DB_USER = process.env.DB_USER;
+        if (process.env.DB_PASSWORD) mutableCfg.DB_PASSWORD = process.env.DB_PASSWORD;
+        cfg = mutableCfg;
       }
 
       logger.info(`[Boot] Loading adapters for ${cfg?.DB_TYPE}...`);

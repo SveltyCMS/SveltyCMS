@@ -9,13 +9,19 @@
 import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { isIsolatedTestDbName } from "@utils/test-db-safety";
 import { safeParse, type InferOutput } from "valibot";
 
-if (
-  typeof process !== "undefined" &&
-  process.env.TEST_MODE === "true" &&
-  process.env.BENCHMARK !== "true"
-) {
+/** Read env at runtime — production builds inline bare `process.env.*` to `{}`. */
+function runtimeEnv(): NodeJS.ProcessEnv {
+  return (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env ?? {};
+}
+
+function env(key: string): string | undefined {
+  return runtimeEnv()[key];
+}
+
+if (env("TEST_MODE") === "true" && env("BENCHMARK") !== "true") {
   logger.debug("config-state.ts initialized");
 }
 
@@ -44,12 +50,12 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
     try {
       logger.debug("Loading private configuration...");
 
-      const isTest = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
+      const isTest = env("TEST_MODE") === "true" || env("NODE_ENV") === "test";
 
-      // 1. Start with SvelteKit's private env (best practice) or process.env for tests
+      // 1. Start with SvelteKit's private env (best practice) or runtime env for tests
       let svelteEnv: RawEnv = {};
       if (isTest) {
-        svelteEnv = process.env as RawEnv;
+        svelteEnv = runtimeEnv() as RawEnv;
       } else {
         try {
           if (import.meta.env?.SSR) {
@@ -58,16 +64,16 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
             svelteEnv = mod.env;
           }
         } catch {
-          svelteEnv = process.env as RawEnv;
+          svelteEnv = runtimeEnv() as RawEnv;
         }
       }
 
       let config: RawEnv = { ...svelteEnv };
 
-      // 🚀 HARDENING: If running in test mode and DB_TYPE is in process.env,
+      // 🚀 HARDENING: If running in test mode and DB_TYPE is in runtime env,
       // strictly prioritize it to avoid config-file pollution from parallel runs.
-      if (isTest && process.env.DB_TYPE) {
-        config.DB_TYPE = process.env.DB_TYPE;
+      if (isTest && env("DB_TYPE")) {
+        config.DB_TYPE = env("DB_TYPE");
       }
 
       // 2. Optional file-based override
@@ -85,8 +91,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       if (!result.success) {
         const hasEssentialKeys = !!(config.DB_TYPE || config.DB_HOST || config.JWT_SECRET_KEY);
-        const isBenchmark =
-          process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true";
+        const isBenchmark = env("SVELTY_BENCHMARK_SUITE") === "true" || env("BENCHMARK") === "true";
         // Only log error if we actually have some configuration attempted
         // 🚀 BENCHMARK: Suppress noise — bench child process uses HTTP API, not direct DB
         if ((hasEssentialKeys || fileConfig) && !isBenchmark) {
@@ -104,7 +109,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       const validated = result.output;
 
       // 🚀 DEBUG: Trace benchmark configuration leakage
-      if (isTest && (validated.DB_TYPE !== "sqlite" || process.env.BENCHMARK_DEBUG === "true")) {
+      if (isTest && (validated.DB_TYPE !== "sqlite" || env("BENCHMARK_DEBUG") === "true")) {
         console.log(
           `[Config] Loaded type: ${validated.DB_TYPE}, host: ${validated.DB_HOST}, name: ${validated.DB_NAME}`,
         );
@@ -121,6 +126,17 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       return privateEnv;
     } catch (error: unknown) {
       logger.error("Unexpected error during config loading:", error);
+
+      // A test-DB safety violation means we nearly booted against a non-isolated
+      // (potentially production) database. Never let boot continue in that state —
+      // continuing previously caused the server to limp forward with DB_TYPE
+      // undefined, producing confusing "no such table" errors downstream instead
+      // of a clear, immediate failure.
+      if (error instanceof AppError && error.code === "TEST_DB_SAFETY_VIOLATION") {
+        logger.error("Aborting startup: refusing to boot with an unsafe test DB config.");
+        process.exit(1);
+      }
+
       return null;
     }
   })();
@@ -130,9 +146,8 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
 /** Helper: Load from config/private.ts or private.test.ts only when necessary */
 async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
-  const isTest = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
-  const isBenchmark =
-    process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true";
+  const isTest = env("TEST_MODE") === "true" || env("NODE_ENV") === "test";
+  const isBenchmark = env("SVELTY_BENCHMARK_SUITE") === "true" || env("BENCHMARK") === "true";
 
   // 🚀 BENCHMARK MODE: Skip file-based config entirely — all values come from env vars
   if (isBenchmark) return null;
@@ -170,79 +185,67 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
 /** Extract env overrides cleanly */
 function getEnvOverrides() {
   const overrides: any = {};
+  const e = runtimeEnv();
 
   // --- Environment variable overrides ---
-  const type = process.env.DB_TYPE || "sqlite";
+  const type = e.DB_TYPE || "sqlite";
   const isSqlite = type.startsWith("sqlite");
 
   // Database
-  if (process.env.DB_TYPE) overrides.DB_TYPE = process.env.DB_TYPE;
+  if (e.DB_TYPE) overrides.DB_TYPE = e.DB_TYPE;
 
   // 🚀 HARDENING: Only set relational/network fields if NOT in SQLite mode
   if (!isSqlite) {
-    if (process.env.DB_HOST) overrides.DB_HOST = process.env.DB_HOST;
-    if (process.env.DB_PORT) overrides.DB_PORT = Number(process.env.DB_PORT);
-    if (process.env.DB_USER) overrides.DB_USER = process.env.DB_USER;
-    if (process.env.DB_PASSWORD) overrides.DB_PASSWORD = process.env.DB_PASSWORD;
+    if (e.DB_HOST) overrides.DB_HOST = e.DB_HOST;
+    if (e.DB_PORT) overrides.DB_PORT = Number(e.DB_PORT);
+    if (e.DB_USER) overrides.DB_USER = e.DB_USER;
+    if (e.DB_PASSWORD) overrides.DB_PASSWORD = e.DB_PASSWORD;
   }
 
-  if (process.env.DB_NAME) overrides.DB_NAME = process.env.DB_NAME;
-  if (process.env.DB_PATH) overrides.DB_PATH = process.env.DB_PATH;
-  if (process.env.DB_POOL_SIZE) overrides.DB_POOL_SIZE = Number(process.env.DB_POOL_SIZE);
-  if (process.env.DB_RETRY_ATTEMPTS)
-    overrides.DB_RETRY_ATTEMPTS = Number(process.env.DB_RETRY_ATTEMPTS);
-  if (process.env.DB_RETRY_DELAY) overrides.DB_RETRY_DELAY = Number(process.env.DB_RETRY_DELAY);
+  if (e.DB_NAME) overrides.DB_NAME = e.DB_NAME;
+  if (e.DB_PATH) overrides.DB_PATH = e.DB_PATH;
+  if (e.DB_POOL_SIZE) overrides.DB_POOL_SIZE = Number(e.DB_POOL_SIZE);
+  if (e.DB_RETRY_ATTEMPTS) overrides.DB_RETRY_ATTEMPTS = Number(e.DB_RETRY_ATTEMPTS);
+  if (e.DB_RETRY_DELAY) overrides.DB_RETRY_DELAY = Number(e.DB_RETRY_DELAY);
 
   // Redis
-  if (process.env.USE_REDIS !== undefined && process.env.USE_REDIS !== "") {
-    overrides.USE_REDIS = process.env.USE_REDIS === "true";
+  if (e.USE_REDIS !== undefined && e.USE_REDIS !== "") {
+    overrides.USE_REDIS = e.USE_REDIS === "true";
   }
-  if (process.env.REDIS_HOST) overrides.REDIS_HOST = process.env.REDIS_HOST;
-  if (process.env.REDIS_PORT) overrides.REDIS_PORT = Number(process.env.REDIS_PORT);
-  if (process.env.REDIS_PASSWORD) overrides.REDIS_PASSWORD = process.env.REDIS_PASSWORD;
+  if (e.REDIS_HOST) overrides.REDIS_HOST = e.REDIS_HOST;
+  if (e.REDIS_PORT) overrides.REDIS_PORT = Number(e.REDIS_PORT);
+  if (e.REDIS_PASSWORD) overrides.REDIS_PASSWORD = e.REDIS_PASSWORD;
 
   // Security
-  if (process.env.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
-  if (process.env.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-  if (process.env.TEST_API_SECRET) overrides.TEST_API_SECRET = process.env.TEST_API_SECRET;
+  if (e.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = e.JWT_SECRET_KEY;
+  if (e.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = e.ENCRYPTION_KEY;
+  if (e.TEST_API_SECRET) overrides.TEST_API_SECRET = e.TEST_API_SECRET;
   // Auth
-  if (process.env.PASSWORD_MIN_LENGTH)
-    overrides.PASSWORD_MIN_LENGTH = Number(process.env.PASSWORD_MIN_LENGTH);
-
-  // CI/Benchmark Configuration
-  if (process.env.TEST_API_SECRET) overrides.TEST_API_SECRET = process.env.TEST_API_SECRET;
+  if (e.PASSWORD_MIN_LENGTH) overrides.PASSWORD_MIN_LENGTH = Number(e.PASSWORD_MIN_LENGTH);
 
   // External CDN
-  if (process.env.CF_API_TOKEN) overrides.CF_API_TOKEN = process.env.CF_API_TOKEN;
-  if (process.env.CF_ZONE_ID) overrides.CF_ZONE_ID = process.env.CF_ZONE_ID;
-  if (process.env.CF_PURGE_MODE) overrides.CF_PURGE_MODE = process.env.CF_PURGE_MODE;
+  if (e.CF_API_TOKEN) overrides.CF_API_TOKEN = e.CF_API_TOKEN;
+  if (e.CF_ZONE_ID) overrides.CF_ZONE_ID = e.CF_ZONE_ID;
+  if (e.CF_PURGE_MODE) overrides.CF_PURGE_MODE = e.CF_PURGE_MODE;
 
   // Read Replicas (comma-separated list)
-  if (process.env.DB_REPLICA_URLS) {
-    overrides.DB_REPLICA_URLS = process.env.DB_REPLICA_URLS.split(",").map((url) => url.trim());
+  if (e.DB_REPLICA_URLS) {
+    overrides.DB_REPLICA_URLS = e.DB_REPLICA_URLS.split(",").map((url) => url.trim());
   }
 
   // Edge KV
-  if (process.env.EDGE_KV_URL) overrides.EDGE_KV_URL = process.env.EDGE_KV_URL;
-  if (process.env.EDGE_KV_TOKEN) overrides.EDGE_KV_TOKEN = process.env.EDGE_KV_TOKEN;
+  if (e.EDGE_KV_URL) overrides.EDGE_KV_URL = e.EDGE_KV_URL;
+  if (e.EDGE_KV_TOKEN) overrides.EDGE_KV_TOKEN = e.EDGE_KV_TOKEN;
 
-  if (process.env.CONCURRENT_UPLOAD_SIZE)
-    overrides.CONCURRENT_UPLOAD_SIZE = Number(process.env.CONCURRENT_UPLOAD_SIZE);
+  if (e.CONCURRENT_UPLOAD_SIZE) overrides.CONCURRENT_UPLOAD_SIZE = Number(e.CONCURRENT_UPLOAD_SIZE);
 
   return overrides;
 }
 
-/** Test isolation enforcement */
+/** Test isolation enforcement — uses the shared classifier for consistency. */
 async function enforceTestSafety(config: any) {
-  if ((process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test") && config?.DB_NAME) {
-    const dbName = String(config.DB_NAME).toLowerCase();
-    const looksIsolatedTestDb =
-      dbName.includes("test") ||
-      dbName.includes("bench") ||
-      dbName.includes("e2e") ||
-      dbName.endsWith("_functional");
-
-    if (!looksIsolatedTestDb) {
+  if ((env("TEST_MODE") === "true" || env("NODE_ENV") === "test") && config?.DB_NAME) {
+    if (!isIsolatedTestDbName(String(config.DB_NAME))) {
       const msg = `SAFETY VIOLATION: Test mode DB_NAME '${config.DB_NAME}' does not indicate a test database.`;
       logger.error(msg);
       throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
@@ -253,7 +256,7 @@ async function enforceTestSafety(config: any) {
 /** Optional: Decide when file config is still needed (e.g. during setup) */
 function shouldUseFileConfig(svelteEnv: any): boolean {
   // Heuristic: Use file config if essential DB_TYPE is missing from env or if in dev mode
-  return !svelteEnv.DB_TYPE || process.env.NODE_ENV === "development";
+  return !svelteEnv.DB_TYPE || env("NODE_ENV") === "development";
 }
 
 // Sync getters (safe after loadPrivateConfig has been called at least once)

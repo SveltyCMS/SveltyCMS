@@ -18,7 +18,7 @@ import {
   SetupState,
   isSetupComplete,
   getTestSecret,
-} from "../utils/server/setup-check";
+} from "@utils/server/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
@@ -169,17 +169,20 @@ async function getCorsHeadersInline(
 }
 
 // ✨ PERFORMANCE: Cache environment lookups to avoid process.env overhead on every request
-const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const IS_BENCHMARK =
+  typeof globalThis !== "undefined" && (globalThis as any).process?.env?.BENCHMARK === "true";
 
 const IS_TEST_MODE =
-  typeof process !== "undefined" &&
+  typeof globalThis !== "undefined" &&
   !IS_BENCHMARK && // 🚀 Benchmarks run real middleware, not test bypass
-  (String(process.env.TEST_MODE) === "true" ||
-    String(process.env.VITE_TEST_MODE) === "true" ||
-    process.env.NODE_ENV === "test");
-const DB_TYPE = typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
+  (String((globalThis as any).process?.env?.TEST_MODE) === "true" ||
+    String((globalThis as any).process?.env?.VITE_TEST_MODE) === "true" ||
+    (globalThis as any).process?.env?.NODE_ENV === "test");
+const DB_TYPE =
+  typeof globalThis !== "undefined" ? (globalThis as any).process?.env?.DB_TYPE : "unknown";
 const IS_STRICT_SETUP_CHECK =
-  typeof process !== "undefined" && process.env.STRICT_SETUP_CHECK === "true";
+  typeof globalThis !== "undefined" &&
+  (globalThis as any).process?.env?.STRICT_SETUP_CHECK === "true";
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {

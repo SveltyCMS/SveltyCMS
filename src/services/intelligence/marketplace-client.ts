@@ -83,8 +83,6 @@ class MarketplaceClient {
 
   /** Fetch plugin listings with optional caching. */
   async list(params: MarketplaceSearchParams = {}): Promise<MarketplaceListResponse> {
-    const _cacheKey = JSON.stringify(params);
-
     if (_listingsCache && Date.now() - _cacheTime < CACHE_TTL && !params.query) {
       const filtered = this.filterCached(params);
       return {
