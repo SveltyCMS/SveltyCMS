@@ -201,8 +201,7 @@ jobs:
   # ------------------------------------------------
   build:
     name: 🏗️ Build
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    needs: [bootstrap, check, unit]
+    needs: [bootstrap]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
