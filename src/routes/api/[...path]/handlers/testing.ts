@@ -35,16 +35,18 @@ export async function handleTestingRoutes(
   _segments: string[],
 ) {
   // 🛡️ Strictly enforce environment and cryptographic token verification
+  const runtimeEnv = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env;
   const isTestMode =
-    process.env.TEST_MODE === "true" ||
-    process.env.BENCHMARK === "true" ||
-    process.env.NODE_ENV === "test";
+    runtimeEnv?.TEST_MODE === "true" ||
+    runtimeEnv?.BENCHMARK === "true" ||
+    runtimeEnv?.SVELTY_BENCHMARK_SUITE === "true" ||
+    runtimeEnv?.NODE_ENV === "test";
 
   const requestSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
   const { getTestSecret } = await import("@src/utils/server/setup-check");
-  const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
+  const expectedSecret = runtimeEnv?.TEST_API_SECRET || getTestSecret();
 
   if (!isTestMode || !expectedSecret || !requestSecret) {
     throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
@@ -63,7 +65,7 @@ export async function handleTestingRoutes(
     throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
   }
 
-  if (process.env.BENCHMARK_DEBUG === "true") {
+  if (runtimeEnv?.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
       `🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`,
     );

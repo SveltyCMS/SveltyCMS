@@ -2,12 +2,14 @@
 # =============================================================================
 # SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Runs lint-staged: format, lint, and slop scan on STAGED FILES ONLY.
-# Heavy checks (type check, unit tests) are deferred to pre-push.
-# Production builds and integration tests are CI-only.
+# Runs on STAGED FILES ONLY via lint-staged:
+#   • oxfmt, oxlint, slop-scanner (src)
+#   • lint-docs (docs)
+#   • check-test-db-safety (config/private.test.ts guard)
 #
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit' instead.
-# In a true emergency, use the full path to raw git: /usr/bin/git commit --no-verify
+# Full gate runs on push via scripts/precheck.ts (build + 4-DB integration + benchmarks).
+#
+# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
 set -e
 
@@ -22,8 +24,6 @@ echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Fast safety check: ensures config/private.test.ts is never seeded from
-# a real (possibly production) config/private.ts. Near-instant (<50ms).
 bun run scripts/check-test-db-safety.ts
 
 bun x lint-staged

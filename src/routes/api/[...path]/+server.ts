@@ -253,10 +253,10 @@ const _noCacheHeaders = Object.freeze({
  */
 export const _handler = async (event: RequestEvent) => {
   if (process.env.BENCHMARK_DEBUG === "true") console.log(`🔥 Dispatcher: ${event.url.pathname}`);
-  const { request, url, params, locals, cookies } = event;
+  const { request, url, locals, cookies } = event;
 
-  // 🚀 RESILIENCE: Derive path from URL if params are missing (common in Hook Bypasses)
-  const rawPath = params.path || url.pathname.replace(/^\/api\//, "");
+  // 🚀 RESILIENCE: Always derive path from URL pathname to prevent route leakage/pollution in pooled servers
+  const rawPath = url.pathname.replace(/^\/api\//, "");
 
   // 🚀 API VERSIONING: Strip /v1/ prefix for backward-compatible routing
   const versionedPath = rawPath.replace(/^v1\//, "");
@@ -275,6 +275,21 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   if (!namespace) return new Response("Not Found", { status: 404 });
+
+  // 🛡️ Global CORS Preflight handler
+  if (request.method.toUpperCase() === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": request.headers.get("Origin") || "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, x-test-secret, x-test-mode, x-tenant-id, x-test-worker-index, cookie",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
 
   // ── Cached imports for hot paths (avoids dynamic import on every request) ────
   let _getDatabaseResilience: any = null;
@@ -391,12 +406,12 @@ export const _handler = async (event: RequestEvent) => {
 
   // Fail-closed authentication
   const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
-  if (!user && !isPublic) {
+  if (!user && !isPublic && request.method.toUpperCase() !== "OPTIONS") {
     throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   }
 
   // Fail-closed authorization
-  if (!isPublic && !(locals as any).__testBypass) {
+  if (!isPublic && !(locals as any).__testBypass && request.method.toUpperCase() !== "OPTIONS") {
     const roles = locals.roles || [];
     if (!checkEndpointPermission(user, roles, request.method, namespace, segments)) {
       throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
@@ -409,7 +424,7 @@ export const _handler = async (event: RequestEvent) => {
     (globalThis as any).process?.env?.TEST_MODE !== "true" &&
     !(user as any)?.isApiKey &&
     !(user as any)?.isApiToken &&
-    ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
+    ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())
   ) {
     const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
     const csrfResult = validateCsrfForRequest(cookies, request, isSecure);

@@ -71,7 +71,7 @@ export async function handleDashboardRoutes(
 
         return rawResponse(event, {
           contentCount: collectionsRes.success ? collectionsRes.data.length : 0,
-          userCount: usersRes && usersRes.pagination ? (usersRes.pagination.totalItems ?? 0) : 0,
+          userCount: usersRes?.success ? (usersRes.data?.pagination?.totalItems ?? 0) : 0,
           mediaCount: mediaRes.success ? (mediaRes.data?.total ?? 0) : 0,
           storageUsed: "0 MB", // Calculated on-demand via media collection
           healthStatus: "healthy",
@@ -142,8 +142,8 @@ export async function handleDashboardRoutes(
             limit: 100,
           });
 
-          if (usersRes && Array.isArray(usersRes.data)) {
-            const users = usersRes.data;
+          if (usersRes?.success && Array.isArray(usersRes.data?.data)) {
+            const users = usersRes.data!.data;
             activeUsers = users.length;
 
             const today = new Date();
@@ -288,7 +288,8 @@ export async function handleDashboardRoutes(
         const userLookups = await Promise.all(
           userIds.map(async (userId) => {
             try {
-              return await cms.auth.getUserById(userId, { tenantId });
+              const userResult = await cms.auth.getUserById(userId, { tenantId });
+              return userResult?.success ? userResult.data : null;
             } catch {
               return null;
             }

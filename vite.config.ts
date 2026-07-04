@@ -75,7 +75,11 @@ function testBackdoorStripperPlugin(): Plugin {
       }
 
       // 3. Production Test Backdoor Removal
-      if (process.env.NODE_ENV === "production" && !process.env.TEST_MODE) {
+      if (
+        process.env.NODE_ENV === "production" &&
+        !process.env.TEST_MODE &&
+        process.env.COMPILE_ALL_ADAPTERS !== "true"
+      ) {
         if (
           norm.includes("src/routes/api/testing") ||
           norm.includes("src/hooks/handle-test-isolation")
@@ -129,8 +133,14 @@ function testBackdoorStripperPlugin(): Plugin {
  * This allows local tests to use an isolated configuration without modifying the production config.
  */
 function testConfigAliasPlugin(): Plugin {
-  // Optimization: NO-OP if not in TEST_MODE, avoiding resolveId overhead
-  if (process.env.TEST_MODE !== "true") {
+  // Activate in TEST_MODE or when building for benchmarks (COMPILE_ALL_ADAPTERS)
+  if (process.env.TEST_MODE !== "true" && process.env.COMPILE_ALL_ADAPTERS !== "true") {
+    console.log(
+      "[testConfigAliasPlugin] TEST_MODE=" +
+        process.env.TEST_MODE +
+        " COMPILE_ALL_ADAPTERS=" +
+        process.env.COMPILE_ALL_ADAPTERS,
+    );
     return { name: "test-config-alias" };
   }
 

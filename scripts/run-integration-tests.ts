@@ -18,6 +18,7 @@ import {
 } from "node:fs";
 import { isAbsolute, join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getDockerDefaultDbCredentials } from "../src/utils/test-db-credentials.ts";
 import { isConfigSourceSafeForTesting, isIsolatedTestDbName } from "../src/utils/test-db-safety.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,7 +67,6 @@ const loadHardenedConfig = async () => {
 let CONFIG: Awaited<ReturnType<typeof loadHardenedConfig>>;
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
-let serverRunningMode: "normal" | "setup" | "none" = "none";
 
 function getEnvValue(name: string): string | undefined {
   if (Object.prototype.hasOwnProperty.call(process.env, name)) {
@@ -89,24 +89,9 @@ function getDbDefaults() {
 
   const dbPort = getEnvValue("DB_PORT") ?? defaultPort;
 
-  const dbUser =
-    getEnvValue("DB_USER") ??
-    (dbType === "mariadb"
-      ? "root"
-      : dbType === "postgresql"
-        ? "postgres"
-        : dbType === "sqlite"
-          ? ""
-          : "testuser");
-  const dbPassword =
-    getEnvValue("DB_PASSWORD") ??
-    (dbType === "mariadb"
-      ? "mariadb"
-      : dbType === "postgresql"
-        ? "postgres"
-        : dbType === "sqlite"
-          ? ""
-          : "testpass");
+  const defaults = getDockerDefaultDbCredentials(dbType);
+  const dbUser = getEnvValue("DB_USER") ?? defaults.user;
+  const dbPassword = getEnvValue("DB_PASSWORD") ?? defaults.password;
 
   return {
     type: dbType,
@@ -335,43 +320,20 @@ async function startPreviewServer() {
   await waitForServerReady();
 }
 
-let testFileRunCount = 0;
-
 async function prepareIsolatedServerForTestFile(file: string) {
   const setupModeTest = isSetupModeTest(file);
-  const targetMode = setupModeTest ? "setup" : "normal";
-  const isMongoDB = process.env.DB_TYPE === "mongodb";
 
-  // MongoDB: restart server every 5 tests to prevent connection pool degradation
-  const needsMongoRestart =
-    isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 5 === 0;
+  // Force restart server before EVERY test file to prevent database clobbering/session leaks
+  console.log(`🔄 Restarting server for isolated test run of ${file}...`);
+  await stopPreviewServer();
+  await freePort(Number.parseInt(PORT, 10));
 
-  if (needsMongoRestart) {
-    console.log("🔄 MongoDB: restarting server to refresh connection pool...");
-    await stopPreviewServer();
-    await freePort(Number.parseInt(PORT, 10));
-    testFileRunCount = 0;
-  }
+  await startPreviewServer();
 
-  if (serverRunningMode !== targetMode || testFileRunCount === 0) {
-    if (previewProcess) {
-      await stopPreviewServer();
-      await freePort(Number.parseInt(PORT, 10));
-    }
-
-    // Always start the server — setup-mode just skips seeding
-    await startPreviewServer();
-    serverRunningMode = targetMode;
-
-    if (!setupModeTest) {
-      await testingAction("seed");
-    } else {
-      console.log("⚙️ Setup-mode test — server running without seed.");
-    }
-    testFileRunCount = 1;
-    testFileRunCount = 1;
+  if (!setupModeTest) {
+    await testingAction("seed");
   } else {
-    testFileRunCount++;
+    console.log("⚙️ Setup-mode test — server running without seed.");
   }
 }
 

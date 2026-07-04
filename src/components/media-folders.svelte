@@ -465,7 +465,7 @@
 						{#if rootHasChildren && rootExpanded}
 							<div class="relative">
 								<div
-									class="pointer-events-none absolute bottom-0 start-[22px] top-0 w-px bg-surface-600/50 dark:bg-white/10"
+									class="pointer-events-none absolute bottom-0 inset-s-5.5 top-0 w-px bg-surface-600/50 dark:bg-white/10"
 									aria-hidden="true"
 								></div>
 								{#each rootNode.children ?? [] as folder (folder.id)}

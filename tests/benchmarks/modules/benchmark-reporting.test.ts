@@ -11,7 +11,15 @@
  * - buildBenchmarkMetricId produces stable keys
  */
 import { test, expect } from "./benchmark-utils";
-import { reportBenchmark, resetTrendGuard } from "./benchmark-reporting";
+import {
+  buildHistoryArchiveTable,
+  buildRunSummaryTable,
+  filterInvocationRunEntries,
+  HISTORY_SQLITE_PATH,
+  renderSparkline,
+  reportBenchmark,
+  resetTrendGuard,
+} from "./benchmark-reporting";
 import { buildBenchmarkMetricId, loadHistory, closeHistory } from "./benchmark-history";
 import fs from "node:fs";
 import path from "node:path";
@@ -132,6 +140,133 @@ test("buildBenchmarkMetricId produces stable keys", () => {
     phase: "warm",
   });
   expect(id2).toBe("api-latency/sqlite/redis-off/warm/avg");
+});
+
+test("buildRunSummaryTable aggregates all tests from one run into a single table", async () => {
+  cleanTestArtifacts();
+  resetTrendGuard();
+
+  await reportBenchmark(
+    { name: "HTTP Latency", avgMs: 2.5, p95Ms: 4.1, rps: 400 },
+    { ...sampleOpts, mode: "history" },
+  );
+  await reportBenchmark(
+    { name: "Auth Check", avgMs: 1.2, p95Ms: 2.0, rps: 800, errorCount: 0 },
+    {
+      ...sampleOpts,
+      testFile: "tests/benchmarks/auth-performance.test.ts",
+      testId: "auth-performance",
+      runId: "test-run-001",
+      mode: "history",
+    },
+  );
+
+  const table = buildRunSummaryTable(
+    [
+      {
+        runId: "test-run-001",
+        runMode: "standalone",
+        testFile: "api-latency",
+        metric: "HTTP Latency",
+        avgMs: 2.5,
+        p95Ms: 4.1,
+        rps: 400,
+        timestamp: "2026-07-04T10:00:00.000Z",
+      },
+      {
+        runId: "test-run-001",
+        runMode: "standalone",
+        testFile: "auth-performance",
+        metric: "Auth Check",
+        avgMs: 1.2,
+        p95Ms: 2.0,
+        rps: 800,
+        timestamp: "2026-07-04T10:00:01.000Z",
+      },
+    ],
+    { runId: "test-run-001", runMode: "standalone", db: "sqlite", redis: false },
+  );
+
+  expect(table).toContain("| Test | Metric | Avg (ms) | p95 (ms) | RPS | Trend | Detail |");
+  expect(table).toContain("Api Latency");
+  expect(table).toContain("Auth Performance");
+  expect(table).toContain("HTTP Latency");
+  expect(table).toContain("Auth Check");
+  expect(table).toContain("**Metrics:** 2");
+  expect(table).toContain("test-run-001");
+  expect(table).toContain("### Current Run Summary (2026-07-04)");
+  expect(table).toContain("Only tests that ran in THIS invocation");
+  expect(table).not.toContain("Historical Trends");
+  const dataRows = table
+    .split("\n")
+    .filter((line) => line.startsWith("|") && !line.includes("---") && !line.includes("| Test |"));
+  expect(dataRows.length).toBe(2);
+
+  cleanTestArtifacts();
+});
+
+test("filterInvocationRunEntries excludes stale same-runId lines from other tests", () => {
+  const entries = [
+    {
+      runId: "run-a",
+      testFile: "api-latency",
+      metric: "HTTP",
+      avgMs: 1,
+      timestamp: "2026-07-04T10:00:00.000Z",
+    },
+    {
+      runId: "run-a",
+      testFile: "auth-performance",
+      metric: "Auth",
+      avgMs: 2,
+      timestamp: "2026-07-04T10:00:01.000Z",
+    },
+  ];
+  const scoped = filterInvocationRunEntries(entries, ["api-latency"]);
+  expect(scoped).toHaveLength(1);
+  expect(scoped[0]!.testFile).toBe("api-latency");
+
+  const table = buildRunSummaryTable(scoped, {
+    runId: "run-a",
+    runMode: "standalone",
+    db: "sqlite",
+    redis: false,
+    invokedTestFiles: ["api-latency"],
+  });
+  expect(table).toContain("**Tests invoked:** 1");
+  expect(table).not.toContain("Auth Performance");
+});
+
+test("renderSparkline encodes series as unicode blocks", () => {
+  const flat = renderSparkline([2, 2, 2, 2]);
+  expect(flat.length).toBe(4);
+  expect(flat).toMatch(/^[\u2581-\u2588]+$/u);
+
+  const rising = renderSparkline([1, 2, 3, 4, 5, 6, 7, 8]);
+  expect(rising.length).toBe(8);
+  expect(rising.charCodeAt(0)).toBeLessThanOrEqual(rising.charCodeAt(7)!);
+});
+
+test("buildHistoryArchiveTable uses sparklines not full detail tables", async () => {
+  cleanTestArtifacts();
+  resetTrendGuard();
+
+  await reportBenchmark(
+    { name: "HTTP Latency", avgMs: 2.5, p95Ms: 4.1, rps: 400 },
+    { ...sampleOpts, mode: "history" },
+  );
+
+  const archive = buildHistoryArchiveTable("sqlite");
+  expect(archive).toMatch(/### Historical Trends \(\d{4}-\d{2}-\d{2}\)/);
+  expect(archive).toContain(HISTORY_SQLITE_PATH);
+  expect(archive).toContain("Sparklines only");
+  expect(archive).toContain("| Sparkline");
+  expect(archive).not.toContain("| Metric | Status | Detail |");
+  expect(archive).not.toContain("Needs Attention");
+  expect(archive).not.toContain("Current Run Summary");
+  expect(archive).not.toContain("THIS invocation");
+
+  cleanTestArtifacts();
 });
 
 test("partial MDX update preserves unrelated sections", () => {

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-29"
+updated: "2026-07-03"
 tags:
   - "testing"
   - "status"
@@ -170,12 +170,21 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ### Local Quality Gates (pre-commit / pre-push)
 
-| Gate               | Runtime | What it catches                                        |
-| ------------------ | ------- | ------------------------------------------------------ |
-| Test Config Safety | <100ms  | Unsafe `config/private.test.ts` (non-isolated DB_NAME) |
-| Format + Lint      | ~2s     | oxfmt, oxlint on staged files                          |
-| Slop Scanner       | ~400ms  | File naming, a11y, duplicate content, RTL issues       |
-| Full Unit Tests    | ~13s    | All 1,487 Vitest specs                                 |
+Manifest: `scripts/precheck-shared.ts` · Orchestrator: `scripts/precheck.ts`
+
+| Gate                      | Tier                               | Runtime       | What it catches                                                   |
+| :------------------------ | :--------------------------------- | :------------ | :---------------------------------------------------------------- |
+| Test Config Safety        | pre-commit + pre-push              | <100ms        | Unsafe `config/private.test.ts` (non-isolated `DB_NAME`)          |
+| Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/` |
+| Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`        |
+| Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                  |
+| Full Unit Tests           | pre-push (**always**)              | ~13s          | All 1,487 Vitest specs                                            |
+| Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity                            |
+| Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL contract tests               |
+| Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`)                    |
+| Playwright E2E            | CI / `ci:local` only               | ~15–30 min    | Browser validation across 17+ projects                            |
+
+Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier), `bun run ci:local` (+ E2E).
 
 ## 5. Gaps — What's NOT Tested
 

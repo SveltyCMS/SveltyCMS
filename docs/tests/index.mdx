@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-23"
+updated: "2026-07-03"
 tags:
   - "testing"
   - "documentation"
@@ -107,7 +107,7 @@ docker compose -f tests/docker-compose.yml --profile redis up -d
 
 | Profile | Port | Runner default credentials |
 | :------ | :--- | :------------------------- |
-| `mongodb` | `27017` | `DB_USER=testuser`, `DB_PASSWORD=testpass`, `authSource=admin` |
+| `mongodb` | `27017` | no auth (official image default) |
 | `postgresql` | `5432` | `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=sveltycms_test` |
 | `mariadb` | `3306` | `DB_USER=root`, `DB_PASSWORD=mariadb`, `DB_NAME=sveltycms_test` |
 | `redis` | `6379` | Used by benchmark `*-redis` variants |
@@ -146,38 +146,50 @@ Local tests and benchmarks must not mutate a user's live CMS setup:
 - `config/private.ts` is never renamed, copied from, deleted, or used by local integration tests. `run-integration-tests.ts` builds with `TEST_MODE=true`, so Vite aliases `@config/private` to `config/private.test.ts`.
 - `config/private.test.ts` must contain an isolated DB name. `src/utils/test-db-safety.ts` allows names containing `test`, `bench`, `e2e`, or ending in `_functional`; `scripts/check-test-db-safety.ts` blocks unsafe files.
 - `config/collections/` root and `.compiledCollections/` root are user-owned. Test fixtures go under `config/collections/test/`, tenant-specific test paths such as `config/test-setup-presets/collections/`, or `.compiledCollections/test/<workspace>/`.
-- `bun run ci:local` simulates a fresh CI runner and refuses to run when live setup artifacts are present unless `SVELTYCMS_DISPOSABLE_TEST_WORKSPACE=true` marks the checkout as disposable.
+- `bun run ci:local` backs up `config/private.ts` (and related paths), runs the full precheck manifest, optionally Playwright E2E, then restores your live config. A warning is printed when live CMS artifacts are detected.
 
 ### Tiered Local Testing
 
-SveltyCMS enforces a **three-tier** local testing strategy to catch bugs at the right stage:
+SveltyCMS enforces a **three-tier** local testing strategy. All tiers share the task manifest in `scripts/precheck-shared.ts`:
 
-```
-# Tier 1: Pre-Commit (automatic, < 5s) — format, lint, types, unit tests, build
+```bash
+# Tier 1: Pre-Commit (automatic, ~2–3s) — lint-staged on staged files + DB safety
 git commit -m "feat: my change"
 
-# Tier 2: Pre-Push (automatic, ~3 min) — SQLite integration + Playwright E2E
-git push origin my-branch
+# Tier 2: Pre-Push (automatic, ~15–45 min) — build + 4-DB integration + benchmarks
+bun run git push origin my-branch
 
-# Tier 3: Full CI Parity (manual, ~10 min) — 4-DB matrix + full E2E
+# Tier 3a: Full CI core (manual) — same checks as push, always-on scans
+bun run verify:full
+
+# Tier 3b: Full CI + E2E (manual, ~30–60 min)
 bun run ci:local
-bun run ci:local --db=sqlite       # single DB
-bun run ci:local --skip-e2e         # skip Playwright
+bun run ci:local -- --db=sqlite
+bun run ci:local -- --skip-e2e
+bun run ci:local -- --skip-benchmarks
 ```
 
-Run Tier 3 only in a disposable clone/worktree. It intentionally resets local CI state and now fails fast if it detects `config/private.ts`, top-level `config/collections/*.ts`, or top-level `.compiledCollections/*.js`.
+| Command | Build | 4-DB integration | Benchmarks | E2E |
+| :------ | :---: | :--------------: | :--------: | :-: |
+| `git push` (hook) | when code changed | when code changed | when code changed | — |
+| `bun run verify:push` | same as hook | same | same | — |
+| `bun run verify:full` | always | always | always | — |
+| `bun run ci:local` | always | always | optional `--skip-benchmarks` | optional `--skip-e2e` |
 
-See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for the full tiered strategy, scripts audit, and bypass instructions.
+See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for Docker prerequisites, credential parity, and scripts audit.
 
 ## Current GitHub Actions Gate
 
 The `next` branch workflow currently validates changes in this order:
 
 1. `bootstrap` — Bun install, codegen verification, E2E secret generation.
-2. `lint`, `check`, `unit` — White-box quality gates.
+2. `format`, `lint`, `check`, `unit`, `security-audit` — White-box quality gates.
 3. `build` — Production bundle generation.
 4. `db-tests` — Black-box integration matrix across SQLite, MongoDB, MariaDB, and PostgreSQL.
-5. `e2e-wizard`, `e2e-auth`, `e2e-app` — Playwright browser validation.
+5. `bench-core` — Core performance benchmarks per adapter (also runs on pre-push precheck).
+6. `e2e-wizard`, `e2e-auth`, `e2e-app` — Playwright browser validation (local: `bun run ci:local` only).
+
+Pre-push precheck mirrors steps 2–5. Only sharded E2E remains GitHub-only unless you run `ci:local`.
 
 This matters because integration and E2E failures are not just "test" failures. They also validate production build output, redirect logic, auth cookies, and database bootstrap behavior.
 

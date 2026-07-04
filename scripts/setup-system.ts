@@ -24,6 +24,7 @@ const cfg = {
     username: process.env.ADMIN_USERNAME ?? "admin",
     email: process.env.ADMIN_EMAIL ?? "admin@example.com",
     password: process.env.ADMIN_PASSWORD ?? "Password123!",
+    confirmPassword: process.env.ADMIN_PASSWORD ?? "Password123!",
   },
   system: {
     multiTenant: process.env.MULTI_TENANT === "true",
@@ -68,6 +69,31 @@ async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Unwrap SvelteKit action payloads, including dehydrated tuple arrays. */
+function parseSvelteKitActionResult(json: Record<string, unknown>): Record<string, unknown> {
+  let data: unknown = json.data ?? json;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return json;
+    }
+  }
+
+  if (Array.isArray(data) && data.length >= 2 && typeof data[0] === "object" && data[0] !== null) {
+    const keys = data[0] as Record<string, number>;
+    const out: Record<string, unknown> = {};
+    for (const [key, idx] of Object.entries(keys)) {
+      if (typeof idx === "number" && idx < data.length) out[key] = data[idx];
+    }
+    return out;
+  }
+
+  return typeof data === "object" && data !== null
+    ? (data as Record<string, unknown>)
+    : { raw: data };
+}
+
 // ========================= HTTP =========================
 async function postAction(action: string, payload: Record<string, any>) {
   const form = new FormData();
@@ -89,10 +115,10 @@ async function postAction(action: string, payload: Record<string, any>) {
         body: form,
         headers: {
           "x-sveltekit-action": "true",
+          Accept: "application/json",
           "x-test-secret": cfg.apiSecret,
           "x-tenant-id": "global",
           Origin: cfg.apiBase,
-          Referer: `${cfg.apiBase}/setup`,
         },
         signal: AbortSignal.timeout(cfg.timeouts.fetch),
       });
@@ -102,23 +128,20 @@ async function postAction(action: string, payload: Record<string, any>) {
         throw new Error(`HTTP ${res.status}: ${text}`);
       }
 
-      const json = await res.json();
-
-      // 🚀 HARDENING: SvelteKit actions return JSON with "type" and "data"
-      // "data" is often a JSON string that we need to parse to check internal success.
-      let result = json;
-      if (typeof json.data === "string") {
-        try {
-          result = JSON.parse(json.data);
-        } catch {
-          // data is not a JSON string, use the outer object
-        }
-      } else if (json.data) {
-        result = json.data;
+      const raw = await res.text();
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        throw new Error(
+          `Failed to parse JSON (${res.headers.get("content-type") ?? "unknown"}): ${raw.slice(0, 200)}`,
+        );
       }
 
+      const result = parseSvelteKitActionResult(json);
+
       if (json.type === "failure" || result.success === false) {
-        throw new Error(result.message || result.error || "Action failed without message");
+        throw new Error(String(result.message || result.error || "Action failed without message"));
       }
 
       return result;

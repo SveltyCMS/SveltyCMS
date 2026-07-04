@@ -258,24 +258,14 @@ jobs:
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
-      - name: Create MongoDB test user
-        if: matrix.db == 'mongodb'
-        run: |
-          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
-            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
-            db = db.getSiblingDB("sveltycms_test");
-            try { db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "dbOwner", db: "sveltycms_test" }] }); } catch(e) { db.grantRolesToUser("testuser", [{ role: "dbOwner", db: "sveltycms_test" }]); }
-            print("MongoDB test user created or updated for sveltycms_test");
-          ' || echo "MongoDB user setup failed"
-
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port || '' }}
           DB_NAME: sveltycms_test
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          DB_USER: ${{ matrix.db_user }}
+          DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -541,17 +531,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix:
-        db: [sqlite, mariadb, postgresql, mongodb]
-        include:
-          - db: sqlite
-            port: ""
-          - db: mariadb
-            port: "3306"
-          - db: postgresql
-            port: "5432"
-          - db: mongodb
-            port: "27017"
+      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-sveltycms
@@ -572,30 +552,19 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
-          DB_PORT: ${{ matrix.port }}
+          DB_PORT: ${{ matrix.port || '' }}
           DB_NAME: ${{ matrix.db == 'sqlite' && 'benchmark_shared' || 'sveltycms_test' }}
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          DB_USER: ${{ matrix.db_user }}
+          DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: "true"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
-          # Benchmarks need TEST_API_SECRET to call /api/testing for seed/reset
-          export TEST_API_SECRET="${{ secrets.TEST_API_SECRET }}"
           mkdir -p tests/e2e/.auth
-          echo "${{ secrets.TEST_API_SECRET }}" > tests/e2e/.auth/test-secret.txt
-          set -e
-          failures=0
-          for test in tests/benchmarks/{truth-latency,database-performance,transaction-acid,cache-performance,hooks-performance,rest-api-performance}.test.ts; do
-            echo "::group::Running $test"
-            bun test "$test" --timeout 120000 || { echo "FAILED: $test"; failures=$((failures + 1)); }
-            echo "::endgroup::"
-          done
-          if [ "$failures" -gt 0 ]; then
-            echo "$failures benchmark test(s) failed"
-            exit 1
-          fi
+          echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }}
 
       - name: Upload benchmark report
         if: always()
@@ -650,6 +619,7 @@ jobs:
       - e2e-prep
       - e2e
       - db-tests
+      - bench-core
     steps:
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |

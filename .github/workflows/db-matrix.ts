@@ -4,9 +4,9 @@
  * Generates a GitHub Actions matrix JSON for database integration tests.
  *
  * Outputs a matrix with 4 database targets — sqlite, mongodb, mariadb,
- * and postgresql — each with the Docker image, port, and health-check.
+ * and postgresql — each with the Docker image, port, and default credentials.
  *
- * Image tags match docker-compose.yml and local Docker Desktop setup.
+ * Credentials match official Docker image defaults (see src/utils/test-db-credentials.ts).
  *
  * Usage:
  *   node .github/workflows/db-matrix.ts
@@ -17,6 +17,8 @@ interface DbMatrixEntry {
   db: string;
   image: string;
   port: number | "";
+  db_user: string;
+  db_password: string;
 }
 
 interface DbMatrix {
@@ -31,21 +33,29 @@ const dbMatrix: DbMatrix = {
       db: "sqlite",
       image: "alpine:latest",
       port: "",
+      db_user: "",
+      db_password: "",
     },
     {
       db: "mongodb",
       image: "mongo:latest",
       port: 27017,
+      db_user: "",
+      db_password: "",
     },
     {
       db: "mariadb",
       image: "mariadb:latest",
       port: 3306,
+      db_user: "root",
+      db_password: "mariadb",
     },
     {
       db: "postgresql",
       image: "postgres:latest",
       port: 5432,
+      db_user: "postgres",
+      db_password: "postgres",
     },
   ],
 };

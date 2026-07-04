@@ -196,6 +196,8 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 >
 > The safety check runs automatically in **pre-commit** and **pre-push** hooks via `scripts/check-test-db-safety.ts`. It blocks any `config/private.test.ts` with a non-isolated `DB_NAME`. Run it manually with `bun run scripts/check-test-db-safety.ts`.
 >
+> On **git push**, `scripts/precheck.ts` (push tier) runs the full 4-DB integration matrix and `bench-core` benchmarks when source or infra files changed — mirroring `ci.yml` `db-tests` and `bench-core` jobs. Credentials come from `src/utils/test-db-credentials.ts`.
+>
 > The shared classifier lives in `src/utils/test-db-safety.ts` and is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks so the rule can never drift between them.
 >
 > For SQLite-based black-box jobs, database names must be obviously isolated test names such as `*_test*`, `*_bench*`, or `e2e_*`. Reusing the server's active SQLite file is forbidden because it breaks setup isolation and can corrupt the runtime under concurrent access.

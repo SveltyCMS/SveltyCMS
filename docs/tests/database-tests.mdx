@@ -128,7 +128,7 @@ docker compose -f tests/docker-compose.yml --profile redis up -d
 
 | Adapter | Compose profile | Default test credentials |
 | :------ | :-------------- | :----------------------- |
-| MongoDB | `mongodb` | `testuser` / `testpass` on port `27017` |
+| MongoDB | `mongodb` | no auth on port `27017` (official image default) |
 | PostgreSQL | `postgresql` | `postgres` / `postgres` on port `5432` |
 | MariaDB | `mariadb` | `root` / `mariadb` on port `3306` |
 | Redis | `redis` | no password on port `6379`; benchmark cache variants only |
@@ -141,7 +141,18 @@ bun run scripts/run-integration-tests.ts --db=postgresql
 bun run scripts/run-integration-tests.ts --db=mariadb
 ```
 
-### 3. Parallel E2E Testing
+### 3. Automated 4-DB Gate (Pre-Push)
+
+You do not need to run each adapter manually before every push. The pre-push hook (`scripts/precheck.ts --tier=push`) runs integration and core benchmarks for **all four adapters** when code, scripts, or database files changed:
+
+```bash
+bun run verify:push       # same as git push hook
+bun run verify:full       # always runs full matrix (manual)
+```
+
+Env blocks and credentials are centralized in `src/utils/test-db-credentials.ts` — the same source used by `ci.yml`, `run-integration-tests.ts`, and `run-core-benchmarks.ts`.
+
+### 4. Parallel E2E Testing
 
 Playwright local runs use `playwright.config.ts`; it starts the ready server on `127.0.0.1:4173` and setup server on `127.0.0.1:4174` when `CI` is not set:
 

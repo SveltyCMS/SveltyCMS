@@ -32,6 +32,18 @@ import { generateSecureToken } from "@utils/native-utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** Strip sensitive fields from user object before sending to client. */
+function sanitizeUserForResponse(user: any) {
+  if (!user) return user;
+  const {
+    password: _password,
+    failedAttempts: _failedAttempts,
+    lockoutUntil: _lockoutUntil,
+    ...safe
+  } = user;
+  return safe;
+}
+
 interface CookieConfig {
   name: string;
   isSecure: boolean;
@@ -171,7 +183,10 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
     order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
   });
 
-  return raw ? rawResponse(event, result.data) : rawResponse(event, { success: true, ...result });
+  if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
+  return raw
+    ? rawResponse(event, result.data)
+    : rawResponse(event, { success: true, ...result.data });
 }
 
 /**
@@ -192,14 +207,16 @@ export async function handleLogin(
   if ((event.locals as any).__testBypass) {
     result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
-    result = await cms.auth.login({ email, password }, { tenantId });
+    const loginResult = await cms.auth.login({ email, password }, { tenantId });
+    if (!loginResult.success) throw new AppError(loginResult.message || "Login failed", 401);
+    result = loginResult.data;
   }
 
   setSessionCookie(event, result.session._id);
   generateCsrfToken(cookies, getCookieConfig(event).isSecure);
 
   return successResponse(event, {
-    user: result.user,
+    user: sanitizeUserForResponse(result.user),
     token: result.session._id,
   });
 }

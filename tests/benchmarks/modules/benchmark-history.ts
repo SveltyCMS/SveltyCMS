@@ -134,6 +134,21 @@ export function buildBenchmarkMetricId(opts: {
   return `${opts.testId}/${opts.dbType}/${redis}/${opts.phase}/${opts.metric || "avg"}`;
 }
 
+export function loadDistinctTestIds(dbType: string): string[] {
+  try {
+    const db = getDb();
+    const rows = db
+      .query(
+        "SELECT DISTINCT test_id FROM runs WHERE db_type = ? AND status = 'SUCCESS' ORDER BY test_id ASC",
+      )
+      .all(dbType) as { test_id: string }[];
+    db.close();
+    return rows.map((r) => r.test_id);
+  } catch {
+    return [];
+  }
+}
+
 export function closeHistory(): void {
   // SQLite databases are opened and closed per-operation in the simplified adapter
 }
