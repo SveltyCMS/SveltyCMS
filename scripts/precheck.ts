@@ -107,7 +107,7 @@ interface TaskResult {
   remediation?: string;
 }
 
-// ── ANSI color helpers ──
+// ── ANSI helpers ──
 
 const TTY = process.stdout.isTTY;
 const C = {
@@ -118,6 +118,9 @@ const C = {
   bold: TTY ? "\x1b[1m" : "",
   dim: TTY ? "\x1b[2m" : "",
 };
+const UP = TTY ? (n: number) => `\x1b[${n}A` : () => "";
+const CLEAR_LINE = TTY ? "\x1b[2K" : "";
+let _prevDashboardLines = 0;
 
 function colorStatus(text: string, passed: boolean): string {
   return passed ? `${C.green}${text}${C.reset}` : `${C.red}${text}${C.reset}`;
@@ -179,36 +182,52 @@ function renderDashboard(
   const title = `SveltyCMS ${tierLabel}`;
   const contentW = BOX_WIDTH - 4;
 
-  console.log(`\n╔${"═".repeat(BOX_WIDTH - 2)}╗`);
+  // Build the dashboard as a single string so we can count lines
+  const lines: string[] = [];
+  lines.push(`╔${"═".repeat(BOX_WIDTH - 2)}╗`);
 
   const titleLine = `${title} — ${completed}/${total} tasks · ${bar} ${pct}% · ${eta}`;
   const titlePad = contentW - titleLine.length;
-  console.log(`║  ${titleLine}${" ".repeat(Math.max(0, titlePad))}║`);
-
-  console.log(`╠${"═".repeat(BOX_WIDTH - 2)}╣`);
+  lines.push(`║  ${titleLine}${" ".repeat(Math.max(0, titlePad))}║`);
+  lines.push(`╠${"═".repeat(BOX_WIDTH - 2)}╣`);
 
   for (const r of results) {
     const icon = r.passed ? "✅" : "❌";
     const timeStr = `(${formatTime(r.elapsedMs)})`;
     const left = `${icon} ${r.name}`;
     const pad = contentW - left.length - timeStr.length;
-    console.log(`║  ${left}${" ".repeat(Math.max(1, pad))}${timeStr} ║`);
+    lines.push(`║  ${left}${" ".repeat(Math.max(1, pad))}${timeStr} ║`);
   }
 
   if (currentTask) {
     const right = `[running — ${eta}]`;
     const left = `▶ ${currentTask}`;
     const pad = contentW - left.length - right.length;
-    console.log(`║  ${left}${" ".repeat(Math.max(1, pad))}${right} ║`);
+    lines.push(`║  ${left}${" ".repeat(Math.max(1, pad))}${right} ║`);
   }
 
   for (const t of pendingTasks) {
     const left = `⏳ ${t.name}`;
     const pad = contentW - left.length;
-    console.log(`║  ${left}${" ".repeat(Math.max(0, pad))}║`);
+    lines.push(`║  ${left}${" ".repeat(Math.max(0, pad))}║`);
   }
 
-  console.log(`╚${"═".repeat(BOX_WIDTH - 2)}╝\n`);
+  lines.push(`╚${"═".repeat(BOX_WIDTH - 2)}╝`);
+
+  // In-place redraw: move cursor up, clear each line, reprint
+  if (_prevDashboardLines > 0) {
+    process.stdout.write(UP(_prevDashboardLines));
+    for (let i = 0; i < _prevDashboardLines; i++) {
+      process.stdout.write(CLEAR_LINE + (i < _prevDashboardLines - 1 ? "\n" : ""));
+    }
+    process.stdout.write(UP(_prevDashboardLines));
+  }
+
+  for (const line of lines) {
+    process.stdout.write(line + "\n");
+  }
+
+  _prevDashboardLines = lines.length;
 }
 
 function printErrorSummary(failedResults: TaskResult[], options: PrecheckOptions): void {
@@ -346,8 +365,9 @@ export async function runPrecheck(
     }
   }
 
-  // Final dashboard — all tasks completed
+  // Final dashboard — all tasks completed (keep visible, reset counter)
   renderDashboard(tierLabel, results, null, [], 0);
+  _prevDashboardLines = 0;
 
   if (failedTasks.length > 0) {
     printErrorSummary(
