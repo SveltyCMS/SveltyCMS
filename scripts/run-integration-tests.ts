@@ -202,7 +202,6 @@ async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
   const targetStates = new Set(["ready", "healthy", "ok", "degraded"]);
-
   const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -224,6 +223,36 @@ async function waitForServerReady(maxAttempts = 60) {
 
         if (targetStates.has(rawStatus)) {
           console.log(`✅ Server is READY (state: ${rawStatus})`);
+
+          // 🚀 RACE CONDITION FIX: The system state machine reports READY
+          // before SQLite migrations complete (bootAll runs asynchronously).
+          // Wait for migrations to finish before returning, otherwise seed
+          // operations fail with "no such table: roles".
+          console.log("⏳ Waiting for database migrations to settle...");
+          for (let settle = 0; settle < 15; settle++) {
+            await new Promise((r) => setTimeout(r, 1000));
+            try {
+              const settleRes = await fetch(`${API_BASE_URL}/api/system/health`, {
+                headers: {
+                  "x-test-mode": "true",
+                  "x-test-secret": testApiSecret,
+                  "x-refresh": "true",
+                },
+                signal: AbortSignal.timeout(3000),
+              });
+              if (settleRes.ok) {
+                const settleData = await settleRes.json().catch(() => ({}));
+                const db = settleData?.data?.database || "";
+                if (db === "connected") {
+                  console.log("✅ Database migrations settled.");
+                  return true;
+                }
+              }
+            } catch {
+              // Server still settling
+            }
+          }
+          console.log("⚠️ Database migrations did not settle — proceeding anyway.");
           return true;
         }
 
