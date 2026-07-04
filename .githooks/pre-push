@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Push — Full CI Core Gate (~15-45min)
+# SveltyCMS Pre-Push — Full CI Core Gate (~15-45s)
 # =============================================================================
 # Runs scripts/precheck.ts (push tier) before code reaches GitHub:
 #   • format, lint, slop, imports, unit tests (always)
@@ -11,7 +11,7 @@
 #
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push'.
 # =============================================================================
-set -e
+set -euo pipefail
 
 if [ "${CI:-false}" = "true" ]; then
     echo "⏩ CI environment detected. Bypassing pre-push gates."

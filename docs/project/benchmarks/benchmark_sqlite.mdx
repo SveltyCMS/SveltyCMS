@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     5 | 🟢     | +1109%  | 0      |
+| **Core**       |     4 | 🟢     | +73%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,13 +62,12 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario       | Latency | Trend                                         | Budget | Result |
-| -------------- | ------- | --------------------------------------------- | ------ | ------ |
-| **Middleware** | 0.064ms | 🟢 faster: 0.148ms → 0.064ms (-57%) (5 runs)  | < 5ms  | 🟢     |
-| **Middleware** | 0.592ms | 🔴 slower: 0.148ms → 0.592ms (+300%) (5 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.960ms | 🔴 slower: 0.148ms → 0.960ms (+549%) (5 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.833ms | 🔴 slower: 0.148ms → 0.833ms (+463%) (5 runs) | < 5ms  | 🟢     |
-| **Middleware** | 1.790ms | 🔴 slower: 0.148ms → 1.79ms (+1109%) (5 runs) | < 5ms  | 🟢     |
+| Scenario     | Latency | Trend                                      | Budget | Result |
+| ------------ | ------- | ------------------------------------------ | ------ | ------ |
+| **System**   | 2.141ms | ⚪ stable at 2.48ms (±1.16ms) (3 runs)     | < 5ms  | 🟢     |
+| **Metadata** | 2.622ms | ⚪ stable at 2.48ms (±1.16ms) (3 runs)     | < 5ms  | 🟢     |
+| **CRUD**     | 4.293ms | 🔴 slower: 2.48ms → 4.29ms (+73%) (3 runs) | < 5ms  | 🟢     |
+| **CRUD**     | 4.091ms | ⚪ stable at 2.48ms (±1.16ms) (3 runs)     | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -104,11 +103,9 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Middleware: [0.05, 0.05]
-    Middleware: [0.33, 0.27]
-    Middleware: [0.54, 0.49]
-    Middleware: [0.47, 0.42]
-    Middleware: [0.95, 0.95]
+    System: [0.50, 0.19]
+    CRUD: [0.95, 0.95]
+    CRUD: [0.95, 0.89]
 ```
 
 </details>
@@ -130,15 +127,14 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `d5874eae-758f-4288-9b53-531eb10bc686` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
+**Run ID:** `23b816ad-2c0d-4462-a11e-f60a8702abea` · **Tests invoked:** 1 · **Metrics:** 4 · **DB:** sqlite
 
-| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                        |
-| ----------------- | ----------------------------- | -------- | -------- | ----- | ----- | --------------------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)  | 0.064    | 0.094    | 14151 | ⚪    | 🟢 faster: 0.148ms → 0.064ms (-57%) (5 runs)  |
-| Hooks Performance | Turbo Pipeline (Light)        | 0.592    | 0.808    | 1564  | ⚪    | 🔴 slower: 0.148ms → 0.592ms (+300%) (5 runs) |
-| Hooks Performance | Full Security + Auth Pipeline | 0.960    | 1.232    | 945   | ⚪    | 🔴 slower: 0.148ms → 0.960ms (+549%) (5 runs) |
-| Hooks Performance | REST with API Caching         | 0.833    | 1.074    | 1133  | ⚪    | 🔴 slower: 0.148ms → 0.833ms (+463%) (5 runs) |
-| Hooks Performance | Mutation + Audit Logging      | 1.790    | 1.930    | 526   | ⚪    | 🔴 slower: 0.148ms → 1.79ms (+1109%) (5 runs) |
+| Test                 | Metric                 | Avg (ms) | p95 (ms) | RPS | Trend | Detail                                     |
+| -------------------- | ---------------------- | -------- | -------- | --- | ----- | ------------------------------------------ |
+| Rest Api Performance | Health Check           | 2.141    | 4.155    | 467 | 🟢    | ⚪ stable at 2.48ms (±1.16ms) (3 runs)     |
+| Rest Api Performance | Collection Schema      | 2.622    | 4.195    | 381 | 🟢    | ⚪ stable at 2.48ms (±1.16ms) (3 runs)     |
+| Rest Api Performance | Collection Search      | 4.091    | 6.689    | 244 | 🟢    | ⚪ stable at 2.48ms (±1.16ms) (3 runs)     |
+| Rest Api Performance | Collection Find (List) | 4.293    | 7.020    | 233 | ⚪    | 🔴 slower: 2.48ms → 4.29ms (+73%) (3 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -176,6 +172,7 @@ quadrantChart
 | MIXED WORKLOAD (warm)             | 🟢    | `▁`                 | 2.456ms   | 1    |
 | REALTIME PERFORMANCE (warm)       | 🟢    | `█▁▁`               | 0.001ms   | 3    |
 | RELATIONAL PERFORMANCE (warm)     | 🟢    | `█▃▁`               | 1.925ms   | 3    |
+| REST API PERFORMANCE (warm)       | 🟢    | `▃▁█▁`              | 2.141ms   | 4    |
 | REVISION STRESS (warm)            | 🟢    | `▁`                 | 1.314ms   | 1    |
 | SECURITY AUDIT (warm)             | 🟢    | `▁▁▁`               | 0.003ms   | 3    |
 | TELEMETRY PERFORMANCE (warm)      | 🟢    | `▁▁▁`               | 0.000ms   | 3    |
@@ -187,7 +184,6 @@ quadrantChart
 | HOOKS PERFORMANCE (warm)          | ⚪    | `█▆▄▄▇▁`            | 0.064ms   | 6    |
 | MULTI TENANT PERFORMANCE (warm)   | ⚪    | `█▅▁`               | 1.785ms   | 3    |
 | OPENAPI PERFORMANCE (warm)        | ⚪    | `█▅▁`               | 1.236ms   | 3    |
-| REST API PERFORMANCE (warm)       | ⚪    | `▃▁█`               | 3.345ms   | 3    |
 | SEO PERFORMANCE (warm)            | ⚪    | `█▇▁`               | 1.157ms   | 3    |
 | TRUTH LATENCY (warm)              | ⚪    | `████▁`             | 0.000ms   | 5    |
 
@@ -677,12 +673,10 @@ Throughput dropped 93% — check connection pool saturation or lock contention.
 
 <!-- SECTION:SYSTEM:START -->
 <details id="section-system">
-<summary><strong>🏷️ System</strong> · ⚪ 3.345ms · ↗️ 🔴 slower: 2.33ms → 3.35ms (+43%) (2 runs) (2026-07-04 08:06:59) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ System</strong> · 🟢 2.141ms · ↘️ ⚪ stable at 2.48ms (±1.16ms) (3 runs) (2026-07-04 10:03:05) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 31% — check connection pool saturation or lock contention.  
-**Severe degradation** (+43%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -696,12 +690,10 @@ Throughput dropped 31% — check connection pool saturation or lock contention.
 
 <!-- SECTION:METADATA:START -->
 <details id="section-metadata">
-<summary><strong>🏷️ Metadata</strong> · ⚪ 4.152ms · ↗️ 🔴 slower: 2.33ms → 4.15ms (+78%) (2 runs) (2026-07-04 08:06:59) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Metadata</strong> · 🟢 2.622ms · ↗️ ⚪ stable at 2.48ms (±1.16ms) (3 runs) (2026-07-04 10:03:05) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 44% — check connection pool saturation or lock contention.  
-**Severe degradation** (+78%) — review recent commits immediately.
+> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -715,12 +707,12 @@ Throughput dropped 44% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CRUD:START -->
 <details id="section-crud">
-<summary><strong>🏷️ CRUD</strong> · ⚪ 6.229ms · ↗️ 🔴 slower: 2.33ms → 6.23ms (+167%) (2 runs) (2026-07-04 08:06:59) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ CRUD</strong> · 🟢 4.091ms · ↗️ ⚪ stable at 2.48ms (±1.16ms) (3 runs) (2026-07-04 10:03:05) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 63% — check connection pool saturation or lock contention.  
-**Severe degradation** (+167%) — review recent commits immediately.
+Throughput dropped 37% — check connection pool saturation or lock contention.  
+**Severe degradation** (+65%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -979,7 +971,7 @@ Throughput dropped 63% — check connection pool saturation or lock contention.
 <!-- SECTION:REST:START -->
 
 <details id="section-rest">
-<summary><strong>🏷️ REST API Performance</strong> · 🟢 3.345ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ REST API Performance</strong> · 🟢 2.141ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -987,13 +979,13 @@ Throughput dropped 63% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
-║                                Ran: 2026-07-04 08:06:59                                 ║
+║                                Ran: 2026-07-04 10:03:05                                 ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        3.345 ms │ p95:        7.298 ms │ RPS:        299 ║
-║ Collection Schema              │        4.152 ms │ p95:        6.958 ms │ RPS:        241 ║
-║ Collection Find (List)         │        6.480 ms │ p95:       10.868 ms │ RPS:        154 ║
-║ Collection Search              │        6.229 ms │ p95:       10.457 ms │ RPS:        161 ║
+║ Health Check                   │        2.141 ms │ p95:        4.155 ms │ RPS:        467 ║
+║ Collection Schema              │        2.622 ms │ p95:        4.195 ms │ RPS:        381 ║
+║ Collection Find (List)         │        4.293 ms │ p95:        7.020 ms │ RPS:        233 ║
+║ Collection Search              │        4.091 ms │ p95:        6.689 ms │ RPS:        244 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

@@ -13,7 +13,7 @@
  * - canonical env blocks from test-db-credentials.ts
  */
 
-import { spawnSync, execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -89,12 +89,13 @@ export function runCommand(
 
 function gitOutput(args: string[]): string {
   try {
-    return execSync(["git", ...args].join(" "), {
+    const result = spawnSync("git", args, {
       encoding: "utf8",
       cwd: ROOT,
       stdio: ["ignore", "pipe", "ignore"],
       shell: IS_WINDOWS,
     });
+    return result.stdout || "";
   } catch {
     return "";
   }
@@ -156,12 +157,14 @@ export function analyzeChanges(paths: string[]): ChangeProfile {
 }
 
 export function hasUnstagedChanges(): boolean {
-  try {
-    execSync("git diff --quiet", { cwd: ROOT, stdio: "pipe", shell: IS_WINDOWS });
-    return false;
-  } catch {
-    return true;
-  }
+  // Exclude auto-generated benchmark reports (see AGENTS.md — underscore naming is intentional,
+  // files are written by scripts/benchmark-matrix/generate-benchmark-reports.ts during CI/gate runs).
+  const result = spawnSync(
+    "git",
+    ["diff", "--quiet", "--", ".", ":(exclude)docs/project/benchmarks/"],
+    { cwd: ROOT, stdio: "pipe", shell: IS_WINDOWS },
+  );
+  return result.status !== 0;
 }
 
 export function checkNetworkDbReachable(db: IntegrationDbType): boolean {

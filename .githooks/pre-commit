@@ -11,7 +11,7 @@
 #
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
-set -e
+set -euo pipefail
 
 if [ "${CI:-false}" = "true" ]; then
     echo "⏩ CI environment detected. Bypassing pre-commit gates."
@@ -26,4 +26,4 @@ echo ""
 
 bun run scripts/check-test-db-safety.ts
 
-bun x lint-staged
+bun run gate:fast

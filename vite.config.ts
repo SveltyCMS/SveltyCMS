@@ -1099,7 +1099,7 @@ export default defineConfig((): any => {
       target: "esnext",
       minify: "esbuild",
       sourcemap: process.env.CI ? false : true,
-      chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
+      chunkSizeWarningLimit: 1200, // Raised: messages.js (~1.05MB) and collab chunk (~1.13MB) are known large vendor bundles
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {
         external: ["@mongodb-js/zstd", "snappy"],
@@ -1122,7 +1122,15 @@ export default defineConfig((): any => {
             const isStateStore = log.message?.includes("state.svelte.ts");
             const isRichTextInput = log.message?.includes("rich-text/input.svelte");
             const isSettingsService = log.message?.includes("services/settings-service.ts");
-            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
+            const isLocaleStore = log.message?.includes("locale-store.svelte");
+            if (
+              hasDb ||
+              isWidgetStore ||
+              isStateStore ||
+              isRichTextInput ||
+              isSettingsService ||
+              isLocaleStore
+            ) {
               return;
             }
           }
@@ -1228,7 +1236,17 @@ export default defineConfig((): any => {
             const isSettingsService =
               warning.id?.includes("services/settings-service.ts") ||
               warning.message?.includes("services/settings-service.ts");
-            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
+            const isLocaleStore =
+              warning.id?.includes("locale-store.svelte") ||
+              warning.message?.includes("locale-store.svelte");
+            if (
+              hasDb ||
+              isWidgetStore ||
+              isStateStore ||
+              isRichTextInput ||
+              isSettingsService ||
+              isLocaleStore
+            ) {
               return;
             }
           }

@@ -158,7 +158,7 @@ export class AuthNamespace {
     return safeCall(async () => {
       const { tenantId } = options;
       const { email, password, confirmPassword } = userData;
-      if (!email || !/^[^s@]+@[^s@]+.[^s@]+$/.test(email)) {
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         throw new AppError("Invalid email format", 400);
       }
       if (password && confirmPassword && password !== confirmPassword) {
