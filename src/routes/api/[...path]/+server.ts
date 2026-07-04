@@ -61,6 +61,7 @@ function ensureHotPreload() {
 const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   auth: { handler: "auth", fn: "handleAuthUserRoutes" },
   user: { handler: "auth", fn: "handleAuthUserRoutes" },
+  users: { handler: "auth", fn: "handleAuthUserRoutes" },
   permission: { handler: "auth", fn: "handlePermissionRoutes" },
   collections: { handler: "collections", fn: "handleCollectionsRoutes" },
   content: { handler: "content", fn: "handleContentRoutes" },
