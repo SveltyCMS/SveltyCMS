@@ -366,7 +366,7 @@ const BASE_TASKS: TaskSpec[] = [
     ciJob: "unit",
     estimatedMs: 60000,
     remediation: "bun test --reporter=verbose",
-    run: () => runCommand("bun", ["run", "test:unit"], { timeout: 600_000 }),
+    run: () => runCommand("bun", ["run", "test:unit"], { silent: true, timeout: 600_000 }),
   },
   {
     name: "Production Build",
@@ -377,6 +377,7 @@ const BASE_TASKS: TaskSpec[] = [
     run: () =>
       runCommand("bun", ["run", "build"], {
         env: { COMPILE_ALL_ADAPTERS: "true" },
+        silent: true,
         timeout: 600_000,
       }),
   },
