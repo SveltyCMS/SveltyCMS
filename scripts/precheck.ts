@@ -218,6 +218,7 @@ function renderDashboard(
 }
 
 function printCompactProgress(
+  passed: boolean,
   completed: number,
   total: number,
   taskName: string,
@@ -227,8 +228,10 @@ function printCompactProgress(
   const bar = renderProgressBar(completed, total);
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const eta = formatEta(estimatedRemainingMs);
-  const prefix = `[${completed}/${total}]`;
-  console.log(`  ${prefix} ${bar} ${pct}% · ${formatTime(elapsedMs)} · ▶ ${taskName} · ⏱ ~${eta}`);
+  const icon = passed ? "✅" : "❌";
+  console.log(
+    `  ${icon} ${taskName} (${formatTime(elapsedMs)})  [${completed}/${total}] ${bar} ${pct}% · ⏱ ~${eta}`,
+  );
 }
 
 function printErrorSummary(failedResults: TaskResult[], options: PrecheckOptions): void {
@@ -354,8 +357,15 @@ export async function runPrecheck(
       console.error(`\n❌ ${task.name} crashed:`, errorThrown);
     }
 
-    // Compact progress line after each task
-    printCompactProgress(i + 1, activeTasks.length, task.name, elapsed, estimatedRemainingMs);
+    // Progress line showing completion status
+    printCompactProgress(
+      success,
+      i + 1,
+      activeTasks.length,
+      task.name,
+      elapsed,
+      estimatedRemainingMs,
+    );
 
     results.push({
       name: task.name,
