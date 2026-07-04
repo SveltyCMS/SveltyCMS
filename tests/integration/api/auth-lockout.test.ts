@@ -17,7 +17,7 @@ describe("Authentication Lockout Integration", () => {
     testUserEmail = `lockout-test-${generateUUID()}@example.com`;
 
     // Create a specific user for lockout testing using the admin context
-    const createUserRes = await safeFetch(`${API_BASE_URL}/api/users`, {
+    const createUserRes = await safeFetch(`${API_BASE_URL}/api/user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
