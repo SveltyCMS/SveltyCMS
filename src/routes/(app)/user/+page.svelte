@@ -89,24 +89,25 @@
 	}
 
 	// Function to update user preferences
-	async function updateRtcPreference(key: string, value: boolean) {
-		const isAuth = ['passkeyEnabled', 'magicLinkEnabled', 'oauthEnabled'].includes(key);
-		const newUserData = {
-			preferences: {
-				...serverUser?.preferences,
-				...(isAuth ? {
-					auth: {
-						...serverUser?.preferences?.auth,
-						[key]: value
-					}
-				} : {
-					rtc: {
-						...serverUser?.preferences?.rtc,
-						[key]: value
-					}
-				})
-			}
-		};
+	  async function updateRtcPreference(key: string, value: boolean) {
+	    const isAuth = ['passkeyEnabled', 'magicLinkEnabled', 'oauthEnabled'].includes(key);
+	    const prefs = serverUser?.preferences as Record<string, any> | undefined;
+	    const newUserData = {
+	      preferences: {
+	        ...prefs,
+	        ...(isAuth ? {
+	          auth: {
+	            ...prefs?.auth,
+	            [key]: value
+	          }
+	        } : {
+	          rtc: {
+	            ...prefs?.rtc,
+	            [key]: value
+	          }
+	        }),
+	      },
+	    };
 
 		try {
 			const res = await fetch('/api/user/update-user-attributes', {
@@ -256,7 +257,7 @@
 								<span class="text-sm">Passkeys</span>
 							</div>
 							<Checkbox
-								checked={serverUser?.preferences?.auth?.passkeyEnabled ?? false}
+								checked={(serverUser?.preferences as any)?.auth?.passkeyEnabled ?? false}
 								onchange={async (enabled) => updateRtcPreference('passkeyEnabled' as any, enabled)}
 								label="Toggle Passkey"
 								size="sm"
@@ -269,7 +270,7 @@
 								<span class="text-sm">Magic Link</span>
 							</div>
 							<Checkbox
-								checked={serverUser?.preferences?.auth?.magicLinkEnabled ?? false}
+								checked={(serverUser?.preferences as any)?.auth?.magicLinkEnabled ?? false}
 								onchange={async (enabled) => updateRtcPreference('magicLinkEnabled' as any, enabled)}
 								label="Toggle Magic Link"
 								size="sm"
@@ -282,7 +283,7 @@
 								<span class="text-sm">OAuth Login</span>
 							</div>
 							<Checkbox
-								checked={serverUser?.preferences?.auth?.oauthEnabled ?? false}
+								checked={(serverUser?.preferences as any)?.auth?.oauthEnabled ?? false}
 								onchange={async (enabled) => updateRtcPreference('oauthEnabled' as any, enabled)}
 								label="Toggle OAuth"
 								size="sm"
@@ -434,15 +435,17 @@
 	</div>
 
 	<!-- Admin area -->
-	<PermissionGuard
-		config={{
-			name: 'Admin Area Access',
-			contextId: 'config/adminArea',
-			action: 'manage',
-			contextType: 'system',
-			description: 'Allows access to admin area for user management'
-		}}
-		silent={true}
+	  <PermissionGuard
+	    {...({
+	      config: {
+	        name: 'Admin Area Access',
+	        contextId: 'config/adminArea',
+	        action: 'manage',
+	        contextType: 'system',
+	        description: 'Allows access to admin area for user management'
+	      },
+	      silent: true
+	    } as any)}
 	>
 		<div class="wrapper2" in:fly={{ y: 20, delay: 200, duration: 300 }}>
 			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />

@@ -211,7 +211,7 @@ async function getUserFromSession(
   try {
     const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
     const store = getDefaultSessionStore();
-    const storedUser = await store.get(sessionId);
+    const storedUser = await store.get(sessionId as DatabaseId);
     if (storedUser) {
       setSessionInCache(sessionId, { user: storedUser, timestamp: now });
       return storedUser;
@@ -870,7 +870,7 @@ export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId 
     const { getDefaultSessionStore } = require("@src/databases/auth/session-manager");
     const store = getDefaultSessionStore();
     if (store && typeof store.delete === "function") {
-      store.delete(sessionId).catch(() => {});
+      store.delete(sessionId as DatabaseId).catch(() => {});
     }
   } catch (e) {
     // Dynamic fallback for non-CommonJS context
@@ -878,7 +878,7 @@ export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId 
     import("@src/databases/auth/session-manager")
       .then((mod) => {
         const store = mod.getDefaultSessionStore();
-        if (store) store.delete(sessionId).catch(() => {});
+        if (store) store.delete(sessionId as DatabaseId).catch(() => {});
       })
       .catch(() => {});
   }

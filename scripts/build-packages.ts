@@ -61,7 +61,7 @@ function runCmd(cmd: string, args: string[], cwd: string): boolean {
     execSync([cmd, ...args].join(" "), {
       cwd,
       stdio: "inherit",
-      shell: IS_WINDOWS,
+      shell: IS_WINDOWS as any,
     });
     return true;
   } catch {
