@@ -118,9 +118,6 @@ const C = {
   bold: TTY ? "\x1b[1m" : "",
   dim: TTY ? "\x1b[2m" : "",
 };
-const UP = TTY ? (n: number) => `\x1b[${n}A` : () => "";
-const CLEAR_LINE = TTY ? "\x1b[2K" : "";
-let _prevDashboardLines = 0;
 
 function colorStatus(text: string, passed: boolean): string {
   return passed ? `${C.green}${text}${C.reset}` : `${C.red}${text}${C.reset}`;
@@ -214,20 +211,24 @@ function renderDashboard(
 
   lines.push(`╚${"═".repeat(BOX_WIDTH - 2)}╝`);
 
-  // In-place redraw: move cursor up, clear each line, reprint
-  if (_prevDashboardLines > 0) {
-    process.stdout.write(UP(_prevDashboardLines));
-    for (let i = 0; i < _prevDashboardLines; i++) {
-      process.stdout.write(CLEAR_LINE + (i < _prevDashboardLines - 1 ? "\n" : ""));
-    }
-    process.stdout.write(UP(_prevDashboardLines));
-  }
-
+  // Print dashboard once (no animation — child process output prevents reliable in-place redraw)
   for (const line of lines) {
     process.stdout.write(line + "\n");
   }
+}
 
-  _prevDashboardLines = lines.length;
+function printCompactProgress(
+  completed: number,
+  total: number,
+  taskName: string,
+  elapsedMs: number,
+  estimatedRemainingMs: number,
+): void {
+  const bar = renderProgressBar(completed, total);
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const eta = formatEta(estimatedRemainingMs);
+  const prefix = `[${completed}/${total}]`;
+  console.log(`  ${prefix} ${bar} ${pct}% · ${formatTime(elapsedMs)} · ▶ ${taskName} · ⏱ ~${eta}`);
 }
 
 function printErrorSummary(failedResults: TaskResult[], options: PrecheckOptions): void {
@@ -316,6 +317,9 @@ export async function runPrecheck(
   const failedTasks: string[] = [];
   const tierLabel = options.tier === "full" ? "Full Precheck" : "Pre-Push";
 
+  // Print initial dashboard once (all tasks pending)
+  renderDashboard(tierLabel, [], null, activeTasks, estimatedRemainingMs);
+
   // Adaptive correction factor — refined as each task completes
   let actualTimeSoFar = 0;
   let estimateTimeSoFar = 0;
@@ -323,9 +327,6 @@ export async function runPrecheck(
   for (let i = 0; i < activeTasks.length; i++) {
     const task = activeTasks[i];
     const remaining = activeTasks.slice(i + 1);
-
-    // Print dashboard before running the task
-    renderDashboard(tierLabel, results, task.name, remaining, estimatedRemainingMs);
 
     const taskStart = performance.now();
     const thisEstimate = task.estimatedMs ?? 60000;
@@ -353,6 +354,9 @@ export async function runPrecheck(
       console.error(`\n❌ ${task.name} crashed:`, errorThrown);
     }
 
+    // Compact progress line after each task
+    printCompactProgress(i + 1, activeTasks.length, task.name, elapsed, estimatedRemainingMs);
+
     results.push({
       name: task.name,
       passed: success,
@@ -365,9 +369,8 @@ export async function runPrecheck(
     }
   }
 
-  // Final dashboard — all tasks completed (keep visible, reset counter)
+  // Final dashboard — all tasks completed
   renderDashboard(tierLabel, results, null, [], 0);
-  _prevDashboardLines = 0;
 
   if (failedTasks.length > 0) {
     printErrorSummary(
