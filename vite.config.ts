@@ -1111,7 +1111,7 @@ export default defineConfig((): any => {
       chunkSizeWarningLimit: 1200, // Raised: messages.js (~1.05MB) and collab chunk (~1.13MB) are known large vendor bundles
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {
-        external: ["@mongodb-js/zstd", "snappy"],
+        external: ["@mongodb-js/zstd", "snappy", "@smithy/node-http-handler"],
         checks: {
           // vite-plugin-sveltekit-guard (import graph analysis) and private-config-fallback
           // are necessary plugins whose timing overhead is expected and acceptable.

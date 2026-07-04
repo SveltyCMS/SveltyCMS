@@ -32,7 +32,6 @@ import { type Actions, error, redirect } from "@sveltejs/kit";
 // System Logger
 import { logger } from "@utils/logger";
 import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant.server";
-import prettier from "prettier";
 import * as ts from "typescript";
 import type { PageServerLoad } from "./$types";
 
@@ -70,7 +69,8 @@ const userCollectionsPath = path.resolve(
 // Load Prettier config
 async function getPrettierConfig() {
   try {
-    const config = await prettier.resolveConfig(process.cwd());
+    const prettier = await import("prettier");
+    const config = await prettier.default.resolveConfig(process.cwd());
     return { ...config, parser: "typescript" };
   } catch (err) {
     logger.warn("Failed to load Prettier config, using defaults:", err);
@@ -542,8 +542,13 @@ export const schema: Schema = {
       .replace(/🗑️/g, "")
       .replace(/\\"/g, '"');
 
-    const prettierConfig = await getPrettierConfig();
-    result = await prettier.format(result, prettierConfig);
+    try {
+      const prettier = await import("prettier");
+      const prettierConfig = await getPrettierConfig();
+      result = await prettier.default.format(result, prettierConfig);
+    } catch {
+      logger.warn("Prettier not available for formatting, writing unformatted code.");
+    }
 
     return result;
   } catch (error) {
