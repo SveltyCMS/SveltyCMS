@@ -324,7 +324,7 @@ export function buildPrecheckTasks(
       {
         name: `Integration (${db})`,
         ciJob: `db-tests (${db})`,
-        skip: !runSmoke,
+        skip: true, // DB matrix runs in CI only (ci:local / verify:full)
         run: () => {
           if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
             const port = getDefaultDbPort(db);
@@ -353,7 +353,7 @@ export function buildPrecheckTasks(
       {
         name: `Benchmarks (${db})`,
         ciJob: `bench-core (${db})`,
-        skip: !runSmoke || options.skipBenchmarks === true,
+        skip: true, // Benchmarks run in CI only (ci:local / verify:full)
         run: () => {
           if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
             const port = getDefaultDbPort(db);
