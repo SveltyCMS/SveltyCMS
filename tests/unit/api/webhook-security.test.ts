@@ -240,7 +240,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
           __testBypass: true,
         },
         request: { method: "POST", json: vi.fn(), headers: new Headers() },
-        url: new URL(`http://localhost/api/system/webhooks/${webhookId}/test`),
+        url: new URL(`http://localhost/api/webhooks/${webhookId}/test`),
         cookies: { get: vi.fn() },
       } as any;
 
