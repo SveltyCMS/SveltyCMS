@@ -27,6 +27,9 @@
  */
 
 import { spawnSync } from "node:child_process";
+import fs, { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
 
 const IS_WINDOWS = process.platform === "win32";
 
@@ -46,6 +49,11 @@ function main() {
   }
 
   const subcommand = args[0];
+
+  if (subcommand === "install-alias") {
+    installGitSafeAlias();
+    return;
+  }
 
   // Only enforce policy on protected commands
   if (PROTECTED_COMMANDS.has(subcommand)) {
@@ -130,6 +138,73 @@ function runGit(args: string[]) {
 
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
+  }
+}
+
+function installGitSafeAlias() {
+  const scriptPath = path.resolve(process.argv[1]);
+
+  if (IS_WINDOWS) {
+    try {
+      const psResult = spawnSync("powershell", ["-Command", "Write-Output $PROFILE"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      const profilePath = psResult.stdout?.trim();
+      if (profilePath) {
+        const psFunction = `\nfunction git { & bun run "${scriptPath}" @args }\n`;
+        const profileDir = path.dirname(profilePath);
+        if (!existsSync(profileDir)) {
+          fs.mkdirSync(profileDir, { recursive: true });
+        }
+        let existing = "";
+        if (existsSync(profilePath)) {
+          existing = readFileSync(profilePath, "utf8");
+        }
+        if (existing.includes(scriptPath)) {
+          console.log(
+            `✅ git-safe alias function is already present in your PowerShell profile: ${profilePath}`,
+          );
+        } else {
+          writeFileSync(profilePath, existing + psFunction);
+          console.log(
+            `\n✅ Successfully added git-safe alias function to your PowerShell profile: ${profilePath}`,
+          );
+          console.log(`ℹ️  Please reload your shell or run: . $PROFILE\n`);
+        }
+        return;
+      }
+    } catch (e) {
+      console.error("❌ Failed to resolve PowerShell profile path:", e);
+    }
+  }
+
+  const home = homedir();
+  const rcFiles = [".zshrc", ".bashrc", ".bash_profile"].map((f) => join(home, f));
+  let modified = false;
+
+  for (const rcPath of rcFiles) {
+    if (existsSync(rcPath)) {
+      let content = readFileSync(rcPath, "utf8");
+      const aliasLine = `\nalias git='bun run "${scriptPath}"'\n`;
+      if (content.includes(scriptPath)) {
+        console.log(`✅ git-safe alias is already present in ${rcPath}`);
+        modified = true;
+        continue;
+      }
+      writeFileSync(rcPath, content + aliasLine);
+      console.log(`✅ Successfully added git-safe alias to ${rcPath}`);
+      modified = true;
+    }
+  }
+
+  if (modified) {
+    console.log(`ℹ️  Please reload your shell or run: source ~/.bashrc (or ~/.zshrc)`);
+  } else {
+    console.log(
+      `❌ Could not locate a shell config file (.bashrc, .zshrc, or PowerShell profile).`,
+    );
+    console.log(`ℹ️  You can manually add: alias git='bun run "${scriptPath}"'`);
   }
 }
 

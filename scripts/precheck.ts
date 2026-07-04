@@ -357,6 +357,54 @@ export async function runPrecheck(
       console.error(`\n❌ ${task.name} crashed:`, errorThrown);
     }
 
+    const IS_WINDOWS = process.platform === "win32";
+    if (!success && task.remediation && process.stdout.isTTY && process.stdin.isTTY) {
+      console.log(`\n${C.yellow}⚠️  Task "${task.name}" failed.${C.reset}`);
+      const answer = prompt(
+        `   Would you like to run the remediation command? (${task.remediation}) [Y/n] `,
+      );
+      if (answer === null || answer.trim().toLowerCase() !== "n") {
+        console.log(`   Running remediation: ${task.remediation}...`);
+        const [cmd, ...args] = task.remediation.split(/\s+/);
+        const { spawnSync } = require("node:child_process");
+        const fixResult = spawnSync(cmd, args, { stdio: "inherit", shell: IS_WINDOWS });
+        if (fixResult.status === 0) {
+          console.log(`   ${C.green}✅ Remediation successful! Re-running check...${C.reset}`);
+          try {
+            const reResult = task.run();
+            success = await reResult;
+          } catch {
+            success = false;
+          }
+
+          // If it was formatting and is now passing, offer to amend the commit
+          if (success && task.name === "Format Verification") {
+            const commitAnswer = prompt(
+              `   Would you like to automatically amend these formatting fixes into your current commit? [Y/n] `,
+            );
+            if (commitAnswer === null || commitAnswer.trim().toLowerCase() !== "n") {
+              console.log(`   Staging and amending commit...`);
+              spawnSync("git", ["add", "."], { stdio: "inherit", shell: IS_WINDOWS });
+              const commitResult = spawnSync(
+                "git",
+                ["commit", "--amend", "--no-edit", "--no-verify"],
+                { stdio: "inherit", shell: IS_WINDOWS },
+              );
+              if (commitResult.status === 0) {
+                console.log(
+                  `   ${C.green}✅ Successfully amended formatting fixes into commit!${C.reset}`,
+                );
+              } else {
+                console.log(`   ❌ Failed to amend commit.`);
+              }
+            }
+          }
+        } else {
+          console.log(`   ${C.red}❌ Remediation failed.${C.reset}`);
+        }
+      }
+    }
+
     // Progress line showing completion status
     printCompactProgress(
       success,

@@ -415,10 +415,40 @@ function runDbTask(
   if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
     const port = getDefaultDbPort(db);
     console.error(`\n❌ ${db} is not reachable at 127.0.0.1:${port}.`);
-    console.error(
-      `   Start Docker: docker compose -f tests/docker-compose.yml --profile ${db} up -d`,
-    );
-    return false;
+
+    if (process.stdout.isTTY && process.stdin.isTTY) {
+      const answer = prompt(
+        `   Would you like to automatically start the Docker container for ${db}? [Y/n] `,
+      );
+      if (answer === null || answer.trim().toLowerCase() !== "n") {
+        console.log(`   Starting Docker container...`);
+        const dockerResult = spawnSync(
+          "docker",
+          ["compose", "-f", "tests/docker-compose.yml", "--profile", db, "up", "-d"],
+          { stdio: "inherit", shell: IS_WINDOWS },
+        );
+        if (dockerResult.status === 0) {
+          console.log(`   ✅ Docker container started! Waiting 3s for DB initialization...`);
+          spawnSync(IS_WINDOWS ? "timeout" : "sleep", [IS_WINDOWS ? "3" : "3"], { shell: true });
+          if (checkNetworkDbReachable(db)) {
+            console.log(`   ✅ DB is now reachable!`);
+          } else {
+            console.error(`   ❌ DB still unreachable after startup.`);
+            return false;
+          }
+        } else {
+          console.error(`   ❌ Failed to start Docker container.`);
+          return false;
+        }
+      } else {
+        return false;
+      }
+    } else {
+      console.error(
+        `   Start Docker: docker compose -f tests/docker-compose.yml --profile ${db} up -d`,
+      );
+      return false;
+    }
   }
 
   const timeout = db === "mongodb" || db === "mariadb" ? 900_000 : 600_000;
