@@ -1,6 +1,21 @@
 /**
- * @file scripts\benchmark-matrix\reporting.ts
- * @description Reporting utility for the benchmark matrix tool.
+ * @file scripts/benchmark-matrix/reporting.ts
+ * @description
+ * Reporting and documentation synchronization layer for the benchmark matrix.
+ *
+ * Takes raw benchmark results, runs regression detection, updates SQLite history,
+ * and performs surgical MDX updates to per-adapter reports in docs/project/benchmarks/.
+ *
+ * > [!IMPORTANT]
+ * > **Empirical Verification Required** (per AGENTS.md):
+ * > After modifying report generation, always run the full matrix and inspect
+ * > the generated MDX reports. The benchmark reports are the public-facing proof
+ * > of SveltyCMS's performance claims.
+ * >
+ * > ```bash
+ * > bun run scripts/benchmark-matrix/index.ts --sql
+ * > # Inspect: docs/project/benchmarks/benchmark_sqlite.mdx
+ * > ```
  */
 
 import fs from "node:fs/promises";
@@ -16,19 +31,23 @@ import {
   CI_SUMMARY_FILE,
   PERFORMANCE_BUDGET,
 } from "./config";
-import { extractMetrics } from "./utils";
+import { extractMetrics, getTrendDetails } from "./utils";
 import { detectRegressions } from "./regression-detector";
-import type { RegressionResult } from "./regression-detector";
-import type { BenchmarkResult, RunConfig } from "./types";
+import type { BenchmarkResult, RunConfig, RegressionResult } from "./types";
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
 import { collectHostInfo } from "./cli";
 import {
+  applyDimensionSummaryToLedger,
   deduplicateLedgerSections,
   ensureExecutiveMarkers,
   EXECUTIVE_MARKERS,
   extractFirstTagBlock,
   extractTagInner,
   extractZone,
+  mapSectionToDimension,
+  type DimensionStatus,
+  type LedgerDimension,
+  LEDGER_DIMENSION_ORDER,
   patchBenchmarkZones,
   patchExecutiveAlerts,
   patchExecutivePartialWatermark,
@@ -562,7 +581,10 @@ export async function generateFinalReport(
     // 🚀 Detect performance regressions — only on CURRENT run's DBs, not stale disk data
     const currentDbKeys = new Set(resultsIn.map((r) => r.db));
     const currentResults = results.filter((r) => currentDbKeys.has(r.db));
-    const perfRegressions = await detectRegressions(currentResults);
+    const result = await detectRegressions(currentResults);
+    const perfRegressions = result.regressions;
+    const _report = result.report;
+    void _report; // available for future callers (flapping, cross-cutting, forecasts)
 
     // 🚀 Update per-database specific technical ledgers
     const hasLock = await acquireLock("mdx_report");
@@ -986,7 +1008,7 @@ tags:
     if (curr?.error || status === "FAILED") {
       extraWarnings += `> [!CAUTION]\n> **Anomalies Detected**: ${curr?.error || "System setup or script execution failed."} See console for stack trace.\n\n`;
     }
-    if (!isHistorical && restTrend.isRegression && coldTrend.isRegression) {
+    if (!isHistorical && restTrend.icon === "🔴" && coldTrend.icon === "🔴") {
       extraWarnings += `> [!WARNING]\n> **Environment Shift Detected**: Massive latency delta (${restTrend.pct}). Re-run matrix to establish a new baseline.\n\n`;
     }
 
@@ -1279,6 +1301,43 @@ tags:
       doc = upsertLedgerSection(doc, tagSlug, tableContent);
     }
 
+    // ── Patch dimension summary table and auto-open degraded dimension groups ──
+    const dimStatuses: Partial<Record<LedgerDimension, DimensionStatus>> = {};
+    const dimEntries = new Map<LedgerDimension, TestRollupEntry[]>();
+    for (const dim of LEDGER_DIMENSION_ORDER) dimEntries.set(dim, []);
+    for (const entry of testEntries) {
+      const section = entry.section ?? "baseline";
+      const dim = mapSectionToDimension(section);
+      dimEntries.get(dim)!.push(entry);
+    }
+    for (const dim of LEDGER_DIMENSION_ORDER) {
+      const entries = dimEntries.get(dim)!;
+      if (entries.length === 0) continue;
+      let worstAbsDelta = 0;
+      let worstIcon = "\u{1F7E2}";
+      let hasDegraded = false;
+      for (const entry of entries) {
+        if (entry.severity === "regression" || entry.severity === "critical") {
+          hasDegraded = true;
+          worstIcon = "\u{1F534}";
+          worstAbsDelta = Math.max(worstAbsDelta, Math.abs(entry.deltaPct ?? 0));
+        } else if (entry.severity === "warning" || entry.severity === "watch") {
+          if (!hasDegraded) worstIcon = "\u{1F7E1}";
+          worstAbsDelta = Math.max(worstAbsDelta, Math.abs(entry.deltaPct ?? 0));
+        } else if (entry.severity === "pending") {
+          if (!hasDegraded && worstIcon === "\u{1F7E2}") worstIcon = "\u{26AA}";
+        }
+      }
+      dimStatuses[dim] = {
+        testCount: entries.length,
+        worstIcon,
+        worstDelta: worstAbsDelta > 0 ? `\u00B1${worstAbsDelta.toFixed(0)}%` : "\u2014",
+        worstBudget: hasDegraded ? "Fail" : worstIcon === "\u{26AA}" ? "\u2014" : "Pass",
+        hasDegraded,
+      };
+    }
+    doc = applyDimensionSummaryToLedger(doc, dimStatuses);
+
     const hostInfo = (curr?.hostInfo ?? {}) as Record<string, string>;
     const hostLine = hostInfo.runtime ?? "runtime pending";
     let executiveBody = buildExecutiveReport({
@@ -1324,7 +1383,7 @@ tags:
 
 export async function writeCISummary(
   results: BenchmarkResult[],
-  regressions: string[] | import("./regression-detector").RegressionResult[],
+  regressions: string[] | RegressionResult[],
 ) {
   const passed = results.filter((r) => r.status === "SUCCESS").length;
   const failed = results.filter((r) => r.status === "FAILED").length;

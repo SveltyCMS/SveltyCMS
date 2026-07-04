@@ -2,12 +2,16 @@
 # =============================================================================
 # SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Runs on STAGED FILES ONLY via lint-staged:
-#   • oxfmt, oxlint, slop-scanner (src)
-#   • lint-docs (docs)
-#   • check-test-db-safety (config/private.test.ts guard)
+# Runs on STAGED FILES ONLY via lint-staged (.lintstagedrc.json):
+#   • oxfmt (auto-format), oxlint --deny-warnings, slop-scanner (src/**)
+#   • lint-admin-theme (src/routes/(app)/**)
+#   • lint-docs (docs/**)
+#   • check-test-db-safety (pre-check)
 #
-# Full gate runs on push via scripts/precheck.ts (build + 4-DB integration + benchmarks).
+# Full gate runs on pre-push via scripts/precheck.ts (push tier):
+#   • static analysis, lint, unit tests, production build
+#   • progress dashboard with ETA and error remediation
+#   • DB integration + benchmarks are CI-only (opt in: --include-db-tasks)
 #
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================

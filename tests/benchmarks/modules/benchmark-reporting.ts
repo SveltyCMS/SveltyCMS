@@ -58,7 +58,7 @@ const SPARKLINE_CHARS = [
   "\u2587",
   "\u2588",
 ] as const;
-const SPARKLINE_WIDTH = 12;
+const SPARKLINE_WIDTH = 7;
 
 /** Unicode block sparkline from a numeric series (last `width` samples). */
 export function renderSparkline(values: number[], width = SPARKLINE_WIDTH): string {
@@ -88,8 +88,11 @@ export interface BenchmarkReportOptions {
   redisEnabled?: boolean;
 }
 
+// State tracked across pushTableToMdx calls for deduplication
 let _lastTag: string | null = null;
 let _lastTestFile = "unknown";
+void _lastTag;
+void _lastTestFile; // read by future multi-file dedup logic
 
 function getDbType(): string {
   return process.env.DB_TYPE || "sqlite";
@@ -237,6 +240,7 @@ export interface JsonlRunEntry {
   db?: string;
   redis?: boolean;
   status?: string;
+  wallClockMs?: number;
 }
 
 function formatTestLabel(testFile: string): string {
@@ -479,15 +483,16 @@ export function buildHistoryArchiveTable(dbLabel?: string): string {
 
   let summary = `\n### Historical Trends (${dateLabel})\n\n`;
   summary +=
-    "> **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below).\n\n";
+    "> **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.\n\n";
   summary += `${historySqliteDetailLink(dbType, redisEnabled)}\n\n`;
   summary += `**Series:** ${sorted.length} · **DB:** ${dbDisplay}\n\n`;
-  summary += `| Metric | Trend | Sparkline (last ${SPARKLINE_WIDTH}) | Latest | Runs |\n`;
-  summary += `|--------|-------|${"-".repeat(24)}|--------|------|\n`;
+  const colW = SPARKLINE_WIDTH + 2;
+  summary += `| Metric | Trend | Sparkline (last ${SPARKLINE_WIDTH}) | Latest |\n`;
+  summary += `|--------|-------|${"-".repeat(colW)}|--------|\n`;
 
   for (const row of sorted) {
     const name = row.name.replace(/\|/g, "\\|");
-    summary += `| ${name} | ${row.icon} | \`${row.sparkline}\` | ${row.latestMs.toFixed(3)}ms | ${row.runs} |\n`;
+    summary += `| ${name} | ${row.icon} | \`${row.sparkline}\` | ${row.latestMs.toFixed(3)}ms |\n`;
   }
   summary += "\n";
 
@@ -681,7 +686,7 @@ export async function finalizeReport(
     const runMode = runEntries[0].runMode || "standalone";
     const db = runEntries[0].db || getDbType();
     const redis = runEntries[0].redis ?? false;
-    const _dbLabel = redis ? `${db}-redis` : db;
+    // dbLabel constructed when needed for history writes
 
     const groups = new Map<string, any[]>();
     for (const entry of runEntries) {
@@ -740,7 +745,8 @@ export async function finalizeReport(
         trend.sampleSize,
       );
 
-      const _budgetViolations = checkBudgets(db, {
+      // Budget violations already checked via PER_DIMENSION_BUDGETS in benchmark-mdx
+      checkBudgets(db, {
         [`${phase}_avg`]: current.avgMs,
         [`${phase}_p95`]: current.p95Ms || 0,
       });

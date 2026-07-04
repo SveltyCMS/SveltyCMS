@@ -2,7 +2,7 @@
 title: "Validation Pipeline"
 description: "SveltyCMS tiered validation architecture for contributors — fast commits, safe pushes, deterministic CI"
 path: "contributing/validation-pipeline"
-updated: "2026-06-25"
+updated: "2026-07-04"
 ---
 
 # Validation Pipeline
@@ -45,11 +45,11 @@ flowchart TB
 
 ## The Three Loops
 
-| Loop       | Trigger      | What Runs                                    | Time     | Skip          |
-| :--------- | :----------- | :------------------------------------------- | :------- | :------------ |
-| **Fast**   | `git commit` | Format, lint, slop scan — staged files only  | ~2-3s    | `--no-verify` |
-| **Medium** | `git push`   | Type check, unit tests, full lint, docs lint | ~15-45s  | `--no-verify` |
-| **Deep**   | GitHub PR    | Build, DB matrix, E2E sharding, benchmarks   | ~5-20min | N/A           |
+| Loop       | Trigger      | What Runs                                    | Time     | Skip                     |
+| :--------- | :----------- | :------------------------------------------- | :------- | :----------------------- |
+| **Fast**   | `git commit` | Format, lint, slop scan — staged files only  | ~2-3s    | Blocked by `git-safe.ts` |
+| **Medium** | `git push`   | Type check, unit tests, build — full project | ~1-3min  | Blocked by `git-safe.ts` |
+| **Deep**   | GitHub PR    | Build, DB matrix, E2E sharding, benchmarks   | ~5-20min | N/A                      |
 
 ## Fast Loop — Pre-commit
 
@@ -113,15 +113,13 @@ sequenceDiagram
 - Lint — full project lint
 - Admin Theme Lint — if admin routes changed
 - Docs Lint — if documentation changed
-- Check — runs `bun run check` (format verification + oxlint, not svelte-check)
-- Unit Tests — all tests (conditionally skipped when only docs changed)
+- Production build — `bun run build` with all adapters
 
-**What does NOT run** (deferred to CI):
+**What does NOT run locally** (CI-only):
 
-- ❌ Production builds
-- ❌ Integration tests (Docker DB containers)
+- ❌ DB integration tests (opt in with `--include-db-tasks`)
+- ❌ Benchmarks (opt in with `--include-db-tasks`)
 - ❌ E2E tests (Playwright browser automation)
-- ❌ Benchmarks
 
 ## Deep Loop — CI Pipeline
 
@@ -169,24 +167,27 @@ flowchart LR
 
 ## Manual Commands
 
-| Command              | What It Does                             |
-| :------------------- | :--------------------------------------- |
-| `bun run gate:fast`  | Run pre-commit checks manually           |
-| `bun run gate`       | Run pre-push checks manually             |
+| `bun run verify:push` | Run pre-push gate manually with progress dashboard |
+| `bun run gate:fast` | Run pre-commit checks manually |
+| `bun run scripts/precheck.ts --plan` | Dry-run — see what WOULD run |
+| `bun run verify:full` | Run full CI parity (DB matrix + benchmarks) |
+| `bun run ci:local` | Simulate the full CI pipeline locally (+ E2E) |
 | `bun run test:smart` | Run only tests affected by your git diff |
-| `bun run ci:local`   | Simulate the full CI pipeline locally    |
-| `bun run slop`       | Run full slop scanner                    |
-| `bun run test:unit`  | Run all unit tests                       |
+| `bun run slop` | Run full slop scanner |
+| `bun run test:unit` | Run all unit tests |
 
-## Skipping Hooks
+## Hardened Bypass Prevention
+
+`scripts/git-safe.ts` blocks `--no-verify` on both `commit` and `push`. Bypassing requires invoking the system `git` binary directly — a deliberate act, not muscle memory.
 
 ```bash
-git commit --no-verify   # Skip pre-commit (fast loop)
-git push --no-verify     # Skip pre-push (medium loop)
+bun run git commit -m "msg"    # runs pre-commit gate
+bun run git push               # runs pre-push gate
 ```
 
 > [!WARNING]
-> Skipping hooks is acceptable for WIP branches, but CI will still catch all issues on PR. Never merge a PR that fails CI.
+> `--no-verify` is blocked by project policy. Use `bun run git commit` / `bun run git push`.
+> CI will still catch all issues on PR. Never merge a PR that fails CI.
 
 ## Why This Architecture?
 

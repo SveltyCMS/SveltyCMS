@@ -11,7 +11,14 @@ import { PER_DIMENSION_BUDGETS } from "./benchmark-mdx";
 // Types
 // ─────────────────────────────────────────────────────────────
 
-export type Severity = "stable" | "watch" | "warning" | "regression" | "critical";
+export type Severity =
+  | "stable"
+  | "watch"
+  | "warning"
+  | "regression"
+  | "regressed"
+  | "critical"
+  | "improved";
 
 export interface TrendResult {
   label: string;

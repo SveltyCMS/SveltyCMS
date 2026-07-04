@@ -1,22 +1,30 @@
 /**
  * @file tests/benchmarks/modules/benchmark-mdx.ts
- * @description MDX report file operations — zone-scoped writes, shell generation, summary rebuild.
+ * @description
+ * Core MDX manipulation engine for the benchmark documentation pipeline.
  *
- * ### Zones (single source of truth per layer)
- * - `EXECUTIVE_*` — matrix-owned pass/fail + latency matrix (one H2 "Latest")
- * - `LATEST_HEADER_MARKER` — replace anchor for the single Latest H2 (never append)
- * - `LEDGER_MARKERS` — deterministic START/END pairs inside each `*_TABLE_*` block
- * - `EXECUTIVE_MARKERS` — partial watermark + per-run alert slots (replace, never append)
- * - `SUMMARY_*` — compact derived tables (no duplicate H2)
- * - `LEDGER_*` — one `<!-- SECTION:TAG:START/END -->` pair per test (`deduplicateLedgerSections`)
- * - Legacy `*_TABLE_*` pairs are read for migration; new writes emit `SECTION:*` only
- * - `EDUCATIONAL_*` — static metadata (no TABLE tags)
- * - `EXECUTIVE_FIX_NOTES_*` — fix overlays / phase notes (top of EXECUTIVE, never inline in LEDGER)
- * - `CHANGELOG_*` — deprecated; content hoisted to `EXECUTIVE_FIX_NOTES_*` on commit
+ * Implements a surgical, marker-driven system for incremental, non-destructive
+ * updates to per-adapter benchmark reports in docs/project/benchmarks/.
  *
- * ### Concurrency
- * Uses a simple file-based mutex to prevent parallel writes to the same MDX file.
+ * > [!IMPORTANT]
+ * > **Empirical Verification Required** (per AGENTS.md):
+ * > After modifying this module, always validate report integrity:
+ * >
+ * > ```bash
+ * > bun run lint:benchmark-mdx
+ * > bun run scripts/benchmark-matrix/generate-benchmark-reports.ts --force-sqlite
+ * > BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
+ * > ```
+ *
+ * ### Architecture
+ *
+ * The commit pipeline (commitMdxDocument) applies transformations in order:
+ *   1. deduplicateLedgerSections  — ensures one SECTION pair per test
+ *   2. normalizeLedgerZone         — cleans stray headings, normalizes tag inners
+ *   3. relocateStrayNarrativeToExecutive — hoists fix notes from LEDGER/CHANGELOG
+ *   4. stripLatestOutsideExecutive — enforces single "Latest Performance Audit" H2
  */
+
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -24,6 +32,9 @@ import {
   mapSectionToDimension,
   type LedgerDimension,
 } from "./benchmark-dimensions";
+
+// Re-export dimension types for consumers (e.g., reporting.ts)
+export { LEDGER_DIMENSION_ORDER, mapSectionToDimension, type LedgerDimension };
 
 // ─────────────────────────────────────────────────────────────
 // Per-Dimension Budgets (used by analysis module)
@@ -70,6 +81,15 @@ export const PER_DIMENSION_BUDGETS: Record<
     concurrency: { budget: 40, desc: "Concurrent p95 under load (ms)" },
   },
 };
+
+/** Dimension rollup status used by the ledger summary table. */
+export interface DimensionStatus {
+  testCount: number;
+  worstIcon: string;
+  worstDelta: string;
+  worstBudget: string;
+  hasDegraded: boolean;
+}
 
 // ─────────────────────────────────────────────────────────────
 // Simple file mutex for MDX writes
@@ -1090,7 +1110,61 @@ export function deduplicateLedgerSections(doc: string): string {
   return result.replace(/\n{3,}/g, "\n\n");
 }
 
-/** Persist MDX with zone hygiene: dedupe ledger tags + single Latest header + narrative hoist. */
+/**
+ * Persist MDX with zone hygiene pipeline.
+ *
+ * Transformation order (each step receives the output of the previous):
+ *   1. deduplicateLedgerSections  → migrate legacy TABLE pairs to SECTION, drop duplicates
+ *   2. normalizeLedgerZone         → strip stray trend headings, clean tag inners
+ *   3. relocateStrayNarrativeToExecutive → hoist fix notes from LEDGER/CHANGELOG to EXECUTIVE
+ *   4. stripLatestOutsideExecutive → enforce single "Latest Performance Audit" H2 per report
+ */
+
+/**
+ * Updates the ledger summary table and auto-opens degraded dimension groups.
+ * Called after trend data is available during matrix runs.
+ */
+export function applyDimensionSummaryToLedger(
+  doc: string,
+  dimStatuses: Record<string, DimensionStatus>,
+): string {
+  const ledgerZone = extractZone(doc, ZONE_MARKERS.ledger[0], ZONE_MARKERS.ledger[1]);
+  if (!ledgerZone) return doc;
+
+  let patched = ledgerZone;
+  const rows: string[] = [];
+  for (const dim of LEDGER_DIMENSION_ORDER) {
+    const status = dimStatuses[dim];
+    if (!status) continue;
+    const icon = status.worstIcon === "🔴" ? "🔴" : status.worstIcon === "🟡" ? "🟡" : "🟢";
+    const row = `| [**${dim}**](#ledger-dimension-${dim.toLowerCase()}) | ${status.testCount} | ${icon} | ${status.worstDelta} | ${status.worstBudget} |`;
+    rows.push(row);
+  }
+
+  if (rows.length > 0) {
+    const header =
+      "| Dimension | Tests | Status | Worst Δ | Budget |\n|-----------|------:|--------|---------|--------|";
+    const summaryTable = header + "\n" + rows.join("\n");
+    const summaryBlock =
+      "\n" + summaryTable + "\n\n> 🔍 Expand a dimension group below, then any row for details.\n";
+    patched = patched.replace(/<!-- LEDGER_SUMMARY_TABLE -->/, summaryBlock);
+  }
+
+  // Auto-open degraded groups
+  for (const dim of LEDGER_DIMENSION_ORDER) {
+    const status = dimStatuses[dim];
+    if (status?.hasDegraded) {
+      const detailId = `ledger-dimension-${dim.toLowerCase()}`;
+      patched = patched.replace(
+        new RegExp(`(<details)\\s+(id="${detailId}")`, "g"),
+        "<details open $2",
+      );
+    }
+  }
+
+  return replaceZone(doc, ZONE_MARKERS.ledger[0], ZONE_MARKERS.ledger[1], patched) ?? doc;
+}
+
 function commitMdxDocument(doc: string): string {
   return stripLatestOutsideExecutive(
     relocateStrayNarrativeToExecutive(normalizeLedgerZone(deduplicateLedgerSections(doc))),
@@ -1460,6 +1534,7 @@ export function getLedgerParseScope(doc: string): string {
   return doc.slice(ledgerH2, benchEnd > ledgerH2 ? benchEnd : doc.length);
 }
 
+// Kept for future section dedup logic (currently unused)
 function _dedupeSections(sections: SectionStatus[]): SectionStatus[] {
   const byName = new Map<string, SectionStatus>();
   for (const section of sections) {
@@ -1490,6 +1565,7 @@ function _dedupeSections(sections: SectionStatus[]): SectionStatus[] {
  *   ### 🏷️ Name ⚪ — baseline established (1 run)
  *   ### 🏷️ Name ⚪ stable at 0.1ms (±0.0ms) (2 runs) (2026-06-28 18:44:55)
  */
+// Kept for future trend heading parsing (currently unused)
 function _parseTrendHeading(line: string): SectionStatus {
   const pending = line.includes("Pending");
 
@@ -1801,3 +1877,8 @@ ${ledgerBody}
 <!-- BENCHMARK_END -->
 `;
 }
+
+// Module-level references to suppress unused-function warnings.
+// These helpers are kept for future section dedup and trend heading parsing.
+void (_dedupeSections as unknown);
+void (_parseTrendHeading as unknown);

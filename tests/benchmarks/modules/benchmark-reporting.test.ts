@@ -242,9 +242,12 @@ test("renderSparkline encodes series as unicode blocks", () => {
   expect(flat.length).toBe(4);
   expect(flat).toMatch(/^[\u2581-\u2588]+$/u);
 
+  // Default width=7 takes last 7 values; explicit width=8 preserves all
   const rising = renderSparkline([1, 2, 3, 4, 5, 6, 7, 8]);
-  expect(rising.length).toBe(8);
-  expect(rising.charCodeAt(0)).toBeLessThanOrEqual(rising.charCodeAt(7)!);
+  expect(rising.length).toBe(7); // default SPARKLINE_WIDTH=7
+  const risingFull = renderSparkline([1, 2, 3, 4, 5, 6, 7, 8], 8);
+  expect(risingFull.length).toBe(8);
+  expect(risingFull.charCodeAt(0)!).toBeLessThanOrEqual(risingFull.charCodeAt(7)!);
 });
 
 test("buildHistoryArchiveTable uses sparklines not full detail tables", async () => {

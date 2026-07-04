@@ -4,13 +4,19 @@
  * Shared utilities and CI-parity task manifest for local precheck runners.
  *
  * Single source of truth for what runs locally vs GitHub Actions ci.yml:
- *   push tier → pre-push hook (static analysis, unit, build, 4-DB integration, benchmarks)
- *   full tier → ci:local without E2E (everything in push + optional E2E in ci-local.ts)
+ *   push tier → pre-push hook (static analysis, unit, build)
+ *   full tier → ci:local without E2E (push tasks + 4-DB integration + benchmarks)
+ *
+ * DB integration and benchmarks are opt-in on push tier via `includeDbTasks`
+ * (default: false for push, true for full). CI runs them in separate jobs.
  *
  * ### Features:
+ * - declarative task registry (BASE_TASKS + createDbTasks)
+ * - context-driven skip/include rules via RunContext
  * - change-aware task skipping for push tier
  * - Docker reachability probes for network DB adapters
  * - canonical env blocks from test-db-credentials.ts
+ * - `getPrecheckPlan()` for debugging task selection before execution
  */
 
 import { spawnSync } from "node:child_process";
@@ -30,12 +36,20 @@ export const IS_WINDOWS = process.platform === "win32";
 
 export type PrecheckTier = "push" | "full";
 
+// ---------------------------------------------------------------------------
+// Core interfaces
+// ---------------------------------------------------------------------------
+
 export interface Task {
   name: string;
   skip?: boolean | (() => boolean);
   run: () => boolean | Promise<boolean>;
   ciJob?: string;
   timeout?: number;
+  /** Estimated duration in ms for ETA calculation */
+  estimatedMs?: number;
+  /** Command to run locally to fix this task if it fails */
+  remediation?: string;
 }
 
 export interface ChangeProfile {
@@ -45,7 +59,7 @@ export interface ChangeProfile {
   hasDbInfra: boolean;
   hasAdminTheme: boolean;
   hasDocs: boolean;
-  /** True when build + integration + benchmarks should run before push. */
+  /** True when build should run before push. */
   needsCiSmoke: boolean;
 }
 
@@ -56,7 +70,44 @@ export interface PrecheckOptions {
   skipBenchmarks?: boolean;
   /** Full tier only — run a single adapter instead of the 4-DB matrix. */
   singleDb?: IntegrationDbType;
+  /**
+   * Run integration tests + benchmarks locally.
+   * Default: false for "push" (keeps pre-push fast), true for "full".
+   */
+  includeDbTasks?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Declarative task system
+// ---------------------------------------------------------------------------
+
+/** Context passed to every task spec's skip/include/run functions. */
+export interface RunContext {
+  tier: PrecheckTier;
+  profile: ChangeProfile;
+  testSecret: string;
+  options: PrecheckOptions;
+}
+
+/**
+ * A declarative task specification.
+ * - `shouldInclude`: return false to exclude this task entirely.
+ * - `shouldSkip`: return true to include but skip at runtime.
+ * - `run`: the actual task logic, receives the full RunContext.
+ */
+export interface TaskSpec {
+  name: string;
+  ciJob?: string;
+  estimatedMs?: number;
+  remediation?: string;
+  shouldInclude?: (ctx: RunContext) => boolean;
+  shouldSkip?: (ctx: RunContext) => boolean;
+  run: (ctx: RunContext) => boolean | Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Utilities (unchanged from original)
+// ---------------------------------------------------------------------------
 
 export function runCommand(
   cmd: string,
@@ -157,8 +208,6 @@ export function analyzeChanges(paths: string[]): ChangeProfile {
 }
 
 export function hasUnstagedChanges(): boolean {
-  // Exclude auto-generated benchmark reports (see AGENTS.md — underscore naming is intentional,
-  // files are written by scripts/benchmark-matrix/generate-benchmark-reports.ts during CI/gate runs).
   const result = spawnSync(
     "git",
     ["diff", "--quiet", "--", ".", ":(exclude)docs/project/benchmarks/"],
@@ -202,184 +251,341 @@ export function ensureTestSecret(): string {
   return secret;
 }
 
+// ---------------------------------------------------------------------------
+// Declarative task registry
+// ---------------------------------------------------------------------------
+
 function integrationDatabases(singleDb?: IntegrationDbType): IntegrationDbType[] {
   if (singleDb) return [singleDb];
   return [...INTEGRATION_DB_MATRIX];
 }
 
-function shouldSkipStaticScan(tier: PrecheckTier, profile: ChangeProfile): boolean {
-  if (tier === "full") return false;
-  return !profile.hasSourceCode && !profile.hasInfra;
+/** Builds the RunContext from the tier, profile, and options. */
+export function makeRunContext(
+  tier: PrecheckTier,
+  profile: ChangeProfile,
+  testSecret: string,
+  options: PrecheckOptions,
+): RunContext {
+  return { tier, profile, testSecret, options };
 }
 
-function shouldRunCiSmoke(tier: PrecheckTier, profile: ChangeProfile): boolean {
-  if (tier === "full") return true;
-  return profile.needsCiSmoke;
+// ── Base (static) tasks ─────────────────────────────────────────────────────
+
+const BASE_TASKS: TaskSpec[] = [
+  {
+    name: "Test Config Safety",
+    estimatedMs: 1000,
+    run: () => runCommand("bun", ["run", "scripts/check-test-db-safety.ts"]),
+  },
+  {
+    name: "Format Verification",
+    ciJob: "format",
+    estimatedMs: 3000,
+    remediation: "bun run format",
+    run: () => runCommand("bun", ["run", "format"]),
+  },
+  {
+    name: "Post-Format Tree Clean Check",
+    ciJob: "format",
+    estimatedMs: 500,
+    run: () => {
+      if (hasUnstagedChanges()) {
+        console.error("\n❌ Working tree is dirty after formatting.");
+        console.error("   Run 'bun run format' locally, commit the fixes, and retry.");
+        return false;
+      }
+      return true;
+    },
+  },
+  {
+    name: "Slop Scanner",
+    ciJob: "lint",
+    estimatedMs: 2000,
+    remediation: "bun run slop",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts"]),
+  },
+  {
+    name: "Import Validation",
+    ciJob: "lint",
+    estimatedMs: 3000,
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
+  },
+  {
+    name: "Lint (oxlint)",
+    ciJob: "lint",
+    estimatedMs: 5000,
+    remediation: "bun run lint",
+    run: () => runCommand("bun", ["run", "lint"]),
+  },
+  {
+    name: "Admin Theme Lint",
+    ciJob: "lint",
+    estimatedMs: 3000,
+    remediation: "bun run lint:admin-theme",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasAdminTheme,
+    run: () => runCommand("bun", ["run", "lint:admin-theme"]),
+  },
+  {
+    name: "Docs Lint",
+    // Always runs — no corresponding CI job (local-only validation)
+    estimatedMs: 2000,
+    run: () => runCommand("bun", ["run", "lint:docs"]),
+  },
+  {
+    name: "Benchmark MDX Lint",
+    // Always runs — no corresponding CI job (local-only validation)
+    estimatedMs: 2000,
+    run: () => runCommand("bun", ["run", "lint:benchmark-mdx"]),
+  },
+  {
+    name: "Dependency Audit (high CVE)",
+    ciJob: "security-audit",
+    estimatedMs: 30000,
+    shouldSkip: (ctx) => {
+      if (ctx.tier === "full") return false;
+      return !ctx.profile.paths.some((f) => f === "package.json" || f === "bun.lock");
+    },
+    run: () =>
+      runCommand("bun", ["audit", "--severity=high"], {
+        timeout: 120_000,
+      }),
+  },
+  {
+    name: "Format + Lint Check",
+    ciJob: "check",
+    estimatedMs: 15000,
+    remediation: "bun run check",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () => runCommand("bun", ["run", "check"]),
+  },
+  {
+    name: "Full Unit Tests",
+    ciJob: "unit",
+    estimatedMs: 60000,
+    remediation: "bun test --reporter=verbose",
+    run: () => runCommand("bun", ["run", "test:unit"], { timeout: 600_000 }),
+  },
+  {
+    name: "Production Build",
+    ciJob: "build",
+    estimatedMs: 120000,
+    remediation: "bun run build",
+    shouldSkip: (ctx) => ctx.tier !== "full" && ctx.profile.paths.length === 0,
+    run: () =>
+      runCommand("bun", ["run", "build"], {
+        env: { COMPILE_ALL_ADAPTERS: "true" },
+        timeout: 600_000,
+      }),
+  },
+];
+
+// ── DB tasks ─────────────────────────────────────────────────────────────────
+
+/**
+ * Shared runner for integration and benchmark DB tasks.
+ * Eliminates the ~60-line duplicated block that existed in the old
+ * imperative buildPrecheckTasks.
+ */
+function runDbTask(
+  db: IntegrationDbType,
+  kind: "integration" | "benchmark",
+  ctx: RunContext,
+): boolean | Promise<boolean> {
+  if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
+    const port = getDefaultDbPort(db);
+    console.error(`\n❌ ${db} is not reachable at 127.0.0.1:${port}.`);
+    console.error(
+      `   Start Docker: docker compose -f tests/docker-compose.yml --profile ${db} up -d`,
+    );
+    return false;
+  }
+
+  const timeout = db === "mongodb" || db === "mariadb" ? 900_000 : 600_000;
+
+  if (kind === "integration") {
+    return runCommand(
+      "bun",
+      ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"],
+      {
+        env: {
+          ...getIntegrationTestEnv(db),
+          TEST_API_SECRET: ctx.testSecret,
+          ADMIN_PASSWORD: "Password123!",
+        },
+        timeout,
+      },
+    );
+  }
+
+  return runCommand("bun", ["run", "scripts/run-core-benchmarks.ts", `--db=${db}`], {
+    env: getBenchmarkTestEnv(db, { TEST_API_SECRET: ctx.testSecret }),
+    timeout,
+  });
 }
 
-function shouldRunDependencyAudit(tier: PrecheckTier, profile: ChangeProfile): boolean {
-  if (tier === "full") return true;
-  return profile.paths.some((f) => f === "package.json" || f === "bun.lock");
+/**
+ * Creates integration + benchmark task specs for a single DB adapter.
+ * All skip logic lives within the spec so there is no external conditional.
+ */
+function createDbTasks(db: IntegrationDbType): TaskSpec[] {
+  return [
+    {
+      name: `Integration (${db})`,
+      ciJob: `db-tests (${db})`,
+      estimatedMs: 180000,
+      shouldSkip: (ctx) => {
+        const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+        return !includeDb;
+      },
+      run: (ctx) => runDbTask(db, "integration", ctx),
+    },
+    {
+      name: `Benchmarks (${db})`,
+      ciJob: `bench-core (${db})`,
+      estimatedMs: 120000,
+      shouldSkip: (ctx) => {
+        if (ctx.options.skipBenchmarks) return true;
+        const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+        return !includeDb;
+      },
+      run: (ctx) => runDbTask(db, "benchmark", ctx),
+    },
+  ];
 }
 
-/** Build the ordered task list for a precheck run. */
+// ---------------------------------------------------------------------------
+// Resolver — converts declarative specs into executable Task[]
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the ordered task list for a precheck run.
+ *
+ * Base tasks always appear in the order defined in BASE_TASKS.
+ * DB tasks are appended per adapter.
+ */
 export function buildPrecheckTasks(
   tier: PrecheckTier,
   profile: ChangeProfile,
   testSecret: string,
-  options: Pick<PrecheckOptions, "skipBenchmarks" | "singleDb"> = {},
+  options: Pick<PrecheckOptions, "skipBenchmarks" | "singleDb" | "includeDbTasks"> = {},
 ): Task[] {
-  const runSmoke = shouldRunCiSmoke(tier, profile);
-  const skipStatic = (() => shouldSkipStaticScan(tier, profile))();
-  const databases = integrationDatabases(options.singleDb);
+  const ctx: RunContext = {
+    tier,
+    profile,
+    testSecret,
+    options: {
+      tier,
+      changedPaths: profile.paths,
+      ...options,
+    },
+  };
 
-  const tasks: Task[] = [
-    {
-      name: "Test Config Safety",
-      run: () => runCommand("bun", ["run", "scripts/check-test-db-safety.ts"]),
-    },
-    {
-      name: "Format Verification",
-      ciJob: "format",
-      run: () => runCommand("bun", ["run", "format"]),
-    },
-    {
-      name: "Post-Format Tree Clean Check",
-      ciJob: "format",
-      run: () => {
-        if (hasUnstagedChanges()) {
-          console.error("\n❌ Working tree is dirty after formatting.");
-          console.error("   Run 'bun run format' locally, commit the fixes, and retry.");
-          return false;
-        }
-        return true;
-      },
-    },
-    {
-      name: "Slop Scanner",
-      ciJob: "lint",
-      skip: () => skipStatic,
-      run: () => runCommand("bun", ["run", "scripts/slop-scanner.ts"]),
-    },
-    {
-      name: "Import Validation",
-      ciJob: "lint",
-      skip: () => skipStatic,
-      run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
-    },
-    {
-      name: "Lint (oxlint)",
-      ciJob: "lint",
-      run: () => runCommand("bun", ["run", "lint"]),
-    },
-    {
-      name: "Admin Theme Lint",
-      ciJob: "lint",
-      skip: () => tier === "push" && !profile.hasAdminTheme,
-      run: () => runCommand("bun", ["run", "lint:admin-theme"]),
-    },
-    {
-      name: "Docs Lint",
-      ciJob: "docs-lint",
-      skip: () => tier === "push" && !profile.hasDocs,
-      run: () => runCommand("bun", ["run", "lint:docs"]),
-    },
-    {
-      name: "Benchmark MDX Lint",
-      ciJob: "docs-lint",
-      skip: () => tier === "push" && !profile.hasDocs,
-      run: () => runCommand("bun", ["run", "lint:benchmark-mdx"]),
-    },
-    {
-      name: "Dependency Audit (high CVE)",
-      ciJob: "security-audit",
-      skip: () => !shouldRunDependencyAudit(tier, profile),
-      run: () =>
-        runCommand("bun", ["audit", "--severity=high"], {
-          timeout: 120_000,
-        }),
-    },
-    {
-      name: "Format + Lint Check",
-      ciJob: "check",
-      skip: () => skipStatic,
-      run: () => runCommand("bun", ["run", "check"]),
-    },
-    {
-      name: "Full Unit Tests",
-      ciJob: "unit",
-      run: () => runCommand("bun", ["run", "test:unit"], { timeout: 600_000 }),
-    },
-    {
-      name: "Production Build",
-      ciJob: "build",
-      skip: () => !runSmoke,
-      run: () =>
-        runCommand("bun", ["run", "build"], {
-          env: { COMPILE_ALL_ADAPTERS: "true" },
-          timeout: 600_000,
-        }),
-    },
-    ...databases.flatMap((db) => [
-      {
-        name: `Integration (${db})`,
-        ciJob: `db-tests (${db})`,
-        skip: true, // DB matrix runs in CI only (ci:local / verify:full)
-        run: () => {
-          if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
-            const port = getDefaultDbPort(db);
-            console.error(`\n❌ ${db} is not reachable at 127.0.0.1:${port}.`);
-            console.error(
-              `   Start Docker: docker compose -f tests/docker-compose.yml --profile ${db} up -d`,
-            );
-            return false;
-          }
+  const dbs = integrationDatabases(options.singleDb);
+  const dbSpecs = dbs.flatMap((db) => createDbTasks(db));
 
-          const timeout = db === "mongodb" || db === "mariadb" ? 900_000 : 600_000;
-          return runCommand(
-            "bun",
-            ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"],
-            {
-              env: {
-                ...getIntegrationTestEnv(db),
-                TEST_API_SECRET: testSecret,
-                ADMIN_PASSWORD: "Password123!",
-              },
-              timeout,
-            },
-          );
-        },
-      } satisfies Task,
-      {
-        name: `Benchmarks (${db})`,
-        ciJob: `bench-core (${db})`,
-        skip: true, // Benchmarks run in CI only (ci:local / verify:full)
-        run: () => {
-          if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
-            const port = getDefaultDbPort(db);
-            console.error(`\n❌ ${db} is not reachable at 127.0.0.1:${port}.`);
-            console.error(
-              `   Start Docker: docker compose -f tests/docker-compose.yml --profile ${db} up -d`,
-            );
-            return false;
-          }
+  const allSpecs = [...BASE_TASKS, ...dbSpecs];
 
-          const timeout = db === "mongodb" || db === "mariadb" ? 900_000 : 600_000;
-          return runCommand("bun", ["run", "scripts/run-core-benchmarks.ts", `--db=${db}`], {
-            env: getBenchmarkTestEnv(db, { TEST_API_SECRET: testSecret }),
-            timeout,
-          });
-        },
-      } satisfies Task,
-    ]),
-  ];
-
-  return tasks;
+  return allSpecs
+    .filter((spec) => !spec.shouldInclude || spec.shouldInclude(ctx))
+    .map(
+      (spec): Task => ({
+        name: spec.name,
+        ciJob: spec.ciJob,
+        estimatedMs: spec.estimatedMs,
+        remediation: spec.remediation,
+        skip: spec.shouldSkip ? spec.shouldSkip(ctx) : false,
+        run: () => spec.run(ctx),
+      }),
+    );
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 export function resolveActiveTasks(tasks: Task[]): Task[] {
   return tasks.filter((t) => {
     if (typeof t.skip === "function") return !t.skip();
     return !t.skip;
   });
+}
+
+/**
+ * Debug helper — returns a plan summary without running anything.
+ * Useful for logging at the start of a precheck run and for testing
+ * task selection logic.
+ */
+export function getPrecheckPlan(
+  tier: PrecheckTier,
+  profile: ChangeProfile,
+  testSecret: string,
+  options: Pick<PrecheckOptions, "skipBenchmarks" | "singleDb" | "includeDbTasks"> = {},
+): { totalEstimatedMs: number; taskNames: string[]; skipped: string[] } {
+  const tasks = buildPrecheckTasks(tier, profile, testSecret, options);
+  const active = resolveActiveTasks(tasks);
+  return {
+    totalEstimatedMs: active.reduce((sum, t) => sum + (t.estimatedMs ?? 0), 0),
+    taskNames: active.map((t) => t.name),
+    skipped: tasks.filter((t) => t.skip).map((t) => t.name),
+  };
+}
+
+/**
+ * Validates that every task's ciJob field corresponds to an actual job
+ * name in .github/workflows/ci.yml.  Skips matrix jobs (names containing
+ * parentheses like "db-tests (sqlite)") since those are generated dynamically.
+ *
+ * Only runs locally (skipped in CI).  Requires no external dependencies —
+ * uses a simple regex scan of the YAML file.
+ */
+export function validateCiParity(): void {
+  if (process.env.CI) return;
+
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const workflowPath = path.join(ROOT, ".github", "workflows", "ci.yml");
+
+  let workflowText: string;
+  try {
+    workflowText = fs.readFileSync(workflowPath, "utf8");
+  } catch {
+    return; // file not found — not blocking
+  }
+
+  // Extract all top-level job names from ci.yml
+  // Matches lines like "  security-audit:" or "  bench-core:"
+  const jobNameRx = /^  ([a-z][a-z0-9-]+):\s*$/gm;
+  const ciJobNames = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = jobNameRx.exec(workflowText)) !== null) {
+    ciJobNames.add(m[1]);
+  }
+
+  // Scan all task specs for mismatched ciJob values
+  const mismatches: string[] = [];
+
+  for (const spec of BASE_TASKS) {
+    if (!spec.ciJob) continue;
+    if (!ciJobNames.has(spec.ciJob) && !spec.ciJob.includes("(")) {
+      mismatches.push(`  "${spec.name}" → ciJob="${spec.ciJob}" (no matching job in ci.yml)`);
+    }
+  }
+
+  // Also scan DB tasks for patterns
+  const dbJobPatterns = ["db-tests", "bench-core"];
+  for (const pattern of dbJobPatterns) {
+    if (!ciJobNames.has(pattern)) {
+      mismatches.push(`  DB pattern "${pattern}" — no matching job in ci.yml`);
+    }
+  }
+
+  if (mismatches.length > 0) {
+    console.warn("\n⚠️  ciJob parity check — mismatches found:");
+    console.warn("   These ciJob values do not match any job name in ci.yml:\n");
+    for (const msg of mismatches) console.warn(msg);
+    console.warn("\n   Update the ciJob field or the ci.yml job name to keep them aligned.\n");
+  }
 }

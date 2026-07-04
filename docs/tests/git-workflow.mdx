@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-03"
+updated: "2026-07-04"
 tags:
   - "git"
   - "workflow"
@@ -64,32 +64,29 @@ Each task maps to a `ci.yml` job (`format`, `unit`, `db-tests`, `bench-core`, et
 
 Fast feedback only. No build, integration, or E2E on commit.
 
-#### Pre-push (~15–45 min) — CI core parity
+#### Pre-push (~1–3 min) — Fast gate with progress dashboard
 
-`.githooks/pre-push` runs `bun run verify:push`. When source, infra, or database files changed:
+`.githooks/pre-push` runs `bun run verify:push` via `scripts/precheck.ts`. Declarative task registry with progress dashboard, adaptive ETA, and error remediation hints:
 
-| Check                                                                | CI job           |
-| :------------------------------------------------------------------- | :--------------- |
-| Format + tree-clean verification                                     | `format`         |
-| Slop scanner + import validation                                     | `lint`           |
-| oxlint + admin-theme lint (if admin routes changed)                  | `lint`           |
-| Docs lint (if docs changed)                                          | `docs-lint`      |
-| `bun audit --severity=high` (if `package.json` / `bun.lock` changed) | `security-audit` |
-| `bun run check`                                                      | `check`          |
-| Full unit tests (**always**)                                         | `unit`           |
-| Production build (`COMPILE_ALL_ADAPTERS`)                            | `build`          |
-| Integration × 4 (sqlite, mongodb, mariadb, postgresql)               | `db-tests`       |
-| Core benchmarks × 4                                                  | `bench-core`     |
+| Check                                                 | CI job           | Est. |
+| :---------------------------------------------------- | :--------------- | :--- |
+| Test Config Safety                                    | —                | 1s   |
+| Format + tree-clean verification                      | `format`         | 3s   |
+| Slop scanner + import validation                      | `lint`           | 5s   |
+| oxlint + admin-theme lint (if admin routes changed)   | `lint`           | 8s   |
+| Docs lint + benchmark MDX lint (always)               | —                | 4s   |
+| `bun audit --severity=high` (if packages changed)     | `security-audit` | 30s  |
+| `bun run check` (type check)                          | `check`          | 15s  |
+| Full unit tests (**always**)                          | `unit`           | 60s  |
+| Production build (`COMPILE_ALL_ADAPTERS`, **always**) | `build`          | 120s |
 
-**Prerequisites:** Docker Desktop with MongoDB (27017), MariaDB (3306), and PostgreSQL (5432) on `127.0.0.1`. Credentials match `src/utils/test-db-credentials.ts` and `tests/docker-compose.yml` image defaults.
+**DB integration + benchmarks are CI-only on push tier.** Opt in with `--include-db-tasks` for local CI simulation.
 
 ```bash
-docker compose -f tests/docker-compose.yml --profile mongodb up -d
-docker compose -f tests/docker-compose.yml --profile mariadb up -d
-docker compose -f tests/docker-compose.yml --profile postgresql up -d
+bun run verify:push                         # pre-push gate
+bun run scripts/precheck.ts --plan          # dry-run — see what WOULD run
+bun run verify:push --include-db-tasks      # push + DB matrix + benchmarks
 ```
-
-**Still runs only on GitHub:** sharded Playwright E2E (`e2e-wizard`, `e2e-auth`, `e2e-app`).
 
 ---
 
@@ -194,7 +191,7 @@ SveltyCMS uses a **three-tier testing strategy** that balances developer velocit
 ```mermaid
 flowchart LR
     A["git commit"] -->|"< 3s"| B["Pre-Commit<br/>lint-staged<br/>+ DB safety"]
-    C["git push"] -->|"15–45 min"| D["Pre-Push precheck<br/>build + 4-DB<br/>+ benchmarks"]
+    C["git push"] -->|"1–3 min"| D["Pre-Push precheck<br/>build + unit tests<br/>+ progress dashboard"]
     E["bun run ci:local"] -->|"30–60 min"| F["Full CI<br/>precheck:full + E2E"]
 ```
 
@@ -214,12 +211,14 @@ Runs automatically on every `git commit`. Target: **~2–3 seconds** on staged f
 
 Runs automatically on every `git push` via `bun run verify:push`. Catches the same integration and benchmark failures that previously only surfaced on GitHub (e.g. MariaDB JSON encoding, PostgreSQL credential drift).
 
-| Check                             | Tool                                  |
-| :-------------------------------- | :------------------------------------ |
-| Full static analysis + unit tests | `precheck-shared.ts` manifest         |
-| Production build                  | `vite build` + `COMPILE_ALL_ADAPTERS` |
-| 4-DB integration                  | `run-integration-tests.ts --no-build` |
-| Core benchmarks × 4               | `run-core-benchmarks.ts`              |
+| Check                             | Tool                                      |
+| :-------------------------------- | :---------------------------------------- |
+| Full static analysis + unit tests | `precheck-shared.ts` declarative registry |
+| Production build                  | `vite build` + `COMPILE_ALL_ADAPTERS`     |
+| Progress dashboard with ETA       | Adaptive correction factor                |
+| ciJob parity validation           | `validateCiParity()` scans `ci.yml`       |
+
+**DB integration + benchmarks are CI-only on push tier.** Use `--include-db-tasks` to opt in locally, or run `bun run verify:full` (local CI parity).
 
 Manual equivalent: `bun run gate` or `bun run verify:push`.
 
@@ -296,8 +295,8 @@ All scripts in `scripts/` and their role in the testing pipeline:
 
 1.  **Stage changes**: `git add .`
 2.  **Commit**: `git commit -m "feat(auth): add OAuth2 support"` — pre-commit lint-staged runs automatically.
-3.  **Push**: `bun run git push origin feat/my-feature` — pre-push precheck runs build + 4-DB integration + benchmarks.
-4.  **Before PR**: Run `bun run ci:local` (or `bun run verify:full --skip-e2e` for faster DB-only parity).
+3.  **Push**: `bun run git push origin feat/my-feature` — pre-push precheck runs with progress dashboard, adaptive ETA, and error remediation hints.
+4.  **Before PR**: Run `bun run verify:full` for local CI parity, or `bun run ci:local` for full E2E simulation.
 
 ### Manual Verification
 

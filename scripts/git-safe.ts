@@ -75,11 +75,13 @@ function main() {
         }
         if (subcommand === "push") {
           console.error("║  Pre-push fails? Run the full gate locally:                  ║");
-          console.error("║    bun run scripts/quality-gate.ts                           ║");
+          console.error("║    bun run verify:push                                       ║");
+          console.error("║    bun run scripts/precheck.ts --plan     (dry-run)          ║");
           console.error("║                                                              ║");
         }
-        console.error("║  True emergency? Use raw git with --no-verify (explicit):    ║");
-        console.error("║    /usr/bin/git " + subcommand + " --no-verify ...           ║");
+        console.error("║  True emergency? Use raw system git with --no-verify:       ║");
+        const rawPath = IS_WINDOWS ? "git.exe" : "/usr/bin/git";
+        console.error(`║    ${rawPath} ${subcommand} --no-verify ...                  ║`);
         console.error("║  This bypass is logged and will be visible in your shell.    ║");
         console.error("║                                                              ║");
         console.error("╚══════════════════════════════════════════════════════════════╝");
@@ -88,15 +90,15 @@ function main() {
       }
     }
 
-    // Warn if hooks might not be configured
-    if (subcommand === "commit") {
+    // Warn if hooks might not be configured (commit and push)
+    if (subcommand === "commit" || subcommand === "push") {
       const hookPath = checkHooksConfig();
       if (!hookPath) {
         console.error("");
         console.error("⚠️  Git hooks path is not set to .githooks/");
         console.error("   Run: git config core.hooksPath .githooks");
         console.error("");
-        console.error("   Without this, pre-commit checks won't run.");
+        console.error("   Without this, pre-commit and pre-push checks won't run.");
         console.error("   Continuing anyway (CI will catch issues)...");
         console.error("");
       }

@@ -4,7 +4,8 @@
 # =============================================================================
 # Runs scripts/precheck.ts (push tier) before code reaches GitHub:
 #   • format, lint, slop, imports, unit tests (always)
-#   • production build (when code/infra changed)
+#   • production build (always on any change)
+#   • progress dashboard with ETA, per-task timing, and error remediation
 #
 # 4-DB integration + benchmarks run in CI only (bun run ci:local for local).
 #
@@ -19,7 +20,7 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     SveltyCMS Pre-Push — Fast Gate (build + unit tests)     ║"
+echo "║   SveltyCMS Pre-Push — Fast Gate + Progress Dashboard       ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 

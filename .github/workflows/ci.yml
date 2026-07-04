@@ -1,5 +1,20 @@
 name: CI
 
+# CI Workflow for SveltyCMS
+#
+# Local developer entry points (recommended):
+#   bun run verify:push     # fast pre-push gate (static analysis, unit tests, build)
+#   bun run verify:full     # local CI parity (push tasks + DB matrix + benchmarks)
+#   bun run ci:local        # full local simulation (includes Playwright E2E)
+#   bun run scripts/precheck.ts --plan    # inspect what WOULD run (dry-run)
+#
+# This workflow is the authoritative full matrix.
+# Local precheck (scripts/precheck*.ts) intentionally omits slow DB + E2E steps
+# on push tier by default. Use --include-db-tasks to opt in locally.
+#
+# Job-to-local-task mapping is maintained via ciJob fields in
+# scripts/precheck-shared.ts (BaseTasks / createDbTasks).
+
 on:
   push:
     branches: [main, next]
@@ -186,7 +201,8 @@ jobs:
   # ------------------------------------------------
   build:
     name: 🏗️ Build
-    needs: bootstrap
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: [bootstrap, check, unit]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -392,6 +408,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         if: always()
+        continue-on-error: true
         with:
           name: playwright-report-Wizard-Auth
           path: tests/playwright-report
@@ -400,6 +417,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         if: always()
+        continue-on-error: true
         with:
           name: preview-log-prep
           path: preview.log
@@ -599,6 +617,7 @@ jobs:
           path: docs/project/benchmarks
           merge-multiple: true
       - name: Generate CI Summary
+        continue-on-error: true
         run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 
   # ------------------------------------------------
