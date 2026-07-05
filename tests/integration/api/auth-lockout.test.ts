@@ -17,7 +17,7 @@ describe("Authentication Lockout Integration", () => {
     testUserEmail = `lockout-test-${generateUUID()}@example.com`;
 
     // Create a specific user for lockout testing using the admin context
-    const createUserRes = await safeFetch(`${API_BASE_URL}/api/users`, {
+    const createUserRes = await safeFetch(`${API_BASE_URL}/api/user`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -57,6 +57,7 @@ describe("Authentication Lockout Integration", () => {
           email: testUserEmail,
           password: "WrongPassword123!",
         }),
+        skipTestSecret: true,
       });
       // Should be 401 or similar for failed login
       expect(res.status).toBeGreaterThanOrEqual(400);
@@ -73,6 +74,7 @@ describe("Authentication Lockout Integration", () => {
         email: testUserEmail,
         password: "WrongPassword123!",
       }),
+      skipTestSecret: true,
     });
 
     // Auth lockout typically returns 423 Locked or 429 Too Many Requests or 403
@@ -89,6 +91,7 @@ describe("Authentication Lockout Integration", () => {
         email: testUserEmail,
         password: testUserPassword,
       }),
+      skipTestSecret: true,
     });
 
     // Even with the correct password, the account is locked, so login must fail

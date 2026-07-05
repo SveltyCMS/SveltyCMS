@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const isBun = typeof Bun !== "undefined";
+const isBun = typeof (globalThis as any).Bun !== "undefined";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -49,7 +49,9 @@ describe("benchmark-db-purge", () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "svelty-db-purge-"));
     const dbPath = path.join(tmpDir, "sveltycms.db");
 
+    // @ts-ignore
     const { Database } = await import("bun:sqlite");
+    const db = new Database(dbPath);
     db.exec(`CREATE TABLE collection_posts (data TEXT)`);
     db.exec(`CREATE TABLE collection_mockcollection0 (data TEXT)`);
     db.exec(`CREATE TABLE collection_BenchmarkStable (data TEXT)`);

@@ -142,7 +142,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
 
   const tenantId =
     (event.locals as any).tenantId ||
-    event.request.headers.get("x-tenant-id") ||
+    ((event.locals as any).user ? event.request.headers.get("x-tenant-id") : null) ||
     getTenantIdFromHostname(event.url.hostname, true) ||
     "default";
 

@@ -1,0 +1,62 @@
+{
+  "name": "@sveltycms/widgets",
+  "version": "0.0.7",
+  "description": "SveltyCMS Widget System — type-safe widget factory, validation, and core widget components for building custom content fields.",
+  "keywords": [
+    "cms",
+    "content-management",
+    "headless-cms",
+    "svelte",
+    "sveltekit",
+    "typescript",
+    "widgets"
+  ],
+  "homepage": "https://sveltycms.com",
+  "license": "BUSL-1.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SveltyCMS/SveltyCMS",
+    "directory": "packages/widgets"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./factory": {
+      "types": "./src/factory.ts",
+      "import": "./src/factory.ts",
+      "default": "./src/factory.ts"
+    },
+    "./types": {
+      "types": "./src/widget-types.ts",
+      "import": "./src/widget-types.ts",
+      "default": "./src/widget-types.ts"
+    },
+    "./validation": {
+      "types": "./src/validation.ts",
+      "import": "./src/validation.ts",
+      "default": "./src/validation.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@sveltycms/core": "*",
+    "svelte": "^5.0.0",
+    "typescript": ">=5.0.0",
+    "valibot": "^1.4.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  }
+}

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:file-document-plus-outline"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-06-27"
+updated: "2026-07-04"
 tags:
   - "documentation"
   - "contributing"
@@ -130,7 +130,7 @@ sequenceDiagram
 ```
 ````
 
-The renderer supports these diagram types: `graph` (flowchart), `sequenceDiagram`, `classDiagram`, `stateDiagram`, `erDiagram`, `gantt`, `pie`, `gitgraph`, `mindmap`, `timeline`, `quadrantChart`, `xyChart`, `journey`.
+The renderer supports these diagram types: `graph` (flowchart), `sequenceDiagram`, `classDiagram`, `stateDiagram`, `erDiagram`, `gantt`, `pie`, `gitgraph`, `mindmap`, `timeline`, `quadrantChart`, `xychart-beta`, `journey`.
 
 > [!WARNING]
 > Do **not** include inline HTML elements inside mermaid blocks — they will not render. Do **not** hardcode hex color values; let the theme engine handle coloring automatically.
@@ -161,6 +161,39 @@ graph TD
 ```
 ````
 `````
+
+#### Enterprise benchmark reports (auto-generated)
+
+Per-database reports in `docs/project/benchmarks/benchmark_<db>.mdx` use a **progressive-disclosure dashboard** — not hand-written prose. The canonical pipeline reference is [Database Performance Benchmarks](../project/benchmarks/index.mdx).
+
+| Zone          | Purpose                                                         | MDX pattern                                                                   |
+| :------------ | :-------------------------------------------------------------- | :---------------------------------------------------------------------------- |
+| **EXECUTIVE** | Pass badge, dimension health, issues-only table, sparklines     | `[!NOTE]` / `[!WARNING]`, collapsed mermaid (`xychart-beta`, `quadrantChart`) |
+| **SUMMARY**   | Current-run overlay vs historical trends (Rule C — never mixed) | Separate `SUMMARY_RUN_OVERLAY` / `SUMMARY_HISTORY` slots                      |
+| **LEDGER**    | Four dimension groups → per-test collapsible truth tables       | Nested `<details>` / `<summary>`, `<!-- SECTION:TAG:START/END -->`            |
+| **METADATA**  | Host reproduction table                                         | Markdown table                                                                |
+
+**Dimension groups** (ledger + executive rollups): Core, API, Scale, Resilience — marked with `<!-- LEDGER_DIMENSION:CORE|API|SCALE|RESILIENCE:START/END -->`.
+
+**Record modes:**
+
+| Mode      | Trigger                                     | MDX writes                           |
+| :-------- | :------------------------------------------ | :----------------------------------- |
+| `none`    | `bun test` (default)                        | None — console only                  |
+| `history` | `BENCHMARK_HISTORY_ONLY=1`                  | SQLite history only                  |
+| `partial` | `BENCHMARK_RECORD=1 bun test …`             | Ledger + summary + partial executive |
+| `full`    | `bun run scripts/benchmark-matrix/index.ts` | All zones + full executive           |
+
+> [!CAUTION]
+> **Do not hand-edit** zone interiors in `benchmark_*.mdx`. Writers in `tests/benchmarks/modules/benchmark-mdx.ts` replace content between markers surgically. Regenerate shells with `bun run scripts/benchmark-matrix/generate-benchmark-reports.ts --force-all`, or let the matrix / `BENCHMARK_RECORD=1` populate results.
+
+**HTML `<details>` in benchmark reports:** Nested collapsibles are required for enterprise ledger UX. This is intentional for auto-generated benchmark MDX only — avoid raw HTML collapsibles in hand-written guides unless necessary.
+
+**Validate report shape after benchmark runs:**
+
+```bash
+bun run lint:benchmark-mdx
+```
 
 ---
 
@@ -540,6 +573,7 @@ Before opening a PR, verify every item:
 - [ ] Tags are lowercase and kebab-case
 - [ ] Linter passes: `bun run lint-docs` and `bun run slop`
 - [ ] **Test suite passes**: All unit tests are green (`bun run test:unit`)
+- [ ] **If `docs/project/benchmarks/benchmark_*.mdx` changed**: changes came from the pipeline (not manual zone edits) and `bun run lint:benchmark-mdx` passes
 - [ ] **If `src/stores/widget-store.svelte.ts` or widget handler changed**: `docs/reference/api/system.mdx` updated in this same PR
 - [ ] Rendered correctly in the CMS preview (no broken mermaid, no stray formatting)
 
@@ -561,3 +595,4 @@ Before opening a PR, verify every item:
 - [Admin Style Guide](./style-guide-gui.mdx)
 - [Widget Development Guide](../development/widgets/index.mdx)
 - [Validation Pipeline](./validation-pipeline.mdx)
+- [Database Performance Benchmarks](../project/benchmarks/index.mdx)

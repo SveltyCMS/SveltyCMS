@@ -32,6 +32,18 @@ import { generateSecureToken } from "@utils/native-utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** Strip sensitive fields from user object before sending to client. */
+function sanitizeUserForResponse(user: any) {
+  if (!user) return user;
+  const {
+    password: _password,
+    failedAttempts: _failedAttempts,
+    lockoutUntil: _lockoutUntil,
+    ...safe
+  } = user;
+  return safe;
+}
+
 interface CookieConfig {
   name: string;
   isSecure: boolean;
@@ -49,17 +61,34 @@ export async function handleAuthUserRoutes(
   const { user } = locals;
   const namespace = segments[0];
   const method = segments[1];
+  const reqMethod = request.method.toUpperCase();
+
+  if (reqMethod === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, x-test-secret, x-test-mode, cookie",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
 
   try {
     // ── Root-level GET endpoints ──
     if (!method) {
       switch (namespace) {
         case "auth":
-          return request.method === "GET" ? successResponse(event, user) : notAllowed();
+          return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
         case "user":
-          return request.method === "GET" ? handleListUsers(event, cms, tenantId) : notAllowed();
+          return reqMethod === "GET"
+            ? handleListUsers(event, cms, tenantId)
+            : reqMethod === "POST"
+              ? handleCreateUser(event, cms, tenantId)
+              : notAllowed();
         case "get-tokens-provided":
-          return request.method === "GET"
+          return reqMethod === "GET"
             ? rawResponse(event, {
                 google: !!getPrivateSettingSync("GOOGLE_CLIENT_ID"),
                 twitch: !!getPrivateSettingSync("TWITCH_CLIENT_ID"),
@@ -74,31 +103,23 @@ export async function handleAuthUserRoutes(
     switch (method) {
       // Auth
       case "login":
-        return request.method === "POST"
-          ? handleLogin(event, cms, tenantId, cookies)
-          : notAllowed();
+        return reqMethod === "POST" ? handleLogin(event, cms, tenantId, cookies) : notAllowed();
       case "logout":
-        return request.method === "POST"
-          ? handleLogout(event, cms, tenantId, cookies)
-          : notAllowed();
+        return reqMethod === "POST" ? handleLogout(event, cms, tenantId, cookies) : notAllowed();
 
       // User Management
       case "create-user":
-        return request.method === "POST" ? handleCreateUser(event, cms, tenantId) : notAllowed();
+        return reqMethod === "POST" ? handleCreateUser(event, cms, tenantId) : notAllowed();
       case "update-user-attributes":
-        return request.method === "POST" || request.method === "PUT" || request.method === "PATCH"
+        return reqMethod === "POST" || reqMethod === "PUT" || reqMethod === "PATCH"
           ? handleUpdateUserAttributesRoute(event, cms, tenantId)
           : notAllowed();
       case "save-avatar":
-        return request.method === "POST"
-          ? handleSaveAvatarRoute(event, cms, tenantId)
-          : notAllowed();
+        return reqMethod === "POST" ? handleSaveAvatarRoute(event, cms, tenantId) : notAllowed();
       case "me":
-        return request.method === "GET" ? successResponse(event, user) : notAllowed();
+        return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":
-        return request.method === "POST"
-          ? handleUpdateRoles(event, cms, tenantId, user)
-          : notAllowed();
+        return reqMethod === "POST" ? handleUpdateRoles(event, cms, tenantId, user) : notAllowed();
 
       // Sub-routes
       case "sessions":
@@ -171,7 +192,10 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
     order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
   });
 
-  return raw ? rawResponse(event, result.data) : rawResponse(event, { success: true, ...result });
+  if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
+  return raw
+    ? rawResponse(event, result.data?.data || result.data)
+    : rawResponse(event, { success: true, ...result.data });
 }
 
 /**
@@ -192,14 +216,16 @@ export async function handleLogin(
   if ((event.locals as any).__testBypass) {
     result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
-    result = await cms.auth.login({ email, password }, { tenantId });
+    const loginResult = await cms.auth.login({ email, password }, { tenantId });
+    if (!loginResult.success) throw new AppError(loginResult.message || "Login failed", 401);
+    result = loginResult.data;
   }
 
   setSessionCookie(event, result.session._id);
   generateCsrfToken(cookies, getCookieConfig(event).isSecure);
 
   return successResponse(event, {
-    user: result.user,
+    user: sanitizeUserForResponse(result.user),
     token: result.session._id,
   });
 }
@@ -209,24 +235,36 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
   let userResult;
   try {
     userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
+    console.log(
+      `[BypassDebug] getUserByEmail results for email=${requestedEmail}, tenantId=${tenantId}:`,
+      JSON.stringify(userResult),
+    );
   } catch (e: unknown) {
-    if (!(e instanceof AppError && e.status === 404)) {
-      console.error("🔥 Error in getUserByEmail during test login:", e);
-    }
+    console.error(
+      `[BypassDebug] Error in getUserByEmail during test login for email=${requestedEmail}, tenantId=${tenantId}:`,
+      e,
+    );
   }
 
-  if (userResult && (userResult as any)._id) {
+  if (userResult?.success && userResult.data?._id) {
+    const user = userResult.data;
     const { Auth } = await import("@src/databases/auth");
     const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
     const highLevelAuth = new Auth(cms.db, getDefaultSessionStore());
     const session = await highLevelAuth.createSession({
-      user_id: (userResult as any)._id as DatabaseId,
+      user_id: user._id as DatabaseId,
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
       tenantId: tenantId as DatabaseId,
     });
-    return { user: userResult, session };
+    console.log(
+      `[BypassDebug] Session successfully created in DB for user_id=${user._id}, sessionId=${session._id}`,
+    );
+    return { user, session };
   }
 
+  console.warn(
+    `[BypassDebug] getUserByEmail failed to find user or missing _id. Falling back to dummy mock session.`,
+  );
   return {
     user: {
       _id: "system",

@@ -22,7 +22,6 @@ import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
-	import Badge from '@components/ui/badge.svelte';
 	import StickyActions from '@components/ui/sticky-actions.svelte';
 import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";

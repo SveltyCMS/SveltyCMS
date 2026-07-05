@@ -4,7 +4,7 @@
  *
  * Optimized for:
  * - Security: Captures ALL mutation outcomes (success + failure) for compliance/forensics.
- * - Performance: Macrotask scheduling (setTimeout) prevents microtask queue starvation.
+ * - Performance: Microtask scheduling (Promise.resolve) for non-blocking audit writes.
  * - Correctness: Removed __turboAuth mutation bypass that skipped audit on some sessions.
  */
 

@@ -17,59 +17,30 @@
  */
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
-import type { Role, User } from "@src/databases/auth/types";
+import type { Role } from "@src/databases/auth/types";
 // System Logger
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async (event) => {
   try {
-    const user: User | null = event.locals.user;
+    const user = getAuthenticatedUser(event.locals);
     const roles: Role[] = event.locals.roles || [];
     const isFirstUser: boolean = event.locals.isFirstUser;
     const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
 
-    // If user or roles are missing, log details and return fallback response
-    if (!user) {
-      logger.warn("User object missing in event.locals. Returning fallback response.", {
-        request: event.request.url,
-      });
-      return {
-        user: null,
-        roles: [],
-        isFirstUser: false,
-        is2FAEnabledGlobal: Boolean(getUntypedSetting("USE_2FA")),
-        manageUsersPermissionConfig: {
-          contextId: "config/userManagement",
-          requiredRole: "admin",
-          action: "manage",
-          contextType: "system",
-        },
-        adminData: null,
-        permissions: {
-          "config/adminArea": { hasPermission: false },
-        },
-        error: "User session not found. Please log in again.",
-      };
-    }
-
     // Use isAdmin from authorization hook (handles multi-tenant fallback correctly)
     const isAdmin = event.locals.isAdmin === true;
 
-    // 🚀 The layout already refreshes user data via refreshUser(). Use locals.user
-    // directly instead of a redundant auth.getUserById() DB round-trip.
-    const freshUser = user as User | null;
-
     // Prepare user object for return, ensuring _id is a string and including admin status
-    const safeUser = freshUser
-      ? {
-          ...freshUser,
-          _id: freshUser._id.toString(),
-          password: "[REDACTED]", // Ensure password is not sent to client
-          isAdmin, // Add the properly calculated admin status
-        }
-      : null;
+    const safeUser = {
+      ...user,
+      _id: user._id.toString(),
+      password: "[REDACTED]", // Ensure password is not sent to client
+      isAdmin, // Add the properly calculated admin status
+    };
 
     // Admin data will now be fetched on-demand via API endpoints
     // This improves initial page load performance significantly

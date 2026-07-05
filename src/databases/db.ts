@@ -109,12 +109,27 @@ export const dbInitPromise: Promise<any | null> = new Proxy(Promise.resolve(null
 
 // Lazy Holders for Server-Only Modules
 let _dbInit: any = null;
+let _resilienceIntegration: any = null;
 
 async function getDbInit() {
   if (!_dbInit) {
-    _dbInit = await import("./db-init");
+    // Use variable-based dynamic import to prevent the bundler from statically
+    // resolving this path into the client bundle. db-init.ts pulls in .server.ts
+    // modules (media-service, content/index) that must never reach the browser.
+    const mod = "./db-init";
+    _dbInit = await import(mod);
   }
   return _dbInit;
+}
+
+async function getResilienceIntegration() {
+  if (!_resilienceIntegration) {
+    // Variable-based import to prevent bundler from tracing into client bundle.
+    // resilience-integration.ts → database-resilience.ts → email.server.ts
+    const mod = "./resilience-integration";
+    _resilienceIntegration = await import(mod);
+  }
+  return _resilienceIntegration;
 }
 
 // Centralized, idempotent system initialization.
@@ -171,11 +186,13 @@ export async function ensureFullInitialization(): Promise<any | null> {
 
         // 🚀 INTEGRATION BRIDGE: Use physical file to share data between seeder and server
         const auditFile = "./config/database/integration_audit.sqlite";
-        const mutableCfg = cfg as any;
+        // Clone cfg so we can mutate it (config may be frozen/readonly)
+        let mutableCfg: any = cfg ? Object.assign({}, cfg) : null;
         if (!cfg) {
           cfg = { DB_TYPE: testEngine, host: auditFile } as any;
-        } else if (!mutableCfg.DB_TYPE) {
-          mutableCfg.DB_TYPE = testEngine;
+          mutableCfg = cfg as any;
+        } else {
+          if (!mutableCfg.DB_TYPE) mutableCfg.DB_TYPE = testEngine;
           if (
             mutableCfg.DB_TYPE === "sqlite" &&
             (!mutableCfg.host || mutableCfg.host === ":memory:")
@@ -183,6 +200,14 @@ export async function ensureFullInitialization(): Promise<any | null> {
             mutableCfg.host = auditFile;
           }
         }
+
+        // Allow env vars to override connection params at runtime (benchmarks/integration)
+        if (process.env.DB_NAME) mutableCfg.DB_NAME = process.env.DB_NAME;
+        if (process.env.DB_HOST) mutableCfg.DB_HOST = process.env.DB_HOST;
+        if (process.env.DB_PORT) mutableCfg.DB_PORT = Number(process.env.DB_PORT);
+        if (process.env.DB_USER) mutableCfg.DB_USER = process.env.DB_USER;
+        if (process.env.DB_PASSWORD) mutableCfg.DB_PASSWORD = process.env.DB_PASSWORD;
+        cfg = mutableCfg;
       }
 
       logger.info(`[Boot] Loading adapters for ${cfg?.DB_TYPE}...`);
@@ -190,7 +215,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       if (!adapter) throw new Error("Failed to load database adapter");
       logger.info(`[Boot] Adapter loaded. Connecting...`);
 
-      const { connectDatabaseWithResilience } = await import("./resilience-integration");
+      const { connectDatabaseWithResilience } = await getResilienceIntegration();
       const connectionResult = await connectDatabaseWithResilience(
         adapter,
         `Database Boot (${cfg?.DB_TYPE || "unknown"})`,
@@ -210,7 +235,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
         const reloaded = await dbInit.loadAdapters({ DB_TYPE: type });
         if (reloaded) {
           const { connectDatabaseWithResilience: reconnectWithResilience } =
-            await import("./resilience-integration");
+            await getResilienceIntegration();
           const rehydrate = await reconnectWithResilience(reloaded, "Database Re-hydration");
           if (!rehydrate.success) {
             throw new Error(rehydrate.message || "Database re-hydration failed");

@@ -80,13 +80,21 @@ export class MediaNamespace {
     this.mediaService = new MediaService(_dbAdapter);
   }
 
-  private invalidateCache(tenantId?: DatabaseId | null, fileId?: string) {
-    // Basic invalidation: clear related keys or the whole cache
+  private invalidateCache(tenantId?: DatabaseId | null, fileId?: string, folderId?: string) {
+    const prefix = `${tenantId ?? "global"}:media:`;
     if (fileId) {
-      MediaNamespace._requestCache.delete(`${tenantId ?? "global"}:media:${fileId}`);
+      MediaNamespace._requestCache.delete(`${prefix}${fileId}`);
     }
-    // For simplicity, we often clear larger chunks on folder changes
-    // But for now, we just let TTL handle it or clear specific keys.
+    if (folderId) {
+      const folderPrefix = `${prefix}folder:${folderId}`;
+      for (const key of MediaNamespace._requestCache.keys()) {
+        if (key.startsWith(folderPrefix)) MediaNamespace._requestCache.delete(key);
+      }
+    } else if (!fileId) {
+      for (const key of MediaNamespace._requestCache.keys()) {
+        if (key.startsWith(prefix)) MediaNamespace._requestCache.delete(key);
+      }
+    }
   }
 
   // ── Queries ────────────────────────────────────────────────────────────────

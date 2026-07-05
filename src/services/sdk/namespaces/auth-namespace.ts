@@ -1,9 +1,8 @@
 /**
- * @file src/services/local-cms/auth-namespace.ts
+ * @file src/services/sdk/namespaces/auth-namespace.ts
  * @description Authentication namespace for LocalCMS SDK.
  */
-
-import { AppError } from "@utils/error-handling";
+import { AppError, getErrorMessage } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security/crypto";
 import { parseSessionDuration } from "@utils/security/auth-utils";
@@ -18,6 +17,32 @@ import type {
   ISODateString,
   DatabaseResult,
 } from "@src/databases/db-interface";
+
+/** Local SDK error wrapper — inlined to avoid Rolldown dropping the safe-call chunk in production builds. */
+async function safeCall<T>(fn: () => Promise<T>, context?: string): Promise<DatabaseResult<T>> {
+  try {
+    const data = await fn();
+    return { success: true, data };
+  } catch (err: unknown) {
+    if (err instanceof AppError) {
+      return {
+        success: false,
+        message: err.message,
+        error: {
+          code: (err as AppError & { code?: string }).code || "APP_ERROR",
+          message: err.message,
+        },
+      };
+    }
+    const message = context ? `${context}: ${getErrorMessage(err)}` : getErrorMessage(err);
+    const errorInstance = err instanceof Error ? err : new Error(String(err));
+    return {
+      success: false,
+      message,
+      error: { code: "SDK_ERROR", message: errorInstance.message },
+    };
+  }
+}
 import type { Role } from "@src/databases/auth/types";
 
 import { type LocalApiOptions } from "./types";
@@ -77,202 +102,226 @@ export class AuthNamespace {
       tenantId?: DatabaseId | null;
     } = {},
   ) {
-    const { type = "api", tenantId } = options;
-    return AuthGuardService.validateToken(token, type, {
-      tenantId: (tenantId || undefined) as DatabaseId,
+    return safeCall(async () => {
+      const { type = "api", tenantId } = options;
+      return AuthGuardService.validateToken(token, type, {
+        tenantId: (tenantId || undefined) as DatabaseId,
+      });
     });
   }
 
   async listUsers(options: UserOptions = {}) {
-    const { tenantId, page = 1, limit = 10, search, sort, order } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return safeCall(async () => {
+      const { tenantId, page = 1, limit = 10, search, sort, order } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-    const filter: Record<string, any> = { tenantId: tenantId as DatabaseId };
-    if (search) {
-      filter.$or = [
-        { email: { $regex: search, $options: "i" } },
-        { username: { $regex: search, $options: "i" } },
-      ];
-    }
+      const filter: Record<string, any> = { tenantId: tenantId as DatabaseId };
+      if (search) {
+        filter.$or = [
+          { email: { $regex: search, $options: "i" } },
+          { username: { $regex: search, $options: "i" } },
+        ];
+      }
 
-    const sortOption: any = {};
-    if (sort) {
-      sortOption[sort] = order === "asc" ? 1 : -1;
-    } else {
-      sortOption.createdAt = -1;
-    }
+      const sortOption: any = {};
+      if (sort) {
+        sortOption[sort] = order === "asc" ? 1 : -1;
+      } else {
+        sortOption.createdAt = -1;
+      }
 
-    const [usersResult, totalResult] = await Promise.all([
-      auth.getAllUsers(
-        {
-          filter,
+      const [usersResult, totalResult] = await Promise.all([
+        auth.getAllUsers(
+          {
+            filter,
+            limit,
+            offset: (page - 1) * limit,
+            sort: sortOption,
+          },
+          { tenantId: tenantId as DatabaseId },
+        ),
+        auth.getUserCount(filter, { tenantId: tenantId as DatabaseId }),
+      ]);
+
+      if (!usersResult.success) throw new AppError(usersResult.message, 500);
+      if (!totalResult.success) throw new AppError(totalResult.message, 500);
+
+      return {
+        data: usersResult.data,
+        pagination: {
+          totalItems: totalResult.data,
+          page,
           limit,
-          offset: (page - 1) * limit,
-          sort: sortOption,
+          totalPages: Math.ceil((totalResult.data as number) / limit),
         },
-        { tenantId: tenantId as DatabaseId },
-      ),
-      auth.getUserCount(filter, { tenantId: tenantId as DatabaseId }),
-    ]);
-
-    if (!usersResult.success) throw new AppError(usersResult.message, 500);
-    if (!totalResult.success) throw new AppError(totalResult.message, 500);
-
-    return {
-      data: usersResult.data,
-      pagination: {
-        totalItems: totalResult.data,
-        page,
-        limit,
-        totalPages: Math.ceil((totalResult.data as number) / limit),
-      },
-    };
+      };
+    });
   }
 
   async createUser(userData: any, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const { email, password, confirmPassword } = userData;
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new AppError("Invalid email format", 400);
-    }
-    if (password && confirmPassword && password !== confirmPassword) {
-      throw new AppError("Passwords do not match", 400);
-    }
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    return auth.createUser({ ...userData, tenantId });
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const { email, password, confirmPassword } = userData;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new AppError("Invalid email format", 400);
+      }
+      if (password && confirmPassword && password !== confirmPassword) {
+        throw new AppError("Passwords do not match", 400);
+      }
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
+      return auth.createUser({ ...userData, tenantId });
+    });
   }
 
   async saveAvatar(avatar: string, options: UserUpdateOptions) {
-    const { userId, tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    return auth.updateUserAttributes(
-      userId as DatabaseId,
-      { avatar },
-      { tenantId: tenantId as DatabaseId },
-    );
+    return safeCall(async () => {
+      const { userId, tenantId } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
+      const result = await auth.updateUserAttributes(
+        userId as DatabaseId,
+        { avatar },
+        { tenantId: tenantId as DatabaseId },
+      );
+      if (!result.success) throw new AppError(result.message || "Failed to save avatar", 400);
+      return result.data;
+    });
   }
 
   async getUserByEmail(email: string, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    const result = await auth.getUserByEmail(
-      { email, tenantId },
-      {
-        tenantId: tenantId as DatabaseId,
-      },
-    );
-    if (!result.success || !result.data) {
-      throw new AppError("User not found", 404);
-    }
-    return result.data;
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
+      const result = await auth.getUserByEmail(
+        { email, tenantId },
+        { tenantId: tenantId as DatabaseId },
+      );
+      if (!result.success || !result.data) throw new AppError("User not found", 404);
+      return result.data;
+    });
   }
 
   async deleteUser(userId: string, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    return auth.deleteUser(userId as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
+      return auth.deleteUser(userId as DatabaseId, { tenantId: tenantId as DatabaseId });
     });
   }
 
   async getUserCount(filter: any = {}, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    return auth.getUserCount(filter, {
-      tenantId: tenantId as DatabaseId,
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
+      const result = await auth.getUserCount(filter, {
+        tenantId: tenantId as DatabaseId,
+      });
+      if (!result.success) throw new AppError(result.message || "Failed to get user count", 500);
+      return result.data;
     });
   }
 
   async deleteAvatar(options: UserUpdateOptions) {
-    const { userId, tenantId } = options;
-    const auth = await this.getAuth();
-    return auth.updateUserAttributes(
-      userId as DatabaseId,
-      { avatar: undefined },
-      { tenantId: tenantId as DatabaseId },
-    );
+    return safeCall(async () => {
+      const { userId, tenantId } = options;
+      const auth = await this.getAuth();
+      const result = await auth.updateUserAttributes(
+        userId as DatabaseId,
+        { avatar: undefined },
+        { tenantId: tenantId as DatabaseId },
+      );
+      if (!result.success) throw new AppError(result.message || "Failed to delete avatar", 400);
+      return result.data;
+    });
   }
 
   async getUserById(userId: string, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    const result = await auth.getUserById(userId as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
+      const result = await auth.getUserById(userId as DatabaseId, {
+        tenantId: tenantId as DatabaseId,
+      });
+      if (!result.success || !result.data) {
+        throw new AppError("User not found", 404);
+      }
+      return result.data;
     });
-    if (!result.success || !result.data) {
-      throw new AppError("User not found", 404);
-    }
-    return result.data;
   }
 
   async updateUserAttributes(userId: string, data: any, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const auth = await this.getAuth();
-    return auth.updateUserAttributes(userId as DatabaseId, data, {
-      tenantId: tenantId as DatabaseId,
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const auth = await this.getAuth();
+      const result = await auth.updateUserAttributes(userId as DatabaseId, data, {
+        tenantId: tenantId as DatabaseId,
+      });
+      if (!result.success) throw new AppError(result.message || "Failed to update user", 400);
+      return result.data;
     });
   }
 
   async login(credentials: { email: string; password?: string }, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const { email, password } = credentials;
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const { email, password } = credentials;
 
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-    if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
-      throw new AppError("Tenant ID required for login", 400);
-    }
+      if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+        throw new AppError("Tenant ID required for login", 400);
+      }
 
-    const userLookup: { email: string; tenantId?: DatabaseId | null } = {
-      email,
-    };
-    if (getPrivateSettingSync("MULTI_TENANT") === true)
-      userLookup.tenantId = tenantId as DatabaseId;
+      const userLookup: { email: string; tenantId?: DatabaseId | null } = {
+        email,
+      };
+      if (getPrivateSettingSync("MULTI_TENANT") === true)
+        userLookup.tenantId = tenantId as DatabaseId;
 
-    const result = await auth.getUserByEmail(userLookup);
-    if (!result.success || !result.data) {
-      logger.debug("Login failed: User not found", { userLookup });
-      throw new AppError("Invalid credentials", 401);
-    }
-
-    const user = result.data;
-    if (user.blocked || !user.password) {
-      logger.debug("Login failed: User blocked or no password", {
-        userId: user._id,
-      });
-      throw new AppError("Account suspended or incomplete", 401);
-    }
-
-    if (password) {
-      const isValid = await verifyPassword(user.password, password);
-      if (!isValid) {
-        logger.debug("Login failed: Password mismatch", {
-          userId: user._id,
-          email: user.email,
-        });
+      const result = await auth.getUserByEmail(userLookup);
+      if (!result.success || !result.data) {
+        logger.debug("Login failed: User not found", { userLookup });
         throw new AppError("Invalid credentials", 401);
       }
-    }
 
-    const sessionResult = await auth.createSession({
-      user_id: user._id as DatabaseId,
-      tenantId: tenantId as DatabaseId,
-      expires: new Date(Date.now() + parseSessionDuration("1d")).toISOString() as ISODateString,
+      const user = result.data;
+      if (user.blocked || !user.password) {
+        logger.debug("Login failed: User blocked or no password", {
+          userId: user._id,
+        });
+        throw new AppError("Account suspended or incomplete", 401);
+      }
+
+      if (password) {
+        const isValid = await verifyPassword(user.password, password);
+        if (!isValid) {
+          logger.debug("Login failed: Password mismatch", {
+            userId: user._id,
+            email: user.email,
+          });
+          throw new AppError("Invalid credentials", 401);
+        }
+      }
+
+      const sessionResult = await auth.createSession({
+        user_id: user._id as DatabaseId,
+        tenantId: tenantId as DatabaseId,
+        expires: new Date(Date.now() + parseSessionDuration("1d")).toISOString() as ISODateString,
+      });
+
+      if (!sessionResult.success) {
+        throw new AppError("Failed to create session", 500);
+      }
+
+      return { user, session: sessionResult.data };
     });
-
-    if (!sessionResult.success) {
-      throw new AppError("Failed to create session", 500);
-    }
-
-    return { user, session: sessionResult.data };
   }
 
   async logout(sessionId: string) {
@@ -306,65 +355,74 @@ export class AuthNamespace {
   }
 
   async updateRoles(roles: Role[], options: { user: any; tenantId?: DatabaseId | null }) {
-    const { user, tenantId } = options;
+    return safeCall(async () => {
+      const { user, tenantId } = options;
 
-    const validationResult = await this.validateRoles(roles);
-    if (!validationResult.isValid) {
-      throw new AppError(validationResult.error || "Invalid roles", 400);
-    }
+      const validationResult = await this.validateRoles(roles);
+      if (!validationResult.isValid) {
+        throw new AppError(validationResult.error || "Invalid roles", 400);
+      }
 
-    const auth = await this.getAuth();
-    const existingRoles = await withTenant(
-      (tenantId ?? "") as string,
-      async () => {
-        return await auth.getAllRoles({ tenantId: tenantId as DatabaseId });
-      },
-      { collection: "roles" },
-    );
-    const existingRoleIds = new Set(existingRoles.map((r) => r._id));
-    const incomingRoleIds = new Set(roles.map((r: Role) => r._id));
+      const auth = await this.getAuth();
+      const existingRoles = await withTenant(
+        (tenantId ?? "") as string,
+        async () => {
+          return await auth.getAllRoles({ tenantId: tenantId as DatabaseId });
+        },
+        { collection: "roles" },
+      );
+      const existingRoleIds = new Set(existingRoles.map((r) => r._id));
+      const incomingRoleIds = new Set(roles.map((r: Role) => r._id));
 
-    await withTenant(
-      (tenantId ?? "") as string,
-      async () => {
-        for (const existingRole of existingRoles) {
-          if (!incomingRoleIds.has(existingRole._id)) {
-            await auth.deleteRole(existingRole._id as DatabaseId, {
-              tenantId: tenantId as DatabaseId,
-            });
+      await withTenant(
+        (tenantId ?? "") as string,
+        async () => {
+          for (const existingRole of existingRoles) {
+            if (!incomingRoleIds.has(existingRole._id)) {
+              await auth.deleteRole(existingRole._id as DatabaseId, {
+                tenantId: tenantId as DatabaseId,
+              });
+            }
           }
-        }
 
-        for (const role of roles) {
-          const roleData: Role = {
-            ...role,
-            tenantId: (tenantId || undefined) as DatabaseId | undefined,
-          };
-          if (existingRoleIds.has(role._id)) {
-            await auth.updateRole(role._id as DatabaseId, roleData, {
-              tenantId: tenantId as DatabaseId,
-            });
-          } else {
-            await auth.createRole(roleData);
+          for (const role of roles) {
+            const roleData: Role = {
+              ...role,
+              tenantId: (tenantId || undefined) as DatabaseId | undefined,
+            };
+            if (existingRoleIds.has(role._id)) {
+              await auth.updateRole(role._id as DatabaseId, roleData, {
+                tenantId: tenantId as DatabaseId,
+              });
+            } else {
+              await auth.createRole(roleData);
+            }
           }
-        }
-      },
-      { collection: "roles" },
-    );
+        },
+        { collection: "roles" },
+      );
 
-    invalidateRolesCache(tenantId as DatabaseId);
+      invalidateRolesCache(tenantId as DatabaseId);
 
-    await auditLogService.logEvent({
-      action: "Updated system roles and permissions",
-      actorId: user._id as DatabaseId,
-      actorEmail: user.email,
-      eventType: AuditEventType.USER_ROLE_CHANGED,
-      result: "success",
-      severity: "high",
-      details: { roleCount: roles.length },
+      // Invalidate turbo-auth cache for this user so privilege changes take effect immediately
+      const userId = user._id as string;
+      try {
+        const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+        invalidateTurboAuthForUser(userId);
+      } catch {}
+
+      await auditLogService.logEvent({
+        action: "Updated system roles and permissions",
+        actorId: user._id as DatabaseId,
+        actorEmail: user.email,
+        eventType: AuditEventType.USER_ROLE_CHANGED,
+        result: "success",
+        severity: "high",
+        details: { roleCount: roles.length },
+      });
+
+      return { success: true };
     });
-
-    return { success: true };
   }
 
   private async validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
@@ -398,26 +456,45 @@ export class AuthNamespace {
     action: "delete" | "block" | "unblock",
     options: LocalApiOptions = {},
   ) {
-    const { tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return safeCall(async () => {
+      const { tenantId } = options;
+      const auth = await this.getAuth();
+      if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-    switch (action) {
-      case "delete":
-        return auth.deleteUsers(userIds as DatabaseId[], {
-          tenantId: tenantId as DatabaseId,
-        });
-      case "block":
-        return auth.blockUsers(userIds as DatabaseId[], {
-          tenantId: tenantId as DatabaseId,
-        });
-      case "unblock":
-        return auth.unblockUsers(userIds as DatabaseId[], {
-          tenantId: tenantId as DatabaseId,
-        });
-      default:
-        throw new AppError("Invalid action", 400);
-    }
+      const batchResult = await (() => {
+        switch (action) {
+          case "delete":
+            return auth.deleteUsers(userIds as DatabaseId[], {
+              tenantId: tenantId as DatabaseId,
+            });
+          case "block":
+            return auth.blockUsers(userIds as DatabaseId[], {
+              tenantId: tenantId as DatabaseId,
+            });
+          case "unblock":
+            return auth.unblockUsers(userIds as DatabaseId[], {
+              tenantId: tenantId as DatabaseId,
+            });
+          default:
+            throw new AppError("Invalid action", 400);
+        }
+      })();
+
+      if (!batchResult.success)
+        throw new AppError(batchResult.message || "Batch action failed", 500);
+
+      // Invalidate turbo-auth caches for affected users on block/delete/unblock
+      if (action === "block" || action === "delete" || action === "unblock") {
+        try {
+          const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+          for (const userId of userIds) {
+            invalidateTurboAuthForUser(userId);
+          }
+        } catch {}
+      }
+
+      return batchResult.data;
+    });
   }
 }
 

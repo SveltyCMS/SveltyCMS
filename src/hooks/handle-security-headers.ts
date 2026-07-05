@@ -97,6 +97,10 @@ export function applyAllSecurityHeaders(
   }
 }
 
+// NOTE: This hook is not wired into the main pipeline. Security headers are applied
+// inline via applyAllSecurityHeaders() in handleTurboPipeline, handleTurboGet, and
+// the top-level handle() catch block. Keep this file for the utility export.
+//
 export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
   const { url, request } = event;
   const pathname = url.pathname;

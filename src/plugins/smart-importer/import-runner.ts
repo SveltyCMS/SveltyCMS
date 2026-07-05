@@ -136,8 +136,8 @@ export interface PreparedMigrationEnvelope {
 }
 
 function resolveImportOptions(
-  importOptionsRaw?: string | null,
-  contentTypesRaw?: string | null,
+  importOptionsRaw?: string | null | undefined,
+  contentTypesRaw?: string | null | undefined,
 ): WizardImportOptions {
   const options = parseWizardImportOptions(importOptionsRaw);
   if (!options.contentTypes?.length && contentTypesRaw) {

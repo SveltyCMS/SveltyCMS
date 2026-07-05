@@ -1,4 +1,0 @@
-[
-  { "file": "src/components/collection-display/entry-list.svelte", "category": "rtl" },
-  { "file": "src/routes/(app)/user/components/admin-area.svelte", "category": "rtl" }
-]

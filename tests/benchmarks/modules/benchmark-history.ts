@@ -56,7 +56,7 @@ export function persistRun(entry: HistoryEntry): void {
     const db = getDb();
     db.run(
       "INSERT OR IGNORE INTO runs (run_id, run_mode, test_id, db_type, redis, phase, avg_ms, p95_ms, rps, error_count, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      entry.runId || null,
+      entry.runId ?? (null as any),
       entry.runMode || "standalone",
       entry.testId,
       entry.dbType,
@@ -71,8 +71,8 @@ export function persistRun(entry: HistoryEntry): void {
     // Keep only last 50 runs per test to stay lean
     db.run(
       "DELETE FROM runs WHERE id IN (SELECT id FROM runs WHERE test_id = ? AND db_type = ? ORDER BY id DESC LIMIT -1 OFFSET 50)",
-      entry.testId,
-      entry.dbType,
+      entry.testId as any,
+      entry.dbType as any,
     );
     db.close();
   } catch {
@@ -132,6 +132,21 @@ export function buildBenchmarkMetricId(opts: {
 }): string {
   const redis = opts.redisEnabled ? "redis-on" : "redis-off";
   return `${opts.testId}/${opts.dbType}/${redis}/${opts.phase}/${opts.metric || "avg"}`;
+}
+
+export function loadDistinctTestIds(dbType: string): string[] {
+  try {
+    const db = getDb();
+    const rows = db
+      .query(
+        "SELECT DISTINCT test_id FROM runs WHERE db_type = ? AND status = 'SUCCESS' ORDER BY test_id ASC",
+      )
+      .all(dbType) as { test_id: string }[];
+    db.close();
+    return rows.map((r) => r.test_id);
+  } catch {
+    return [];
+  }
 }
 
 export function closeHistory(): void {

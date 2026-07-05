@@ -1,17 +1,31 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import { writePresetCollectionFiles } from "@src/routes/setup/preset-collections.server";
 import { PRESETS } from "@src/routes/setup/presets";
 
 describe("Setup Presets Integration", () => {
-  const configDir = path.resolve("config/collections");
+  const tenantId = "test-setup-presets";
+  const configDir = path.resolve("config", tenantId, "collections");
+  const compiledDir = path.resolve(".compiledCollections", tenantId);
+  const liveCollectionsDir = path.resolve("config", "collections");
 
-  it("writes blog preset files to config/collections with lowercase slugs", async () => {
+  afterAll(() => {
+    fs.rmSync(path.resolve("config", tenantId), { recursive: true, force: true });
+    fs.rmSync(compiledDir, { recursive: true, force: true });
+  });
+
+  function liveRootSnapshot(): string[] {
+    if (!fs.existsSync(liveCollectionsDir)) return [];
+    return fs.readdirSync(liveCollectionsDir).sort();
+  }
+
+  it("writes blog preset files to an isolated tenant path with lowercase slugs", async () => {
     const blog = PRESETS.find((p) => p.id === "blog");
     expect(blog?.collections?.length).toBeGreaterThan(0);
 
-    await writePresetCollectionFiles(blog!.collections!, { replaceAll: true });
+    const beforeLiveRoot = liveRootSnapshot();
+    await writePresetCollectionFiles(blog!.collections!, { tenantId });
 
     for (const collection of blog!.collections!) {
       const targetFile = path.join(configDir, `${collection.name}.ts`);
@@ -19,12 +33,11 @@ describe("Setup Presets Integration", () => {
       const content = fs.readFileSync(targetFile, "utf-8");
       expect(content).toContain(`_id: "${collection.name}"`);
       expect(content).toContain('import { widgets } from "@src/widgets"');
+
+      const compiledFile = path.join(compiledDir, `${collection.name}.js`);
+      expect(fs.existsSync(compiledFile)).toBe(true);
     }
 
-    // Cleanup generated files from integration test
-    for (const collection of blog!.collections!) {
-      const targetFile = path.join(configDir, `${collection.name}.ts`);
-      if (fs.existsSync(targetFile)) fs.unlinkSync(targetFile);
-    }
+    expect(liveRootSnapshot()).toEqual(beforeLiveRoot);
   });
 });

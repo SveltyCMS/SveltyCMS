@@ -58,19 +58,29 @@ describe("preset-collections.server", () => {
     expect(isMockScanCollection("benchmark_authors")).toBe(false);
   });
 
-  it("purge removes BenchmarkStable source files", async () => {
+  it("purge removes benchmark test workspaces", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
-    const dir = path.resolve("config/collections");
-    await fs.mkdir(dir, { recursive: true });
-    const artifact = path.join(dir, "BenchmarkStable.ts");
-    await fs.writeFile(artifact, "export default {};", "utf-8");
+    const sourceDir = path.resolve("config/collections/test/purge-test");
+    const compiledDir = path.resolve(".compiledCollections/test/purge-test");
+    await fs.mkdir(sourceDir, { recursive: true });
+    await fs.mkdir(compiledDir, { recursive: true });
+    const sourceArtifact = path.join(sourceDir, "BenchmarkStable.ts");
+    const compiledArtifact = path.join(compiledDir, "BenchmarkStable.js");
+    await fs.writeFile(sourceArtifact, "export default {};", "utf-8");
+    await fs.writeFile(compiledArtifact, "export default {};", "utf-8");
 
     const removed = await purgeBenchmarkCollectionArtifacts();
-    expect(removed).toBeGreaterThanOrEqual(1);
+    expect(removed).toBeGreaterThanOrEqual(2);
     expect(
       await fs
-        .access(artifact)
+        .access(sourceArtifact)
+        .then(() => true)
+        .catch(() => false),
+    ).toBe(false);
+    expect(
+      await fs
+        .access(compiledArtifact)
         .then(() => true)
         .catch(() => false),
     ).toBe(false);

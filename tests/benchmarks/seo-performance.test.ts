@@ -21,7 +21,7 @@ import {
   forceRefreshServer,
   stabilize,
   getDbType,
-  TEST_API_SECRET,
+  requireTestingApi,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -42,26 +42,32 @@ async function runSeoAudit() {
     const targetTenant = process.env.TENANT_ID || "global";
     const requestHeaders = {
       "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
       "x-tenant-id": targetTenant,
     };
 
-    // Setup test redirect entry point
-    await fetch(`${baseUrl}/api/testing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...requestHeaders,
-      },
-      body: JSON.stringify({
-        action: "create-redirect",
+    await requireTestingApi(
+      "create-redirect",
+      {
         from: "/old-path-1",
         to: "/api/system/health",
         status: 301,
-      }),
-    });
+      },
+      targetTenant,
+    );
 
-    await forceRefreshServer(baseUrl);
+    await forceRefreshServer(baseUrl, targetTenant);
+
+    const probe = await fetch(`${baseUrl}/old-path-1`, {
+      redirect: "manual",
+      headers: requestHeaders,
+    });
+    if (probe.status !== 301) {
+      const loc = probe.headers.get("location") ?? "none";
+      throw new Error(
+        `SEO setup failed: redirect probe expected 301, got ${probe.status} (Location: ${loc})`,
+      );
+    }
 
     // Warm up server instance and verify routing tables are ready
     await fetch(`${baseUrl}/api/system/health`, { headers: requestHeaders });

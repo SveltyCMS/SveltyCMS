@@ -269,6 +269,14 @@ export async function handleCollectionFind(
   const bypassCache =
     url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
 
+  // Parse populate: comma-separated field names
+  const populateRaw = url.searchParams.get("populate");
+  const populate: string[] | undefined = populateRaw
+    ? populateRaw
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean)
+    : undefined;
   const result = await cms.collections.find(collectionId, {
     tenantId,
     limit,
@@ -278,6 +286,7 @@ export async function handleCollectionFind(
     filter,
     publicationFilter,
     bypassCache,
+    populate,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);
@@ -293,9 +302,17 @@ export async function handleCollectionEntry(
   const bypassCache =
     event.url.searchParams.get("bypassCache") === "true" ||
     event.url.searchParams.get("nocache") === "true";
+  const populateRaw = event.url.searchParams.get("populate");
+  const populate: string[] | undefined = populateRaw
+    ? populateRaw
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean)
+    : undefined;
   const result = await cms.collections.findById(collectionId, entryId, {
     tenantId,
     bypassCache,
+    populate,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);

@@ -1,15 +1,17 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Push Quality Gate — Medium Loop (~15-45s)
+# SveltyCMS Pre-Push — Fast Gate (~5-10s)
 # =============================================================================
-# Runs full type checking, unit tests, and quality scanning before code
-# reaches the remote. This catches broken type contracts and test failures
-# that the fast pre-commit loop (staged-files-only) intentionally skips.
+# Runs scripts/precheck.ts (push tier) before code reaches GitHub:
+#   • format, lint, slop, imports, unit tests (always)
+#   • production build (always on any change)
+#   • progress dashboard with ETA, per-task timing, and error remediation
 #
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push' instead.
-# In a true emergency, use the full path to raw git: /usr/bin/git push --no-verify
+# 4-DB integration + benchmarks run in CI only (bun run ci:local for local).
+#
+# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push'.
 # =============================================================================
-set -e
+set -euo pipefail
 
 if [ "${CI:-false}" = "true" ]; then
     echo "⏩ CI environment detected. Bypassing pre-push gates."
@@ -18,8 +20,8 @@ fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║       SveltyCMS Pre-Push — Medium Loop (~15-45s)           ║"
+echo "║   SveltyCMS Pre-Push — Fast Gate + Progress Dashboard       ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-bun run scripts/quality-gate.ts
+bun run verify:push

@@ -20,7 +20,19 @@ function getSecret(): string {
     const secretPath = join(process.cwd(), "tests/e2e/.auth/test-secret.txt");
     if (existsSync(secretPath)) return readFileSync(secretPath, "utf-8").trim();
   } catch {}
-  return "SVELTYCMS_TEST_SECRET_2026";
+  // No env var or file found — write a deterministic secret to the file so the
+  // server's setup-check.ts getTestSecret() can read the same value. Without
+  // this, the server generates a random secret and the 401 is permanent.
+  const { writeFileSync, mkdirSync } = require("node:fs");
+  const fallback = "SVELTYCMS_TEST_SECRET_2026";
+  const secretPath = join(process.cwd(), "tests/e2e/.auth/test-secret.txt");
+  const secretDir = join(process.cwd(), "tests/e2e/.auth");
+  try {
+    if (!existsSync(secretDir)) mkdirSync(secretDir, { recursive: true });
+    writeFileSync(secretPath, fallback, "utf-8");
+    console.warn(`[test-orch] Wrote fallback secret to ${secretPath}`);
+  } catch {}
+  return fallback;
 }
 
 async function orchRequest(action: string, payload?: Record<string, unknown>, baseUrl?: string) {

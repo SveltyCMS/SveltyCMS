@@ -82,7 +82,6 @@ search filtering, and RTL support.
 	<script module lang="ts">
 		import Badge from '@components/ui/badge.svelte';
 		import Button from '@components/ui/button.svelte';
-		import Loader from '@components/ui/loader.svelte';
 	    export interface TreeItem {
         id: string;
         label?: string;

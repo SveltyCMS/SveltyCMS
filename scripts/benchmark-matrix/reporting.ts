@@ -1,9 +1,25 @@
 /**
- * @file scripts\benchmark-matrix\reporting.ts
- * @description Reporting utility for the benchmark matrix tool.
+ * @file scripts/benchmark-matrix/reporting.ts
+ * @description
+ * Reporting and documentation synchronization layer for the benchmark matrix.
+ *
+ * Takes raw benchmark results, runs regression detection, updates SQLite history,
+ * and performs surgical MDX updates to per-adapter reports in docs/project/benchmarks/.
+ *
+ * > [!IMPORTANT]
+ * > **Empirical Verification Required** (per AGENTS.md):
+ * > After modifying report generation, always run the full matrix and inspect
+ * > the generated MDX reports. The benchmark reports are the public-facing proof
+ * > of SveltyCMS's performance claims.
+ * >
+ * > ```bash
+ * > bun run scripts/benchmark-matrix/index.ts --sql
+ * > # Inspect: docs/project/benchmarks/benchmark_sqlite.mdx
+ * > ```
  */
 
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import { version as pkgVersion } from "../../package.json";
 import { log } from "./logger";
@@ -17,10 +33,42 @@ import {
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
 import { detectRegressions } from "./regression-detector";
-import type { RegressionResult } from "./regression-detector";
-import type { BenchmarkResult, RunConfig } from "./types";
+import type { BenchmarkResult, RunConfig, RegressionResult } from "./types";
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
 import { collectHostInfo } from "./cli";
+import {
+  applyDimensionSummaryToLedger,
+  deduplicateLedgerSections,
+  ensureExecutiveMarkers,
+  EXECUTIVE_MARKERS,
+  extractFirstTagBlock,
+  extractTagInner,
+  extractZone,
+  mapSectionToDimension,
+  type DimensionStatus,
+  type LedgerDimension,
+  LEDGER_DIMENSION_ORDER,
+  patchBenchmarkZones,
+  patchExecutiveAlerts,
+  patchExecutivePartialWatermark,
+  replaceLatestAuditHeading,
+  replaceZone,
+  stripLatestOutsideExecutive,
+  upsertLedgerSection,
+  ZONE_MARKERS,
+} from "../../tests/benchmarks/modules/benchmark-mdx";
+import { writeHistoryArchive } from "../../tests/benchmarks/modules/benchmark-reporting";
+import { analyzeTrend, classifyRootCause } from "../../tests/benchmarks/modules/benchmark-analysis";
+import { loadHistory } from "../../tests/benchmarks/modules/benchmark-history";
+import {
+  buildCollapsedLedgerTagInner,
+  buildExecutiveReport,
+  buildHostEnvironmentTable,
+  formatTestInsightNote,
+  isSpecificInsight,
+  wrapInfrastructureCollapse,
+  type TestRollupEntry,
+} from "../../tests/benchmarks/modules/benchmark-executive";
 
 /**
  * 📂 Robust recursive file discovery helper.
@@ -238,24 +286,19 @@ async function getScriptTrend(
   if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false };
 
   try {
-    // 🚀 SMARTER TREND: Exclude current run and get previous average
+    // SMARTER TREND: Compare against most recent previous run, capped at ±100%
     const row = db
       .query(
-        `
-        SELECT AVG(p95Ms) as avg_val
-        FROM (
-          SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as p95Ms
-          FROM runs
-          WHERE db_key = ? AND status = 'SUCCESS' AND p95Ms > 0
-          ORDER BY timestamp DESC LIMIT 10 OFFSET 1
-        )
-      `,
+        `SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as prev_val
+        FROM runs
+        WHERE db_key = ? AND status = 'SUCCESS'
+        ORDER BY timestamp DESC LIMIT 1 OFFSET 1`,
       )
-      .get(scriptShortLabel, dbKey) as { avg_val: number | null };
+      .get(scriptShortLabel, dbKey) as { prev_val: number | null };
 
-    if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false };
+    if (!row?.prev_val || row.prev_val <= 0) return { icon: "⚪", pct: "—", isRegression: false };
 
-    const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
+    const pct = Math.max(-100, Math.min(100, ((currentVal - row.prev_val) / row.prev_val) * 100));
 
     // 🚀 WINDOWS OPTIMIZATION: Relaxed thresholds for local environments
     const isRegression = pct > 15;
@@ -325,7 +368,7 @@ export async function buildFullAuditLedger(
     const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
 
     const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
-    md += `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n`;
+    md += `### 🏷️ ${script.label} ${trend.icon} ${trend.pct} {#${script.shortLabel.replace(/[^a-zA-Z0-9]/g, "_")}}\n`;
     md += `**Source:** [${script.path}](${relativePath}) | **Intensity:** \`${script.intensity}\`\n`;
     md += `**Proves:** ${script.desc}\n\n`;
 
@@ -538,7 +581,10 @@ export async function generateFinalReport(
     // 🚀 Detect performance regressions — only on CURRENT run's DBs, not stale disk data
     const currentDbKeys = new Set(resultsIn.map((r) => r.db));
     const currentResults = results.filter((r) => currentDbKeys.has(r.db));
-    const perfRegressions = await detectRegressions(currentResults);
+    const result = await detectRegressions(currentResults);
+    const perfRegressions = result.regressions;
+    const _report = result.report;
+    void _report; // available for future callers (flapping, cross-cutting, forecasts)
 
     // 🚀 Update per-database specific technical ledgers
     const hasLock = await acquireLock("mdx_report");
@@ -655,7 +701,7 @@ async function writeRankedExecutiveSummary(
       );
     }
 
-    // Write to the per-DB report
+    // Write ranked regressions into EXECUTIVE alerts slot (replace, never append)
     try {
       const docPath = path.join(
         process.cwd(),
@@ -665,31 +711,31 @@ async function writeRankedExecutiveSummary(
       let doc = await fs.readFile(docPath, "utf8").catch(() => "");
       if (!doc) continue;
 
-      const marker = "## \u{1F4CA} Executive Summary";
-      if (!doc.includes(marker)) continue;
+      const [execStart, execEnd] = ZONE_MARKERS.executive;
+      let executive = extractZone(doc, execStart, execEnd);
+      if (executive === null) continue;
 
-      const nextHeading = doc.indexOf("## ", doc.indexOf(marker) + marker.length);
-      const body = lines.join("\n");
+      executive = patchExecutivePartialWatermark(
+        executive,
+        isPartial
+          ? "> \u{1F4CB} **Partial report** — run full matrix for complete cross-DB analysis."
+          : null,
+      );
+      executive = patchExecutiveAlerts(executive, lines.join("\n"));
 
-      if (nextHeading > 0) {
-        doc =
-          doc.slice(0, doc.indexOf("\n", doc.indexOf(marker)) + 1) +
-          "\n" +
-          body +
-          "\n\n" +
-          doc.slice(nextHeading);
-      } else {
-        doc = doc.slice(0, doc.indexOf("\n", doc.indexOf(marker)) + 1) + "\n" + body + "\n";
-      }
+      const replaced = replaceZone(doc, execStart, execEnd, executive);
+      if (!replaced) continue;
+      doc = stripLatestOutsideExecutive(deduplicateLedgerSections(replaced));
 
-      // Clean up stale temp files from previous crashes
       const dir = path.dirname(docPath);
       const base = path.basename(docPath);
       try {
-        const staleFiles = fs.readdirSync(dir).filter((f) => f.startsWith(base + ".tmp."));
+        const staleFiles = fsSync
+          .readdirSync(dir)
+          .filter((f: string) => f.startsWith(base + ".tmp."));
         for (const sf of staleFiles) {
           try {
-            fs.unlinkSync(path.join(dir, sf));
+            fsSync.unlinkSync(path.join(dir, sf));
           } catch {
             /* best-effort */
           }
@@ -847,9 +893,40 @@ tags:
 > **Performance Verification**: This report is automatically generated by the SveltyCMS Audit engine.
 
 <!-- BENCHMARK_START -->
+
+<!-- EXECUTIVE_START -->
+<!-- LATEST_AUDIT_HEADER -->
+## 📊 Latest Performance Audit
+
+> ⏳ Pending — run full matrix to populate.
+
+<!-- EXECUTIVE_FIX_NOTES_START -->
+### 📝 Fix Overlays
+
+> Phase notes and remediation entries appear here after matrix or surgical runs.
+<!-- EXECUTIVE_FIX_NOTES_END -->
+
+<!-- EXECUTIVE_PARTIAL_WATERMARK -->
+<!-- EXECUTIVE_ALERTS_START -->
+<!-- EXECUTIVE_ALERTS_END -->
+
+<!-- EXECUTIVE_END -->
+
+<!-- SUMMARY_START -->
+
+> ⏳ Pending — derived tables populate after benchmark runs.
+
+<!-- SUMMARY_END -->
+
+<!-- LEDGER_START -->
+
+<!-- LEDGER_END -->
+
 <!-- BENCHMARK_END -->
 `;
     }
+
+    const ledgerScope = extractZone(doc, ZONE_MARKERS.ledger[0], ZONE_MARKERS.ledger[1]) ?? doc;
 
     // Get current results or last historical SUCCESS
     let curr = results.find((r) => r.db === dbKey);
@@ -923,72 +1000,90 @@ tags:
       dbWarningBox += `>\n> *Please investigate potential database adapter performance bottlenecks or environment variance.*\n\n`;
     }
 
-    let headerMd = `\n## 📊 Latest Performance Audit (${timestamp})\n\n${dbWarningBox}`;
-    headerMd += `**Status:** ${status === "SUCCESS" ? "✅ PASS" : "❌ FAIL"}${isHistorical ? " *(Historical)*" : ""}\n\n`;
-
-    // 🚀 ERROR REPORTING
-    if (curr?.error || status === "FAILED") {
-      headerMd += `> [!CAUTION]\n> **Anomalies Detected**: ${curr?.error || "System setup or script execution failed."} See console for stack trace.\n\n`;
-    }
-
-    // 🚀 ENVIRONMENT SHIFT DETECTION
-    if (!isHistorical && restTrend.isRegression && coldTrend.isRegression) {
-      headerMd += `> [!WARNING]\n> **Environment Shift Detected**: Massive latency delta (${restTrend.pct}). If you recently reformatted or changed hardware, this is normal. Run benchmarks again to establish your new baseline.\n\n`;
-    }
-
-    // 🚀 SMART FORMATTING: Show "N/A" for unavailable metrics instead of misleading "0.000ms"
     const fmtMs = (val: number): string => (val > 0 ? val.toFixed(3) + "ms" : "N/A");
     const fmtStatus = (val: number, budget: number): string =>
       val <= 0 ? "⚪ N/A" : val <= budget ? "🟢 PASS" : "🔴 FAIL";
 
-    headerMd += `### ⚡ Executive Latency Matrix\n`;
-    headerMd += `| Scenario | Avg Latency | Trend | Target Budget | Result |\n`;
-    headerMd += `| :--- | :--- | :--- | :--- | :--- |\n`;
-    headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms | ${(curr?.coldStartMs || 0) <= 5000 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **REST (Collections)** | ${fmtMs(m.collections || m.restAvg)} | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${fmtStatus(m.collections || m.restAvg, 5)} |\n`;
-    headerMd += `| **Middleware Hooks** | ${fmtMs(m.hooks)} | ⚪ | < ${PERFORMANCE_BUDGET.hooks}ms | ${fmtStatus(m.hooks, PERFORMANCE_BUDGET.hooks)} |\n`;
-    headerMd += `| **GraphQL (Avg)** | ${fmtMs(m.graphqlAvg)} | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms | ${fmtStatus(m.graphqlAvg, 5)} |\n`;
-    headerMd += `| **Million-Row Index** | ${m.indexPressureStatus === -1 ? "FAILED" : fmtMs(m.indexPressure)} | ⚪ | < 250ms | ${m.indexPressureStatus === -1 ? "🔴 FAIL" : m.indexPressure <= 0 ? "⚪ N/A" : m.indexPressure <= 250 ? "🟢 PASS" : dbKey === "sqlite" ? "🔴 LOCK WALL" : "🔴 FAIL"} |\n`;
-    headerMd += `| **DB Raw (p95)** | ${fmtMs(m.dbRaw)} | ⚪ | < 50ms | ${fmtStatus(m.dbRaw, 50)} |\n`;
-    headerMd += `| **Setup Quality** | ${curr?.coldStartMs && curr.coldStartMs > 0 && curr.coldStartMs < 10000 ? "HEALTHY" : "DEGRADED"} | \u26AA | 100% | ${curr?.coldStartMs && curr.coldStartMs > 0 && curr.coldStartMs < 10000 ? "PASS" : "FAIL"} |\n\n`;
+    let extraWarnings = dbWarningBox;
+    if (curr?.error || status === "FAILED") {
+      extraWarnings += `> [!CAUTION]\n> **Anomalies Detected**: ${curr?.error || "System setup or script execution failed."} See console for stack trace.\n\n`;
+    }
+    if (!isHistorical && restTrend.icon === "🔴" && coldTrend.icon === "🔴") {
+      extraWarnings += `> [!WARNING]\n> **Environment Shift Detected**: Massive latency delta (${restTrend.pct}). Re-run matrix to establish a new baseline.\n\n`;
+    }
 
-    /**
-     * Standardized trend block generator for audit ledgers.
-     */
-    headerMd += await generateTrendBlock(
-      db,
-      dbKey,
-      m,
-      "mixedAvg",
-      "Mixed p95",
-      "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
-      "mixed_workload_aggregate",
-      "mixedAvg",
-      "Mixed Workload Performance",
-    );
+    const latencyRows = [
+      {
+        scenario: "Cold Start",
+        latency: `${curr?.coldStartMs || 0}ms`,
+        trend: `${coldTrend.icon} (${coldTrend.pct})`,
+        budget: "< 5000ms",
+        result: (curr?.coldStartMs || 0) <= 5000 ? "🟢 PASS" : "🔴 FAIL",
+      },
+      {
+        scenario: "REST (Collections)",
+        latency: fmtMs(m.collections || m.restAvg),
+        trend: `${restTrend.icon} (${restTrend.pct})`,
+        budget: "< 5ms",
+        result: fmtStatus(m.collections || m.restAvg, 5),
+      },
+      {
+        scenario: "Middleware Hooks",
+        latency: fmtMs(m.hooks),
+        trend: "⚪",
+        budget: `< ${PERFORMANCE_BUDGET.hooks}ms`,
+        result: fmtStatus(m.hooks, PERFORMANCE_BUDGET.hooks),
+      },
+      {
+        scenario: "GraphQL (Avg)",
+        latency: fmtMs(m.graphqlAvg),
+        trend: `${gqlTrend.icon} (${gqlTrend.pct})`,
+        budget: "< 5ms",
+        result: fmtStatus(m.graphqlAvg, 5),
+      },
+      {
+        scenario: "Million-Row Index",
+        latency: m.indexPressureStatus === -1 ? "FAILED" : fmtMs(m.indexPressure),
+        trend: "⚪",
+        budget: "< 250ms",
+        result:
+          m.indexPressureStatus === -1
+            ? "🔴 FAIL"
+            : m.indexPressure <= 0
+              ? "⚪ N/A"
+              : m.indexPressure <= 250
+                ? "🟢 PASS"
+                : dbKey === "sqlite"
+                  ? "🔴 LOCK WALL"
+                  : "🔴 FAIL",
+      },
+      {
+        scenario: "DB Raw (p95)",
+        latency: fmtMs(m.dbRaw),
+        trend: "⚪",
+        budget: "< 50ms",
+        result: fmtStatus(m.dbRaw, 50),
+      },
+    ];
 
-    headerMd += `### 📈 Historical Latency Trends\n`;
-    headerMd += `\`\`\`mermaid\nxychart-beta\n  title "${meta.label} Latency Trend (last 10 runs)"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "p95 Latency" : [${(() => {
-      const hist = db
-        .query(
-          `SELECT collections_p95 FROM runs WHERE db_key = ? AND status = 'SUCCESS' AND collections_p95 > 0 ORDER BY timestamp DESC LIMIT 10`,
-        )
-        .all(dbKey) as any[];
+    const mermaidHist = db
+      .query(
+        `SELECT collections_p95 FROM runs WHERE db_key = ? AND status = 'SUCCESS' AND collections_p95 > 0 ORDER BY timestamp DESC LIMIT 10`,
+      )
+      .all(dbKey) as Array<{ collections_p95: number }>;
+    const mermaidPoints = mermaidHist.map((h) => h.collections_p95).reverse();
 
-      const points = hist.map((h) => h.collections_p95.toFixed(3)).reverse();
+    const [fixStart, fixEnd] = EXECUTIVE_MARKERS.fixNotes;
+    const execZone = extractZone(doc, ZONE_MARKERS.executive[0], ZONE_MARKERS.executive[1]) ?? "";
+    const existingFixNotes = extractZone(execZone, fixStart, fixEnd) ?? "";
 
-      // Ensure exactly 10 points for the chart baseline
-      if (points.length > 0) {
-        while (points.length < 10) {
-          points.unshift(points[0]);
-        }
-      }
+    const dbType = dbKey.replace("-redis", "");
+    const redisOn = dbKey.includes("redis");
+    const testEntries: TestRollupEntry[] = [];
+    let recordedScripts = 0;
+    let applicableTotal = 0;
 
-      return points.join(", ");
-    })()}]\n\`\`\`\n`;
-
-    // 1. CORE TREND AUDIT
-    headerMd += `\n## 📈 Core Infrastructure Trends\n\n`;
+    let infrastructureMd = `\n## \u{1F4CA} Infrastructure drill-down\n\n`;
 
     const coreTrends = [
       {
@@ -1018,8 +1113,20 @@ tags:
       },
     ];
 
+    infrastructureMd += await generateTrendBlock(
+      db,
+      dbKey,
+      m,
+      "mixedAvg",
+      "Mixed p95",
+      "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
+      "mixed_workload_aggregate",
+      "mixedAvg",
+      "Mixed Workload Performance",
+    );
+
     for (const item of coreTrends) {
-      headerMd += await generateTrendBlock(
+      infrastructureMd += await generateTrendBlock(
         db,
         dbKey,
         m,
@@ -1033,10 +1140,9 @@ tags:
       );
     }
 
-    // 2. ENTERPRISE SCALE AUDIT
-    headerMd += `\n## 🏢 Enterprise Scale Audit\n\n`;
+    infrastructureMd += `\n### Enterprise scale audit\n\n`;
 
-    headerMd += await generateTrendBlock(
+    infrastructureMd += await generateTrendBlock(
       db,
       dbKey,
       m,
@@ -1048,7 +1154,7 @@ tags:
       "Multi-Tenancy Performance",
     );
 
-    headerMd += await generateTrendBlock(
+    infrastructureMd += await generateTrendBlock(
       db,
       dbKey,
       m,
@@ -1060,7 +1166,7 @@ tags:
       "Relational Resolver Latency",
     );
 
-    headerMd += await generateTrendBlock(
+    infrastructureMd += await generateTrendBlock(
       db,
       dbKey,
       m,
@@ -1072,9 +1178,7 @@ tags:
       "Telemetry & Update Performance",
     );
 
-    headerMd += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
-
-    // Reconstruct the internal sections surgically
+    // Patch ledger sections — collapsed `<details>` per test
     for (const script of BENCHMARK_SCRIPTS) {
       const isSql =
         dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
@@ -1084,119 +1188,202 @@ tags:
         (script.strategy === "once" && dbKey === "sqlite");
 
       if (!isApplicable) continue;
+      applicableTotal++;
 
       const timing = curr?.scriptTimings?.[script.shortLabel] || 0;
       const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
-
-      // 🚀 Standardized Tag Generation: use slugified shortLabel for stability
       const tagSlug = script.shortLabel
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "_")
         .toUpperCase();
-      const START_TAG = `<!-- ${tagSlug}_TABLE_START -->`;
-      const END_TAG = `<!-- ${tagSlug}_TABLE_END -->`;
 
-      // Check if we have new data in ROOT_RESULTS_DIR
-      let tableContent = "";
+      const testId = path.basename(script.path).replace(/\.test\.ts$/i, "");
+      const history = loadHistory(testId, dbType, redisOn, "warm");
+      const prior = history.slice(0, -1);
+      const currentSample =
+        history.length > 0
+          ? history[history.length - 1]!
+          : { avgMs: timing, p95Ms: timing, rps: 0 };
+      const analyzed = analyzeTrend(
+        {
+          name: script.shortLabel,
+          avgMs: currentSample.avgMs,
+          p95Ms: currentSample.p95Ms,
+          rps: currentSample.rps,
+        },
+        prior.length > 0 ? prior : history,
+        testId,
+        dbType,
+        redisOn,
+        "warm",
+      );
+      const rootCause = classifyRootCause(
+        analyzed.deltaPct,
+        analyzed.p95DeltaPct,
+        analyzed.rpsDeltaPct,
+        false,
+        analyzed.sampleSize,
+      );
+      const baselineMs = prior.length > 0 ? prior[prior.length - 1]!.avgMs : currentSample.avgMs;
+      const likelyCause =
+        script.codePaths?.[0] || (rootCause.insight.match(/`([^`]+)`/)?.[1] ?? "\u2014");
+      const insightRaw = rootCause.insight;
+      const insight =
+        insightRaw && isSpecificInsight(insightRaw)
+          ? formatTestInsightNote(insightRaw, script.codePaths ?? [])
+          : "";
+
+      testEntries.push({
+        tag: tagSlug,
+        label: script.label,
+        shortLabel: script.shortLabel,
+        path: script.path,
+        section: script.section,
+        avgMs: currentSample.avgMs,
+        baselineMs,
+        deltaPct: analyzed.deltaPct,
+        severity: timing > 0 ? analyzed.severity : "pending",
+        icon: trend.icon,
+        trendLabel: trend.pct,
+        likelyCause,
+        budgetLabel: script.metricCategory === "latency" ? "< 5ms" : "\u2014",
+        codePaths: script.codePaths ?? [],
+        expected: analyzed.severity === "regression" ? "NO \u2014 investigate" : "\u2014",
+        owner: analyzed.severity === "regression" ? "@backend" : "\u2014",
+      });
+
+      let truthBlock = `> \u23F3 **${script.label}**: Pending execution.\n> \uD83C\uDFAF ${script.desc}`;
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
         const allFiles = await findFilesRecursive(dbResultsDir, ".table.txt");
-
         const tableFile = allFiles.find((f) => {
           const baseName = path.basename(f).toLowerCase();
           const targetSlug = script.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, "_");
           return baseName.includes(targetSlug);
         });
-
         if (tableFile) {
           const rawTable = await fs.readFile(tableFile, "utf8");
-          const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
-          // Show the FULL truth table as the benchmark produced it — preserves borders, title, and all data
-          tableContent = `### \uD83C\uDFF7 ${script.label} ${trend.icon} ${trend.pct}\n> \uD83D\uDCC2 **Source**: [${script.path}](${relativePath})\n> \uD83C\uDFAF **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable.trim()}\n\`\`\``;
+          truthBlock = `\`\`\`text\n${rawTable.trim()}\n\`\`\``;
+          recordedScripts++;
         }
-      } catch {}
-
-      // If no new data, try to extract from current document (handling both old and new tag styles)
-      if (!tableContent) {
-        const oldTagSlug = script.shortLabel.split(" ")[0].toUpperCase();
-        const OLD_START_TAG = `<!-- ${oldTagSlug}_TABLE_START -->`;
-        const OLD_END_TAG = `<!-- ${oldTagSlug}_TABLE_END -->`;
-
-        if (doc.includes(START_TAG) && doc.includes(END_TAG)) {
-          tableContent = doc.split(START_TAG)[1].split(END_TAG)[0].trim();
-        } else if (doc.includes(OLD_START_TAG) && doc.includes(OLD_END_TAG)) {
-          tableContent = doc.split(OLD_START_TAG)[1].split(OLD_END_TAG)[0].trim();
-        }
-
-        if (tableContent && tableContent.includes("Pending execution")) {
-          tableContent = "";
-        }
+      } catch {
+        /* best-effort */
       }
 
-      // 🚀 SURGICAL RECOVERY: If still no content, look back into history.sqlite
-      if (!tableContent) {
-        try {
-          const historical = db
-            .query(
-              `
-            SELECT metrics_json, timestamp FROM runs
-            WHERE db_key = ? AND status = 'SUCCESS'
-            AND metrics_json LIKE ?
-            ORDER BY timestamp DESC LIMIT 1
-          `,
-            )
-            .get(dbKey, `%${script.shortLabel}%`) as any;
-
-          if (historical) {
-            const metrics = JSON.parse(historical.metrics_json);
-            const scriptMetric = Object.values(metrics).find(
-              (v: any) => v.name === script.shortLabel,
-            ) as any;
-            if (scriptMetric) {
-              const histDate = new Date(historical.timestamp).toLocaleDateString();
-              const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
-              tableContent = `> 🏛️ **Historical Data** (from ${histDate})\n> 🏷️ **${script.label}**: ✅ **${(scriptMetric.avgMs || 0).toFixed(3)}ms**\n> 📂 **Source**: [${script.path}](${relativePath})`;
-            }
+      if (truthBlock.startsWith(">")) {
+        const tagBlock =
+          extractFirstTagBlock(ledgerScope, tagSlug) ??
+          extractFirstTagBlock(ledgerScope, script.shortLabel.split(" ")[0]!.toUpperCase());
+        if (tagBlock) {
+          const inner = extractTagInner(tagBlock, tagSlug);
+          const truthMatch = inner.match(
+            /<!-- LEDGER_TRUTH_START -->\s*([\s\S]*?)\s*<!-- LEDGER_TRUTH_END -->/,
+          );
+          if (truthMatch?.[1]?.trim() && !truthMatch[1].includes("Pending")) {
+            truthBlock = truthMatch[1].trim();
+            recordedScripts++;
           }
-        } catch (err) {
-          log.warn(`Historical recovery failed for ${script.shortLabel}: ${err}`);
         }
       }
 
-      // If still no content, show pending
-      if (!tableContent) {
-        const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
-        tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](${relativePath})`;
+      const tableContent = buildCollapsedLedgerTagInner({
+        tag: tagSlug,
+        label: script.label,
+        testPath: script.path,
+        avgMs: currentSample.avgMs || timing,
+        icon: trend.icon,
+        deltaPct: analyzed.deltaPct,
+        trendLabel: trend.pct,
+        insight,
+        truth: truthBlock,
+      });
+
+      doc = upsertLedgerSection(doc, tagSlug, tableContent);
+    }
+
+    // ── Patch dimension summary table and auto-open degraded dimension groups ──
+    const dimStatuses: Partial<Record<LedgerDimension, DimensionStatus>> = {};
+    const dimEntries = new Map<LedgerDimension, TestRollupEntry[]>();
+    for (const dim of LEDGER_DIMENSION_ORDER) dimEntries.set(dim, []);
+    for (const entry of testEntries) {
+      const section = entry.section ?? "baseline";
+      const dim = mapSectionToDimension(section);
+      dimEntries.get(dim)!.push(entry);
+    }
+    for (const dim of LEDGER_DIMENSION_ORDER) {
+      const entries = dimEntries.get(dim)!;
+      if (entries.length === 0) continue;
+      let worstAbsDelta = 0;
+      let worstIcon = "\u{1F7E2}";
+      let hasDegraded = false;
+      for (const entry of entries) {
+        if (entry.severity === "regression" || entry.severity === "critical") {
+          hasDegraded = true;
+          worstIcon = "\u{1F534}";
+          worstAbsDelta = Math.max(worstAbsDelta, Math.abs(entry.deltaPct ?? 0));
+        } else if (entry.severity === "warning" || entry.severity === "watch") {
+          if (!hasDegraded) worstIcon = "\u{1F7E1}";
+          worstAbsDelta = Math.max(worstAbsDelta, Math.abs(entry.deltaPct ?? 0));
+        } else if (entry.severity === "pending") {
+          if (!hasDegraded && worstIcon === "\u{1F7E2}") worstIcon = "\u{26AA}";
+        }
       }
-
-      headerMd += `${START_TAG}\n${tableContent}\n${END_TAG}\n\n`;
+      dimStatuses[dim] = {
+        testCount: entries.length,
+        worstIcon,
+        worstDelta: worstAbsDelta > 0 ? `\u00B1${worstAbsDelta.toFixed(0)}%` : "\u2014",
+        worstBudget: hasDegraded ? "Fail" : worstIcon === "\u{26AA}" ? "\u2014" : "Pass",
+        hasDegraded,
+      };
     }
+    doc = applyDimensionSummaryToLedger(doc, dimStatuses);
 
-    headerMd += `\n--- \n\n## 🔬 Host Environment\n`;
-    headerMd += `| CPU | Cores | RAM | Runtime |\n`;
-    headerMd += `| :--- | :--- | :--- | :--- |\n`;
-    headerMd += `| ${curr?.hostInfo?.cpu || "Unknown"} | ${curr?.hostInfo?.cores || "-"} | ${curr?.hostInfo?.ram || "-"} | ${curr?.hostInfo?.runtime || "-"} |\n\n`;
+    const hostInfo = (curr?.hostInfo ?? {}) as Record<string, string>;
+    const hostLine = hostInfo.runtime ?? "runtime pending";
+    let executiveBody = buildExecutiveReport({
+      dbLabel: meta.label,
+      timestamp,
+      status,
+      isHistorical,
+      recorded: recordedScripts || testEntries.filter((e) => e.avgMs > 0).length,
+      total: applicableTotal,
+      skipped: Math.max(0, applicableTotal - recordedScripts),
+      hostLine,
+      warningBox: extraWarnings,
+      latencyRows,
+      testEntries,
+      mermaidPoints,
+      existingFixNotes,
+    });
 
-    const BENCH_START = "<!-- BENCHMARK_START -->";
-    const BENCH_END = "<!-- BENCHMARK_END -->";
-
-    if (doc.includes(BENCH_START) && doc.includes(BENCH_END)) {
-      doc = doc.replace(
-        /<!-- BENCHMARK_START -->[\s\S]*?<!-- BENCHMARK_END -->/,
-        `${BENCH_START}${headerMd}${BENCH_END}`,
+    let executiveMd = replaceLatestAuditHeading(executiveBody, `(${timestamp})`);
+    executiveMd = ensureExecutiveMarkers(executiveMd);
+    if (isHistorical) {
+      executiveMd = patchExecutivePartialWatermark(
+        executiveMd,
+        "> \u{1F4CB} **Historical snapshot** — metrics recovered from prior matrix run.",
       );
-    } else {
-      doc += `\n${BENCH_START}${headerMd}${BENCH_END}`;
     }
+
+    const metadataMd = buildHostEnvironmentTable(hostInfo);
+    const existingSummary = extractZone(doc, ZONE_MARKERS.summary[0], ZONE_MARKERS.summary[1]);
+
+    doc = patchBenchmarkZones(doc, {
+      executive: executiveMd,
+      summary: existingSummary?.trim() || undefined,
+      infrastructure: wrapInfrastructureCollapse(infrastructureMd),
+      metadata: metadataMd,
+    });
 
     await fs.writeFile(filePath, doc);
+    writeHistoryArchive(dbKey, filePath);
     log.info(`Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`);
   }
 }
 
 export async function writeCISummary(
   results: BenchmarkResult[],
-  regressions: string[] | import("./regression-detector").RegressionResult[],
+  regressions: string[] | RegressionResult[],
 ) {
   const passed = results.filter((r) => r.status === "SUCCESS").length;
   const failed = results.filter((r) => r.status === "FAILED").length;

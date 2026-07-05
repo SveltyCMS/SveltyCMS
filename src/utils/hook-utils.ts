@@ -88,9 +88,10 @@ export function classifyRequest(pathname: string, locals: App.Locals): RequestFl
     isBootstrap: isBootstrapRoute(pathname),
     isPublic: false, // computed below
     isTestMode:
-      process.env.TEST_MODE === "true" ||
-      process.env.VITE_TEST_MODE === "true" ||
-      process.env.BENCHMARK === "true",
+      typeof globalThis !== "undefined" &&
+      ((globalThis as any).process?.env?.TEST_MODE === "true" ||
+        (globalThis as any).process?.env?.VITE_TEST_MODE === "true" ||
+        (globalThis as any).process?.env?.BENCHMARK === "true"),
   };
 
   flags.isPublic = flags.isStatic || flags.isBootstrap || isPublicRoute(pathname, flags.isTestMode);
@@ -116,9 +117,10 @@ export function getRequestFlags(locals: App.Locals): RequestFlags {
     isBootstrap: false,
     isPublic: false,
     isTestMode:
-      process.env.TEST_MODE === "true" ||
-      process.env.VITE_TEST_MODE === "true" ||
-      process.env.BENCHMARK === "true",
+      typeof globalThis !== "undefined" &&
+      ((globalThis as any).process?.env?.TEST_MODE === "true" ||
+        (globalThis as any).process?.env?.VITE_TEST_MODE === "true" ||
+        (globalThis as any).process?.env?.BENCHMARK === "true"),
   };
 }
 

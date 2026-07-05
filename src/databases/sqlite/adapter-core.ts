@@ -985,7 +985,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   private async createDriver(dbPath: string) {
     const versions = (process as any)?.versions || {};
-    const isBun = typeof Bun !== "undefined";
+    // Use process.versions.bun instead of typeof Bun — avoids TS "Cannot find name 'Bun'"
+    const isBun = !!(versions as any).bun;
     const nodeVersion = versions.node;
 
     let normalizedPath = dbPath.replace(/\\/g, "/");
@@ -1006,7 +1007,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     if (isBun) {
       try {
-        const { Database } = await import("bun:sqlite");
+        // Use Function constructor to prevent TypeScript from resolving bun:sqlite
+        const { Database } = await new Function('return import("bun:sqlite")')();
         let sqlite: any;
         let lastErr: any;
         for (let i = 0; i < 10; i++) {
@@ -1141,7 +1143,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
       dbPath =
-        process.env.DB_PATH || (isSetupComplete() ? "config/database/sveltycms.db" : ":memory:");
+        process.env.DB_PATH ||
+        ((config as any).DB_NAME
+          ? `config/database/${(config as any).DB_NAME}.db`
+          : isSetupComplete()
+            ? "config/database/sveltycms.db"
+            : ":memory:");
     }
 
     if (dbPath.includes("://")) {

@@ -96,7 +96,8 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     memory: (() => {
       if (searchParams.has("gc")) {
         if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-        if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
+        if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc)
+          (globalThis as any).Bun.gc(true);
       }
       return process.memoryUsage();
     })(),
@@ -169,17 +170,20 @@ async function getCorsHeadersInline(
 }
 
 // ✨ PERFORMANCE: Cache environment lookups to avoid process.env overhead on every request
-const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const IS_BENCHMARK =
+  typeof globalThis !== "undefined" && (globalThis as any).process?.env?.BENCHMARK === "true";
 
 const IS_TEST_MODE =
-  typeof process !== "undefined" &&
+  typeof globalThis !== "undefined" &&
   !IS_BENCHMARK && // 🚀 Benchmarks run real middleware, not test bypass
-  (String(process.env.TEST_MODE) === "true" ||
-    String(process.env.VITE_TEST_MODE) === "true" ||
-    process.env.NODE_ENV === "test");
-const DB_TYPE = typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
+  (String((globalThis as any).process?.env?.TEST_MODE) === "true" ||
+    String((globalThis as any).process?.env?.VITE_TEST_MODE) === "true" ||
+    (globalThis as any).process?.env?.NODE_ENV === "test");
+const DB_TYPE =
+  typeof globalThis !== "undefined" ? (globalThis as any).process?.env?.DB_TYPE : "unknown";
 const IS_STRICT_SETUP_CHECK =
-  typeof process !== "undefined" && process.env.STRICT_SETUP_CHECK === "true";
+  typeof globalThis !== "undefined" &&
+  (globalThis as any).process?.env?.STRICT_SETUP_CHECK === "true";
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
@@ -308,7 +312,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // Benchmarks inject a real user but still run the FULL middleware chain
       // (rate limiting, RBAC, audit logging) for honest performance measurement.
       if (!IS_BENCHMARK && event.request.headers.get("x-test-security") !== "true") {
-        (event.locals as any).__testBypass = true;
+        if (event.locals.user) {
+          (event.locals as any).__testBypass = true;
+        }
       }
 
       // If it's a health check, return the health response (shared builder)

@@ -16,7 +16,7 @@ export class DBPluginRegistry {
    */
   public register(plugin: DBInitPlugin): void {
     if (this.plugins.has(plugin.id)) {
-      logger.warn(`[DB Registry] Plugin '${plugin.id}' is already registered. Overwriting.`);
+      logger.info(`[DB Registry] Plugin '${plugin.id}' is already registered. Overwriting.`);
     }
     this.plugins.set(plugin.id, plugin);
   }

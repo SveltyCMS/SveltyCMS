@@ -35,16 +35,18 @@ export async function handleTestingRoutes(
   _segments: string[],
 ) {
   // 🛡️ Strictly enforce environment and cryptographic token verification
+  const runtimeEnv = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env;
   const isTestMode =
-    process.env.TEST_MODE === "true" ||
-    process.env.BENCHMARK === "true" ||
-    process.env.NODE_ENV === "test";
+    runtimeEnv?.TEST_MODE === "true" ||
+    runtimeEnv?.BENCHMARK === "true" ||
+    runtimeEnv?.SVELTY_BENCHMARK_SUITE === "true" ||
+    runtimeEnv?.NODE_ENV === "test";
 
   const requestSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
   const { getTestSecret } = await import("@src/utils/server/setup-check");
-  const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
+  const expectedSecret = runtimeEnv?.TEST_API_SECRET || getTestSecret();
 
   if (!isTestMode || !expectedSecret || !requestSecret) {
     throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
@@ -63,7 +65,7 @@ export async function handleTestingRoutes(
     throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
   }
 
-  if (process.env.BENCHMARK_DEBUG === "true") {
+  if (runtimeEnv?.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
       `🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`,
     );
@@ -195,9 +197,7 @@ export async function handleTestingRoutes(
             type: dbType as any,
             host: process.env.DB_HOST || "localhost",
             port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
-            name:
-              process.env.DB_NAME ||
-              (dbType === "sqlite" ? "config/database/sveltycms.db" : "sveltycms"),
+            name: process.env.DB_NAME || "sveltycms_test",
             user: process.env.DB_USER || "",
             password: process.env.DB_PASSWORD || "",
           };
@@ -825,7 +825,9 @@ export async function handleTestingRoutes(
     if (action === "get-user") {
       const { email } = params;
       const result = await cms.auth.listUsers({ tenantId });
-      const user = result.data.find((u: any) => u.email === email);
+      // listUsers is wrapped by safeCall: { success, data: { data: [...], pagination } }
+      const users = result.success ? result.data?.data : result.data;
+      const user = Array.isArray(users) ? users.find((u: any) => u.email === email) : undefined;
       return rawResponse({ success: !!user, user });
     }
 

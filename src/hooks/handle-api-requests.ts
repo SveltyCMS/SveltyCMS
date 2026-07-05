@@ -59,6 +59,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     if (url.pathname !== "/api/user/logout") {
       const userRole = locals.user?.role || "guest";
       if (!hasApiPermission(userRole, apiEndpoint, isAdmin(locals.user))) {
+        // Ephemeral anonymous users (no real auth) should get 401, not 403
+        if (locals.user?.isAnonymous) {
+          throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+        }
         throw new AppError(
           `Forbidden: Role ${userRole} denied for ${apiEndpoint}`,
           403,

@@ -233,3 +233,5 @@ export const CORRELATION_RULES = [
     antiCorrelatedMetrics: ["hooks", "dbRaw"],
   },
 ] as const;
+
+export { BENCHMARK_SCRIPTS } from "./benchmark-scripts";

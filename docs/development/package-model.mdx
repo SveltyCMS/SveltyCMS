@@ -1,0 +1,320 @@
+---
+path: "docs/development/package-model.mdx"
+title: "Hybrid Package Model"
+description: "How SveltyCMS lets developers embed CMS capabilities into their own SvelteKit apps — without running a separate server."
+order: 51
+icon: "mdi:package-variant-closed"
+author: "SveltyCMS Team"
+created: "2026-07-04"
+updated: "2026-07-04"
+tags:
+  - "packages"
+  - "monorepo"
+  - "sdk"
+  - "development"
+---
+
+# Hybrid Package Model
+
+## The Problem
+
+You're building a website with SvelteKit. You need a CMS for blog articles.
+
+With traditional headless CMS platforms, you must:
+
+1. Install and run the CMS as a **separate server** (`npm run develop` in a second terminal)
+
+2. Your SvelteKit app makes HTTP requests to that server: `fetch("http://localhost:1337/api/articles")`
+
+3. Every request goes through: Network → HTTP Parser → Middleware → Controller → Database
+
+4. Latency: **~50ms per request**, even on localhost
+
+With SveltyCMS' Hybrid Package Model:
+
+1. `npm install @sveltycms/core` into your existing SvelteKit app
+
+2. Direct database access: `cms.collections.find("articles")`
+
+3. No network, no HTTP, no second server process
+
+4. Latency: **<0.05ms** — 1000× faster
+
+---
+
+## What Does "Hybrid" Mean?
+
+**Hybrid** means the same code works in two ways.
+
+```
+Same LocalCMS class:
+
+  Path A: As an SDK            Path B: As part of the full CMS
+  ┌──────────────────┐       ┌──────────────────────────┐
+  │ Your SvelteKit    │       │ SveltyCMS Monorepo        │
+  │ App               │       │ (npx create-sveltycms)    │
+  │                   │       │                           │
+  │ import {LocalCMS}  │       │ Admin Panel               │
+  │ from "@sveltycms   │       │ Setup Wizard              │
+  │ /core"             │       │ GraphQL + REST API        │
+  │                   │       │ Media Management           │
+  │ Just the engine.   │       │ The engine + everything.  │
+  └──────────────────┘       └──────────────────────────┘
+```
+
+The **engine** (`LocalCMS`) is identical. Once embedded in your own app, once embedded in the full CMS interface.
+
+---
+
+## Before vs After
+
+### Without the SDK (how Strapi/Directus work)
+
+```typescript
+// +page.server.ts — your SvelteKit page
+export async function load() {
+  // Step 1: HTTP request to a separate CMS server
+  const res = await fetch("http://localhost:1337/api/articles?status=published");
+  //          ↑ Network latency
+  //          ↑ JSON parsing
+  //          ↑ HTTP overhead
+
+  const data = await res.json();
+  return { articles: data.data };
+}
+```
+
+### With the SDK (how SveltyCMS works)
+
+```typescript
+// +page.server.ts — your SvelteKit page
+import { LocalCMS } from "@sveltycms/core";
+import { myDatabase } from "$lib/db";
+
+export async function load() {
+  const cms = new LocalCMS(myDatabase);
+  //          ↑ Direct database access
+  //          ↑ No network
+  //          ↑ No HTTP
+  //          ↑ <0.05ms
+
+  const articles = await cms.collections.find("articles", {
+    filter: { status: "published" },
+  });
+  return { articles };
+}
+```
+
+---
+
+## Why Can Only SveltyCMS Do This?
+
+Because SvelteKit has a unique architecture: **server code and client code live in the same file, but run on different sides.**
+
+```typescript
+// +page.server.ts — runs ONLY on the server
+import { LocalCMS } from "@sveltycms/core"; // ← Direct DB access
+import { db } from "$lib/db";
+
+export async function load() {
+  const cms = new LocalCMS(db);
+  return { posts: await cms.collections.find("posts") };
+}
+```
+
+| Platform      | Can you embed the CMS as an SDK? | Why?                                              |
+| ------------- | -------------------------------- | ------------------------------------------------- |
+| **SvelteKit** | ✅ Yes                           | `.server.ts` files run exclusively on the server. |
+
+|
+| **Next.js** | ⚠️ Partially | Server Components can import DB drivers. Payload leverages this for React. |
+|
+| **Strapi** | ❌ No | Strapi IS a server. Cannot embed it. |
+|
+| **Directus** | ❌ No | Directus IS a server. Same problem. |
+
+SveltyCMS is **one of the few headless CMS platforms** that can be embedded as an SDK into SvelteKit apps.
+
+Based on publicly available documentation as of July 2026, no other SvelteKit-compatible CMS offers this pattern.
+
+---
+
+## Advantages for Data Input, Management, and Output
+
+### Input (Saving Data)
+
+```typescript
+// SDK: Direct insert — no HTTP, no queue
+const newArticle = await cms.collections.create("articles", {
+  data: {
+    title: "My Article",
+    content: "...",
+    status: "draft", // ← Draft-by-Default
+  },
+  tenantId: "my-tenant", // ← Multi-tenant isolation built in
+});
+
+// Valibot validation happens AUTOMATICALLY
+// The article is written directly to the database
+// No fetch(), no JSON.stringify(), no await res.json()
+```
+
+**What this saves**: No client-side form handling for validation.
+
+No manual serialization required.
+
+No error handling for network failures.
+
+Validation happens where the data arrives — on the server.
+
+### Management (Managing Data)
+
+```typescript
+// SDK: Complex queries without GraphQL overhead
+const articles = await cms.collections.find("articles", {
+  filter: {
+    status: "published",
+    author: userId,
+    createdAt: { $gte: "2026-01-01" },
+  },
+  sort: { createdAt: "desc" },
+  limit: 20,
+  offset: 0,
+});
+
+// This is the SAME API as REST/GraphQL in the full CMS
+// But without HTTP parsing, without JSON serialization, without auth middleware
+// (Auth and tenant isolation are built into the DB adapter)
+```
+
+**What this saves**: No GraphQL query language to learn.
+
+No REST URL construction needed.
+
+TypeScript IntelliSense shows all available filters as you type.
+
+### Output (Displaying Data)
+
+```typescript
+// +page.server.ts
+export async function load() {
+  const cms = new LocalCMS(db);
+
+  // Fetch all page data in ONE step
+  const [articles, categories, authors] = await Promise.all([
+    cms.collections.find("articles", { filter: { status: "published" } }),
+    cms.collections.find("categories"),
+    cms.collections.find("authors"),
+  ]);
+
+  return { articles, categories, authors };
+  // → SSR-rendered in <50ms total
+  // → Google sees the complete content immediately (SEO)
+  // → No client-side "Loading..." for CMS data
+}
+```
+
+**What this saves**: No `fetch()` chains needed.
+
+No client-side waterfall loading.
+
+SSR with CMS data in under 50ms — faster than most static site generators.
+
+---
+
+## Packages
+
+| Package           | Description                  | Key Exports                                      |
+| ----------------- | ---------------------------- | ------------------------------------------------ |
+| `@sveltycms/core` | Database-agnostic CMS engine | `LocalCMS`, `IDBAdapter`, `AppError`, core types |
+
+|
+| `@sveltycms/widgets` | Type-safe widget system | `createWidget`, `FieldConfig`, `WidgetDefinition`, validation |
+
+### Sub-path Exports (Core)
+
+| Import Path       | Contents                                         |
+| ----------------- | ------------------------------------------------ |
+| `@sveltycms/core` | `LocalCMS`, `IDBAdapter`, core types, `AppError` |
+
+|
+| `@sveltycms/core/types` | `DatabaseId`, `ISODateString`, `ContentNode`, `Schema`, `User`, `Session` |
+|
+| `@sveltycms/core/db-interface` | `IDBAdapter` contract, `DatabaseResult`, `PaginatedResult`, `FindOptions` |
+|
+| `@sveltycms/core/errors` | `AppError` class |
+|
+| `@sveltycms/core/local-cms` | `LocalCMS` class |
+
+### Sub-path Exports (Widgets)
+
+| Import Path          | Contents                                                                    |
+| -------------------- | --------------------------------------------------------------------------- |
+| `@sveltycms/widgets` | `createWidget`, `FieldConfig`, `WidgetDefinition`, `WidgetFactory`, scanner |
+
+|
+| `@sveltycms/widgets/factory` | `createWidget()` only |
+|
+| `@sveltycms/widgets/types` | All widget type definitions |
+|
+| `@sveltycms/widgets/validation` | Validators: schema, layout, dependencies, rendering |
+
+---
+
+## Building a DB Adapter
+
+Implement the `IDBAdapter` interface from `@sveltycms/core` to add support for any database:
+
+```typescript
+import type { IDBAdapter, DatabaseResult } from "@sveltycms/core/db-interface";
+
+class MyAdapter implements IDBAdapter {
+  // Implement CRUD, Auth, Media, Settings, Widget methods...
+}
+```
+
+---
+
+## Build Pipeline
+
+```bash
+# Type-check all packages (~2s)
+bun run packages:check
+
+# Full build for npm publishing
+bun run packages:build
+
+# Single package
+bun run packages:build --pkg=core
+```
+
+---
+
+## Summary
+
+| Without SDK | With SDK |
+| ----------- | -------- |
+
+| 2 server processes (App + CMS) | 1 server process |
+
+| HTTP requests for EVERY data operation | Direct database access |
+
+| ~50ms latency per request | <0.05ms latency |
+
+| Network error handling required | No network = no network errors |
+
+| JSON serialization/deserialization | Native JS objects |
+
+| Write REST URLs or GraphQL queries | TypeScript autocompletion |
+
+| Separate server to monitor | Everything in one app |
+
+---
+
+## Related
+
+See [Local vs HTTP API](./local-vs-http-api.mdx) for when to use the SDK vs REST/GraphQL.
+
+See [Widget Development](./widgets/development.mdx) for building custom field types.
+
+See [Error Handling](./error-handling.mdx) for unified error patterns.

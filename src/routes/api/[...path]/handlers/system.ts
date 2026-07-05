@@ -22,8 +22,18 @@ export async function handleSystemRoutes(
   switch (namespace) {
     case "widgets":
       return handleWidgetRoutes(event, cms, tenantId, segments);
-    case "system":
+    case "system": {
+      const action = segments[1];
+      if (action === "hot-collections" && event.request.method === "GET") {
+        const { getHotCollections } = await import("@src/services/intelligence/behavioral-learner");
+        const hot = getHotCollections(tenantId ?? "global", 20);
+        return successResponse(
+          event,
+          hot.map((c) => c.id),
+        );
+      }
       return handleSystemMgmtRoutes(event, cms, tenantId, segments);
+    }
     case "settings":
     case "system-settings":
       return handleSettingsRoutes(event, cms, tenantId, segments);
@@ -1080,6 +1090,7 @@ export async function handleExportRoutes(
     const { type } = await request.json().catch(() => ({}));
     if (type === "users") {
       const result = await cms.auth.listUsers({ tenantId });
+      if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
       return successResponse(event, result.data);
     }
     return successResponse(event, { success: true, message: "Export started" });

@@ -4,15 +4,12 @@
  */
 import { pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const { user } = locals;
-
-  if (!user) {
-    throw redirect(302, "/login");
-  }
+  const user = getAuthenticatedUser(locals);
 
   // Permission Checks (Allow admins for now)
   if (user.role !== "admin") {

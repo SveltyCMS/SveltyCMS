@@ -6,8 +6,10 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 export const load = async ({ locals }: { locals: App.Locals }) => {
+  getAuthenticatedUser(locals);
   const { tenantId, isAdmin } = locals;
 
   if (!isAdmin) {

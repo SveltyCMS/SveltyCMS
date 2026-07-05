@@ -5,18 +5,16 @@
  * Loads the current admin theme configuration and user admin status.
  */
 
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import { adminThemeService } from "@src/services/core/admin-theme-service";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const { user, isAdmin, tenantId } = locals;
-
-    if (!user) {
-      throw redirect(302, "/login");
-    }
+    const user = getAuthenticatedUser(locals);
+    const { isAdmin, tenantId } = locals;
 
     // All authenticated users can access appearance settings
     // Admin-only sections (Themes, Advanced) are hidden in the UI

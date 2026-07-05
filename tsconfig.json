@@ -18,7 +18,7 @@
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "types": ["node", "bun"]
   },
   "include": [
     "src/**/*.js",

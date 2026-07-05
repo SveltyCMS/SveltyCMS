@@ -4,20 +4,14 @@
  */
 
 import { getRequestEvent, query } from "$app/server";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 export const queryAuditLogs = query(
   "unchecked",
   async ({ targetId, limit = 50 }: { targetId: string; limit?: number }) => {
     const event = getRequestEvent();
-    const { user, tenantId } = event.locals;
-
-    if (!user) {
-      return {
-        success: false,
-        message: "Unauthorized",
-        data: [],
-      };
-    }
+    getAuthenticatedUser(event.locals);
+    const { tenantId } = event.locals;
 
     const { auditLogService } = await import("@src/services/security/audit-service");
     return auditLogService.queryLogs({
@@ -30,17 +24,8 @@ export const queryAuditLogs = query(
 
 export const verifyAuditChain = query("unchecked", async (_input: Record<string, never>) => {
   const event = getRequestEvent();
-  const { user, tenantId } = event.locals;
-
-  if (!user) {
-    return {
-      valid: false,
-      brokenAt: null,
-      totalEntries: 0,
-      tamperedEntries: 0,
-      details: ["Unauthorized"],
-    };
-  }
+  getAuthenticatedUser(event.locals);
+  const { tenantId } = event.locals;
 
   const { auditChainService } = await import("@src/services/audit-chain");
   return auditChainService.verifyChain(tenantId as string | undefined);

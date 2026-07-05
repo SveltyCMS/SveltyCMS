@@ -25,65 +25,33 @@ import type {
 import { traceSpan } from "@utils/context";
 import { defineLazyNamespace } from "@src/databases/core/proxy-utils";
 
-const ASYNC_METHODS: Record<string, Set<string>> = {
-  collections: new Set([
-    "list",
-    "search",
-    "find",
-    "findStreaming",
-    "count",
-    "getSchema",
-    "getStructure",
-    "reorderContentNodes",
-    "getRevisions",
-    "bulkCreate",
-    "bulkUpdate",
-    "bulkDelete",
-    "findById",
-    "executeBatch",
-    "create",
-    "update",
-    "delete",
-  ]),
-  auth: new Set(["login", "logout", "me", "validateToken", "getPermissions"]),
-  system: new Set([
-    "getHealth",
-    "reinitialize",
-    "refresh",
-    "getPreferences",
-    "setPreference",
-    "sendMail",
-  ]),
-  media: new Set(["list", "upload", "delete", "getMetadata"]),
+/**
+ * Methods explicitly excluded from instrumentation (sync getters, non-traceable)
+ */
+const INSTRUMENT_SKIP: Record<string, Set<string>> = {
+  collections: new Set(["db"]),
+  auth: new Set(["db"]),
+  media: new Set(["db"]),
+  system: new Set(["formatBytes"]),
 };
 
 /**
- * Dynamically wraps all methods of a namespace instance inside high-resolution tracing spans.
- * Short-circuits with absolute zero overhead if tracing is not active.
+ * Auto-detects async methods on a namespace and wraps them with tracing spans.
+ * Every async function on the prototype is automatically instrumented
+ * unless explicitly excluded via INSTRUMENT_SKIP.
  */
 function instrumentNamespace<T extends object>(name: string, instance: T): T {
   const proto = Object.getPrototypeOf(instance);
   if (!proto) return instance;
-
-  const asyncSet = ASYNC_METHODS[name];
-  if (!asyncSet) return instance;
-
+  const skipSet = INSTRUMENT_SKIP[name];
   const keys = Object.getOwnPropertyNames(proto);
   for (const key of keys) {
-    if (!asyncSet.has(key)) continue;
-
     const original = (instance as any)[key];
-    if (typeof original === "function") {
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        console.log(`[SDK] Instrumenting async method ${name}:${key}`);
-      }
-
-      (instance as any)[key] = async function (this: any, ...args: any[]) {
-        return await traceSpan(`sdk:${name}:${key}`, async () => {
-          return await original.apply(this, args);
-        });
-      };
-    }
+    if (key === "constructor" || typeof original !== "function" || skipSet?.has(key)) continue;
+    if (original.constructor.name !== "AsyncFunction") continue;
+    (instance as any)[key] = async function (this: any, ...args: any[]) {
+      return await traceSpan(`sdk:${name}:${key}`, async () => original.apply(this, args));
+    };
   }
   return instance;
 }
@@ -142,10 +110,10 @@ export class LocalCMS {
       },
       { tokens: true },
     );
-
+    // tokens are part of auth — delegate to auth.tokens
     defineLazyNamespace(this, "tokens", async () => {
-      const { TokensNamespace } = await import("./namespaces/auth-namespace");
-      return instrumentNamespace("tokens", new TokensNamespace(this._dbAdapter));
+      await this.auth;
+      return (this.auth as any).tokens;
     });
 
     defineLazyNamespace(this, "collections", async () => {
@@ -233,6 +201,10 @@ export class LocalCMS {
       collections: cms.collections,
       media: cms.media,
       system: cms.system,
+      tokens: cms.tokens,
+      automation: cms.automation,
+      telemetry: cms.telemetry,
+      websiteTokens: cms.websiteTokens,
       widgets: cms.widgets,
     };
   }

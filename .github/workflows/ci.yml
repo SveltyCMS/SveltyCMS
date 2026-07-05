@@ -1,5 +1,20 @@
 name: CI
 
+# CI Workflow for SveltyCMS
+#
+# Local developer entry points (recommended):
+#   bun run verify:push     # fast pre-push gate (static analysis, unit tests, build)
+#   bun run verify:full     # local CI parity (push tasks + DB matrix + benchmarks)
+#   bun run ci:local        # full local simulation (includes Playwright E2E)
+#   bun run scripts/precheck.ts --plan    # inspect what WOULD run (dry-run)
+#
+# This workflow is the authoritative full matrix.
+# Local precheck (scripts/precheck*.ts) intentionally omits slow DB + E2E steps
+# on push tier by default. Use --include-db-tasks to opt in locally.
+#
+# Job-to-local-task mapping is maintained via ciJob fields in
+# scripts/precheck-shared.ts (BaseTasks / createDbTasks).
+
 on:
   push:
     branches: [main, next]
@@ -22,7 +37,6 @@ permissions:
 
 env:
   BUN_CACHE_DIR: .bun-cache
-  NODE_OPTIONS: "--no-warnings --no-deprecation"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   DO_NOT_TRACK: 1
 
@@ -37,7 +51,7 @@ jobs:
     outputs:
       pw-version: ${{ steps.pw.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -80,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -107,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -133,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -150,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -168,7 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -176,7 +190,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
       - run: bun run test:unit
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -187,11 +201,11 @@ jobs:
   # ------------------------------------------------
   build:
     name: 🏗️ Build
-    needs: bootstrap
+    needs: [bootstrap]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -219,7 +233,7 @@ jobs:
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: |
             .github/workflows
@@ -244,7 +258,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -259,24 +273,14 @@ jobs:
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
-      - name: Create MongoDB test user
-        if: matrix.db == 'mongodb'
-        run: |
-          docker exec $(docker ps -q -f "ancestor=mongo:latest" | head -1) \
-            mongosh -u testuser -p testpass --authenticationDatabase admin --quiet --eval '
-            db = db.getSiblingDB("sveltycms_test");
-            try { db.createUser({ user: "testuser", pwd: "testpass", roles: [{ role: "dbOwner", db: "sveltycms_test" }] }); } catch(e) { db.grantRolesToUser("testuser", [{ role: "dbOwner", db: "sveltycms_test" }]); }
-            print("MongoDB test user created or updated for sveltycms_test");
-          ' || echo "MongoDB user setup failed"
-
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port || '' }}
           DB_NAME: sveltycms_test
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          DB_USER: ${{ matrix.db_user }}
+          DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -306,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -317,7 +321,7 @@ jobs:
 
       - name: Cache Playwright Browsers
         id: cache-playwright
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -372,6 +376,15 @@ jobs:
 
           cp config/private.test.ts config/private.ts
 
+          # Overwrite the random test-secret.txt with the actual repo secret only if it is set
+          # so test-orch.ts and the server agree on TEST_API_SECRET
+          if [ -n "${TEST_API_SECRET}" ]; then
+            echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          else
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
+
           # Start the built server
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
@@ -399,6 +412,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         if: always()
+        continue-on-error: true
         with:
           name: playwright-report-Wizard-Auth
           path: tests/playwright-report
@@ -407,6 +421,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         if: always()
+        continue-on-error: true
         with:
           name: preview-log-prep
           path: preview.log
@@ -422,7 +437,7 @@ jobs:
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: |
             .github/workflows
@@ -447,7 +462,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -471,7 +486,7 @@ jobs:
 
       - name: Cache Playwright Browsers
         id: cache-playwright
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -503,6 +518,10 @@ jobs:
           PORT: 4173
           SKIP_E2E_DEPS: "true"
         run: |
+          if [ -z "${TEST_API_SECRET}" ]; then
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
@@ -538,19 +557,9 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix:
-        db: [sqlite, mariadb, postgresql, mongodb]
-        include:
-          - db: sqlite
-            port: ""
-          - db: mariadb
-            port: "3306"
-          - db: postgresql
-            port: "5432"
-          - db: mongodb
-            port: "27017"
+      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -569,26 +578,24 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
-          DB_PORT: ${{ matrix.port }}
+          DB_PORT: ${{ matrix.port || '' }}
           DB_NAME: ${{ matrix.db == 'sqlite' && 'benchmark_shared' || 'sveltycms_test' }}
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          DB_USER: ${{ matrix.db_user }}
+          DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: "true"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
-          set -e
-          failures=0
-          for test in tests/benchmarks/{truth-latency,database-performance,transaction-acid,cache-performance,hooks-performance,rest-api-performance}.test.ts; do
-            echo "::group::Running $test"
-            bun test "$test" --timeout 120000 || { echo "FAILED: $test"; failures=$((failures + 1)); }
-            echo "::endgroup::"
-          done
-          if [ "$failures" -gt 0 ]; then
-            echo "$failures benchmark test(s) failed"
-            exit 1
+          mkdir -p tests/e2e/.auth
+          if [ -n "${TEST_API_SECRET}" ]; then
+            echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          else
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           fi
+          export TEST_API_SECRET
+          bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }}
 
       - name: Upload benchmark report
         if: always()
@@ -610,7 +617,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -623,6 +630,7 @@ jobs:
           path: docs/project/benchmarks
           merge-multiple: true
       - name: Generate CI Summary
+        continue-on-error: true
         run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 
   # ------------------------------------------------
@@ -643,6 +651,7 @@ jobs:
       - e2e-prep
       - e2e
       - db-tests
+      - bench-core
     steps:
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |

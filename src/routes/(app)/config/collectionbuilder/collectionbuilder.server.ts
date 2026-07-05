@@ -12,6 +12,7 @@ import { contentSystem } from "@src/content/index.server";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 export interface ContentNode {
   _id?: string;
@@ -30,8 +31,8 @@ export interface UpsertOperation {
 }
 
 function requirePermission(event: RequestEvent) {
-  const { user, roles: tenantRoles, isAdmin } = event.locals as any;
-  if (!user) throw error(401, "Authentication required");
+  const user = getAuthenticatedUser(event.locals);
+  const { roles: tenantRoles, isAdmin } = event.locals as any;
   if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin))
     throw error(403, "Insufficient permissions");
 }

@@ -1,0 +1,323 @@
+---
+path: "docs/tests/testing-scripts.mdx"
+title: "Testing Scripts Catalog"
+description: "Complete catalog of all testing-related scripts in scripts/ — purpose, invocation, git hook/CI integration, and remediation (July 2026)."
+order: 15
+icon: "🔧"
+author: "SveltyCMS Team"
+created: "2026-07-04"
+updated: "2026-07-04"
+tags:
+  - "testing"
+  - "scripts"
+  - "ci"
+  - "git-hooks"
+  - "quality-gate"
+---
+
+# Testing Scripts Catalog
+
+This document catalogs every testing-related script in `scripts/`, their purpose, how they're invoked, which git hook or CI job uses them, and what to do when they fail.
+
+## Core Testing Pipeline
+
+### `scripts/test-smart.ts` — Smart Test Orchestrator
+
+**Purpose**: Git-diff-aware test selector. Reads changed files from `git diff` and selects only the relevant test suites instead of running everything.
+
+**Invocation**:
+
+```bash
+bun run scripts/test-smart.ts              # Auto-detect from git diff vs origin/next
+bun run scripts/test-smart.ts --all        # Run everything
+bun run scripts/test-smart.ts --suite=auth # Run specific suite
+bun run scripts/test-smart.ts --list       # List what would run (dry-run)
+```
+
+**Used by**: Manual developer workflow (not in hooks/CI).
+
+**Failure policy**: Fail-closed — if no suite matches changed files, runs the full core suite. Every failure must be root-caused; no "retry until green."
+
+**Remediation**: Fix failing tests. If the smart selector missed relevant tests, update the `SUITE_RULES` patterns in the script.
+
+---
+
+### `scripts/precheck.ts` — Unified Precheck Runner
+
+**Purpose**: Single manifest for pre-push and full CI parity checks. Mirrors `ci.yml` `db-tests` and `bench-core` before code reaches GitHub.
+
+**Invocation**:
+
+```bash
+bun run verify:push                                    # push tier (default)
+bun run verify:full                                    # full tier
+bun run scripts/precheck.ts --tier=push --skip-benchmarks
+bun run scripts/precheck.ts --tier=full --db=postgresql
+```
+
+**Tiers**:
+| Tier | Scope | Trigger |
+| :----- | :------------------------------------------------------- | :------------------- |
+| `push` | Static analysis, unit tests, build, 4-DB integration, benchmarks (change-aware) | `.githooks/pre-push` |
+| `full` | Same as push + always-on scans (no E2E — that's `ci:local`) | `bun run verify:full` |
+
+**Used by**: `.githooks/pre-push`, manual `bun run verify:push` / `bun run verify:full`.
+
+**Remediation**: Fix the failing task(s). Ensure Docker DBs are up (`docker compose -f tests/docker-compose.yml --profile postgresql up -d`). Do not bypass — CI rejects the same issues.
+
+---
+
+### `scripts/quality-gate.ts` — Pre-Push Quality Gate
+
+**Purpose**: Thin wrapper around `precheck.ts` (push tier). Invoked by the git pre-push hook.
+
+**Invocation**:
+
+```bash
+bun run gate                  # Same as bun run verify:push
+```
+
+**Used by**: `.githooks/pre-push`.
+
+**Remediation**: Same as `precheck.ts` push tier.
+
+---
+
+### `scripts/precheck-shared.ts` — Shared Task Manifest
+
+**Purpose**: Single source of truth for all precheck tasks. Defines the task list with change-awareness rules, CI job mappings, and skip conditions. Imported by `precheck.ts`, `quality-gate.ts`, and `ci-local.ts`.
+
+**Invocation**: Not run directly — consumed as a library by other scripts.
+
+**Key exports**:
+
+- `buildPrecheckTasks(tier, profile, testSecret, opts)` — builds the task manifest
+- `analyzeChanges(paths)` — determines which checks are needed based on changed files
+- `resolveActiveTasks(tasks)` — filters to tasks that should actually run
+- `ensureTestSecret()` — ensures `tests/e2e/.auth/test-secret.txt` exists
+
+**Used by**: `precheck.ts`, `quality-gate.ts`, `ci-local.ts`.
+
+---
+
+## Benchmark Scripts
+
+### `scripts/run-core-benchmarks.ts` — CI-Core Benchmarks
+
+**Purpose**: Runs the same 6 core benchmarks as `ci.yml` `bench-core` job for one or all adapters. Used for local CI parity.
+
+**Invocation**:
+
+```bash
+bun run scripts/run-core-benchmarks.ts              # All adapters
+bun run scripts/run-core-benchmarks.ts --db=sqlite  # Single adapter
+```
+
+**Core benchmarks**: `truth-latency`, `database-performance`, `transaction-acid`, `cache-performance`, `hooks-performance`, `rest-api-performance`.
+
+**Used by**: CI `bench-core` job, `precheck.ts` (push/full tiers).
+
+**Remediation**: Fix the failing benchmark. Check recent commits for performance regressions. Run `BENCHMARK_RECORD=1 bun test tests/benchmarks/<name>.test.ts` to isolate.
+
+---
+
+### `scripts/run-all-benchmarks.ts` — Full Benchmark Suite
+
+**Purpose**: Runs all 34 standalone benchmarks sequentially with `BENCHMARK_RECORD=1` (recording mode). Reports pass/fail summary.
+
+**Invocation**:
+
+```bash
+bun run scripts/run-all-benchmarks.ts
+```
+
+**Used by**: Manual full-suite validation (not in hooks/CI — CI uses the matrix orchestrator).
+
+**Remediation**: Investigate failed benchmarks individually. Check `tests/benchmarks/results/` for recorded data.
+
+---
+
+### `scripts/run-integration-tests.ts` — DB Integration Tests
+
+**Purpose**: Black-box integration test runner. Spawns a preview server, runs integration tests against a real database, and tears down cleanly.
+
+**Invocation**:
+
+```bash
+bun run test:integration                        # Default config
+bun run test:integration -- api --db=sqlite     # API suite, SQLite
+bun run test:integration -- db --db=postgresql  # DB suite, PostgreSQL
+```
+
+**Used by**: CI `db-tests` job, `precheck.ts` (push/full tiers), manual.
+
+**Safety**: Uses `config/private.test.ts` (never touches user's `config/private.ts`). Enforces isolated DB names via `check-test-db-safety.ts`.
+
+**Remediation**: Fix failing integration tests. Ensure the test DB is accessible. Check `config/private.test.ts` has an isolated DB name.
+
+---
+
+## Safety & Validation Scripts
+
+### `scripts/check-test-db-safety.ts` — Production DB Guard
+
+**Purpose**: Standalone, dependency-free guard that blocks unsafe `config/private.test.ts` files before any other checks run. Prevents the class of bug where a real (possibly production) `config/private.ts` was copied as the test config.
+
+**Invocation**:
+
+```bash
+bun run scripts/check-test-db-safety.ts
+```
+
+**Used by**: `.githooks/pre-commit`, `precheck.ts` (push/full tiers).
+
+**Logic**: Imports shared classifier from `src/utils/test-db-safety.ts`. DB names must contain `test`, `bench`, `e2e`, or end in `_functional`.
+
+**Remediation**: Ensure `config/private.test.ts` uses an isolated DB name (e.g., `sveltycms_test`). Never copy your production `config/private.ts`.
+
+---
+
+### `scripts/slop-scanner.ts` — Code Quality Scanner
+
+**Purpose**: Smart Svelte 5 + Accessibility + RTL + Quality scanner with safe autofix. Catches issues oxlint doesn't cover:
+
+- Svelte 5 legacy reactivity patterns (`$:`)
+- Legacy store usage
+- Directional Tailwind → Logical Properties (autofixable)
+- Missing `aria-label` on interactive elements
+- Unsanitized `{@html}` expressions
+- Dynamic `{#each}` block key validations
+
+**Invocation**:
+
+```bash
+bun run slop                                    # Check all files
+bun run scripts/slop-scanner.ts --fix           # Check + safe autofix
+bun run scripts/slop-scanner.ts --strict        # Fail-closed (exit 1 on error)
+bun run scripts/slop-scanner.ts --files file.svelte  # Target specific files
+```
+
+**Used by**: `.lintstagedrc.json` (pre-commit on staged `src/`), `precheck.ts` (push/full tiers), manual `bun run slop`.
+
+**Remediation**: Run `bun run scripts/slop-scanner.ts --fix` for autofixable issues. Manually fix remaining warnings. Do not commit with slop violations.
+
+---
+
+### `scripts/validate-imports.ts` — Import Path Validator
+
+**Purpose**: Scans all imports in `src/` and `tests/` for stale paths from file moves. Catches broken imports without a full build. Runs in ~200ms.
+
+**Invocation**:
+
+```bash
+bun run scripts/validate-imports.ts
+```
+
+**Used by**: `.githooks/pre-push` (as part of `precheck.ts` push tier).
+
+**Remediation**: Fix broken import paths. Run `bun x svelte-kit sync` to regenerate path aliases. Ensure all files use valid path aliases (`@src`, `@widgets`, `@utils`, etc.).
+
+---
+
+### `scripts/lint-admin-theme.ts` — Admin Theme Compliance
+
+**Purpose**: CI-gated linter that enforces admin theme conventions:
+
+- Every `(app)` `+page.svelte` uses `<AdminPageShell>`
+- No raw `<button class="btn">` or `<span class="badge">` — use `<Button>` and `<Badge>` components
+- No `class="input"` in `src/`
+- No legacy table classes
+
+**Invocation**:
+
+```bash
+bun run lint:admin-theme
+```
+
+**Used by**: `precheck.ts` (push/full tiers). CI blocks non-compliant admin routes.
+
+**Remediation**: Replace raw elements with native Svelte 5 components. Wrap pages in `<AdminPageShell>`. Replace `class="input"` with `<Input>`. Reference: `docs/contributing/style-guide-gui.mdx`.
+
+---
+
+### `scripts/lint-benchmark-mdx.ts` — Benchmark MDX Format
+
+**Purpose**: Validates benchmark MDX report files for proper zone markers, LEDGER tag pairs, and structural integrity.
+
+**Invocation**:
+
+```bash
+bun run lint:benchmark-mdx
+```
+
+**Used by**: `precheck.ts` (push/full tiers). CI validates benchmark report format.
+
+**Remediation**: Run `bun run scripts/benchmark-matrix/generate-benchmark-reports.ts --force-all` to regenerate clean report shells. Check for unclosed `<!-- ── TAG: ... ── -->` markers.
+
+---
+
+### `scripts/security-audit.ts` — CVE Scanner
+
+**Purpose**: Runs `bun audit --severity=high` and blocks on high-severity CVEs. Integrated into CI to prevent vulnerable dependencies from merging.
+
+**Invocation**:
+
+```bash
+bun run audit:security
+```
+
+**Used by**: CI `audit` job. Blocks PRs on high-severity CVEs.
+
+**Remediation**: Upgrade the vulnerable dependency to a patched version. Run `bun update <package>` for the affected package. If no fix is available, assess risk and document the exception.
+
+---
+
+## Quick Reference Table
+
+| Script                     | Git Hook   | CI Job       | Command                                   |
+| :------------------------- | :--------- | :----------- | :---------------------------------------- |
+| `test-smart.ts`            | —          | —            | `bun run scripts/test-smart.ts`           |
+| `precheck.ts`              | pre-push   | —            | `bun run verify:push`                     |
+| `quality-gate.ts`          | pre-push   | —            | `bun run gate`                            |
+| `precheck-shared.ts`       | —          | — (library)  | (imported by others)                      |
+| `run-core-benchmarks.ts`   | pre-push   | `bench-core` | `bun run scripts/run-core-benchmarks.ts`  |
+| `run-all-benchmarks.ts`    | —          | —            | `bun run scripts/run-all-benchmarks.ts`   |
+| `run-integration-tests.ts` | pre-push   | `db-tests`   | `bun run test:integration`                |
+| `check-test-db-safety.ts`  | pre-commit | —            | `bun run scripts/check-test-db-safety.ts` |
+| `slop-scanner.ts`          | pre-commit | `lint`       | `bun run slop`                            |
+| `validate-imports.ts`      | pre-push   | —            | `bun run scripts/validate-imports.ts`     |
+| `lint-admin-theme.ts`      | pre-push   | `lint`       | `bun run lint:admin-theme`                |
+| `lint-benchmark-mdx.ts`    | pre-push   | `lint`       | `bun run lint:benchmark-mdx`              |
+| `security-audit.ts`        | —          | `audit`      | `bun run audit:security`                  |
+
+## Git Hook Flow
+
+```
+git commit
+  └─ .githooks/pre-commit
+       ├─ check-test-db-safety.ts     (blocks unsafe config/private.test.ts)
+       └─ lint-staged
+            ├─ oxfmt                   (formatting)
+            ├─ oxlint                  (linting)
+            ├─ slop-scanner.ts         (code quality, src/ only)
+            └─ lint-docs.ts            (docs lint)
+
+git push
+  └─ .githooks/pre-push
+       └─ quality-gate.ts
+            └─ precheck.ts (push tier)
+                 ├─ Type checking (svelte-check)
+                 ├─ Unit tests (1,516+)
+                 ├─ Build
+                 ├─ 4-DB integration tests
+                 └─ Core benchmarks
+```
+
+## Related
+
+- [Testing Index](./index.mdx)
+- [Benchmark Matrix & Regression System](./benchmark-matrix.mdx)
+- [Git Workflow & Quality Gate](./git-workflow.mdx)
+- [CI Performance Metrics](./ci-performance-metrics.mdx)
+- [Black-Box Testing](./black-box-testing.mdx)
+- [Validation Pipeline](../../contributing/validation-pipeline.mdx)

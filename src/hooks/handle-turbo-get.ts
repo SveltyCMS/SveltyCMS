@@ -9,6 +9,7 @@ import type { DatabaseId } from "../content/types";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
+import { getRequestFlags } from "@utils/hook-utils";
 import { dev } from "$app/environment";
 import {
   negotiateEncoding,
@@ -39,6 +40,12 @@ const CACHEABLE_API_PREFIXES = [
   "/api/navigation",
   "/api/themes",
   "/api/config",
+  "/api/media",
+  "/api/widgets",
+  "/api/roles",
+  "/api/permission",
+  "/api/automations",
+  "/api/website-tokens",
 ];
 
 export function setTurboAuthContext(
@@ -78,6 +85,9 @@ function isCacheableApiPath(pathname: string): boolean {
 export const handleTurboGet: Handle = async ({ event, resolve }) => {
   const { request, url, cookies, locals } = event;
   const method = request.method;
+  const flags = getRequestFlags(locals);
+
+  if (flags.isStatic || flags.isBootstrap) return resolve(event);
 
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
   if (!isCacheableApiPath(url.pathname)) return resolve(event);

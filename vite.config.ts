@@ -75,7 +75,11 @@ function testBackdoorStripperPlugin(): Plugin {
       }
 
       // 3. Production Test Backdoor Removal
-      if (process.env.NODE_ENV === "production" && !process.env.TEST_MODE) {
+      if (
+        process.env.NODE_ENV === "production" &&
+        !process.env.TEST_MODE &&
+        process.env.COMPILE_ALL_ADAPTERS !== "true"
+      ) {
         if (
           norm.includes("src/routes/api/testing") ||
           norm.includes("src/hooks/handle-test-isolation")
@@ -129,8 +133,14 @@ function testBackdoorStripperPlugin(): Plugin {
  * This allows local tests to use an isolated configuration without modifying the production config.
  */
 function testConfigAliasPlugin(): Plugin {
-  // Optimization: NO-OP if not in TEST_MODE, avoiding resolveId overhead
-  if (process.env.TEST_MODE !== "true") {
+  // Activate in TEST_MODE or when building for benchmarks (COMPILE_ALL_ADAPTERS)
+  if (process.env.TEST_MODE !== "true" && process.env.COMPILE_ALL_ADAPTERS !== "true") {
+    console.log(
+      "[testConfigAliasPlugin] TEST_MODE=" +
+        process.env.TEST_MODE +
+        " COMPILE_ALL_ADAPTERS=" +
+        process.env.COMPILE_ALL_ADAPTERS,
+    );
     return { name: "test-config-alias" };
   }
 
@@ -1055,7 +1065,16 @@ export default defineConfig((): any => {
         "svelte-awesome-color-picker",
         "json-render-svelte",
       ],
-      external: ["bun:sqlite", "bun:test", "redis", "mongoose", "mongodb", "postgres", "mysql2"],
+      external: [
+        "bun:sqlite",
+        "bun:test",
+        "redis",
+        "mongoose",
+        "mongodb",
+        "postgres",
+        "mysql2",
+        "@tailwindcss/node",
+      ],
     },
     resolve: {
       alias: [
@@ -1089,10 +1108,10 @@ export default defineConfig((): any => {
       target: "esnext",
       minify: "esbuild",
       sourcemap: process.env.CI ? false : true,
-      chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
+      chunkSizeWarningLimit: 1200, // Raised: messages.js (~1.05MB) and collab chunk (~1.13MB) are known large vendor bundles
       // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
       rolldownOptions: {
-        external: ["@mongodb-js/zstd", "snappy"],
+        external: ["@mongodb-js/zstd", "snappy", "@smithy/node-http-handler"],
         checks: {
           // vite-plugin-sveltekit-guard (import graph analysis) and private-config-fallback
           // are necessary plugins whose timing overhead is expected and acceptable.
@@ -1112,7 +1131,15 @@ export default defineConfig((): any => {
             const isStateStore = log.message?.includes("state.svelte.ts");
             const isRichTextInput = log.message?.includes("rich-text/input.svelte");
             const isSettingsService = log.message?.includes("services/settings-service.ts");
-            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
+            const isLocaleStore = log.message?.includes("locale-store.svelte");
+            if (
+              hasDb ||
+              isWidgetStore ||
+              isStateStore ||
+              isRichTextInput ||
+              isSettingsService ||
+              isLocaleStore
+            ) {
               return;
             }
           }
@@ -1218,7 +1245,17 @@ export default defineConfig((): any => {
             const isSettingsService =
               warning.id?.includes("services/settings-service.ts") ||
               warning.message?.includes("services/settings-service.ts");
-            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
+            const isLocaleStore =
+              warning.id?.includes("locale-store.svelte") ||
+              warning.message?.includes("locale-store.svelte");
+            if (
+              hasDb ||
+              isWidgetStore ||
+              isStateStore ||
+              isRichTextInput ||
+              isSettingsService ||
+              isLocaleStore
+            ) {
               return;
             }
           }

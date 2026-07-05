@@ -8,14 +8,14 @@
 
 import { error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 import type { PageServerLoad } from "./$types";
 
 // Only System Admins can access this
 export const load: PageServerLoad = async ({ locals }) => {
-  const { user, isAdmin, dbAdapter } = locals;
-
-  if (!user) throw redirect(302, "/login");
+  const user = getAuthenticatedUser(locals);
+  const { isAdmin, dbAdapter } = locals;
   if (!isAdmin || user.tenantId) throw redirect(303, "/");
 
   try {

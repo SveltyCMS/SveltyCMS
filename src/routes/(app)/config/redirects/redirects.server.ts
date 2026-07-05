@@ -12,6 +12,7 @@ import { error } from "@sveltejs/kit";
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 import { invalidateRedirectCache } from "@src/hooks/handle-redirects";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 export interface RedirectRule {
   id?: string;
@@ -26,8 +27,8 @@ export async function saveRedirect(
   locals: App.Locals,
   rule: RedirectRule,
 ): Promise<{ success: boolean }> {
-  const { user, tenantId } = locals as any;
-  if (!user) throw error(401, "Unauthorized");
+  const user = getAuthenticatedUser(locals);
+  const { tenantId } = locals as any;
   if (!dbAdapter) throw error(500, "Database not initialized");
 
   const cms = new LocalCMS(dbAdapter, { user, tenantId });
@@ -59,8 +60,8 @@ export async function deleteRedirect(
   locals: App.Locals,
   id: string,
 ): Promise<{ success: boolean }> {
-  const { user, tenantId } = locals as any;
-  if (!user) throw error(401, "Unauthorized");
+  const user = getAuthenticatedUser(locals);
+  const { tenantId } = locals as any;
   if (!dbAdapter) throw error(500, "Database not initialized");
 
   const cms = new LocalCMS(dbAdapter, { user, tenantId });

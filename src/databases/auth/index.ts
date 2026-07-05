@@ -555,7 +555,10 @@ export class Auth {
     options?: BaseQueryOptions,
   ): Promise<{ success: boolean; message: string; data?: any }> {
     const result = await this.db.auth.validateToken(token, userId, type, options);
-    if (result?.success && result.data) {
+    // The adapter's wrap() packs the fn return value into {success:true, data:<value>},
+    // so result.data has its own {success, message} envelope. We must check the inner
+    // success to distinguish valid tokens from invalid ones.
+    if (result?.success && result.data?.success) {
       return {
         success: true,
         message: result.data.message ?? "Token validated",

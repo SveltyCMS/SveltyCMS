@@ -11,7 +11,14 @@ import { PER_DIMENSION_BUDGETS } from "./benchmark-mdx";
 // Types
 // ─────────────────────────────────────────────────────────────
 
-export type Severity = "stable" | "watch" | "warning" | "regression" | "critical";
+export type Severity =
+  | "stable"
+  | "watch"
+  | "warning"
+  | "regression"
+  | "regressed"
+  | "critical"
+  | "improved";
 
 export interface TrendResult {
   label: string;
@@ -233,7 +240,7 @@ export function getAdaptiveBudget(
   phase: "cold" | "warm" | "mixed",
   fallbackBudget: number,
 ): number {
-  const history = loadHistory(testId, dbType, redisEnabled, phase, 20);
+  const history = loadHistory(testId, dbType, redisEnabled, phase).slice(-20);
   if (history.length < 8) return fallbackBudget;
 
   const p95Values: number[] = [];
@@ -271,7 +278,8 @@ export function runAnalysis(
   isSingleTest: boolean,
   codePaths: string[],
 ): AnalysisResult {
-  const trend = analyzeTrend(result, testId, dbType, redisEnabled, phase);
+  const history = loadHistory(testId, dbType, redisEnabled, phase);
+  const trend = analyzeTrend(result, history, testId, dbType, redisEnabled, phase);
   const rootCause = classifyRootCause(
     trend.deltaPct,
     trend.p95DeltaPct,
@@ -295,7 +303,7 @@ export function runAnalysis(
   }
 
   if (result.memoryRssMb && result.memoryRssMb > 0) {
-    const memHistory = loadHistory(testId + "-mem", dbType, redisEnabled, phase, 10);
+    const memHistory = loadHistory(testId + "-mem", dbType, redisEnabled, phase).slice(-10);
     const memLen = memHistory.length;
     if (memLen >= 2) {
       let memSum = 0;

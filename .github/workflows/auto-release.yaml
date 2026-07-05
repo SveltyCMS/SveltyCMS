@@ -37,7 +37,7 @@ jobs:
       DB_PASSWORD: admin
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -46,7 +46,7 @@ jobs:
 
       - name: Cache Bun dependencies
         id: bun-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
@@ -83,7 +83,7 @@ jobs:
 
           # 2. Start preview server in background
           HOST=127.0.0.1 PORT=4173 TEST_API_SECRET="$TEST_API_SECRET" node build/index.js > preview.log 2>&1 &
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 60000
 
           # 3. Run Setup Wizard via Playwright to generate config/private.test.ts naturally
           bun x playwright test tests/e2e/setup-wizard.spec.ts
@@ -101,7 +101,7 @@ jobs:
     steps:
       # Get git code
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
           fetch-depth: 0
@@ -115,7 +115,7 @@ jobs:
       # Cache Bun dependencies
       - name: Cache Bun dependencies
         id: bun-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
