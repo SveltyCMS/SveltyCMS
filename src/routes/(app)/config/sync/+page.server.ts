@@ -12,21 +12,16 @@
  * - Leverages the central authentication logic from `hooks.server.ts`.
  */
 
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-  // 1. Get user from `locals`, populated by `hooks.server.ts`
-  const { user, isAdmin } = locals;
+  const user = getAuthenticatedUser(locals);
+  const { isAdmin } = locals;
 
-  // 2. Authentication Check: Ensure a user is logged in.
-  if (!user) {
-    logger.warn("Unauthenticated access attempt to Configuration Manager");
-    throw redirect(302, "/login");
-  }
-
-  // 3. Authorization Check: Ensure the user is an administrator.
+  // Authorization Check: Ensure the user is an administrator.
   //    Configuration synchronization is a high-privilege operation.
   if (!isAdmin) {
     logger.warn(`Permission denied for user=${user._id} to access Configuration Manager.`);

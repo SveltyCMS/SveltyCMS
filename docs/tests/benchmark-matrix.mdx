@@ -6,7 +6,7 @@ order: 14
 icon: "📊"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-07-04"
+updated: "2026-07-05"
 tags:
   - "benchmarks"
   - "performance"
@@ -297,18 +297,18 @@ flowchart LR
 
 ```bash
 # Run the complete benchmark matrix for a specific adapter
-bun run scripts/benchmark-matrix/index.ts --sql
+bun run scripts/benchmark-matrix/index.ts --db=sqlite
 bun run scripts/benchmark-matrix/index.ts --db=postgresql
 bun run scripts/benchmark-matrix/index.ts --db=mongodb
 
 # With Redis caching layer
-bun run scripts/benchmark-matrix/index.ts --sql --redis
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --redis
 
-# Run a single benchmark only
-bun run scripts/benchmark-matrix/index.ts --sql --only=relational
+# Continue past individual test failures (still records + finalizes report)
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --continue-on-error
 
 # Skip build (already built)
-bun run scripts/benchmark-matrix/index.ts --sql --no-build
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --no-build
 ```
 
 ### Single Test with Recording

@@ -22,8 +22,18 @@ export async function handleSystemRoutes(
   switch (namespace) {
     case "widgets":
       return handleWidgetRoutes(event, cms, tenantId, segments);
-    case "system":
+    case "system": {
+      const action = segments[1];
+      if (action === "hot-collections" && event.request.method === "GET") {
+        const { getHotCollections } = await import("@src/services/intelligence/behavioral-learner");
+        const hot = getHotCollections(tenantId ?? "global", 20);
+        return successResponse(
+          event,
+          hot.map((c) => c.id),
+        );
+      }
       return handleSystemMgmtRoutes(event, cms, tenantId, segments);
+    }
     case "settings":
     case "system-settings":
       return handleSettingsRoutes(event, cms, tenantId, segments);

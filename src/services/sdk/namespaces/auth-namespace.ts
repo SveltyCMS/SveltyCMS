@@ -28,13 +28,18 @@ async function safeCall<T>(fn: () => Promise<T>, context?: string): Promise<Data
       return {
         success: false,
         message: err.message,
-        error: { code: (err as AppError & { code?: string }).code, status: err.status },
+        error: {
+          code: (err as AppError & { code?: string }).code || "APP_ERROR",
+          message: err.message,
+        },
       };
     }
+    const message = context ? `${context}: ${getErrorMessage(err)}` : getErrorMessage(err);
+    const errorInstance = err instanceof Error ? err : new Error(String(err));
     return {
       success: false,
-      message: context ? `${context}: ${getErrorMessage(err)}` : getErrorMessage(err),
-      error: err,
+      message,
+      error: { code: "SDK_ERROR", message: errorInstance.message },
     };
   }
 }

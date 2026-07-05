@@ -22,7 +22,7 @@
  *   # Called automatically by `bun run prepare` before every build.
  */
 
-import { existsSync, mkdirSync, symlinkSync, rmSync, lstatSync } from "node:fs";
+import { existsSync, mkdirSync, symlinkSync, rmSync, lstatSync, unlinkSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 
 const SHIMS_DIR = resolve(process.cwd(), "node_modules");
@@ -74,13 +74,29 @@ function ensureShim(scope: string, target: string): boolean {
     try {
       const current = require("node:fs").realpathSync(shimPath);
       if (current === targetPath) return false; // already correct
-      rmSync(shimPath, { force: true });
+      try {
+        unlinkSync(shimPath);
+      } catch {
+        rmSync(shimPath, { force: true });
+      }
     } catch {
-      rmSync(shimPath, { force: true });
+      try {
+        unlinkSync(shimPath);
+      } catch {
+        rmSync(shimPath, { force: true });
+      }
     }
   } else if (existsSync(shimPath)) {
     // Not a symlink — remove it
-    rmSync(shimPath, { recursive: true, force: true });
+    try {
+      rmSync(shimPath, { recursive: true, force: true });
+    } catch {
+      try {
+        unlinkSync(shimPath);
+      } catch {
+        // ignore
+      }
+    }
   }
 
   // Ensure parent directory exists

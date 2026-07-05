@@ -21,7 +21,8 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 import { dbAdapter } from "@src/databases/db";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { MediaService } from "@src/utils/media/media-service.server";
-import { error, redirect, isHttpError, isRedirect } from "@sveltejs/kit";
+import { error, isHttpError, isRedirect } from "@sveltejs/kit";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 // System Logger
 import { type LoggableValue, logger } from "@utils/logger";
 import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.server";
@@ -55,11 +56,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   try {
-    // User is already validated in hooks.server.ts
-    const { user, isAdmin, roles: tenantRoles } = locals;
-    if (!user) {
-      throw redirect(302, "/login");
-    }
+    const user = getAuthenticatedUser(locals);
+    const { isAdmin, roles: tenantRoles } = locals;
 
     // Check if user has permission to access media gallery
     const hasMediaPermission =
@@ -236,11 +234,7 @@ export const actions: Actions = {
     }
 
     try {
-      const user = locals.user;
-      if (!user) {
-        logger.warn("No user found in locals during file upload");
-        throw redirect(302, "/login");
-      }
+      const user = getAuthenticatedUser(locals);
 
       const formData = await request.formData();
       const files = formData.getAll("files");
@@ -432,11 +426,7 @@ export const actions: Actions = {
     }
 
     try {
-      const user = locals.user;
-      if (!user) {
-        logger.warn("No user found in locals during file upload");
-        throw redirect(302, "/login");
-      }
+      const user = getAuthenticatedUser(locals);
 
       const formData = await request.formData();
       const remoteUrls = JSON.parse(formData.get("remoteUrls") as string) as string[];

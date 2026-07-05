@@ -417,53 +417,6 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
 
-  // 🧪 TEST BYPASS: x-test-secret header authenticates as admin for benchmarks/integration
-  if (!(locals as any).__testBypass) {
-    const testSecret = event.request.headers.get("x-test-secret");
-    if (testSecret) {
-      const expected = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-      if (testSecret === expected) {
-        (locals as any).user = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (locals as any).__testBypass = true;
-        const tenantHeader = event.request.headers.get("x-tenant-id");
-        if (tenantHeader) {
-          (locals as any).tenantId = tenantHeader;
-        }
-      }
-    }
-  }
-
-  // 🧪 GLOBAL TEST-MODE BYPASS: Handle x-test-secret for ALL API endpoints
-  if (!(locals as any).__testBypass) {
-    const testSecret = event.request.headers.get("x-test-secret");
-    if (testSecret) {
-      const expected = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-      if (testSecret === expected) {
-        (locals as any).user = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (locals as any).__testBypass = true;
-        const tenantHeader = event.request.headers.get("x-tenant-id");
-        if (tenantHeader) {
-          (locals as any).tenantId = tenantHeader;
-        }
-      }
-    }
-  }
-
-  // 🧪 TEST MODE BYPASS: Verified early in pipeline, skip everything else
-  if ((locals as any).__testBypass === true) {
-    return await resolve(event);
-  }
-
   // 🚀 TURBO GET FAST-PATH: Auth context already resolved by handleTurboGet.
   // User, roles, tenantId, and bitset are pre-injected — skip session validation entirely.
   if ((locals as any).__turboAuth === true) {
@@ -797,7 +750,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
       cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
 
-    if (!locals.user && !hasAuthAttempt) {
+    // Skip ephemeral guest creation for test-mode requests — they should hit the real 401 path
+    const testSecret = event.request.headers.get("x-test-secret");
+    if (!locals.user && !hasAuthAttempt && !testSecret) {
       const isPublicPath =
         url.pathname.startsWith("/api/collections") ||
         url.pathname.startsWith("/api/query") ||

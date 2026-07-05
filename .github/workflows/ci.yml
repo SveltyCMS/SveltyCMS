@@ -51,7 +51,7 @@ jobs:
     outputs:
       pw-version: ${{ steps.pw.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -164,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -182,7 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -190,7 +190,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
       - run: bun run test:unit
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -233,7 +233,7 @@ jobs:
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: |
             .github/workflows
@@ -258,7 +258,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -310,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -321,7 +321,7 @@ jobs:
 
       - name: Cache Playwright Browsers
         id: cache-playwright
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -376,9 +376,14 @@ jobs:
 
           cp config/private.test.ts config/private.ts
 
-          # Overwrite the random test-secret.txt with the actual repo secret
+          # Overwrite the random test-secret.txt with the actual repo secret only if it is set
           # so test-orch.ts and the server agree on TEST_API_SECRET
-          echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          if [ -n "${TEST_API_SECRET}" ]; then
+            echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          else
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
 
           # Start the built server
           node build/index.js > preview.log 2>&1 &
@@ -432,7 +437,7 @@ jobs:
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: |
             .github/workflows
@@ -457,7 +462,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -481,7 +486,7 @@ jobs:
 
       - name: Cache Playwright Browsers
         id: cache-playwright
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -513,6 +518,10 @@ jobs:
           PORT: 4173
           SKIP_E2E_DEPS: "true"
         run: |
+          if [ -z "${TEST_API_SECRET}" ]; then
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
@@ -550,7 +559,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -580,7 +589,12 @@ jobs:
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
           mkdir -p tests/e2e/.auth
-          echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          if [ -n "${TEST_API_SECRET}" ]; then
+            echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          else
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
           bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }}
 
       - name: Upload benchmark report
@@ -603,7 +617,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:

@@ -13,9 +13,10 @@
  */
 
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { error, isHttpError, redirect } from "@sveltejs/kit";
+import { error, isHttpError } from "@sveltejs/kit";
 // System Logs
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 // Side-effect import: registers remote command with SvelteKit metadata for client build
@@ -23,13 +24,8 @@ import "./admin.remote";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const { user, isAdmin, roles: tenantRoles = [] } = locals;
-
-    // If validation fails, redirect the user to the login page
-    if (!user) {
-      logger.warn("User not authenticated, redirecting to login");
-      throw redirect(302, "/login");
-    }
+    const user = getAuthenticatedUser(locals);
+    const { isAdmin, roles: tenantRoles = [] } = locals;
 
     // Log successful session validation
     logger.trace(`User authenticated successfully for user: ${user._id}`);

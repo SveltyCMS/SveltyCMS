@@ -34,6 +34,8 @@ import {
   getPrecheckPlan,
   resolveActiveTasks,
   validateCiParity,
+  getLastCommandOutput,
+  clearLastCommandOutput,
   type PrecheckOptions,
   type PrecheckTier,
   type Task,
@@ -170,7 +172,15 @@ function renderDashboard(
   currentTask: string | null,
   pendingTasks: Task[],
   estimatedRemainingMs: number,
-): void {
+  previousLineCount: number = 0,
+): number {
+  // Move cursor up to overwrite the previous dashboard in-place.
+  // \x1b[2J (clear screen) is silently ignored on Windows PowerShell 5.1,
+  // but cursor-up + clear-to-end works reliably on all terminals.
+  if (previousLineCount > 0 && TTY) {
+    process.stdout.write(`\x1b[${previousLineCount}A\x1b[J`);
+  }
+
   const total = results.length + (currentTask ? 1 : 0) + pendingTasks.length;
   const completed = results.length;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -211,26 +221,34 @@ function renderDashboard(
 
   lines.push(`╚${"═".repeat(BOX_WIDTH - 2)}╝`);
 
-  // Print dashboard once (no animation — child process output prevents reliable in-place redraw)
   for (const line of lines) {
     process.stdout.write(line + "\n");
   }
+
+  return lines.length;
 }
 
-function printCompactProgress(
-  passed: boolean,
-  completed: number,
-  total: number,
+function printFailedTaskOutput(
   taskName: string,
-  elapsedMs: number,
-  estimatedRemainingMs: number,
+  output: { cmd: string; stdout: string; stderr: string; code: number | null },
 ): void {
-  const bar = renderProgressBar(completed, total);
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const eta = formatEta(estimatedRemainingMs);
-  const icon = passed ? "✅" : "❌";
   console.log(
-    `  ${icon} ${taskName} (${formatTime(elapsedMs)})  [${completed}/${total}] ${bar} ${pct}% · ⏱ ~${eta}`,
+    `\n${C.red}${C.bold}═ Task Failed: ${taskName} ═════════════════════════════════════════${C.reset}`,
+  );
+  console.log(`${C.bold}Command:${C.reset} ${output.cmd}`);
+  if (output.code !== null) {
+    console.log(`${C.bold}Exit Code:${C.reset} ${output.code}`);
+  }
+  if (output.stdout.trim()) {
+    console.log(`\n${C.bold}--- Standard Output ---${C.reset}`);
+    console.log(output.stdout.trim());
+  }
+  if (output.stderr.trim()) {
+    console.log(`\n${C.bold}--- Error Output ---${C.reset}`);
+    console.log(output.stderr.trim());
+  }
+  console.log(
+    `${C.red}${C.bold}══════════════════════════════════════════════════════════════════════${C.reset}\n`,
   );
 }
 
@@ -321,7 +339,7 @@ export async function runPrecheck(
   const tierLabel = options.tier === "full" ? "Full Precheck" : "Pre-Push";
 
   // Print initial dashboard once (all tasks pending)
-  renderDashboard(tierLabel, [], null, activeTasks, estimatedRemainingMs);
+  let dashboardLines = renderDashboard(tierLabel, [], null, activeTasks, estimatedRemainingMs);
 
   // Adaptive correction factor — refined as each task completes
   let actualTimeSoFar = 0;
@@ -336,6 +354,7 @@ export async function runPrecheck(
 
     let success = false;
     let errorThrown: unknown = undefined;
+    clearLastCommandOutput();
     try {
       const result = task.run();
       success = await result;
@@ -405,16 +424,6 @@ export async function runPrecheck(
       }
     }
 
-    // Progress line showing completion status
-    printCompactProgress(
-      success,
-      i + 1,
-      activeTasks.length,
-      task.name,
-      elapsed,
-      estimatedRemainingMs,
-    );
-
     results.push({
       name: task.name,
       passed: success,
@@ -422,13 +431,30 @@ export async function runPrecheck(
       remediation: task.remediation,
     });
 
+    // Refresh the progress dashboard in-place after each task
+    dashboardLines = renderDashboard(
+      tierLabel,
+      results,
+      remaining.length > 0 ? remaining[0].name : null,
+      remaining.slice(1),
+      estimatedRemainingMs,
+      dashboardLines,
+    );
+
     if (!success) {
       failedTasks.push(task.name);
+      const output = getLastCommandOutput();
+      if (output) {
+        printFailedTaskOutput(task.name, output);
+        // Track extra output lines so the cursor-up on the next
+        // renderDashboard skips over this error block too
+        dashboardLines += 8;
+      }
     }
   }
 
-  // Final dashboard — all tasks completed
-  renderDashboard(tierLabel, results, null, [], 0);
+  // Final dashboard — all tasks completed (overwrite previous)
+  renderDashboard(tierLabel, results, null, [], 0, dashboardLines);
 
   if (failedTasks.length > 0) {
     printErrorSummary(

@@ -382,25 +382,10 @@ export const _handler = async (event: RequestEvent) => {
   // ensuring testing endpoints work even when the turbo pipeline hasn't
   // populated locals (e.g., early in server startup or after hot-reload).
   if (namespace === "testing" && !user && !(locals as any).__testBypass) {
-    const testModeHeader = request.headers.get("x-test-mode");
-    const testSecretHeader = request.headers.get("x-test-secret");
-    if (testModeHeader === "true" && testSecretHeader) {
-      const { getTestSecret } = await import("@utils/server/setup-check");
-      const expectedSecret = (globalThis as any).process?.env?.TEST_API_SECRET || getTestSecret();
-      if (expectedSecret && testSecretHeader === expectedSecret) {
-        user = {
-          _id: "system" as DatabaseId,
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        } as any;
-        locals.user = user;
-        (locals as any).__testBypass = true;
-        if (!tenantId) {
-          tenantId = (request.headers.get("x-tenant-id") as DatabaseId) || null;
-          locals.tenantId = tenantId as any;
-        }
-      }
+    const { applyTestBypassFromRequest } = await import("@utils/test-bypass.server");
+    if (applyTestBypassFromRequest(request, locals as App.Locals)) {
+      user = locals.user as any;
+      tenantId = (locals.tenantId as string) || tenantId;
     }
   }
 

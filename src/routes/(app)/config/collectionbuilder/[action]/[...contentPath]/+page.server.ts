@@ -28,7 +28,8 @@ import { MigrationEngine } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { compile } from "@src/utils/compilation/compile";
-import { type Actions, error, redirect } from "@sveltejs/kit";
+import { type Actions, error } from "@sveltejs/kit";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 // System Logger
 import { logger } from "@utils/logger";
 import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant.server";
@@ -81,15 +82,9 @@ async function getPrettierConfig() {
 // Define load function as async function that takes an event parameter
 export const load: PageServerLoad = async ({ locals, params }) => {
   try {
-    // 1. Get user, roles, and admin status from locals (set by hook)
-    const { user, roles: tenantRoles, isAdmin } = locals;
+    const user = getAuthenticatedUser(locals);
+    const { roles: tenantRoles, isAdmin } = locals;
     const { action } = params;
-
-    // 2. User authentication (already done by hook, this is a fallback)
-    if (!user) {
-      logger.warn("User not authenticated, redirecting to login");
-      throw redirect(302, "/login");
-    }
 
     logger.trace(`User authenticated successfully for user: ${user._id}`);
 
@@ -193,11 +188,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
   // Save Collection
   saveCollection: async ({ request, locals }) => {
+    const user = getAuthenticatedUser(locals);
+    const { roles: tenantRoles, isAdmin } = locals;
     try {
-      const { user, roles: tenantRoles, isAdmin } = locals;
-      if (!user) {
-        return { status: 401, error: "Unauthorized" };
-      }
       if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
         return { status: 403, error: "Insufficient permissions" };
       }
@@ -279,11 +272,9 @@ export const actions: Actions = {
 
   // Save config
   saveConfig: async ({ request, locals }) => {
+    const user = getAuthenticatedUser(locals);
+    const { roles: tenantRoles, isAdmin } = locals;
     try {
-      const { user, roles: tenantRoles, isAdmin } = locals;
-      if (!user) {
-        return { status: 401, error: "Unauthorized" };
-      }
       if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
         return { status: 403, error: "Insufficient permissions" };
       }
@@ -327,11 +318,9 @@ export const actions: Actions = {
 
   // Delete collection
   deleteCollections: async ({ request, locals }) => {
+    const user = getAuthenticatedUser(locals);
+    const { roles: tenantRoles, isAdmin } = locals;
     try {
-      const { user, roles: tenantRoles, isAdmin } = locals;
-      if (!user) {
-        return { status: 401, error: "Unauthorized" };
-      }
       if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
         return { status: 403, error: "Insufficient permissions" };
       }

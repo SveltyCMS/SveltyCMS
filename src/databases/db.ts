@@ -109,12 +109,27 @@ export const dbInitPromise: Promise<any | null> = new Proxy(Promise.resolve(null
 
 // Lazy Holders for Server-Only Modules
 let _dbInit: any = null;
+let _resilienceIntegration: any = null;
 
 async function getDbInit() {
   if (!_dbInit) {
-    _dbInit = await import("./db-init");
+    // Use variable-based dynamic import to prevent the bundler from statically
+    // resolving this path into the client bundle. db-init.ts pulls in .server.ts
+    // modules (media-service, content/index) that must never reach the browser.
+    const mod = "./db-init";
+    _dbInit = await import(mod);
   }
   return _dbInit;
+}
+
+async function getResilienceIntegration() {
+  if (!_resilienceIntegration) {
+    // Variable-based import to prevent bundler from tracing into client bundle.
+    // resilience-integration.ts → database-resilience.ts → email.server.ts
+    const mod = "./resilience-integration";
+    _resilienceIntegration = await import(mod);
+  }
+  return _resilienceIntegration;
 }
 
 // Centralized, idempotent system initialization.
@@ -200,7 +215,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       if (!adapter) throw new Error("Failed to load database adapter");
       logger.info(`[Boot] Adapter loaded. Connecting...`);
 
-      const { connectDatabaseWithResilience } = await import("./resilience-integration");
+      const { connectDatabaseWithResilience } = await getResilienceIntegration();
       const connectionResult = await connectDatabaseWithResilience(
         adapter,
         `Database Boot (${cfg?.DB_TYPE || "unknown"})`,
@@ -220,7 +235,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
         const reloaded = await dbInit.loadAdapters({ DB_TYPE: type });
         if (reloaded) {
           const { connectDatabaseWithResilience: reconnectWithResilience } =
-            await import("./resilience-integration");
+            await getResilienceIntegration();
           const rehydrate = await reconnectWithResilience(reloaded, "Database Re-hydration");
           if (!rehydrate.success) {
             throw new Error(rehydrate.message || "Database re-hydration failed");

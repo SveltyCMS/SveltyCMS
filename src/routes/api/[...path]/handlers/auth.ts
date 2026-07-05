@@ -82,7 +82,11 @@ export async function handleAuthUserRoutes(
         case "auth":
           return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
         case "user":
-          return reqMethod === "GET" ? handleListUsers(event, cms, tenantId) : notAllowed();
+          return reqMethod === "GET"
+            ? handleListUsers(event, cms, tenantId)
+            : reqMethod === "POST"
+              ? handleCreateUser(event, cms, tenantId)
+              : notAllowed();
         case "get-tokens-provided":
           return reqMethod === "GET"
             ? rawResponse(event, {

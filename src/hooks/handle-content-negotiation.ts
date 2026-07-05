@@ -14,14 +14,23 @@
  */
 
 import type { Handle } from "@sveltejs/kit";
+import { getRequestFlags } from "@utils/hook-utils";
 
 export const handleContentNegotiation: Handle = async ({ event, resolve }) => {
-  const accept = event.request.headers.get("accept") || "";
+  const { pathname } = event.url;
+  const flags = getRequestFlags(event.locals);
 
-  // Serve llms.txt as markdown regardless of Accept header
-  if (event.url.pathname === "/llms.txt") {
+  // API, static, and bootstrap routes never serve negotiated HTML — skip early
+  if (flags.isApi || flags.isStatic || flags.isBootstrap) {
     return resolve(event);
   }
+
+  // Serve llms.txt as markdown regardless of Accept header
+  if (pathname === "/llms.txt") {
+    return resolve(event);
+  }
+
+  const accept = event.request.headers.get("accept") || "";
 
   // Check if agent requests markdown
   const prefersMarkdown = accept.includes("text/markdown");

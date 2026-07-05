@@ -8,8 +8,9 @@
  * - Server-side UUID v4 generation for new widgets
  */
 
-import { error, json, redirect } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
 import type { Actions, PageServerLoad } from "./$types";
@@ -58,11 +59,8 @@ const _widgets: WidgetInfo[] = Object.entries(_widgetModules)
 logger.trace(`Discovered ${_widgets.length} dashboard widgets (compile-time)`);
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const { user, isAdmin, roles: tenantRoles } = locals;
-  if (!user) {
-    logger.warn("User not authenticated, redirecting to login.");
-    throw redirect(301, "/login");
-  }
+  const user = getAuthenticatedUser(locals);
+  const { isAdmin, roles: tenantRoles } = locals;
 
   // Check if user has permission to access dashboard.
   // Guard tenantRoles: locals.roles can be undefined (e.g. roles not yet loaded), and calling
@@ -114,11 +112,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   default: async ({ request, locals }) => {
-    const user = locals.user;
-    if (!user) {
-      logger.warn("Unauthorized attempt to add widget");
-      throw error(401, "Unauthorized");
-    }
+    const user = getAuthenticatedUser(locals);
 
     const data = await request.json();
     const { userId, component, label, icon, size } = data;

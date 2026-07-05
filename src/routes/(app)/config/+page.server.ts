@@ -16,20 +16,16 @@ import {
   hasPermissionByAction,
   permissionConfigs,
 } from "@src/databases/auth/permissions";
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { pluginRegistry } from "@src/plugins/registry";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const { user } = locals;
-
-    if (!user) {
-      logger.warn("User not authenticated, redirecting to login");
-      throw redirect(302, "/login");
-    }
+    const user = getAuthenticatedUser(locals);
 
     logger.trace(`User session validated successfully for user: ${user._id}`);
 

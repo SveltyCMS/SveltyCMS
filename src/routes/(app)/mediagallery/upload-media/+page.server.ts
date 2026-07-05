@@ -8,8 +8,9 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 // Files over configurable limit are rejected before parsing with a clear error.
 import { dbAdapter } from "@src/databases/db";
 import { MediaService } from "@src/utils/media/media-service.server";
-import { error, redirect } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { Actions } from "./$types";
 
 export const actions: Actions = {
@@ -20,11 +21,7 @@ export const actions: Actions = {
     }
 
     try {
-      const user = locals.user;
-      if (!user) {
-        logger.warn("No user found in locals during file upload");
-        throw redirect(302, "/login");
-      }
+      const user = getAuthenticatedUser(locals);
 
       const formData = await request.formData();
       const files = formData.getAll("files");
@@ -66,11 +63,7 @@ export const actions: Actions = {
     }
 
     try {
-      const user = locals.user;
-      if (!user) {
-        logger.warn("No user found in locals during file upload");
-        throw redirect(302, "/login");
-      }
+      const user = getAuthenticatedUser(locals);
 
       const formData = await request.formData();
       const remoteUrls = JSON.parse(formData.get("remoteUrls") as string) as string[];

@@ -96,7 +96,8 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     memory: (() => {
       if (searchParams.has("gc")) {
         if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-        if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
+        if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc)
+          (globalThis as any).Bun.gc(true);
       }
       return process.memoryUsage();
     })(),
@@ -311,7 +312,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // Benchmarks inject a real user but still run the FULL middleware chain
       // (rate limiting, RBAC, audit logging) for honest performance measurement.
       if (!IS_BENCHMARK && event.request.headers.get("x-test-security") !== "true") {
-        (event.locals as any).__testBypass = true;
+        if (event.locals.user) {
+          (event.locals as any).__testBypass = true;
+        }
       }
 
       // If it's a health check, return the health response (shared builder)

@@ -163,32 +163,39 @@ if (isBun) {
   });
 }
 
+// All test files on the CLI — not only the first match (multi-file `bun test` runs)
+const testFileArgs = process.argv.filter(
+  (arg) => arg.endsWith(".test.ts") || arg.endsWith(".bun.test.ts"),
+);
+
 // Normalized backslashes for Windows
 const isTestTarget = (path: string) => {
-  // Normalize backslashes for Windows
   const normalizedPath = path.replace(/\\/g, "/");
-  const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
+  const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
 
-  if (normalizedCurrentTest.includes("security-response-service")) {
-    if (normalizedPath.includes("security-response-service")) return true;
+  const matchesTestFile = (normalizedTestPath: string) => {
+    if (
+      normalizedTestPath.includes("security-response-service") &&
+      normalizedPath.includes("security-response-service")
+    ) {
+      return true;
+    }
+    return normalizedTestPath.includes(targetPart);
+  };
+
+  for (const testArg of testFileArgs) {
+    if (matchesTestFile(testArg.replace(/\\/g, "/"))) return true;
   }
+
   if (!isBun && vitest?.expect) {
     try {
       const { testPath } = (vitest.expect as any).getState();
-      if (testPath) {
-        const normalizedTestPath = testPath.replace(/\\/g, "/");
-        if (normalizedTestPath.includes("security-response-service")) {
-          if (normalizedPath.includes("security-response-service")) return true;
-        }
-        // Use testPath as the primary source of truth if available
-        const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
-        return normalizedTestPath.includes(targetPart);
-      }
+      if (testPath && matchesTestFile(testPath.replace(/\\/g, "/"))) return true;
     } catch {}
   }
-  // Fallback to simpler check for path using global currentTest
-  const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
-  return currentTest && currentTest.includes(targetPart);
+
+  const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
+  return normalizedCurrentTest ? matchesTestFile(normalizedCurrentTest) : false;
 };
 
 // --- TOP LEVEL MOCKS (Hoisted) ---
@@ -1596,7 +1603,11 @@ if (!isTestTarget("metrics-service")) {
   setGlobal("metricsService", mockMetricsService);
 }
 
-if (!isTestTarget("security-response-service")) {
+const includesSecurityResponseServiceTest = process.argv.some((arg) =>
+  arg.replace(/\\/g, "/").includes("security-response-service"),
+);
+
+if (!includesSecurityResponseServiceTest && !isTestTarget("security-response-service")) {
   try {
     const rsPath = import.meta.resolve("@src/services/security/response-service");
     mock.module(rsPath, () => ({

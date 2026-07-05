@@ -5,9 +5,14 @@
 
 import { getDb } from "@src/databases/db";
 import { error } from "@sveltejs/kit";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
+  getAuthenticatedUser(locals);
+  if (!locals.isAdmin) {
+    throw error(403, "Admin privileges required");
+  }
   const db = getDb();
   if (!db || !db.system.jobs) {
     throw error(500, "Database adapter not ready or jobs not supported.");

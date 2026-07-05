@@ -273,6 +273,8 @@ function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
     NODE_ENV: "test",
     TEST_MODE: "true",
     SKIP_GATEKEEPER: "true",
+    LOG_LEVEL: "warn",
+    QUIET: "true",
     PORT,
     API_BASE_URL,
     DB_TYPE: db.type,

@@ -4,7 +4,7 @@
  * Verifies core domain logic bypassing the HTTP handlers.
  */
 
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { initializeTestEnvironment, testFixtures } from "../helpers/test-setup";
 
@@ -96,8 +96,13 @@ describe("LocalCMS SDK Integration (via Bridge)", () => {
         { tenantId: null },
       ]);
 
-      expect(result.user.email).toBe(uniqueEmail.toLowerCase());
-      expect(result.session).toBeDefined();
+      // AuthNamespace.login() is wrapped by safeCall, so the SDK returns
+      // { success: true, data: { user, session } }. After the testing bridge
+      // wraps again and sdkCall unwraps once, we have:
+      // { success: true, data: { user, session } }
+      expect(result.success).toBe(true);
+      expect(result.data.user.email).toBe(uniqueEmail.toLowerCase());
+      expect(result.data.session).toBeDefined();
     });
   });
 
