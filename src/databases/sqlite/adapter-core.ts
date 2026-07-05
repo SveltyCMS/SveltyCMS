@@ -985,7 +985,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   private async createDriver(dbPath: string) {
     const versions = (process as any)?.versions || {};
-    const isBun = typeof (globalThis as any)["Bun"] !== "undefined";
+    // Use process.versions.bun instead of typeof Bun — avoids TS "Cannot find name 'Bun'"
+    const isBun = !!(versions as any).bun;
     const nodeVersion = versions.node;
 
     let normalizedPath = dbPath.replace(/\\/g, "/");
@@ -1006,8 +1007,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     if (isBun) {
       try {
-        // @ts-ignore - bun:sqlite is a Bun-native module, not available in Node types
-        const { Database } = await import("bun:sqlite");
+        // Use Function constructor to prevent TypeScript from resolving bun:sqlite
+        const { Database } = await new Function('return import("bun:sqlite")')();
         let sqlite: any;
         let lastErr: any;
         for (let i = 0; i < 10; i++) {
