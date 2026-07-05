@@ -17,6 +17,7 @@
 
 <script lang="ts">
 import { browser } from "$app/environment";
+import { page } from "$app/stores";
 import type { PageData } from "./$types";
 
 // props
@@ -26,16 +27,17 @@ interface Props {
 
 const { data }: Props = $props();
 
-// Use $derived to ensure reactivity
-const emailList = $derived({
-	...data,
-	path: data.path ?? null,
+// Build the page object EmailPreview expects
+const previewPage = $derived({
+	params: $page.params as { email?: string },
+	data: { emails: data },
+	url: $page.url,
 });
 </script>
 
-{#if emailList.files && emailList.files.length}
+{#if data.files && data.files.length}
 	{#if browser}
-		{#await import('@better-svelte-email/preview')}
+		{#await import('@better-svelte-email/preview/EmailPreview.svelte')}
 			<!-- Loading State -->
 			<div class="flex h-full items-center justify-center p-10">
 				<div class="text-center">
@@ -45,8 +47,8 @@ const emailList = $derived({
 			</div>
 		{:then module}
 			<!-- Resolved State - Dynamic component with any typing for third-party module -->
-			{const EmailPreviewComponent = module.EmailPreview as any}
-			<EmailPreviewComponent {emailList} />
+			{const EmailPreviewComponent = module.default as any}
+			<EmailPreviewComponent page={previewPage} />
 		{:catch error}
 			<!-- Error State -->
 			<div class="rounded border border-red-200 bg-red-50 p-4 text-red-500">

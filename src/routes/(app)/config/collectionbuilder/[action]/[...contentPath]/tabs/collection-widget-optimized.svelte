@@ -248,29 +248,23 @@ const quickWidgets = [
 ];
 
 function addQuickWidget(key: string) {
-	const widgetInstance = getWidgetFunction(key);
-	if (widgetInstance) {
-		const newIndex = items.length;
-		const newDragId = Math.random().toString(36).substring(7);
-		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
-		const newWidget = {
-			label: `New ${key}`,
-			db_fieldName: `new_${key.toLowerCase()}`,
-			widget: { key, Name: key } as any,
-			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
-			permissions: {},
-		};
-		items = [
-			...items,
-			{
-				id: newIndex + 1,
-				_dragId: newDragId,
-				...newWidget,
-			} as unknown as WidgetListItem,
-		];
-		updateStore();
-		toast.success(`Added ${key} field`);
-	}
+	const newWidget = {
+		label: `New ${key}`,
+		db_fieldName: `new_${key.toLowerCase()}`,
+		widget: { key, Name: key } as any,
+		GuiFields: {},
+		permissions: {},
+	} as FieldInstance;
+	const newIndex = items.length;
+	const newDragId = Math.random().toString(36).substring(7);
+	dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+	items = [...items, { id: newIndex + 1, _dragId: newDragId, ...newWidget } as WidgetListItem];
+	const currentFields = collection.value?.fields || [];
+	setCollection({
+		...collection.value,
+		fields: [...currentFields, newWidget],
+	});
+	toast.success(`Added ${key} field`);
 }
 
 const viewOptions = [

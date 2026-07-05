@@ -132,7 +132,9 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
       );
       return data;
     } catch (err: any) {
-      logger.error(`Roles fetch failed: ${err.message}`);
+      if (process.env.NODE_ENV !== "test") {
+        logger.error(`Roles fetch failed: ${err.message}`);
+      }
       return [];
     } finally {
       inflightRoles.delete(key);

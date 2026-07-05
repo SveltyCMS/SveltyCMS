@@ -23,7 +23,7 @@ import "../app.css";
 // Register Iconify custom element globally
 import "iconify-icon";
 
-import { onMount, untrack } from "svelte";
+import { onMount, untrack, setContext } from "svelte";
 import { browser } from "$app/environment";
 import { page } from "$app/state";
 import { beforeNavigate, afterNavigate } from "$app/navigation";
@@ -125,10 +125,14 @@ afterNavigate(() => {
 	// State-Bound Focus Restoration
 	setTimeout(() => {
 		if (lastFocusedSelector) {
-			const target = document.querySelector(lastFocusedSelector) as HTMLElement;
-			if (target) {
-				console.log(`[A11y] Restoring focus to state-bound selector: ${lastFocusedSelector}`);
-				target.focus();
+			try {
+				const target = document.querySelector(lastFocusedSelector) as HTMLElement;
+				if (target) {
+					console.log(`[A11y] Restoring focus to state-bound selector: ${lastFocusedSelector}`);
+					target.focus();
+				}
+			} catch (e) {
+				console.warn(`[A11y] Invalid focus selector: ${lastFocusedSelector}`, e);
 			}
 		}
 	}, 150);
@@ -294,30 +298,28 @@ $effect(() => {
 });
 
 // ============================================================================
-// Reactive Locale Syncing
+// Locale Context — bypasses $state() on class fields (compiled away in .svelte.ts)
 // ============================================================================
 
+function updateLocale(locale: string) {
+	if (!availableLocales.includes(locale as any) || locale === currentLocale) return;
+	app.systemLanguage = locale;
+	setLocale(locale as any, { reload: false });
+	currentLocale = locale as any;
+}
+setContext("updateLocale", updateLocale);
+
+// Fallback: poll-reconcile app.systemLanguage every 500ms for non-context flows
 $effect(() => {
-	// Guard: Only sync after mount
-	if (!isMounted) {
-		return;
-	}
-
-	const desired = app.systemLanguage;
-	const current = untrack(() => currentLocale);
-
-	// Only update if there's an actual change
-	if (
-		desired &&
-		availableLocales.includes(desired as any) &&
-		current !== desired
-	) {
-		console.log("[RootLayout] Store changed, updating locale:", desired);
-
-		// Update Paraglide locale (handles routing internally)
-		setLocale(desired as any, { reload: false });
-		currentLocale = desired as any;
-	}
+	if (!isMounted) return;
+	const interval = setInterval(() => {
+		const desired = app.systemLanguage;
+		if (desired && availableLocales.includes(desired as any) && desired !== currentLocale) {
+			setLocale(desired as any, { reload: false });
+			currentLocale = desired as any;
+		}
+	}, 500);
+	return () => clearInterval(interval);
 });
 
 // ============================================================================
@@ -438,7 +440,7 @@ onMount(() => {
 				<p class="text-error-600 dark:text-error-500">{error.message}</p>
 			</div>
 
-			<div class="flex space-x-4">
+			<div class="flex gap-4">
 				<Button variant="primary" onclick={reset}>
 					Try Again
 				</Button>

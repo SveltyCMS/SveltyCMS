@@ -61,6 +61,12 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     await import("@src/stores/system/state.svelte.ts");
   const { isSetupComplete } = await import("../utils/server/setup-check");
 
+  // ✅ FORCE provision BEFORE any checks
+  if ((adapter as any)._sqlite) {
+    console.log("[db-init] Force running provision...");
+    await (adapter as any).provision();
+  }
+
   const setupComplete = isSetupComplete();
 
   if (!setupComplete) {

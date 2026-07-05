@@ -45,8 +45,14 @@ test.describe("Full Collection & Widget Flow", () => {
     // 1. Login
     await loginAsAdmin(page);
 
-    // Navigate directly to Names collection list page
-    await page.goto("/en/collection/Names");
+    // Navigate to dashboard so the sidebar loads with the Collections tree
+    await page.goto("/");
+    // Wait for the sidebar Collections tree to render with "Names"
+    await expect(page.getByRole("treeitem", { name: /Names/i }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    // Click the treeitem to navigate to the Names entry page (client-side navigation)
+    await page.getByRole("treeitem", { name: /Names/i }).first().click();
 
     // 2. Create Entry — the button may have text "Create New" or "Add Entry"
     const createBtn = page.getByRole("button", { name: /create/i });

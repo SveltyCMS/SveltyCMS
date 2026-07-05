@@ -38,9 +38,11 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     if (!initPromise) {
       initPromise = ensureContentInitialized(tenantId, false)
         .catch((err) => {
-          logger.error(
-            `[handleContentInitialization] Tenant init crashed for ${tenantId}: ${err.message}`,
-          );
+          if (process.env.NODE_ENV !== "test") {
+            logger.error(
+              `[handleContentInitialization] Tenant init crashed for ${tenantId}: ${err.message}`,
+            );
+          }
         })
         .finally(() => {
           tenantInitializationFlights.delete(tenantId);

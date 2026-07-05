@@ -55,6 +55,41 @@ import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 
 import { getTestSecret } from "@utils/server/setup-check";
 
+// 🧪 TEST MODE BYPASS — MUST BE FIRST IN PIPELINE
+// Intercepts /api/testing requests in test mode and sets up the system user
+// BEFORE any middleware runs. This eliminates 401 errors from auth/authz
+// when the test orchestrator calls reset-to-state / seed / login endpoints.
+const handleTestBypass: Handle = async ({ event, resolve }) => {
+  const pathname = event.url.pathname;
+
+  // Only intercept /api/testing in test mode
+  if (
+    pathname === "/api/testing" &&
+    (process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test")
+  ) {
+    // Validate test secret from headers
+    const testSecretHeader = event.request.headers.get("x-test-secret");
+    const expectedSecret =
+      process.env.TEST_API_SECRET ||
+      (await import("@utils/server/setup-check").then((m) => m.getTestSecret()));
+
+    if (testSecretHeader && expectedSecret && testSecretHeader === expectedSecret) {
+      // Inject system admin user — all downstream middleware will see this
+      (event.locals as any).user = {
+        _id: "system" as any,
+        role: "admin",
+        isAdmin: true,
+        email: "system@sveltycms",
+      };
+      (event.locals as any).isAdmin = true;
+      (event.locals as any).__testBypass = true;
+      (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || "global";
+    }
+  }
+
+  return resolve(event);
+};
+
 // 🚀 HYPER-TURBO BYPASS (Enterprise)
 // In benchmark mode, injects a system admin user for non-auth requests
 // to eliminate session DB lookup overhead. Auth requests (login, logout)
@@ -388,6 +423,7 @@ const getPipeline = () => {
   if (setupComplete) {
     if (!cachedPipelineReady) {
       cachedPipelineReady = sequence(
+        wrapHandle("test-bypass", () => handleTestBypass),
         wrapHandle("hyper-turbo", () => handleHyperTurbo),
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
         wrapHandle("test-isolation", () => handleTestIsolation),
@@ -416,6 +452,7 @@ const getPipeline = () => {
   } else {
     if (!cachedPipelineSetup) {
       cachedPipelineSetup = sequence(
+        wrapHandle("test-bypass", () => handleTestBypass),
         wrapHandle("hyper-turbo", () => handleHyperTurbo),
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
         wrapHandle("compression", () => handleCompression),

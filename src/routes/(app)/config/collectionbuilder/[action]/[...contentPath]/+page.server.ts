@@ -215,6 +215,12 @@ export const actions: Actions = {
       // Widgets Fields
       const fields = JSON.parse(fieldsData) as FieldsData;
 
+      // Validate at least one field is present
+      const fieldValues = Object.values(fields);
+      if (fieldValues.length === 0) {
+        return { status: 400, error: "Collection must have at least one field" };
+      }
+
       // 1. Drift Detection & Safety Check
       // Construct a temporary schema for comparison
       const tempSchema: Schema = {

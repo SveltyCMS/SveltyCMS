@@ -47,16 +47,12 @@ const loadHardenedConfig = async () => {
     }
   }
 
-  const jwtSecret =
-    process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
-  const encryptionKey =
-    process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
+  const jwtSecret = process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
+  const encryptionKey = process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
   const adminPassword = process.env.ADMIN_PASSWORD || "Password123!";
 
   if (isCI && !testApiSecret) {
-    throw new Error(
-      "❌ CRITICAL: TEST_API_SECRET is missing in CI environment",
-    );
+    throw new Error("❌ CRITICAL: TEST_API_SECRET is missing in CI environment");
   }
 
   return {
@@ -131,33 +127,24 @@ function normalizePath(file: string) {
   return file.replace(/\\/g, "/");
 }
 
-function filterTestsBySuite(
-  testFiles: string[],
-  suite: IntegrationSuite,
-  dbType: string,
-) {
+function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
   let filtered = testFiles.filter((file) => {
     const path = normalizePath(file);
 
     if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
     if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
-    if (path.endsWith("postgresql-adapter.test.ts"))
-      return dbType === "postgresql";
+    if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
     if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
 
     return true;
   });
 
   if (suite === "db") {
-    return filtered.filter((file) =>
-      normalizePath(file).includes("tests/integration/databases/"),
-    );
+    return filtered.filter((file) => normalizePath(file).includes("tests/integration/databases/"));
   }
 
   if (suite === "api") {
-    return filtered.filter(
-      (file) => !normalizePath(file).includes("tests/integration/databases/"),
-    );
+    return filtered.filter((file) => !normalizePath(file).includes("tests/integration/databases/"));
   }
 
   return filtered;
@@ -216,14 +203,8 @@ async function waitForServerReady(maxAttempts = 60) {
 
       if (res.ok || res.status === 533) {
         const data = await res.json().catch(() => ({}));
-        const payload =
-          data?.data && typeof data.data === "object" ? data.data : data;
-        const rawStatus = (
-          payload.overallStatus ||
-          payload.status ||
-          payload.health ||
-          ""
-        )
+        const payload = data?.data && typeof data.data === "object" ? data.data : data;
+        const rawStatus = (payload.overallStatus || payload.status || payload.health || "")
           .toString()
           .toLowerCase();
 
@@ -232,9 +213,7 @@ async function waitForServerReady(maxAttempts = 60) {
           return true;
         }
 
-        console.log(
-          `⏳ Server state: ${rawStatus} (${i + 1}/${maxAttempts})...`,
-        );
+        console.log(`⏳ Server state: ${rawStatus} (${i + 1}/${maxAttempts})...`);
       }
     } catch {
       // Server may not be listening yet
@@ -284,9 +263,7 @@ async function startPreviewServer() {
         unlinkSync(dbPath);
         console.log(`Deleted stale SQLite database: ${relative(ROOT, dbPath)}`);
       } catch (err: any) {
-        console.warn(
-          `Could not delete SQLite database at ${dbPath}: ${err.message}`,
-        );
+        console.warn(`Could not delete SQLite database at ${dbPath}: ${err.message}`);
       }
     }
     // Also clean up WAL and SHM files
@@ -307,9 +284,7 @@ async function startPreviewServer() {
     throw new Error("Could not find server entry point (build/index.js)");
   }
 
-  console.log(
-    `🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`,
-  );
+  console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
   const runtimeCmd = "node";
 
@@ -336,10 +311,7 @@ async function prepareIsolatedServerForTestFile(file: string) {
 
   // MongoDB: restart server every 5 tests to prevent connection pool degradation
   const needsMongoRestart =
-    isMongoDB &&
-    !setupModeTest &&
-    testFileRunCount > 1 &&
-    testFileRunCount % 5 === 0;
+    isMongoDB && !setupModeTest && testFileRunCount > 1 && testFileRunCount % 5 === 0;
 
   if (needsMongoRestart) {
     console.log("🔄 MongoDB: restarting server to refresh connection pool...");
@@ -396,9 +368,7 @@ function generatePrivateTestConfig(privateTestPath: string) {
   const db = getDbDefaults();
 
   const dbPortValue =
-    db.type === "sqlite" || !db.port
-      ? "undefined"
-      : String(Number.parseInt(db.port, 10));
+    db.type === "sqlite" || !db.port ? "undefined" : String(Number.parseInt(db.port, 10));
 
   const content = `/**
  * Auto-generated test config for integration tests.
@@ -427,9 +397,7 @@ export default privateEnv;
 `;
 
   writeFileSync(privateTestPath, content, "utf8");
-  console.log(
-    "✅ Generated config/private.test.ts from integration test environment",
-  );
+  console.log("✅ Generated config/private.test.ts from integration test environment");
 }
 
 function ensurePrivateTestConfig() {
@@ -445,18 +413,14 @@ function ensurePrivateTestConfig() {
   if (isCI) {
     generatePrivateTestConfig(privateTestPath);
     copyFileSync(privateTestPath, privatePath);
-    console.log(
-      "✅ Mirrored config/private.test.ts to config/private.ts for CI build",
-    );
+    console.log("✅ Mirrored config/private.test.ts to config/private.ts for CI build");
     console.log(`✅ Test config verified: ${privateTestPath}`);
     return;
   }
 
   if (!existsSync(privateTestPath) && existsSync(privatePath)) {
     copyFileSync(privatePath, privateTestPath);
-    console.log(
-      "✅ Copied config/private.ts to config/private.test.ts for TEST_MODE",
-    );
+    console.log("✅ Copied config/private.ts to config/private.test.ts for TEST_MODE");
   }
 
   if (!existsSync(privateTestPath)) {
@@ -464,18 +428,13 @@ function ensurePrivateTestConfig() {
   }
 
   if (!existsSync(privateTestPath)) {
-    throw new Error(
-      `System setup did not create required test config: ${privateTestPath}`,
-    );
+    throw new Error(`System setup did not create required test config: ${privateTestPath}`);
   }
 
   console.log(`✅ Test config verified: ${privateTestPath}`);
 }
 
-async function testingAction(
-  action: "reset" | "seed",
-  preset?: string,
-): Promise<void> {
+async function testingAction(action: "reset" | "seed", preset?: string): Promise<void> {
   let lastError: Error | null = null;
   const maxRetries = 5;
   const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
@@ -504,9 +463,7 @@ async function testingAction(
 
       const text = await response.text().catch(() => "");
       if (response.status === 503 && i < maxRetries - 1) {
-        console.log(
-          `/api/testing ${action} returned 503 (initializing). Retrying in 2s...`,
-        );
+        console.log(`/api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
@@ -526,10 +483,7 @@ async function testingAction(
     }
   }
 
-  throw (
-    lastError ||
-    new Error(`Failed /api/testing ${action} after ${maxRetries} retries`)
-  );
+  throw lastError || new Error(`Failed /api/testing ${action} after ${maxRetries} retries`);
 }
 
 async function runCommand(cmd: string, args: string[], opts: any = {}) {
@@ -591,9 +545,7 @@ export const schema = {
     "✅ Created .compiledCollections/test/integration_test_collection.js for runtime loading",
   );
 
-  console.log(
-    "⚙️ Integration test config ready. /api/testing will reset/seed per test file.",
-  );
+  console.log("⚙️ Integration test config ready. /api/testing will reset/seed per test file.");
 }
 
 function isSetupModeTest(filePath: string) {
@@ -616,19 +568,8 @@ async function teardown() {
 
   // Clean up test collection artifacts — paths must match runSystemSetup
   try {
-    const tsPath = join(
-      ROOT,
-      "config",
-      "collections",
-      "test",
-      "integration_test_collection.ts",
-    );
-    const jsPath = join(
-      ROOT,
-      ".compiledCollections",
-      "test",
-      "integration_test_collection.js",
-    );
+    const tsPath = join(ROOT, "config", "collections", "test", "integration_test_collection.ts");
+    const jsPath = join(ROOT, ".compiledCollections", "test", "integration_test_collection.js");
     if (existsSync(tsPath)) unlinkSync(tsPath);
     if (existsSync(jsPath)) unlinkSync(jsPath);
   } catch {
@@ -699,12 +640,10 @@ async function main() {
 
   const explicitFiles = getExplicitFiles(argv);
   const hasExistingBuildOutput =
-    existsSync(join(ROOT, "build")) ||
-    existsSync(join(ROOT, ".svelte-kit", "output", "server"));
+    existsSync(join(ROOT, "build")) || existsSync(join(ROOT, ".svelte-kit", "output", "server"));
 
   const skipBuild =
-    argv.includes("--no-build") ||
-    (process.env.CI === "true" && hasExistingBuildOutput);
+    argv.includes("--no-build") || (process.env.CI === "true" && hasExistingBuildOutput);
   console.log(`🧭 Suite: ${suite}`);
   console.log(`🗄️ DB: ${dbType}`);
   if (failFast) console.log("🛑 Fail-fast enabled.");
@@ -771,9 +710,7 @@ async function main() {
   console.log(`🧪 Found ${testFiles.length} integration test files`);
 
   if (testFiles.length === 0) {
-    throw new Error(
-      `No integration test files found for suite="${suite}" and db="${dbType}"`,
-    );
+    throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
   let passed = 0;
@@ -786,9 +723,7 @@ async function main() {
     const start = Date.now();
 
     console.log("\n" + "-".repeat(80));
-    console.log(
-      `🧪 Preparing isolated environment on port ${PORT} for ${relPath}`,
-    );
+    console.log(`🧪 Preparing isolated environment on port ${PORT} for ${relPath}`);
     console.log("-".repeat(80));
 
     await prepareIsolatedServerForTestFile(file);
@@ -801,8 +736,7 @@ async function main() {
 
     const testCmd = "bun";
     // MongoDB and MariaDB need extra timeout for post-reset stabilize loop (up to 32s + seed + auth)
-    const dbTimeout =
-      db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
+    const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
     const testArgs = ["test", "--timeout", dbTimeout, bunTestPath];
 
     const { code } = await runCommand(testCmd, testArgs, {
@@ -822,14 +756,10 @@ async function main() {
       passed++;
     }
 
-    console.log(
-      success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed",
-    );
+    console.log(success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed");
 
     if (!success && failFast) {
-      console.log(
-        "\n🛑 Fail-fast: Aborting integration test suite due to failure.",
-      );
+      console.log("\n🛑 Fail-fast: Aborting integration test suite due to failure.");
       break;
     }
   }
@@ -842,9 +772,7 @@ async function main() {
 
   for (const result of results) {
     const status = result.success ? "✅" : "❌";
-    console.log(
-      ` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`,
-    );
+    console.log(` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
   }
 
   await teardown();

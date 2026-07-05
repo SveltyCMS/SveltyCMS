@@ -46,8 +46,10 @@ import {
 	publicEnv,
 } from "@src/stores/global-settings.svelte";
 // Stores
-import { systemLanguage } from "@src/stores/store.svelte.ts";
+import { app } from "@src/stores/store.svelte.ts";
 import { getLanguageName } from "@utils/language-utils";
+import { getContext } from "svelte";
+import { setLocale } from "@src/paraglide/runtime";
 // SvelteKit
 // Components
 import SignIn from "./components/sign-in.svelte";
@@ -69,8 +71,27 @@ let hasResetParams = $state(false);
 
 // Initial active state: returning users (a session cookie is present — see +page.server.ts)
 // land on the Sign In form directly; new visitors start at the Sign In / Sign Up chooser.
+//
+// Persist active state across {#key currentLocale} remounts (language switch)
+// so the form doesn't collapse during language change.
 let active: undefined | 0 | 1 = $state(undefined);
-$effect(() => { active = returningUser ? 0 : undefined; });
+$effect(() => {
+	if (typeof window !== "undefined") {
+		const saved = sessionStorage.getItem("login_active");
+		if (saved === "0" || saved === "1") {
+			active = parseInt(saved) as 0 | 1;
+			return;
+		}
+	}
+	active = returningUser ? 0 : undefined;
+});
+
+// Save active state to sessionStorage for language-switch resilience
+$effect(() => {
+	if (typeof window !== "undefined" && active !== undefined) {
+		sessionStorage.setItem("login_active", String(active));
+	}
+});
 
 // Update active state when URL parameters are detected
 $effect(() => {
@@ -133,7 +154,7 @@ const availableLanguages = $derived(
 const filteredLanguages = $derived(
 	availableLanguages.filter(
 		(lang: string) =>
-			getLanguageName(lang, systemLanguage.value)
+			getLanguageName(lang, app.systemLanguage)
 				.toLowerCase()
 				.includes(searchQuery.toLowerCase()) ||
 			getLanguageName(lang, "en")
@@ -144,20 +165,26 @@ const filteredLanguages = $derived(
 
 // Ensure a valid language is always used
 const currentLanguage = $derived(
-	systemLanguage.value && availableLocales.includes(systemLanguage.value as any)
-		? systemLanguage.value
+	app.systemLanguage && availableLocales.includes(app.systemLanguage as any)
+		? app.systemLanguage
 		: "en",
 );
 
-// Language selection
+// Language selection — use context function to bypass non-reactive class $state
+const updateLocale = getContext<((locale: string) => void) | undefined>("updateLocale");
 function handleLanguageSelection(lang: string) {
 	clearTimeout(debounceTimeout);
 	debounceTimeout = setTimeout(() => {
-		// Set cookie via store (bridge to ParaglideJS)
-		systemLanguage.set(lang as (typeof systemLanguage)["value"]);
+		if (updateLocale) {
+			updateLocale(lang);
+		} else {
+			// Fallback: set locale directly
+			app.systemLanguage = lang;
+			setLocale(lang as any, { reload: false });
+		}
 		isDropdownOpen = false;
 		searchQuery = "";
-	}, 100); // Reduced delay for faster feedback
+	}, 100);
 }
 
 // Function to handle clicks outside of the language selector
@@ -219,6 +246,9 @@ function resetToInitialState() {
 	}
 	isTransitioning = true;
 	active = undefined;
+	if (typeof window !== "undefined") {
+		sessionStorage.removeItem("login_active");
+	}
 	background = data.demoMode
 		? darkBackground
 		: getPublicSetting("SEASONS")
@@ -429,6 +459,7 @@ function handleSignUpPointerEnter() {
 		<div
 			class="language-selector absolute bottom-1/4 inset-x-0 flex justify-center transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
+			data-testid="language-selector"
 		>
 			<Dropdown position="bottom" closeOnSelect={false} class="p-3! w-60 bg-black/90! border-white/10! dark:bg-black/90! dark:border-white/10! backdrop-blur-md! rounded-2xl! shadow-2xl">
 				{#snippet trigger()}
@@ -446,13 +477,12 @@ function handleSignUpPointerEnter() {
 
 				{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
 					<div class="px-2 pb-2 mb-2 border-b border-white/10">
-						<input
+						<input aria-label="Search languages"
 							type="text"
 							bind:this={searchInput}
 							bind:value={searchQuery}
 							placeholder="Search language..."
 							class="w-full rounded bg-white/10 px-3 py-2 text-sm placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 text-white border-none"
-							aria-label="Search languages"
 							onclick={(e) => e.stopPropagation()}
 						/>
 					</div>

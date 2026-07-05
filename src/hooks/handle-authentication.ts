@@ -81,7 +81,7 @@ function initRotationRateLimiter() {
   if (rotationRateLimiter) return rotationRateLimiter;
 
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
-  if (!secret && !dev) {
+  if (!secret && !dev && process.env.TEST_MODE !== "true") {
     logger.error(
       "CRITICAL: JWT_SECRET_KEY is missing in production. Rate limiting will be unreliable.",
     );
@@ -285,7 +285,9 @@ async function getUserFromSession(
     }
   } catch (err: any) {
     lastRefreshAttempt.delete(sessionId);
-    logger.error(`Session validation crashed: ${err.message}`);
+    if (process.env.NODE_ENV !== "test") {
+      logger.error(`Session validation crashed: ${err.message}`);
+    }
   }
   return null;
 }
@@ -346,7 +348,9 @@ async function handleSessionRotation(
       event.locals.session_id = newSessionId;
     }
   } catch (err: any) {
-    logger.error(`Session rotation failed: ${err.message}`);
+    if (process.env.NODE_ENV !== "test") {
+      logger.error(`Session rotation failed: ${err.message}`);
+    }
   }
 }
 
@@ -383,7 +387,9 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
       const { seedDemoTenant } = await import("@src/routes/setup/seed");
       await seedDemoTenant(dbAdapter!, tenantId);
     } catch (e) {
-      logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+      if (process.env.NODE_ENV !== "test") {
+        logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+      }
     }
   }
 

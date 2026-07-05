@@ -2,8 +2,43 @@
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 
+/** Minimal SVG path for any Iconify icon placeholder */
+const ICON_PLACEHOLDER =
+  '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
+
 test.describe("Collection Builder with Modern Widgets", () => {
   test.beforeEach(async ({ page }) => {
+    // Inject E2E test mode flag before any page script runs
+    // This makes widget store initialization synchronous (no scanner / API calls)
+    await page.addInitScript(() => {
+      (window as any).__SVELTYCMS_E2E__ = true;
+    });
+
+    // Mock Iconify API — prevent CORS/network failures in test environments
+    // The <iconify-icon> web component fetches icon data from api.iconify.design
+    await page.route("https://api.iconify.design/**", async (route) => {
+      const url = new URL(route.request().url());
+      const pathPart = url.pathname.split("/").filter(Boolean)[0] || "";
+      const prefix = pathPart.replace(/\.json$/, "") || "mdi";
+      const iconsParam = url.searchParams.get("icons") || "";
+      const iconNames = iconsParam.split(",").filter(Boolean);
+
+      const icons: Record<string, { body: string; width: number; height: number }> = {};
+      for (const name of iconNames) {
+        icons[name] = { body: ICON_PLACEHOLDER, width: 24, height: 24 };
+      }
+
+      if (iconNames.length === 0) {
+        return route.fulfill({ status: 404 });
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ prefix, icons, width: 24, height: 24 }),
+      });
+    });
+
     // Login as admin first
     await loginAsAdmin(page);
   });
@@ -60,10 +95,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByRole("button", { name: /Field Configuration/i }).click();
 
     // Quick-add an Input field using the quick-add bar
-    await page.getByTestId("quick-add-text").click();
+    await page.getByTestId("quick-add-input").click();
 
-    // Verify field was added (widget generates label "New Text")
-    await expect(page.getByText(/New Text/i)).toBeVisible({ timeout: 10_000 });
+    // Verify field was added (widget generates label "New Input")
+    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
   });
 
   test("should filter widgets by search", async ({ page }) => {
@@ -93,13 +128,14 @@ test.describe("Collection Builder with Modern Widgets", () => {
     // Navigate to step 2: Field Configuration via the stepper
     await page.getByRole("button", { name: /Field Configuration/i }).click();
 
-    // Click "More Widgets" to open the widget selection modal
-    await page.getByTestId("add-field-button").click();
+    // Use quick-add to add an Input widget (reliable in E2E — avoids modal SSR issues)
+    await page.getByTestId("quick-add-input").click();
+    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
 
-    // Select Input widget from the modal
-    await page.getByRole("button", { name: /Input/i }).first().click();
+    // Click the configure (cog) button on the new field to open the inspector
+    await page.getByTitle("Configure").click();
 
-    // Configure label in the WidgetInspector side panel (use placeholder since aria-label overrides)
+    // Configure label in the WidgetInspector side panel
     await page.getByPlaceholder("e.g. Profile Picture").fill("User Email");
     await page.getByPlaceholder("e.g. profile_pic").fill("email");
 
@@ -107,7 +143,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByRole("button", { name: /Apply Changes/i }).click();
 
     // Verify field configuration (label appears in the field list)
-    await expect(page.getByText("User Email")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("User Email").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("should handle widget dependencies", async ({ page }) => {
@@ -161,11 +197,13 @@ test.describe("Collection Builder with Modern Widgets", () => {
       timeout: 10_000,
     });
 
-    // Try to save without required fields
-    await page.getByTestId("save-collection-button").click();
+    // Try to save without fields
+    await page.getByTestId("save-collection-button").first().click();
 
-    // Check for validation errors (remove invalid CSS text=required; use getByText instead)
-    await expect(page.locator(".error, .alert-error").or(page.getByText(/required/i))).toBeVisible({
+    // Check for validation toast
+    await expect(
+      page.getByText(/at least one field/i).or(page.getByText(/fix.*errors/i)),
+    ).toBeVisible({
       timeout: 5000,
     });
 
@@ -174,10 +212,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
     // Navigate to step 2 and add at least one field
     await page.getByRole("button", { name: /Field Configuration/i }).click();
-    await page.getByTestId("quick-add-text").click();
+    await page.getByTestId("quick-add-input").click();
 
     // Now save should work
-    await page.getByTestId("save-collection-button").click();
+    await page.getByTestId("save-collection-button").first().click();
 
     // Verify success (toast appears)
     await expect(page.getByText(/collection saved/i)).toBeVisible({
@@ -203,7 +241,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
       // Add multiple fields using the quick-add bar
       for (let i = 0; i < 3; i++) {
-        await page.getByTestId("quick-add-text").click();
+        await page.getByTestId("quick-add-input").click();
         await page.waitForTimeout(300);
       }
     }

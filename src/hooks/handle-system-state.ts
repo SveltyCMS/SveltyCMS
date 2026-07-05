@@ -109,6 +109,19 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
   const flags = getRequestFlags(event.locals as any);
   if (flags.isStatic) return resolve(event);
 
+  // 🧪 TEST MODE BYPASS for /api/testing endpoints
+  // These endpoints are called by the test orchestrator before the system is fully ready.
+  // Example: reset-to-state, seed, login — they bootstrap the system themselves.
+  if (
+    IS_GK_TEST_MODE &&
+    pathname === "/api/testing" &&
+    (event.locals as any).__testBypass !== true
+  ) {
+    // Allow testing endpoints through even if system state is SETUP or INITIALIZING.
+    // The testing handler has its own auth validation via x-test-secret.
+    return resolve(event);
+  }
+
   const systemState = getSystemState();
   const isHealthCheck = pathname.includes("/health");
   if (!isHealthCheck && dev) {
@@ -147,7 +160,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         })
         .catch((_err) => {
           initializationState = "failed";
-          logger.error("[handleSystemState] Initialization failed", _err);
+          if (process.env.NODE_ENV !== "test") {
+            logger.error("[handleSystemState] Initialization failed", _err);
+          }
         });
       if (!event.isDataRequest && isBootstrapRoute(pathname)) {
         logger.debug(`[handleSystemState] Backgrounding init for route: ${pathname}`);

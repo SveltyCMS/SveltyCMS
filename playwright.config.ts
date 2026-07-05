@@ -36,9 +36,6 @@ if (!TEST_API_SECRET) {
 // Ensure workers inherit the secret so they can authenticate testing endpoints
 process.env.TEST_API_SECRET = TEST_API_SECRET;
 
-const TEST_JWT_SECRET = "e2e-test-jwt-secret-key-min-32-chars!!";
-const TEST_ENCRYPTION_KEY = "e2e-test-encryption-key-min-32-chars!!";
-
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -51,8 +48,7 @@ export default defineConfig({
       threshold: 0.25,
     },
   },
-  snapshotPathTemplate:
-    "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
+  snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -85,8 +81,7 @@ export default defineConfig({
     {
       name: "wizard",
       use: {
-        baseURL:
-          process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4174",
+        baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4174",
       },
       testMatch: "routes/setup/setup-wizard.spec.ts",
       workers: 1,
@@ -220,10 +215,7 @@ export default defineConfig({
     },
     {
       name: "appearance",
-      testMatch: [
-        "**/routes/config/appearance.spec.ts",
-        "**/routes/config/design-system.spec.ts",
-      ],
+      testMatch: ["**/routes/config/appearance.spec.ts", "**/routes/config/design-system.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
@@ -241,11 +233,7 @@ export default defineConfig({
       // Catch-all project for CI sharded matrix.
       // Wizard + auth-setup run sequentially in e2e-prep; all remaining
       // tests are sharded here across parallel CI jobs.
-      testIgnore: [
-        "**/setup/setup-wizard.spec.ts",
-        "**/auth.setup.ts",
-        "**/login/login.spec.ts",
-      ],
+      testIgnore: ["**/setup/setup-wizard.spec.ts", "**/auth.setup.ts", "**/login/login.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },
@@ -258,45 +246,17 @@ export default defineConfig({
         webServer: [
           {
             // READY server — pre-configured DB for login/firstuser/downstream tests
-            command: [
-              "cross-env",
-              "TEST_MODE=true",
-              "STRICT_SETUP_CHECK=false",
-              `DB_TYPE=sqlite`,
-              `DB_HOST=localhost`,
-              `DB_NAME=sveltycms_e2e_ready.db`,
-              `JWT_SECRET_KEY=${TEST_JWT_SECRET}`,
-              `ENCRYPTION_KEY=${TEST_ENCRYPTION_KEY}`,
-              `TEST_API_SECRET=${TEST_API_SECRET}`,
-              `GOOGLE_CLIENT_ID=e2e-test-google-client-id`,
-              `GITHUB_CLIENT_ID=e2e-test-github-client-id`,
-              "node build/index.js",
-            ].join(" "),
+            command: `npx cross-env PORT=4173 SERVER=ready TEST_API_SECRET=${TEST_API_SECRET} node tests/e2e/start-server.mjs`,
             port: 4173,
             timeout: 300_000,
-            reuseExistingServer: true,
-            env: {
-              HOST: "127.0.0.1",
-              PORT: "4173",
-            },
+            reuseExistingServer: false,
           },
           {
             // SETUP server — clean slate for setup-wizard tests
-            command: [
-              "cross-env",
-              "TEST_MODE=true",
-              "STRICT_SETUP_CHECK=true",
-              "DB_TYPE=sqlite",
-              `TEST_API_SECRET=${TEST_API_SECRET}`,
-              "node build/index.js",
-            ].join(" "),
+            command: `npx cross-env PORT=4174 SERVER=setup TEST_API_SECRET=${TEST_API_SECRET} node tests/e2e/start-server.mjs`,
             port: 4174,
             timeout: 300_000,
             reuseExistingServer: true,
-            env: {
-              HOST: "127.0.0.1",
-              PORT: "4174",
-            },
           },
         ],
       }),

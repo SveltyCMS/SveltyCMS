@@ -109,7 +109,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   protected isMissingTableError(err: any): boolean {
-    return err?.code === "SQLITE_ERROR" && err?.message?.includes("no such table");
+    const hasNoSuchTable = (e: any) => e?.message?.includes?.("no such table") === true;
+    return hasNoSuchTable(err) || hasNoSuchTable(err?.cause);
   }
 
   protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
@@ -558,7 +559,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   protected _provisionPromise: Promise<void> | null = null;
 
   public async provision() {
-    if (this._provisioned) return;
+    console.log("[Provision] _sqlite exists?", !!this._sqlite);
+    console.log("[Provision] _provisioned?", this._provisioned);
+
+    // ✅ FORCE: Always run migrations if _sqlite is valid, ignore _provisioned
+    if (this._sqlite) {
+      const { runMigrations } = await import("./migrations");
+      await runMigrations(this._sqlite);
+      this._provisioned = true;
+      console.log("[Provision] ✅ Tables created (force)");
+      return;
+    }
+
     if (this._provisionPromise) return this._provisionPromise;
 
     this._provisionPromise = (async () => {
@@ -1065,7 +1077,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           if (!req) throw new Error("requireFunc not available");
           const { DatabaseSync } = req("node:sqlite");
           const sqlite = new DatabaseSync(normalizedPath);
-          this.applyPragmas({ exec: (cmd: string) => sqlite.exec(cmd) });
+          this.applyPragmas(sqlite);
 
           const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
           const db = proxyDrizzle(

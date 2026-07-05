@@ -366,13 +366,12 @@
 	{#if isSidebarFull}
 	<div class="flex items-center gap-1">
 		<div class="relative w-full min-w-0">
-			<input
+			<input aria-label="Search media folders"
 				type="text"
 				bind:value={search}
 				size="1"
 				placeholder="Search folders..."
 				class="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
-				aria-label="Search media folders"
 			/>
 			{#if search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
@@ -406,8 +405,9 @@
 			>
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
 			</Button>
-		</div>
-	{/if}
+		{/if}
+	</div>
+{/if}
 
 	{#if isEditMode && isSidebarFull}
 		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">

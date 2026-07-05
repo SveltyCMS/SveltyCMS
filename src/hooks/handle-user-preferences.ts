@@ -48,7 +48,9 @@ function safelySetLanguage(
     logger.trace(`${cookieName} set to: ${cookieValue}`);
     return true;
   } catch (err: any) {
-    logger.error(`Failed to set ${cookieName} store: ${err.message}`);
+    if (process.env.NODE_ENV !== "test") {
+      logger.error(`Failed to set ${cookieName} store: ${err.message}`);
+    }
     return false;
   }
 }

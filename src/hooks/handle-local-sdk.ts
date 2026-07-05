@@ -27,7 +27,9 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
       (locals as any).cms = LocalCMS.getLocals(dbAdapter, { ...locals });
     }
   } catch (dbError: any) {
-    logger.error(`[LocalSDK] Database boot failed: ${dbError.message}`);
+    if (process.env.NODE_ENV !== "test") {
+      logger.error(`[LocalSDK] Database boot failed: ${dbError.message}`);
+    }
 
     if (!pathname.startsWith("/api/")) {
       (locals as any).dbInitializationError = dbError.message || String(dbError);

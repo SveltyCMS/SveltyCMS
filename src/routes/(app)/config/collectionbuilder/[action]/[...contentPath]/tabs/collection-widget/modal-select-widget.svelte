@@ -27,9 +27,11 @@ let searchTerm: string = $state("");
 // Get available widgets from the modern store
 const availableWidgets = $derived(widgets.widgetFunctions || {});
 
-// Initialize widgets on mount
+// Initialize widgets on mount — modal waits for init before showing content
 onMount(async () => {
-	await widgets.initialize();
+	const initPromise = widgets.initialize();
+	// In production mode this is async; in E2E test mode it resolves synchronously.
+	await initPromise;
 });
 
 // We've created a custom submit function to pass the response and close the modal.
@@ -68,6 +70,17 @@ const cHeader =
 
 		<!-- Grid -->
 		<div class="flex-1 overflow-y-auto p-6">
+			{#if widgets.loading || !widgets.isLoaded}
+				<div class="flex flex-col items-center justify-center py-20 opacity-50">
+					<iconify-icon icon="mdi:loading" width="32" class="animate-spin"></iconify-icon>
+					<p class="mt-4 text-xl">Loading widgets...</p>
+				</div>
+			{:else if widgets.coreWidgets.length === 0 && widgets.customWidgets.length === 0 && widgets.marketplaceWidgets.length === 0}
+				<div class="flex flex-col items-center justify-center py-20 opacity-50">
+					<iconify-icon icon="mdi:puzzle-off" width="32"></iconify-icon>
+					<p class="mt-4 text-xl">No widgets available</p>
+				</div>
+			{:else}
 			{#each ['Core', 'Custom', 'Marketplace'] as category (category)}
 				{const categoryKeys =
 					category === 'Core'
@@ -85,7 +98,7 @@ const cHeader =
 						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">{category} Widgets</h3>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 							{#each filteredKeys as item (item)}
-								{#if item && (availableWidgets[item] as any)?.GuiSchema}
+								{#if item}
 									<button
 										onclick={() => onFormSubmit(item)}
 										class="group relative flex flex-col gap-3 rounded border border-surface-200 bg-surface-50 p-5 text-start transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
@@ -125,6 +138,7 @@ const cHeader =
 					<p class="text-xl">No widgets found for "{searchTerm}"</p>
 				</div>
 			{/if}
+		{/if}
 		</div>
 	</div>
 {/if}

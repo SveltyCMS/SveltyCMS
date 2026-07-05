@@ -541,7 +541,7 @@ import { collection_no_collections_found, collections_search } from '@src/paragl
 				type="search"
 				bind:value={search}
 				placeholder={collections_search()}
-				inputClass="pe-11 h-12 py-3"
+				inputClass="pe-11 h-12 py-3 bg-transparent!"
 				aria-label="Search collections"
 			/>
 			<div class="absolute inset-e-0 top-0 flex h-full items-center">

@@ -522,12 +522,12 @@ search filtering, and RTL support.
                         isFocused && 'ring-1 ring-primary-500/40 ring-offset-1 ring-offset-transparent',
                     )
                     : cn(
-                        'items-center rounded-lg transition-all border border-transparent px-2',
+                        'items-center justify-start rounded-lg transition-all border border-transparent px-2',
                         densityTokens.padding,
                         densityTokens.touch,
                         isSelected
                             ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-300 shadow-xs'
-                            : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
+                            : 'bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-200 dark:hover:bg-[#1F1F1F] text-surface-900 dark:text-surface-100',
                         isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
                     ),
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
@@ -723,12 +723,12 @@ search filtering, and RTL support.
 </div>
 
 <style>
-    @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            transition-duration: 0.01ms !important;
-            animation-duration: 0.01ms !important;
-        }
-    }
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			transition-duration: 0.01ms !important;
+			animation-duration: 0.01ms !important;
+		}
+	}
 </style>

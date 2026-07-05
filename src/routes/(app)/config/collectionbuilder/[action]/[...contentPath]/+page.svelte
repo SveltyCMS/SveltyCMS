@@ -116,6 +116,18 @@ async function handleCollectionSave(confirmDeletions = false) {
 		return;
 	}
 
+	const fields = collection.value?.fields;
+	const isEmptyFields =
+		!fields ||
+		(Array.isArray(fields) && fields.length === 0) ||
+		(typeof fields === "object" &&
+			!Array.isArray(fields) &&
+			Object.keys(fields).length === 0);
+	if (isEmptyFields) {
+		toast.error("Please add at least one field before saving");
+		return;
+	}
+
 	try {
 		isLoading = true;
 		const payload = { originalName, ...collection.value };
@@ -132,6 +144,9 @@ async function handleCollectionSave(confirmDeletions = false) {
 				originalName = String(collection.value?.name);
 				goto(`/config/collectionbuilder/edit/${originalName}`);
 			}
+		} else {
+			const body = await response.json().catch(() => ({}));
+			toast.error(body?.error || `Save failed (${response.status})`);
 		}
 	} catch (error) {
 		logger.error("Save failed", error);

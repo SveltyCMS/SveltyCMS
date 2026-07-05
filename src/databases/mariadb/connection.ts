@@ -54,7 +54,11 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
     connection.release();
     logger.info("MariaDB connection pool created successfully");
   } catch (error) {
-    logger.error("Failed to create MariaDB connection pool:", error);
+    if (process.env.TEST_MODE === "true") {
+      logger.debug("MariaDB connection pool failed (expected in test mode):", error);
+    } else {
+      logger.error("Failed to create MariaDB connection pool:", error);
+    }
     throw error;
   }
 

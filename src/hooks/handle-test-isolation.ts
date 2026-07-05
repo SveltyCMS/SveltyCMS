@@ -53,7 +53,7 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
           await (dbAdapter as any).initWorkerConnection(workerIndex);
         }
       } catch (err: any) {
-        logger.error(`[TestIsolation] Failed to init worker ${workerIndex}: ${err.message}`);
+        logger.debug(`[TestIsolation] Failed to init worker ${workerIndex}: ${err.message}`);
       }
       return await resolve(event);
     });

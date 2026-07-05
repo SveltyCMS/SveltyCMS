@@ -60,6 +60,7 @@ interface Props {
 	onInput?: (val: string) => void;
 	onkeydown?: (e: KeyboardEvent) => void;
 	onPaste?: (e: ClipboardEvent) => void;
+	iconClick?: (e: MouseEvent) => void;
 	[key: string]: any;
 }
 
@@ -93,11 +94,12 @@ let {
 	onInput,
 	onkeydown,
 	onPaste,
+	iconClick,
 	...rest
 }: Props = $props();
 
 let inputElement = $state<HTMLInputElement | null>(null);
-const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId');
+const generatedId = $derived(label ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'defaultInputId');
 const currentId = $derived(id || generatedId);
 const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type === 'security' ? 'password' : type);
@@ -122,11 +124,18 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		togglePasswordVisibility(event);
 	}
 }
+
+function handleClickableIconKeyDown(event: KeyboardEvent): void {
+	if (event.key === 'Enter' || event.key === ' ') {
+		event.preventDefault();
+		iconClick?.(event);
+	}
+}
 </script>
 
 <div class={cn("relative w-full", bgTransparent && "bg-transparent")}>
 	<div class="group relative flex w-full items-center" role="group" aria-labelledby={currentId}>
-		<input
+		<input aria-label={label ?? name}
 			bind:this={inputElement}
 			bind:value
 			{name}
@@ -168,20 +177,27 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		/>
 
 		{#if icon}
-			<iconify-icon
-				{icon}
-				width="18"
-				class={cn(
-					"absolute inset-s-0 top-3",
-					bgTransparent
-						? "text-white"
-						: iconColor
-							? ""
-							: "text-surface-500 dark:text-surface-50"
-				)}
-				style={iconColor ? `color: ${iconColor}` : undefined}
-				aria-hidden="true"
-			></iconify-icon>
+			{#key icon}
+				<iconify-icon
+					{icon}
+					width="18"
+					role={iconClick ? "button" : undefined}
+					tabindex={iconClick ? 0 : undefined}
+					aria-label={iconClick ? "Clear search" : undefined}
+					onclick={iconClick}
+					onkeydown={iconClick ? handleClickableIconKeyDown : undefined}
+					class={cn(
+						"absolute inset-s-1.5 top-1/2 -translate-y-1/2 animate-icon-swap",
+						iconClick && "cursor-pointer hover:opacity-75",
+						bgTransparent
+							? "text-white"
+							: iconColor
+								? ""
+								: "text-surface-500 dark:text-surface-50"
+					)}
+					style={iconColor ? `color: ${iconColor}` : undefined}
+				></iconify-icon>
+			{/key}
 		{/if}
 
 		{#if type === 'security'}
@@ -236,6 +252,15 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 </div>
 
 <style>
+	@keyframes icon-swap {
+		0% { opacity: 0; scale: 0.3; rotate: -90deg; }
+		100% { opacity: 1; scale: 1; rotate: 0deg; }
+	}
+
+	:global(.animate-icon-swap) {
+		animation: icon-swap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
 	/* Override Tailwind's global input:focus !important in dark mode */
 	:global(.autofill-light:focus) {
 		background-color: white !important;

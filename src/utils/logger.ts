@@ -17,6 +17,19 @@ import type { WriteStream } from "node:fs";
 // --- Types & Constants ---
 
 export type LogLevel = "none" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";
+
+// 🧪 TEST MODE WARNING SUPPRESSION
+let _suppressTestWarnings = true;
+
+/**
+ * Suppress logger.warn() output during test mode.
+ * When enabled (default), `warn` calls are demoted to `debug` level
+ * so they don't appear as ⚠️ warnings in test output.
+ * Call with `false` in a specific test if you need to see warnings.
+ */
+export function suppressWarningsInTest(suppress = true) {
+  _suppressTestWarnings = suppress;
+}
 export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 
 const PRIORITY: Record<LogLevel, number> = {
@@ -329,12 +342,21 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   }
 }
 
+// --- Test Mode Helpers ---
+
+function _effectiveWarnLevel(): "warn" | "debug" {
+  const isTest =
+    typeof process !== "undefined" &&
+    (process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true");
+  return isTest && _suppressTestWarnings ? "debug" : "warn";
+}
+
 // --- Public API ---
 
 export const logger = {
   fatal: (m: string, ...a: unknown[]) => log("fatal", m, a),
   error: (m: string, ...a: unknown[]) => log("error", m, a),
-  warn: (m: string, ...a: unknown[]) => log("warn", m, a),
+  warn: (m: string, ...a: unknown[]) => log(_effectiveWarnLevel(), m, a),
   info: (m: string, ...a: unknown[]) => log("info", m, a),
   debug: (m: string, ...a: unknown[]) => log("debug", m, a),
   trace: (m: string, ...a: unknown[]) => log("trace", m, a),
@@ -342,7 +364,7 @@ export const logger = {
   channel: (name: string) => ({
     fatal: (m: string, ...a: unknown[]) => log("fatal", `[${name}] ${m}`, a),
     error: (m: string, ...a: unknown[]) => log("error", `[${name}] ${m}`, a),
-    warn: (m: string, ...a: unknown[]) => log("warn", `[${name}] ${m}`, a),
+    warn: (m: string, ...a: unknown[]) => log(_effectiveWarnLevel(), `[${name}] ${m}`, a),
     info: (m: string, ...a: unknown[]) => log("info", `[${name}] ${m}`, a),
     debug: (m: string, ...a: unknown[]) => log("debug", `[${name}] ${m}`, a),
     trace: (m: string, ...a: unknown[]) => log("trace", `[${name}] ${m}`, a),

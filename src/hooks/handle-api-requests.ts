@@ -225,7 +225,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     currentTenantId,
                   );
                 } catch (e) {
-                  logger.error(`Background cache compression failed: ${getErrorMessage(e)}`);
+                  if (process.env.NODE_ENV !== "test") {
+                    logger.error(`Background cache compression failed: ${getErrorMessage(e)}`);
+                  }
                 }
               })();
             }
@@ -268,7 +270,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             }).catch(() => {});
           }
         } catch (e) {
-          logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
+          if (process.env.NODE_ENV !== "test") {
+            logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
+          }
         }
       })();
     }
@@ -292,7 +296,9 @@ export async function invalidateApiCache(
     await cacheService.clearByPattern(`${baseKey}*`, tenantId ?? undefined);
     await cacheService.delete(baseKey, tenantId ?? undefined);
   } catch (err) {
-    logger.error(`Manual invalidation failed: ${getErrorMessage(err)}`);
+    if (process.env.NODE_ENV !== "test") {
+      logger.error(`Manual invalidation failed: ${getErrorMessage(err)}`);
+    }
   }
 }
 

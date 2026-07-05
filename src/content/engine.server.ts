@@ -152,11 +152,7 @@ async function ensurePhysicalModels(schemas: Schema[], dbAdapter: IDBAdapter) {
     await collAdapter.createModelsBulk(schemas);
   } else {
     for (const schema of schemas) {
-      try {
-        await dbAdapter.collection.createModel(schema);
-      } catch (err) {
-        logger.error(`[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`);
-      }
+      await dbAdapter.collection.createModel(schema);
     }
   }
 }
@@ -416,6 +412,11 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
     if (typeof (db as any).reconcile === "function") await (db as any).reconcile();
     if ((db.collection as any)?.ensureSystemTables)
       await (db.collection as any).ensureSystemTables();
+  }
+
+  // Ensure physical tables exist for all known schemas
+  if (db && finalSchemas.length > 0) {
+    await ensurePhysicalModels(finalSchemas, db);
   }
 }
 

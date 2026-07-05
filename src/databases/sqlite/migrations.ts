@@ -13,6 +13,21 @@ import type { DatabaseResult } from "../db-interface";
 // 🚀 AGNOSTIC CORE: Standardized SQLite migrations.
 export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
   logger.info("🚀 [SQLite] Running system migrations...");
+  try {
+    let tables: any;
+    if (typeof db.prepare === "function") {
+      tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    } else if (typeof db.query === "function") {
+      tables = db.query("SELECT name FROM sqlite_master WHERE type='table'").all();
+    } else if (typeof db.exec === "function") {
+      db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+      tables = "(exec returned no results — use prepare/query)";
+    }
+    console.log("[DEBUG] Tables in DB:", JSON.stringify(tables));
+    console.log("[DEBUG] db type:", typeof db, db?.constructor?.name);
+  } catch (e) {
+    console.log("[DEBUG] Failed to list tables:", e);
+  }
   const execute = (sql: string) => {
     try {
       if (typeof db.exec === "function") db.exec(sql);

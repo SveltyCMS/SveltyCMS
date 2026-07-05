@@ -195,63 +195,11 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 		return;
 	}
 
+	// Submit natively to the server form action (?/signIn).
+	// This ensures Set-Cookie headers are properly attached to the HTTP response,
+	// avoiding cookie-propagation issues with Remote Functions.
 	isSubmitting = true;
-	isAuthenticating = true;
-	globalLoadingStore.startLoading(loadingOperations.authentication);
-
-	try {
-		const { signIn: remoteSignIn } = await import("../auth.remote");
-		const result = (await remoteSignIn({
-			email: loginForm.data.email,
-			password: loginForm.data.password,
-			isToken: loginForm.data.isToken
-		})) as any;
-
-		isSubmitting = false;
-
-		if (result.requires2FA) {
-			requires2FA = true;
-			twoFAUserId = result.userId || "";
-			isAuthenticating = false;
-			globalLoadingStore.stopLoading(loadingOperations.authentication);
-			toast.warning({
-				title: "Two-Factor Authentication Required",
-				description: "Please enter your authentication code to continue",
-			});
-			import("svelte").then(({ tick }) => {
-				tick().then(() => document.getElementById("twofa-code")?.focus());
-			});
-			return;
-		}
-
-		if (result.success && result.redirectPath) {
-			console.log('[SignIn Client] redirectPath:', result.redirectPath);
-			isAuthenticating = true;
-			sessionStorage.setItem(
-				"flashMessage",
-				JSON.stringify({
-					type: "success",
-					title: "Welcome Back!",
-					description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
-					duration: 4000,
-				})
-			);
-			window.location.href = result.redirectPath;
-			return;
-		}
-
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
-		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
-		wiggle(loginFormElement);
-	} catch (error: any) {
-		isSubmitting = false;
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
-		const errorMessage = error?.message || "An unexpected error occurred";
-		toast.error({ title: "Sign In Failed", description: errorMessage });
-		wiggle(loginFormElement);
-	}
+	loginFormElement!.submit();
 }
 
 // ---------------------------------------------------------------------------
@@ -390,8 +338,14 @@ async function handleForgotSubmit(event: Event) {
 
 	try {
 		const { forgotPW: remoteForgotPW } = await import("../auth.remote");
-		await remoteForgotPW({ email: forgotForm.data.email });
+		const result = await remoteForgotPW({ email: forgotForm.data.email }) as any;
 		isSubmitting = false;
+		// Transfer email from forgot form to reset form so user doesn't re-enter it
+		resetForm.data.email = forgotForm.data.email;
+		// In test mode, the server returns the reset token directly
+		if (result?.token) {
+			resetForm.data.token = result.token;
+		}
 		P_WRESET = true;
 		toast.success({ description: signin_forgottontoast() });
 	} catch (error: any) {

@@ -10,12 +10,21 @@
  * - CI: Skip if fresh runner, clean if cached
  */
 
-import { mkdirSync, existsSync, writeFileSync, unlinkSync, rmSync, readdirSync } from "node:fs";
+import { mkdirSync, existsSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 export default async function globalSetup() {
   console.log("[Global Setup] Starting...");
+
+  // Log test environment configuration for debugging
+  console.log(
+    "[Global Setup] Environment (test process only; server has its own via webServer.env):",
+    {
+      DB_TYPE: process.env.DB_TYPE,
+      CI: !!process.env.CI,
+    },
+  );
 
   const authDir = join(process.cwd(), "tests/e2e/.auth");
   if (!existsSync(authDir)) {
@@ -39,38 +48,27 @@ export default async function globalSetup() {
   } else {
     console.log("[Global Setup] Cleaning old test data...");
 
-    const cleanupPaths = [
-      // Database files (may be locked by webServer)
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite"),
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-shm"),
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-wal"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-shm"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-wal"),
-      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite"),
-      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite-shm"),
-      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite-wal"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-shm"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-wal"),
-      // Config files — NOT deleted here.
-      // The SETUP server (port 4174) boots with STRICT_SETUP_CHECK=true and naturally
-      // enters SETUP mode because no private.test.ts exists.
-      // The READY server (port 4173) uses STRICT_SETUP_CHECK=false + env vars, so it
-      // doesn't need the file. Use the `reset-to-state` testing API to switch state.
+    // Clean stale collection artifacts from previous test runs
+    const cleanupPaths: string[] = [
+      // Collection source files — test artifacts that accumulate over runs
+      join(process.cwd(), "config", "collections"),
+      // Compiled collection JS files — regenerated from sources
+      join(process.cwd(), ".compiledCollections"),
     ];
 
     let deletedCount = 0;
-    for (const path of cleanupPaths) {
-      if (existsSync(path)) {
+    for (const cleanupPath of cleanupPaths) {
+      if (existsSync(cleanupPath)) {
         try {
-          unlinkSync(path);
-          console.log(`[Global Setup] ✓ Deleted: ${path}`);
+          rmSync(cleanupPath, { recursive: true, force: true });
+          // Re-create directory if it was a directory (so downstream code can write into it)
+          mkdirSync(cleanupPath, { recursive: true });
+          console.log(`[Global Setup] ✓ Deleted: ${cleanupPath}`);
           deletedCount++;
         } catch (err: any) {
           // Ignore EBUSY errors (file locked by webServer)
           if (err.code !== "EBUSY") {
-            console.warn(`[Global Setup] ⚠️ Failed to delete ${path}: ${err.code}`);
+            console.warn(`[Global Setup] ⚠️ Failed to delete ${cleanupPath}: ${err.code}`);
           }
         }
       }
@@ -140,5 +138,26 @@ export default async function globalSetup() {
     }
   }
 
+  // STEP 4: Set required environment variables for test processes
+  // These ensure the test environment has consistent configuration
+  // even when not all variables are defined in CI or local .env files
+  const requiredEnvVars: Record<string, string> = {
+    JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "e2e-test-jwt-secret-key-min-32-chars!!",
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "e2e-test-encryption-key-min-32-chars!!",
+    USE_GOOGLE_OAUTH: process.env.USE_GOOGLE_OAUTH || "true",
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "e2e-test-google-client-id",
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || "e2e-test-github-client-id",
+    DB_HOST: process.env.DB_HOST || "localhost",
+    DB_NAME: process.env.DB_NAME || "sveltycms_e2e_ready.db",
+  };
+
+  for (const [key, value] of Object.entries(requiredEnvVars)) {
+    if (!process.env[key]) {
+      process.env[key] = value;
+      console.log(`[Global Setup] ✓ Set default ${key} for test environment`);
+    }
+  }
+
   console.log("[Global Setup] All required directories verified ✓");
+  console.log("[Global Setup] Complete");
 }

@@ -119,13 +119,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
       currentCollection = contentSystem.getCollection(collectionPath, tenantId);
 
-      // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
-      // Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
+      // SELF-HEALING: If not found, force a full DB reload (handles testing API collections)
       if (!currentCollection && collectionNameOnly?.toLowerCase() !== "collections") {
         logger.warn(
-          `Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`,
+          `Collection path ${collectionPath} not found. Forcing full content re-initialization...`,
         );
-        await contentSystem.refresh(tenantId);
+        await contentSystem.initialize(tenantId, true);
         currentCollection = contentSystem.getCollection(collectionPath, tenantId);
       }
     }

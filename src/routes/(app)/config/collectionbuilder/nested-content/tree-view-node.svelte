@@ -155,16 +155,16 @@ function handleKeyDown(e: KeyboardEvent) {
 	{/if}
 
 	<!-- Icon -->
-	<div class="relative"><iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon></div>
+	<div class="relative flex items-center"><iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon></div>
 
 	<!-- Name & Badge: flexible width for responsiveness -->
 	<div class="flex flex-1 flex-col gap-1 min-w-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
 			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-[150px] sm:max-w-[380px]" title={name}>{name}</span>
 			{#if isCategory}
-				<Badge variant="tertiary" size="sm" rounded={false} class="shadow-sm">Category</Badge>
+				<Badge variant="tertiary" size="sm" rounded={false} class="shadow-sm self-center leading-none">Category</Badge>
 			{:else}
-				<Badge variant="secondary" size="sm" rounded={false} class="shadow-sm">Collection</Badge>
+				<Badge variant="secondary" size="sm" rounded={false} class="shadow-sm self-center leading-none">Collection</Badge>
 			{/if}
 
 			<!-- Slug - Hidden on mobile to save space -->

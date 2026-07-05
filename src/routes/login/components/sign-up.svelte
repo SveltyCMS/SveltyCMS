@@ -130,57 +130,25 @@ const signUpForm = new Form(
 
 async function handleSignUpSubmit(event: Event) {
 	event.preventDefault();
-	if (Object.keys(signUpForm.errors).length > 0) {
+
+	// In open-signup mode (multiTenant + demo), no token is required
+	if (isOpenSignup) {
+		signUpForm.data.token = undefined as unknown as string;
+	}
+
+	if (!signUpForm.validate()) {
 		formElement?.classList.add("wiggle");
 		setTimeout(() => {
 			formElement?.classList.remove("wiggle");
 		}, 300);
 		return;
 	}
+
+	// Submit natively to the server form action (?/signUp).
+	// This ensures Set-Cookie headers are properly attached to the HTTP response,
+	// avoiding cookie-propagation issues with Remote Functions.
 	isSubmitting = true;
-
-	try {
-		const { signUp: remoteSignUp } = await import("../auth.remote");
-		const result = (await remoteSignUp({
-			email: signUpForm.data.email,
-			username: signUpForm.data.username,
-			password: signUpForm.data.password,
-			confirm_password: signUpForm.data.confirm_password,
-			token: signUpForm.data.token
-		})) as any;
-
-		isSubmitting = false;
-
-		if (result.success && result.redirectPath) {
-			isRedirecting = true;
-			toast.success({
-				title: "Account Created!",
-				description: "Welcome to SveltyCMS. Redirecting to your dashboard...",
-			});
-			window.location.href = result.redirectPath;
-			return;
-		}
-
-		toast.error({
-			title: "Sign Up Failed",
-			description: result.message || "Failed to create account",
-		});
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-	} catch (error: any) {
-		isSubmitting = false;
-		isRedirecting = false;
-		toast.error({
-			title: "Sign Up Failed",
-			description: error?.message || "An unexpected error occurred",
-		});
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-	}
+	formElement!.submit();
 }
 
 // Reactive form values for easier access
@@ -344,14 +312,16 @@ $effect(() => {
 					</div>
 				</div>
 
-				<form
-					id="signup-form"
-					onsubmit={handleSignUpSubmit}
-					bind:this={formElement}
-					class="items flex flex-col gap-3"
-					class:hide={active !== 1}
-					inert={active !== 1}
-				>
+			<form
+				id="signup-form"
+				method="POST"
+				action="?/signUp"
+				onsubmit={handleSignUpSubmit}
+				bind:this={formElement}
+				class="items flex flex-col gap-3"
+				class:hide={active !== 1}
+				inert={active !== 1}
+			>
 					<!-- Username field -->
 					<FloatingInput
 						id="usernamesignUp"
@@ -449,7 +419,7 @@ $effect(() => {
 						 Hidden only in open-signup mode (multiTenant + demoMode).
 						 Single-tenant demo mode still requires a token and will render this field. -->
 					{#if !isInviteFlow && !isOpenSignup}
-						<div class="flex items-center space-x-2">
+						<div class="flex items-center gap-2">
 							<FloatingInput
 								id="tokensignUp"
 								name="token"

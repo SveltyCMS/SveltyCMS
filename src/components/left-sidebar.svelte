@@ -33,6 +33,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
 	// Paraglide Messages
 	import {
@@ -58,7 +59,7 @@
 	import { browser } from '$app/environment';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
-	import { scale } from 'svelte/transition';
+	import { scale, slide } from 'svelte/transition';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
 
 
@@ -82,6 +83,8 @@
 	let isPinnedOpen = $state(true);
 	let isCollectionsOpen = $state(true);
 	let isMediaOpen = $state(false);
+	let isCollapsedCollectionsOpen = $state(true);
+	let collectionSearchQuery = $state('');
 
 	$effect(() => {
 		// Context-aware sidebar: sections are route-specific to match user intent.
@@ -106,6 +109,14 @@
 	);
 	const showCollectionsHere = $derived(
 		collectionsPosition === 'left' || collectionsPosition === 'both'
+	);
+
+	const filteredCollapsedCollections = $derived(
+		collectionSearchQuery
+			? collections.filter((node) =>
+					node.name?.toLowerCase().includes(collectionSearchQuery.toLowerCase())
+			  )
+			: collections
 	);
 
 	const firstCollectionPath = $derived.by(() => {
@@ -270,7 +281,7 @@
 		>
 			<iconify-icon
 				icon="bi:arrow-left"
-				width="24"
+				width="28"
 				class="text-surface-700 dark:text-surface-200 transition-transform {isSidebarFull
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
@@ -290,7 +301,7 @@
 				aria-label="Hide Sidebar"
 				class="flex h-10 w-10 items-center justify-center rounded-full! border border-surface-400 p-0! min-w-0 dark:border-surface-500"
 			>
-				<iconify-icon icon="bi:list" width="24" class="text-surface-700 dark:text-surface-200"></iconify-icon>
+				<iconify-icon icon="bi:list" width="28" class="text-surface-700 dark:text-surface-200"></iconify-icon>
 			</Button>
 		</SystemTooltip>
 	{/if}
@@ -313,15 +324,15 @@
 						class="flex w-full items-center justify-between py-1.5 text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 {isSidebarFull ? 'px-1' : 'justify-center'}"
 					 aria-label="Toggle pinned items">
 						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon="bi:pin-angle-fill" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							{#if isSidebarFull}Pinned{/if}
 						</span>
 						{#if isSidebarFull}
 							<iconify-icon
-								icon="bi:chevron-down"
-								width="12"
-								class="transform transition-transform duration-200 {isPinnedOpen ? '' : '-rotate-90'}"
-							></iconify-icon>
+							icon="bi:chevron-down"
+							width="16"
+							class="transform transition-transform duration-200 {isPinnedOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
 						{/if}
 					</Button>
 
@@ -337,7 +348,7 @@
 											if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 										}}
 									>
-										<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										<iconify-icon icon={item.icon || 'bi:pin'} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 										{#if isSidebarFull}
 											<span class="truncate">{item.name}</span>
 										{/if}
@@ -348,7 +359,7 @@
 											onclick={() => pinnedStore.unpin(item.id)}
 											title="Unpin"
 										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-200 dark:hover:bg-surface-800">
-											<iconify-icon icon="bi:x" width="16" class="text-surface-500"></iconify-icon>
+											<iconify-icon icon="bi:x" width="20" class="text-surface-500"></iconify-icon>
 										</Button>
 									{/if}
 								</div>
@@ -369,12 +380,12 @@
 						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded bg-surface-50/40 dark:bg-surface-800/20 hover:bg-surface-100/80 dark:hover:bg-surface-700/50 px-2"
 					 aria-label="Toggle collections">
 						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon="bi:collection" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							Collections
 						</span>
 						<iconify-icon
 							icon="bi:chevron-down"
-							width="12"
+							width="16"
 							class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
 						></iconify-icon>
 					</Button>
@@ -388,7 +399,62 @@
 			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
 			{/if}
 
-			<!-- 3. Media Gallery -->
+			<!-- 3. Collapsed collection icons (collapsible button + expandable list) -->
+			{#if !isSidebarFull && showCollectionsHere && collections.length > 0}
+				<div class="flex flex-col items-center gap-1 px-1 pt-2 border-0 border-t border-surface-200/30 dark:border-surface-700/30">
+					<button
+						onclick={() => { isCollapsedCollectionsOpen = !isCollapsedCollectionsOpen; goto('/config/collectionbuilder'); }}
+						class="flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 text-[#68E818] hover:bg-[#68E818]/10"
+						aria-label="Manage collections"
+					>
+						<iconify-icon icon="bi:collection" width="20" class="text-[#68E818]"></iconify-icon>
+					</button>
+					<button
+						onclick={() => isCollapsedCollectionsOpen = !isCollapsedCollectionsOpen}
+						class="flex h-5 w-5 items-center justify-center rounded transition-all duration-200 text-[#68E818] hover:bg-[#68E818]/10"
+						aria-label="Expand collections"
+					>
+						<iconify-icon
+							icon="bi:chevron-down"
+							width="12"
+							class="text-[#68E818] transform transition-transform duration-200 {isCollapsedCollectionsOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
+					</button>
+					{#if isCollapsedCollectionsOpen}
+						<div class="flex flex-col items-center gap-1" transition:slide={{ duration: 200 }}>
+							<button
+								onclick={() => toggleUIElement('leftSidebar', 'full')}
+								class="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 text-[#68E818] hover:bg-[#68E818]/10"
+								aria-label="Search collections"
+							>
+								<iconify-icon icon="bi:search" width="16" class="text-[#68E818]"></iconify-icon>
+							</button>
+							{#each filteredCollapsedCollections as node (node._id)}
+								{@const collectionPath = `/${getLocale()}${node.path || `/${node._id}`}`}
+								<SystemTooltip title={node.name} positioning={{ placement: 'right' }}>
+									<a
+										href={collectionPath}
+										data-sveltekit-preload-data="hover"
+										onclick={() => {
+											if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+										}}
+										class="flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 {page.url.pathname === collectionPath ? 'text-[#CF0100] bg-[#CF01001a] border border-[#CF010026] shadow-sm' : 'text-[#CF0100cc] hover:bg-[#CF010015]'}"
+										aria-label={node.name}
+									>
+										<iconify-icon
+											icon={node.icon || 'bi:collection'}
+											width="20"
+											class="text-[#CF0100]"
+										></iconify-icon>
+									</a>
+								</SystemTooltip>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- 4. Media Gallery -->
 			<div class="space-y-1">
 				{#if currentPath.includes('/mediagallery') && isSidebarFull}
 					<div class="px-1">
@@ -406,13 +472,13 @@
 						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
 					>
 						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							{#if isSidebarFull}Media Gallery{/if}
 						</span>
 						{#if isSidebarFull}
 							<iconify-icon
 								icon="bi:chevron-down"
-								width="12"
+								width="16"
 								class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
 							></iconify-icon>
 						{/if}
@@ -428,7 +494,7 @@
 										if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
 									}}
 								>
-									<iconify-icon icon="bi:images" width="14"></iconify-icon>
+									<iconify-icon icon="bi:images" width="18"></iconify-icon>
 									Open Media Gallery
 								</a>
 							{/if}
@@ -474,7 +540,7 @@
 				<!-- Language Selector -->
 				<div class="flex items-center justify-center px-1">
 					<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
-						<div class="language-selector relative">
+						<div class="language-selector relative" data-testid="language-selector">
 							<Dropdown position="right-start" class="w-56">
 								{#snippet trigger()}
 									<Button
@@ -529,6 +595,7 @@
 	<!-- Plugin Sidebar Items -->
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
 	<!-- Footer (expanded only) -->
+	{#if isSidebarFull}
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t border-surface-300 dark:border-surface-600"></div>
 
@@ -561,20 +628,20 @@
  			<!-- Language Selector -->
  			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
- 					<div class="language-selector relative">
- 						<Dropdown position="right-start" class="w-56">
- 							{#snippet trigger()}
- 								<Button
- 									variant="surface"
- 									rounded
- 									aria-label="Select language"
- 									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 h-12 w-12 text-xs font-semibold"
- 								>
- 									{languageTag}
- 								</Button>
- 							{/snippet}
+					<div class="language-selector relative" data-testid="language-selector">
+						<Dropdown position="right-start" class="w-56">
+							{#snippet trigger()}
+								<Button
+									variant="surface"
+									rounded
+									aria-label="Select language"
+									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 h-12 w-12 text-xs font-semibold"
+								>
+									{languageTag}
+								</Button>
+							{/snippet}
 
- 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
  								{applayout_systemlanguage()}
  							</div>
 
@@ -630,24 +697,23 @@
  			<!-- Version -->
  			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={true} /></div>
 
- 			<!-- Community Links (only when expanded) -->
- 			{#if isSidebarFull}
- 				<div class="order-7 flex items-center justify-center gap-1">
- 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
- 						<a
- 							href="https://discord.gg/VrvZF6e2sC"
- 							target="_blank"
- 							rel="noopener noreferrer"
- 							aria-label="Discord Community"
- 							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
- 						>
- 							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
- 						</a>
- 					</SystemTooltip>
- 				</div>
- 			{/if}
+			<!-- Community Links (only when expanded) -->
+				<div class="order-7 flex items-center justify-center gap-1">
+					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+						<a
+							href="https://discord.gg/VrvZF6e2sC"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Discord Community"
+							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
+						</a>
+					</SystemTooltip>
+				</div>
 		</div>
 	</div>
+	{/if}
 </div>
 <style>
 	/* Sidebar width follows admin theme token (applied on layout aside) */

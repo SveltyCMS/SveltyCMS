@@ -1,0 +1,6 @@
+{
+  "dialect": "sqlite",
+  "schema": "./src/databases/sqlite/schema.ts",
+  "out": "./drizzle",
+  "url": "config/database/sveltycms_e2e_ready.db.sqlite"
+}

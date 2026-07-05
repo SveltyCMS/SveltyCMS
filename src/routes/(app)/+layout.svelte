@@ -425,8 +425,8 @@ initBounceDetector();
 
 			<div class="flex flex-1 overflow-hidden">
 				<aside
-					class="max-h-dvh transition-[width] duration-300 ease-in-out relative {ui.state.leftSidebar !== 'hidden' ? 'border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900' : 'overflow-hidden'} {ui.state.leftSidebar !== 'full' && ui.state.leftSidebar !== 'hidden' ? 'ms-1' : ''}"
-					style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ui.state.leftSidebar === 'collapsed' ? 'var(--admin-sidebar-collapsed, 60px)' : '0px'}"
+					class="max-h-dvh transition-[width] duration-300 ease-in-out relative flex-shrink-0 {ui.state.leftSidebar !== 'hidden' ? 'border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900' : 'overflow-hidden'} {ui.state.leftSidebar !== 'full' && ui.state.leftSidebar !== 'hidden' ? 'ms-1' : ''}"
+					style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ui.state.leftSidebar === 'collapsed' ? 'var(--admin-sidebar-collapsed, 60px)' : '0px'}; min-width: {ui.state.leftSidebar !== 'hidden' ? 'var(--admin-sidebar-collapsed, 60px)' : '0px'}"
 					aria-label="Left sidebar navigation"
 				>
 					{#if ui.state.leftSidebar !== 'hidden'}

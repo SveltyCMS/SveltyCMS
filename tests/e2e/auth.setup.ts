@@ -32,21 +32,32 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
   const [name, value] = cookieParts.split("=");
 
   // Apply cookie to the context
+  // Use response.url() instead of page.url() because the page hasn't
+  // navigated anywhere yet (page.url() may be about:blank with no hostname).
   const context = page.context();
-  const baseUrl = new URL(page.url());
+  const responseUrl = new URL(response.url());
   await context.addCookies([
     {
       name,
       value,
-      domain: baseUrl.hostname,
-      path: "/",
+      url: responseUrl.origin,
       httpOnly: true,
       sameSite: "Lax",
     },
   ]);
 
   // Navigate to dashboard to verify auth works and capture full storage state
-  await page.goto("/", { waitUntil: "networkidle", timeout: 30_000 });
+  try {
+    await page.goto("/", { waitUntil: "load", timeout: 15_000 });
+  } catch (e) {
+    console.log(`[Setup] goto("/") failed: ${e}`);
+  }
+  console.log(`[Setup] URL after goto: ${page.url()}`);
+  try {
+    console.log(`[Setup] Page title: ${await page.title()}`);
+  } catch {
+    console.log(`[Setup] Page title unavailable`);
+  }
 
   // Verify we landed on an authenticated page (not /login)
   const currentUrl = page.url();

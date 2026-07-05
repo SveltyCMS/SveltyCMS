@@ -1037,19 +1037,13 @@ const flipDurationMs = 200;
 		<FloatingInput
 			bind:value={searchText}
 			label="Search collections..."
-			icon="mdi:magnify"
+			icon={searchText ? "mdi:close" : "mdi:magnify"}
+			iconClick={searchText ? clearSearch : undefined}
+			textColor="black"
 			aria-label="Search collections"
-			inputClass="w-full h-12 pe-8 rounded shadow-sm"
+			inputClass="w-full h-12 ps-9 rounded shadow-sm !bg-transparent !focus:bg-transparent"
+			labelClass="start-7"
 		/>
-		{#if searchText}
-			<Button variant="surface"
-				type="button"
-				onclick={clearSearch}
-				aria-label="Clear search"
-			 class="p-0! min-w-0 absolute inset-e-2 top-1/2 -translate-y-1/2 z-10">
-				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
-			</Button>
-		{/if}
 	</div>
 	<div class="flex gap-2">
 		<SystemTooltip title="Expand all categories">

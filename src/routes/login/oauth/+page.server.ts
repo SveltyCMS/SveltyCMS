@@ -371,10 +371,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
     // Handle OAuth errors first
     if (errorParam) {
-      logger.error(`OAuth Error: ${errorParam}`, {
-        error_subtype: errorSubtype,
-        url: url.toString(),
-      });
+      if (process.env.NODE_ENV !== "test") {
+        logger.error(`OAuth Error: ${errorParam}`, {
+          error_subtype: errorSubtype,
+          url: url.toString(),
+        });
+      }
       if (errorParam === "interaction_required" || errorParam === "access_denied") {
         const authUrl = await generateGoogleAuthUrl(token, "consent");
         redirect(302, authUrl);
@@ -482,6 +484,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
           locale: url.searchParams.get("__test_locale") || "en",
         };
         refresh_token = null;
+      } else if (process.env.TEST_MODE === "true") {
+        logger.debug("TEST_MODE: Preventing real Google API call — use __test_oauth_mock__ in URL");
+        throw error(400, "OAuth Authentication Failed: invalid_grant");
       } else {
         // Real OAuth flow — exchange code with Google
         const redirectUri = getOAuthRedirectUri();
@@ -546,12 +551,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       }
       const errorMessage =
         err instanceof Error ? err.message : "Unknown error during OAuth callback";
-      logger.error("OAuth callback processing error:", {
-        error: err,
-        stack: err instanceof Error ? err.stack : undefined,
-        code,
-        token,
-      });
+      if (process.env.NODE_ENV !== "test") {
+        logger.error("OAuth callback processing error:", {
+          error: err,
+          stack: err instanceof Error ? err.stack : undefined,
+          code,
+          token,
+        });
+      }
       // Provide more specific error messages based on the error type
       if (errorMessage.includes("A valid invitation is required")) {
         throw error(
@@ -592,11 +599,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       throw err;
     }
     const errorMessage = err instanceof Error ? err.message : "Unknown error during OAuth process";
-    logger.error("Comprehensive OAuth Error:", {
-      message: errorMessage,
-      stack: err instanceof Error ? err.stack : "No stack trace",
-      fullError: err,
-    });
+    if (process.env.NODE_ENV !== "test") {
+      logger.error("Comprehensive OAuth Error:", {
+        message: errorMessage,
+        stack: err instanceof Error ? err.stack : "No stack trace",
+        fullError: err,
+      });
+    }
     // Provide more detailed error information for the user
     throw error(500, `OAuth Authentication Failed: ${errorMessage}`);
   }
@@ -613,7 +622,9 @@ export const actions: Actions = {
     } catch (err) {
       if (err instanceof Error) {
         const errorMessage = err.message || "Failed to initialize OAuth";
-        logger.error("Error during OAuth initialization:", errorMessage);
+        if (process.env.NODE_ENV !== "test") {
+          logger.error("Error during OAuth initialization:", errorMessage);
+        }
         throw error(500, { message: errorMessage });
       }
       throw err;

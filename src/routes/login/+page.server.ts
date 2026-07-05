@@ -18,6 +18,7 @@ import {
   getPrivateSettingSync,
   getPublicSetting,
   getUntypedSetting,
+  loadSettingsCache,
 } from "@src/services/core/settings-service";
 import { adminThemeService } from "@src/services/core/admin-theme-service";
 import { resolveLoginBranding } from "@utils/theme-merge";
@@ -29,9 +30,11 @@ import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import pkg from "../../../package.json";
 
 // Auth actions delegate to auth.remote.ts
+// Import internal functions directly for form actions so cookies are set
+// on the form action's RequestEvent (command() wrappers may not propagate
+// event.cookies.set() to the form action response).
+import { signInInternal as signInInternalFn, signUpInternal as signUpInternalFn } from "./auth";
 import {
-  signIn as signInFn,
-  signUp as signUpFn,
   forgotPW as forgotPWFn,
   resetPW as resetPWFn,
   prefetch as prefetchFn,
@@ -198,9 +201,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     await dbInitPromise;
 
-    // Re-read multi-tenancy and demo mode from settings cache (now guaranteed loaded)
-    demoMode = !!getPrivateSettingSync("DEMO");
-    multiTenant = !!getPrivateSettingSync("MULTI_TENANT");
+    // Read deployment-mode booleans directly from env (not stored in settings DB)
+    demoMode = process.env.DEMO === "true";
+    multiTenant = process.env.MULTI_TENANT === "true";
     isOpenSignup = multiTenant && demoMode;
 
     const dbHealth = await checkDatabaseHealth();
@@ -309,6 +312,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     const code = url.searchParams.get("code");
     if (publicEnv.USE_GOOGLE_OAUTH && code) {
       try {
+        if (process.env.TEST_MODE === "true") {
+          logger.debug("TEST_MODE: Preventing real Google API call in login callback");
+          throw new Error("OAuth mock not provided for login callback");
+        }
         const googleAuthInstance = await googleAuth();
         if (!googleAuthInstance) throw new Error("Google OAuth client is not initialised");
         const { tokens } = await googleAuthInstance.getToken(code);
@@ -401,7 +408,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
         }
       } catch (err: any) {
         if (isRedirect(err)) throw err;
-        logger.error("OAuth error:", err.message);
+        if (process.env.NODE_ENV !== "test") {
+          logger.error("OAuth error:", err.message);
+        }
         return {
           ...errorDefaults,
           showGoogleOAuth: await shouldShowGoogleOAuth(),
@@ -468,14 +477,25 @@ export const actions: Actions = {
     formData.forEach((v, k) => {
       data[k] = v;
     });
-    const result = await signInFn(data);
+    const result = await signInInternalFn(event, data);
     logger.info(`[SignInAction] result: ${JSON.stringify(result)}`);
     if (result?.success && result?.redirectPath) {
       throw redirect(303, result.redirectPath);
     }
     return fail(401, result ?? { success: false, message: "Sign in failed" });
   },
-  signUp: signUpFn,
+  signUp: async (event) => {
+    const formData = await event.request.formData();
+    const data: Record<string, unknown> = {};
+    formData.forEach((v, k) => {
+      data[k] = v;
+    });
+    const result = await signUpInternalFn(event, data);
+    if (result?.success && result?.redirectPath) {
+      throw redirect(303, result.redirectPath);
+    }
+    return fail(400, result ?? { success: false, message: "Sign up failed" });
+  },
   forgotPW: forgotPWFn,
   resetPW: resetPWFn,
   prefetch: prefetchFn,
@@ -485,6 +505,7 @@ export const actions: Actions = {
       event.setHeaders({ "Retry-After": "60" });
       return fail(429, { message: "Too many requests." });
     }
+    await loadSettingsCache();
     const inviteToken = event.url.searchParams.get("invite_token");
     const authUrl = await generateGoogleAuthUrl(inviteToken, undefined);
     throw redirect(303, authUrl);
@@ -495,6 +516,7 @@ export const actions: Actions = {
       event.setHeaders({ "Retry-After": "60" });
       return fail(429, { message: "Too many requests." });
     }
+    await loadSettingsCache();
     const inviteToken = event.url.searchParams.get("invite_token");
     const authUrl = await generateGithubAuthUrl(inviteToken, undefined);
     throw redirect(303, authUrl);

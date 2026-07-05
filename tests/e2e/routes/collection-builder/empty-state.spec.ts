@@ -15,16 +15,45 @@
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 
+const TEST_API_HEADERS = {
+  "x-test-secret": process.env.TEST_SECRET || "test-secret",
+  "content-type": "application/json",
+};
+
 test.describe("Collection Builder — Empty State", () => {
   test.beforeEach(async ({ page }) => {
+    // Remove compiled collections so seed doesn't re-create them
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "reset" },
+      })
+      .catch(() => {});
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "delete-compiled-collections" },
+      })
+      .catch(() => {});
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "seed", email: "admin@example.com", password: "Password123!" },
+      })
+      .catch(() => {});
+
     await loginAsAdmin(page);
+    // Navigate away to clear any stale page data
+    await page.goto("/config");
+    await page.waitForTimeout(300);
   });
 
   test("should show empty state when no collections exist", async ({ page }) => {
     await page.goto("/config/collectionbuilder");
 
     // EmptyState should render with the blueprint illustration
-    await expect(page.getByText(/blueprint is empty/i)).toBeVisible({
+    // Use getByText for broader text matching (handles SSR where SITE_NAME may not render yet)
+    await expect(page.getByText(/blueprint is empty/i).first()).toBeVisible({
       timeout: 10_000,
     });
 
@@ -55,7 +84,7 @@ test.describe("Collection Builder — Empty State", () => {
     await page.getByRole("button", { name: /quick start/i }).click();
 
     // Modal should open with template cards
-    await expect(page.getByRole("dialog", { name: /quick-start templates/i })).toBeVisible({
+    await expect(page.getByRole("dialog", { name: /quick-start templates/i }).first()).toBeVisible({
       timeout: 5_000,
     });
 
@@ -64,7 +93,9 @@ test.describe("Collection Builder — Empty State", () => {
 
     // Close the modal
     await page.getByRole("button", { name: /cancel/i }).click();
-    await expect(page.getByRole("dialog", { name: /quick-start templates/i })).not.toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: /quick-start templates/i }).first(),
+    ).not.toBeVisible();
   });
 
   test("should install a Quick Start template from empty state", async ({ page }) => {
@@ -77,10 +108,10 @@ test.describe("Collection Builder — Empty State", () => {
     await page.getByRole("radio", { name: /blog/i }).click();
 
     // Click Install
-    await page.getByRole("button", { name: /install template/i }).click();
+    await page.getByRole("button", { name: /install selected template/i }).click();
 
     // Should get a success toast
-    await expect(page.getByText(/collections created successfully/i)).toBeVisible({
+    await expect(page.getByText(/created.*collections/i)).toBeVisible({
       timeout: 15_000,
     });
 

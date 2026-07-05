@@ -129,6 +129,15 @@ export async function handleTestingRoutes(
         await (initializedAdapter as any).reset();
       }
 
+      // 🚀 Re-provision to ensure system tables exist after clearDatabase
+      if (typeof (initializedAdapter as any).provision === "function") {
+        await (initializedAdapter as any).provision();
+      } else if (typeof (initializedAdapter as any).ensureAuth === "function") {
+        await (initializedAdapter as any).ensureAuth();
+      } else if (typeof (initializedAdapter as any).ensureSystem === "function") {
+        await (initializedAdapter as any).ensureSystem();
+      }
+
       // Wipe Media Folder
       const { getPublicSettingSync } = await import("@src/services/core/settings-service");
       const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
@@ -250,6 +259,24 @@ export async function handleTestingRoutes(
           await themeManager.refresh();
         }
 
+        // 🧪 Seed OAuth settings for E2E tests
+        try {
+          const { setPrivateSetting } = await import("@src/services/core/settings-service");
+          await setPrivateSetting("USE_GOOGLE_OAUTH", true, tenantId);
+          await setPrivateSetting(
+            "GOOGLE_CLIENT_ID",
+            process.env.GOOGLE_CLIENT_ID || "e2e-test-google-client-id",
+            tenantId,
+          );
+          await setPrivateSetting(
+            "GITHUB_CLIENT_ID",
+            process.env.GITHUB_CLIENT_ID || "e2e-test-github-client-id",
+            tenantId,
+          );
+        } catch (err: any) {
+          logger.warn(`[TestingHandler] OAuth settings seeding error: ${err.message}`);
+        }
+
         // 5. Seed dynamic collections
         try {
           await contentSystem.initialize(tenantId, { force: true });
@@ -284,6 +311,15 @@ export async function handleTestingRoutes(
         await initializedAdapter.clearDatabase();
       } else if ((initializedAdapter as any).reset) {
         await (initializedAdapter as any).reset();
+      }
+
+      // 🚀 Re-provision to ensure system tables exist after clear
+      if (typeof (initializedAdapter as any).provision === "function") {
+        await (initializedAdapter as any).provision();
+      } else if (typeof (initializedAdapter as any).ensureAuth === "function") {
+        await (initializedAdapter as any).ensureAuth();
+      } else if (typeof (initializedAdapter as any).ensureSystem === "function") {
+        await (initializedAdapter as any).ensureSystem();
       }
 
       // Re-initialize adapter default collections/roles if available (e.g. MongoDB roles seed)
@@ -503,47 +539,33 @@ export async function handleTestingRoutes(
       const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
       const setupAuth = new Auth(cms.db, getDefaultSessionStore());
 
-      const authnResult = await setupAuth.authenticate(email, password, {
-        tenantId,
+      const authnResult = await setupAuth.authenticate(email, password, tenantId, {
+        bypassTenantCheck: true,
       });
-      if (!authnResult.success || !authnResult.data) {
-        throw new AppError(
-          `Test login failed: ${authnResult.message || "Invalid credentials"}`,
-          401,
-          "TEST_LOGIN_FAILED",
-        );
+      if (!authnResult) {
+        throw new AppError("Test login failed: Invalid credentials", 401, "TEST_LOGIN_FAILED");
       }
 
-      const authenticatedUser = authnResult.data;
+      const authenticatedUser = authnResult.user;
+      const sessionResult = authnResult.sessionId;
 
-      // Create a fresh session
-      const sessionResult = await setupAuth.createSession({
-        user_id: authenticatedUser._id as DatabaseId,
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
-        tenantId,
-      });
-
-      if (!sessionResult || !sessionResult._id) {
-        throw new AppError("Failed to create session during test login", 500);
-      }
-
-      // Prime the in-memory session cache
+      // authenticate already created a session; prime the in-memory cache
       const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
-      primeSessionMemoryCache(sessionResult._id as string, authenticatedUser);
+      primeSessionMemoryCache(sessionResult as string, authenticatedUser);
 
       // Set session cookie on the response
-      const sc = setupAuth.createSessionCookie(sessionResult._id);
+      const sc = setupAuth.createSessionCookie(sessionResult);
       const cookieHeader = `${sc.name}=${sc.value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`;
 
       const response = rawResponse({
         success: true,
         message: "Test login successful",
-        sessionId: sessionResult._id,
+        sessionId: sessionResult,
         userId: authenticatedUser._id,
         email: authenticatedUser.email,
       });
       response.headers.append("Set-Cookie", cookieHeader);
-      response.headers.set("x-test-session-id", sessionResult._id as string);
+      response.headers.set("x-test-session-id", sessionResult as string);
       return response;
     }
 
@@ -678,7 +700,7 @@ export async function handleTestingRoutes(
       if (initializedAdapter.type === "mongodb") {
         await new Promise((r) => setTimeout(r, 100));
       }
-      // 🚀 BATCH SYNC: Refresh once for all collections
+      // 🚀 BATCH SYNC: Refresh from schemas (reads .js files + DB content_nodes)
       const { refreshContent } = await import("@src/content/engine.server");
       await refreshContent(tenantId, {
         mode: "schemas",
@@ -695,6 +717,81 @@ export async function handleTestingRoutes(
       }
 
       return rawResponse({ success: results.every((r) => r.success), results });
+    }
+
+    if (action === "delete-collection") {
+      const collectionId = params.collectionId || params.id || params._id;
+      if (!collectionId) throw new AppError("collectionId required", 400);
+
+      try {
+        // Delete the content node by path (removes from content_nodes table)
+        const nodePath = `/collection/${collectionId.toLowerCase()}`;
+        if (initializedAdapter.content?.nodes?.delete) {
+          await initializedAdapter.content.nodes.delete(nodePath);
+        }
+
+        // Drop the associated data table
+        const tableName = `collection_${collectionId}`;
+        try {
+          if (initializedAdapter.type === "sqlite") {
+            const client = (initializedAdapter as any).sqlite;
+            if (client?.exec) {
+              client.exec(`DROP TABLE IF EXISTS "${tableName}"`);
+            }
+          } else if (initializedAdapter.type === "mariadb" || initializedAdapter.type === "mysql") {
+            const pool = (initializedAdapter as any).pool;
+            if (pool?.query) {
+              await pool.query(`DROP TABLE IF EXISTS \`${tableName}\``);
+            }
+          } else if (initializedAdapter.type === "postgresql") {
+            const sql = (initializedAdapter as any).sql;
+            if (sql?.unsafe) {
+              await sql.unsafe(`DROP TABLE IF EXISTS "${tableName}" CASCADE`);
+            }
+          } else if (initializedAdapter.type === "mongodb") {
+            const conn = (initializedAdapter as any).connection;
+            if (conn?.db) {
+              await conn.db.dropCollection(tableName).catch(() => {});
+            }
+          }
+        } catch (dropErr) {
+          logger.warn(`[testing] Failed to drop table ${tableName}:`, dropErr);
+        }
+
+        // Delete the collection model from registry
+        await initializedAdapter.collection.deleteModel(collectionId);
+
+        // Refresh content store using schemas mode (reads .js files + DB content_nodes)
+        const { refreshContent } = await import("@src/content/engine.server");
+        await refreshContent(tenantId, { mode: "schemas", adapter: initializedAdapter });
+        if (cms.collections?.refresh) {
+          await cms.collections.refresh(tenantId as any, true);
+        }
+        return rawResponse({ success: true, message: `Collection "${collectionId}" deleted` });
+      } catch (e: any) {
+        logger.error(`[testing] Failed to delete collection ${collectionId}:`, e.message);
+        return rawResponse({ success: false, message: e.message }, 400);
+      }
+    }
+
+    if (action === "delete-compiled-collections") {
+      const compiledDir = path.resolve(process.cwd(), ".compiledCollections");
+      if (fs.existsSync(compiledDir)) {
+        await fsp.rm(compiledDir, { recursive: true, force: true });
+        await fsp.mkdir(compiledDir, { recursive: true });
+      }
+      const collectionsDir = path.resolve(process.cwd(), "config", "collections");
+      if (fs.existsSync(collectionsDir)) {
+        // Only remove test subdirectory, not user collections
+        const testDir = path.join(collectionsDir, "test");
+        if (fs.existsSync(testDir)) {
+          await fsp.rm(testDir, { recursive: true, force: true });
+        }
+      }
+      // Also clear the content store
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, { mode: "schemas" }).catch(() => {});
+      return rawResponse({ success: true, message: "Compiled collections cleared" });
     }
 
     if (action === "seed-throughput-docs") {

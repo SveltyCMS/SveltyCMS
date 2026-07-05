@@ -1074,7 +1074,6 @@ export default defineConfig((): any => {
       __FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
       __SVELTY_SETUP_COMPLETE__: setupComplete,
       global: "globalThis", // `global` polyfill for libraries that expect it (e.g., older crypto libs)
-      "process.env": "{}", // polyfill for server-only files (e.g. cors-utils) accidentally bundled client-side
       "import.meta.env.VITE_LOG_LEVELS": JSON.stringify(
         process.env.LOG_LEVELS || (isBuild ? "info,warn,error" : "info,warn,error,debug"),
       ),

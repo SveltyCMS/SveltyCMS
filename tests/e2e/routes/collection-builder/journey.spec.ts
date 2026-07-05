@@ -25,25 +25,35 @@ test.describe("Master Behavioral Journey", () => {
 
     // 3. Configure Collection Fields (GUI) — click step 2 in the stepper
     await page.getByRole("button", { name: /field configuration/i }).click();
-    await page.getByTestId("quick-add-text").click();
-    // The widget generates a field with label "New Text"
-    await expect(page.getByText(/New Text/i)).toBeVisible({
+    await page.getByTestId("quick-add-input").click();
+    // The widget generates a field with label "New Input"
+    await expect(page.getByText(/New Input/i)).toBeVisible({
       timeout: 10_000,
     });
 
     // 4. Save & Compile Schema
-    await page.getByTestId("save-collection-button").click();
+    await page.getByTestId("save-collection-button").first().click();
     await expect(page.getByText(/collection saved/i)).toBeVisible({
       timeout: 15_000,
     });
 
     // 6. Create an Entry in the New Collection
-    // Navigate to the newly created collection page
-    await page.goto(`/en/Collections/${collectionName}`);
+    // Navigate to the dashboard first so the sidebar loads with the Collections tree
+    await page.goto("/");
+    await expect(
+      page.getByRole("treeitem", { name: RegExp(collectionName, "i") }).first(),
+    ).toBeVisible({
+      timeout: 15_000,
+    });
+    // Click the treeitem to navigate to the entry page (client-side navigation)
+    await page
+      .getByRole("treeitem", { name: RegExp(collectionName, "i") })
+      .first()
+      .click();
     await page.getByRole("button", { name: /create new/i }).click();
 
     // Fill the dynamically generated text field
-    await page.getByLabel(/new text/i).fill("The TQA Project");
+    await page.getByLabel(/new input/i).fill("The TQA Project");
     await page.getByRole("button", { name: /save/i }).first().click();
     await expect(page.getByText("The TQA Project")).toBeVisible();
 
@@ -52,7 +62,7 @@ test.describe("Master Behavioral Journey", () => {
     expect(apiRes.ok()).toBeTruthy();
 
     const body = await apiRes.json();
-    const entry = body.data.find((e: any) => e.new_text === "The TQA Project");
+    const entry = body.data.find((e: any) => e.new_input === "The TQA Project");
 
     expect(entry).toBeDefined();
     expect(entry.status).toBe("unpublish"); // Default status

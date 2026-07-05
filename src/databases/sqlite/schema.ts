@@ -30,8 +30,6 @@ import type { TenantQuota, TenantUsage } from "../db-interface";
 const uuidPk = () => text("_id", { length: 36 }).primaryKey();
 
 // Helper for timestamps
-// Using timestamp_ms mode allows us to pass JS Date objects to insert/update
-// and get JS Date objects back, which matches the behavior expected by shared modules.
 const timestamps = {
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
@@ -79,10 +77,10 @@ export const authUsers = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    emailIdx: index("email_idx").on(table.email),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    tenantEmailIdx: index("tenant_email_idx").on(table.tenantId, table.email), // 🚀 Optimization
-    emailTenantUnique: unique("email_tenant_unique").on(table.email, table.tenantId),
+    emailIdx: index("auth_users_email_idx").on(table.email),
+    tenantIdx: index("auth_users_tenant_idx").on(table.tenantId),
+    tenantEmailIdx: index("auth_users_tenant_email_idx").on(table.tenantId, table.email),
+    emailTenantUnique: unique("auth_users_email_tenant_unique").on(table.email, table.tenantId),
   }),
 );
 
@@ -97,9 +95,9 @@ export const authSessions = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    userIdx: index("user_idx").on(table.user_id),
-    expiresIdx: index("expires_idx").on(table.expires),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    userIdx: index("auth_sessions_user_idx").on(table.user_id),
+    expiresIdx: index("auth_sessions_expires_idx").on(table.expires),
+    tenantIdx: index("auth_sessions_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -121,11 +119,11 @@ export const authTokens = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    tokenIdx: index("token_idx").on(table.token),
-    userIdx: index("user_idx").on(table.user_id),
-    expiresIdx: index("expires_idx").on(table.expires),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    tenantTokenIdx: index("tenant_token_idx").on(table.tenantId, table.token), // 🚀 Optimization
+    tokenIdx: index("auth_tokens_token_idx").on(table.token),
+    userIdx: index("auth_tokens_user_idx").on(table.user_id),
+    expiresIdx: index("auth_tokens_expires_idx").on(table.expires),
+    tenantIdx: index("auth_tokens_tenant_idx").on(table.tenantId),
+    tenantTokenIdx: index("auth_tokens_tenant_token_idx").on(table.tenantId, table.token),
   }),
 );
 
@@ -147,8 +145,8 @@ export const roles = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    nameIdx: index("name_idx").on(table.name),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    nameIdx: index("roles_name_idx").on(table.name),
+    tenantIdx: index("roles_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -183,11 +181,11 @@ export const contentNodes = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    parentIdx: index("parent_idx").on(table.parentId),
-    nodeTypeIdx: index("nodeType_idx").on(table.nodeType),
-    statusIdx: index("status_idx").on(table.status),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    pathTenantUnique: unique("path_tenant_unique").on(table.path, table.tenantId), // 🚀 Multi-tenant path uniqueness
+    parentIdx: index("content_nodes_parent_idx").on(table.parentId),
+    nodeTypeIdx: index("content_nodes_nodetype_idx").on(table.nodeType),
+    statusIdx: index("content_nodes_status_idx").on(table.status),
+    tenantIdx: index("content_nodes_tenant_idx").on(table.tenantId),
+    pathTenantUnique: unique("content_nodes_path_tenant_unique").on(table.path, table.tenantId),
   }),
 );
 
@@ -205,10 +203,10 @@ export const contentDrafts = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    contentIdx: index("content_idx").on(table.contentId),
-    authorIdx: index("author_idx").on(table.authorId),
-    statusIdx: index("status_idx").on(table.status),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    contentIdx: index("content_drafts_content_idx").on(table.contentId),
+    authorIdx: index("content_drafts_author_idx").on(table.authorId),
+    statusIdx: index("content_drafts_status_idx").on(table.status),
+    tenantIdx: index("content_drafts_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -226,10 +224,10 @@ export const contentRevisions = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    contentIdx: index("content_idx").on(table.contentId),
-    versionIdx: index("version_idx").on(table.version),
-    authorIdx: index("author_idx").on(table.authorId),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    contentIdx: index("content_revisions_content_idx").on(table.contentId),
+    versionIdx: index("content_revisions_version_idx").on(table.version),
+    authorIdx: index("content_revisions_author_idx").on(table.authorId),
+    tenantIdx: index("content_revisions_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -250,8 +248,8 @@ export const themes = sqliteTable(
   },
   (table) => ({
     nameIdx: unique("themes_name_tenant_unique").on(table.name, table.tenantId),
-    activeIdx: index("active_idx").on(table.isActive),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    activeIdx: index("themes_active_idx").on(table.isActive),
+    tenantIdx: index("themes_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -273,9 +271,9 @@ export const widgets = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    nameIdx: unique("name_unique").on(table.name),
-    activeIdx: index("active_idx").on(table.isActive),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    nameIdx: unique("widgets_name_unique").on(table.name),
+    activeIdx: index("widgets_active_idx").on(table.isActive),
+    tenantIdx: index("widgets_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -305,10 +303,10 @@ export const mediaItems = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    hashIdx: index("hash_idx").on(table.hash),
-    folderIdx: index("folder_idx").on(table.folderId),
-    createdByIdx: index("created_by_idx").on(table.createdBy),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    hashIdx: index("media_items_hash_idx").on(table.hash),
+    folderIdx: index("media_items_folder_idx").on(table.folderId),
+    createdByIdx: index("media_items_created_by_idx").on(table.createdBy),
+    tenantIdx: index("media_items_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -328,10 +326,10 @@ export const systemVirtualFolders = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    pathIdx: unique("path_unique").on(table.path),
-    parentIdx: index("parent_idx").on(table.parentId),
-    typeIdx: index("type_idx").on(table.type),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    pathIdx: unique("system_folders_path_unique").on(table.path),
+    parentIdx: index("system_folders_parent_idx").on(table.parentId),
+    typeIdx: index("system_folders_type_idx").on(table.type),
+    tenantIdx: index("system_folders_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -349,11 +347,11 @@ export const systemPreferences = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    keyIdx: index("key_idx").on(table.key),
-    scopeIdx: index("scope_idx").on(table.scope),
-    userIdx: index("user_idx").on(table.userId),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    keyTenantUnique: unique("key_tenant_unique").on(table.key, table.tenantId),
+    keyIdx: index("system_prefs_key_idx").on(table.key),
+    scopeIdx: index("system_prefs_scope_idx").on(table.scope),
+    userIdx: index("system_prefs_user_idx").on(table.userId),
+    tenantIdx: index("system_prefs_tenant_idx").on(table.tenantId),
+    keyTenantUnique: unique("system_prefs_key_tenant_unique").on(table.key, table.tenantId),
   }),
 );
 
@@ -364,7 +362,7 @@ export const sveltyJobs = sqliteTable(
     _id: uuidPk(),
     taskType: text("taskType", { length: 255 }).notNull(),
     payload: text("payload").notNull(),
-    status: text("status", { length: 50 }).notNull().default("pending"), // pending, running, completed, failed
+    status: text("status", { length: 50 }).notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("maxAttempts").notNull().default(3),
     nextRunAt: integer("nextRunAt", { mode: "timestamp_ms" })
@@ -375,9 +373,9 @@ export const sveltyJobs = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    statusIdx: index("job_status_idx").on(table.status),
-    nextRunIdx: index("job_next_run_idx").on(table.nextRunAt),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
+    statusIdx: index("jobs_status_idx").on(table.status),
+    nextRunIdx: index("jobs_next_run_idx").on(table.nextRunAt),
+    tenantIdx: index("jobs_tenant_idx").on(table.tenantId),
   }),
 );
 
@@ -398,10 +396,10 @@ export const websiteTokens = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    tokenIdx: unique("token_unique").on(table.token),
-    nameIdx: index("name_idx").on(table.name),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    tenantNameIdx: index("tenant_name_idx").on(table.tenantId, table.name),
+    tokenIdx: unique("website_tokens_token_unique").on(table.token),
+    nameIdx: index("website_tokens_name_idx").on(table.name),
+    tenantIdx: index("website_tokens_tenant_idx").on(table.tenantId),
+    tenantNameIdx: index("website_tokens_tenant_name_idx").on(table.tenantId, table.name),
   }),
 );
 
@@ -423,10 +421,10 @@ export const pluginPagespeedResults = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    entryIdx: index("entry_idx").on(table.entryId),
-    collectionIdx: index("collection_idx").on(table.collectionId),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    deviceIdx: index("device_idx").on(table.device),
+    entryIdx: index("pagespeed_entry_idx").on(table.entryId),
+    collectionIdx: index("pagespeed_collection_idx").on(table.collectionId),
+    tenantIdx: index("pagespeed_tenant_idx").on(table.tenantId),
+    deviceIdx: index("pagespeed_device_idx").on(table.device),
   }),
 );
 
@@ -443,9 +441,9 @@ export const pluginStates = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    pluginIdx: index("plugin_idx").on(table.pluginId),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    pluginTenantUnique: unique("plugin_tenant_unique").on(table.pluginId, table.tenantId),
+    pluginIdx: index("plugin_states_plugin_idx").on(table.pluginId),
+    tenantIdx: index("plugin_states_tenant_idx").on(table.tenantId),
+    pluginTenantUnique: unique("plugin_states_tenant_unique").on(table.pluginId, table.tenantId),
   }),
 );
 
@@ -464,9 +462,9 @@ export const pluginMigrations = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    pluginIdx: index("plugin_idx").on(table.pluginId),
-    tenantIdx: index("tenant_idx").on(table.tenantId),
-    pluginMigrationUnique: unique("plugin_migration_unique").on(
+    pluginIdx: index("plugin_migrations_plugin_idx").on(table.pluginId),
+    tenantIdx: index("plugin_migrations_tenant_idx").on(table.tenantId),
+    pluginMigrationUnique: unique("plugin_migrations_unique").on(
       table.pluginId,
       table.migrationId,
       table.tenantId,
@@ -488,7 +486,7 @@ export const tenants = sqliteTable(
       .notNull()
       .default({
         maxUsers: 10,
-        maxStorageBytes: 1_073_741_824, // 1GB
+        maxStorageBytes: 1_073_741_824,
         maxCollections: 20,
         maxApiRequestsPerMonth: 10_000,
       } as any),
@@ -506,8 +504,9 @@ export const tenants = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    nameIdx: index("tenant_name_idx").on(table.name),
-    ownerIdx: index("tenant_owner_idx").on(table.ownerId),
+    // ✅ FIXED: Renamed from "tenants_name_idx" to "tenants_tenant_name_idx"
+    nameIdx: index("tenants_tenant_name_idx").on(table.name),
+    ownerIdx: index("tenants_owner_idx").on(table.ownerId),
   }),
 );
 
@@ -538,8 +537,8 @@ export const auditLogs = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    actorIdx: index("audit_actor_idx").on(table.actorId),
-    typeIdx: index("audit_type_idx").on(table.eventType),
+    actorIdx: index("audit_logs_actor_idx").on(table.actorId),
+    typeIdx: index("audit_logs_type_idx").on(table.eventType),
     tenantIdx: index("audit_tenant_idx").on(table.tenantId),
   }),
 );
@@ -570,10 +569,10 @@ export const authApiKeys = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    hashIdx: unique("hash_unique").on(table.hash),
-    userIdx: index("api_key_user_idx").on(table.userId),
+    hashIdx: unique("api_keys_hash_unique").on(table.hash),
+    userIdx: index("api_keys_user_idx").on(table.userId),
     tenantIdx: index("api_key_tenant_idx").on(table.tenantId),
-    tenantHashIdx: index("tenant_hash_idx").on(table.tenantId, table.hash), // 🚀 Compound index for optimization
+    tenantHashIdx: index("api_keys_tenant_hash_idx").on(table.tenantId, table.hash),
   }),
 );
 
