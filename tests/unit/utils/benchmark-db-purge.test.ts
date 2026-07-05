@@ -50,6 +50,7 @@ describe("benchmark-db-purge", () => {
     const dbPath = path.join(tmpDir, "sveltycms.db");
 
     const { Database } = await import("bun:sqlite");
+    const db = new Database(dbPath);
     db.exec(`CREATE TABLE collection_posts (data TEXT)`);
     db.exec(`CREATE TABLE collection_mockcollection0 (data TEXT)`);
     db.exec(`CREATE TABLE collection_BenchmarkStable (data TEXT)`);
