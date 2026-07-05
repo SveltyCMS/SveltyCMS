@@ -87,10 +87,11 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 | Metric                                 | Value                                                                               |
 | -------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Total tests                            | **1,615** (↑99 from July hardening)                                                 |
+| Total tests                            | **1,656** (↑140 from July hardening)                                                |
 | Pass rate                              | 100%                                                                                |
-| Test files                             | 182 (181 passing, 1 skipped)                                                        |
+| Test files                             | 184 (183 passing, 1 skipped)                                                        |
 | Security-specific                      | 87 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit) |
+| **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                           |
 | Collection builder                     | **29** (utils 10, compilation 11, code-gui parity 8)                                |
 | Content-specific                       | 35 (cache helpers, reconciliation, API surface)                                     |
 | **Collection builder utils**           | **10**                                                                              | `getDescendantIds`, `uniquePathForCategory` — tree traversal + slug dedup              |
@@ -306,6 +307,17 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 > **Why**: Crypto-chained audit logs (SHA-256) must detect tampering, chain breaks, and timestamp-based replay attacks.
 
+**July 2026 additions**:
+
+`tests/unit/permissions/` — 41 permissions logic tests:
+
+| Test file                          | Tests | Covers                                                                               |
+| ---------------------------------- | ----- | ------------------------------------------------------------------------------------ |
+| permissions-setting.test.ts        | 23    | Presets (3), initialization (3), toggle immutability (4), bulk actions (4), preset apply (3), clean/export (3), undo/redo history (3) |
+| collection-permissions.test.ts     | 18    | Status types (4), sort fields (4), pagination clamping incl. zero/NaN edge (5), debounced auto-save timing (5) |
+
+> **Why**: `permissions-setting.svelte` had a critical bug — `$derived` (read-only) was used for mutable state, making permission toggles silently fail. The toggle buttons used `variant="error"` for all states and showed identical ✓ icons for on/off. `collection-permissions.svelte` lacked reactive hydration, debounce, and had a `|| 20` falsy bug where `0` would incorrectly clamp to 20 instead of 5.
+
 ## 4. CI Pipeline Gates
 
 | Gate              | Runtime         | What it catches                                                                   |
@@ -379,6 +391,8 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 2. ✅ **Code ↔ GUI Parity** — AST-based TypeScript generation from visual editor; both paths produce identical output
 3. ✅ **Diagnostic warnings fixed** — 15 unused imports/variables cleaned across 6 integration test files + result-validator.ts
 4. ✅ **Auth E2E resilience** — `auth.setup.ts` now has multi-layer fallback for session establishment (cookie extraction → navigation → direct test API login)
+5. ✅ **Permission components hardened** — Fixed `$derived`→`$state` bug in `permissions-setting.svelte` (toggles now work); distinct ✓/✗ icons per cell; 41 unit tests covering presets, bulk, undo/redo, debounce, pagination clamping
+6. ✅ **Collection permissions tab** — Reactive hydration from store, 300ms debounced auto-save, unsaved-changes `aria-live` indicator, visual permission bars, `Number.isNaN` clamp fix, Author role added
 
 ### Ongoing
 
