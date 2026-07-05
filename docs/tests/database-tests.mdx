@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:database-check"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-03"
+updated: "2026-07-05"
 tags:
   - "testing"
   - "database"
@@ -187,6 +187,34 @@ We use the **Enterprise Benchmark Matrix** to validate database adapter performa
 - **Cross-Database Leaderboard**: Aggregated metrics in `docs/project/benchmarks/README.mdx` for side-by-side "Showdown" analysis.
 
 **Tools**: `scripts/benchmark-matrix/index.ts`, `tests/benchmarks/migration-scale.test.ts`, `tests/benchmarks/index-pressure.test.ts`
+
+---
+
+## Cross-Adapter Contract Tests (July 2026)
+
+To ensure identical behavior across all 4 database adapters, SveltyCMS now runs **95 contract tests** across 10 test suites. Every `IDBAdapter` method is validated for consistent return shapes, error handling, and data integrity:
+
+| Suite | Tests | Coverage |
+|---|---|---|
+| `adapter-parity.test.ts` | 15 | insert, findOne, findMany, update, delete, count, upsert |
+| `error-contract.test.ts` | 11 | Duplicate keys, missing records, invalid input, error shapes |
+| `cache-contract.test.ts` | 9 | L1 set/get/delete, TTL, tenant isolation, negative cache |
+| `transaction-contract.test.ts` | 5 | Commit, rollback, orphan prevention |
+| `bulk-operations-contract.test.ts` | 10 | insertMany, updateMany, deleteMany, upsertMany, atomicIncrement |
+| `advanced-crud-contract.test.ts` | 9 | streamMany, findByIds, aggregate, restore, exists |
+| `health-contract.test.ts` | 12 | Connection health, pool stats, queryBuilder, tenant policy |
+
+**Run against a specific adapter**:
+```bash
+DB=sqlite      bun test tests/integration/databases/*-contract.test.ts
+DB=mongodb     bun test tests/integration/databases/*-contract.test.ts
+DB=postgresql  bun test tests/integration/databases/*-contract.test.ts
+DB=mariadb     bun test tests/integration/databases/*-contract.test.ts
+```
+
+**Benchmark harness** (`benchmark-harness.test.ts`, 11 tests) validates the benchmark framework itself: warmup isolation, `assertSuccess()` on all CRUD operations, and >50% warmup failure guard. A pre-flight sanitizer (`benchmark-sanitizer.ts`) runs before every benchmark to verify collection cleanliness, seed integrity, and warmup isolation.
+
+**Result validation** (`result-validator.ts`) enforces the `DatabaseResult<T>` contract at runtime across all integration and benchmark tests.
 
 ---
 

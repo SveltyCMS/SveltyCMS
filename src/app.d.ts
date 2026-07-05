@@ -101,4 +101,20 @@ declare global {
     message: string;
     success: boolean;
   }
+
+  // Bun runtime global (used in typeof Bun !== "undefined" guards)
+  var Bun: {
+    version: string;
+    gc(expose?: boolean): void;
+    [key: string]: any;
+  };
+}
+
+declare module "bun:sqlite" {
+  export class Database {
+    constructor(path: string, options?: { create?: boolean; readonly?: boolean });
+    query(sql: string): any;
+    run(sql: string, ...params: any[]): any;
+    close(): void;
+  }
 }

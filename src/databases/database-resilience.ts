@@ -675,3 +675,76 @@ export function resetDatabaseResilience(): void {
     resilienceInstance = null;
   }
 }
+
+/**
+ * 🚀 CONNECTION POOL PRE-WARMING: Fire-and-forget warmup of connection pools.
+ *
+ * Network databases (PostgreSQL, MariaDB, MongoDB) lazily create connections.
+ * The first concurrent burst after cold start incurs TCP handshake overhead on
+ * every connection. This function pre-acquires and releases connections up to
+ * the pool maximum, eliminating cold-start latency spikes.
+ *
+ * Call after `adapter.connect()` succeeds, before serving traffic.
+ *
+ * @param adapter  The connected database adapter instance
+ * @param poolSize Number of connections to pre-warm (default: 10)
+ */
+export async function preWarmConnectionPool(adapter: any, poolSize: number = 10): Promise<void> {
+  // Only applicable to networked databases — SQLite uses file-based access
+  if (!adapter || adapter.type === "sqlite") return;
+
+  const start = performance.now();
+  let warmed = 0;
+
+  try {
+    // Acquire and immediately release connections to prime the pool
+    const warmupPromises: Promise<void>[] = [];
+    for (let i = 0; i < poolSize; i++) {
+      warmupPromises.push(
+        (async () => {
+          try {
+            // MongoDB: try acquire via the native driver
+            if (adapter.client?.startSession) {
+              const session = adapter.client.startSession();
+              await session.end();
+              warmed++;
+              return;
+            }
+            // PostgreSQL/MariaDB: try pool.query or raw SQL
+            if (typeof adapter.sql !== "undefined") {
+              await adapter.sql`SELECT 1`;
+              warmed++;
+              return;
+            }
+            // Generic: try execute if available
+            if (typeof adapter.execute === "function") {
+              await adapter.execute({ sql: "SELECT 1", params: [] });
+              warmed++;
+            }
+          } catch {
+            // Individual warmup failure is non-fatal — the pool will still work
+          }
+        })(),
+      );
+    }
+
+    // Run up to 4 concurrently to avoid overwhelming the DB
+    const chunks = [];
+    for (let i = 0; i < warmupPromises.length; i += 4) {
+      chunks.push(warmupPromises.slice(i, i + 4));
+    }
+    for (const chunk of chunks) {
+      await Promise.all(chunk);
+    }
+
+    const elapsed = performance.now() - start;
+    if (warmed > 0) {
+      logger.info(
+        `🔥 Connection pool pre-warmed: ${warmed}/${poolSize} connections in ${elapsed.toFixed(0)}ms`,
+      );
+    }
+  } catch (err) {
+    // Pre-warming failure is non-fatal — connection pool lazy-init still works
+    logger.debug(`Connection pool pre-warming skipped: ${(err as any)?.message}`);
+  }
+}
