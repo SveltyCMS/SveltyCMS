@@ -172,7 +172,14 @@ function renderDashboard(
   currentTask: string | null,
   pendingTasks: Task[],
   estimatedRemainingMs: number,
-): void {
+  previousLineCount: number = 0,
+): number {
+  // If we have a previous dashboard, move cursor up to overwrite it
+  if (TTY && previousLineCount > 0) {
+    process.stdout.write(`\x1b[${previousLineCount}A`);
+    process.stdout.write("\x1b[0J"); // Clear from cursor to end of screen
+  }
+
   const total = results.length + (currentTask ? 1 : 0) + pendingTasks.length;
   const completed = results.length;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -213,10 +220,11 @@ function renderDashboard(
 
   lines.push(`╚${"═".repeat(BOX_WIDTH - 2)}╝`);
 
-  // Print dashboard once (no animation — child process output prevents reliable in-place redraw)
   for (const line of lines) {
     process.stdout.write(line + "\n");
   }
+
+  return lines.length;
 }
 
 function printCompactProgress(
@@ -347,7 +355,7 @@ export async function runPrecheck(
   const tierLabel = options.tier === "full" ? "Full Precheck" : "Pre-Push";
 
   // Print initial dashboard once (all tasks pending)
-  renderDashboard(tierLabel, [], null, activeTasks, estimatedRemainingMs);
+  let dashboardLines = renderDashboard(tierLabel, [], null, activeTasks, estimatedRemainingMs);
 
   // Adaptive correction factor — refined as each task completes
   let actualTimeSoFar = 0;
@@ -456,10 +464,20 @@ export async function runPrecheck(
         printFailedTaskOutput(task.name, output);
       }
     }
+
+    // Refresh the progress dashboard in-place after each task
+    dashboardLines = renderDashboard(
+      tierLabel,
+      results,
+      remaining.length > 0 ? remaining[0].name : null,
+      remaining.slice(1),
+      estimatedRemainingMs,
+      dashboardLines,
+    );
   }
 
-  // Final dashboard — all tasks completed
-  renderDashboard(tierLabel, results, null, [], 0);
+  // Final dashboard — all tasks completed (overwrite previous)
+  renderDashboard(tierLabel, results, null, [], 0, dashboardLines);
 
   if (failedTasks.length > 0) {
     printErrorSummary(
