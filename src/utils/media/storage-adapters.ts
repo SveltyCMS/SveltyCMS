@@ -428,7 +428,7 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
       } else if (data instanceof ReadableStream) {
         Readable.fromWeb(data as any).pipe(stream);
       } else {
-        data.pipe(stream);
+        (data as Readable).pipe(stream);
       }
     });
   }
