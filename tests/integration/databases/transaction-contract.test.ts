@@ -73,7 +73,7 @@ describe("Transaction Contract — All Adapters", () => {
 
     const id = uid("txn-commit");
     await adapter.transaction(async (_txn: any) => {
-      const r = await db.crud.insert(
+      const _r = await db.crud.insert(
         TEST_COLLECTION,
         {
           _id: id,
@@ -83,8 +83,8 @@ describe("Transaction Contract — All Adapters", () => {
         },
         tenantOpts,
       );
-      if (!r.success) throw new Error(r.message);
-      return { success: true, data: r.data };
+      if (!_r.success) throw new Error(_r.message);
+      return { success: true, data: _r.data };
     });
 
     // After commit, data must be readable

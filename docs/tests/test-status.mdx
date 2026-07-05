@@ -55,11 +55,13 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 2. Playwright E2E Tests (`tests/e2e/`)
 
-| Status                   | Count | Notes                                                                            |
-| ------------------------ | ----- | -------------------------------------------------------------------------------- |
-| 🟢 **In CI**             | 29    | 29 spec files across 17 `e2e-app` projects + `wizard` + `auth-setup` jobs        |
-| 🟢 **Visual regression** | 7     | Screenshot baselines in `admin-theme/visual-regression.spec.ts`                  |
-| 🟡 **Fragile selectors** | 4     | `collection.spec.ts`, `builder.spec.ts`, `journey.spec.ts`, `management.spec.ts` |
+| Status                    | Count | Notes                                                                            |
+| ------------------------- | ----- | -------------------------------------------------------------------------------- |
+| 🟢 **In CI**              | 29    | 29 spec files across 17 `e2e-app` projects + `wizard` + `auth-setup` jobs        |
+| 🟢 **Visual regression**  | 7     | Screenshot baselines in `admin-theme/visual-regression.spec.ts`                  |
+| 🟡 **Fragile selectors**  | 4     | `collection.spec.ts`, `builder.spec.ts`, `journey.spec.ts`, `management.spec.ts` |
+| ⚠️ **Auth Resilience**    | 1     | `auth.setup.ts` — 3-layer fallback (cookie→navigation→direct API login)          |
+| ⚠️ **Pre-existing known** | 3     | OAuth (no real creds in CI), language (Paraglide), signup (DB provisioning)      |
 
 **CI matrix projects** (`e2e-app` job): `signup`, `content`, `system`, `a11y`, `rbac`, `language`, `branding`, `visual-regression`, `users`, `builder`, `permissions`, `firstuser`, `config-routes`, `admin`, `dashboard`, `appearance`, `media`
 
@@ -83,23 +85,27 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 3. Unit Tests
 
-| Metric                 | Value                                                                               |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| Total tests            | **1,575** (↑59 from July hardening)                                                 |
-| Pass rate              | 100%                                                                                |
-| Test files             | 176 (175 passing, 1 skipped)                                                        |
-| Security-specific      | 87 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit) |
-| Content-specific       | 35 (cache helpers, reconciliation, API surface, collection builder utils)           |
-| Media-specific         | 40 (sharing, MIME utils, binary sniffer)                                            |
-| Image editor           | 35 (widget registry validation, plugin slot rendering, defaults + sorting)          |
-| Utils integrity        | 4 (circular import detection, barrel health)                                        |
-| **Bulk delete guard**  | 6 (API handler, SDK layer, 403 status, error code)                                  |
-| **Cache service**      | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh)  |
-| **Test DB safety**     | 11 (DB_NAME classifier, config source extraction, incident-shape regression)        |
-| **Route access audit** | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)              |
-| **Benchmark harness**  | 11 (assertSuccess, warmup isolation, error visibility, >50% warmup guard)           |
-| **Cache integrity**    | **6** (HMAC signing, tamper detection, signed entry contract)                       |
-| **Audit chain**        | **7** (SHA-256 chaining, breakage detection, replay detection)                      |
+| Metric                                 | Value                                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Total tests                            | **1,615** (↑99 from July hardening)                                                 |
+| Pass rate                              | 100%                                                                                |
+| Test files                             | 182 (181 passing, 1 skipped)                                                        |
+| Security-specific                      | 87 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit) |
+| Collection builder                     | **29** (utils 10, compilation 11, code-gui parity 8)                                |
+| Content-specific                       | 35 (cache helpers, reconciliation, API surface)                                     |
+| **Collection builder utils**           | **10**                                                                              | `getDescendantIds`, `uniquePathForCategory` — tree traversal + slug dedup              |
+| **Collection builder compilation**     | **11**                                                                              | AST generation, TypeScript compiler pipeline, code↔GUI parity validation               |
+| **Collection builder code-gui parity** | **8**                                                                               | Integration tests validating GUI-generated files match hand-written TypeScript schemas |
+| Media-specific                         | 40 (sharing, MIME utils, binary sniffer)                                            |
+| Image editor                           | 35 (widget registry validation, plugin slot rendering, defaults + sorting)          |
+| Utils integrity                        | 4 (circular import detection, barrel health)                                        |
+| **Bulk delete guard**                  | 6 (API handler, SDK layer, 403 status, error code)                                  |
+| **Cache service**                      | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh)  |
+| **Test DB safety**                     | 11 (DB_NAME classifier, config source extraction, incident-shape regression)        |
+| **Route access audit**                 | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)              |
+| **Benchmark harness**                  | 11 (assertSuccess, warmup isolation, error visibility, >50% warmup guard)           |
+| **Cache integrity**                    | **6** (HMAC signing, tamper detection, signed entry contract)                       |
+| **Audit chain**                        | **7** (SHA-256 chaining, breakage detection, replay detection)                      |
 
 **June 2026 additions**:
 
@@ -367,6 +373,15 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 
 ## 6. Recommended Next Actions
 
+### ✅ Completed (July 2026)
+
+1. ✅ **Collection Builder Tabs UX** — 3-tab editor (Basic Setup → Widgets & Fields → Settings & Permissions) replaces linear stepper; keyboard-navigable, ARIA-compliant
+2. ✅ **Code ↔ GUI Parity** — AST-based TypeScript generation from visual editor; both paths produce identical output
+3. ✅ **Diagnostic warnings fixed** — 15 unused imports/variables cleaned across 6 integration test files + result-validator.ts
+4. ✅ **Auth E2E resilience** — `auth.setup.ts` now has multi-layer fallback for session establishment (cookie extraction → navigation → direct test API login)
+
+### Ongoing
+
 1. **Harden builder selectors** — add `data-testid` to collection builder critical paths (`builder.spec.ts`, `journey.spec.ts`)
 2. **Image editor save E2E** — save via `/api/media/manipulate` after crop
 3. **Visual regression baseline** — run `bun x playwright test --project=visual-regression --update-snapshots` in CI or after `bun run build && bun run preview` for `design-system.png`
@@ -376,3 +391,6 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 7. **Cross-adapter concurrency contract** — race-condition tests validating identical behavior under concurrent writes across all 4 adapters
 8. **PostgreSQL clean baseline** — restart Docker + fresh DB for fair before/after comparison of schema registration optimization
 9. **MongoDB COUNT index** — 5.4ms COUNT is 25× slower than SQLite; add `status` field index and re-benchmark
+10. **Code → GUI import** — parse existing `.ts` collection file and populate the visual editor (reverse of AST generation)
+11. **Field validator visual editor** — visual Valibot schema builder per widget field
+12. **Widget Factory integration** — visual widget creation tool; marketplace browse/install

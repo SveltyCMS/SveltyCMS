@@ -72,9 +72,39 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
         shell: process.platform === "win32",
       });
     } catch {}
-    await new Promise((r) => setTimeout(r, 2000));
+    // Wait for port to be freed + Docker container to stabilize
+    await new Promise((r) => setTimeout(r, 3000));
+
+    // 🚀 Health check: verify server is ready before running benchmark
     const file = `tests/benchmarks/${name}.test.ts`;
     console.log(`  ▶ ${file}`);
+
+    // Quick health check via HTTP to ensure server + DB are ready
+    let healthy = false;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        const healthUrl = `http://127.0.0.1:4173/api/system/health`;
+        const resp = await fetch(healthUrl, {
+          headers: { "x-test-mode": "true", "x-test-secret": testSecret },
+          signal: AbortSignal.timeout(3000),
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          if (body.overallStatus === "healthy" || body.status === "healthy") {
+            healthy = true;
+            break;
+          }
+        }
+      } catch {
+        // Server not ready yet
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+
+    if (!healthy) {
+      console.error(`  ⚠️ Health check failed for ${db} — server not ready after 20s`);
+    }
+
     const result = spawnSync("bun", ["test", file, "--timeout", "120000"], {
       cwd: ROOT,
       stdio: "inherit",

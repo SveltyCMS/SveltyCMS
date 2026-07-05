@@ -554,7 +554,7 @@ jobs:
     name: 📊 Bench (${{ matrix.db }})
     needs: [build, db-matrix]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
