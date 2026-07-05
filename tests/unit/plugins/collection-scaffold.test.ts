@@ -95,10 +95,18 @@ describe("collection-scaffold", () => {
     expect(schema._id).toBe("blog_posts");
     expect(schema.slug).toBe("blog_posts");
     expect(schema.description).toContain("wordpress");
-    expect(schema.fields.some((f) => f.name === "title" && f.widget.Name === "Input")).toBe(true);
-    expect(schema.fields.some((f) => f.name === "body" && f.widget.Name === "RichText")).toBe(true);
     expect(
-      schema.fields.some((f) => f.name === "featuredImage" && f.widget.Name === "MediaUpload"),
+      schema.fields.some((f) => (f as any).name === "title" && (f as any).widget?.Name === "Input"),
+    ).toBe(true);
+    expect(
+      schema.fields.some(
+        (f) => (f as any).name === "body" && (f as any).widget?.Name === "RichText",
+      ),
+    ).toBe(true);
+    expect(
+      schema.fields.some(
+        (f) => (f as any).name === "featuredImage" && (f as any).widget?.Name === "MediaUpload",
+      ),
     ).toBe(true);
   });
 

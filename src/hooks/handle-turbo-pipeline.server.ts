@@ -96,7 +96,8 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     memory: (() => {
       if (searchParams.has("gc")) {
         if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-        if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
+        if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc)
+          (globalThis as any).Bun.gc(true);
       }
       return process.memoryUsage();
     })(),

@@ -7,10 +7,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 import { error } from "@sveltejs/kit";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 export const load = async ({ locals }: RequestEvent) => {
-  const { user, tenantId } = locals;
-  if (!user) throw error(401, "Unauthorized");
+  const user = getAuthenticatedUser(locals);
+  const { tenantId } = locals;
 
   if (!dbAdapter) throw error(500, "Database not initialized");
 

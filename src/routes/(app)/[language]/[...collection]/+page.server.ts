@@ -46,19 +46,18 @@ import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-  const { user, tenantId } = locals;
-  const typedUser = user as User; // Explicitly cast user to User type
+  const user = getAuthenticatedUser(locals);
+  const typedUser = user as User;
+  const { tenantId } = locals;
   const { language, collection } = params;
 
   // =================================================================
   // 1. PRE-FLIGHT CHECKS & REDIRECTS (moved outside try-catch)
   // =================================================================
-  if (!user) {
-    throw redirect(302, "/login");
-  }
 
   const availableLanguages = getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
   if (!availableLanguages.includes(language)) {

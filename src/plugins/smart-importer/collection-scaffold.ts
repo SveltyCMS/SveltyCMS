@@ -12,6 +12,7 @@ import type { Schema } from "@src/content/types";
 import type { MappingFieldInput } from "./schema-preview";
 import { buildProposedFieldsFromMappings } from "./schema-preview";
 import { normalizeCollectionId } from "./infer-collection";
+export { normalizeCollectionId };
 
 /** Map importer field types to SveltyCMS widget definitions */
 export function importTypeToWidget(type: string): {

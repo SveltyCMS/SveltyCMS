@@ -55,6 +55,7 @@ import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
 import { invalidateTurboAuthContext } from "./handle-turbo-get";
 import { turboAuthCache } from "./handle-turbo-get";
+import { applyTestBypassFromHeaders } from "@utils/test-bypass.server";
 
 // --- MODULE-LEVEL CACHES & STATE ---
 let multiTenantCached: boolean | null = null;
@@ -417,50 +418,8 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
 
-  // 🧪 TEST BYPASS: x-test-secret header authenticates as admin for benchmarks/integration
-  if (!(locals as any).__testBypass) {
-    const testSecret = event.request.headers.get("x-test-secret");
-    if (testSecret) {
-      const expected = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-      if (testSecret === expected) {
-        (locals as any).user = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (locals as any).__testBypass = true;
-        const tenantHeader = event.request.headers.get("x-tenant-id");
-        if (tenantHeader) {
-          (locals as any).tenantId = tenantHeader;
-        }
-      }
-    }
-  }
-
-  // 🧪 GLOBAL TEST-MODE BYPASS: Handle x-test-secret for ALL API endpoints
-  if (!(locals as any).__testBypass) {
-    const testSecret = event.request.headers.get("x-test-secret");
-    if (testSecret) {
-      const expected = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-      if (testSecret === expected) {
-        (locals as any).user = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (locals as any).__testBypass = true;
-        const tenantHeader = event.request.headers.get("x-tenant-id");
-        if (tenantHeader) {
-          (locals as any).tenantId = tenantHeader;
-        }
-      }
-    }
-  }
-
-  // 🧪 TEST MODE BYPASS: Verified early in pipeline, skip everything else
-  if ((locals as any).__testBypass === true) {
+  // 🧪 TEST/BENCHMARK BYPASS: env-gated + timing-safe secret (never active in production)
+  if (applyTestBypassFromHeaders(event)) {
     return await resolve(event);
   }
 

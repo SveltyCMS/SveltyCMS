@@ -19,7 +19,7 @@ export interface WizardImportOptions {
 }
 
 /** Parse JSON from wizard form field */
-export function parseWizardImportOptions(raw: string | null): WizardImportOptions {
+export function parseWizardImportOptions(raw: string | null | undefined): WizardImportOptions {
   if (!raw) return {};
   try {
     return JSON.parse(raw) as WizardImportOptions;

@@ -825,7 +825,9 @@ export async function handleTestingRoutes(
     if (action === "get-user") {
       const { email } = params;
       const result = await cms.auth.listUsers({ tenantId });
-      const user = result.data.find((u: any) => u.email === email);
+      // listUsers is wrapped by safeCall: { success, data: { data: [...], pagination } }
+      const users = result.success ? result.data?.data : result.data;
+      const user = Array.isArray(users) ? users.find((u: any) => u.email === email) : undefined;
       return rawResponse({ success: !!user, user });
     }
 

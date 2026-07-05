@@ -257,15 +257,22 @@ export class S3StorageAdapter implements StorageAdapter {
         secretAccessKey: this.config.secretAccessKey,
       },
       requestHandler: new NodeHttpHandler({
+        connectionTimeout: 10_000,
+        requestTimeout: 120_000,
+        socketAcquisitionWarningTimeout: 15_000,
         httpsAgent: new HTTPS_AGENT({
           keepAlive: true,
+          keepAliveMsecs: 30_000,
           timeout: 60_000,
           maxSockets: 50,
+          maxFreeSockets: 10,
         }),
         httpAgent: new HTTP_AGENT({
           keepAlive: true,
+          keepAliveMsecs: 30_000,
           timeout: 60_000,
           maxSockets: 50,
+          maxFreeSockets: 10,
         }),
       }),
     });

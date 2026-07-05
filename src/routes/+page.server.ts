@@ -6,10 +6,11 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
-import type { Role, User } from "@src/databases/auth/types";
+import type { Role } from "@src/databases/auth/types";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 // Roles
@@ -18,16 +19,12 @@ import type { PageServerLoad } from "./$types";
 import { logger } from "@utils/logger";
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  const { user, tenantId, roles } = locals as {
-    user: User | null;
+  const user = getAuthenticatedUser(locals);
+  const { tenantId, roles } = locals as {
     tenantId: string | undefined;
     roles: Role[] | undefined;
   };
   const tenantRoles = roles || [];
-  if (!user) {
-    logger.debug("User is not authenticated, redirecting to login");
-    throw redirect(302, "/login");
-  }
 
   try {
     // 🚀 Background tasks already run at system startup via hooks.server.ts.
