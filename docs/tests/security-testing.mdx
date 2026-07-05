@@ -15,8 +15,8 @@ tags:
 
 # Security Testing
 
-**Last Updated:** June 17, 2026
-**Total Security Tests:** 199+ (Unit + Contract + Slop + Mutation)  
+**Last Updated:** July 5, 2026
+**Total Security Tests:** 212+ (Unit + Contract + Slop + Mutation + Cache Integrity + Audit Chain)  
 **Pass Rate:** 100%
 
 All security tests follow the **no-backdoor policy** — tests pass through real security guards, not bypass headers.
@@ -101,16 +101,18 @@ bun run audit:security          # Endpoint probing (needs running server)
 bun run test:smart              # Smart orchestrator
 ```
 
-| Category            | Tests              | Pass Rate | Enforcement                |
-| ------------------- | ------------------ | --------- | -------------------------- |
-| Encryption & Crypto | 32                 | 100%      | Unit tests                 |
-| XSS Prevention      | 27 + property fuzz | 100%      | Pre-commit slop + mutation |
-| Account Lockout     | 22                 | 100%      | Unit + edge cases          |
-| Fail-Closed API 2.0 | 45                 | 100%      | Contract tests (4 DBs)     |
-| Defense-in-Depth    | 51                 | 100%      | Unit tests                 |
-| Endpoint Audit      | 6 categories       | Active    | `bun run audit:security`   |
-| Session Persistence | 22                 | 100%      | Unit tests                 |
-| **Total Security**  | **199+**           | **100%**  | **4-gate pre-commit + CI** |
+| Category                     | Tests              | Pass Rate | Enforcement                        |
+| ---------------------------- | ------------------ | --------- | ---------------------------------- |
+| Encryption & Crypto          | 32                 | 100%      | Unit tests                         |
+| XSS Prevention               | 27 + property fuzz | 100%      | Pre-commit slop + mutation         |
+| Account Lockout              | 22                 | 100%      | Unit + edge cases                  |
+| Fail-Closed API 2.0          | 45                 | 100%      | Contract tests (4 DBs)             |
+| Defense-in-Depth             | 51                 | 100%      | Unit tests                         |
+| Endpoint Audit               | 6 categories       | Active    | `bun run audit:security`           |
+| Session Persistence          | 22                 | 100%      | Unit tests                         |
+| **Cache Integrity**          | **6**              | **100%**  | HMAC signing, tamper detection     |
+| **Audit Chain Verification** | **7**              | **100%**  | SHA-256 chaining, replay detection |
+| **Total Security**           | **212+**           | **100%**  | **4-gate pre-commit + CI**         |
 
 ## Related Documentation
 

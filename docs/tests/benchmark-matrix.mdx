@@ -17,11 +17,13 @@ tags:
 
 # Benchmark Matrix & Performance Regression System
 
-The SveltyCMS benchmark matrix is a CI-integrated performance validation system that runs 58+ benchmark test modules against 8 database configurations (4 adapters × 2 Redis states), detects regressions via statistical analysis, and generates per-adapter MDX reports with trend visualizations.
+The SveltyCMS benchmark matrix is a CI-integrated performance validation system that runs 58+ benchmark test modules against 8 database configurations (4 adapters × 2 Redis states), detects regressions via statistical analysis, generates per-adapter MDX reports with trend visualizations, and includes a pre-flight sanitizer that validates benchmark environment integrity before any measurement begins.
 
 ## Overview
 
 - **Orchestration**: `scripts/benchmark-matrix/index.ts` spawns isolated DB servers, runs all applicable benchmarks, and generates reports.
+- **Sanitizer**: `tests/benchmarks/modules/benchmark-sanitizer.ts` validates collection cleanliness, CRUD sanity, and warmup isolation before benchmarks.
+- **Harness tests**: `tests/unit/benchmarks/benchmark-harness.test.ts` (11 tests) validates `assertSuccess()`, warmup isolation, and error visibility in the benchmark framework itself.
 - **Statistical engine**: Two-pass architecture — linear regression per metric, then cross-metric correlation for root cause classification.
 - **CI integration**: `ci.yml` `bench-core` job runs core benchmarks per adapter; the full matrix can run on schedule or demand.
 - **History**: All runs persist in `tests/benchmarks/results/history.sqlite` for trend analysis.
