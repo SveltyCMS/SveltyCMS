@@ -174,10 +174,11 @@ function renderDashboard(
   estimatedRemainingMs: number,
   previousLineCount: number = 0,
 ): number {
-  // If we have a previous dashboard, move cursor up to overwrite it
-  if (TTY && previousLineCount > 0) {
-    process.stdout.write(`\x1b[${previousLineCount}A`);
-    process.stdout.write("\x1b[0J"); // Clear from cursor to end of screen
+  // Clear the full screen and reset cursor to top-left on every refresh.
+  // Child process output between renders may have scrolled the terminal,
+  // making incremental cursor-up unreliable. Full clear is the safest bet.
+  if (previousLineCount > 0) {
+    process.stdout.write("\x1b[2J\x1b[H");
   }
 
   const total = results.length + (currentTask ? 1 : 0) + pendingTasks.length;
@@ -225,23 +226,6 @@ function renderDashboard(
   }
 
   return lines.length;
-}
-
-function printCompactProgress(
-  passed: boolean,
-  completed: number,
-  total: number,
-  taskName: string,
-  elapsedMs: number,
-  estimatedRemainingMs: number,
-): void {
-  const bar = renderProgressBar(completed, total);
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const eta = formatEta(estimatedRemainingMs);
-  const icon = passed ? "✅" : "❌";
-  console.log(
-    `  ${icon} ${taskName} (${formatTime(elapsedMs)})  [${completed}/${total}] ${bar} ${pct}% · ⏱ ~${eta}`,
-  );
 }
 
 function printFailedTaskOutput(
@@ -440,30 +424,12 @@ export async function runPrecheck(
       }
     }
 
-    // Progress line showing completion status
-    printCompactProgress(
-      success,
-      i + 1,
-      activeTasks.length,
-      task.name,
-      elapsed,
-      estimatedRemainingMs,
-    );
-
     results.push({
       name: task.name,
       passed: success,
       elapsedMs: elapsed,
       remediation: task.remediation,
     });
-
-    if (!success) {
-      failedTasks.push(task.name);
-      const output = getLastCommandOutput();
-      if (output) {
-        printFailedTaskOutput(task.name, output);
-      }
-    }
 
     // Refresh the progress dashboard in-place after each task
     dashboardLines = renderDashboard(
@@ -474,6 +440,14 @@ export async function runPrecheck(
       estimatedRemainingMs,
       dashboardLines,
     );
+
+    if (!success) {
+      failedTasks.push(task.name);
+      const output = getLastCommandOutput();
+      if (output) {
+        printFailedTaskOutput(task.name, output);
+      }
+    }
   }
 
   // Final dashboard — all tasks completed (overwrite previous)
