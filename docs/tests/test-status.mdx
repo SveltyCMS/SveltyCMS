@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-03"
+updated: "2026-07-05"
 tags:
   - "testing"
   - "status"
@@ -20,11 +20,11 @@ tags:
 
 ## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
 
-| Metric                      | Value                                                          |
-| --------------------------- | -------------------------------------------------------------- |
-| Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh)        |
-| Server starts/stops per run | 2 (mode switches only)                                         |
-| Pass rate                   | 17/36 (known: settings, setup-actions auth bugs on non-SQLite) |
+| Metric                      | Value                                                   |
+| --------------------------- | ------------------------------------------------------- |
+| Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh) |
+| Server starts/stops per run | 2 (mode switches only)                                  |
+| Pass rate                   | 36/36 (all pass on SQLite)                              |
 
 **Note**: Integration test pass rate varies by database adapter. SQLite passes the majority; MariaDB/Mongo/Postgres expose auth/permission differences tracked as separate bugs. The test config safety guard (`scripts/check-test-db-safety.ts`) prevents the most common failure mode: running tests against a non-isolated (production) database.
 
@@ -83,19 +83,20 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 3. Unit Tests
 
-| Metric                | Value                                                                              |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| Total tests           | **1,487**                                                                          |
-| Pass rate             | 100%                                                                               |
-| Test files            | 167 (166 passing, 1 skipped)                                                       |
-| Security-specific     | 67 (defense-in-depth, auth, RBAC, CSRF client-bypass)                              |
-| Content-specific      | 35 (cache helpers, reconciliation, API surface, collection builder utils)          |
-| Media-specific        | 40 (sharing, MIME utils, binary sniffer)                                           |
-| Image editor          | 35 (widget registry validation, plugin slot rendering, defaults + sorting)         |
-| Utils integrity       | 4 (circular import detection, barrel health)                                       |
-| **Bulk delete guard** | 6 (API handler, SDK layer, 403 status, error code)                                 |
-| **Cache service**     | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh) |
-| **Test DB safety**    | 11 (DB_NAME classifier, config source extraction, incident-shape regression)       |
+| Metric                 | Value                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| Total tests            | **1,516**                                                                                   |
+| Pass rate              | 100%                                                                                        |
+| Test files             | 171 (170 passing, 1 skipped)                                                                |
+| Security-specific      | 74 (defense-in-depth, auth, RBAC, CSRF client-bypass, route-access-audit, bypass hardening) |
+| Content-specific       | 35 (cache helpers, reconciliation, API surface, collection builder utils)                   |
+| Media-specific         | 40 (sharing, MIME utils, binary sniffer)                                                    |
+| Image editor           | 35 (widget registry validation, plugin slot rendering, defaults + sorting)                  |
+| Utils integrity        | 4 (circular import detection, barrel health)                                                |
+| **Bulk delete guard**  | 6 (API handler, SDK layer, 403 status, error code)                                          |
+| **Cache service**      | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh)          |
+| **Test DB safety**     | 11 (DB_NAME classifier, config source extraction, incident-shape regression)                |
+| **Route access audit** | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)                      |
 
 **June 2026 additions**:
 
@@ -154,13 +155,47 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 > **Why**: The shared classifier (`src/utils/test-db-safety.ts`) is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks (`check-test-db-safety.ts`). A regression in the classifier would silently allow tests to run against production databases. These tests catch that at the pre-push unit test gate.
 
+**Security hardening (July 2026)**:
+
+`tests/unit/hooks/route-access-audit.test.ts` — 7 route access and bypass security tests:
+
+| Test file                  | Tests | Covers                                                                             |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------- |
+| route-access-audit.test.ts | 7     | Bootstrap route isolation, production backdoor closure (4 cases), env-gated bypass |
+
+`src/utils/test-bypass.server.ts` — Centralized test bypass gate with `timingSafeEqual`:
+
+- Only active when `TEST_MODE`, `PLAYWRIGHT`, or `BENCHMARK` env flags are explicitly set
+- No hardcoded fallback secrets — uses `getTestSecret()` from `setup-check.ts`
+- `handleHyperTurbo` no longer short-circuits benchmarks (`setBypassFlag: false`)
+
+`src/utils/page-guards.server.ts` — Route access layer 4 guards:
+
+- `getAuthenticatedUser()` — unified auth check replacing ad-hoc login redirects
+- `requirePagePermission()` — permission-gated page access
+- Applied across all `(app)` `+page.server.ts` loaders
+
+**Middleware performance (July 2026)**:
+
+- Request classifier cache (`classifyRequest` → `locals.__flags`)
+- Turbo GET / content-negotiation early exits
+- Tenant-scoped rate-limit keys; security headers on 429/503
+- Global try/catch applies `applyAllSecurityHeaders` on hook errors
+
+**Benchmarks (SQLite, 2026-07-05 matrix)**:
+
+- Full auth pipeline: 0.960ms → 0.780ms avg (−19%), p95 −28%
+- Turbo pipeline: 0.592ms → 0.527ms (−11%)
+- Warmed matrix peak: 0.555ms full-auth avg
+- 53/57 matrix tests pass; stress tests pass standalone
+
 ## 4. CI Pipeline Gates
 
 | Gate              | Runtime         | What it catches                                                             |
 | ----------------- | --------------- | --------------------------------------------------------------------------- |
 | Bootstrap         | ~30s            | Dep install, codegen                                                        |
 | Lint + Type Check | ~40s            | oxlint, svelte-check, tsc                                                   |
-| Unit Tests        | ~13s            | 1,487 Vitest specs (167 files)                                              |
+| Unit Tests        | ~13s            | 1,516 Vitest specs (170 files)                                              |
 | Build             | ~30s            | Production build integrity                                                  |
 | Integration (×4)  | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL contract tests                         |
 | Benchmarks (×61)  | ~10h full suite | 61 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR |
@@ -178,7 +213,7 @@ Manifest: `scripts/precheck-shared.ts` · Orchestrator: `scripts/precheck.ts`
 | Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/` |
 | Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`        |
 | Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                  |
-| Full Unit Tests           | pre-push (**always**)              | ~13s          | All 1,487 Vitest specs                                            |
+| Full Unit Tests           | pre-push (**always**)              | ~13s          | All 1,516 Vitest specs (170 files)                                |
 | Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity                            |
 | Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL contract tests               |
 | Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`)                    |
@@ -201,6 +236,7 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 | **Plugin/extension E2E**                                     | Stripe, cookie-consent, editable-website untested at browser level                                      | 🟢 Low   |
 | **Mobile viewport**                                          | All tests run Desktop Chrome only                                                                       | 🟢 Low   |
 | **Multi-tenant E2E**                                         | No cross-tenant isolation test at browser level                                                         | 🟢 Low   |
+| **✅ Production test-secret backdoor** (resolved)            | Closed: `x-test-secret` now requires `TEST_MODE`/`BENCHMARK` env + `timingSafeEqual`                    | —        |
 | **✅ Media sharing & MIME** (resolved)                       | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)                      | —        |
 | **✅ Content reconciliation** (resolved)                     | Now covered by `tests/unit/content/content-reconcile.test.ts` (20 tests)                                | —        |
 | **✅ Proxy & tenant filter** (resolved)                      | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests)            | —        |
