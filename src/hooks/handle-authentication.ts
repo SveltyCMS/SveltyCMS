@@ -55,7 +55,6 @@ import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
 import { invalidateTurboAuthContext } from "./handle-turbo-get";
 import { turboAuthCache } from "./handle-turbo-get";
-import { applyTestBypassFromHeaders } from "@utils/test-bypass.server";
 
 // --- MODULE-LEVEL CACHES & STATE ---
 let multiTenantCached: boolean | null = null;
@@ -418,11 +417,6 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
 
-  // 🧪 TEST/BENCHMARK BYPASS: env-gated + timing-safe secret (never active in production)
-  if (applyTestBypassFromHeaders(event)) {
-    return await resolve(event);
-  }
-
   // 🚀 TURBO GET FAST-PATH: Auth context already resolved by handleTurboGet.
   // User, roles, tenantId, and bitset are pre-injected — skip session validation entirely.
   if ((locals as any).__turboAuth === true) {
@@ -756,7 +750,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
       cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
 
-    if (!locals.user && !hasAuthAttempt) {
+    // Skip ephemeral guest creation for test-mode requests — they should hit the real 401 path
+    const testSecret = event.request.headers.get("x-test-secret");
+    if (!locals.user && !hasAuthAttempt && !testSecret) {
       const isPublicPath =
         url.pathname.startsWith("/api/collections") ||
         url.pathname.startsWith("/api/query") ||

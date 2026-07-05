@@ -312,7 +312,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // Benchmarks inject a real user but still run the FULL middleware chain
       // (rate limiting, RBAC, audit logging) for honest performance measurement.
       if (!IS_BENCHMARK && event.request.headers.get("x-test-security") !== "true") {
-        (event.locals as any).__testBypass = true;
+        if (event.locals.user) {
+          (event.locals as any).__testBypass = true;
+        }
       }
 
       // If it's a health check, return the health response (shared builder)

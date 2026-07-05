@@ -174,11 +174,11 @@ function renderDashboard(
   estimatedRemainingMs: number,
   previousLineCount: number = 0,
 ): number {
-  // Clear the full screen and reset cursor to top-left on every refresh.
-  // Child process output between renders may have scrolled the terminal,
-  // making incremental cursor-up unreliable. Full clear is the safest bet.
-  if (previousLineCount > 0) {
-    process.stdout.write("\x1b[2J\x1b[H");
+  // Move cursor up to overwrite the previous dashboard in-place.
+  // \x1b[2J (clear screen) is silently ignored on Windows PowerShell 5.1,
+  // but cursor-up + clear-to-end works reliably on all terminals.
+  if (previousLineCount > 0 && TTY) {
+    process.stdout.write(`\x1b[${previousLineCount}A\x1b[J`);
   }
 
   const total = results.length + (currentTask ? 1 : 0) + pendingTasks.length;
@@ -446,6 +446,9 @@ export async function runPrecheck(
       const output = getLastCommandOutput();
       if (output) {
         printFailedTaskOutput(task.name, output);
+        // Track extra output lines so the cursor-up on the next
+        // renderDashboard skips over this error block too
+        dashboardLines += 8;
       }
     }
   }
