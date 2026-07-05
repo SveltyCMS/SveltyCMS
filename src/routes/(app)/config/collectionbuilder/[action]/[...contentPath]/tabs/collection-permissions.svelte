@@ -33,7 +33,7 @@ For the full RBAC matrix with presets/bulk/undo/import-export, visit Access Mana
   let defaultSortField = $state("createdAt");
   let defaultSortDir = $state("desc");
   let apiVisible = $state(true);
-  let status = $state<string>(StatusTypes.unpublish);
+  let status: string = $state(StatusTypes.unpublish);
 
   // Sync from existing collection when editor loads
   // (Schema type doesn't declare these GUI-added fields yet, so type-assert)
@@ -234,7 +234,8 @@ For the full RBAC matrix with presets/bulk/undo/import-export, visit Access Mana
           max="200"
           value={entriesPerPage}
           oninput={(e: any) => {
-            entriesPerPage = Math.max(5, Math.min(200, parseInt(e.target.value) || 20));
+            const raw = parseInt(e.target.value);
+            entriesPerPage = Math.max(5, Math.min(200, Number.isNaN(raw) ? 20 : raw));
             scheduleFlush();
           }}
         />
