@@ -10,8 +10,17 @@
  * Per-type collection split (separate `post` and `page` collections) is planned — see roadmap.
  */
 
-import { normalizeCollectionId } from "./collection-scaffold";
 import type { SNCEntry } from "./types";
+
+/** Normalize wizard collection name to a safe collection _id / filename */
+export function normalizeCollectionId(name: string): string {
+  const id = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return id || FALLBACK_MIGRATION_COLLECTION;
+}
 
 export interface InferCollectionParams {
   format: string;

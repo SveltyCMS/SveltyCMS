@@ -34,6 +34,8 @@ import {
   getPrecheckPlan,
   resolveActiveTasks,
   validateCiParity,
+  getLastCommandOutput,
+  clearLastCommandOutput,
   type PrecheckOptions,
   type PrecheckTier,
   type Task,
@@ -234,6 +236,30 @@ function printCompactProgress(
   );
 }
 
+function printFailedTaskOutput(
+  taskName: string,
+  output: { cmd: string; stdout: string; stderr: string; code: number | null },
+): void {
+  console.log(
+    `\n${C.red}${C.bold}═ Task Failed: ${taskName} ═════════════════════════════════════════${C.reset}`,
+  );
+  console.log(`${C.bold}Command:${C.reset} ${output.cmd}`);
+  if (output.code !== null) {
+    console.log(`${C.bold}Exit Code:${C.reset} ${output.code}`);
+  }
+  if (output.stdout.trim()) {
+    console.log(`\n${C.bold}--- Standard Output ---${C.reset}`);
+    console.log(output.stdout.trim());
+  }
+  if (output.stderr.trim()) {
+    console.log(`\n${C.bold}--- Error Output ---${C.reset}`);
+    console.log(output.stderr.trim());
+  }
+  console.log(
+    `${C.red}${C.bold}══════════════════════════════════════════════════════════════════════${C.reset}\n`,
+  );
+}
+
 function printErrorSummary(failedResults: TaskResult[], options: PrecheckOptions): void {
   const contentW = BOX_WIDTH - 4;
   const count = failedResults.length;
@@ -336,6 +362,7 @@ export async function runPrecheck(
 
     let success = false;
     let errorThrown: unknown = undefined;
+    clearLastCommandOutput();
     try {
       const result = task.run();
       success = await result;
@@ -424,6 +451,10 @@ export async function runPrecheck(
 
     if (!success) {
       failedTasks.push(task.name);
+      const output = getLastCommandOutput();
+      if (output) {
+        printFailedTaskOutput(task.name, output);
+      }
     }
   }
 

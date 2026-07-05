@@ -107,7 +107,26 @@ export interface TaskSpec {
 
 // ---------------------------------------------------------------------------
 // Utilities (unchanged from original)
-// ---------------------------------------------------------------------------
+export interface CommandOutput {
+  cmd: string;
+  stdout: string;
+  stderr: string;
+  code: number | null;
+}
+
+let lastCommandOutput: CommandOutput | null = null;
+
+export function getLastCommandOutput(): CommandOutput | null {
+  return lastCommandOutput;
+}
+
+export function setManualCommandOutput(output: CommandOutput): void {
+  lastCommandOutput = output;
+}
+
+export function clearLastCommandOutput(): void {
+  lastCommandOutput = null;
+}
 
 export function runCommand(
   cmd: string,
@@ -118,20 +137,29 @@ export function runCommand(
     timeout?: number;
   } = {},
 ): boolean {
-  console.log(`   $ ${cmd} ${args.join(" ")}`);
   const result = spawnSync(cmd, args, {
-    stdio: options.silent ? "pipe" : "inherit",
+    stdio: "pipe",
     shell: IS_WINDOWS,
     env: options.env ? { ...process.env, ...options.env } : process.env,
     cwd: ROOT,
     timeout: options.timeout ?? 300_000,
   });
 
+  const stdout = result.stdout ? result.stdout.toString("utf8") : "";
+  const stderr = result.stderr ? result.stderr.toString("utf8") : "";
+
+  lastCommandOutput = {
+    cmd: `${cmd} ${args.join(" ")}`,
+    stdout,
+    stderr,
+    code: result.status,
+  };
+
   if (result.status !== 0) {
     if (result.error) {
-      console.error(`   Command failed to start: ${result.error.message}`);
+      lastCommandOutput.stderr += `\nCommand failed to start: ${result.error.message}`;
     } else if (result.signal) {
-      console.error(`   Command killed by signal: ${result.signal}`);
+      lastCommandOutput.stderr += `\nCommand killed by signal: ${result.signal}`;
     }
     return false;
   }
@@ -293,8 +321,13 @@ const BASE_TASKS: TaskSpec[] = [
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
     run: () => {
       if (hasUnstagedChanges()) {
-        console.error("\n❌ Working tree is dirty after formatting.");
-        console.error("   Run 'bun run format' locally, commit the fixes, and retry.");
+        setManualCommandOutput({
+          cmd: "git diff --quiet -- .",
+          stdout: "",
+          stderr:
+            "Working tree is dirty after formatting.\nRun 'bun run format' locally, commit the fixes, and retry.",
+          code: 1,
+        });
         return false;
       }
       return true;

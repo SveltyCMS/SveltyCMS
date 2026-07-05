@@ -259,23 +259,27 @@ export function searchGlobalIndexSync(query: string): SearchData[] {
 // ─── Server-Side Semantic Search Bridge ────────────────────────────────────
 
 async function searchSemanticFromServer(query: string): Promise<SemanticSearchMatch[]> {
-  // Call the semantic index via internal API (not HTTP — direct function call)
   try {
-    const { semanticSearch } = await import("@src/services/intelligence/semantic-index");
-    const results = await semanticSearch(query, { limit: 10, minScore: 0.15 });
-    return results.map((r) => ({
-      id: r.id,
-      title: r.title,
-      description: r.description,
-      path: r.path,
-      type: r.type,
-      score: r.score,
-      matchType: r.matchType,
-    }));
+    const url = `/api/search?mode=semantic&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        return json.data.map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          description: r.description,
+          path: r.path,
+          type: r.type,
+          score: r.score,
+          matchType: r.matchType,
+        }));
+      }
+    }
   } catch {
     // Semantic index not initialized or unavailable
-    return [];
   }
+  return [];
 }
 
 function convertSemanticResults(matches: SemanticSearchMatch[], limit: number): SearchData[] {

@@ -74,6 +74,10 @@ export async function handleContentRoutes(
 
     // ── Global Search ──
     if (namespace === "search" && request.method === "GET") {
+      const mode = url.searchParams.get("mode");
+      if (mode === "semantic") {
+        return handleSemanticSearch(event, url);
+      }
       return handleGlobalSearch(event, cms, tenantId, url);
     }
 
@@ -359,4 +363,16 @@ async function handleGlobalSearch(
 export async function handleGraphqlRoutes(event: RequestEvent) {
   const { POST } = await import("../../graphql/+server");
   return POST(event);
+}
+
+/** Server-side semantic search handler to avoid client-side imports of semantic index. */
+async function handleSemanticSearch(event: RequestEvent, url: URL) {
+  const q = url.searchParams.get("q") || "";
+  try {
+    const { semanticSearch } = await import("@src/services/intelligence/semantic-index");
+    const results = await semanticSearch(q, { limit: 10, minScore: 0.15 });
+    return rawResponse(event, { success: true, data: results });
+  } catch (err: any) {
+    return rawResponse(event, { success: false, error: err.message });
+  }
 }

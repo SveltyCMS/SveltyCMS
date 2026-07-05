@@ -77,10 +77,17 @@ let _hotPaths: Set<string> | null = null;
 async function getHotPaths(): Promise<Set<string>> {
   if (_hotPaths) return _hotPaths;
   try {
-    const { getHotCollections } = await import("@src/services/intelligence/behavioral-learner");
-    const hot = getHotCollections("global", 20);
-    _hotPaths = new Set(hot.map((c) => c.id));
+    const res = await fetch("/api/system/hot-collections");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        _hotPaths = new Set(json.data);
+      }
+    }
   } catch {
+    // Fallback to empty set
+  }
+  if (!_hotPaths) {
     _hotPaths = new Set();
   }
   return _hotPaths;
