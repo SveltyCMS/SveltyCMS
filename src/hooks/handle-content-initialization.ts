@@ -18,7 +18,7 @@ const tenantInitializationFlights = new Map<string, Promise<void>>();
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
   const { pathname } = url;
-  const tenantId = locals.tenantId ? String(locals.tenantId) : "default-tenant";
+  const tenantId = locals.tenantId ? String(locals.tenantId) : null;
 
   // Phase 1: Gated initialization (static import — no per-request dynamic import)
   const setupState = (locals as any).__setupState || (await getSetupState());

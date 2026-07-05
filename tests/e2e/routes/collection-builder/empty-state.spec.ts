@@ -14,11 +14,7 @@
 
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-
-const TEST_API_HEADERS = {
-  "x-test-secret": process.env.TEST_SECRET || "test-secret",
-  "content-type": "application/json",
-};
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Collection Builder — Empty State", () => {
   test.beforeEach(async ({ page }) => {

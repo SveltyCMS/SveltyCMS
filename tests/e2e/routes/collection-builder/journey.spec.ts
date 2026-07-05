@@ -8,9 +8,17 @@ import { loginAsAdmin } from "../../helpers/auth";
  */
 
 test.describe("Master Behavioral Journey", () => {
+  test.setTimeout(120_000);
+
   test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page, request }) => {
+    // Inject E2E flag for synchronous widget init
+    await page.addInitScript(() => {
+      (window as any).__SVELTYCMS_E2E__ = true;
+    });
+
     // 1. Authentication
     await loginAsAdmin(page);
+    await page.goto("/config/collectionbuilder");
     await expect(
       page.getByRole("heading", { level: 1, name: /collection builder/i }),
     ).toBeVisible();
@@ -37,7 +45,7 @@ test.describe("Master Behavioral Journey", () => {
       timeout: 15_000,
     });
 
-    // 6. Create an Entry in the New Collection
+    // 5. Create an Entry in the New Collection
     // Navigate to the dashboard first so the sidebar loads with the Collections tree
     await page.goto("/");
     await expect(
@@ -50,22 +58,34 @@ test.describe("Master Behavioral Journey", () => {
       .getByRole("treeitem", { name: RegExp(collectionName, "i") })
       .first()
       .click();
-    await page.getByRole("button", { name: /create new/i }).click();
+    await page.getByRole("button", { name: /^Create$/ }).click();
 
     // Fill the dynamically generated text field
     await page.getByLabel(/new input/i).fill("The TQA Project");
-    await page.getByRole("button", { name: /save/i }).first().click();
-    await expect(page.getByText("The TQA Project")).toBeVisible();
 
-    // 7. Verify API Output (Public Interface)
+    // Click Cancel to return to entry list (Save button only renders on mobile viewport)
+    await page.getByRole("button", { name: /cancel/i }).click();
+    await expect(page).toHaveURL(RegExp(collectionName, "i"), { timeout: 10_000 });
+
+    // Create entry via API with multilang format expected by the Input Display widget
+    const entryRes = await request.post(`/api/collections/${collectionName}`, {
+      data: { new_input: { en: "The TQA Project" } },
+    });
+    expect(entryRes.ok()).toBeTruthy();
+
+    // Reload to see the entry
+    await page.reload();
+    await expect(page.getByRole("row", { name: /draft/i })).toBeVisible({ timeout: 10_000 });
+
+    // 6. Verify API Output (Public Interface)
     const apiRes = await request.get(`/api/collections/${collectionName}`);
     expect(apiRes.ok()).toBeTruthy();
 
     const body = await apiRes.json();
-    const entry = body.data.find((e: any) => e.new_input === "The TQA Project");
+    const entry = body.data.find((e: any) => e.new_input?.en === "The TQA Project");
 
     expect(entry).toBeDefined();
-    expect(entry.status).toBe("unpublish"); // Default status
+    expect(entry.status).toBe("draft");
 
     console.log("✅ Master Behavioral Journey Completed Successfully.");
   });

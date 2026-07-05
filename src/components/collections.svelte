@@ -492,7 +492,8 @@ import { collection_no_collections_found, collections_search } from '@src/paragl
 			detail: { resetState: true, reason: 'collection-switch' }
 		}));
 
-		navigate(`/${currentLanguage}${node.path || `/${node._id}`}`, same);
+		navigate(`/${currentLanguage}${node.path || `/${node._id}`}`, same)
+			.catch((err: any) => console.error('[Collections] navigate failed:', err));
 	}
 </script>
 

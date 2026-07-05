@@ -396,6 +396,16 @@ export async function handleTestingRoutes(
         console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
       }
 
+      // Invalidate first-collection redirect cache
+      try {
+        const { invalidateFirstCollectionCache } = await import(
+          "@src/utils/server/collection-utils.server"
+        );
+        invalidateFirstCollectionCache();
+      } catch (err) {
+        console.warn(`[TestingHandler] Failed to invalidate collection redirect cache: ${err}`);
+      }
+
       return rawResponse({
         success: true,
         message: "System reset successfully",
@@ -780,17 +790,28 @@ export async function handleTestingRoutes(
         await fsp.rm(compiledDir, { recursive: true, force: true });
         await fsp.mkdir(compiledDir, { recursive: true });
       }
+      // Clean all test-generated collection schema files (but preserve .gitkeep)
       const collectionsDir = path.resolve(process.cwd(), "config", "collections");
       if (fs.existsSync(collectionsDir)) {
-        // Only remove test subdirectory, not user collections
-        const testDir = path.join(collectionsDir, "test");
-        if (fs.existsSync(testDir)) {
-          await fsp.rm(testDir, { recursive: true, force: true });
+        const entries = await fsp.readdir(collectionsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name === ".gitkeep") continue;
+          const fullPath = path.join(collectionsDir, entry.name);
+          if (entry.isDirectory()) {
+            await fsp.rm(fullPath, { recursive: true, force: true });
+          } else {
+            await fsp.unlink(fullPath);
+          }
         }
       }
       // Also clear the content store
       const { refreshContent } = await import("@src/content/engine.server");
       await refreshContent(tenantId, { mode: "schemas" }).catch(() => {});
+      // Invalidate first-collection redirect cache
+      const { invalidateFirstCollectionCache } = await import(
+        "@src/utils/server/collection-utils.server"
+      );
+      invalidateFirstCollectionCache();
       return rawResponse({ success: true, message: "Compiled collections cleared" });
     }
 

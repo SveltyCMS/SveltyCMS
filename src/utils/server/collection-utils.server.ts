@@ -33,6 +33,10 @@ export async function fetchAndRedirectToFirstCollection(language: Locale): Promi
   }
 }
 
+export function invalidateFirstCollectionCache(): void {
+  cachedFirstCollectionPaths.clear();
+}
+
 const cachedFirstCollectionPaths = new SvelteMap<Locale, { path: string; expiry: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
