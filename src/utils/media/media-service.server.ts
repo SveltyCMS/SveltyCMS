@@ -11,7 +11,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
-import { fileExists, getFile, saveFile } from "./media-storage.server";
+import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
 import type {
   IDBAdapter,
   DatabaseError,
@@ -213,6 +213,25 @@ export class MediaService {
         const hash = await hashFileContent(buffer);
         const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer);
 
+        // Extract image dimensions + generate derivatives for image files
+        let imageMetadata: Record<string, unknown> = {};
+        let imageThumbnails: Record<string, unknown> = {};
+        if (effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)) {
+          try {
+            const sharpMod = await import("sharp");
+            const sharp = sharpMod.default || sharpMod;
+            const imgMeta = await sharp(buffer).metadata();
+            if (imgMeta.width) imageMetadata.width = imgMeta.width;
+            if (imgMeta.height) imageMetadata.height = imgMeta.height;
+            const dotIdx = file.name.lastIndexOf(".");
+            const baseName = dotIdx > 0 ? file.name.slice(0, dotIdx) : file.name;
+            const ext = dotIdx > 0 ? file.name.slice(dotIdx + 1).toLowerCase() : "jpg";
+            imageThumbnails = await saveResizedImages(buffer, hash, baseName, ext, "global");
+          } catch (e) {
+            logger.warn("[Media] Derivative generation skipped", e);
+          }
+        }
+
         // 1. Check for existing file by hash (Deduplication)
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
@@ -238,8 +257,8 @@ export class MediaService {
             path: relPath,
             createdBy: _userId,
             updatedBy: _userId,
-            metadata: {},
-            thumbnails: {},
+            metadata: imageMetadata,
+            thumbnails: imageThumbnails,
             access: _access,
             tenantId: tenantId ?? undefined,
           } as any,
