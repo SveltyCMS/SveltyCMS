@@ -312,8 +312,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-text: rgba(255, 255, 255, 0.68);
 		--editor-chrome-text-hover: rgba(255, 255, 255, 0.92);
 		--editor-chrome-text-active: #fff;
-		--editor-accent: #f5c518;
-		--editor-accent-hover: #ffd43b;
+		--editor-accent: #22c55e;
+		--editor-accent-hover: #16a34a;
 		--editor-canvas-bg: var(--editor-chrome-bg);
 		--editor-control-h: 2.25rem;
 		--editor-control-h-compact: 1.875rem;
@@ -331,8 +331,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-border-subtle: transparent;
 		--editor-control-h: 2.25rem;
 		--editor-pill-pad: 0.1875rem;
-		--editor-accent: #f4c430;
-		--editor-accent-hover: #ffd54f;
+		--editor-accent: #22c55e;
+		--editor-accent-hover: #16a34a;
 		height: 100dvh;
 		min-height: 100dvh;
 		max-height: 100dvh;

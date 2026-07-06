@@ -80,7 +80,7 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 		<div class="flex gap-1.5 items-center justify-self-end min-h-[--editor-control-h]">
 			<button
 				type="button"
-				class="editor-mobile-done-round inline-flex items-center justify-center shrink-0 size-[--editor-control-h] p-0 text-[#111] cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-none transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65 [&_iconify-icon]:block [&_iconify-icon]:leading-[0] [&_iconify-icon]:text-[#111]"
+				class="editor-mobile-done-round inline-flex items-center justify-center shrink-0 size-[--editor-control-h] p-0 text-white cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-none transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65 [&_iconify-icon]:block [&_iconify-icon]:leading-[0] [&_iconify-icon]:text-white"
 				onclick={onsave}
 				disabled={isSaving}
 				aria-label="Save edited image"
