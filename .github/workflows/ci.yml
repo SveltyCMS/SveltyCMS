@@ -87,22 +87,46 @@ jobs:
   # ------------------------------------------------
   # 2. Quality gates (parallel, no artifact deps beyond bootstrap meta)
   # ------------------------------------------------
-  security-audit:
-    name: 🔒 Dependency Audit
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+  whitebox:
+    name: ${{ matrix.name }}
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - task: security-audit
+            name: 🔒 Dependency Audit
+            run: |
+              bun audit --severity=high 2>&1
+          - task: format
+            name: 🖌️ Format Check
+            run: bun run format --check
+          - task: lint
+            name: 🔎 Lint
+            run: bun run lint
+          - task: check
+            name: ✅ Quality Gate (check)
+            run: bun run check
+          - task: unit
+            name: ⚡ Unit Tests
+            run: bun run test:unit
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
           node-version: "24"
-      - name: CVE Audit (bun)
-        run: |
-          bun audit --severity=high 2>&1
+      - name: Download workspace-meta
+        if: matrix.task != 'security-audit'
+        uses: actions/download-artifact@v8
+        with:
+          name: workspace-meta
+      - name: Run Task
+        run: ${{ matrix.run }}
       - name: CVE Audit Summary
+        if: matrix.task == 'security-audit'
         run: |
           echo "### 🔒 Dependency Audit (CVE Check)" >> $GITHUB_STEP_SUMMARY
           echo "| Tool | Status |" >> $GITHUB_STEP_SUMMARY
@@ -112,86 +136,9 @@ jobs:
           else
             echo "| bun audit | ❌ Vulnerabilities found |" >> $GITHUB_STEP_SUMMARY
           fi
-
-  format:
-    name: 🖌️ Format Check
-    # Enforced locally via pre-commit — run in CI only for main and PRs as safety net
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-sveltycms
-        with:
-          bun-version: "1.3.14"
-          node-version: "24"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
-      - name: Run formatter
-        run: bun run format
-      - name: Verify tree is clean
-        run: |
-          if ! git diff --exit-code --quiet; then
-            echo "❌ Formatting drift detected. Run 'bun run format' locally."
-            git diff --stat
-            exit 1
-          fi
-          echo "✅ Working tree is properly formatted."
-
-  lint:
-    name: 🔎 Lint
-    # Enforced locally via pre-commit — run in CI only for main and PRs as safety net
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-sveltycms
-        with:
-          bun-version: "1.3.14"
-          node-version: "24"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
-      - run: bun run lint
-
-  check:
-    name: ✅ Quality Gate (format + lint)
-    # Enforced locally via pre-push — run in CI only for main and PRs as safety net
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-sveltycms
-        with:
-          bun-version: "1.3.14"
-          node-version: "24"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
-      - run: bun run check
-
-  unit:
-    name: ⚡ Unit Tests
-    # Unit tests are enforced locally via pre-commit/pre-push hooks.
-    # Skip on next branch to reduce CI time; keep on main and PRs as safety net.
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-sveltycms
-        with:
-          bun-version: "1.3.14"
-          node-version: "24"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
-      - run: bun run test:unit
-      - uses: codecov/codecov-action@v7
-        if: success()
+      - name: Upload coverage
+        if: matrix.task == 'unit' && success()
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unit
@@ -643,11 +590,7 @@ jobs:
     needs:
       - bootstrap
       - build
-      - format
-      - lint
-      - check
-      - unit
-      - security-audit
+      - whitebox
       - e2e-prep
       - e2e
       - db-tests

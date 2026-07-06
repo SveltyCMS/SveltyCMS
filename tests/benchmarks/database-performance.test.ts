@@ -58,6 +58,8 @@ export async function runDatabaseBenchmark() {
 
     const dbType = getDbType();
 
+    await prepareCollection(db);
+
     // 🛡️ SANITIZER: Pre-flight validation before any benchmark measurement
     await validateBenchmarkEnvironment({
       collectionId: COLLECTION_ID,
@@ -65,8 +67,6 @@ export async function runDatabaseBenchmark() {
       tenantId: TEST_TENANT,
       warmupIterations: 150,
     });
-
-    await prepareCollection(db);
 
     const scenarios = [
       { name: "INSERT", fn: createInsertTest(db) },

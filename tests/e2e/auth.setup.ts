@@ -32,9 +32,25 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
     const cookieParts = cookies.split(";")[0];
     const [name, value] = cookieParts.split("=");
     const context = page.context();
-    const baseUrl = new URL(page.url());
+    let hostname = "127.0.0.1";
+    try {
+      const pageUrl = page.url();
+      if (pageUrl && pageUrl !== "about:blank") {
+        hostname = new URL(pageUrl).hostname;
+      }
+    } catch {}
+    const isHostCookie = name.startsWith("__Host-");
+    const secure = isHostCookie || name.startsWith("__Secure-");
+    const urlScheme = secure ? "https://" : "http://";
     await context.addCookies([
-      { name, value, domain: baseUrl.hostname, path: "/", httpOnly: true, sameSite: "Lax" },
+      {
+        name,
+        value,
+        url: urlScheme + hostname,
+        httpOnly: true,
+        sameSite: "Lax",
+        secure,
+      },
     ]);
     sessionEstablished = true;
   } else {
@@ -45,7 +61,7 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
 
   // Verify session by navigating to homepage
   try {
-    await page.goto("/", { waitUntil: "networkidle", timeout: 30_000 });
+    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 30_000 });
     const currentUrl = page.url();
     if (!currentUrl.includes("/login")) {
       sessionEstablished = true;

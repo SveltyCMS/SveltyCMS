@@ -76,7 +76,16 @@ function createDebouncedFlush() {
     dirty = false;
   }
 
-  return { schedule, forceFlush, get dirty() { return dirty; }, get flushed() { return flushed; } };
+  return {
+    schedule,
+    forceFlush,
+    get dirty() {
+      return dirty;
+    },
+    get flushed() {
+      return flushed;
+    },
+  };
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────

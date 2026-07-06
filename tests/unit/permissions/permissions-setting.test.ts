@@ -30,38 +30,43 @@ const presets = {
   "read-only": {
     name: "Read Only",
     permissions: {
-      read: true, access: true,
-      create: false, write: false, update: false,
-      delete: false, manage: false, execute: false, share: false,
+      read: true,
+      access: true,
+      create: false,
+      write: false,
+      update: false,
+      delete: false,
+      manage: false,
+      execute: false,
+      share: false,
     },
   },
   editor: {
     name: "Editor",
     permissions: {
-      read: true, access: true,
-      create: true, write: true, update: true, share: true,
-      delete: false, manage: false, execute: false,
+      read: true,
+      access: true,
+      create: true,
+      write: true,
+      update: true,
+      share: true,
+      delete: false,
+      manage: false,
+      execute: false,
     },
   },
   admin: {
     name: "Administrator",
-    permissions: Object.fromEntries(
-      Object.values(PermissionAction).map((a) => [a, true]),
-    ),
+    permissions: Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])),
   },
 };
 
 // ── Replicated core functions ───────────────────────────────────────────
-function initializePermissions(
-  current: PermissionsMap,
-  roles: { _id: string }[],
-): PermissionsMap {
+function initializePermissions(current: PermissionsMap, roles: { _id: string }[]): PermissionsMap {
   const init: PermissionsMap = { ...current };
   for (const role of roles) {
     if (!init[role._id]) {
-      init[role._id] = Object.fromEntries(
-        Object.values(PermissionAction).map((a) => [a, true]),
-      );
+      init[role._id] = Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true]));
     }
   }
   return init;
@@ -78,11 +83,7 @@ function togglePermission(
   return clone;
 }
 
-function setAllForRole(
-  state: PermissionsMap,
-  roleId: string,
-  value: boolean,
-): PermissionsMap {
+function setAllForRole(state: PermissionsMap, roleId: string, value: boolean): PermissionsMap {
   const clone = JSON.parse(JSON.stringify(state));
   clone[roleId] = Object.fromEntries(
     Object.values(PermissionAction).map((a) => [a, value]),
@@ -117,14 +118,11 @@ function applyPreset(
 }
 
 function cleanPermissions(state: PermissionsMap): PermissionsMap {
-  return Object.entries(state).reduce(
-    (acc, [roleId, perms]) => {
-      const hasRestrictions = Object.values(perms).some((v) => v === false);
-      if (hasRestrictions) acc[roleId] = perms;
-      return acc;
-    },
-    {} as PermissionsMap,
-  );
+  return Object.entries(state).reduce((acc, [roleId, perms]) => {
+    const hasRestrictions = Object.values(perms).some((v) => v === false);
+    if (hasRestrictions) acc[roleId] = perms;
+    return acc;
+  }, {} as PermissionsMap);
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────
@@ -176,7 +174,17 @@ describe("Permission Initialization", () => {
 
   it("preserves existing role permissions", () => {
     const incoming: PermissionsMap = {
-      "role-1": { read: true, access: true, create: false, write: false, update: false, delete: false, manage: false, execute: false, share: false },
+      "role-1": {
+        read: true,
+        access: true,
+        create: false,
+        write: false,
+        update: false,
+        delete: false,
+        manage: false,
+        execute: false,
+        share: false,
+      },
     };
     const state = initializePermissions(incoming, [{ _id: "role-1" }, { _id: "role-2" }]);
     expect(state["role-1"].create).toBe(false);
@@ -191,9 +199,10 @@ describe("Permission Initialization", () => {
 
 describe("Permission Toggle", () => {
   const base: PermissionsMap = {
-    "role-1": Object.fromEntries(
-      Object.values(PermissionAction).map((a) => [a, true]),
-    ) as Record<string, boolean>,
+    "role-1": Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])) as Record<
+      string,
+      boolean
+    >,
   };
 
   it("toggles from true to false", () => {
@@ -228,9 +237,10 @@ describe("Bulk Actions", () => {
     { _id: "r3", isAdmin: true },
   ];
   const makeFull = () =>
-    Object.fromEntries(
-      Object.values(PermissionAction).map((a) => [a, true]),
-    ) as Record<string, boolean>;
+    Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])) as Record<
+      string,
+      boolean
+    >;
 
   const base: PermissionsMap = { r1: makeFull(), r2: makeFull(), r3: makeFull() };
 
@@ -243,7 +253,17 @@ describe("Bulk Actions", () => {
 
   it("setAllForRole enables all permissions for a role", () => {
     const partial: PermissionsMap = {
-      r1: { read: true, access: true, create: false, write: false, update: false, delete: false, manage: false, execute: false, share: false },
+      r1: {
+        read: true,
+        access: true,
+        create: false,
+        write: false,
+        update: false,
+        delete: false,
+        manage: false,
+        execute: false,
+        share: false,
+      },
     };
     const after = setAllForRole(partial, "r1", true);
     for (const action of Object.values(PermissionAction)) {
@@ -266,9 +286,10 @@ describe("Bulk Actions", () => {
 
 describe("Preset Application", () => {
   const base: PermissionsMap = {
-    "role-1": Object.fromEntries(
-      Object.values(PermissionAction).map((a) => [a, true]),
-    ) as Record<string, boolean>,
+    "role-1": Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])) as Record<
+      string,
+      boolean
+    >,
   };
 
   it("applies read-only preset correctly", () => {
@@ -295,13 +316,15 @@ describe("Preset Application", () => {
 describe("Clean Permissions (Export Filter)", () => {
   it("removes roles with all-true permissions (no restrictions)", () => {
     const state: PermissionsMap = {
-      r1: Object.fromEntries(
-        Object.values(PermissionAction).map((a) => [a, true]),
-      ) as Record<string, boolean>,
+      r1: Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])) as Record<
+        string,
+        boolean
+      >,
       r2: {
-        ...(Object.fromEntries(
-          Object.values(PermissionAction).map((a) => [a, true]),
-        ) as Record<string, boolean>),
+        ...(Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])) as Record<
+          string,
+          boolean
+        >),
         delete: false,
       },
     };
@@ -312,9 +335,10 @@ describe("Clean Permissions (Export Filter)", () => {
 
   it("returns empty object when all roles are all-true", () => {
     const state: PermissionsMap = {
-      r1: Object.fromEntries(
-        Object.values(PermissionAction).map((a) => [a, true]),
-      ) as Record<string, boolean>,
+      r1: Object.fromEntries(Object.values(PermissionAction).map((a) => [a, true])) as Record<
+        string,
+        boolean
+      >,
     };
     expect(Object.keys(cleanPermissions(state))).toHaveLength(0);
   });

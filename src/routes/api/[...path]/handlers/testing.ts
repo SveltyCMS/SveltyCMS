@@ -430,6 +430,50 @@ export async function handleTestingRoutes(
       });
     }
 
+    if (action === "login") {
+      const { email, password } = params;
+      if (!email || !password) throw new AppError("Email and password required", 400);
+
+      const loginResult = await cms.auth.login({ email, password }, { tenantId });
+      if (!loginResult.success) {
+        return rawResponse({ success: false, message: loginResult.message }, 401);
+      }
+
+      const { user, session } = loginResult.data;
+
+      // Set cookie on event.cookies
+      const { getSessionCookieName } = await import("@src/databases/auth/constants");
+      const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+      const cookieName = getSessionCookieName(isSecure);
+      event.cookies.set(cookieName, session._id, {
+        path: "/",
+        httpOnly: true,
+        sameSite: isSecure ? "strict" : "lax",
+        secure: isSecure,
+        maxAge: 60 * 60 * 24, // 24 hours
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          user: {
+            _id: user._id,
+            email: user.email,
+            username: user.username,
+            role: user.role,
+          },
+          token: session._id,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-session-id": session._id,
+          },
+        },
+      );
+    }
+
     if (action === "reinitialize") {
       // Trigger system reload (full crawl/reconciliation)
       await contentSystem.initialize(tenantId, { force: true });
