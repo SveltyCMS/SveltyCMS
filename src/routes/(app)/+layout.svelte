@@ -173,15 +173,6 @@ $effect(() => {
 	}
 });
 
-// Auto-hide sidebar on mobile. Declared after layout-state restoration so it
-// wins when the tenant/user prefs restore leftSidebar to "full" on initial load.
-// untrack prevents re-firing when the user manually opens the sidebar on mobile.
-$effect(() => {
-	if (screen.isMobile) {
-		untrack(() => { ui.state.leftSidebar = 'hidden'; });
-	}
-});
-
 // Debounced save: admins → tenant theme; others → per-user layout prefs (diff from tenant)
 let layoutSaveTimer: ReturnType<typeof setTimeout>;
 $effect(() => {
@@ -362,6 +353,7 @@ beforeNavigate(({ from, to }) => {
 });
 
 afterNavigate(() => {
+	if (window.innerWidth < 768) ui.state.leftSidebar = 'hidden';
 	globalLoadingStore.stopLoading(loadingOperations.navigation);
 	setTimeout(() => {
 		if (
