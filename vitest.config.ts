@@ -41,6 +41,7 @@ export default defineConfig({
         __dirname,
         "node_modules/sveltekit-rate-limiter/dist/server/index.js",
       ),
+      "bun:sqlite": path.resolve(__dirname, "./tests/unit/mocks/bun-sqlite.ts"),
     },
   },
   define: { "import.meta.env.SSR": "true" },

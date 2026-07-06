@@ -96,10 +96,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - task: security-audit
-            name: 🔒 Dependency Audit
-            run: |
-              bun audit --severity=high 2>&1
           - task: format
             name: 🖌️ Format Check
             run: bun run format --check
@@ -112,6 +108,10 @@ jobs:
           - task: unit
             name: ⚡ Unit Tests
             run: bun run test:unit
+          - task: security-audit
+            name: 🔒 Security Audit
+            run: |
+              bun audit --severity=high 2>&1
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
