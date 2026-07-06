@@ -106,7 +106,7 @@ jobs:
             name: ✅ Quality Gate (check)
             run: bun run check
           - task: unit
-            name: ⚡ Unit Tests
+            name: ⚡ Unit Tests (177 files)
             run: bun run test:unit
           - task: security-audit
             name: 🔒 Security Audit
