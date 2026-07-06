@@ -143,7 +143,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 					<div class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						Name
 					</div>
-					<div class="w-9 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
+					<div class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						<span class="sr-only">Actions</span>
 					</div>
 				</div>
@@ -191,14 +191,29 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							</div>
 						</div>
 
-						<div class="shrink-0" role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
-							<MediaTableRowMenu
-								{file}
-								onDetails={() => onOpenFileDetails(file)}
-								onEdit={() => onEditImage(file as MediaImage)}
-								onTags={() => openTagEditor(file as MediaImage)}
-								onDelete={() => ondeleteImage(file)}
-							/>
+						<div
+							class="flex shrink-0 items-center gap-1"
+							role="cell"
+							tabindex="-1"
+							onclick={(e) => e.stopPropagation()}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
+						>
+							<button
+								type="button"
+								class="flex h-7 w-7 items-center justify-center rounded text-surface-400 transition-colors hover:bg-surface-100 hover:text-primary-500 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+								onclick={() => onEditImage(file as MediaImage)}
+								aria-label="Edit {file.filename}"
+							>
+								<iconify-icon icon="mdi:pencil" width="15"></iconify-icon>
+							</button>
+							<button
+								type="button"
+								class="flex h-7 w-7 items-center justify-center rounded text-surface-400 transition-colors hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-950/30 dark:hover:text-error-400"
+								onclick={() => ondeleteImage(file)}
+								aria-label="Delete {file.filename}"
+							>
+								<iconify-icon icon="mdi:trash-can-outline" width="15"></iconify-icon>
+							</button>
 						</div>
 					</div>
 				{/each}
