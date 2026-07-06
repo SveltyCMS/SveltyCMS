@@ -633,11 +633,11 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 
 			<!-- Desktop toolbar: single row -->
-			<div class="hidden items-center gap-2 py-2 sm:flex" >
+			<div class="hidden items-center gap-2 py-2 sm:flex">
 				<div class="relative min-w-0 flex-1">
 					<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
 					<Input
-						id="media-gallery-search"
+						id="media-gallery-search-desktop"
 						bind:value={globalSearchValue}
 						type="search"
 						placeholder="Search media... (Mod+F)"
@@ -655,14 +655,18 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				</div>
 
 				{#if view === 'grid'}
-					<label for="media-type-filter" class="sr-only">Filter by media type</label>
-					<Select id="media-type-filter" bind:value={selectedMediaType} options={mediaTypeOptions} placeholder="Type" class="w-28" />
+					<div class="w-28 shrink-0">
+						<label for="media-type-filter" class="sr-only">Filter by media type</label>
+						<Select id="media-type-filter" bind:value={selectedMediaType} options={mediaTypeOptions} placeholder="Type" />
+					</div>
 				{/if}
 
-				<label for="sort-by-filter" class="sr-only">Sort by</label>
-				<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="Sort" class="w-36" />
+				<div class="w-36 shrink-0">
+					<label for="sort-by-filter" class="sr-only">Sort by</label>
+					<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="Sort" />
+				</div>
 
-				<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+				<div class="flex h-10 shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
 					<button
 						type="button"
 						onclick={() => (view = 'grid')}
@@ -682,7 +686,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				</div>
 
 				{#if view === 'grid'}
-					<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+					<div class="flex h-10 shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
 						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
 							<button
 								type="button"
@@ -701,7 +705,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						onclick={() => (isSelectionMode = !isSelectionMode)}
 						aria-label="Toggle selection mode"
 						aria-pressed={isSelectionMode}
-						class="flex h-10 items-center justify-center rounded border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
+						class="flex h-10 shrink-0 items-center justify-center rounded border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
 					>
 						{isSelectionMode ? 'Exit Selection' : 'Select'}
 					</button>
