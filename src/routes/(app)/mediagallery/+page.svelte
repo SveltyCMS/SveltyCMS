@@ -495,6 +495,43 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 		{/if}
 
+		<!-- Breadcrumb — always visible, sits between heading and toolbar -->
+		<div class="shrink-0 px-2 sm:px-3">
+			<nav
+				class="flex min-w-0 items-center gap-2.5 overflow-x-auto border-b border-surface-200 py-2.5 text-base text-surface-500 dark:border-surface-800 dark:text-surface-400"
+				aria-label="Folder path"
+			>
+				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
+					{#if i > 0}
+						<iconify-icon
+							icon="mdi:chevron-right"
+							width="16"
+							class="shrink-0 text-surface-400 dark:text-surface-500"
+							aria-hidden="true"
+						></iconify-icon>
+					{/if}
+					{#if i === breadcrumbs.length - 1}
+						<span
+							class="flex shrink-0 items-center gap-1 font-medium text-surface-800 dark:text-surface-100"
+							aria-current="page"
+						>
+							{#if i === 0}<iconify-icon icon="mdi:home" width="16" class="shrink-0" aria-hidden="true"></iconify-icon>{/if}
+							<span class="max-w-48 truncate sm:max-w-[16rem]">{crumb.name}</span>
+						</span>
+					{:else}
+						<a
+							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+							class="flex shrink-0 items-center gap-1 hover:text-primary-500"
+							data-preload="hover"
+						>
+							{#if i === 0}<iconify-icon icon="mdi:home" width="16" class="shrink-0" aria-hidden="true"></iconify-icon>{/if}
+							<span class="max-w-48 truncate sm:max-w-[16rem]">{crumb.name}</span>
+						</a>
+					{/if}
+				{/each}
+			</nav>
+		</div>
+
 		<!-- Toolbar -->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
 			<div
@@ -587,38 +624,6 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 			</div>
 		</div>
-
-		{#if breadcrumbs.length > 1}
-			<div class="shrink-0 px-2 sm:px-3">
-				<nav
-					class="flex min-w-0 items-center gap-2.5 overflow-x-auto border-b border-surface-200 py-2.5 text-base text-surface-500 dark:border-surface-800 dark:text-surface-400"
-					aria-label="Folder path"
-				>
-					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-						{#if i > 0}
-							<iconify-icon
-								icon="mdi:chevron-right"
-								width="16"
-								class="shrink-0 text-surface-400 dark:text-surface-500"
-								aria-hidden="true"
-							></iconify-icon>
-						{/if}
-						{#if i === breadcrumbs.length - 1}
-							<span
-								class="max-w-48 shrink-0 truncate font-medium text-surface-800 sm:max-w-[16rem] dark:text-surface-100"
-								aria-current="page"
-							>{crumb.name}</span>
-						{:else}
-							<a
-								href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
-								class="shrink-0 truncate hover:text-primary-500"
-								data-preload="hover"
-							>{crumb.name}</a>
-						{/if}
-					{/each}
-				</nav>
-			</div>
-		{/if}
 
 		<!-- Content -->
 		<div class="relative flex min-h-0 flex-1 flex-col" data-testid="media-gallery-content">
