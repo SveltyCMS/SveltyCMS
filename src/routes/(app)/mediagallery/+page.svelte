@@ -471,7 +471,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
 
-			<input aria-label="Search media"
+			<input aria-label="Upload media files"
 				type="file"
 				multiple
 				class="hidden"
@@ -550,28 +550,34 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
 							aria-label="Search media assets"
 						/>
-						<button
-							type="button"
-							onclick={() => (showAdvancedSearch = true)}
-							aria-label="Advanced search and filters"
-							class="absolute inset-e-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded transition-colors {searchCriteria ? 'text-primary-500' : 'text-surface-400 hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300'}"
-						>
-							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
-						</button>
+						<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onclick={() => (showAdvancedSearch = true)}
+								aria-label="Advanced search and filters"
+								class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+							>
+								<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
+							</Button>
+						</span>
 					</div>
-					<button
+					<Button
 						type="button"
+						variant="outline"
+						size="md"
 						onclick={() => (mobileFiltersExpanded = !mobileFiltersExpanded)}
 						aria-label={mobileFiltersExpanded ? 'Hide filters' : 'Show filters'}
 						aria-expanded={mobileFiltersExpanded}
-						class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-300 text-surface-500 transition-colors hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700"
+						class="h-10 w-10 shrink-0 px-0!"
 					>
 						<iconify-icon
 							icon="mdi:chevron-down"
 							width="18"
 							class="transition-transform duration-200 {mobileFiltersExpanded ? 'rotate-180' : ''}"
 						></iconify-icon>
-					</button>
+					</Button>
 				</div>
 
 				{#if mobileFiltersExpanded}
@@ -585,47 +591,41 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							<Select id="sort-by-filter-m" bind:value={sortBy} options={sortOptions} placeholder="Sort" class="flex-1" />
 						</div>
 						<div class="flex items-center gap-2">
-							<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
-								<button
-									type="button"
-									onclick={() => (view = 'grid')}
-									class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-									aria-label="Grid view" aria-pressed={view === 'grid'}
-								>
+							<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+								<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} class="h-10! w-10! px-0!">
 									<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
-								</button>
-								<button
-									type="button"
-									onclick={() => (view = 'table')}
-									class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-									aria-label="Table view" aria-pressed={view === 'table'}
-								>
+								</Button>
+								<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-l border-surface-300 dark:border-surface-600">
 									<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-								</button>
+								</Button>
 							</div>
 							{#if view === 'grid'}
-								<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+								<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
 									{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
-										<button
+										<Button
 											type="button"
+											variant={gridSize === size ? 'primary' : 'ghost'}
+											size="md"
 											onclick={() => (gridSize = size)}
 											aria-label="{size} grid"
 											aria-pressed={gridSize === size}
-											class="flex h-10 w-8 items-center justify-center text-[11px] font-medium transition-colors {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''} {gridSize === size ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+											class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''}"
 										>
 											{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
-										</button>
+										</Button>
 									{/each}
 								</div>
-								<button
+								<Button
 									type="button"
+									variant={isSelectionMode ? 'primary' : 'outline'}
+									size="md"
 									onclick={() => (isSelectionMode = !isSelectionMode)}
 									aria-label="Toggle selection mode"
 									aria-pressed={isSelectionMode}
-									class="flex h-10 items-center justify-center rounded border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
+									class="h-10 px-3"
 								>
 									{isSelectionMode ? 'Done' : 'Select'}
-								</button>
+								</Button>
 							{/if}
 						</div>
 					</div>
@@ -644,14 +644,18 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
 						aria-label="Search media assets"
 					/>
-					<button
-						type="button"
-						onclick={() => (showAdvancedSearch = true)}
-						aria-label="Advanced search and filters"
-						class="absolute inset-e-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded transition-colors {searchCriteria ? 'text-primary-500' : 'text-surface-400 hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300'}"
-					>
-						<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
-					</button>
+					<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onclick={() => (showAdvancedSearch = true)}
+							aria-label="Advanced search and filters"
+							class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+						>
+							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
+						</Button>
+					</span>
 				</div>
 
 				{#if view === 'grid'}
@@ -666,49 +670,43 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="Sort" />
 				</div>
 
-				<div class="flex h-10 shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
-					<button
-						type="button"
-						onclick={() => (view = 'grid')}
-						class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-						aria-label="Grid view" aria-pressed={view === 'grid'}
-					>
+				<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+					<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} class="h-10! w-10! px-0!">
 						<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
-					</button>
-					<button
-						type="button"
-						onclick={() => (view = 'table')}
-						class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-						aria-label="Table view" aria-pressed={view === 'table'}
-					>
+					</Button>
+					<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-l border-surface-300 dark:border-surface-600">
 						<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-					</button>
+					</Button>
 				</div>
 
 				{#if view === 'grid'}
-					<div class="flex h-10 shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+					<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
 						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
-							<button
+							<Button
 								type="button"
+								variant={gridSize === size ? 'primary' : 'ghost'}
+								size="md"
 								onclick={() => (gridSize = size)}
 								aria-label="{size} grid"
 								aria-pressed={gridSize === size}
-								class="flex h-10 w-8 items-center justify-center text-[11px] font-medium transition-colors {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''} {gridSize === size ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+								class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''}"
 							>
 								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
-							</button>
+							</Button>
 						{/each}
 					</div>
 
-					<button
+					<Button
 						type="button"
+						variant={isSelectionMode ? 'primary' : 'outline'}
+						size="md"
 						onclick={() => (isSelectionMode = !isSelectionMode)}
 						aria-label="Toggle selection mode"
 						aria-pressed={isSelectionMode}
-						class="flex h-10 shrink-0 items-center justify-center rounded border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
+						class="h-10 shrink-0 px-3"
 					>
 						{isSelectionMode ? 'Exit Selection' : 'Select'}
-					</button>
+					</Button>
 				{/if}
 			</div>
 

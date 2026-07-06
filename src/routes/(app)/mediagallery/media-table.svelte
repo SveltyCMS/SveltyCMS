@@ -17,6 +17,7 @@ import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	filteredFiles?: (MediaBase | MediaImage)[];
@@ -198,22 +199,26 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
 						>
-							<button
+							<Button
 								type="button"
-								class="flex h-7 w-7 items-center justify-center rounded text-surface-400 transition-colors hover:bg-surface-100 hover:text-primary-500 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+								variant="ghost"
+								size="sm"
 								onclick={() => onEditImage(file as MediaImage)}
 								aria-label="Edit {file.filename}"
+								class="h-7! w-7! min-w-0! px-0! hover:text-primary-500 dark:hover:text-primary-400"
 							>
 								<iconify-icon icon="mdi:pencil" width="15"></iconify-icon>
-							</button>
-							<button
+							</Button>
+							<Button
 								type="button"
-								class="flex h-7 w-7 items-center justify-center rounded text-surface-400 transition-colors hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-950/30 dark:hover:text-error-400"
+								variant="ghost"
+								size="sm"
 								onclick={() => ondeleteImage(file)}
 								aria-label="Delete {file.filename}"
+								class="h-7! w-7! min-w-0! px-0! hover:text-error-500 dark:hover:text-error-400"
 							>
 								<iconify-icon icon="mdi:trash-can-outline" width="15"></iconify-icon>
-							</button>
+							</Button>
 						</div>
 					</div>
 				{/each}
