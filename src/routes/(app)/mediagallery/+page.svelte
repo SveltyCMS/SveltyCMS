@@ -604,6 +604,19 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 								</button>
 							</div>
 							{#if view === 'grid'}
+								<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+									{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
+										<button
+											type="button"
+											onclick={() => (gridSize = size)}
+											aria-label="{size} grid"
+											aria-pressed={gridSize === size}
+											class="flex h-10 w-8 items-center justify-center text-[11px] font-medium transition-colors {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''} {gridSize === size ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+										>
+											{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
+										</button>
+									{/each}
+								</div>
 								<button
 									type="button"
 									onclick={() => (isSelectionMode = !isSelectionMode)}
@@ -669,6 +682,20 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				</div>
 
 				{#if view === 'grid'}
+					<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
+							<button
+								type="button"
+								onclick={() => (gridSize = size)}
+								aria-label="{size} grid"
+								aria-pressed={gridSize === size}
+								class="flex h-10 w-8 items-center justify-center text-[11px] font-medium transition-colors {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''} {gridSize === size ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+							>
+								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
+							</button>
+						{/each}
+					</div>
+
 					<button
 						type="button"
 						onclick={() => (isSelectionMode = !isSelectionMode)}
