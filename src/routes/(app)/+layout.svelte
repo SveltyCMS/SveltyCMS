@@ -353,6 +353,7 @@ beforeNavigate(({ from, to }) => {
 });
 
 afterNavigate(() => {
+	if (window.innerWidth < 768) ui.state.leftSidebar = 'hidden';
 	globalLoadingStore.stopLoading(loadingOperations.navigation);
 	setTimeout(() => {
 		if (

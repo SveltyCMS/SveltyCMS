@@ -225,14 +225,15 @@
 
 		<!-- Bookmark: add/remove this page from floating-nav favorites -->
 		<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
-			<button
-				type="button"
-				onclick={toggleFavorite}
-				aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-				class="flex shrink-0 items-center justify-center rounded-full border transition-colors {compact ? 'h-9 w-9' : 'h-10 w-10'} {isFavorited ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-surface-300 hover:bg-surface-500/10 dark:border-surface-600'}"
-			>
-				<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
-			</button>
+			<Button
+					variant="ghost"
+					type="button"
+					onclick={toggleFavorite}
+					aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+					class="flex shrink-0 items-center justify-center rounded-full border transition-colors {compact ? 'h-9 w-9' : 'h-10 w-10'} {isFavorited ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-surface-300 hover:bg-surface-500/10 dark:border-surface-600'}"
+				>
+					<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
+				</Button>
 		</SystemTooltip>
 	</div>
 </div>

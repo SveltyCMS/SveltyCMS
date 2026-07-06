@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+			import Input from '@components/ui/input.svelte';
 	import { globalSearchIndex } from "@utils/global-search-index";
 import { ui } from "@src/stores/ui-store.svelte";
 import { onMount } from "svelte";
@@ -132,12 +133,12 @@ onMount(() => {
 	<!-- Search Input -->
 	<div class="flex items-center border-b border-surface-200 px-4 dark:border-surface-700">
 		<Icon icon="mdi:magnify" class="text-xl text-surface-400" />
-		<input aria-label="Command search"
-			bind:this={inputRef}
+		<Input aria-label="Command search"
+			bind:inputRef={inputRef}
 			bind:value={searchQuery}
 			type="text"
 			placeholder="Type a command or search..."
-			class="w-full border-none bg-transparent py-4 ps-3 pe-4 text-lg outline-hidden ring-0 focus:ring-0 dark:text-white"
+			inputClass="w-full border-none bg-transparent py-4 ps-3 pe-4 text-lg outline-hidden ring-0 focus:ring-0 dark:text-white"
 		/>
 		<div class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50 px-2 py-0.5 text-xs font-medium text-surface-400 dark:border-surface-700 dark:bg-surface-800">
 			ESC
@@ -148,14 +149,15 @@ onMount(() => {
 	<div class="max-h-100 overflow-y-auto p-2" role="listbox">
 		{#if filteredResults.length > 0}
 			{#each filteredResults as item, i (i)}
-				<button
-					id="command-result-{i}"
-					role="option"
-					aria-selected={i === selectedIndex}
-					class="group flex w-full items-center justify-between rounded px-3 py-3 text-start transition-colors {i === selectedIndex ? 'bg-tertiary-500 text-white' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}"
-					onclick={() => executeAction(item)}
-					onmouseenter={() => selectedIndex = i}
-				>
+				<Button
+							id="command-result-{i}"
+							variant="ghost"
+							role="option"
+							aria-selected={i === selectedIndex}
+							class="group flex w-full items-center justify-between rounded px-3 py-3 text-start transition-colors {i === selectedIndex ? 'bg-tertiary-500 text-white' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}"
+							onclick={() => executeAction(item)}
+							onmouseenter={() => selectedIndex = i}
+						>
 					<div class="flex items-center gap-3">
 						{#if item.icon}
 							<Icon icon={item.icon} class="text-xl {i === selectedIndex ? 'text-white' : 'text-surface-400'}" />
@@ -179,7 +181,7 @@ onMount(() => {
 							{/each}
 						</div>
 					{/if}
-				</button>
+				</Button>
 			{/each}
 		{:else}
 			<div class="flex flex-col items-center justify-center py-12 text-center">

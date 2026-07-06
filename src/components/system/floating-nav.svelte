@@ -12,11 +12,12 @@
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
+		import Button from '@components/ui/button.svelte';
+		import { fade } from 'svelte/transition';
 
-	type Any = any;
+		type Any = any;
 
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+		import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Auth
 	import type { User } from '@src/databases/auth/types';
 	// Stores
@@ -479,8 +480,9 @@
 	</div>
 </SystemTooltip>
 
-{#if showRoutes}
-	<button out:keepAlive|local onclick={closeMenu} class="fixed inset-s-0 top-0 z-9999999" aria-label="Close navigation overlay">
+	{#if showRoutes}
+			<div out:keepAlive|local class="fixed inset-s-0 top-0 z-9999999">
+			<Button variant="ghost" onclick={closeMenu} class="fixed inset-s-0 top-0 z-9999999" aria-label="Close navigation overlay">
 		<svg
 			bind:this={svg}
 			xmlns="http://www.w3.org/2000/svg"
@@ -550,8 +552,9 @@
 				</a>
 			</SystemTooltip>
 		{/each}
-	</button>
-{/if}
+	</Button>
+		</div>
+	{/if}
 
 <style lang="postcss">
 	@keyframes showEndPoints {

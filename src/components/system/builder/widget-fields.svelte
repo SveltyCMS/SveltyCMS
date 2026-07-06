@@ -194,9 +194,9 @@
 				<p>widget: {field.widget.Name}</p>
 				<p>label: {field.label}</p>
 			</div>
-			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute inset-e-1.25 top-1.25">
-				<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
-			</button>
+			<Button variant="ghost" size="sm" onclick={(e: MouseEvent) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute inset-e-1.25 top-1.25">
+					<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
+				</Button>
 		</div>
 	{/each}
 </div>

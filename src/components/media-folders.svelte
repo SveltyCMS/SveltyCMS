@@ -13,7 +13,8 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import TreeView from '@components/ui/tree-view.svelte';
+			import Input from '@components/ui/input.svelte';
+			import TreeView from '@components/ui/tree-view.svelte';
 	import { media_root_title } from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
@@ -306,48 +307,51 @@
 			style="padding-inline-start: {indent}px"
 		>
 			{#if hasChildren}
-				<button
-					type="button"
-					class="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-60"
-					onclick={(e) => toggleFolderBranch(node, e)}
-					aria-label={expanded ? 'Collapse folder' : 'Expand folder'}
-					aria-expanded={expanded}
-				>
-					<iconify-icon
-						icon="mdi:chevron-right"
-						width="16"
-						class="transition-transform duration-200 {expanded ? 'rotate-90' : ''}"
-						aria-hidden="true"
-					></iconify-icon>
-				</button>
+				<Button
+						variant="ghost"
+						type="button"
+						class="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-60"
+						onclick={(e: MouseEvent) => toggleFolderBranch(node, e)}
+						aria-label={expanded ? 'Collapse folder' : 'Expand folder'}
+						aria-expanded={expanded}
+					>
+						<iconify-icon
+							icon="mdi:chevron-right"
+							width="16"
+							class="transition-transform duration-200 {expanded ? 'rotate-90' : ''}"
+							aria-hidden="true"
+						></iconify-icon>
+					</Button>
 			{:else}
 				<span class="w-5 shrink-0" aria-hidden="true"></span>
 			{/if}
 
-			<button
-				type="button"
-				class="flex min-w-0 flex-1 items-center gap-1.5 rounded-none py-0 text-start
-					{selected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-300 dark:text-surface-300'}"
-				onclick={() => handleFolderClick(node)}
-				aria-selected={selected}
-				role="treeitem"
-			>
-				<iconify-icon icon="mdi:folder-outline" width="18" class="shrink-0 text-surface-400" aria-hidden="true"></iconify-icon>
-				<span class="truncate">{node.name}</span>
-			</button>
+			<Button
+					variant="ghost"
+					type="button"
+					class="flex min-w-0 flex-1 items-center gap-1.5 rounded-none py-0 text-start
+						{selected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-300 dark:text-surface-300'}"
+					onclick={() => handleFolderClick(node)}
+					aria-selected={selected}
+					role="treeitem"
+				>
+					<iconify-icon icon="mdi:folder-outline" width="18" class="shrink-0 text-surface-400" aria-hidden="true"></iconify-icon>
+					<span class="truncate">{node.name}</span>
+				</Button>
 
 			{#if node.actions?.length}
 				<div class="flex shrink-0 items-center opacity-0 transition-opacity group-hover/folder:opacity-100">
 					{#each node.actions as action (action.label)}
-						<button
-							type="button"
-							class="flex h-6 w-6 items-center justify-center rounded {action.colorClass ?? ''}"
-							onclick={(e) => action.onClick(node, e)}
-							aria-label={action.label}
-							title={action.label}
-						>
-							<iconify-icon icon={action.icon} width="14"></iconify-icon>
-						</button>
+						<Button
+								variant="ghost"
+								type="button"
+								class="flex h-6 w-6 items-center justify-center rounded {action.colorClass ?? ''}"
+								onclick={(e: MouseEvent) => action.onClick(node, e)}
+								aria-label={action.label}
+								title={action.label}
+							>
+								<iconify-icon icon={action.icon} width="14"></iconify-icon>
+							</Button>
 					{/each}
 				</div>
 			{/if}
@@ -365,13 +369,12 @@
 	<!-- Search Header -->
 	<div class="flex items-center gap-1">
 		<div class="relative w-full min-w-0">
-			<input aria-label="Search folders"
-				type="text"
-				bind:value={search}
-				size="1"
-				placeholder="Search folders..."
-				class="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
-			/>
+			<Input aria-label="Search folders"
+					type="text"
+					bind:value={search}
+					placeholder="Search folders..."
+					inputClass="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
+				/>
 			{#if isSidebarFull && search}
 				<div class="absolute inset-e-0 top-0 flex h-full items-center">
 					<Button
@@ -441,15 +444,16 @@
 				{@const rootSelected = activeFolderId === 'root'}
 				<div class="flex flex-col" role="tree" aria-label="Media folder tree">
 					<div class="group/root relative flex flex-col">
-						<button
-							type="button"
-							class="flex w-full items-center gap-1.5 rounded-none py-1 text-start text-[15px] font-medium leading-none transition-colors
-								{rootSelected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-200 dark:text-surface-200'}"
-							onclick={handleRootClick}
-							aria-expanded={rootHasChildren ? rootExpanded : undefined}
-							aria-selected={rootSelected}
-							role="treeitem"
-						>
+						<Button
+								variant="ghost"
+								type="button"
+								class="flex w-full items-center gap-1.5 rounded-none py-1 text-start text-[15px] font-medium leading-none transition-colors
+									{rootSelected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-200 dark:text-surface-200'}"
+								onclick={handleRootClick}
+								aria-expanded={rootHasChildren ? rootExpanded : undefined}
+								aria-selected={rootSelected}
+								role="treeitem"
+							>
 							{#if rootHasChildren}
 								<iconify-icon
 									icon="mdi:chevron-right"
@@ -460,9 +464,9 @@
 							{/if}
 							<iconify-icon icon="mdi:home-outline" width="18" class="shrink-0" aria-hidden="true"></iconify-icon>
 							<span class="truncate">{rootNode.name}</span>
-						</button>
+							</Button>
 
-						{#if rootHasChildren && rootExpanded}
+							{#if rootHasChildren && rootExpanded}
 							<div class="relative">
 								<div
 									class="pointer-events-none absolute bottom-0 inset-s-5.5 top-0 w-px bg-surface-600/50 dark:bg-white/10"

@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-06-27"
+updated: "2026-07-06"
 tags:
   - "evaluation"
   - "technical"
@@ -760,6 +760,8 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **API Benchmarking Suite**: Native tests (`test:bench:rest`, `test:bench:graphql`) to prove performance superiority.
 - **Advanced Security Isolation**: Implementation of COOP/COEP headers and refined multi-tenant cookie security for cross-origin isolation.
 - **High-Performance GraphQL**: Resolver memoization and JIT execution reducing API latency and redundant database hits.
+
+- **Tenant Management Admin Dashboard (July 2026)**: Full-featured tenant administration UI at `/admin/tenants` with create/suspend/activate operations, real-time quota visualization (users, storage, collections), and plan-level resource enforcement. Gated behind system-admin `isAdmin && !tenantId` guard. Backed by the database-agnostic `ISystemAdapter.tenants` interface with dedicated MongoDB implementation (`MongoTenantMethods`) and shared SQL implementation (`RelationalSystemModule`) across PostgreSQL, MariaDB, and SQLite. Integrated into the sidebar navigation for instant access.
 
 - **CLI Maintenance Suite**: Native `cache:clear` utilities for system-wide and tenant-specific operations.
 - **5-Pillar Content Architecture**: Consolidation of 19 fragmented files into 5 high-performance pillars, reducing content system module overhead by **74%**.

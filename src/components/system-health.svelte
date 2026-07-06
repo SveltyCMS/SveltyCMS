@@ -18,8 +18,10 @@ Displays real-time system state and individual service health with comprehensive
 -->
 
 <script lang="ts">
+	import AdminCard from '@components/admin-card.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import { systemState } from '@src/stores/system/state.svelte.ts';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
 	import { formatDisplayDate } from '@utils/date';
@@ -336,7 +338,7 @@ Displays real-time system state and individual service health with comprehensive
 	});
 </script>
 
-<div class="card space-y-4 p-4" role="region" aria-label="System health monitoring">
+<AdminCard class="space-y-4 p-4" role="region" aria-label="System health monitoring">
 	<!-- Header -->
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex items-center gap-3">
@@ -363,10 +365,7 @@ Displays real-time system state and individual service health with comprehensive
 		</div>
 
 		<div class="flex flex-wrap items-center gap-2">
-			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" class="checkbox" bind:checked={autoRefresh} aria-label="Enable auto-refresh" />
-				Auto-refresh
-			</label>
+			<Checkbox checked={autoRefresh} onchange={(checked: boolean) => (autoRefresh = checked)} label="Auto-refresh" />
 
 			<Button variant="outline"
 				onclick={fetchHealth}
@@ -395,30 +394,30 @@ Displays real-time system state and individual service health with comprehensive
 
 	<!-- Stats Grid -->
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-		<div class="card preset-outlined-surface-500p-3">
+		<AdminCard class="preset-outlined-surface-500 p-3">
 			<p class="text-xs opacity-70">Uptime</p>
 			<p class="text-lg font-bold">{formatUptime(uptime)}</p>
-		</div>
+		</AdminCard>
 
-		<div class="card preset-outlined-surface-500p-3">
+		<AdminCard class="preset-outlined-surface-500 p-3">
 			<p class="text-xs opacity-70">Last Checked</p>
 			<p class="text-sm font-bold">{formattedLastChecked}</p>
-		</div>
+		</AdminCard>
 
-		<div class="card preset-outlined-surface-500p-3">
+		<AdminCard class="preset-outlined-surface-500 p-3">
 			<p class="text-xs opacity-70">Services</p>
 			<p class="text-lg font-bold">
 				{serviceCount}
 				<span class="text-xs opacity-70"> ({healthyServices}/{serviceCount}) </span>
 			</p>
-		</div>
+		</AdminCard>
 
-		<div class="card preset-outlined-surface-500p-3">
+		<AdminCard class="preset-outlined-surface-500 p-3">
 			<p class="text-xs opacity-70">Health</p>
 			<p class="text-lg font-bold {healthPercentage >= 80 ? 'text-tertiary-500 dark:text-primary-500' : healthPercentage >= 50 ? 'text-warning-500' : 'text-error-500'}">
 				{healthPercentage}%
 			</p>
-		</div>
+		</AdminCard>
 	</div>
 
 	<!-- Health Progress Bar -->
@@ -452,14 +451,14 @@ Displays real-time system state and individual service health with comprehensive
 		</div>
 
 		{#if serviceCount === 0}
-			<div class="card preset-outlined-surface-500p-6 text-center">
+			<AdminCard class="preset-outlined-surface-500 p-6 text-center">
 				<p class="text-sm opacity-70">No services registered</p>
-			</div>
+			</AdminCard>
 		{:else}
 			<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
 				{#each serviceEntries as [name, service] (name)}
-					<div
-						class="card flex items-start gap-3 p-3 transition-shadow duration-200 hover:shadow-lg"
+					<AdminCard
+						class="flex items-start gap-3 p-3 transition-shadow duration-200 hover:shadow-lg"
 						role="article"
 						aria-label={`${formatServiceName(name)} service status`}
 					>
@@ -485,14 +484,14 @@ Displays real-time system state and individual service health with comprehensive
 								</p>
 							{/if}
 						</div>
-					</div>
+					</AdminCard>
 				{/each}
 			</div>
 		{/if}
 	</div>
 
 	<!-- API Health Endpoint Info -->
-	<div class="card preset-outlined-surface-500p-3">
+	<AdminCard class="preset-outlined-surface-500 p-3">
 		<details class="space-y-2">
 			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100">API Health Endpoint</summary>
 			<div class="space-y-2 text-xs opacity-70">
@@ -522,5 +521,5 @@ Displays real-time system state and individual service health with comprehensive
 				</div>
 			</div>
 		</details>
-	</div>
-</div>
+	</AdminCard>
+</AdminCard>

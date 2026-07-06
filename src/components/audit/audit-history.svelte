@@ -13,6 +13,7 @@
 <script lang="ts">
 	import { queryAuditLogs, verifyAuditChain } from '@src/routes/(app)/audit-history.remote';
 	import { collectionValue } from '@src/stores/collection-store.svelte';
+	import Button from '@components/ui/button.svelte';
 
 	interface AuditLogEntry {
 		_id?: string;
@@ -131,8 +132,8 @@
 		<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-300">
 			Audit History
 		</h3>
-		<button
-			type="button"
+		<Button
+			variant="ghost"
 			onclick={handleVerifyChain}
 			disabled={isVerifying}
 			class="rounded px-2 py-1 text-xs font-medium transition-colors {isVerifying
@@ -146,7 +147,7 @@
 			{:else}
 				🔗 Verify Chain
 			{/if}
-		</button>
+		</Button>
 	</div>
 
 	<!-- Verification result -->

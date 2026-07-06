@@ -17,6 +17,8 @@
 	import Progress from '@components/ui/progress.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
+	import Select from '@components/ui/select.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import type { Schema } from '@src/content/types';
 	// Utils
 	import { getCollections } from '@utils/api';
@@ -436,11 +438,7 @@
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
-					<label for="export-format" class="mb-2 block text-sm font-medium">Export Format</label>
-					<select id="export-format" class="select" bind:value={exportOptions.format}>
-						<option value="json">JSON</option>
-						<option value="csv">CSV</option>
-					</select>
+					<Select id="export-format" bind:value={exportOptions.format} label="Export Format" options={[{value: 'json', label: 'JSON'}, {value: 'csv', label: 'CSV'}]} />
 				</div>
 
 				<div>
@@ -454,9 +452,8 @@
 
 					<div class="max-h-48 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
 						{#each collections as collection (collection.id)}
-							{const inputId = `export-collection-${collection.id}`}
-							<label for={inputId} class="flex cursor-pointer items-center gap-3 py-2">
-								<input id={inputId} type="checkbox" checked={exportOptions.collections.includes(String(collection.id))} onchange={() => toggleCollectionSelection(String(collection.id))} class="rounded" />
+							<label class="flex cursor-pointer items-center gap-3 py-2">
+								<Checkbox checked={exportOptions.collections.includes(String(collection.id))} onchange={() => toggleCollectionSelection(String(collection.id))} />
 
 								<div class="font-medium">
 									{collection.label}
@@ -514,11 +511,7 @@
 				</div>
 
 				<div>
-					<label for="import-format" class="mb-2 block text-sm font-medium">Data Format</label>
-					<select id="import-format" class="select" bind:value={importOptions.format}>
-						<option value="json">JSON</option>
-						<option value="csv">CSV</option>
-					</select>
+					<Select id="import-format" bind:value={importOptions.format} label="Data Format" options={[{value: 'json', label: 'JSON'}, {value: 'csv', label: 'CSV'}]} />
 				</div>
 
 				<div class="space-y-4">

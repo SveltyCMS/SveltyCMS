@@ -95,6 +95,7 @@ bulk actions, and predictive preloading.
 	// Svelte-dnd-action
 	// @ts-ignore - IDE module resolution issue
 	import { dndzone } from 'svelte-dnd-action';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import { browser } from '$app/environment';
 	import { ROW_HEIGHT, VIRTUAL_BUFFER } from '@utils/table-constants';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -970,11 +971,7 @@ bulk actions, and predictive preloading.
 			<!-- Select All Columns -->
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
-					<label class="flex items-center">
-						<input type="checkbox" bind:checked={selectAllColumns.value} class="me-1" aria-label="select-all-columns" />
-
-						{entrylist_all()}
-					</label>
+					<Checkbox bind:checked={selectAllColumns.value} label={entrylist_all()} />
 
 					<Button variant="outline" onclick={resetViewSettings} aria-label="reset-view" class="bg-surface-400 text-white">
 						<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
@@ -1012,7 +1009,7 @@ bulk actions, and predictive preloading.
 				<!-- Table Header -->
 				<thead class="sticky top-0 z-10 bg-secondary-100 text-tertiary-500 dark:bg-surface-900 dark:text-primary-500">
 					{#if filterShow && visibleTableHeaders.length > 0}
-						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
+						<tr class="dark:divide-surface-600">
 							<th>
 								<!-- Clear All Filters Button -->
 								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
@@ -1057,7 +1054,7 @@ bulk actions, and predictive preloading.
 						</tr>
 					{/if}
 
-					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+					<tr class="border-b border-black dark:border-white">
 						<TableIcons
 							cellClass={`w-10 ${hasSelections ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 							checked={SelectAll.value}
@@ -1075,21 +1072,21 @@ bulk actions, and predictive preloading.
 										: 'descending'
 									: 'none'}
 							>
-								<button
-									type="button"
+								<Button
+									variant="ghost"
 									class="flex w-full items-center justify-center font-bold uppercase focus:outline-none {(header as TableHeader).name ===
 									entryListPaginationSettings.sorting.sortedBy
 										? 'text-tertiary-500 dark:text-primary-500'
 										: 'text-tertiary-500 dark:text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
-																		aria-label="sort-column"
-																	>
+																			aria-label="sort-column"
+																		>
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
 										{const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
 										<iconify-icon icon={sortIcon} width="16" class="ms-1 origin-center"></iconify-icon>
 									{/if}
-								</button>
+								</Button>
 							</th>
 						{/each}
 					</tr>
@@ -1102,7 +1099,7 @@ bulk actions, and predictive preloading.
 						{#each visibleRows as entry, idx (entry._id)}
 							{@const realIndex = useRowVirtualization ? virtualStartIndex + idx : idx}
 							<tr
-								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[realIndex] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
+															class="{selectedMap[realIndex] ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
 								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}

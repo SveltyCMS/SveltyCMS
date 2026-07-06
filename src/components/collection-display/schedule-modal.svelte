@@ -21,6 +21,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 	// Force recompile
 	// ParaglideJS
 	import {
@@ -91,13 +92,13 @@
 	}
 
 	// --- Base Classes ---
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
+	const cBase = 'p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if modalState.active}
-	<div class="modal-schedule {cBase}" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
+	<AdminCard class="modal-schedule {cBase}" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
 		<header id="schedule-modal-title" class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}>Schedule Entry</header>
 		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
 
@@ -129,5 +130,5 @@
 								{entrylist_multibutton_schedule()}
 							</Button>
 		</footer>
-	</div>
+	</AdminCard>
 {/if}

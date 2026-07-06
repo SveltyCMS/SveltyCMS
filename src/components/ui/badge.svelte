@@ -3,9 +3,9 @@
 @component
 **SveltyCMS Badge — WCAG 3.0 Ready**
 
-Compact label for status indicators, counts, and metadata. Supports legacy variant
-mapping for backward compatibility, filled/tonal/outlined presets, and progressive
-corner-shape angled corners.
+Polymorphic badge/link component for status indicators, counts, and metadata.
+Supports legacy variant mapping for backward compatibility, filled/tonal/outlined
+presets, and progressive corner-shape angled corners.
 
 ### Props
 - `variant` ('primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface' | 'outline'): Legacy variant with auto preset/color mapping.
@@ -14,6 +14,7 @@ corner-shape angled corners.
 - `size` ('sm' | 'md' | 'lg'): Size variant (default: 'md').
 - `rounded` (boolean): Full rounded pill shape (default: true).
 - `shape` ('round' | 'angle'): Advanced corner-shape option (default: 'round').
+- `href` (string): Render as anchor link instead of div.
 - `class` (string): Additional CSS classes.
 - `children` (Snippet): Badge content.
 -->
@@ -21,18 +22,21 @@ corner-shape angled corners.
 <script lang="ts">
   import { cn } from '@utils/cn';
   import type { Snippet } from 'svelte';
-  import type { HTMLAttributes } from 'svelte/elements';
+  import type { HTMLAttributes, HTMLAnchorAttributes } from 'svelte/elements';
 
-  type Props = HTMLAttributes<HTMLDivElement> & {
+  type BaseProps = {
     variant?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface' | 'outline';
     preset?: 'filled' | 'tonal' | 'outlined';
     color?: string;
     size?: 'sm' | 'md' | 'lg';
     rounded?: boolean;
     shape?: 'round' | 'angle';
+    href?: string;
     children?: Snippet;
     class?: string;
   };
+
+  type Props = BaseProps & (HTMLAttributes<HTMLDivElement> & HTMLAnchorAttributes);
 
   let {
     variant = 'primary',
@@ -42,6 +46,7 @@ corner-shape angled corners.
     rounded = true,
     shape = 'round',
     children,
+    href,
     class: className,
     ...rest
   }: Props = $props();
@@ -116,7 +121,13 @@ corner-shape angled corners.
   ));
 </script>
 
-<div class={classes} style={customStyles} {...rest}>
-  {@render children?.()}
-</div>
+{#if href}
+  <a {href} class={classes} style={customStyles} aria-label={rest['aria-label'] || 'Badge link'} {...rest}>
+      {@render children?.()}
+    </a>
+{:else}
+  <div class={classes} style={customStyles} {...rest}>
+    {@render children?.()}
+  </div>
+{/if}
 
