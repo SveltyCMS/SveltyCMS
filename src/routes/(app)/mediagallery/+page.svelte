@@ -581,31 +581,33 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					<span class="hidden sm:inline">{searchCriteria ? 'Filtered' : 'Filter'}</span>
 				</Button>
 
-				<div class="flex h-10 items-center gap-0.5" role="group" aria-label="View mode">
-					<Button
-						variant="ghost"
-						size="sm"
+				<div
+					class="flex h-10 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-600"
+					role="group"
+					aria-label="View mode"
+				>
+					<button
+						type="button"
 						onclick={() => (view = 'grid')}
-						class="h-10 w-10 min-w-0 p-0! {view === 'grid'
-							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
-							: 'text-surface-500 dark:text-surface-400'}"
+						class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid'
+							? 'bg-primary-500 text-white'
+							: 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
 						aria-label="Grid view"
 						aria-pressed={view === 'grid'}
 					>
 						<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
+					</button>
+					<button
+						type="button"
 						onclick={() => (view = 'table')}
-						class="h-10 w-10 min-w-0 p-0! {view === 'table'
-							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
-							: 'text-surface-500 dark:text-surface-400'}"
+						class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table'
+							? 'bg-primary-500 text-white'
+							: 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
 						aria-label="Table view"
 						aria-pressed={view === 'table'}
 					>
 						<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-					</Button>
+					</button>
 				</div>
 
 				{#if view === 'grid'}
