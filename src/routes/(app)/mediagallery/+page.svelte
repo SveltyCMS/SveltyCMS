@@ -8,6 +8,7 @@ Features:
 
 <script lang="ts">
 import { onMount } from "svelte";
+import { slide } from "svelte/transition";
 import { invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
 import type { PageData } from "./$types";
@@ -53,6 +54,7 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	let sortBy = $state("newest");
+	let mobileFiltersExpanded = $state(false);
 
 const sortOptions = [
 	{ value: "newest", label: "Newest first" },
@@ -534,10 +536,10 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 
 		<!-- Toolbar -->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
-			<div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-3">
 
-				<!-- Row 1: search (filter icon inside) + mobile-only view/select controls -->
-				<div class="flex min-w-0 items-center gap-2 sm:flex-1">
+			<!-- Mobile toolbar: search + expand button, then collapsible filters -->
+			<div class="flex flex-col gap-1.5 py-2 sm:hidden">
+				<div class="flex items-center gap-2">
 					<div class="relative min-w-0 flex-1">
 						<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
 						<Input
@@ -557,109 +559,128 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
 						</button>
 					</div>
-
-					<!-- Mobile-only: view toggle + select alongside search -->
-					<div class="flex shrink-0 items-center gap-1.5 sm:hidden">
-						<div class="flex h-10 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
-							<button
-								type="button"
-								onclick={() => (view = 'grid')}
-								class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-								aria-label="Grid view"
-								aria-pressed={view === 'grid'}
-							>
-								<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
-							</button>
-							<button
-								type="button"
-								onclick={() => (view = 'table')}
-								class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-								aria-label="Table view"
-								aria-pressed={view === 'table'}
-							>
-								<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-							</button>
-						</div>
-						{#if view === 'grid'}
-							<button
-								type="button"
-								onclick={() => (isSelectionMode = !isSelectionMode)}
-								aria-label="Toggle selection mode"
-								aria-pressed={isSelectionMode}
-								class="flex h-10 items-center justify-center rounded-lg border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
-							>
-								{isSelectionMode ? 'Done' : 'Select'}
-							</button>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Row 2 (mobile) / inline (desktop): type + sort with icon + desktop view/select -->
-				<div class="flex items-center gap-2 sm:shrink-0">
-					{#if view === 'grid'}
-						<label for="media-type-filter" class="sr-only">Filter by media type</label>
-						<Select
-							id="media-type-filter"
-							bind:value={selectedMediaType}
-							options={mediaTypeOptions}
-							placeholder="Type"
-							class="flex-1 sm:w-28 sm:flex-none"
-						/>
-					{/if}
-
-					<div class="relative flex-1 sm:flex-none">
+					<button
+						type="button"
+						onclick={() => (mobileFiltersExpanded = !mobileFiltersExpanded)}
+						aria-label={mobileFiltersExpanded ? 'Hide filters' : 'Show filters'}
+						aria-expanded={mobileFiltersExpanded}
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-300 text-surface-500 transition-colors hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700"
+					>
 						<iconify-icon
-							icon="mdi:sort"
-							class="pointer-events-none absolute inset-s-2.5 top-1/2 z-10 -translate-y-1/2 text-surface-400 dark:text-surface-500"
-							width="15"
+							icon="mdi:chevron-down"
+							width="18"
+							class="transition-transform duration-200 {mobileFiltersExpanded ? 'rotate-180' : ''}"
 						></iconify-icon>
-						<label for="sort-by-filter" class="sr-only">Sort by</label>
-						<Select
-							id="sort-by-filter"
-							bind:value={sortBy}
-							options={sortOptions}
-							placeholder="Sort"
-							class="w-full ps-7 sm:w-36"
-						/>
-					</div>
-
-					<!-- Desktop-only: view toggle + select -->
-					<div class="hidden items-center gap-1.5 sm:flex">
-						<div class="flex h-10 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
-							<button
-								type="button"
-								onclick={() => (view = 'grid')}
-								class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-								aria-label="Grid view"
-								aria-pressed={view === 'grid'}
-							>
-								<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
-							</button>
-							<button
-								type="button"
-								onclick={() => (view = 'table')}
-								class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
-								aria-label="Table view"
-								aria-pressed={view === 'table'}
-							>
-								<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-							</button>
-						</div>
-						{#if view === 'grid'}
-							<button
-								type="button"
-								onclick={() => (isSelectionMode = !isSelectionMode)}
-								aria-label="Toggle selection mode"
-								aria-pressed={isSelectionMode}
-								class="flex h-10 items-center justify-center rounded-lg border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
-							>
-								{isSelectionMode ? 'Exit Selection' : 'Select'}
-							</button>
-						{/if}
-					</div>
+					</button>
 				</div>
 
+				{#if mobileFiltersExpanded}
+					<div transition:slide={{ duration: 200 }} class="flex flex-col gap-1.5 pb-1">
+						<div class="flex gap-2">
+							{#if view === 'grid'}
+								<label for="media-type-filter-m" class="sr-only">Filter by media type</label>
+								<Select id="media-type-filter-m" bind:value={selectedMediaType} options={mediaTypeOptions} placeholder="Type" class="flex-1" />
+							{/if}
+							<label for="sort-by-filter-m" class="sr-only">Sort by</label>
+							<Select id="sort-by-filter-m" bind:value={sortBy} options={sortOptions} placeholder="Sort" class="flex-1" />
+						</div>
+						<div class="flex items-center gap-2">
+							<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+								<button
+									type="button"
+									onclick={() => (view = 'grid')}
+									class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+									aria-label="Grid view" aria-pressed={view === 'grid'}
+								>
+									<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
+								</button>
+								<button
+									type="button"
+									onclick={() => (view = 'table')}
+									class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+									aria-label="Table view" aria-pressed={view === 'table'}
+								>
+									<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
+								</button>
+							</div>
+							{#if view === 'grid'}
+								<button
+									type="button"
+									onclick={() => (isSelectionMode = !isSelectionMode)}
+									aria-label="Toggle selection mode"
+									aria-pressed={isSelectionMode}
+									class="flex h-10 items-center justify-center rounded border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
+								>
+									{isSelectionMode ? 'Done' : 'Select'}
+								</button>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
+
+			<!-- Desktop toolbar: single row -->
+			<div class="hidden items-center gap-2 py-2 sm:flex" >
+				<div class="relative min-w-0 flex-1">
+					<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
+					<Input
+						id="media-gallery-search"
+						bind:value={globalSearchValue}
+						type="search"
+						placeholder="Search media... (Mod+F)"
+						class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
+						aria-label="Search media assets"
+					/>
+					<button
+						type="button"
+						onclick={() => (showAdvancedSearch = true)}
+						aria-label="Advanced search and filters"
+						class="absolute inset-e-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded transition-colors {searchCriteria ? 'text-primary-500' : 'text-surface-400 hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300'}"
+					>
+						<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
+					</button>
+				</div>
+
+				{#if view === 'grid'}
+					<label for="media-type-filter" class="sr-only">Filter by media type</label>
+					<Select id="media-type-filter" bind:value={selectedMediaType} options={mediaTypeOptions} placeholder="Type" class="w-28" />
+				{/if}
+
+				<label for="sort-by-filter" class="sr-only">Sort by</label>
+				<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="Sort" class="w-36" />
+
+				<div class="flex h-10 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+					<button
+						type="button"
+						onclick={() => (view = 'grid')}
+						class="flex h-10 w-10 items-center justify-center transition-colors {view === 'grid' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+						aria-label="Grid view" aria-pressed={view === 'grid'}
+					>
+						<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
+					</button>
+					<button
+						type="button"
+						onclick={() => (view = 'table')}
+						class="flex h-10 w-10 items-center justify-center border-l border-surface-300 transition-colors dark:border-surface-600 {view === 'table' ? 'bg-primary-500 text-white' : 'text-surface-500 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-700'}"
+						aria-label="Table view" aria-pressed={view === 'table'}
+					>
+						<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
+					</button>
+				</div>
+
+				{#if view === 'grid'}
+					<button
+						type="button"
+						onclick={() => (isSelectionMode = !isSelectionMode)}
+						aria-label="Toggle selection mode"
+						aria-pressed={isSelectionMode}
+						class="flex h-10 items-center justify-center rounded border px-3 text-sm transition-colors {isSelectionMode ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'border-surface-300 text-surface-500 hover:bg-surface-100 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-700'}"
+					>
+						{isSelectionMode ? 'Exit Selection' : 'Select'}
+					</button>
+				{/if}
+			</div>
+
 		</div>
 
 		<!-- Content -->
