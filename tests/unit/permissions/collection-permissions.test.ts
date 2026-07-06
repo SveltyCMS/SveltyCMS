@@ -47,7 +47,8 @@ function validateSortField(field: string): string {
 }
 
 function validateSortDir(dir: string): string {
-  return dir === "asc" ? "asc" : "desc";
+  const valid = sortDirections.map((d) => d.value);
+  return valid.includes(dir) ? dir : "desc";
 }
 
 function validateStatus(s: string): string {
