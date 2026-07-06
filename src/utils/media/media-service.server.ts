@@ -192,6 +192,7 @@ export class MediaService {
   ): Promise<DatabaseResult<MediaItem>> {
     try {
       validateMime(file.type, file.name);
+      const folderId = _basePath && _basePath !== "global" ? _basePath : undefined;
       const { hashFileContent } = await import("./media-processing.server");
 
       // For large files, we use the stream to avoid OOM
@@ -236,11 +237,12 @@ export class MediaService {
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
           const record = existing.data as any;
-          if (record.path !== relPath) {
-            await this.db.crud.update("media_items", record._id, {
-              path: relPath,
-            } as any);
-            record.path = relPath;
+          const patch: Record<string, unknown> = {};
+          if (record.path !== relPath) patch.path = relPath;
+          if (folderId !== record.folderId) patch.folderId = folderId;
+          if (Object.keys(patch).length > 0) {
+            await this.db.crud.update("media_items", record._id, patch as any);
+            Object.assign(record, patch);
           }
           return {
             success: true,
@@ -260,6 +262,7 @@ export class MediaService {
             metadata: imageMetadata,
             thumbnails: imageThumbnails,
             access: _access,
+            folderId,
             tenantId: tenantId ?? undefined,
           } as any,
           tenantId ?? undefined,
@@ -301,11 +304,12 @@ export class MediaService {
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
           const record = existing.data as any;
-          if (record.path !== relPath) {
-            await this.db.crud.update("media_items", record._id, {
-              path: relPath,
-            } as any);
-            record.path = relPath;
+          const patch: Record<string, unknown> = {};
+          if (record.path !== relPath) patch.path = relPath;
+          if (folderId !== record.folderId) patch.folderId = folderId;
+          if (Object.keys(patch).length > 0) {
+            await this.db.crud.update("media_items", record._id, patch as any);
+            Object.assign(record, patch);
           }
           return {
             success: true,
@@ -326,6 +330,7 @@ export class MediaService {
             metadata: {},
             thumbnails: {},
             access: _access,
+            folderId,
             tenantId: tenantId ?? undefined,
           } as any,
           tenantId ?? undefined,

@@ -156,7 +156,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
           const publicUrl = resolveMediaPublicPath(mediaItem);
 
           // Use DB-stored thumbnails directly (already has correct URLs from upload)
-          const thumbnails = (mediaItem.thumbnails ?? {}) as Record<string, { url: string; width?: number; height?: number; size?: number }>;
+          const thumbnails = (mediaItem.thumbnails ?? {}) as Record<
+            string,
+            { url: string; width?: number; height?: number; size?: number }
+          >;
           const thumbnailEntry = thumbnails.thumbnail ?? thumbnails.sm ?? null;
 
           return {
@@ -167,8 +170,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             url: publicUrl,
             thumbnail: thumbnailEntry ? { url: thumbnailEntry.url } : { url: publicUrl },
             thumbnails,
-            width: (mediaItem as any).width ?? (mediaItem.metadata as any)?.width ?? (mediaItem.metadata as any)?.advancedMetadata?.width,
-            height: (mediaItem as any).height ?? (mediaItem.metadata as any)?.height ?? (mediaItem.metadata as any)?.advancedMetadata?.height,
+            width:
+              (mediaItem as any).width ??
+              (mediaItem.metadata as any)?.width ??
+              (mediaItem.metadata as any)?.advancedMetadata?.width,
+            height:
+              (mediaItem as any).height ??
+              (mediaItem.metadata as any)?.height ??
+              (mediaItem.metadata as any)?.advancedMetadata?.height,
           };
         } catch (err) {
           logger.error("Error processing media item", {
@@ -251,6 +260,7 @@ export const actions: Actions = {
               user._id as any,
               access,
               (locals.tenantId as DatabaseId | null) ?? null,
+              folder,
             );
             if (!result.success) {
               throw new Error(result.message || "Failed to save media file");
@@ -456,6 +466,7 @@ export const actions: Actions = {
               user._id as any,
               access,
               (locals.tenantId as DatabaseId | null) ?? null,
+              folder,
             );
             logger.info(`Remote file uploaded successfully to ${folder}: ${file.name}`);
           } catch (fileError) {
