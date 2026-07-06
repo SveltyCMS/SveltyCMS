@@ -432,20 +432,10 @@ afterNavigate(() => {
 
 			<div class="flex flex-1 overflow-hidden">
 				{#if ui.state.leftSidebar !== 'hidden'}
-					{#if screen.isMobile}
-						<div
-							class="fixed inset-0 z-30 bg-surface-900/50"
-							role="presentation"
-							aria-hidden="true"
-							onclick={() => (ui.state.leftSidebar = 'hidden')}
-						></div>
-					{/if}
 					<aside
-						class="max-h-dvh transition-[width] duration-300 ease-in-out {screen.isMobile
-							? 'fixed inset-y-0 start-0 z-40'
-							: 'relative'} {ui.state.leftSidebar === 'full'
+						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
 							? ''
-							: 'w-fit'} border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
+							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
