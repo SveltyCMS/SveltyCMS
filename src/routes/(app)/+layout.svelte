@@ -148,6 +148,14 @@ $effect(() => {
 	theme.customCss = dbAdminConfig?.customCss;
 });
 
+// Auto-hide sidebar on mobile — fires when screen size crosses the mobile breakpoint.
+// untrack prevents this from re-running when the user manually opens the sidebar on mobile.
+$effect(() => {
+	if (screen.isMobile) {
+		untrack(() => { ui.state.leftSidebar = 'hidden'; });
+	}
+});
+
 // ── Layout state: tenant defaults, then per-user overrides ──
 let layoutStateRestored = false;
 let lastAppliedUserLayout = "";
