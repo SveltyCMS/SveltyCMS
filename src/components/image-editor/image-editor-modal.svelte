@@ -272,7 +272,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
         {/if}
 
         {#if isMobileEditor}
-            <div class="flex shrink-0 flex-col gap-1.5 px-4 pt-[calc(env(safe-area-inset-top,0px)+2.5)] pb-1.5 bg-[--editor-chrome-bg]">
+            <div class="flex shrink-0 flex-col gap-1.5 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-1.5 bg-[--editor-chrome-bg]">
                 <EditorMobileToolbar onclose={handleCancelClick} onsave={handleSaveClick} {isSaving} />
                 <EditorMobileQuickActions />
             </div>
