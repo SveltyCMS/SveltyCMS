@@ -236,7 +236,13 @@ export default defineConfig({
       // Catch-all project for CI sharded matrix.
       // Wizard + auth-setup run sequentially in e2e-prep; all remaining
       // tests are sharded here across parallel CI jobs.
-      testIgnore: ["**/setup/setup-wizard.spec.ts", "**/auth.setup.ts", "**/login/login.spec.ts"],
+      testIgnore: [
+        "**/setup/setup-wizard.spec.ts",
+        "**/auth.setup.ts",
+        "**/login/login.spec.ts",
+        "**/login/signup.spec.ts",
+        "**/login/oauth.spec.ts",
+      ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },

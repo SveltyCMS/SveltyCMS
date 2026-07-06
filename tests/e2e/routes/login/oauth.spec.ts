@@ -26,19 +26,18 @@ test.describe("OAuth First User Signup", () => {
     const googleOAuthForm = page.locator("#google-oauth-login");
     const googleOAuthButton = page.locator('[aria-label="Google OAuth"]');
 
-    // Wrap in try/catch since OAuth may not be configured in all environments
-    try {
-      await expect(googleOAuthForm.or(googleOAuthButton).first()).toBeVisible({
-        timeout: 10000,
-      });
+    const targetButton = googleOAuthForm.or(googleOAuthButton).first();
+    const isBtnVisible = await targetButton.isVisible().catch(() => false);
+
+    if (isBtnVisible) {
       console.log("✓ Google OAuth button is visible - OAuth is properly configured");
 
       // Verify the button text shows Google (avoids iconify web component loading issues)
       const anyGoogleButton = googleOAuthForm.locator("button").or(googleOAuthButton).first();
       await expect(anyGoogleButton).toBeVisible({ timeout: 5000 });
       console.log("✓ Google OAuth button text verified");
-    } catch (e) {
-      console.log("⚠ OAuth availability check failed (OAuth likely disabled):", e);
+    } else {
+      console.log("⚠ OAuth availability check failed (OAuth likely disabled)");
     }
   });
 

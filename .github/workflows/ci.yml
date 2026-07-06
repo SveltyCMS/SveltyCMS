@@ -249,6 +249,92 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
+  # 9. Core Benchmarks (fast perf gate per DB adapter)
+  # ------------------------------------------------
+  bench-core:
+    name: 📊 Bench (${{ matrix.db }})
+    needs: [build, db-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-sveltycms
+        with:
+          bun-version: "1.3.14"
+          node-version: "24"
+          restore-build: "true"
+      - uses: actions/download-artifact@v8
+        with: { name: build-output }
+
+      - name: Start Database
+        if: matrix.db != 'sqlite'
+        run: |
+          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
+          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+
+      - name: Run Core Benchmarks
+        env:
+          DB_TYPE: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port || '' }}
+          DB_NAME: ${{ matrix.db == 'sqlite' && 'benchmark_shared' || 'sveltycms_test' }}
+          DB_USER: ${{ matrix.db_user }}
+          DB_PASSWORD: ${{ matrix.db_password }}
+          ADMIN_PASSWORD: Password123!
+          TEST_MODE: "true"
+          BENCHMARK_NO_REDIS: "1"
+          BENCHMARK_RECORD: "1"
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+        run: |
+          mkdir -p tests/e2e/.auth
+          if [ -n "${TEST_API_SECRET}" ]; then
+            echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
+          else
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
+          bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }}
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-report-${{ matrix.db }}
+          path: docs/project/benchmarks/benchmark_${{ matrix.db }}.mdx
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Dump Docker Logs on Failure
+        if: failure() && matrix.db != 'sqlite'
+        run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
+
+  # ------------------------------------------------
+  bench-summary:
+    name: 📊 Bench Summary
+    needs: [bench-core]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Download all benchmark reports
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: benchmark-report-*
+          path: docs/project/benchmarks
+          merge-multiple: true
+      - name: Generate CI Summary
+        continue-on-error: true
+        run: node scripts/benchmark-matrix/generate-ci-markdown.ts
+
+  # ------------------------------------------------
   # 6. E2E Prep — auth state only (single artifact)
   # ------------------------------------------------
   e2e-prep:
@@ -256,6 +342,21 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DB_TYPE: sqlite
+      DB_HOST: 127.0.0.1
+      DB_NAME: e2e_auth_test
+      DB_USER: ""
+      DB_PASSWORD: ""
+      PASSWORD_MIN_LENGTH: 8
+      TEST_MODE: "true"
+      SKIP_TEST_CLEANUP: "true"
+      ADMIN_PASSWORD: Password123!
+      JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
+      ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+      TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+      HOST: 127.0.0.1
+      PORT: 4173
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -282,22 +383,7 @@ jobs:
         if: steps.cache-playwright.outputs.cache-hit == 'true'
         run: bun x playwright install-deps chromium
 
-      - name: Run Auth Setup (state only — no tests)
-        env:
-          DB_TYPE: sqlite
-          DB_HOST: 127.0.0.1
-          DB_NAME: e2e_auth_test
-          DB_USER: ""
-          DB_PASSWORD: ""
-          PASSWORD_MIN_LENGTH: 8
-          TEST_MODE: "true"
-          SKIP_TEST_CLEANUP: "true"
-          ADMIN_PASSWORD: Password123!
-          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
-          ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
-          HOST: 127.0.0.1
-          PORT: 4173
+      - name: Initialize and Start Preview Server
         run: |
           mkdir -p config config/database tests/e2e/.auth logs mediaFolder
 
@@ -329,21 +415,23 @@ jobs:
             echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
           else
             TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+            echo "TEST_API_SECRET=${TEST_API_SECRET}" >> $GITHUB_ENV
           fi
-          export TEST_API_SECRET
 
           # Start the built server
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
-          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
+          echo "PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173" >> $GITHUB_ENV
 
-          # Run Wizard first (sets up the system)
-          bun x playwright test --project=wizard
+      - name: Run E2E Wizard Setup
+        run: bun x playwright test --project=wizard
 
-          # Then run Auth Setup to generate auth state for other E2E tests
-          bun x playwright test --project=auth-setup
+      - name: Run E2E Auth Setup
+        run: bun x playwright test --project=auth-setup
 
-          # Cleanly stop background node server to flush SQLite WAL database file
+      - name: Shutdown Preview Server
+        if: always()
+        run: |
           pkill -f "node build/index.js" || true
           sleep 2
 
@@ -493,92 +581,6 @@ jobs:
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7
-
-  # ------------------------------------------------
-  # 9. Core Benchmarks (fast perf gate per DB adapter)
-  # ------------------------------------------------
-  bench-core:
-    name: 📊 Bench (${{ matrix.db }})
-    needs: [build, db-matrix]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-sveltycms
-        with:
-          bun-version: "1.3.14"
-          node-version: "24"
-          restore-build: "true"
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
-
-      - name: Start Database
-        if: matrix.db != 'sqlite'
-        run: |
-          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
-          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
-
-      - name: Run Core Benchmarks
-        env:
-          DB_TYPE: ${{ matrix.db }}
-          DB_HOST: 127.0.0.1
-          DB_PORT: ${{ matrix.port || '' }}
-          DB_NAME: ${{ matrix.db == 'sqlite' && 'benchmark_shared' || 'sveltycms_test' }}
-          DB_USER: ${{ matrix.db_user }}
-          DB_PASSWORD: ${{ matrix.db_password }}
-          ADMIN_PASSWORD: Password123!
-          TEST_MODE: "true"
-          BENCHMARK_NO_REDIS: "1"
-          BENCHMARK_RECORD: "1"
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
-        run: |
-          mkdir -p tests/e2e/.auth
-          if [ -n "${TEST_API_SECRET}" ]; then
-            echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
-          else
-            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          fi
-          export TEST_API_SECRET
-          bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }}
-
-      - name: Upload benchmark report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-report-${{ matrix.db }}
-          path: docs/project/benchmarks/benchmark_${{ matrix.db }}.mdx
-          if-no-files-found: ignore
-          retention-days: 1
-
-      - name: Dump Docker Logs on Failure
-        if: failure() && matrix.db != 'sqlite'
-        run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
-
-  # ------------------------------------------------
-  bench-summary:
-    name: 📊 Bench Summary
-    needs: [bench-core]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - name: Download all benchmark reports
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: benchmark-report-*
-          path: docs/project/benchmarks
-          merge-multiple: true
-      - name: Generate CI Summary
-        continue-on-error: true
-        run: node scripts/benchmark-matrix/generate-ci-markdown.ts
 
   # ------------------------------------------------
   # 10. All Green Gate
