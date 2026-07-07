@@ -3,7 +3,7 @@
  * @description Admin theme API helpers for E2E tests.
  */
 
-import { expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 export interface AdminThemePatch {
   density?: "compact" | "cozy" | "spacious";
