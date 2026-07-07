@@ -1,14 +1,41 @@
 /**
  * @file src/plugins/pagespeed/index.server.ts
  * @description Server-only logic for PageSpeed plugin (migrations and hooks).
+ *
+ * ### Licensing (Freemium):
+ * - Free tier: single-page analysis always available
+ * - Premium tier: bulk, scheduled, and historical tracking require a license
  */
 
+import { checkExtensionLicense } from "@src/utils/license-manager";
+import { raise } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import type { PluginContext, PluginEntryData } from "../types";
 import { getMultipleCachedResults } from "./service";
 import { migrations } from "./migrations";
 
 export { migrations };
+
+/**
+ * beforeSave hook: gates bulk/scheduled/historical analytics behind the license.
+ * Single-page analysis remains free.
+ */
+export async function beforeSave(
+  context: PluginContext,
+  collection: string,
+  data: Record<string, unknown>,
+) {
+  if (data._pagespeedBulk || data._pagespeedScheduled || data._pagespeedHistorical) {
+    const licenseStatus = await checkExtensionLicense("plugin", "pagespeed");
+    if (!licenseStatus.active && !licenseStatus.hasLicense) {
+      raise(
+        403,
+        "Bulk, scheduled, and historical PageSpeed features require a premium license. Single-page analysis remains free.",
+      );
+    }
+  }
+  return data;
+}
 
 /**
  * SSR hook for PageSpeed plugin.

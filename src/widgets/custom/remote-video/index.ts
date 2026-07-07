@@ -12,6 +12,7 @@
  * - **Server-Side APIs**: Delegates metadata fetching to a server endpoint to protect API keys.
  * - **Configurable Platforms**: `allowedPlatforms` limits video sources.
  * - **GraphQL Schema**: Defines a structured GraphQL type for video data.
+ * @license Freemium — Free tier: YouTube + Vimeo. Premium (€9.99): Twitch, TikTok, enriched metadata.
  */
 
 // Import components needed for the GuiSchema
@@ -153,8 +154,26 @@ const RemoteVideoWidget = createWidget({
     if (type === "POST" || type === "PATCH") {
       const { checkExtensionLicense } = await import("@src/utils/license-manager");
       const status = await checkExtensionLicense("widget", "remote-video");
+      const value = data.get();
+
       if (!status.active && !status.hasLicense) {
-        throw new Error("403 Forbidden: Premium License Required for Remote Video Widget");
+        // Free tier: only YouTube and Vimeo allowed
+        // Premium: Twitch and TikTok require a license
+        if (value && (value.platform === "twitch" || value.platform === "tiktok")) {
+          console.warn(
+            "[remote-video] Premium platform blocked — license required for Twitch/TikTok. Free tier (YouTube, Vimeo) remains available.",
+          );
+          throw new Error(
+            "403 Forbidden: Twitch and TikTok embedding requires a Premium license. YouTube and Vimeo remain available in the free tier. Upgrade at marketplace.sveltycms.com",
+          );
+        }
+        // Strip premium-only metadata fields but keep basic video data
+        if (value) {
+          delete value.duration;
+          delete value.channelTitle;
+          delete value.publishedAt;
+          data.update(value);
+        }
       }
     }
     return data;

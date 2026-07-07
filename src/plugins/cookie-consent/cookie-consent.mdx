@@ -1,23 +1,58 @@
 ---
 path: "src/plugins/cookie-consent/cookie-consent.mdx"
 title: "Cookie Consent Plugin"
-description: "Documentation for the Cookie Consent plugin for SveltyCMS."
+description: "GDPR-compliant cookie consent banner with granular controls, consent logging, and geo-IP filtering. Free and included with SveltyCMS."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:cookie-cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "cookie-consent"
+  - "gdpr"
+  - "free"
 ---
 
-# Cookie Consent Plugin
+# Cookie Consent Manager Plugin
 
-Documentation for the **Cookie Consent** plugin is being prepared.
+GDPR-compliant cookie consent banner with granular consent controls for analytics and marketing cookies. Includes server-side consent logging for audit trails and geo-IP filtering for jurisdiction-aware display.
 
-For implementation details, see the source code in `src/plugins/cookie-consent/`.
+> **Free Plugin** — Included with SveltyCMS. No license required.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## Features
+
+| Feature           | Description                                                       |
+| :---------------- | :---------------------------------------------------------------- |
+| Cookie banner     | Configurable GDPR-compliant consent banner                        |
+| Granular controls | Separate toggles for analytics, marketing, and functional cookies |
+| Consent logging   | Server-side persistence of consent decisions for audit trails     |
+| Geo-IP filtering  | Jurisdiction-aware display (only show in EU/EEA regions)          |
+| Headless delivery | Cross-origin consent via `allowedOrigins` for decoupled frontends |
+| Theme support     | Light, dark, and system theme modes                               |
+| Customizable      | Position, delay, privacy policy URL, and close button options     |
+
+---
+
+## Configuration
+
+| Setting             | Type    | Default           | Description                                        |
+| :------------------ | :------ | :---------------- | :------------------------------------------------- |
+| `position`          | Public  | `bottom-left`     | Banner position: `bottom`, `bottom-left`, `center` |
+| `privacyPolicyUrl`  | Public  | `/privacy-policy` | Link to your privacy policy page                   |
+| `showCloseButton`   | Public  | `false`           | Show a close/dismiss button                        |
+| `delayMs`           | Public  | `800`             | Delay before showing the banner (ms)               |
+| `theme`             | Public  | `system`          | Visual theme: `light`, `dark`, `system`            |
+| `allowedOrigins`    | Private | `[]`              | Cross-origin domains for headless frontends        |
+| `persistConsentLog` | Private | `true`            | Store consent decisions server-side                |
+| `geoIpFiltering`    | Private | `false`           | Only show banner in GDPR-relevant jurisdictions    |
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [GDPR Compliance Guide](/docs/guides/legal/gdpr-compliance.mdx)

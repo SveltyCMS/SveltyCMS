@@ -1,23 +1,93 @@
 ---
 path: "src/plugins/webmcp/webmcp.mdx"
-title: "WebMCP Plugin"
-description: "Documentation for the WebMCP plugin for SveltyCMS."
+title: "WebMCP Server Gateway Plugin"
+description: "Headless MCP server for secure AI agent interaction with the CMS. Fully paid plugin — license required, no free tier."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:robot"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "webmcp"
+  - "ai"
+  - "paid"
 ---
 
-# WebMCP Plugin
+# WebMCP Server Gateway Plugin
 
-Documentation for the **WebMCP** plugin is being prepared.
-
-For implementation details, see the source code in `src/plugins/webmcp/`.
+Exposes controlled content management and navigation capabilities to remote AI agents via the Model Context Protocol (MCP). Functions as a headless server gateway with configurable transport modes (SSE/stdio), API key authentication, and token limit enforcement.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## 💰 Licensing & Pricing
+
+**Price: €29.99** — **Fully paid plugin.** No free tier. A valid marketplace license key is required for all functionality.
+
+A **14-day trial** is available from the first admin registration timestamp — no key required during trial. After the trial expires, the plugin stops functioning entirely until a valid license key is configured.
+
+### License Verification
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+const status = await checkExtensionLicense("plugin", "webmcp");
+if (!status.active) {
+  throw new Error("403 Forbidden: Active license required for WebMCP Server Gateway");
+}
+```
+
+### All Features (License Required)
+
+| Feature                 | Description                                           |
+| :---------------------- | :---------------------------------------------------- |
+| MCP Server              | Full Model Context Protocol server implementation     |
+| SSE Transport           | Server-Sent Events for remote agent connections       |
+| stdio Transport         | Standard I/O for local agent tooling                  |
+| API Key Auth            | Secure agent authentication via configurable API keys |
+| Remote Agents           | Allow connections from external AI platforms          |
+| Token Limit Enforcement | Configurable max payload token limits (default: 4096) |
+| Content Tools           | Read, search, and navigate content collections        |
+| Media Tools             | Browse and retrieve media assets                      |
+| Draft-by-Default Airgap | All AI mutations save as draft pending human review   |
+| Tenant Isolation        | Per-tenant agent scoping                              |
+
+---
+
+## Quick Start
+
+1. **Purchase a license** at [marketplace.sveltycms.com](https://marketplace.sveltycms.com)
+2. **Configure your license key** in System Settings
+3. **Enable the plugin** in System Settings → Plugins
+4. **Set transport mode** — choose `sse` for remote or `stdio` for local
+5. **Generate an API key** for your AI agent
+6. **Connect your agent** using the MCP endpoint
+
+---
+
+## Configuration
+
+| Setting                | Type    | Required | Description                                           |
+| :--------------------- | :------ | :------- | :---------------------------------------------------- |
+| `transportMode`        | Public  | Yes      | Transport protocol: `sse` or `stdio` (default: `sse`) |
+| `allowRemoteAgents`    | Public  | No       | Enable connections from external AI platforms         |
+| `maxPayloadTokenLimit` | Public  | No       | Maximum token count per payload (default: `4096`)     |
+| `agentApiKey`          | Private | Yes      | API key for authenticating AI agent connections       |
+
+---
+
+## Security
+
+- **Draft-by-Default**: All content mutations from AI agents save as `draft` — human review required to publish
+- **API Key Authentication**: Every agent connection requires a valid API key
+- **Tenant Isolation**: Agents are scoped to their tenant context
+- **Sandbox Compliance**: MCP tools operate within plugin sandbox boundaries (100 queries, 5s timeout)
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [AI Integration](/docs/development/ai-integration.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

@@ -4,6 +4,7 @@
  */
 
 import type { Page } from "@playwright/test";
+import { TEST_API_HEADERS } from "./test-api";
 
 export interface AdminThemePatch {
   density?: "compact" | "cozy" | "spacious";
@@ -29,6 +30,7 @@ export interface AdminThemePatch {
 export async function saveAdminTheme(page: Page, settings: AdminThemePatch) {
   const res = await page.request.post("/api/theme/admin-theme", {
     data: settings,
+    headers: TEST_API_HEADERS,
   });
   if (!res.ok()) {
     console.warn(
@@ -52,7 +54,7 @@ export async function enableBrandedLogin(
 
 /** Reset admin theme to factory defaults */
 export async function resetAdminTheme(page: Page) {
-  const res = await page.request.delete("/api/theme/admin-theme");
+  const res = await page.request.delete("/api/theme/admin-theme", { headers: TEST_API_HEADERS });
   if (!res.ok()) {
     console.warn(`[Theme] resetAdminTheme failed with status ${res.status()}`);
   }

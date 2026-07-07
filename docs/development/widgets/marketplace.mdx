@@ -37,6 +37,81 @@ Marketplace widgets do not require compile-time registration or hardcoded static
 
 ---
 
+## 💰 Monetization & Licensing Models
+
+Widgets in the marketplace can be published under one of three pricing models:
+
+| Tier                  | payment | Trial  | Description                                                                |
+| :-------------------- | :------ | :----- | :------------------------------------------------------------------------- |
+| **Free**              | None    | N/A    | Available to all installations indefinitely.                               |
+| **Hybrid (Freemium)** | Paid    | 14-Day | Basic fields/inputs are free. Advanced fields require an active license.   |
+| **Fully Paid**        | Paid    | 14-Day | The entire widget is locked behind a license verification gate on install. |
+
+### The 14-Day Installation Trial
+
+All paid/freemium widgets support a key-less **14-day trial period** calculated from the creation timestamp of the first registered administrator user.
+
+- **Key-less Activation**: During these first 14 days, license checks return `active: true` even if no license key is supplied.
+- **Superadmin Demo Keys**: Superadmins can provision special license keys starting with `SLM-DEMO-`. These keys extend access by exactly 14 days from the registration timestamp.
+
+### How to Implement License Checks
+
+To enforce licensing, invoke `checkExtensionLicense("widget", "widget-id")` within the widget's lifecycle.
+
+#### 1. Server-Side Verification (`modifyRequest`)
+
+In your widget definition (`index.ts`), intercept save operations (`POST`/`PATCH`) to strip or restrict premium data if the user does not have a license:
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+const MyWidget = createWidget({
+  Name: "PremiumWidget",
+  // ...
+  modifyRequest: async ({ data, type }) => {
+    const value = data.get();
+    if (!value) return data;
+
+    if (type === "POST" || type === "PATCH") {
+      const status = await checkExtensionLicense("widget", "my-widget-id");
+
+      // If trial has expired and no valid license key is configured
+      if (!status.active) {
+        // Strip premium attributes
+        delete value.premiumField;
+        console.warn("[my-widget] Premium fields stripped due to missing license.");
+      }
+    }
+
+    data.update(value);
+    return data;
+  },
+});
+```
+
+#### 2. Client-Side Upgrade Prompts (`input.svelte`)
+
+Wrap premium configuration features or inputs in Svelte templates using the `<UpgradePrompt />` component:
+
+```svelte
+<script lang="ts">
+  import UpgradePrompt from '@components/ui/upgrade-prompt.svelte';
+
+  let { value, status } = $props();
+  // status is resolved via checkExtensionLicense
+</script>
+
+{#if status.active}
+  <!-- Render Advanced Premium Configuration -->
+  <input type="text" bind:value={value.premiumField} />
+{:else}
+  <!-- Prompt to Upgrade -->
+  <UpgradePrompt extensionId="widget:my-widget-id" price="€14.99" />
+{/if}
+```
+
+---
+
 ## Related
 
 - [Development Guides](../../README.mdx)

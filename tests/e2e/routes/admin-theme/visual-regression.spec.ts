@@ -26,6 +26,10 @@ test.use({
 });
 
 test.describe("Admin Theme Visual Regression", () => {
+  test.skip(
+    !!process.env.CI,
+    "Baselines must be generated locally first: bun x playwright test --project=visual-regression --update-snapshots",
+  );
   test.beforeEach(async ({ page }) => {
     await resetAndSeedDatabase(page);
     await prepareForScreenshot(page);

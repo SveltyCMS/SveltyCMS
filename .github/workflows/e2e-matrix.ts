@@ -50,7 +50,7 @@ const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   },
   {
     name: "Auth & Branding",
-    grep: "(branding|visual-regression|a11y|language)",
+    grep: "(branding|visual-regression|accessibility|language)",
   },
   {
     name: "Admin & Catch-All",

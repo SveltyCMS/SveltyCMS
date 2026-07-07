@@ -1,23 +1,86 @@
 ---
 path: "src/plugins/editable-website/editable-website.mdx"
-title: "Editable Website Plugin"
-description: "Documentation for the Editable Website plugin for SveltyCMS."
+title: "Editable Website & Live Preview Plugin"
+description: "Real-time bidirectional live preview with visual editing and handshake protocol. Fully paid plugin — license required."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:web"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "editable-website"
+  - "live-preview"
+  - "paid"
 ---
 
-# Editable Website Plugin
+# Editable Website & Live Preview Plugin
 
-Documentation for the **Editable Website** plugin is being prepared.
-
-For implementation details, see the source code in `src/plugins/editable-website/`.
+Real-time bidirectional live preview with visual editing capabilities. Uses dynamic origin resolution from collection schema's `previewTargetUrl`, ephemeral preview token authorization, and a `postMessage` handshake protocol.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## Licensing & Pricing
+
+**Price: €14.99** — **Fully paid plugin.** No free tier. A valid marketplace license key is required for all functionality.
+
+A **14-day trial** is available from the first admin registration timestamp — no key required during trial. After the trial expires, the Live Preview tab is blocked and returns 403 until a valid license key is configured.
+
+### License Verification
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+const status = await checkExtensionLicense("plugin", "editable-website");
+if (!status.active) {
+  throw new Error("403 Forbidden: Active license required for Editable Website & Live Preview.");
+}
+```
+
+---
+
+## Features
+
+| Feature             | Description                                                          |
+| :------------------ | :------------------------------------------------------------------- |
+| Live preview        | Real-time content preview in an iframe as you edit                   |
+| Visual editing      | Click-to-edit elements directly in the preview                       |
+| Dynamic origin      | Uses collection schema's `previewTargetUrl` — no hardcoded localhost |
+| Preview tokens      | Ephemeral signed tokens for secure draft content access              |
+| Handshake protocol  | `postMessage`-based communication between CMS and frontend           |
+| Headless compatible | Works with Next.js, Astro, and any decoupled frontend                |
+| Multi-collection    | Enable per-collection via `livePreview: true` schema flag            |
+| 14-day trial        | Full access for 14 days from first admin registration                |
+
+---
+
+## How It Works
+
+1. **Collection Schema** defines `previewTargetUrl` — the frontend URL to load in the iframe
+2. **Preview Token** is generated via `/api/preview/authorize` for temporary draft access
+3. **Handshake** — CMS sends a `postMessage` to the iframe; frontend responds to confirm readiness
+4. **Bidirectional Sync** — Content changes in the editor push to the preview; clicks in the preview highlight fields in the editor
+
+---
+
+## Configuration
+
+Set `livePreview: true` in your collection schema and provide a `previewTargetUrl`:
+
+```typescript
+{
+  name: "blog_posts",
+  livePreview: true,
+  previewTargetUrl: "https://myfrontend.com/blog/{slug}?preview=true",
+  fields: [ /* ... */ ]
+}
+```
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

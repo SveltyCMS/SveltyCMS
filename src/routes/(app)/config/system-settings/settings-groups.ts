@@ -921,6 +921,29 @@ export const settingsGroups: SettingGroup[] = [
     permissionId: "config:settings:gdpr",
     fields: [], // Custom UI handled in +page.svelte
   },
+  {
+    id: "licensing",
+    name: "License Keys",
+    icon: "mdi:key",
+    description:
+      "Activate marketplace extensions. Enter your license key from marketplace.sveltycms.com. One key covers all purchased extensions. SLM-DEMO- keys provide a 14-day trial.",
+    enabled: true,
+    requiresRestart: false,
+    adminOnly: true,
+    permissionId: "config:settings:license",
+    fields: [
+      {
+        key: "LICENSE_KEY",
+        label: "Master License Key",
+        description:
+          "Your license key from marketplace.sveltycms.com. This activates all purchased extensions.",
+        type: "text",
+        category: "private",
+        sensitive: true,
+        placeholder: "SLM-XXXX-XXXX-XXXX",
+      },
+    ],
+  },
 ];
 
 /**

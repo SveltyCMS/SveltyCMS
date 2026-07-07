@@ -7,6 +7,10 @@
  * - Configurable transport mode (SSE/stdio)
  * - Remote agent support with API key auth
  * - Token limit enforcement
+ *
+ * ### Licensing:
+ * - Fully paid (€29.99) — no free tier
+ * - All operations blocked without an active license
  */
 
 import type { Plugin } from "@src/plugins/types";
@@ -35,4 +39,16 @@ export const webmcpPlugin: Plugin = {
     },
   },
   ui: {},
+  hooks: {
+    beforeSave: async (context, _collection, data) => {
+      const { checkExtensionLicense } = await import("@src/utils/license-manager");
+      const status = await checkExtensionLicense("plugin", "webmcp");
+      if (!status.active) {
+        throw new Error(
+          "403 Forbidden: Active license required for WebMCP Server Gateway. Purchase at marketplace.sveltycms.com",
+        );
+      }
+      return data;
+    },
+  },
 };

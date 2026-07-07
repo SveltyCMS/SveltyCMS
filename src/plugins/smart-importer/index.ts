@@ -147,6 +147,24 @@ export const smartImporterPlugin: Plugin = {
     ],
   },
   migrations,
+  hooks: {
+    beforeSave: async (context, _collection, data) => {
+      // Pro-tier platforms require a license
+      if (data._importerUseProPlatform || data._importerUseProFeatures) {
+        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const status = await checkExtensionLicense("plugin", "smart-importer");
+        if (!status.active && !status.hasLicense) {
+          // Strip pro fields but allow free import to continue
+          delete data._importerUseProPlatform;
+          delete data._importerUseProFeatures;
+          console.warn(
+            "[smart-importer] Pro features stripped — license required. Free tier active.",
+          );
+        }
+      }
+      return data;
+    },
+  },
   enabledCollections: [],
 };
 

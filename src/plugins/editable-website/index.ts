@@ -7,6 +7,10 @@
  * - Dynamic origin from collection schema's previewTargetUrl
  * - Ephemeral preview token authorization
  * - Handshake protocol via postMessage
+ *
+ * ### Licensing (Fully Paid — €14.99):
+ * - Requires active marketplace license for all functionality
+ * - 14-day trial from first admin registration
  */
 
 import { slotRegistry } from "@src/plugins/slot-registry";
@@ -35,8 +39,21 @@ export const editableWebsitePlugin: Plugin = {
     description:
       "Real-time bidirectional live preview with visual editing and handshake protocol. Uses collection previewTargetUrl for dynamic origin resolution.",
     icon: "mdi:web",
-    enabled: true,
+    enabled: false,
     category: "editing",
+  },
+  hooks: {
+    beforeSave: async (context, _collection, data) => {
+      // Fully paid plugin — license wall for live preview functionality
+      const { checkExtensionLicense } = await import("@src/utils/license-manager");
+      const status = await checkExtensionLicense("plugin", "editable-website");
+      if (!status.active) {
+        throw new Error(
+          "403 Forbidden: Active license required for Editable Website & Live Preview. Purchase at marketplace.sveltycms.com",
+        );
+      }
+      return data;
+    },
   },
   ui: {
     editView: {

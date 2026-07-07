@@ -1,0 +1,87 @@
+---
+path: "src/routes/(app)/dashboard/widgets/database-pool-diagnostics-widget.mdx"
+title: "Database Pool Diagnostics Dashboard Widget"
+description: "Real-time connection pool health monitoring with utilization bars and recommendations. Freemium — live status free; historical tracking, query analysis, and alerting are premium."
+order: 100
+icon: "mdi:database-cog"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "dashboard"
+  - "database"
+  - "monitoring"
+  - "freemium"
+---
+
+# Database Pool Diagnostics Widget
+
+Real-time database connection pool statistics and health recommendations. Displays total, active, idle, and waiting connections with a utilization bar, health status badge, and actionable recommendations from the DatabaseResilience system.
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €9.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License / Trial Active)
+
+| Feature          | Description                                                  |
+| :--------------- | :----------------------------------------------------------- |
+| Live pool status | Total, active, idle, and waiting connection counts           |
+| Health badge     | Healthy/degraded/critical status indicator                   |
+| Utilization bar  | Visual pool utilization percentage with color coding         |
+| Recommendations  | Actionable health recommendations from the resilience system |
+| Auto-polling     | Data refreshes every 30 seconds                              |
+| Trial period     | Full access for 14 days from first admin registration        |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                            |
+| :--------------------- | :----------------------------------------------------- |
+| **Everything in Free** | All free tier features included                        |
+| Historical tracking    | Connection pool metrics over time with trend charts    |
+| Query analysis         | Slow query detection and execution time breakdowns     |
+| Alerting               | Notifications on pool saturation or health degradation |
+| Export reports         | CSV/JSON export of pool diagnostics history            |
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=database-pool-diagnostics
+```
+
+Without a valid license after trial expiry, live pool status and recommendations remain visible. Historical tracking, query analysis, and alerting require an active license.
+
+---
+
+## Data Source
+
+| Endpoint                             | Description                                                   |
+| :----------------------------------- | :------------------------------------------------------------ |
+| `GET /api/database/pool-diagnostics` | Connection pool statistics from the DatabaseResilience system |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Database Pool",
+  icon: "mdi:database-cog",
+  description: "Monitor database connection pool health and diagnostics",
+  defaultSize: { w: 2, h: 3 },
+  category: "monitoring",
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Unified Metrics Widget](./unified-metrics-widget.mdx)
+- [Performance Architecture](/docs/reference/database/performance-architecture.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)
