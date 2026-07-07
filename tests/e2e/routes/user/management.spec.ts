@@ -30,6 +30,10 @@ test.describe.serial("User Management Flow", () => {
 
   test("Admin Login", async ({ page }) => {
     await loginAsAdmin(page);
+    // Verify login succeeded — should not be on /login
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+    // Accept any admin page content as success (dashboard, collections, etc.)
+    await expect(page.locator("body")).not.toHaveText(/sign in/i, { timeout: 5_000 });
   });
 
   test("Read and Edit User Profile", async ({ page }) => {

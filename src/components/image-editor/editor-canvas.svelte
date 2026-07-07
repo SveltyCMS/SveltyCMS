@@ -628,7 +628,7 @@ for the image editor canvas with reactive rendering.
 </script>
 
 <div
-		class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none min-h-0 h-full bg-[var(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a))] border-none rounded-none shadow-none outline-none"
+		class="editor-canvas-wrapper relative flex-1 overflow-hidden transition-all duration-300 ease-in-out focus-within:outline-none min-h-0 h-full bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none"
 	role="region"
 	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
@@ -636,7 +636,7 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-[var(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a))] bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none"
+		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none"
 	class:border-2={isDragging}
 	class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
 	class:border-dashed={isDragging}

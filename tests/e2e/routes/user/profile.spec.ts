@@ -31,7 +31,14 @@ test.describe.serial("User Profile Management", () => {
 
   test("Login Verification", async ({ page }) => {
     // Already verified in beforeEach, but good for sanity check
-    expect(page.url()).not.toContain("/login");
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+    // Navigate to user profile page and verify it loads
+    await page.goto("/user");
+    await expect(
+      page
+        .getByRole("heading", { level: 1 })
+        .or(page.locator("body").filter({ hasText: /profile|user/i })),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("Workspace Appearance link navigates to appearance settings", async ({ page }) => {
