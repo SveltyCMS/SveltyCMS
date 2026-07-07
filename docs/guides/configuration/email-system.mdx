@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:email-outline"
 author: "SveltyCMS Team"
 created: "2026-02-13"
-updated: "2026-03-27"
+updated: "2026-07-07"
 tags:
   - "email"
   - "smtp"
@@ -35,7 +35,13 @@ SveltyCMS uses `@better-svelte-email/server` as its email rendering engine, whic
 
 ### 2. Zero-Configuration Preview (Dev Mode)
 
-When running in development mode, SveltyCMS skips actual SMTP delivery if hostnames like `dummy` or `example.com` are used, logging the rendered HTML to the console instead.
+When running in development mode or when SMTP is not configured, SveltyCMS skips
+actual SMTP delivery. The rendered email HTML is logged to the server console and,
+for critical flows like password reset, an **inline reset form** appears
+immediately in the browser so the user can proceed without waiting for an email.
+
+The reset link is also printed to the server terminal so an admin can share it
+manually if needed.
 
 ## SMTP Configuration
 

@@ -7,7 +7,7 @@ published: true
 order: 3
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-03-27"
+updated: "2026-07-07"
 tags:
   - "user"
   - "registration"
@@ -413,10 +413,16 @@ token=invite_token_here
 ## Related Documentation
 
 - [Admin User Management](/docs/reference/architecture/admin-user-management.mdx) - Managing users and permissions
-- [Access Management](/docs/reference/architecture/admin-user-management.mdx) - Roles and permissions system
+- [Access Management](/docs/guides/configuration/access-management.mdx) - Roles and permissions system
+- [Email System](/docs/guides/configuration/email-system.mdx) - SMTP configuration and email templates
 - [Two-Factor Authentication](/docs/reference/api/auth.mdx) - Enhanced security setup
 - [Multi-Tenant Configuration](/docs/reference/architecture/multi-tenancy.mdx) - Tenant isolation setup
 
 ---
 
-**Last Updated**: October 5, 2025
+> **Note on SMTP**: If SMTP is not configured, invitation tokens and password reset links are
+> **not sent via email**. The admin must copy the token/link from the server terminal or share
+> it manually. See the [Email System Guide](/docs/guides/configuration/email-system.mdx)
+> for details.
+
+**Last Updated**: July 7, 2026
