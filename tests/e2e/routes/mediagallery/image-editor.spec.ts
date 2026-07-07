@@ -23,8 +23,10 @@ async function uploadTestImage(page: import("@playwright/test").Page) {
   await page.waitForLoadState("load");
   const cell = page.getByRole("gridcell", { name: /testthumb\.png/i }).first();
   await expect(cell).toBeVisible({ timeout: 20_000 });
-  // Grid renders a blur placeholder img (data URL) before the real thumbnail
-  const thumb = cell.getByRole("img", { name: /testthumb\.png/i });
+  // Grid renders the thumbnail image with an empty alt inside a labelled preview button.
+  const thumb = cell
+    .locator('button[aria-label*="testthumb.png" i] img:not([aria-hidden="true"])')
+    .first();
   await expect(thumb).toBeVisible({ timeout: 10_000 });
   const imgSrc = await thumb.getAttribute("src");
   expect(imgSrc).toBeTruthy();

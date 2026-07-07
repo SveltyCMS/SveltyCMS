@@ -41,9 +41,11 @@ test.describe("Media Gallery", () => {
       timeout: 10_000,
     });
 
-    await page.getByLabel(/filter by type/i).selectOption("IMAGE");
-    await page.getByRole("button", { name: /table view/i }).click();
-    await expect(page.getByRole("table")).toBeVisible({ timeout: 10_000 });
+    await search.clear();
+    await page.locator("#media-type-filter").selectOption("IMAGE");
+    const tableView = page.getByRole("button", { name: /table view/i });
+    await tableView.click();
+    await expect(tableView).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
   });
 
   test("can upload a test image", async ({ page }) => {

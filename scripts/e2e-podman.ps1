@@ -56,7 +56,8 @@ param(
   [string]$Shard = "",
   [switch]$Rebuild,
   [switch]$ReinstallBrowsers,
-  [switch]$KeepContainer
+  [switch]$KeepContainer,
+  [switch]$UpdateSnapshots
 )
 
 $ErrorActionPreference = "Stop"
@@ -115,7 +116,7 @@ $EnvVars = @(
   "DB_PASSWORD=",
   "PASSWORD_MIN_LENGTH=8",
   "TEST_MODE=true",
-  "SKIP_TEST_CLEANUP=true",
+  "SKIP_TEST_CLEANUP=false",
   "ADMIN_PASSWORD=Password123!",
   "JWT_SECRET_KEY=Auth-Setup-JWT-Secret-Key-2026-32ch",
   "ENCRYPTION_KEY=Auth-Setup-Encryption-Key-2026-32ch",
@@ -133,6 +134,7 @@ $EnvVars = @(
 # ── Build the run command ───────────────────────────────────────────────────
 $extraArgs = ""
 if ($Grep)    { $extraArgs += " --grep `"$Grep`"" }
+if ($UpdateSnapshots) { $extraArgs += " --update-snapshots" }
 $skipBuild = if ($Rebuild) { "0" } else { "1" }
 $skipPw    = if ($ReinstallBrowsers) { "0" } else { "1" }
 
@@ -177,9 +179,9 @@ Write-Host "▶ Running: podman $($RunArgs -join ' ')" -ForegroundColor DarkGray
 $exit = $LASTEXITCODE
 
 if ($exit -eq 0) {
-  Write-Host "✔ E2E project '$Project' PASSED in CI-parity container." -ForegroundColor Green
+  Write-Host "PASS: E2E project '$Project' PASSED in CI-parity container." -ForegroundColor Green
 } else {
-  Write-Host "✗ E2E project '$Project' FAILED (exit $exit) in CI-parity container." -ForegroundColor Red
+  Write-Host "FAIL: E2E project '$Project' FAILED (exit $exit) in CI-parity container." -ForegroundColor Red
 }
 
 exit $exit

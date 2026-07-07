@@ -12,8 +12,8 @@ updated: 2026-07-07
 > documentation — it is a session log + continuation guide. Delete or fold into
 > `e2e-stabilization-report.mdx` once the work is complete.
 
-**Last updated:** 2026-07-06
-**Branch working on:** `next`
+**Last updated:** 2026-07-07
+**Branch working on:** `fix/e2e-ci-stabilization` (PR #461, base `next`)
 **Repo path:** `c:/Users/62895/Documents/Repository/Upwork/Project/Tria/SveltyCMS`
 
 ---
@@ -64,30 +64,30 @@ OLD code path and your fix will appear to do nothing.
 
 ## 3. Projects and current status
 
-| #   | Project             | Status             | Notes                                                                                                                                                        |
-| --- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | `wizard`            | ✅ green           |                                                                                                                                                              |
-| 2   | `firstuser`         | ✅ green           |                                                                                                                                                              |
-| 3   | `auth-setup`        | ✅ green           |                                                                                                                                                              |
-| 4   | `signup`            | ✅ green           |                                                                                                                                                              |
-| 5   | `content`           | ✅ green           |                                                                                                                                                              |
-| 6   | `system`            | ✅ green           | 41 passed                                                                                                                                                    |
-| 7   | `a11y`              | ✅ green           | 19 passed                                                                                                                                                    |
-| 8   | `branding`          | ✅ green           | 19 passed                                                                                                                                                    |
-| 9   | `rbac`              | ✅ green           | 22 passed                                                                                                                                                    |
-| 10  | `language`          | ✅ green           | 17 passed                                                                                                                                                    |
-| 11  | `users`             | ✅ green           | 28 passed — **fixed this session** (Invite flow)                                                                                                             |
-| 12  | `builder`           | ✅ green           | **31 passed** from clean state (after fixes this session — see §6.5). Includes `firstuser`→`auth-setup`→`builder` dependency chain.                          |
-| 13  | `permissions`       | ✅ green           | **17 passed** — fixed this session (see §6.6). Real app bug: `/api/permission/update` rejected the client's `{roles}` payload with "User not found".         |
-| 14  | `config-routes`     | ✅ green           | **38 passed** — no fixes needed.                                                                                                                             |
-| 15  | `admin`             | ✅ green           | **18 passed** — fixed this session. `.or()` strict-mode violation in tenants.spec.ts; asserted h1 directly.                                                  |
-| 16  | `dashboard`         | ✅ green           | **16 passed, 1 skipped** — the only dashboard test is intentionally `test.skip` ("Dashboard route not yet implemented — see roadmap-2026.mdx"). No failures. |
-| 17  | `appearance`        | ⬜ NOT VERIFIED    | **next to run** (after PR)                                                                                                                                   |
-| 18  | `media`             | ⬜ NOT VERIFIED    |                                                                                                                                                              |
-| 19  | `visual-regression` | ⚠️ local-only fail | Width mismatch 980 vs 1040 on Windows; CI is Ubuntu so likely env-only. NOT re-verified. **Use Podman (§7.5) to verify on Linux before PR.**                 |
-| 20  | `chromium`          | ⬜ NOT VERIFIED    | Possibly a meta project — inspect `playwright.config.ts` line ~235. Likely a CI sharded catch-all; per-project runs above cover its surface.                 |
+| #   | Project             | Status           | Notes                                                                                                                                                        |
+| --- | ------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `wizard`            | ✅ green         |                                                                                                                                                              |
+| 2   | `firstuser`         | ✅ green         |                                                                                                                                                              |
+| 3   | `auth-setup`        | ✅ green         |                                                                                                                                                              |
+| 4   | `signup`            | ✅ green         |                                                                                                                                                              |
+| 5   | `content`           | ✅ green         |                                                                                                                                                              |
+| 6   | `system`            | ✅ green         | 41 passed                                                                                                                                                    |
+| 7   | `a11y`              | ✅ green         | 19 passed                                                                                                                                                    |
+| 8   | `branding`          | ✅ green         | 19 passed                                                                                                                                                    |
+| 9   | `rbac`              | ✅ green         | 22 passed                                                                                                                                                    |
+| 10  | `language`          | ✅ green         | 17 passed                                                                                                                                                    |
+| 11  | `users`             | ✅ green         | 28 passed — **fixed this session** (Invite flow)                                                                                                             |
+| 12  | `builder`           | ✅ green         | **31 passed** from clean state (after fixes this session — see §6.5). Includes `firstuser`→`auth-setup`→`builder` dependency chain.                          |
+| 13  | `permissions`       | ✅ green         | **17 passed** — fixed this session (see §6.6). Real app bug: `/api/permission/update` rejected the client's `{roles}` payload with "User not found".         |
+| 14  | `config-routes`     | ✅ green         | **38 passed** — no fixes needed.                                                                                                                             |
+| 15  | `admin`             | ✅ green         | **18 passed** — fixed this session. `.or()` strict-mode violation in tenants.spec.ts; asserted h1 directly.                                                  |
+| 16  | `dashboard`         | ✅ green         | **16 passed, 1 skipped** — the only dashboard test is intentionally `test.skip` ("Dashboard route not yet implemented — see roadmap-2026.mdx"). No failures. |
+| 17  | `appearance`        | ✅ green         | **21 passed** — fixed this session. Heading levels (h1→h3/h4), `getByLabel("Left sidebar", { exact: true })` to disambiguate from `<aside aria-label>`.      |
+| 18  | `media`             | ✅ green         | **22 passed** — fixed this session. Media filter + table-view selectors updated for native UI (`#media-type-filter`, `aria-pressed`).                        |
+| 19  | `visual-regression` | ✅ green (Linux) | **8 passed** on Linux via Podman. `openLoginSignInForm` rewritten (clear all cookies + `signin-icon` testid). `-chromium` baselines generated on Linux.      |
+| 20  | `chromium`          | ✅ green (Linux) | **CI catch-all** (the only project CI sharded). 8 visual-regression tests verified on Linux via Podman; functional tests verified on Windows with seeding.   |
 
-**Progress: 16 / ~18 projects confirmed green.** Remaining unverified: `appearance`, `media`, `visual-regression`, (and confirm `chromium` is a no-op meta).
+**Progress: 18 / ~18 projects confirmed green.** All named projects green locally; `chromium` (CI's actual project) visual-regression subset verified on Linux via Podman. CI runs `wizard`+`auth-setup` (e2e-prep) then `chromium` (2 shards) — see `.github/workflows/e2e-matrix.ts`.
 
 ### Definition of "PR-ready"
 
@@ -437,6 +437,82 @@ reload). It should be tracked as a separate task: wire `handlePermissionRoutes`
 to diff `body.roles` against current roles and call the auth adapter's
 `createRole`/update/delete methods. Do NOT attempt this in the test-stabilization
 pass — it's a feature, not a fix.
+
+---
+
+## 6.7. The `visual-regression` + `chromium` CI-parity fix (most recent — read this if continuing)
+
+### What was wrong
+
+1. **`openLoginSignInForm` (visual.ts)** — the prior rewrite POSTed to `/api/testing`
+   to "log in" the admin (setting a session cookie), then tried to clear cookies
+   with a narrow name filter (`session` / `__Host-` / `__Secure-`). The real
+   session cookie name didn't match the filter, so the cookie survived, `/login`
+   redirected to the dashboard, and the chooser's "Go to Sign In" button was
+   never found → `login sign-in form` test failed.
+2. **Missing SQLite `ALTER TABLE` for `preferences`** — the `preferences` column
+   was added to `auth_users` in `CREATE TABLE` (sqlite + pg) and to PostgreSQL's
+   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, but **NOT** to SQLite's
+   idempotent ALTER block. On any existing/upgraded SQLite DB the `auth_users`
+   table lacked the column → `CREATE_USER_FAILED` on seed → `hasAdminUser=false`
+   → clicking "Go to Sign In" opened the **SignUp** form instead of SignIn.
+   This was a real production bug (breaks user creation on upgraded installs),
+   not just a test issue.
+3. **Missing `-chromium` snapshot baselines** — CI only runs the `chromium`
+   catch-all project (2 shards; see `.github/workflows/e2e-matrix.ts`), which
+   includes `visual-regression.spec.ts`. The snapshot template is
+   `{arg}-{projectName}{ext}`, so the chromium project needs `-chromium`
+   baselines. Only `login-chooser-chromium.png` existed → 7 of 8 tests failed
+   on CI with "snapshot doesn't exist".
+
+### Fixes
+
+- `tests/e2e/helpers/visual.ts` — `openLoginSignInForm` now clears **all**
+  context cookies (not a filtered subset), drops the unnecessary `/api/testing`
+  login POST (`resetAndSeedDatabase` already seeds the admin), and clicks the
+  chooser's stable `signin-icon` testid (the element is a `div[role="button"]`
+  with `aria-label="Go to Sign In"`) to reveal the sign-in form.
+- `src/databases/sqlite/migrations.ts` — added
+  `execute('ALTER TABLE "auth_users" ADD COLUMN "preferences" TEXT')` to the
+  idempotent ALTER block (matches the existing `authenticators`/`failedAttempts`/
+  `lockoutUntil` pattern; `execute` swallows "duplicate column name" so it's a
+  no-op on fresh DBs and a real fix on upgraded DBs).
+- Generated all **8 `-chromium` baselines** on Linux via Podman and verified
+  them on Linux without `--update-snapshots`.
+
+### Verification (Linux, CI-parity via Podman)
+
+```powershell
+# Generate baselines (writes -chromium.png next to the spec)
+.\scripts\e2e-podman.ps1 -Project chromium -Grep "Visual.Regression" -UpdateSnapshots
+# Verify on Linux without update
+.\scripts\e2e-podman.ps1 -Project chromium -Grep "Visual.Regression"
+# → PASS: 8 passed
+```
+
+Security regression (src/ changed): `67 pass, 0 fail`.
+
+### ⚠️ Podman full-chromium caveat (NOT a CI failure)
+
+Running `.\scripts\e2e-podman.ps1 -Project chromium` (full, no grep) **fails** in
+the container with `[Auth] ERROR: signin-email field not found!` because the
+script sets `SKIP_E2E_DEPS=true` and does NOT run `e2e-prep` (wizard+auth-setup)
+first — so non-self-seeding tests have no admin user. **Real CI does not have
+this problem**: CI's `e2e-prep` job seeds the DB (admin + storageState) into an
+artifact that the `chromium` shards download before running. To fully simulate
+CI in Podman you'd need to run the wizard→auth-setup→chromium chain (the
+single-project script doesn't orchestrate this yet — a future improvement).
+
+The visual-regression spec self-seeds (`resetAndSeedDatabase` in `beforeEach`),
+so scoping the container to it (`-Grep "Visual.Regression"`) is a valid
+CI-parity check for the Linux-sensitive pixel tests. Functional tests passed
+on Windows with seeding and are not pixel-based, so their Linux risk is low.
+
+### Podman grep quoting gotcha
+
+`-Grep` values with spaces break Podman arg parsing
+("parsing reference Theme: repository name must be lowercase"). Use a
+space-free regex: `-Grep "Visual.Regression"` (the `.` matches the space).
 
 ---
 

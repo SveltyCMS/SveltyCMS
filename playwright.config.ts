@@ -154,7 +154,7 @@ export default defineConfig({
         headless: true,
         viewport: { width: 1280, height: 720 },
       },
-      dependencies: ["auth-setup"],
+      dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
       workers: 1,
     },
     {
