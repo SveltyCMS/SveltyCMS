@@ -435,17 +435,23 @@ export async function handleTestingRoutes(
       if (!email || !password) throw new AppError("Email and password required", 400);
 
       const loginResult = await cms.auth.login({ email, password }, { tenantId });
-      if (!loginResult.success) {
+      if (!loginResult.success || !loginResult.data) {
         return rawResponse({ success: false, message: loginResult.message }, 401);
       }
 
       const { user, session } = loginResult.data;
 
-      // Set cookie on event.cookies
+      // Set the session cookie on the response so Playwright can persist it
+      // into the storageState file used by downstream authenticated specs.
+      // In test mode, treat the connection as insecure so the cookie is the
+      // unprefixed `auth_sessions` without the Secure flag — `__Host-`/`__Secure-`
+      // prefixed Secure cookies cannot be sent back over the http://127.0.0.1
+      // origin used by E2E (browsers refuse to send Secure cookies over http).
       const { getSessionCookieName } = await import("@src/databases/auth/constants");
-      const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+      const isSecure =
+        !isTestMode && (event.url.protocol === "https:" || event.url.hostname !== "localhost");
       const cookieName = getSessionCookieName(isSecure);
-      event.cookies.set(cookieName, session._id, {
+      event.cookies.set(cookieName, String(session._id), {
         path: "/",
         httpOnly: true,
         sameSite: isSecure ? "strict" : "lax",
@@ -462,13 +468,13 @@ export async function handleTestingRoutes(
             username: user.username,
             role: user.role,
           },
-          token: session._id,
+          token: String(session._id),
         }),
         {
           status: 200,
           headers: {
             "Content-Type": "application/json",
-            "x-test-session-id": session._id,
+            "x-test-session-id": String(session._id),
           },
         },
       );
@@ -851,6 +857,135 @@ export async function handleTestingRoutes(
       }
     }
 
+    if (action === "delete-all-collections") {
+      // Delete every collection schema file from all tenant collection
+      // directories AND the compiled output cache, then refresh the content
+      // system. Used by E2E tests that need a true "no collections" state.
+      //
+      // Why this is more than `reset`:
+      //   - `reset` only wipes the DB. Collection schemas live on disk as
+      //     source `.ts` files under `config/collections*/` AND as compiled
+      //     `.js` files under `.compiledCollections/`. Both survive a reset.
+      //   - The content system reads from `.compiledCollections/` (compiled
+      //     output), NOT from `config/collections/` directly. So deleting only
+      //     the `.ts` source files has no effect — `scanCompiledCollections()`
+      //     still finds the stale `.js` files and `db.reconcile()` re-populates
+      //     the `content_nodes` DB table from them.
+      //   - `refreshCollectionsCache` also has a bootstrap path that
+      //     regenerates `.ts` files from DB schemas if the DB still has them.
+      //     Callers MUST wipe the DB (via `reset`) BEFORE this action so the
+      //     bootstrap path doesn't fire (see empty-state.spec.ts beforeAll).
+      //
+      // Order required from callers: `reset` (wipe DB) → `delete-all-collections`
+      // (delete disk files + refresh) → `seed` (recreate auth user).
+      try {
+        const { getCollectionsPath, getAllTenantCollectionPaths } =
+          await import("@utils/tenant.server");
+        const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
+
+        // 1. Source `.ts` files: config/collections, config/<tenant>/collections,
+        //    config/global/collections. Walk recursively to catch nested dirs
+        //    like config/collections/test/*.ts. Deduplicate via Set.
+        const sourceDirs = new Set<string>([
+          getCollectionsPath(undefined), // config/collections
+          ...getAllTenantCollectionPaths(tenantId as string),
+        ]);
+
+        // 2. Compiled `.js` output: .compiledCollections/, .compiledCollections/
+        //    <tenant>/, .compiledCollections/global. The scanner walks
+        //    subdirectories recursively, so we must too.
+        const compiledDirs = new Set<string>([
+          getCompiledCollectionsPath(undefined), // .compiledCollections (root)
+          getCompiledCollectionsPath(tenantId as string | null),
+        ]);
+
+        let deleted = 0;
+
+        const deleteTsFiles = async (dir: string) => {
+          if (!fs.existsSync(dir)) return;
+          let entries: { name: string; isDir: boolean }[] = [];
+          try {
+            entries = await fsp
+              .readdir(dir, { withFileTypes: true })
+              .then((e) => e.map((x) => ({ name: x.name, isDir: x.isDirectory() })));
+          } catch {
+            return;
+          }
+          for (const entry of entries) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDir) {
+              await deleteTsFiles(full); // recurse into nested dirs
+              continue;
+            }
+            if (!entry.name.endsWith(".ts")) continue;
+            try {
+              await fsp.unlink(full);
+              deleted++;
+            } catch (err) {
+              console.warn(`[TestingHandler] Failed to delete ${entry.name}: ${err}`);
+            }
+          }
+        };
+
+        const deleteJsFiles = async (dir: string) => {
+          if (!fs.existsSync(dir)) return;
+          let entries: { name: string; isDir: boolean }[] = [];
+          try {
+            entries = await fsp
+              .readdir(dir, { withFileTypes: true })
+              .then((e) => e.map((x) => ({ name: x.name, isDir: x.isDirectory() })));
+          } catch {
+            return;
+          }
+          for (const entry of entries) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDir) {
+              await deleteJsFiles(full); // recurse
+              continue;
+            }
+            // Delete compiled `.js` collection files AND the per-directory
+            // `.compilation-manifest.json`. The manifest is a cache of
+            // compiled-file metadata (sourceHash → .js path). If we delete
+            // the `.js` files but leave the manifest, the next `compile()`
+            // sees a matching sourceHash and SKIPS recompiling — so the `.js`
+            // files never come back and `scanCompiledCollections()` finds
+            // nothing. The manifest MUST be invalidated when its `.js`
+            // entries are removed.
+            if (!entry.name.endsWith(".js") && entry.name !== ".compilation-manifest.json")
+              continue;
+            try {
+              await fsp.unlink(full);
+              deleted++;
+            } catch (err) {
+              console.warn(`[TestingHandler] Failed to delete compiled ${entry.name}: ${err}`);
+            }
+          }
+        };
+
+        for (const dir of sourceDirs) await deleteTsFiles(dir);
+        for (const dir of compiledDirs) await deleteJsFiles(dir);
+
+        // Refresh the content system so the sidebar / builder board reflect
+        // the now-empty collection set. `refreshCollectionsCache` will see
+        // fileSchemas=[] and (because the caller wiped the DB first)
+        // dbSchemas=[], so the bootstrap path won't fire and contentStore
+        // is synced to empty. db.reconcile() then empties content_nodes.
+        try {
+          await contentSystem.refresh(tenantId ?? undefined);
+        } catch (err) {
+          console.warn(`[TestingHandler] contentSystem.refresh after delete-all: ${err}`);
+        }
+        return rawResponse({
+          success: true,
+          message: `Deleted ${deleted} collection schema file(s).`,
+        });
+      } catch (err) {
+        const message = `Error in delete-all-collections: ${err instanceof Error ? err.message : String(err)}`;
+        logger.error(message);
+        return rawResponse({ success: false, message }, 200);
+      }
+    }
+
     if (action === "bulk-seed") {
       const { collectionId, data } = params;
       if (!collectionId || !Array.isArray(data)) throw new AppError("Invalid data", 400);
@@ -884,6 +1019,40 @@ export async function handleTestingRoutes(
     if (action === "create-user") {
       const { email, password, username, role = "editor" } = params;
       if (!email || !password) throw new AppError("Email and password required", 400);
+
+      // Idempotency: if a user with this email already exists for the tenant,
+      // sync its password/role/username to the requested values and return
+      // success without creating a duplicate. Repeated E2E runs share the
+      // same DB; without this guard each create-user would add a new row
+      // (developer@example.com x N), making row-targeted tests ambiguous.
+      // Updating in place also ensures the caller's password works on the
+      // next login (different suites seed the same email with different
+      // passwords — auth-setup uses "Password123!", management uses
+      // "Editor123!"/"Developer123!").
+      //
+      // NOTE: cms.auth.getUserByEmail uses safeCall, so it NEVER throws —
+      // it returns a DatabaseResult envelope ({ success, data }). Check
+      // `success && data`, not truthiness of the envelope itself.
+      const existing = await cms.auth.getUserByEmail(email, { tenantId });
+      if (existing?.success && existing?.data) {
+        const existingUser = existing.data as { _id: string };
+        await cms.auth.updateUserAttributes(
+          existingUser._id,
+          {
+            password,
+            role,
+            username: username || email.split("@")[0],
+            emailVerified: true,
+            isRegistered: true,
+          },
+          { tenantId },
+        );
+        return rawResponse({
+          success: true,
+          message: "User already exists (synced)",
+          data: existing.data,
+        });
+      }
 
       const result = await cms.auth.createUser(
         {

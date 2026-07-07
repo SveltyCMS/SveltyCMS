@@ -29,9 +29,10 @@ import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
+import { readRuntimeEnv, isTestMode } from "@utils/runtime-env";
 
 function isSecureConnection(event: RequestEvent): boolean {
-  const isProd = process.env.NODE_ENV !== "development" && process.env.TEST_MODE !== "true";
+  const isProd = readRuntimeEnv("NODE_ENV") !== "development" && !isTestMode();
   return event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
 }
 
@@ -40,7 +41,8 @@ const limiter = new RateLimiter({
   IPUA: [10, "m"],
   cookie: {
     name: "ratelimit",
-    secret: (process.env.RATE_LIMIT_SECRET || process.env.JWT_SECRET_KEY + "-ratelimit") as string,
+    secret: (readRuntimeEnv("RATE_LIMIT_SECRET") ||
+      (readRuntimeEnv("JWT_SECRET_KEY") ?? "") + "-ratelimit") as string,
     rate: [10, "m"],
     preflight: true,
   },
@@ -187,7 +189,7 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const systemState = getSystemState();
   const isAdmin = event.locals.user?.role === "admin";
   const isSystemFailed = systemState.overallState === "FAILED";
-  const isTestMode = process.env.TEST_MODE === "true";
+  const isTestModeFlag = isTestMode();
 
   // Database health check: try a simple auth query
   await dbInitPromise;
@@ -202,14 +204,14 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
     isDbUnhealthy = true;
   }
 
-  if (!(isAdmin || isSystemFailed || isTestMode || isDbUnhealthy)) {
+  if (!(isAdmin || isSystemFailed || isTestModeFlag || isDbUnhealthy)) {
     return {
       success: false,
       message: "You do not have permission to reset the setup.",
     };
   }
 
-  if (!isTestMode) {
+  if (!isTestModeFlag) {
     const path = await import("node:path");
     const fs = await import("node:fs/promises");
     const configPath = path.join(process.cwd(), "config", "private.ts");
@@ -308,7 +310,7 @@ export const prefetch = prefetchFirstCollection;
 // ────────────────────────────────────────────────────────────
 
 async function signInInternal(event: RequestEvent, input: any) {
-  if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+  if (!isTestMode() && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
     } catch {}
@@ -444,7 +446,7 @@ async function signInInternal(event: RequestEvent, input: any) {
 }
 
 async function signUpInternal(event: RequestEvent, input: any) {
-  if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+  if (!isTestMode() && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
     } catch {}
@@ -541,7 +543,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
 }
 
 async function forgotPWInternal(event: RequestEvent, input: any) {
-  if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+  if (!isTestMode() && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
     } catch {}
@@ -614,7 +616,7 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
 }
 
 async function resetPWInternal(event: RequestEvent, input: any) {
-  if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+  if (!isTestMode() && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
     } catch {}
@@ -656,7 +658,7 @@ async function resetPWInternal(event: RequestEvent, input: any) {
 }
 
 async function requestMagicLinkInternal(event: RequestEvent, input: any) {
-  if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+  if (!isTestMode() && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
     } catch {}

@@ -14,6 +14,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { RequestEvent } from "@sveltejs/kit";
 import { getTestSecret } from "@utils/server/setup-check";
+import { readRuntimeEnv } from "@utils/runtime-env";
 
 type BypassLocals = App.Locals & {
   user?: App.Locals["user"];
@@ -24,13 +25,12 @@ type BypassLocals = App.Locals & {
 
 /** True only when CI, Playwright, or benchmark env flags are explicitly set. */
 export function isTestOrBenchmarkEnvironment(): boolean {
-  const env = process.env;
   return (
-    env.TEST_MODE === "true" ||
-    env.VITE_TEST_MODE === "true" ||
-    env.PLAYWRIGHT_TEST === "true" ||
-    env.BENCHMARK === "true" ||
-    env.SVELTY_BENCHMARK_SUITE === "true"
+    readRuntimeEnv("TEST_MODE") === "true" ||
+    readRuntimeEnv("VITE_TEST_MODE") === "true" ||
+    readRuntimeEnv("PLAYWRIGHT_TEST") === "true" ||
+    readRuntimeEnv("BENCHMARK") === "true" ||
+    readRuntimeEnv("SVELTY_BENCHMARK_SUITE") === "true"
   );
 }
 
@@ -57,7 +57,7 @@ export function applyTestBypassFromRequest(
   if (!incoming) return false;
 
   const expected =
-    process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET || getTestSecret();
+    readRuntimeEnv("TEST_API_SECRET") || readRuntimeEnv("VITE_TEST_API_SECRET") || getTestSecret();
   if (!expected || !secretsMatch(incoming, expected)) return false;
 
   locals.user = {

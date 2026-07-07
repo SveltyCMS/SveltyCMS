@@ -61,7 +61,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "*.svelte"
+    "*.svelte",
+    "src/plugins/index.ts"
   ],
   "publishConfig": {
     "access": "public"

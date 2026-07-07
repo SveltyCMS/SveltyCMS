@@ -13,13 +13,11 @@ test.describe("Tenant Management", () => {
 
   test("page loads with tenant list", async ({ page }) => {
     await page.goto("/admin/tenants");
-    // The page may redirect or show an empty state if multi-tenancy is disabled,
-    // or the page itself may fail to load. Wait for any recognizable content.
-    await expect(
-      page
-        .getByRole("heading", { level: 1 })
-        .or(page.getByText(/tenant|multi.tenant|no tenants|not found|access denied/i)),
-    ).toBeVisible({
+    // The page heading "Tenants" is the always-present, unambiguous signal that
+    // the page loaded. (A broad `.or(getByText(/tenant.../i))` matches too much —
+    // the heading, spans, the "Create Tenant" button, and the "No tenants
+    // found." cell — and triggers a strict-mode violation.)
+    await expect(page.getByRole("heading", { level: 1, name: /tenants/i })).toBeVisible({
       timeout: 15_000,
     });
     // Table is only present when tenants exist; skip if not visible

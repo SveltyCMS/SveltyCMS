@@ -39,7 +39,10 @@ async function getCachedPluginState(pluginId: string, tenantId: string) {
   }
   try {
     const state = await pluginRegistry.getPluginState(pluginId, tenantId);
-    const enabled = state ? state.enabled : false;
+    // Fall back to the plugin's metadata.enabled when no persisted state exists,
+    // mirroring the config page's `pluginStates` resolution (`m?.enabled ?? metadata.enabled`).
+    const plugin = pluginRegistry.get(pluginId);
+    const enabled = state ? state.enabled : (plugin?.metadata?.enabled ?? false);
     _stateCache.set(key, { enabled, ts: Date.now() });
     return enabled;
   } catch {

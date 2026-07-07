@@ -18,7 +18,20 @@ const tenantInitializationFlights = new Map<string, Promise<void>>();
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
   const { pathname } = url;
+  // NOTE: the in-memory content store (contentStore) keys tenant state by
+  // `tenantId || "global"`. When multi-tenant is disabled, locals.tenantId is
+  // null and the content system stores/reads collections under "global". We keep
+  // the fallback below as "default-tenant" for init/flight keying, but the
+  // builder-redirect at the bottom is gated off for content routes so the
+  // [language]/[...collection] load function (which reads the tenant-agnostic
+  // _schemas map) can resolve the collection itself.
   const tenantId = locals.tenantId ? String(locals.tenantId) : "default-tenant";
+  // Content routes are language-prefixed (e.g. /en/<collection>) — the route
+  // is [language]/[...collection]. Such routes must NOT be redirected to the
+  // collection builder by the "fresh install" guard below; the route's own load
+  // function resolves (or 404s) the collection.
+  const isContentRoute =
+    /^\/[a-z]{2,5}(?:-[a-zA-Z]+)?\//.test(pathname) || pathname.includes("/content");
 
   // Phase 1: Gated initialization (static import — no per-request dynamic import)
   const setupState = (locals as any).__setupState || (await getSetupState());
@@ -48,7 +61,10 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
       tenantInitializationFlights.set(tenantId, initPromise);
     }
 
-    const isContentRoute = pathname.includes("/[language]/") || pathname.includes("/content");
+    // isContentRoute is computed at the top of this hook (it also gates the
+    // builder-redirect in Phase 3). The previous check here tested for the
+    // literal string "/[language]/" (a route-pattern placeholder), which never
+    // appears in real URLs, so content routes never awaited init.
     const isApi = pathname.startsWith("/api") && !pathname.includes("/system/");
 
     if (locals.user && (isContentRoute || isApi)) {
@@ -78,7 +94,11 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
         const firstUrl = await contentSystem.getFirstCollectionRedirectUrl(lang, tenantId);
         if (firstUrl) throw redirect(302, firstUrl);
       }
-    } else if (collections.length === 0 && !WHITELIST_REGEX.test(pathname)) {
+    } else if (collections.length === 0 && !isContentRoute && !WHITELIST_REGEX.test(pathname)) {
+      // Fresh-install UX: send admins with no collections to the builder. This
+      // MUST NOT fire for content routes (/[language]/[...collection]) — those
+      // resolve the collection themselves and would otherwise be hijacked to
+      // the builder whenever the in-memory store lags behind the DB/files.
       if (locals.isAdmin) {
         throw redirect(302, "/config/collectionbuilder");
       } else {

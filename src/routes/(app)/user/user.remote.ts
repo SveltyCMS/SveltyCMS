@@ -3,16 +3,19 @@
  * @description User Remote Functions — callable directly from client components.
  *
  * All exports are SvelteKit query() wrappers that provide full type inference.
+ * Uses getRequestEvent().fetch so relative API URLs resolve correctly when the
+ * remote function executes on the server (global fetch requires absolute URLs).
  * Plain interface exports have been moved inline or removed per SvelteKit .remote.ts rules.
  */
 
-import { query } from "$app/server";
+import { query, getRequestEvent } from "$app/server";
 
 export const updateProfile = query(
   "unchecked",
   async (
     data: Record<string, unknown>,
   ): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch("/api/user/update-user-attributes", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -26,6 +29,7 @@ export const updateProfile = query(
 export const verifyPassword = query(
   "unchecked",
   async (password: string): Promise<{ valid: boolean }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch("/api/user/verify-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -39,6 +43,7 @@ export const verifyPassword = query(
 export const deleteUser = query(
   "unchecked",
   async (userIds: string[]): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch("/api/user/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,6 +66,7 @@ export const saveToken = query(
     message?: string;
     error?: string;
   }> => {
+    const { fetch } = getRequestEvent();
     const isEdit = !!data.token;
     const endpoint = isEdit ? `/api/token/${data.token}` : "/api/token/createToken";
     const method = isEdit ? "PUT" : "POST";
@@ -93,6 +99,7 @@ export const saveToken = query(
 export const deleteTokenAction = query(
   "unchecked",
   async (token: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch(`/api/token/${token}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -105,6 +112,7 @@ export const deleteTokenAction = query(
 export const getActiveSessions = query(
   "unchecked",
   async (): Promise<{ sessions?: any[]; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch("/api/user/sessions", {
       method: "GET",
       headers: { "Content-Type": "application/json" },
@@ -117,6 +125,7 @@ export const getActiveSessions = query(
 export const revokeSession = query(
   "unchecked",
   async (sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    const { fetch } = getRequestEvent();
     const r = await fetch(`/api/user/sessions/${sessionId}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

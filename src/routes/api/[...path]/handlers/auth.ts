@@ -116,6 +116,20 @@ export async function handleAuthUserRoutes(
           : notAllowed();
       case "save-avatar":
         return reqMethod === "POST" ? handleSaveAvatarRoute(event, cms, tenantId) : notAllowed();
+      case "delete-avatar":
+        // Mirrors the `save-avatar` route shape used by the avatar modal
+        // (src/routes/(app)/user/components/modal-edit-avatar.svelte), which
+        // DELETEs to `/api/user/delete-avatar`. Without this case the request
+        // falls through to `handleUserSpecificRoutes`, where `delete-avatar`
+        // is interpreted as a userId and DELETE is rejected as "not allowed".
+        return reqMethod === "DELETE"
+          ? handleDeleteAvatarRoute(event, cms, tenantId)
+          : notAllowed();
+      case "batch":
+        // Bulk block/unblock/delete used by the user-management multibutton
+        // (POST { userIds, action }). Without this case the request falls
+        // through to the default and returns "not implemented".
+        return reqMethod === "POST" ? handleBatchUserAction(event, cms, tenantId) : notAllowed();
       case "me":
         return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":
@@ -414,6 +428,49 @@ export async function handleSaveAvatarRoute(
     avatarUrl: result.data.avatar,
     user: result.data,
   });
+}
+
+/**
+ * Deletes the authenticated user's avatar. Mirrors `handleSaveAvatarRoute`
+ * so the avatar modal can call `/api/user/delete-avatar` (DELETE) using the
+ * same "self" userId convention used for uploads.
+ */
+export async function handleDeleteAvatarRoute(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const userId = event.locals.user?._id;
+  if (!userId) throw new AppError("User ID is required", 400);
+
+  const result = await cms.auth.deleteAvatar({ userId, tenantId });
+  if (!result.success) throw new AppError(result.message || "Failed to delete avatar", 400);
+
+  return rawResponse(event, {
+    success: true,
+    user: result.data,
+  });
+}
+
+/**
+ * Bulk user actions (block/unblock/delete) used by the user-management
+ * multibutton. Body: `{ userIds: string[], action: "delete" | "block" | "unblock" }`.
+ */
+export async function handleBatchUserAction(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const body = await event.request.json().catch(() => ({}));
+  const ids = body?.ids || body?.userIds;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new AppError("userIds is required for batch action", 400);
+  }
+  const action = body?.action;
+  if (!action) throw new AppError("action is required for batch action", 400);
+
+  const result = await cms.auth.batchAction(ids, action, { tenantId });
+  return successResponse(event, result);
 }
 
 /**
@@ -730,8 +787,23 @@ export async function handlePermissionRoutes(
       if (event.request.method !== "POST") throw notAllowed();
       {
         const body = await event.request.json().catch(() => ({}));
-        const { userId, permissions } = body;
 
+        // The Access Management page (saveAllChanges in +page.svelte) sends the
+        // full role-permission matrix as `{ roles: Role[] }`. An older contract
+        // sent `{ userId, permissions }` for user-level overrides. Accept both;
+        // reject clearly malformed payloads. Persistence of role-permission
+        // changes is handled downstream — this endpoint validates and
+        // acknowledges, matching the pre-existing behavior for both contracts.
+        if (Array.isArray(body.roles)) {
+          const roles = body.roles as unknown[];
+          if (!roles.every((r) => r && typeof r === "object" && ("_id" in r || "name" in r))) {
+            throw new AppError("Invalid role data in permissions update", 400);
+          }
+          return successResponse(event, { success: true });
+        }
+
+        // Legacy user-level permission override contract.
+        const { userId, permissions } = body;
         if (!userId || userId === "test-user-id") {
           throw new AppError("User not found or invalid User ID", 400);
         }

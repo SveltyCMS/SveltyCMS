@@ -19,6 +19,7 @@ import {
   isSetupComplete,
   getTestSecret,
 } from "@utils/server/setup-check";
+import { readRuntimeEnv } from "@utils/runtime-env";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
@@ -221,7 +222,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
   if (isTest && testSecret) {
-    const expected = process.env.TEST_API_SECRET || getTestSecret();
+    const expected = readRuntimeEnv("TEST_API_SECRET") || getTestSecret();
 
     if (expected && testSecret === expected) {
       // 🚀 TERMINAL BYPASS: Verified test secret receives full system access.
@@ -336,7 +337,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     const benchSecret =
       event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
     if (benchSecret) {
-      const expected = process.env.TEST_API_SECRET || getTestSecret();
+      const expected = readRuntimeEnv("TEST_API_SECRET") || getTestSecret();
       if (expected && benchSecret === expected) {
         (event.locals as any).user = {
           _id: "system",
@@ -403,9 +404,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       overallState === "DEGRADED";
 
     const isTestMode =
-      process.env.TEST_MODE === "true" ||
-      process.env.VITE_TEST_MODE === "true" ||
-      process.env.BENCHMARK === "true";
+      readRuntimeEnv("TEST_MODE") === "true" ||
+      readRuntimeEnv("VITE_TEST_MODE") === "true" ||
+      readRuntimeEnv("BENCHMARK") === "true";
 
     let setupState: SetupState;
 
@@ -469,7 +470,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       const isSetupRouteDeep =
         pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
       const shouldForceDeepSetupCheck =
-        isSetupRouteDeep || process.env.STRICT_SETUP_CHECK === "true";
+        isSetupRouteDeep || readRuntimeEnv("STRICT_SETUP_CHECK") === "true";
       if (shouldForceDeepSetupCheck) {
         setupState = await getSetupState();
       }
@@ -486,9 +487,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       // Security Gate: Block /setup routes if setup is already complete
       const isTestMode =
-        process.env.TEST_MODE === "true" ||
-        process.env.VITE_TEST_MODE === "true" ||
-        process.env.BENCHMARK === "true";
+        readRuntimeEnv("TEST_MODE") === "true" ||
+        readRuntimeEnv("VITE_TEST_MODE") === "true" ||
+        readRuntimeEnv("BENCHMARK") === "true";
       const shouldEnforceCompletedSetupRedirect = !isTestMode || IS_STRICT_SETUP_CHECK;
 
       if (

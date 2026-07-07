@@ -174,6 +174,11 @@ export default defineConfig({
       testMatch: ["**/user/profile.spec.ts", "**/user/management.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
+      // Serialize profile + management specs: both mutate the shared user table
+      // (rename admin, block/delete developer), and parallel runs race on the
+      // admin-area component's tableData refetch → selectedMap reset, which
+      // flakes the bulk-actions checkbox flow. workers=1 guarantees isolation.
+      workers: 1,
     },
     {
       name: "builder",
@@ -185,6 +190,10 @@ export default defineConfig({
       ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
+      // The four builder specs share one DB and interfere when run in
+      // parallel (empty-state needs no collections; collection/journey
+      // create them). Serialize to guarantee isolation.
+      workers: 1,
     },
     {
       name: "permissions",

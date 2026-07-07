@@ -15,7 +15,7 @@ import {
 	targetWidget,
 } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
+import { getWidgetFunction, widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { modalState } from "@utils/modal.svelte";
@@ -247,7 +247,11 @@ const quickWidgets = [
   { key: "Relation", icon: "material-symbols:account-tree-outline", label: "Relation" },
 ];
 
-function addQuickWidget(key: string) {
+async function addQuickWidget(key: string) {
+	// Ensure widget store has finished initializing before resolving widget functions.
+	// The page's onMount fires initializeWidgets() without awaiting, so an early
+	// click could otherwise find getWidgetFunction(key) === undefined.
+	await widgetStoreActions.initializeWidgets();
 	const widgetInstance = getWidgetFunction(key);
 	if (widgetInstance) {
 		const newIndex = items.length;

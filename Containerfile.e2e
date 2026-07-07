@@ -1,0 +1,107 @@
+# Containerfile.e2e
+#
+# Purpose: Faithfully simulate the GitHub Actions CI environment (ubuntu-latest)
+# locally via Podman, so E2E tests run on the SAME OS CI uses. This catches
+# env-only failures (e.g. visual-regression viewport/DPI differences) that
+# don't reproduce on the Windows dev machine.
+#
+# Matches CI (`.github/workflows/ci.yml`):
+#   - Base:        ubuntu:24.04  (ubuntu-latest is currently Noble)
+#   - Bun:          1.3.14
+#   - Node:         24
+#   - Install:      bun install --prefer-offline
+#   - Browsers:     bun x playwright install --with-deps chromium
+#   - Test runner:  non-root user (CI runs as the `runner` user, not root)
+#
+# Build:
+#   podman build -t svelty-e2e -f Containerfile.e2e .
+#
+# See: scripts/e2e-podman.ps1 for the runner that mirrors the CI env vars
+# and the exact test invocation.
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# ── Base system packages ──────────────────────────────────────────────────
+# Playwright chromium needs a long list of libs. We bake them ALL into the
+# image so the runtime can use `bun x playwright install` (browser only) without
+# needing `--with-deps` (which requires sudo). This mirrors what CI does on the
+# CACHED path (line 500: `bun x playwright install-deps chromium` runs once,
+# subsequent runs skip it).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        unzip \
+        xz-utils \
+        zstd \
+        build-essential \
+        python3 \
+        fonts-noto-cjk \
+        fonts-liberation \
+        \
+        libnss3 \
+        libnspr4 \
+        libdbus-1-3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libxkbcommon0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libxext6 \
+        libx11-6 \
+        libxcb1 \
+        libxshmfence1 \
+        libgbm1 \
+        libpango-1.0-0 \
+        libcairo2 \
+        libasound2t64 \
+        libatspi2.0-0 \
+        libdrm2 \
+        libglib2.0-0 \
+        libexpat1 \
+        libxml2 \
+        libxss1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Node.js 24 (matches .github/actions/setup-sveltycms default) ──────────
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Bun 1.3.14 (matches CI bun-version input) ────────────────────────────
+# Install under /usr/local so it's on PATH for every user.
+RUN curl -fsSL https://bun.sh/install | bash -s -- "bun-v1.3.14" \
+    && mv /root/.bun /usr/local/bun \
+    && ln -sf /usr/local/bun/bin/bun /usr/local/bin/bun
+ENV BUN_INSTALL=/usr/local/bun
+ENV PATH=$BUN_INSTALL/bin:$PATH
+
+# ── Non-root test user (CI runs Playwright as the non-root `runner` user) ─
+# UID/GID 1000 matches the typical WSL user, so files written to bind mounts
+# are owned consistently. Playwright refuses --no-sandbox as root; running as
+# pwuser avoids needing --no-sandbox (matches CI).
+# ubuntu:24.04 ships with a default `ubuntu` user at UID/GID 1000 — remove it
+# so we can reclaim UID 1000 for pwuser.
+RUN if id ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
+    && if getent group 1000 >/dev/null; then groupmod --new-name pwuser "$(getent group 1000 | cut -d: -f1)" || groupdel "$(getent group 1000 | cut -d: -f1)"; fi \
+    && groupadd --gid 1000 pwuser 2>/dev/null || true \
+    && useradd --uid 1000 --gid 1000 --groups sudo \
+       --create-home --shell /bin/bash pwuser \
+    && mkdir -p /app \
+    && chown -R pwuser:pwuser /app /usr/local/bun
+
+USER pwuser
+WORKDIR /app
+
+# Default to bash so the runner script's `bash -lc` works cleanly.
+SHELL ["/bin/bash", "-lc"]
+
+# No ENTRYPOINT/CMD — the runner script passes the full command.

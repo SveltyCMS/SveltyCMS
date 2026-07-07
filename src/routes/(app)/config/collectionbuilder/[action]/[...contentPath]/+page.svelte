@@ -118,6 +118,21 @@ onDestroy(() => {
 });
 
 async function handleCollectionSave(confirmDeletions = false) {
+	// Validate required name client-side. Without this, saving a collection
+	// with an empty name succeeds on the server (writing a broken collection
+	// file), then the post-save redirect to /edit/<name> 500s because the
+	// name is empty. The toast text contains "required" so tests can assert
+	// on it via getByText(/required/i).
+	if (!collection.value?.name?.trim()) {
+		validationStore.setError("name", "Collection name is required");
+		toast.error("Collection name is required");
+		return;
+	}
+	// Name is present — clear any stale name error from a prior failed save.
+	if (validationStore.hasError("name")) {
+		validationStore.clearError("name");
+	}
+
 	if (
 		validationStore.errors &&
 		Object.keys(validationStore.errors).length > 0
