@@ -13,6 +13,9 @@ Usage:
 -->
 
 <script lang="ts">
+	import Input from '@components/ui/input.svelte';
+	import Slider from '@components/ui/slider.svelte';
+
 	interface Props {
 		opacity?: number;
 		positionX?: number;
@@ -36,11 +39,10 @@ Usage:
 		size = target.value;
 	}
 
-	// Handle opacity input change
-	function handleOpacityChange(event: Event) {
-		const target = event.target as HTMLInputElement;
-		opacity = Number.parseFloat(target.value);
-	}
+	// Handle opacity slider change (Slider passes number, not Event)
+			function handleOpacityChange(value: number) {
+				opacity = value;
+			}
 
 	// Handle X position input change
 	function handlePositionXChange(event: Event) {
@@ -61,59 +63,62 @@ Usage:
 	}
 </script>
 
-<div class="grid grid-cols-2 gap-2">
-	<div>
-		<label class="block font-bold" for="size">Size</label>
-		<input aria-label="Watermark text"
-			class="w-full"
-			id="size"
-			type="text"
-			bind:value={size}
-			oninput={handleSizeChange}
-			placeholder="e.g., 100px or 50%"
-		/>
+	<div class="grid grid-cols-2 gap-2">
+		<div>
+			<label class="block font-bold" for="size">Size</label>
+			<Input
+				aria-label="Watermark size"
+				type="text"
+				class="w-full"
+				id="size"
+				bind:value={size}
+				oninput={handleSizeChange}
+				placeholder="e.g., 100px or 50%"
+			/>
+		</div>
+		<div>
+			<label class="block font-bold" for="opacity">Opacity</label>
+			<Slider
+				aria-label="Watermark opacity"
+				class="w-full"
+				min={0}
+				max={1}
+				step={0.1}
+				bind:value={opacity}
+				onchange={handleOpacityChange}
+			/>
+		</div>
+		<div>
+			<label class="block font-bold" for="positionX">Position X</label>
+			<Input
+				aria-label="Position X"
+				type="number"
+				class="w-full"
+				id="positionX"
+				bind:value={positionX}
+				oninput={handlePositionXChange}
+			/>
+		</div>
+		<div>
+			<label class="block font-bold" for="positionY">Position Y</label>
+			<Input
+				aria-label="Position Y"
+				type="number"
+				class="w-full"
+				id="positionY"
+				bind:value={positionY}
+				oninput={handlePositionYChange}
+			/>
+		</div>
+		<div>
+			<label class="block font-bold" for="rotation">Rotation</label>
+			<Input
+				aria-label="Rotation"
+				type="number"
+				class="w-full"
+				id="rotation"
+				bind:value={rotation}
+				oninput={handleRotationChange}
+			/>
+		</div>
 	</div>
-	<div>
-		<label class="block font-bold" for="opacity">Opacity</label>
-		<input aria-label="Font size"
-			class="w-full"
-			id="opacity"
-			type="range"
-			min="0"
-			max="1"
-			step="0.1"
-			bind:value={opacity}
-			oninput={handleOpacityChange}
-		/>
-	</div>
-	<div>
-		<label class="block font-bold" for="positionX">Position X</label>
-		<input aria-label="Watermark color"
-			class="w-full"
-			id="positionX"
-			type="number"
-			bind:value={positionX}
-			oninput={handlePositionXChange}
-		/>
-	</div>
-	<div>
-		<label class="block font-bold" for="positionY">Position Y</label>
-		<input aria-label="Opacity"
-			class="w-full"
-			id="positionY"
-			type="number"
-			bind:value={positionY}
-			oninput={handlePositionYChange}
-		/>
-	</div>
-	<div>
-		<label class="block font-bold" for="rotation">Rotation</label>
-		<input aria-label="Position"
-			class="w-full"
-			id="rotation"
-			type="number"
-			bind:value={rotation}
-			oninput={handleRotationChange}
-		/>
-	</div>
-</div>

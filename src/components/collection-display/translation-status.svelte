@@ -443,10 +443,11 @@ FIXES:
 			{const percentage = languageProgress[lang] || 0}
 			{const isActive = currentLanguage === lang}
 
-			<button
+			<Button
+				variant="ghost"
 				class="w-full text-start px-3 py-2 flex items-center gap-3 rounded transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}"
 				onclick={() => handleLanguageChange(lang as Locale)}
-			 aria-label="Close translation panel">
+			 aria-label="Switch language to {getLanguageName(lang)}">
 				<div class="flex w-full items-center justify-between gap-2">
 					<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-700 dark:text-primary-300' : ''}">
 						<span class="md:hidden">{lang.toUpperCase()}</span>
@@ -470,7 +471,7 @@ FIXES:
 						{/if}
 					</div>
 				</div>
-			</button>
+			</Button>
 		{/each}
 
 		{#if !isViewMode && showProgress}

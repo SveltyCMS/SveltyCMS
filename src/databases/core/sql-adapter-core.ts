@@ -97,6 +97,32 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return {};
   }
 
+  /**
+   * 🚀 SCHEMA REGISTRATION: Lazily registers a table's columns for zero-overhead
+   * date/JSON conversion. Called on first access to each table. Eliminates
+   * per-row Set.has() lookups for known columns.
+   *
+   * Idempotent: returns immediately if the table was already registered.
+   */
+  protected ensureTableSchemaRegistered(table: any, name: string): void {
+    if (!table || typeof table !== "object") return;
+    try {
+      const columns = Object.keys(table);
+      // Filter out Drizzle internal symbols and metadata
+      const realCols = columns.filter(
+        (c) => !c.startsWith("Symbol(") && !c.startsWith("@@") && c !== "_" && c !== "name",
+      );
+      if (realCols.length > 0) {
+        utils.registerTableSchema(name, realCols);
+      }
+    } catch {
+      // Schema extraction is best-effort — fallback to full-key iteration if it fails
+    }
+  }
+
+  // Instance-level cache to skip even the Map.has() call after first registration
+  private _registeredSchemas = new Set<string>();
+
   /** Whether INSERT … RETURNING is supported natively. */
   protected get insertReturnsRows(): boolean {
     return false;
@@ -858,6 +884,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             : data;
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
+        // 🚀 SCHEMA REGISTRATION: One-time per-collection, O(1) after first call
+        if (!this._registeredSchemas.has(collection)) {
+          this.ensureTableSchemaRegistered(table, collection);
+          this._registeredSchemas.add(collection);
+        }
         const id = (d as any)._id || generateUUID();
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);

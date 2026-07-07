@@ -69,7 +69,7 @@
 
 	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-5 ml-auto me-10">X</button>
+			<Button variant="ghost" onclick={handleCancel} aria-label="Cancel" class="mb-5 ml-auto me-10">X</Button>
 			<Dropdown options={widget_keys.map(k => ({ label: k, value: k }))} value={selected_widget}>
 				{#snippet trigger()}
 					<Button variant="outline">Select Widget</Button>

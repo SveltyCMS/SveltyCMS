@@ -199,7 +199,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 </script>
 
 <div class="flex shrink-0 flex-col gap-0 w-full max-h-[min(36dvh,16.5rem)] min-h-0 z-30 bg-[--editor-chrome-bg]">
-	<div class="flex-[0_1_auto] min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+	<div class="flex-[0_1_auto] min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-none] [&::-webkit-scrollbar]:hidden">
 		{#if showTransformSlider}
 			<div class="flex flex-col gap-0 py-1 px-4 pb-px" class:gap-1={!useRotationSlider}>
 				<div class="relative flex items-center h-7.5 px-1">

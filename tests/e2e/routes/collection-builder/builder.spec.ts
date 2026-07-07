@@ -20,7 +20,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await expect(page).toHaveURL(/\/config\/collectionbuilder\/new/, {
       timeout: 10_000,
     });
-    await expect(page.getByTestId("collection-editor-stepper")).toBeVisible();
+    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible();
   });
 
   test("should display widget management page", async ({ page }) => {
@@ -52,12 +52,12 @@ test.describe("Collection Builder with Modern Widgets", () => {
     // Start creating a new collection
     await page.getByTestId("add-collection-button").first().click();
 
-    // Fill collection basic info (step 1: General Setup)
+    // Fill collection basic info
     await page.getByTestId("collection-name-input").fill("Test Article");
     await page.locator("#description").fill("Test collection for articles");
 
-    // Navigate to step 2: Field Configuration via the stepper
-    await page.getByRole("button", { name: /Field Configuration/i }).click();
+    // Navigate to Widgets & Fields tab
+    await page.getByTestId("tab-widgets").click();
 
     // Quick-add an Input field using the quick-add bar
     await page.getByTestId("quick-add-text").click();

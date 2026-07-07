@@ -14,6 +14,11 @@ export class InMemoryStore implements CacheStore {
   private isInitialized = false;
   private interval: ReturnType<typeof setInterval> | null = null;
 
+  // 🚀 COMPILED REGEX CACHE: Avoids new RegExp() allocation on every clearByPattern.
+  // Patterns like "collection:*" are compiled once and reused.
+  private readonly patternCache = new Map<string, RegExp>();
+  private readonly MAX_PATTERN_CACHE = 64;
+
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
     this.interval = setInterval(() => this.cleanup(), 60_000);
@@ -92,7 +97,17 @@ export class InMemoryStore implements CacheStore {
   }
 
   async clearByPattern(pattern: string): Promise<void> {
-    const regex = new RegExp(pattern.replace(/\*/g, ".*"));
+    // 🚀 COMPILED REGEX CACHE: Reuse compiled patterns, evict oldest when full
+    let regex = this.patternCache.get(pattern);
+    if (!regex) {
+      regex = new RegExp(pattern.replace(/\*/g, ".*"));
+      if (this.patternCache.size >= this.MAX_PATTERN_CACHE) {
+        // Evict oldest entry (first key in Map insertion order)
+        const firstKey = this.patternCache.keys().next().value;
+        if (firstKey) this.patternCache.delete(firstKey);
+      }
+      this.patternCache.set(pattern, regex);
+    }
     for (const key of this.cache.keys()) {
       if (regex.test(key)) {
         await this.delete(key);

@@ -16,6 +16,7 @@
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import { browser } from '$app/environment';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { flip } from 'svelte/animate';
@@ -217,7 +218,8 @@
 							</p>
 
 							{#if t.action}
-								<button
+								<Button
+									variant="ghost"
 									onclick={() => {
 										t.action?.onClick();
 										toast.close(t.id);
@@ -225,17 +227,18 @@
 									class="mt-2 text-xs font-medium bg-white/20 hover:bg-white/30 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded transition-colors"
 								>
 									{t.action.label}
-								</button>
+								</Button>
 							{/if}
 						</div>
 
-						<button
+						<Button
+							variant="ghost"
 							onclick={() => toast.close(t.id)}
 							class="shrink-0 opacity-70 hover:opacity-100 transition-opacity -me-1 -mt-1 sm:me-0 sm:mt-0 p-1"
 							aria-label="Dismiss notification"
 						>
 							<iconify-icon icon="mdi:close" class="text-lg"></iconify-icon>
-						</button>
+						</Button>
 					</div>
 				</div>
 

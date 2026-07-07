@@ -8,7 +8,7 @@ order: 5
 status: "beta"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-03-27"
+updated: "2026-07-05"
 tags:
   - "collection"
   - "builder"
@@ -24,6 +24,33 @@ n> [!NOTE] Competitive comparisons based on publicly available documentation as 
 ## Overview
 
 The Collection Builder is a visual tool for creating and managing content collections in SveltyCMS. It provides an intuitive interface for defining content structures, organizing collections into categories, and configuring fields using the modern widget system.
+
+### Why the Tabbed Editor Is Better
+
+| Before (Stepper)                                  | After (Tabs)                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Linear flow: must complete Step 1 to reach Step 2 | **Free navigation**: jump between Basic, Widgets, and Settings anytime                     |
+| 2 steps: Basic → Fields                           | **3 tabs**: Basic Setup → Widgets & Fields → Settings & Permissions                        |
+| Permissions buried in general settings            | **Dedicated Permissions tab** with status, sort, pagination, API visibility, RBAC overview |
+| No API visibility control in editor               | **API toggle**: hide sensitive collections from REST/GraphQL with one click                |
+| Stepper UI requires clicking "Next" to advance    | **Keyboard-navigable tabs**: Arrow keys, Home/End, ARIA-compliant                          |
+| No pagination config per collection               | **Entries per page**: 5-200, configurable per collection                                   |
+| Default sort hardcoded                            | **Per-collection sort**: field + direction, visible in Settings tab                        |
+
+### Code ↔ GUI Parity
+
+SveltyCMS is the only headless CMS that achieves **true bidirectional parity** between code and GUI:
+
+| Feature             | Code-First                              | GUI Builder                                   |
+| ------------------- | --------------------------------------- | --------------------------------------------- |
+| Schema definition   | `export const schema: Schema = { ... }` | Visual form → AST → same TypeScript output    |
+| Widget fields       | `fields: [widgets.input({...})]`        | Drag-and-drop widget sidebar                  |
+| Status & visibility | `status: 'published'`                   | Status dropdown + API toggle                  |
+| Sort & pagination   | `entriesPerPage: 30`                    | Settings tab number input                     |
+| Field validation    | Valibot schemas per field               | Visual Logic Builder (`showIf`, `requiredIf`) |
+| Custom hooks        | `beforeSave`, `afterSave` functions     | Coming — Permissions tab code snippets        |
+
+**How it works**: When you save in the GUI, the builder uses the TypeScript Compiler API to generate a real `.ts` file. This file is then compiled and stored in the database — identical to what a developer would write by hand. When you open an existing collection, it loads from the database regardless of how it was created.
 
 ```mermaid
 flowchart TB
@@ -161,9 +188,9 @@ Collections are organized into **categories** for better organization and manage
 
 ### Collection Editor
 
-The collection editor has **two main tabs**:
+The collection editor has **three tabs** for efficient workflow:
 
-#### Tab 1: Collection Form (Basic Settings)
+#### Tab 1: Basic Setup
 
 **Collection Information**:
 
@@ -186,35 +213,13 @@ The collection editor has **two main tabs**:
 - Auto-generated from name
 - Used in routing: `/collection/[slug]`
 - Example: "blog_posts"
-- Can be manually edited if needed
-
-**Database Name** (read-only):
-
-- Internal database collection name
-- Auto-generated: lowercase with underscores
-- Example: "blog_posts"
-- Used for database operations
 
 **Description** (optional):
 
 - Brief description of collection purpose
 - Displayed in admin interface
-- Helpful for documentation
 
-**Status** (required):
-
-- **Published**: Collection is active and accessible
-- **Unpublished**: Collection exists but is not publicly accessible
-- **Draft**: Collection is in development
-
-**Collection Settings** (Advanced):
-
-- Multi-language support
-- Automatic timestamps (createdAt, updatedAt)
-- SEO metadata fields
-- Custom permissions
-
-#### Tab 2: Collection Widgets (fields Configuration)
+#### Tab 2: Widgets & Fields
 
 This tab manages the fields (widgets) that make up your collection's content structure.
 
@@ -222,12 +227,18 @@ This tab manages the fields (widgets) that make up your collection's content str
 
 - Visual list of all fields
 - Drag-and-drop field reordering
-- **Visual Logic Builder**: Configure complex `showIf` and `requiredIf` dependencies.
-  - **Recursive Engine**: Supports nested AND/OR groups.
-  - **Operator Catalog**: `eq`, `neq`, `gt`, `lt`, `contains`, `in`.
-  - **Live Validation**: Instantly verifies logic syntax during configuration.
-- Add/edit/delete fields
-- Field preview
+- **Visual Logic Builder**: Configure complex `showIf` and `requiredIf` dependencies
+- Add/edit/delete fields with live preview
+
+#### Tab 3: Settings & Permissions
+
+Configure collection-level behavior and access control:
+
+- **Status**: Published / Draft toggle
+- **API Visibility**: Show or hide collection from the REST/GraphQL API
+- **Default Sort**: Field + direction for entry listings
+- **Pagination**: Entries per page (5-200)
+- **Permissions Overview**: Role-based access (Admin, Editor, Viewer)
 
 ### Adding fields to Collections
 

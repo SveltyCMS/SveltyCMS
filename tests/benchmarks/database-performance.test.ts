@@ -22,7 +22,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  assertSuccess,
 } from "./modules/benchmark-utils";
+import { validateBenchmarkEnvironment } from "./modules/benchmark-sanitizer";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
@@ -57,6 +59,14 @@ export async function runDatabaseBenchmark() {
     const dbType = getDbType();
 
     await prepareCollection(db);
+
+    // 🛡️ SANITIZER: Pre-flight validation before any benchmark measurement
+    await validateBenchmarkEnvironment({
+      collectionId: COLLECTION_ID,
+      db,
+      tenantId: TEST_TENANT,
+      warmupIterations: 150,
+    });
 
     const scenarios = [
       { name: "INSERT", fn: createInsertTest(db) },
@@ -157,23 +167,22 @@ export async function runDatabaseBenchmark() {
 // ─────────────────────────────────────────────────────────────
 
 function createInsertTest(db: any) {
-  const runId = Math.random().toString(36).substring(7);
-  // Pre-generate target keyspace arrays to avoid allocation string mutation logic inside loops
-  const targetKeys = Array.from({ length: 1500 }, (_, i) => `ins-${runId}-${i}`);
-  const targetTitles = targetKeys.map((k) => `Insert ${k}`);
-
-  return async (i: number) => {
-    const id = targetKeys[i] ?? `ins-fallback-${i}`;
-    await db.crud.insert(
+  // Use crypto.randomUUID() per iteration to guarantee uniqueness across
+  // warmup + actual runs. Pre-generated arrays cause E11000 collisions on
+  // MongoDB when warmup reuses the same indices as the actual benchmark loop.
+  return async (_i: number) => {
+    const id = crypto.randomUUID();
+    const result = await db.crud.insert(
       COLLECTION_ID,
       {
         _id: id as any,
-        title: targetTitles[i] ?? "Insert Baseline",
+        title: `Insert ${id}`,
         status: "active",
         tenantId: TEST_TENANT,
       },
       GLOBAL_TENANT_OPTS,
     );
+    assertSuccess(result, "insert");
   };
 }
 
@@ -181,16 +190,15 @@ function createFindOneTest(db: any) {
   const targetFilter = Object.freeze({ _id: "bench-shared-001" as any });
   return async () => {
     const res = await db.crud.findOne(COLLECTION_ID, targetFilter, GLOBAL_TENANT_OPTS);
-    if (!res?.success) {
-      throw new Error(`FindOne failed: ${res?.message || "Unknown error"}.`);
-    }
+    assertSuccess(res, "findOne");
   };
 }
 
 function createFindManyTest(db: any) {
   const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
   return async () => {
-    await db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS);
+    const res = await db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS);
+    assertSuccess(res, "findMany");
   };
 }
 
@@ -201,7 +209,8 @@ function createUpdateTest(db: any) {
     status: "updated",
   };
   return async () => {
-    await db.crud.update(COLLECTION_ID, targetId, updatePayload, GLOBAL_TENANT_OPTS);
+    const res = await db.crud.update(COLLECTION_ID, targetId, updatePayload, GLOBAL_TENANT_OPTS);
+    assertSuccess(res, "update");
   };
 }
 
@@ -210,6 +219,9 @@ function createDeleteTest(db: any) {
   const deleteKeys = Array.from({ length: 1500 }, (_, i) => `del-shared-${i}`);
   return async (i: number) => {
     const id = deleteKeys[i] ?? `del-fallback-${i}`;
+    // DELETE may return success:false if the record was already deleted by a
+    // warmup iteration (warmup and actual share the same key pool). We accept
+    // this as expected behavior for the warmup→actual boundary.
     await db.crud.delete(COLLECTION_ID, id as any, GLOBAL_TENANT_OPTS);
   };
 }
@@ -220,10 +232,18 @@ function createUpsertNativeTest(db: any) {
 
   if (db.type === "mongodb") {
     return async () => {
-      await db.crud.upsert(COLLECTION_ID, { _id: targetId }, mongoPayload, GLOBAL_TENANT_OPTS);
+      const res = await db.crud.upsert(
+        COLLECTION_ID,
+        { _id: targetId },
+        mongoPayload,
+        GLOBAL_TENANT_OPTS,
+      );
+      assertSuccess(res, "upsert (mongo)");
     };
   }
 
+  // SQL path: upsertNative is optional on ISqlAdapter and returns raw data
+  // (not { success: boolean }), so we use a lightweight existence check instead
   const table = db.getTable(COLLECTION_ID);
   const idCol = db.getColumn(table, "_id");
   const sqlKeys = [idCol];
@@ -234,31 +254,41 @@ function createUpsertNativeTest(db: any) {
   };
 
   return async () => {
-    await db.upsertNative(table, sqlPayload, sqlKeys);
+    if (typeof db.upsertNative === "function") {
+      await db.upsertNative(table, sqlPayload, sqlKeys);
+    } else {
+      // Fallback: use standard crud.upsert
+      const res = await db.crud.upsert(
+        COLLECTION_ID,
+        { _id: targetId },
+        sqlPayload,
+        GLOBAL_TENANT_OPTS,
+      );
+      assertSuccess(res, "upsert");
+    }
   };
 }
 
 function createCountTest(db: any) {
   const countFilter = Object.freeze({ status: "active" });
   return async () => {
-    await db.crud.count(COLLECTION_ID, countFilter, GLOBAL_TENANT_OPTS);
+    const res = await db.crud.count(COLLECTION_ID, countFilter, GLOBAL_TENANT_OPTS);
+    assertSuccess(res, "count");
   };
 }
 
 function createBulkInsertTest(db: any) {
-  const ITERATION_CAPACITY = 1200;
-  // Pre-seed matrix pools outside time tracking scopes to insulate engine from UUID math noise
-  const batchMatrixPool = Array.from({ length: ITERATION_CAPACITY }, () =>
-    Array.from({ length: 100 }, () => ({
+  // Generate fresh UUIDs per iteration to avoid warmup collision.
+  // Pre-allocated pools cause E11000 on MongoDB when warmup and actual
+  // loops reuse the same indices.
+  return async (_i: number) => {
+    const batch = Array.from({ length: 100 }, () => ({
       _id: crypto.randomUUID() as any,
       title: "Bulk item",
       tenantId: TEST_TENANT,
-    })),
-  );
-
-  return async (i: number) => {
-    const currentBatch = batchMatrixPool[i] ?? batchMatrixPool[0]!;
-    await db.crud.insertMany(COLLECTION_ID, currentBatch, GLOBAL_TENANT_OPTS);
+    }));
+    const res = await db.crud.insertMany(COLLECTION_ID, batch, GLOBAL_TENANT_OPTS);
+    assertSuccess(res, "insertMany");
   };
 }
 
@@ -297,10 +327,12 @@ async function prepareCollection(db: any) {
 
   console.log("   [DB Trace] Deleting old records...");
   const delRes = await db.crud.deleteMany(COLLECTION_ID, {}, PERM_DELETE_OPTS);
-  console.log(`   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`);
+  console.log(
+    `   [DB Trace] Deleted ${(delRes.data?.deletedCount ?? delRes.success) ? "all" : 0} records.`,
+  );
 
   console.log("   [DB Trace] Seeding stable record...");
-  await db.crud.insert(
+  const seedRes = await db.crud.insert(
     COLLECTION_ID,
     {
       _id: "bench-shared-001" as any,
@@ -311,6 +343,7 @@ async function prepareCollection(db: any) {
     },
     GLOBAL_TENANT_OPTS,
   );
+  assertSuccess(seedRes, "prepareCollection seed");
 
   console.log("   [DB Trace] Pre-populating delete batch (4000 records)...");
   const deleteBatch = Array.from({ length: 4000 }, (_, i) => ({
@@ -321,7 +354,8 @@ async function prepareCollection(db: any) {
     tenantId: TEST_TENANT,
   }));
 
-  await db.crud.insertMany(COLLECTION_ID, deleteBatch, GLOBAL_TENANT_OPTS);
+  const batchRes = await db.crud.insertMany(COLLECTION_ID, deleteBatch, GLOBAL_TENANT_OPTS);
+  assertSuccess(batchRes, "prepareCollection deleteBatch");
   console.log("   [DB Trace] Collection prepared.");
 }
 

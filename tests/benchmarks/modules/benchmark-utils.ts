@@ -202,7 +202,9 @@ afterAll(async () => {
   }
 
   const { shutdownSystem } = await import("@src/databases/db");
-  await shutdownSystem().catch(() => {});
+  if (typeof shutdownSystem === "function") {
+    await shutdownSystem().catch(() => {});
+  }
   if (process.env.BENCHMARK_MATRIX !== "1") {
     const { cleanupAllBenchmarkWorkspaces } = await import("@utils/benchmark-paths");
     await cleanupAllBenchmarkWorkspaces().catch(() => {});
@@ -584,16 +586,35 @@ export async function runBenchmark(config: any) {
     abortOnErrors = true,
     warmupIterations = 0,
     onSuccess,
+    onWarmupError,
   } = config;
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
+  let warmupErrors = 0;
   if (warmupIterations > 0) {
     for (let i = 0; i < warmupIterations; i++) {
       try {
         await onIteration(i);
-      } catch {
-        // optionally log warmup errors if debugging
+      } catch (err: any) {
+        warmupErrors++;
+        // 🛡️ HARDENING: Log first warmup error with full context so CI/stderr catches it.
+        // Previously this was an empty catch {} — silently hiding adapter failures.
+        if (warmupErrors === 1) {
+          console.warn(
+            `\n[Benchmark WARN] Warmup iteration ${i} failed in "${config.name}": ${err?.message || err}`,
+          );
+        }
+        if (onWarmupError) {
+          onWarmupError(i, err);
+        }
       }
+    }
+    // 🛡️ HARDENING: If >50% of warmup iterations failed, the benchmark
+    // environment is likely broken (e.g., DB collision, connection lost). Fail fast.
+    if (warmupErrors > warmupIterations * 0.5) {
+      throw new Error(
+        `Benchmark warmup failure: ${warmupErrors}/${warmupIterations} warmup iterations failed in "${config.name}". Check logs above for details.`,
+      );
     }
   }
 
@@ -675,6 +696,55 @@ export async function runBenchmark(config: any) {
 
   if (onSuccess) onSuccess(stats);
   return stats;
+}
+
+/**
+ * 🛡️ GUARD: Throws if a database result indicates failure.
+ *
+ * Use this inside benchmark onIteration callbacks to catch silently-returned
+ * errors (e.g., MongoDB E11000, SQL constraint violations) that would
+ * otherwise be counted as successful benchmark iterations.
+ *
+ * ### Usage:
+ * ```typescript
+ * onIteration: async () => {
+ *   const res = await db.crud.insert("posts", data, opts);
+ *   assertSuccess(res, "insert");
+ * }
+ * ```
+ */
+export function assertSuccess(
+  result:
+    | { success: boolean; message?: string; error?: any; [key: string]: any }
+    | null
+    | undefined,
+  operation: string,
+): void {
+  if (!result || !result.success) {
+    const msg = result?.message || result?.error?.message || "Unknown error";
+    throw new Error(`[${operation}] ${msg}`);
+  }
+}
+
+/**
+ * 🛡️ GUARD: Wraps an async callback to auto-assert success on the returned result.
+ * Convenience decorator for onIteration callbacks that call a single DB operation.
+ *
+ * ### Usage:
+ * ```typescript
+ * onIteration: assertResult((id) => db.crud.insert("posts", { _id: id }, opts), "insert")
+ * ```
+ */
+export function assertResult<T extends any[]>(
+  fn: (
+    ...args: T
+  ) => Promise<{ success: boolean; message?: string; error?: any } | null | undefined>,
+  operation: string,
+): (...args: T) => Promise<void> {
+  return async (...args: T) => {
+    const result = await fn(...args);
+    assertSuccess(result, operation);
+  };
 }
 
 export async function runStochasticLoadTest(config: {

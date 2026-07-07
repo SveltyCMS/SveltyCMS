@@ -526,20 +526,21 @@ Advanced icon picker with search, pagination, and favorites.
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.9 }}
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.9 }}
 		>
-			<button
-				type="button"
-				onclick={() => {
-					if (hideSearchInput) {
-						showDropdown = !showDropdown;
-						if (showDropdown) handleFocus();
-					}
-				}}
-				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-100 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
-					? 'pointer-events-none'
-					: ''}"
-				aria-expanded={hideSearchInput ? showDropdown : undefined}
-				aria-label={hideSearchInput ? 'Change icon (click to browse)' : 'Selected icon'}
-			>
+			<Button
+					variant="ghost"
+					type="button"
+					onclick={() => {
+						if (hideSearchInput) {
+							showDropdown = !showDropdown;
+							if (showDropdown) handleFocus();
+						}
+					}}
+					class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-100 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
+						? 'pointer-events-none'
+						: ''}"
+					aria-expanded={hideSearchInput ? showDropdown : undefined}
+					aria-label={hideSearchInput ? 'Change icon (click to browse)' : 'Selected icon'}
+				>
 				<iconify-icon
 					icon={iconselected}
 					width={previewSize}
@@ -550,7 +551,7 @@ Advanced icon picker with search, pagination, and favorites.
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
 					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</p>
 				</div>
-			</button>
+			</Button>
 
 			<div class="flex shrink-0 gap-1">
 				<Button variant="outline"
@@ -660,43 +661,49 @@ Advanced icon picker with search, pagination, and favorites.
 		>
 			<!-- Tabs -->
 			<div class="flex border-b border-surface-200 dark:text-surface-50" role="tablist">
-				<button
-					id="icon-tab-search"
-					role="tab"
-					aria-selected={activeTab === 'search'}
-					onclick={() => switchTab('search')}
-					class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
-						? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
-				>
-					Search
-				</button>
-				{#if showFavorites && hasFavorites}
-					<button
-						id="icon-tab-favorites"
+				<Button
+						variant="ghost"
+						type="button"
+						id="icon-tab-search"
 						role="tab"
-						aria-selected={activeTab === 'favorites'}
-						onclick={() => switchTab('favorites')}
-						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
+						aria-selected={activeTab === 'search'}
+						onclick={() => switchTab('search')}
+						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'search'
 							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
 							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
 					>
-						Favorites ({favorites.length})
-					</button>
-				{/if}
-				{#if hasRecent}
-					<button
-						id="icon-tab-recent"
-						role="tab"
-						aria-selected={activeTab === 'recent'}
-						onclick={() => switchTab('recent')}
-						class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
-							? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
-					>
-						Recent ({recentSelections.length})
-					</button>
-				{/if}
+						Search
+					</Button>
+					{#if showFavorites && hasFavorites}
+						<Button
+							variant="ghost"
+							type="button"
+							id="icon-tab-favorites"
+							role="tab"
+							aria-selected={activeTab === 'favorites'}
+							onclick={() => switchTab('favorites')}
+							class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'favorites'
+								? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+						>
+							Favorites ({favorites.length})
+						</Button>
+					{/if}
+					{#if hasRecent}
+						<Button
+							variant="ghost"
+							type="button"
+							id="icon-tab-recent"
+							role="tab"
+							aria-selected={activeTab === 'recent'}
+							onclick={() => switchTab('recent')}
+							class="flex-1 px-4 py-3 text-sm font-medium transition-colors {activeTab === 'recent'
+								? 'border-b-2 border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500'
+								: 'text-surface-600 hover:text-surface-900 dark:text-surface-50 dark:hover:text-surface-100'}"
+						>
+							Recent ({recentSelections.length})
+						</Button>
+					{/if}
 			</div>
 
 			<!-- Library selector (only for search tab) -->

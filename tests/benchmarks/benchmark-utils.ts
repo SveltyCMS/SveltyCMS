@@ -39,6 +39,20 @@ export const TEST_API_SECRET = (() => {
   return "SVELTYCMS_TEST_SECRET_2026";
 })();
 
+// ── 2b. Result Assertion Helpers (Lazy-loaded for zero-penalty in non-benchmark paths) ──
+export function assertSuccess(
+  result:
+    | { success: boolean; message?: string; error?: any; [key: string]: any }
+    | null
+    | undefined,
+  operation: string,
+): void {
+  if (!result || !result.success) {
+    const msg = result?.message || result?.error?.message || "Unknown error";
+    throw new Error(`[${operation}] ${msg}`);
+  }
+}
+
 // ── 3. Deferred Orchestration Exporters (Isolated from Barrel Evaluation Code Path) ──
 export async function runBenchmark(config: any) {
   const { runBenchmark: canonicalRun } = await import("./modules/benchmark-utils");

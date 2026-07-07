@@ -67,16 +67,20 @@ const userCollectionsPath = path.resolve(
   process.env.COLLECTIONS_DIR || "config/collections",
 );
 
-// Load Prettier config
-async function getPrettierConfig() {
+// Format generated TypeScript with oxfmt (replaces prettier)
+async function formatTypeScript(code: string): Promise<string> {
   try {
-    const prettier = await import("prettier");
-    const config = await prettier.default.resolveConfig(process.cwd());
-    return { ...config, parser: "typescript" };
+    const { spawnSync } = await import("node:child_process");
+    const result = spawnSync("bun", ["x", "oxfmt", "--stdin"], {
+      input: code,
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    if (result.status === 0 && result.stdout) return result.stdout;
   } catch (err) {
-    logger.warn("Failed to load Prettier config, using defaults:", err);
-    return { parser: "typescript" };
+    logger.warn("oxfmt not available for formatting, writing unformatted code.", err);
   }
+  return code;
 }
 
 // Define load function as async function that takes an event parameter
@@ -205,6 +209,12 @@ export const actions: Actions = {
       const collectionStatus = formData.get("status") as string;
       const confirmDeletions = formData.get("confirmDeletions") === "true";
 
+      // Permissions & Settings tab data
+      const entriesPerPage = parseInt((formData.get("entriesPerPage") as string) || "20", 10);
+      const defaultSortField = (formData.get("defaultSortField") as string) || "createdAt";
+      const defaultSortDir = (formData.get("defaultSortDir") as string) || "desc";
+      const apiVisible = formData.get("apiVisible") !== "false";
+
       // Widgets Fields
       const fields = JSON.parse(fieldsData) as FieldsData;
 
@@ -246,6 +256,10 @@ export const actions: Actions = {
         fields,
         imports,
         tenantId,
+        entriesPerPage,
+        defaultSortField,
+        defaultSortDir,
+        apiVisible,
       });
 
       // Use tenant-aware path resolution
@@ -477,6 +491,10 @@ interface CollectionData {
   fields: FieldsData;
   imports: string;
   tenantId?: string | null | null;
+  entriesPerPage?: number;
+  defaultSortField?: string;
+  defaultSortDir?: string;
+  apiVisible?: boolean;
 }
 
 async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
@@ -525,19 +543,13 @@ export const schema: Schema = {
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
     let result = printer.printFile(transformedSourceFile);
 
-    // Clean up the 🗑️ markers, unescape JSON quotes, and format with prettier
+    // Clean up the 🗑️ markers, unescape JSON quotes, and format with oxfmt
     result = result
       .replace(/["']🗑️|🗑️["']/g, "")
       .replace(/🗑️/g, "")
       .replace(/\\"/g, '"');
 
-    try {
-      const prettier = await import("prettier");
-      const prettierConfig = await getPrettierConfig();
-      result = await prettier.default.format(result, prettierConfig);
-    } catch {
-      logger.warn("Prettier not available for formatting, writing unformatted code.");
-    }
+    result = await formatTypeScript(result);
 
     return result;
   } catch (error) {
@@ -648,6 +660,40 @@ function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpres
   properties.push(
     ts.factory.createPropertyAssignment(ts.factory.createIdentifier("fields"), fieldsExpression),
   );
+
+  // Permissions & Settings tab — persisted to TypeScript for code↔GUI parity
+  if (data.entriesPerPage && data.entriesPerPage !== 20) {
+    properties.push(
+      ts.factory.createPropertyAssignment(
+        ts.factory.createIdentifier("entriesPerPage"),
+        ts.factory.createNumericLiteral(data.entriesPerPage),
+      ),
+    );
+  }
+  if (data.defaultSortField && data.defaultSortField !== "createdAt") {
+    properties.push(
+      ts.factory.createPropertyAssignment(
+        ts.factory.createIdentifier("defaultSortField"),
+        ts.factory.createStringLiteral(data.defaultSortField),
+      ),
+    );
+  }
+  if (data.defaultSortDir && data.defaultSortDir !== "desc") {
+    properties.push(
+      ts.factory.createPropertyAssignment(
+        ts.factory.createIdentifier("defaultSortDir"),
+        ts.factory.createStringLiteral(data.defaultSortDir),
+      ),
+    );
+  }
+  if (data.apiVisible === false) {
+    properties.push(
+      ts.factory.createPropertyAssignment(
+        ts.factory.createIdentifier("apiVisible"),
+        ts.factory.createFalse(),
+      ),
+    );
+  }
 
   return ts.factory.createObjectLiteralExpression(properties, true);
 }

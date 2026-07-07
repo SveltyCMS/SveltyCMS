@@ -5,9 +5,12 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { fade, slide } from "svelte/transition";
+import { slide } from "svelte/transition";
 import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-types";
 	import Button from '@components/ui/button.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 
 interface Props {
     collectionId: string;
@@ -85,17 +88,19 @@ const availableTransitions = $derived.by(() => {
 </script>
 
 {#if !loading && workflow}
-    <div class="card p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm space-y-4" in:fade>
+    <AdminCard class="p-4 border border-surface-200 dark:border-surface-800 shadow-sm space-y-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:state-machine" class="text-tertiary-500 dark:text-primary-500 text-xl"></iconify-icon>
                 <h3 class="text-sm font-bold uppercase tracking-wider opacity-50">Workflow Status</h3>
             </div>
             {#if currentState}
-                <div class="badge flex items-center gap-2 px-3 py-1 font-bold text-xs" style:background-color="{currentState.color}20" style:color={currentState.color} style:border="1px solid {currentState.color}40">
-                    <div class="h-2 w-2 rounded-full" style:background-color={currentState.color}></div>
-                    {currentState.label}
-                </div>
+                <span class="inline-flex items-center gap-2 px-3 py-1 font-bold text-xs rounded-full" style="background-color: {currentState.color}20; color: {currentState.color}; border: 1px solid {currentState.color}40;">
+                    <Badge variant="surface" class="flex items-center gap-2 font-bold text-xs bg-transparent!">
+                        <div class="h-2 w-2 rounded-full" style="background-color: {currentState.color}"></div>
+                        {currentState.label}
+                    </Badge>
+                </span>
             {/if}
         </div>
 
@@ -126,12 +131,13 @@ const availableTransitions = $derived.by(() => {
 
                 {#if showComment}
                     <div class="space-y-3 pt-3 border-t border-surface-200 dark:border-surface-800" transition:slide>
-                        <textarea aria-label="Workflow note"
+                        <Textarea
                             bind:value={comment}
+                            label="Workflow note"
                             placeholder="Add a comment (optional)..."
-                            class="textarea text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"
-                            						rows="2"
-                            					></textarea>
+                            class="text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"
+                            rows={2}
+                        ></Textarea>
                         <div class="flex justify-end gap-2">
                                 <Button variant="ghost" onclick={() => showComment = false} size="sm" class="text-[10px]">Cancel</Button>
                                 <Button variant="tertiary" onclick={() => triggerTransition(selectedTargetStateId)} size="sm" class="text-[10px]">Confirm Move</Button>
@@ -155,7 +161,7 @@ const availableTransitions = $derived.by(() => {
                         {/if}
                     </div>
                 </div>
-            {/if}
-        {/if}
-    </div>
+	            {/if}
+	        {/if}
+	    </AdminCard>
 {/if}

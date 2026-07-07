@@ -207,7 +207,8 @@
 							{#each files as file (getFileId(file))}
 								{const fileId = getFileId(file)}
 								{const isSelected = selectedFiles.has(fileId)}
-								<button
+								<Button
+									variant="ghost"
 									type="button"
 									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-start shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
 										? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
@@ -261,7 +262,7 @@
 											<span class="uppercase tracking-wide">{getFileType(file)}</span>
 										</div>
 									</div>
-								</button>
+								</Button>
 							{/each}
 						</div>
 					{/if}

@@ -1421,6 +1421,7 @@ const dbFactory = () => ({
   resetDbInitPromise: mock(() => {}),
   dbInitPromise: Promise.resolve({}),
   isDbConnected: mock(() => true),
+  shutdownSystem: mock(() => Promise.resolve()),
   default: dbMock,
 });
 

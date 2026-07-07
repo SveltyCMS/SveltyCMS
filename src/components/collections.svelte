@@ -18,11 +18,12 @@ Provides an organized interface for navigating hierarchical content structures.
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
-	import Input from '@components/ui/input.svelte';
-	import Loader from '@components/ui/loader.svelte';
-	import Select from '@components/ui/select.svelte';
-	import TreeView from '@components/ui/tree-view.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+			import Button from '@components/ui/button.svelte';
+			import Input from '@components/ui/input.svelte';
+			import Loader from '@components/ui/loader.svelte';
+			import Select from '@components/ui/select.svelte';
+			import TreeView from '@components/ui/tree-view.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { collection, contentStructure } from '@src/stores/collection-store.svelte.ts';
@@ -611,7 +612,7 @@ Provides an organized interface for navigating hierarchical content structures.
 {#if showTagModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		role="dialog" aria-modal="true" aria-labelledby="tag-modal-title" tabindex="-1" onkeydown={handleModalKeyDown}>
-		<div class="card w-full max-w-md p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl relative">
+		<AdminCard class="w-full max-w-md p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl relative">
 			<Button variant="ghost"
 				type="button"
 				onclick={() => showTagModal = false}
@@ -633,16 +634,18 @@ Provides an organized interface for navigating hierarchical content structures.
 						{#each tagMap[activeCollectionIdForTagging] as tag, i (i)}
 							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500/10 text-tertiary-500">
 								{tag}
-								<button
+								<Button
+									variant="ghost"
+									size="sm"
 									type="button"
 									onclick={() => {
 										const updated = tagMap[activeCollectionIdForTagging].filter(t => t !== tag);
 										tagMap = { ...tagMap, [activeCollectionIdForTagging]: updated };
 										currentTagsInput = updated.join(', ');
 									}}
-									class="hover:text-error-500 p-0 leading-none"
+									class="rounded-full p-0.5 hover:text-error-500"
 									aria-label="Remove tag {tag}"
-								>&times;</button>
+								>&times;</Button>
 							</span>
 						{/each}
 					</div>
@@ -653,7 +656,7 @@ Provides an organized interface for navigating hierarchical content structures.
 					<Button variant="tertiary" type="button" onclick={saveTags}>Save</Button>
 				</div>
 			</div>
-		</div>
+		</AdminCard>
 	</div>
 {/if}
 

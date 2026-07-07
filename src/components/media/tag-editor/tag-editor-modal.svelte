@@ -20,26 +20,26 @@ Features:
 	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
-		show = $bindable(),
-		file = $bindable(null),
-		onUpdate = () => {},
-		hideGenerate = false
-	}: {
-		show: boolean;
-		file: MediaImage | null;
-		onUpdate?: (updatedFile: MediaImage) => void;
-		hideGenerate?: boolean;
-	} = $props();
+			show = $bindable(),
+			file = $bindable(null),
+			onUpdate = () => {},
+			hideGenerate = false
+		}: {
+			show: boolean;
+			file: MediaImage | null;
+			onUpdate?: (updatedFile: MediaImage) => void;
+			hideGenerate?: boolean;
+		} = $props();
 
 	let newTagInput = $state('');
 	let isGenerating = $state(false);
 	let isSaving = $state(false);
 
 	let editingTag = $state<{
-		type: 'ai' | 'user';
-		index: number;
-		value: string;
-	} | null>(null);
+			type: 'ai' | 'user';
+			index: number;
+			value: string;
+		} | null>(null);
 
 	function getImageUrl(activeFile: MediaImage) {
 		const thumbs = activeFile.thumbnails || {};
@@ -333,10 +333,12 @@ Features:
 						{#if pendingCount > 0}
 							{#each activeFile.metadata!.aiTags! as tag, i (tag)}
 								{#if editingTag?.type === 'ai' && editingTag.index === i}
-									<input aria-label="Tag name"
+									<Input
+										aria-label="Tag name"
 										type="text"
 										bind:value={editingTag.value}
-										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
+										class="h-7 w-28"
+										inputClass="rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'ai');
 											if (e.key === 'Escape') editingTag = null;
@@ -345,22 +347,12 @@ Features:
 									/>
 								{:else}
 									<Badge variant="primary" preset="tonal" size="sm" class="gap-1 pe-1">
-										<button
-											type="button"
-											class="max-w-34 truncate"
-											onclick={() => (editingTag = { type: 'ai', index: i, value: tag })}
-											aria-label="Edit tag {tag}"
-										>
+										<Button variant="ghost" size="sm" class="max-w-34 truncate" onclick={() => (editingTag = { type: 'ai', index: i, value: tag })} aria-label="Edit tag {tag}">
 											{tag}
-										</button>
-										<button
-											type="button"
-											class="rounded-full p-0.5 text-surface-500 hover:text-error-500"
-											onclick={() => removeTag(tag, 'ai')}
-											aria-label="Remove tag {tag}"
-										>
+										</Button>
+										<Button variant="ghost" size="sm" class="rounded-full p-0.5" onclick={() => removeTag(tag, 'ai')} aria-label="Remove tag {tag}">
 											<iconify-icon icon="mdi:close" width="12"></iconify-icon>
-										</button>
+										</Button>
 									</Badge>
 								{/if}
 							{/each}
@@ -430,10 +422,12 @@ Features:
 						{#if savedCount > 0}
 							{#each activeFile.metadata!.tags! as tag, i (tag)}
 								{#if editingTag?.type === 'user' && editingTag.index === i}
-									<input aria-label="Tag color"
+									<Input
+										aria-label="Tag name"
 										type="text"
 										bind:value={editingTag.value}
-										class="h-7 w-28 rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
+										class="h-7 w-28"
+										inputClass="rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'user');
 											if (e.key === 'Escape') editingTag = null;
@@ -442,22 +436,12 @@ Features:
 									/>
 								{:else}
 									<Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
-										<button
-											type="button"
-											class="max-w-34 truncate"
-											onclick={() => (editingTag = { type: 'user', index: i, value: tag })}
-											aria-label="Edit tag {tag}"
-										>
+										<Button variant="ghost" size="sm" class="max-w-34 truncate" onclick={() => (editingTag = { type: 'user', index: i, value: tag })} aria-label="Edit tag {tag}">
 											{tag}
-										</button>
-										<button
-											type="button"
-											class="rounded-full p-0.5 text-surface-500 hover:text-error-500"
-											onclick={() => removeTag(tag, 'user')}
-											aria-label="Remove tag {tag}"
-										>
+										</Button>
+										<Button variant="ghost" size="sm" class="rounded-full p-0.5" onclick={() => removeTag(tag, 'user')} aria-label="Remove tag {tag}">
 											<iconify-icon icon="mdi:close" width="12"></iconify-icon>
-										</button>
+										</Button>
 									</Badge>
 								{/if}
 							{/each}

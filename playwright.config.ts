@@ -43,6 +43,8 @@ const TEST_ENCRYPTION_KEY = "e2e-test-encryption-key-min-32-chars!!";
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.{test,spec,spect}.ts",
+  // 🧹 Consolidate all artifacts under tests/ — no more root-level test-results/
+  outputDir: "./tests/test-results",
   expect: {
     timeout: 10 * 1000,
     toHaveScreenshot: {
@@ -234,7 +236,13 @@ export default defineConfig({
       // Catch-all project for CI sharded matrix.
       // Wizard + auth-setup run sequentially in e2e-prep; all remaining
       // tests are sharded here across parallel CI jobs.
-      testIgnore: ["**/setup/setup-wizard.spec.ts", "**/auth.setup.ts", "**/login/login.spec.ts"],
+      testIgnore: [
+        "**/setup/setup-wizard.spec.ts",
+        "**/auth.setup.ts",
+        "**/login/login.spec.ts",
+        "**/login/signup.spec.ts",
+        "**/login/oauth.spec.ts",
+      ],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },
@@ -247,44 +255,38 @@ export default defineConfig({
         webServer: [
           {
             // READY server — pre-configured DB for login/firstuser/downstream tests
-            command: [
-              "cross-env",
-              "TEST_MODE=true",
-              "STRICT_SETUP_CHECK=false",
-              `DB_TYPE=sqlite`,
-              `DB_HOST=localhost`,
-              `DB_NAME=sveltycms_e2e_ready.db`,
-              `JWT_SECRET_KEY=${TEST_JWT_SECRET}`,
-              `ENCRYPTION_KEY=${TEST_ENCRYPTION_KEY}`,
-              `TEST_API_SECRET=${TEST_API_SECRET}`,
-              `GOOGLE_CLIENT_ID=e2e-test-google-client-id`,
-              `GITHUB_CLIENT_ID=e2e-test-github-client-id`,
-              "node build/index.js",
-            ].join(" "),
+            command: "node build/index.js",
             port: 4173,
             timeout: 300_000,
             reuseExistingServer: true,
             env: {
               HOST: "127.0.0.1",
               PORT: "4173",
+              TEST_MODE: "true",
+              STRICT_SETUP_CHECK: "false",
+              DB_TYPE: "sqlite",
+              DB_HOST: "localhost",
+              DB_NAME: "sveltycms_e2e_ready.db",
+              JWT_SECRET_KEY: TEST_JWT_SECRET,
+              ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+              TEST_API_SECRET: TEST_API_SECRET,
+              GOOGLE_CLIENT_ID: "e2e-test-google-client-id",
+              GITHUB_CLIENT_ID: "e2e-test-github-client-id",
             },
           },
           {
             // SETUP server — clean slate for setup-wizard tests
-            command: [
-              "cross-env",
-              "TEST_MODE=true",
-              "STRICT_SETUP_CHECK=true",
-              "DB_TYPE=sqlite",
-              `TEST_API_SECRET=${TEST_API_SECRET}`,
-              "node build/index.js",
-            ].join(" "),
+            command: "node build/index.js",
             port: 4174,
             timeout: 300_000,
             reuseExistingServer: true,
             env: {
               HOST: "127.0.0.1",
               PORT: "4174",
+              TEST_MODE: "true",
+              STRICT_SETUP_CHECK: "true",
+              DB_TYPE: "sqlite",
+              TEST_API_SECRET: TEST_API_SECRET,
             },
           },
         ],

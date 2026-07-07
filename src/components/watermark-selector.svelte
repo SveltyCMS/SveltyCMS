@@ -14,6 +14,7 @@ Usage:
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { MediaItem } from '@utils/media/media-models';
 
 	interface Props {
@@ -41,11 +42,11 @@ Usage:
 
 <div class="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Watermark image selection">
 	{#each mediaItems as media, index (media._id)}
-		<button
-			type="button"
+		<Button
+			variant="ghost"
 			class="cursor-pointer overflow-hidden rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
 			onclick={() => handleSelect(media)}
-			onkeydown={(e) => handleKeydown(e, media)}
+			onkeydown={(e: KeyboardEvent) => handleKeydown(e, media)}
 			aria-checked={media === selectedMedia}
 			role="radio"
 			tabindex={index === 0 ? 0 : -1}
@@ -57,6 +58,6 @@ Usage:
 					? 'scale-95 border-blue-500'
 					: 'border-transparent hover:border-gray-300'}"
 			/>
-		</button>
+		</Button>
 	{/each}
 </div>

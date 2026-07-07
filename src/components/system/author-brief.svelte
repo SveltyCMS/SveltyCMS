@@ -15,6 +15,7 @@ Shows authored guidance content, widget documentation, and usage tips.
 -->
 
 <script lang="ts">
+  import Button from '@components/ui/button.svelte';
   import { helpStore } from "@src/stores/help-store.svelte.ts";
   import { slide } from "svelte/transition";
 
@@ -27,7 +28,7 @@ Shows authored guidance content, widget documentation, and usage tips.
 
 {#if open && context.fieldName}
   <div
-    class="fixed inset-y-0 end-0 z-50 w-80 border-s border-surface-200 bg-white shadow-xl dark:border-surface-700 dark:bg-surface-900"
+    class="fixed inset-y-0 inset-e-0 z-50 w-80 border-s border-surface-200 bg-white shadow-xl dark:border-surface-700 dark:bg-surface-900"
     transition:slide={{ duration: 200 }}
     role="complementary"
     aria-label="Field help"
@@ -36,13 +37,9 @@ Shows authored guidance content, widget documentation, and usage tips.
       <h3 class="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">
         {context.fieldName?.replace(/_/g, " ")}
       </h3>
-      <button
-        onclick={() => helpStore.helpPanelOpen = false}
-        class="rounded p-1 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
-        aria-label="Close help panel"
-      >
+      <Button variant="ghost" onclick={() => helpStore.helpPanelOpen = false} aria-label="Close help panel" class="rounded p-1">
         <iconify-icon icon="mdi:close" width="20"></iconify-icon>
-      </button>
+      </Button>
     </div>
 
     <div class="overflow-y-auto p-4 text-sm text-surface-700 dark:text-surface-300">

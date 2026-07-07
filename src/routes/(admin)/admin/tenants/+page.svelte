@@ -14,7 +14,8 @@
 
 <script lang="ts">
 import type { PageData } from "./$types";
-import { toggleTenantStatus } from "./tenants.remote";
+import { createTenant, toggleTenantStatus } from "./tenants.remote";
+import { invalidateAll } from '$app/navigation';
 import AdminCard from '@components/admin-card.svelte';
 import AdminPageShell from '@components/admin-page-shell.svelte';
 import Badge from '@components/ui/badge.svelte';
@@ -23,6 +24,18 @@ import Button from '@components/ui/button.svelte';
 let { data } = $props<{ data: PageData }>();
 
 let tenants = $derived(data.tenants);
+let creating = $state(false);
+
+async function handleCreate() {
+	creating = true;
+	try {
+		const name = `Tenant ${Date.now()}`;
+		await createTenant({ name });
+		await invalidateAll();
+	} finally {
+		creating = false;
+	}
+}
 
 function formatBytes(bytes: number, decimals = 2) {
 	if (!+bytes) {
@@ -44,7 +57,7 @@ function formatBytes(bytes: number, decimals = 2) {
 		backUrl="/admin"
 	>
 	{#snippet actions()}
-		<Button variant="primary" leadingIcon="mdi:plus">Create Tenant</Button>
+		<Button variant="primary" leadingIcon="mdi:plus" loading={creating} onclick={handleCreate}>Create Tenant</Button>
 	{/snippet}
 
 	<AdminCard class="overflow-hidden border border-surface-200 bg-white p-0 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
@@ -62,9 +75,9 @@ function formatBytes(bytes: number, decimals = 2) {
 						<th class="px-4 py-3 text-end font-semibold">Actions</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+				<tbody>
 					{#each tenants as tenant (tenant._id)}
-						<tr class="text-surface-700 transition-colors hover:bg-surface-50/40 dark:text-surface-200 dark:hover:bg-surface-900/30">
+						<tr class="border-t border-surface-100 text-surface-700 transition-colors hover:bg-surface-50/40 dark:border-surface-800/60 dark:text-surface-200 dark:hover:bg-surface-900/30">
 							<td class="px-4 py-3 font-medium">{tenant.name}</td>
 							<td class="px-4 py-3">
 								{#if tenant.status === 'active'}
@@ -99,7 +112,7 @@ function formatBytes(bytes: number, decimals = 2) {
 											tenantId: tenant._id,
 											status: tenant.status === 'active' ? 'suspended' : 'active',
 										});
-										window.location.reload();
+										await invalidateAll();
 									}}
 								>
 									{tenant.status === 'active' ? 'Suspend' : 'Activate'}

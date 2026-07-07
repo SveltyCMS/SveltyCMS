@@ -37,6 +37,7 @@ import SearchComponent from './search-component.svelte';
 -->
 
 <script lang="ts">
+	import Button from '@components/ui/button.svelte';
 	import type { SearchData } from '@utils/global-search-index';
 	// Stores
 	import { isSearchVisible, triggerActionStore, globalSearchIndex } from '@utils/global-search-index';
@@ -424,11 +425,11 @@ accessibility -->
 						{#if Object.entries(result.triggers).length === 1}
 							{const triggerKey = Object.keys(result.triggers)[0]}
 							{const trigger = result.triggers[triggerKey]}
-							<button
-								type="button"
+							<Button
+								variant="ghost"
 								class="w-full px-4 py-3 text-start transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
-								onclick={(e) => handleResultClick(result, triggerKey, e)}
-								aria-label={`${result.title}: ${result.description}. Path: ${trigger?.path ?? 'Unknown'}`}
+								onclick={(e: MouseEvent) => handleResultClick(result, triggerKey, e)}
+																aria-label={`${result.title}: ${result.description}. Path: ${trigger?.path ?? 'Unknown'}`}
 							>
 								<div class="flex items-center justify-between gap-4">
 									<div class="grow overflow-hidden">
@@ -447,7 +448,7 @@ accessibility -->
 										</span>
 									{/if}
 								</div>
-							</button>
+							</Button>
 						{:else}
 							<!-- Multiple triggers -->
 							<div class="border-b border-surface-300 dark:text-surface-50 px-4 py-3">
@@ -459,11 +460,11 @@ accessibility -->
 							<div class="flex flex-col">
 								{#each Object.entries(result.triggers) as [triggerKey, trigger] (triggerKey)}
 									{#if trigger?.path}
-										<button
-											type="button"
+										<Button
+											variant="ghost"
 											class="flex items-center justify-between px-6 py-2 text-start transition-colors duration-150 hover:bg-tertiary-500/10 dark:hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none"
-											onclick={(e) => handleResultClick(result, triggerKey, e)}
-											aria-label={`${result.title} - ${triggerKey}: Path ${trigger.path}`}
+											onclick={(e: MouseEvent) => handleResultClick(result, triggerKey, e)}
+																					aria-label={`${result.title} - ${triggerKey}: Path ${trigger.path}`}
 										>
 											<span class="text-sm text-tertiary-500 dark:text-primary-500">
 												<HighlightedText text={triggerKey} term={sanitizedQuery} />
@@ -473,7 +474,7 @@ accessibility -->
 											>
 												{trigger.path}
 											</span>
-										</button>
+										</Button>
 									{/if}
 								{/each}
 							</div>
