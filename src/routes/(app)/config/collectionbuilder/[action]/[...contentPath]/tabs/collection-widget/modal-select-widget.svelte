@@ -21,7 +21,7 @@ interface Props {
 	/** Close handler injected by DialogManager. */
 	close?: (result?: any) => void;
 }
-const { parent, close }: Props = $props();
+const { close }: Props = $props();
 
 // Define the search term variable
 let searchTerm: string = $state("");

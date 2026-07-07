@@ -308,7 +308,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Format Verification",
-    ciJob: "format",
+    ciJob: "whitebox",
     estimatedMs: 3000,
     remediation: "bun run format",
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
@@ -316,7 +316,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Post-Format Tree Clean Check",
-    ciJob: "format",
+    ciJob: "whitebox",
     estimatedMs: 500,
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
     run: () => {
@@ -335,7 +335,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Slop Scanner",
-    ciJob: "lint",
+    ciJob: "whitebox",
     estimatedMs: 2000,
     remediation: "bun run slop",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
@@ -343,14 +343,14 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Import Validation",
-    ciJob: "lint",
+    ciJob: "whitebox",
     estimatedMs: 3000,
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
   },
   {
     name: "Lint (oxlint)",
-    ciJob: "lint",
+    ciJob: "whitebox",
     estimatedMs: 5000,
     remediation: "bun run lint",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
@@ -358,7 +358,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Admin Theme Lint",
-    ciJob: "lint",
+    ciJob: "whitebox",
     estimatedMs: 3000,
     remediation: "bun run lint:admin-theme",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasAdminTheme,
@@ -380,7 +380,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Dependency Audit (high CVE)",
-    ciJob: "security-audit",
+    ciJob: "whitebox",
     estimatedMs: 30000,
     shouldSkip: (ctx) => {
       if (ctx.tier === "full") return false;
@@ -393,7 +393,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Format + Lint Check",
-    ciJob: "check",
+    ciJob: "whitebox",
     estimatedMs: 15000,
     remediation: "bun run check",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
@@ -401,7 +401,7 @@ const BASE_TASKS: TaskSpec[] = [
   },
   {
     name: "Full Unit Tests",
-    ciJob: "unit",
+    ciJob: "whitebox",
     estimatedMs: 60000,
     remediation: "bun test --reporter=verbose",
     shouldSkip: (ctx) =>
