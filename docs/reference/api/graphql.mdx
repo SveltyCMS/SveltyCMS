@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:graphql"
 author: "SveltyCMS Team"
 created: "2026-04-05"
-updated: "2026-06-26"
+updated: "2026-07-07"
 tags:
   - "graphql"
   - "query"
@@ -16,7 +16,7 @@ tags:
 
 # GraphQL API Reference
 
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
 The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure, optimized with a Just-In-Time (JIT) execution engine. Powered by **GraphQL Yoga**, it supports the latest incremental delivery standards and high-performance server-sent events.
 
@@ -60,7 +60,7 @@ query GetPosts {
     }
   }
 }
-```text
+```
 
 ### B. Local SDK (Internal Server-Side API) **(Recommended)**
 
@@ -99,7 +99,7 @@ graph TD
     F --> G[JIT Compiler: Compile to JS Function]
     G --> H[Execute with Database Adapter]
     H --> I[JSON Response]
-```text
+```
 
 ### Security Throttling
 
