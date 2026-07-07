@@ -21,6 +21,20 @@ import { logger } from "@utils/logger";
 import { building, dev } from "$app/environment";
 import pkg from "../../../package.json";
 
+// Dynamic env loading helper to avoid breaking unit tests
+let env: Record<string, string | undefined> = {};
+if (typeof process !== "undefined" && process.env) {
+  env = process.env as Record<string, string | undefined>;
+}
+try {
+  // @ts-ignore
+  import("$env/dynamic/private")
+    .then((mod) => {
+      env = { ...env, ...mod.env };
+    })
+    .catch(() => {});
+} catch {}
+
 // In-memory cache for update checks, backed by globalThis to survive HMR in dev
 const globalWithCache = globalThis as typeof globalThis & {
   __SVELTY_TELEMETRY_CACHE__?: unknown;
@@ -39,7 +53,7 @@ export class TelemetryService {
 
   constructor() {}
 
-  public async checkUpdateStatus() {
+  public async checkUpdateStatus(isRetry = false): Promise<any> {
     // Disable telemetry strictly in test mode or CI/CD
     const isTestOrCI =
       typeof globalThis !== "undefined" &&
@@ -285,7 +299,9 @@ export class TelemetryService {
         };
 
         const telemetryEndpoint =
-          process.env.TELEMETRY_ENDPOINT || "https://telemetry.sveltycms.com/api/check-update";
+          env.TELEMETRY_ENDPOINT ||
+          process.env.TELEMETRY_ENDPOINT ||
+          "https://telemetry.sveltycms.com/api/check-update";
 
         const response = await fetch(telemetryEndpoint, {
           method: "POST",
@@ -297,6 +313,19 @@ export class TelemetryService {
           signal: AbortSignal.timeout(10_000),
         });
 
+        if (response.status === 403) {
+          logger.warn(
+            "📡 Telemetry: Received 403 Forbidden. Secret may be out of sync. Clearing client secret...",
+          );
+          const { setPrivateSetting } = await import("@src/services/core/settings-service");
+          await setPrivateSetting("TELEMETRY_CLIENT_SECRET", "");
+          if (!isRetry) {
+            logger.info("📡 Telemetry: Retrying check after clearing secret...");
+            this.activeCheckPromise = null;
+            return this.checkUpdateStatus(true);
+          }
+        }
+
         if (response.status === 429) {
           this.cachedUpdateInfo = {
             status: "rate_limited",
@@ -307,8 +336,8 @@ export class TelemetryService {
           const data = await response.json();
           this.cachedUpdateInfo = {
             status: "active",
-            latest: data.latest_version,
-            security_issue: data.has_vulnerability,
+            latest: data.latest_version || data.latest || pkg.version,
+            security_issue: data.has_vulnerability || data.security_issue || false,
             message: data.message,
             telemetry_id: data.telemetry_id,
           };
@@ -322,7 +351,7 @@ export class TelemetryService {
 
         return this.cachedUpdateInfo;
       } catch (err: any) {
-        logger.warn("[Telemetry] Check failed:", err.message);
+        logger.warn("[Telemetry] Check failed:", err.message || err);
         this.lastCheckTime = Date.now();
         this.cachedUpdateInfo = {
           status: "error",
@@ -343,7 +372,9 @@ export class TelemetryService {
   async register(installationId: string): Promise<string | null> {
     try {
       const registrationUrl =
-        process.env.TELEMETRY_REGISTRATION_URL || "https://telemetry.sveltycms.com/api/register";
+        env.TELEMETRY_REGISTRATION_URL ||
+        process.env.TELEMETRY_REGISTRATION_URL ||
+        "https://telemetry.sveltycms.com/api/register";
 
       const response = await fetch(registrationUrl, {
         method: "POST",
@@ -361,10 +392,77 @@ export class TelemetryService {
         }
       }
       return null;
-    } catch (err) {
-      logger.debug("[Telemetry] Registration handshake failed:", err);
+    } catch (err: any) {
+      logger.warn("[Telemetry] Registration handshake failed:", err.message || err);
       return null;
     }
+  }
+
+  async diagnoseConnection() {
+    const results: Record<string, any> = {
+      timestamp: new Date().toISOString(),
+      endpoint:
+        env.TELEMETRY_ENDPOINT ||
+        process.env.TELEMETRY_ENDPOINT ||
+        "https://telemetry.sveltycms.com/api/check-update",
+      registration_url:
+        env.TELEMETRY_REGISTRATION_URL ||
+        process.env.TELEMETRY_REGISTRATION_URL ||
+        "https://telemetry.sveltycms.com/api/register",
+      steps: [],
+    };
+
+    const addStep = (name: string, status: "ok" | "error" | "skipped", detail: string) => {
+      results.steps.push({ name, status, detail });
+    };
+
+    try {
+      // Step 1: DNS & Basic Connectivity to endpoint (GET health check)
+      addStep("ping_endpoint_start", "ok", `Pinging ${results.endpoint} via GET...`);
+      const getRes = await fetch(results.endpoint, {
+        method: "GET",
+        signal: AbortSignal.timeout(4000),
+      });
+      if (getRes.ok) {
+        const data = await getRes.json();
+        addStep("ping_endpoint", "ok", `Received 200 OK: ${JSON.stringify(data)}`);
+      } else {
+        addStep("ping_endpoint", "error", `Failed with HTTP status ${getRes.status}`);
+      }
+    } catch (err: any) {
+      addStep("ping_endpoint", "error", `Connection failed: ${err.message || err}`);
+    }
+
+    try {
+      // Step 2: Test registration endpoint connectivity (OPTIONS / POST checks)
+      addStep(
+        "ping_registration_start",
+        "ok",
+        `Pinging ${results.registration_url} via OPTIONS...`,
+      );
+      const optRes = await fetch(results.registration_url, {
+        method: "OPTIONS",
+        signal: AbortSignal.timeout(4000),
+      });
+      addStep(
+        "ping_registration",
+        optRes.ok ? "ok" : "error",
+        `Received response code ${optRes.status}`,
+      );
+    } catch (err: any) {
+      addStep("ping_registration", "error", `Registration ping failed: ${err.message || err}`);
+    }
+
+    // Step 3: Diagnostic telemetry run
+    try {
+      addStep("telemetry_run_start", "ok", "Executing telemetry update check...");
+      const res = await this.checkUpdateStatus();
+      addStep("telemetry_run", "ok", `Telemetry status: ${JSON.stringify(res)}`);
+    } catch (err: any) {
+      addStep("telemetry_run", "error", `Telemetry run failed: ${err.message || err}`);
+    }
+
+    return results;
   }
 }
 

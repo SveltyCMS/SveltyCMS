@@ -349,6 +349,14 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
   },
   {
+    name: "Secret Misuse Scan",
+    ciJob: "whitebox",
+    estimatedMs: 1500,
+    remediation: "bun run scripts/scan-secret-misuse.ts",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () => runCommand("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"]),
+  },
+  {
     name: "Lint (oxlint)",
     ciJob: "whitebox",
     estimatedMs: 5000,

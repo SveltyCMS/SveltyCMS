@@ -25,7 +25,7 @@ interface E2eMatrixInclude {
 }
 
 interface E2eMatrix {
-  project: string[];
+  name: string[];
   include: E2eMatrixInclude[];
 }
 
@@ -75,7 +75,7 @@ for (let i = 0; i < SHARD_GROUPS.length; i++) {
 }
 
 const e2eMatrix: E2eMatrix = {
-  project: ["chromium"],
+  name: SHARD_GROUPS.map((g) => g.name),
   include,
 };
 

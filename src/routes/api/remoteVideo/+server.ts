@@ -2,7 +2,7 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
 // Lazy-cached video module — avoids parsing heavy SDK deps on cold start
-let _videoModule: typeof import("@widgets/custom/remote-video/video") | null = null;
+let _videoModule: typeof import("@widgets/custom/remote-video/video.server") | null = null;
 
 /**
  * @file src/routes/api/remoteVideo/+server.ts
@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Lazy-load video module
     if (!_videoModule) {
-      _videoModule = await import("@widgets/custom/remote-video/video");
+      _videoModule = await import("@widgets/custom/remote-video/video.server");
     }
     const { getRemoteVideoData, detectPlatform } = _videoModule;
 

@@ -482,7 +482,11 @@ async function signUpInternal(event: RequestEvent, input: any) {
     role = "admin";
     // Use the demo_tenant_id cookie if present (set by handleDemoTenantAssignment)
     // to keep tenant IDs consistent between the middleware and the sign-up flow.
-    tid = event.cookies.get("demo_tenant_id") || crypto.randomUUID();
+    // Check both __Host- prefixed (HTTPS) and unprefixed (HTTP) variants.
+    tid =
+      event.cookies.get("__Host-demo_tenant_id") ||
+      event.cookies.get("demo_tenant_id") ||
+      crypto.randomUUID();
   } else {
     if (!t) return { success: false, message: "Invitation required." };
     const td = await auth.validateRegistrationToken(t);

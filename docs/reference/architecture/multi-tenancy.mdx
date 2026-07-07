@@ -56,7 +56,7 @@ interface Tenant {
 Tenants are identified via:
 
 1.  **Hostname**: `tenant1.example.com` -> Resolves to Tenant ID.
-2.  **Session Cookie**: `demo_tenant_id` (Demo Mode) or `svelty_tenant` (Standard).
+2.  **Session Cookie**: `__Host-demo_tenant_id` on HTTPS / `demo_tenant_id` on HTTP (Demo Mode) or `svelty_tenant` (Standard). Uses `__Host-` prefix per RFC 6265bis for subdomain isolation on secure connections.
 3.  **API Header**: `X-Tenant-ID` (for API integration).
 
 4.  **Registration**: New users can register without a token (if `MULTI_TENANT` and `DEMO` mode are enabled) to create a brand new isolated tenant. In **Demo Mode**, the registration UI is further simplified by hiding the token field entirely.

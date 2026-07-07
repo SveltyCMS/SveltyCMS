@@ -192,10 +192,10 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 - **Location**: Use utilities in `@src/utils/native-utils.ts` (`generateSecureToken`, `generateUUID`) or `@src/databases/auth/constants.ts` (`generateRandomToken`).
 - **Policy**: If `crypto` is unavailable, the system MUST throw an error rather than falling back to weak randomness.
 
-### 2. SSO & SAML Security
+### 2. Secrets Management
 
-- **No Hard-coded Secrets**: All SSO/SAML secrets (Jackson verifiers, JWT signing keys) MUST be stored in `config/private.ts` and validated via `privateConfigSchema`.
-- **Uniqueness**: Each deployment must have its own unique, high-entropy secrets.
+- **Location Matters**: Bootstrap secrets (DB creds, `JWT_SECRET_KEY`, `ENCRYPTION_KEY`) live in `config/private.ts`. All other secrets (SSO, SMTP, API keys, rate limit) are DB-driven and managed via System Settings UI — never hard-code them.
+- **Reference**: See `docs/reference/security/secrets-inventory.mdx` for the full inventory of every secret and its storage tier.
 
 ### 3. API Authorization (Granular Gatekeeping)
 
@@ -647,24 +647,26 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 > [!TIP]
 > Every test suite has corresponding documentation. When modifying tests, update the linked docs.
 
-| Test File                                        | Documentation                                                                                       |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `tests/unit/hooks/defense-in-depth.test.ts`      | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                              |
-| `tests/unit/hooks/authentication.test.ts`        | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                   |
-| `tests/unit/hooks/authorization.test.ts`         | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                  |
-| `tests/unit/hooks/system-state.test.ts`          | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
-| `tests/unit/hooks/setup.test.ts`                 | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
-| `tests/unit/hooks/security-headers.test.ts`      | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/role-permission-access.test.ts`      | `docs/tests/rbac-testing.mdx`                                                                       |
-| `tests/unit/api/media-security.test.ts`          | `docs/reference/security/widget-security.mdx`                                                       |
-| `tests/unit/services/media-manipulation.test.ts` | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
-| `tests/unit/services/media-service.test.ts`      | `docs/tests/utility-test-coverage.mdx`                                                              |
-| `tests/benchmarks/security-audit.test.ts`        | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
-| `tests/benchmarks/**/*.test.ts`                  | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
-| `tests/e2e/accessibility.spec.ts`                | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/e2e/branding.spec.ts`                     | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`                |
-| `tests/e2e/visual-regression.spec.ts`            | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`                           |
-| `tests/unit/widgets/core/*.test.ts`              | `docs/tests/widget-test-coverage.mdx`                                                               |
+| Test File                                          | Documentation                                                                                       |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `tests/unit/hooks/defense-in-depth.test.ts`        | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                              |
+| `tests/unit/hooks/authentication.test.ts`          | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                   |
+| `tests/unit/hooks/authorization.test.ts`           | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                  |
+| `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
+| `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
+| `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
+| `tests/unit/role-permission-access.test.ts`        | `docs/tests/rbac-testing.mdx`                                                                       |
+| `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
+| `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
+| `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |
+| `tests/benchmarks/security-audit.test.ts`          | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
+| `tests/benchmarks/**/*.test.ts`                    | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
+| `tests/e2e/accessibility.spec.ts`                  | `docs/tests/accessibility-audit.mdx`                                                                |
+| `tests/e2e/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`                |
+| `tests/e2e/visual-regression.spec.ts`              | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`                           |
+| `tests/unit/security/token-secret-leakage.test.ts` | `docs/reference/security/secrets-inventory.mdx`                                                     |
+| `tests/unit/scripts/scan-secret-misuse.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                     |
+| `tests/unit/widgets/core/*.test.ts`                | `docs/tests/widget-test-coverage.mdx`                                                               |
 
 ## Key Files Reference
 

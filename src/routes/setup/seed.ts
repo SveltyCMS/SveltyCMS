@@ -1509,6 +1509,36 @@ export const defaultPrivateSettings: Array<{
     value: false,
     description: "Enable remote knowledge base lookup (Planned)",
   },
+
+  // Rate Limiting
+  {
+    key: "RATE_LIMIT_SECRET",
+    value: "",
+    description:
+      "Secret key for rate limiter cookie signing (auto-generated on first boot if empty)",
+  },
+
+  // SAML / Enterprise SSO Keys (configure if using SAML identity providers)
+  {
+    key: "SAML_CLIENT_SECRET_VERIFIER",
+    value: "",
+    description: "SAML client secret verifier for identity provider validation",
+  },
+  {
+    key: "SAML_ENCRYPTION_KEY",
+    value: "",
+    description: "SAML encryption key for secure assertion handling",
+  },
+  {
+    key: "SAML_JWT_SIGNING_PRIVATE_KEY",
+    value: "",
+    description: "SAML JWT signing private key (PEM format)",
+  },
+  {
+    key: "SAML_JWT_SIGNING_PUBLIC_KEY",
+    value: "",
+    description: "SAML JWT signing public key (PEM format)",
+  },
 ];
 
 /**

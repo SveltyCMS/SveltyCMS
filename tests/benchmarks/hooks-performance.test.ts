@@ -103,7 +103,8 @@ async function runHooksAudit() {
 
     // 🚀 FIXED: Pre-allocate an oversized array of unique UUID records to protect
     // against cross-run index collision when warmup + multiple runs exhaust the pool.
-    const totalPayloadCapacityNeeded = baseIterationsPost * maxTotalRuns * 2;
+    const warmupCount = isSqlite ? 5 : 60;
+    const totalPayloadCapacityNeeded = (baseIterationsPost + warmupCount) * maxTotalRuns * 2;
     const postPayloads = Array.from({ length: totalPayloadCapacityNeeded }, () =>
       JSON.stringify({
         _id: crypto.randomUUID(),
