@@ -390,13 +390,13 @@ async function handleForgotSubmit(event: Event) {
 
 	try {
 		const { forgotPW: remoteForgotPW } = await import("../auth.remote");
-		const result = await remoteForgotPW({ email: forgotForm.data.email });
+		const result: any = await remoteForgotPW({ email: forgotForm.data.email });
 		isSubmitting = false;
 
 		if (result.smtpConfigured === false && result.resetLink) {
 			// No SMTP configured — pre-fill the reset form so user can reset immediately.
 			// The reset link is also printed in the server terminal for sharing.
-			const url = new URL(result.resetLink);
+			const url = new URL(result.resetLink as string);
 			resetForm.data.token = url.searchParams.get("token") || "";
 			resetForm.data.email = url.searchParams.get("email") || "";
 			P_WRESET = true;

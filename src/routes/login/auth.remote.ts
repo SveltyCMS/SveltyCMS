@@ -714,7 +714,7 @@ async function consumeWebAuthnChallenge(
     type: "registration" | "authentication";
   }>(key, null);
   await cacheService.delete(key, null);
-  return stored;
+  return stored ?? null;
 }
 
 export const getPasskeyAuthOptions = command("unchecked", async (data: { email: string }) => {
@@ -749,7 +749,7 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
   const options = buildAuthenticationOptions(
     rpId,
     challenge,
-    user.authenticators.map((a) => ({
+    user.authenticators.map((a: any) => ({
       id: a.credentialID,
       type: "public-key" as const,
       transports: a.transports,
@@ -814,7 +814,7 @@ export const verifyPasskeyAuth = command(
           message: "Passkey signature verification failed.",
         };
 
-      const updatedAuthenticators = (user.authenticators || []).map((a) =>
+      const updatedAuthenticators = (user.authenticators || []).map((a: any) =>
         a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
       );
       await auth.updateUserAttributes(
