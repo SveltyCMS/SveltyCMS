@@ -464,19 +464,40 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 7. E2E Tests — sharded chromium (6-way parallel)
+  # 7. E2E Matrix — named shard groups
+  # ------------------------------------------------
+  e2e-matrix:
+    name: 📋 E2E Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/workflows
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Generate E2E Matrix
+        id: generate
+        run: |
+          matrix=$(node .github/workflows/e2e-matrix.ts)
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  # ------------------------------------------------
+  # 8. E2E Tests — named groups with grep filtering
   # ------------------------------------------------
   # wizard + firstuser + auth-setup run sequentially in e2e-prep.
-  # All other CMS route tests run here via sharded chromium project.
+  # All other CMS route tests run here via named chromium shards.
   e2e:
-    name: 🧪 E2E (${{ matrix.shard }})
-    needs: [bootstrap, e2e-prep]
+    name: 🧪 E2E — ${{ matrix.name }}
+    needs: [bootstrap, e2e-prep, e2e-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+      matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -543,12 +564,13 @@ jobs:
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test \
             --project=chromium \
-            --shard=${{ matrix.shard }}/6
+            --grep="${{ matrix.grep }}" \
+            --shard=${{ matrix.shard }}
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: playwright-report-${{ matrix.shard }}
+          name: playwright-report-${{ matrix.name }}
           path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
@@ -556,7 +578,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: preview-log-${{ matrix.shard }}
+          name: preview-log-${{ matrix.name }}
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7
@@ -573,6 +595,7 @@ jobs:
       - build
       - whitebox
       - e2e-prep
+      - e2e-matrix
       - e2e
       - db-tests
       - bench-core

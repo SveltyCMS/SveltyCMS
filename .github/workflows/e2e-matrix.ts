@@ -5,7 +5,10 @@
  *
  * Simplified architecture (4 projects):
  *   wizard + firstuser + auth-setup → run sequentially in e2e-prep
- *   chromium → sharded N ways in the e2e CI job
+ *   chromium → sharded into N named groups for CI parallelism
+ *
+ * Each shard has a descriptive name so CI results clearly show which test
+ * category failed instead of just "1/6", "2/6", etc.
  *
  * Usage:
  *   node .github/workflows/e2e-matrix.ts
@@ -17,6 +20,8 @@ interface E2eMatrixInclude {
   shard: string;
   shardId: string;
   "total-shards": number;
+  name: string;
+  grep: string;
 }
 
 interface E2eMatrix {
@@ -24,17 +29,48 @@ interface E2eMatrix {
   include: E2eMatrixInclude[];
 }
 
-// Single chromium project, sharded 6 ways for CI parallelism.
-// Wizard, firstuser, and auth-setup run in e2e-prep (excluded here).
-const TOTAL_SHARDS = 6;
+// Named groups — each maps to specific test files via Playwright --grep.
+// Groups are sized roughly by test count to balance shard duration.
+const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
+  {
+    name: "Config & System",
+    grep: "(appearance|design-system|webhooks|operations|access-management|automations|data-management|system-settings|monitor|queue|extensions|sync|trash|redirects)",
+  },
+  {
+    name: "Builder & Content",
+    grep: "(collection-builder|journey|empty-state|content-smoke)",
+  },
+  {
+    name: "Users & RBAC",
+    grep: "(user/profile|user/management|permissions|rbac|account-smoke)",
+  },
+  {
+    name: "Media & Dashboard",
+    grep: "(mediagallery|image-editor|dashboard)",
+  },
+  {
+    name: "Auth & Branding",
+    grep: "(branding|visual-regression|a11y|language)",
+  },
+  {
+    name: "Admin & Catch-All",
+    grep: "(tenants|settings|catch-all)",
+  },
+];
 
 const include: E2eMatrixInclude[] = [];
-for (let i = 1; i <= TOTAL_SHARDS; i++) {
+const TOTAL = SHARD_GROUPS.length;
+
+for (let i = 0; i < SHARD_GROUPS.length; i++) {
+  const group = SHARD_GROUPS[i]!;
+  const idx = i + 1;
   include.push({
     project: "chromium",
-    shard: `${i}/${TOTAL_SHARDS}`,
-    shardId: `${i}-${TOTAL_SHARDS}`,
-    "total-shards": TOTAL_SHARDS,
+    shard: `${idx}/${TOTAL}`,
+    shardId: `${idx}-${TOTAL}`,
+    "total-shards": TOTAL,
+    name: group.name,
+    grep: group.grep,
   });
 }
 
