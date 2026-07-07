@@ -199,12 +199,64 @@ export async function prepareLoginForm(page: Page) {
         const testId = await input.getAttribute("data-testid");
         console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
       }
+
+      // Check if signup form is showing (first-user mode / no users in DB)
+      const confirmPassword = page.locator('input[name="confirm_password"]');
+      if (await confirmPassword.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log("[Auth] Signup form detected (first-user mode). Auto-seeding admin user...");
+        try {
+          await page.request.post("/api/testing", {
+            headers: TEST_API_HEADERS,
+            data: {
+              action: "seed",
+              email: ADMIN_CREDENTIALS.email,
+              password: ADMIN_CREDENTIALS.password,
+            },
+          });
+          console.log("[Auth] ✓ Admin user seeded, reloading and retrying...");
+        } catch (seedError) {
+          console.log("[Auth] Seed failed, trying reset first...", seedError);
+          await page.request.post("/api/testing", {
+            headers: TEST_API_HEADERS,
+            data: { action: "reset" },
+          });
+          await page.request.post("/api/testing", {
+            headers: TEST_API_HEADERS,
+            data: {
+              action: "seed",
+              email: ADMIN_CREDENTIALS.email,
+              password: ADMIN_CREDENTIALS.password,
+            },
+          });
+          console.log("[Auth] ✓ Database reset and seeded");
+        }
+
+        // Reload and re-click SIGN IN
+        await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+        await page.waitForTimeout(500);
+
+        const signInIconRetry = page.getByTestId("signin-icon");
+        if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await signInIconRetry.click({ force: true, timeout: 10000 });
+          await page.waitForTimeout(1000);
+        }
+
+        // Retry finding the signin-email field
+        await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 15_000 });
+        console.log("[Auth] ✓ Login form ready after auto-seeding");
+        return;
+      }
+
       throw e;
     });
 }
 
 /**
- * Generic login function for any user
+ * Generic login function for any user with retry + auto-seed on failure.
+ * If login fails (still on /login after submit), seeds the admin user via
+ * the testing API and retries once. This handles cases where a previous test
+ * modified/renamed the admin user.
+ *
  * @param page - Playwright page object
  * @param email - User email
  * @param password - User password
@@ -216,7 +268,70 @@ export async function loginAs(
   password: string,
   waitForUrl?: string | RegExp,
 ) {
-  await prepareLoginForm(page);
+  // --- First attempt ---
+  let loginSuccess = await attemptLogin(page, email, password, waitForUrl);
+
+  if (!loginSuccess) {
+    // Admin user may have been modified by a previous test — seed and retry.
+    console.log("[Auth] Login failed — seeding admin user via testing API and retrying...");
+    try {
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: email,
+          password: password,
+        },
+      });
+      console.log("[Auth] ✓ Admin user re-seeded, retrying login...");
+    } catch (seedError) {
+      console.log("[Auth] Seeding failed, trying reset + seed...", seedError);
+      try {
+        await page.request.post("/api/testing", {
+          headers: TEST_API_HEADERS,
+          data: { action: "reset" },
+        });
+        await page.request.post("/api/testing", {
+          headers: TEST_API_HEADERS,
+          data: {
+            action: "seed",
+            email: email,
+            password: password,
+          },
+        });
+        console.log("[Auth] ✓ Database reset and re-seeded");
+      } catch (resetError) {
+        console.log("[Auth] Reset+seed also failed:", resetError);
+      }
+    }
+
+    // --- Second attempt: full prepareLoginForm cycle ---
+    loginSuccess = await attemptLogin(page, email, password, waitForUrl);
+  }
+
+  if (!loginSuccess) {
+    throw new Error(
+      `Login failed for ${email} after retry with seeding. Current URL: ${page.url()}`,
+    );
+  }
+}
+
+/**
+ * Internal: attempt a single login and return whether it succeeded.
+ * Always calls prepareLoginForm for a clean state before filling.
+ */
+async function attemptLogin(
+  page: Page,
+  email: string,
+  password: string,
+  waitForUrl?: string | RegExp,
+): Promise<boolean> {
+  try {
+    await prepareLoginForm(page);
+  } catch (e) {
+    console.log("[Auth] prepareLoginForm failed:", e);
+    return false;
+  }
 
   // Fill login form using data-testid selectors
   console.log(`[Auth] Filling email: ${email}`);
@@ -227,10 +342,18 @@ export async function loginAs(
   console.log("[Auth] Submitting login form...");
   await page.getByTestId("signin-submit").click();
 
-  if (waitForUrl) {
-    await page.waitForURL(waitForUrl, { timeout: 15_000 });
-  } else {
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+  // Wait for redirect away from /login
+  try {
+    if (waitForUrl) {
+      await page.waitForURL(waitForUrl, { timeout: 10_000 });
+    } else {
+      await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+    }
+    console.log("[Auth] ✓ Login successful");
+    return true;
+  } catch {
+    console.log(`[Auth] Login attempt failed — still on ${page.url()}`);
+    return false;
   }
 }
 

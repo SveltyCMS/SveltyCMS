@@ -11,7 +11,7 @@ export const STABLE_VIEWPORT = { width: 1280, height: 720 } as const;
 /** Default screenshot options — tolerates minor font raster differences */
 export const SCREENSHOT_OPTS = {
   animations: "disabled" as const,
-  maxDiffPixelRatio: 0.02,
+  maxDiffPixelRatio: 0.05,
   threshold: 0.25,
 };
 

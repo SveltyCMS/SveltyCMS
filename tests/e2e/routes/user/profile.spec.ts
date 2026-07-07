@@ -34,11 +34,9 @@ test.describe.serial("User Profile Management", () => {
     await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
     // Navigate to user profile page and verify it loads
     await page.goto("/user");
-    await expect(
-      page
-        .getByRole("heading", { level: 1 })
-        .or(page.locator("body").filter({ hasText: /profile|user/i })),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 10_000 });
+    // Also verify page body is visible as a secondary check
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Workspace Appearance link navigates to appearance settings", async ({ page }) => {

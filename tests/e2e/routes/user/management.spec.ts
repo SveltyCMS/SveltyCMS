@@ -90,7 +90,7 @@ test.describe.serial("User Management Flow", () => {
       // action button still shows the uppercase label (e.g. "BLOCK") and the
       // confirm modal title also contains the action word. The toast message
       // is "<type> <action>ed" (e.g. "Users Blocked"), so scope to that prefix.
-      await expect(page.getByText(new RegExp(`Users\\s+${action}`, "i"))).toBeVisible({
+      await expect(page.getByText(new RegExp(`(?:User|Users)\\s+${action}`, "i"))).toBeVisible({
         timeout: 5000,
       });
     }

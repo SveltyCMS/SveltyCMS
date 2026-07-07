@@ -33,6 +33,10 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 **Recently Completed**: Inline editing of asset metadata (name, alt text, caption) in the media details modal via `media-details-modal.svelte` — click-to-edit directly in the media drawer.
 
+## ✅ Recently Completed
+
+- [x] **E2E Architecture Simplification**: Collapsed 20 Playwright projects → 4 (wizard, firstuser, auth-setup, chromium). Reduced CI jobs from 19 to 6, server startups from 19 to 1. Total E2E time ~70-110min → ~12-15min.
+
 ## 🏗️ In Progress
 
 - 🏗️ **Phased Marketplace Migration**: Phase 1 (core widget doc naming) ✅. Phase 2 pending: custom widgets → `marketplace.sveltycms.com`. Backend API ✅ (`marketplace-service.ts`, `marketplace-client.ts`, `/api/marketplace` endpoint), but **no in-app catalog/browse UI yet** — Extensions page links externally. See [Marketplace System](../reference/architecture/marketplace.mdx).

@@ -464,38 +464,19 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 7. E2E Matrix — TS config
+  # 7. E2E Tests — sharded chromium (6-way parallel)
   # ------------------------------------------------
-  e2e-matrix:
-    name: 📋 E2E Matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            .github/workflows
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - name: Generate E2E Matrix
-        id: generate
-        run: |
-          matrix=$(node .github/workflows/e2e-matrix.ts)
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-
-  # ------------------------------------------------
-  # 8. E2E Tests (sharded, uses single prep artifact)
-  # ------------------------------------------------
+  # wizard + firstuser + auth-setup run sequentially in e2e-prep.
+  # All other CMS route tests run here via sharded chromium project.
   e2e:
-    name: 🧪 E2E - ${{ matrix.project }}${{ matrix.total-shards > 1 && format(' ({0})', matrix.shard) || '' }}
-    needs: [bootstrap, e2e-prep, e2e-matrix]
+    name: 🧪 E2E (${{ matrix.shard }})
+    needs: [bootstrap, e2e-prep]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -561,15 +542,13 @@ jobs:
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test \
-            --project=${{ matrix.project }} \
-            --shard=${{ matrix.shard }} \
-            --fully-parallel \
-            ${{ matrix.parallel == false && ' --workers=1' || '' }}
+            --project=chromium \
+            --shard=${{ matrix.shard }}/6
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: playwright-report-${{ matrix.project }}-${{ matrix.shardId }}
+          name: playwright-report-${{ matrix.shard }}
           path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
@@ -577,7 +556,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: preview-log-${{ matrix.project }}-${{ matrix.shardId }}
+          name: preview-log-${{ matrix.shard }}
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7

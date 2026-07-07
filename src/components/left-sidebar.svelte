@@ -75,6 +75,7 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	// Reactive user data
 	const user = $derived(page.data.user);
 	const isAdmin = $derived(page.data.isAdmin as boolean ?? false);
+	const isMultiTenant = $derived(page.data.isMultiTenant as boolean ?? false);
 	const tenantId = $derived(page.data.tenantId as string | null);
 	const currentPath = $derived(page.url.pathname);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
@@ -384,51 +385,38 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
 			<!-- 3. Media Gallery -->
 			<div class="space-y-1">
-				{#if currentPath.includes('/mediagallery') && isSidebarFull}
-					<div class="px-1">
-						<MediaFolders />
-					</div>
-				{:else}
-					<Button variant="ghost"
-						type="button"
-						onclick={() => {
+				<Button variant={currentPath.includes('/mediagallery') ? 'secondary' : 'ghost'}
+					type="button"
+					onclick={() => {
+						isMediaOpen = !isMediaOpen;
+						if (isMediaOpen) {
+							isCollectionsOpen = false;
+						}
+						if (!currentPath.includes('/mediagallery')) {
 							goto('/mediagallery');
 							if (isMobile()) {
 								toggleUIElement('leftSidebar', 'collapsed');
 							}
-						}}
-						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-					>
-						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}Media Gallery{/if}
-						</span>
-						{#if isSidebarFull}
-							<iconify-icon
-								icon="bi:chevron-down"
-								width="12"
-								class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
-							></iconify-icon>
-						{/if}
-					</Button>
-					{#if isMediaOpen}
-						<div class="px-1 space-y-2">
-							{#if isSidebarFull && !currentPath.includes('/mediagallery')}
-								<a
-									href="/mediagallery"
-									data-sveltekit-preload-data="hover"
-									class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 dark:text-primary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 dark:bg-primary-500/10 hover:dark:bg-primary-500/20 no-underline! transition-colors"
-									onclick={() => {
-										if (isMobile()) toggleUIElement('leftSidebar', 'collapsed');
-									}}
-								>
-									<iconify-icon icon="bi:images" width="14"></iconify-icon>
-									Open Media Gallery
-								</a>
-							{/if}
-							<MediaFolders />
-						</div>
+						}
+					}}
+					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
+				>
+					<span class="flex items-center gap-1.5">
+						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{#if isSidebarFull}Media Gallery{/if}
+					</span>
+					{#if isSidebarFull}
+						<iconify-icon
+							icon="bi:chevron-down"
+							width="12"
+							class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
 					{/if}
+				</Button>
+				{#if isMediaOpen}
+					<div class="px-1 space-y-2">
+						<MediaFolders />
+					</div>
 				{/if}
 			</div>
 		{/if}
@@ -560,21 +548,21 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
  				</SystemTooltip>
  			</div>
 
- 			<!-- Tenants (System Admin only) -->
- 			{#if isAdmin && !tenantId}
- 				<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center">
- 					<SystemTooltip title="Tenants" positioning={{ placement: 'right' }}>
- 						<a
- 							href="/admin/tenants"
- 							data-sveltekit-preload-data="hover"
- 							aria-label="Tenant Management"
- 							class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
- 						>
- 							<iconify-icon icon="mdi:office-building" width="35" class=""></iconify-icon>
- 						</a>
- 					</SystemTooltip>
- 				</div>
- 			{/if}
+  			<!-- Tenants (System Admin only) -->
+  			{#if isMultiTenant && isAdmin && !tenantId}
+  				<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center">
+  					<SystemTooltip title="Tenants" positioning={{ placement: 'right' }}>
+  						<a
+  							href="/admin/tenants"
+  							data-sveltekit-preload-data="hover"
+  							aria-label="Tenant Management"
+  							class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
+  						>
+  							<iconify-icon icon="mdi:office-building" width="35" class=""></iconify-icon>
+  						</a>
+  					</SystemTooltip>
+  				</div>
+  			{/if}
 
  			<!-- Version -->
  			<div class="{isSidebarFull ? 'order-7' : 'order-6'} flex items-center justify-center"><VersionCheck compact={true} /></div>

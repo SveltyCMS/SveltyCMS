@@ -80,7 +80,7 @@ async function runRestAudit() {
         iterations: 500,
         warmupIterations: 80,
         runs: 2,
-        concurrency: 12, // High concurrency scenario
+        concurrency: (process.env.DB_TYPE ?? "").toLowerCase() === "mongodb" ? 12 : 4, // Reduced for Dockerized DBs in CI
         silent: true,
         onIteration: async () => {
           const res = await fetch(`${baseUrl}${scenario.path}`, {

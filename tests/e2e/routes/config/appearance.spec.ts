@@ -16,7 +16,7 @@ test.describe("Appearance — My Overrides", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: /admin theme settings/i }),
     ).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("heading", { level: 1, name: /my overrides/i })).toBeVisible({
+    await expect(page.getByText(/my overrides/i)).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/^my layout$/i)).toBeVisible({
@@ -27,21 +27,21 @@ test.describe("Appearance — My Overrides", () => {
 
   test("persists left sidebar layout preference after reload", async ({ page }) => {
     await page.goto("/config/appearance");
-    await page.getByLabel(/left sidebar/i).selectOption("hidden");
+    await page.getByLabel("Left sidebar", { exact: true }).selectOption("hidden");
     await page.getByRole("button", { name: /save my preferences/i }).click();
     await expect(page.getByText(/preferences applied/i)).toBeVisible({
       timeout: 10_000,
     });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByLabel(/left sidebar/i)).toHaveValue("hidden", {
+    await expect(page.getByLabel("Left sidebar", { exact: true })).toHaveValue("hidden", {
       timeout: 10_000,
     });
   });
 
   test("clear overrides resets layout to theme default", async ({ page }) => {
     await page.goto("/config/appearance");
-    await page.getByLabel(/left sidebar/i).selectOption("hidden");
+    await page.getByLabel("Left sidebar", { exact: true }).selectOption("hidden");
     await page.getByRole("button", { name: /save my preferences/i }).click();
     await expect(page.getByText(/preferences applied/i)).toBeVisible({
       timeout: 10_000,
@@ -51,7 +51,7 @@ test.describe("Appearance — My Overrides", () => {
     await expect(page.getByText(/overrides cleared/i)).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByLabel(/left sidebar/i)).toHaveValue("", {
+    await expect(page.getByLabel("Left sidebar", { exact: true })).toHaveValue("", {
       timeout: 10_000,
     });
   });

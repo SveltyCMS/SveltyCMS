@@ -86,7 +86,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline**. Developers do NOT need to manually run the full chain — git hooks handle it automatically:
   - **Pre-commit** (`git commit`): `gate:fast` runs format, lint, and slop scanner on **staged files only** (~2-3s)
   - **Pre-push** (`git push`): `verify:push` runs `scripts/precheck.ts` (push tier) — static analysis, format, lint, unit tests, production build, with **progress dashboard, adaptive ETA, and error remediation hints** (~1-3min). Heavy DB integration + benchmarks are CI-only; opt in with `--include-db-tasks`.
-  - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (18 projects), benchmarks
+  - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (4 projects, 6 shards), benchmarks
   - Manual: `bun run gate:fast` (pre-commit checks), `bun run verify:push` (pre-push checks), `bun run verify:full` (local CI parity — static + unit + build + DB matrix + benchmarks), `bun run ci:local` (adds Playwright E2E), `bun run scripts/precheck.ts --plan` (dry-run task inspection)
 
 | Category          | Convention           | Examples                                                                         |

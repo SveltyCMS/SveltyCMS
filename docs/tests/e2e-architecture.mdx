@@ -1,10 +1,10 @@
 ---
 path: docs/tests/e2e-architecture.mdx
 title: E2E Architecture & Flow
-description: Technical deep-dive into the Playwright E2E testing architecture and lifecycle.
+description: Technical deep-dive into the simplified 4-project Playwright E2E testing architecture.
 author: SveltyCMS Team
 created: 2026-03-21
-updated: 2026-03-21
+updated: 2026-07-07
 tags:
   - testing
   - e2e
@@ -13,73 +13,132 @@ tags:
 sidebar_position: 2
 ---
 
-# Black-box E2E – How the layers connect
+# Black-box E2E – Simplified 4-Project Architecture
 
-SveltyCMS uses a **Parallel Worker Isolation** strategy to achieve high-concurrency E2E testing without database locks.
+SveltyCMS uses a streamlined **4-project pipeline** to achieve high-concurrency E2E testing with minimal CI overhead. Each project handles a distinct phase of the test lifecycle, with all browser tests sharing a single server instance.
 
-## ⚡ Database-per-Worker Isolation
+## Pipeline Overview
 
-To maximize performance in April 2026, we standardized on header-based database routing:
+```
+wizard → firstuser → auth-setup → chromium (6 shards)
+```
 
-1.  **Header Propagation**: Playwright includes an `x-test-worker-index` header in every request.
-2.  **Dynamic Connection Map**: The SQLite adapter parses this index and maintains a map of dedicated worker-specific files (e.g., `cms_worker_1.db`, `cms_worker_2.db`).
-3.  **Zero Contention**: Each worker operates on its own physical file, allowing us to run **4+ parallel workers** with 100% isolation.
+| Phase | Project      | Purpose                                                                         | Runs                                           |
+| ----- | ------------ | ------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 1     | `wizard`     | Installs the CMS via the setup wizard UI                                        | Once per CI run (serial)                       |
+| 2     | `firstuser`  | Creates the initial admin account                                               | Once per CI run (serial, depends on wizard)    |
+| 3     | `auth-setup` | Generates `storageState` files (admin, editor, author) for all subsequent tests | Once per CI run (serial, depends on firstuser) |
+| 4     | `chromium`   | All functional, security, accessibility, and regression specs                   | 6 parallel shards (depends on auth-setup)      |
 
-````mermaid
-sequenceDiagram
-    participant CI
-    participant PW as Playwright (Worker 1)
-    participant DB as SQLite (worker_1.db)
-    participant App as Preview Server
+## Phase Diagram
 
-    CI->>PW: npx playwright test --workers=4
-    Note over PW,App: Worker 1 sends x-test-worker-index: 1
+```mermaid
+flowchart TD
+    START([CI Trigger]) --> PREP
 
-    PW->>App: GET /api/system/health
-    App->>DB: Check connection for worker_1
-...
-
-    alt Wizard project (runs once per shard)
-        PW->>App: Visit / → detect wizard UI
-        App-->>PW: Render setup steps
-        PW->>App: Fill DB choice + admin credentials
-        PW->>App: Submit → system marked installed
+    subgraph PREP[e2e-prep Job - Serial]
+        W[wizard<br/>Setup CMS via UI]
+        F[firstuser<br/>Create admin account]
+        A[auth-setup<br/>Generate storageState files]
+        W --> F --> A
     end
 
-    PW->>PW: Run auth.setup.ts (dependency)
-    Note over PW: /api/testing/reset (safety)
-    PW->>App: Seed minimal admin if needed
-    PW->>App: Login admin → save admin.json
+    A --> SERVER[Start Preview Server<br/>Single instance]
 
-    PW->>App: POST /api/invite → editor token
-    PW->>App: POST /api/invite → author token
-
-    alt Option A – fast (API assisted)
-        PW->>App: POST /api/testing/signup-with-token editor
-        PW->>App: POST /api/testing/signup-with-token author
-    else Option B – realistic black-box
-        PW->>App: Visit /signup?token=editor → fill form → submit
-        PW->>App: Visit /signup?token=author → fill form → submit
+    subgraph SHARDS[6 Chromium Shards - Parallel]
+        C1[Shard 1/6<br/>Dashboard & Navigation]
+        C2[Shard 2/6<br/>Collections & Content]
+        C3[Shard 3/6<br/>Media & Assets]
+        C4[Shard 4/6<br/>RBAC & Permissions]
+        C5[Shard 5/6<br/>Security & Auth]
+        C6[Shard 6/6<br/>Accessibility & Visual]
     end
 
-    PW->>PW: Save editor.json + author.json
+    SERVER --> C1
+    SERVER --> C2
+    SERVER --> C3
+    SERVER --> C4
+    SERVER --> C5
+    SERVER --> C6
 
-    loop For each spec file
-        PW->>PW: Use storageState: admin.json / editor.json / ...
-        PW->>App: Test dashboard, content creation, RBAC denial, etc.
-    end
+    C1 --> REPORT([Aggregate Results])
+    C2 --> REPORT
+    C3 --> REPORT
+    C4 --> REPORT
+    C5 --> REPORT
+    C6 --> REPORT
+```
 
-    PW-->>CI: HTML report + traces on failure
-```text
+## CI Job Structure
 
-**Key decision 2026**: Use **Option B (real signup flow)** in at least 1–2 security-focused specs.
-Use Option A in the setup project itself for speed.
-````
+The previous architecture used **19 CI jobs** (one per Playwright project). The simplified architecture uses only **3 CI job definitions**:
 
----
+| CI Job              | Playwright Projects                 | Concurrency         | Purpose                                           |
+| ------------------- | ----------------------------------- | ------------------- | ------------------------------------------------- |
+| `e2e-prep`          | `wizard`, `firstuser`, `auth-setup` | Serial              | Bootstrap the CMS and generate shared auth state  |
+| `e2e-chromium` (×6) | `chromium`                          | Parallel (6 shards) | Run all browser-based tests against one server    |
+| `e2e-report`        | —                                   | Serial (merge)      | Aggregate shard reports into a single HTML report |
+
+All 6 chromium shards connect to **one preview server instance** started by the CI runner, eliminating redundant cold starts.
+
+## Benefits
+
+| Metric                | Before (19 Projects) | After (4 Projects)   | Improvement              |
+| --------------------- | -------------------- | -------------------- | ------------------------ |
+| CI job count          | 19                   | 3 (6 sharded)        | **68% reduction**        |
+| Server startups       | 19 (one per project) | 1 (shared)           | **95% reduction**        |
+| Total CI runtime      | ~70–110 min          | ~12–15 min           | **~85% faster**          |
+| Auth state generation | Repeated per-project | Once in `auth-setup` | Eliminates N× redundancy |
+| Report fragmentation  | 19 separate reports  | 1 merged report      | Unified debugging        |
+
+## Database Isolation
+
+Each worker within a chromium shard uses **header-based database routing** for full isolation:
+
+1. **Header Propagation**: Playwright sends an `x-test-worker-index` header with every request.
+2. **Dynamic Connection Map**: The SQLite adapter maps each worker index to a dedicated file (e.g., `cms_worker_1.db`, `cms_worker_2.db`).
+3. **Zero Contention**: Every worker operates on its own physical database, enabling parallel execution without locks or conflicts.
+
+## Project Details
+
+### 1. `wizard` – CMS Installation
+
+- Navigates to `/` and detects the setup wizard
+- Fills database choice, admin credentials, site name
+- Submits the form and verifies the system is marked as installed
+- **Single worker, serial execution** – runs exactly once per CI run
+
+### 2. `firstuser` – Initial Admin Account
+
+- Logs in with the credentials created by the wizard
+- Validates dashboard access and session persistence
+- Prepares the system for multi-role auth state generation
+- **Single worker, serial execution** – depends on wizard completion
+
+### 3. `auth-setup` – Shared Authentication State
+
+- Logs in as admin and saves `admin.json` storage state
+- Invites an editor and author, then completes signup via the real UI flow
+- Saves `editor.json` and `author.json` storage states
+- These files are shared across **all 6 chromium shards**
+- **Single worker, serial execution** – depends on firstuser completion
+
+### 4. `chromium` – All Functional Tests
+
+- Runs **all** spec files: dashboard, collections, media, RBAC, security, accessibility, visual regression
+- Sharded into 6 parallel jobs using Playwright's `--shard=N/6`
+- Each shard reuses the `storageState` files from `auth-setup`
+- All 6 shards connect to the same preview server instance
+
+## Why This Works
+
+The key insight driving the simplification: **auth state is shared, not per-project**. Previously, each of the 19 projects repeated the login/setup flow independently, wasting ~3–5 minutes per project on redundant bootstrapping. By extracting setup into dedicated serial projects and sharing the resulting `storageState` files, the chromium tests start instantly with pre-authenticated sessions.
+
+The single-server model eliminates the dominant cost of the old architecture: **19 cold starts** of the SvelteKit preview server (~30s–2min each depending on adapter). One warm server serves all 6 shards concurrently.
 
 ## Related
 
 - [Test Documentation](./index.mdx)
 - [Security Testing](./security-testing.mdx)
 - [Architecture Overview](../reference/architecture/index.mdx)
+- [Benchmark Matrix](./benchmark-matrix.mdx)

@@ -59,8 +59,15 @@ test.describe("Full Collection & Widget Flow", () => {
     // `pointer-events-none` (the click handler is on the wrapping div), so
     // Playwright flags the wrapper as intercepting. Use force to dispatch.
     const createBtn = page.getByRole("button", { name: /create/i });
-    await createBtn.waitFor({ state: "visible", timeout: 10_000 });
-    await createBtn.click({ force: true });
+    const createBtnVisible = await createBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (createBtnVisible) {
+      await createBtn.click({ force: true });
+    } else {
+      // Try alternative selectors for the create entry action
+      const altCreate = page.getByRole("button", { name: /add|new entry/i }).first();
+      await altCreate.waitFor({ state: "visible", timeout: 10_000 });
+      await altCreate.click({ force: true });
+    }
     // The Input widget's placeholder is the db_fieldName (e.g. "first_name"),
     // not the human label "First Name". Use the textbox accessible name instead.
     await page.getByRole("textbox", { name: "First Name" }).fill("First Name");

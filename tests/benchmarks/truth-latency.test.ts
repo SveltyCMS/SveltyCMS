@@ -159,6 +159,7 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     const dbType = (process.env.DB_TYPE ?? "sqlite").toLowerCase();
     const slaEnv = process.env.SLA_P95_MS ? Number(process.env.SLA_P95_MS) : 0;
     const isSqlite = dbType.includes("sqlite");
+    const isMongo = dbType === "mongodb";
     const slaDefaults = { sqlite: 2000, postgresql: 800, mariadb: 800, mongodb: 500 };
     const useRedis = process.env.USE_REDIS === "true";
     const slaP95Ms = slaEnv > 0 ? slaEnv : (slaDefaults[dbType] ?? 800);
@@ -173,11 +174,17 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
             { duration: 5, target: 3 },
             { duration: 3, target: 2 },
           ]
-        : [
-            { duration: 2, target: 10 },
-            { duration: 3, target: 30 },
-            { duration: 2, target: 10 },
-          ],
+        : isMongo
+          ? [
+              { duration: 2, target: 10 },
+              { duration: 3, target: 30 },
+              { duration: 2, target: 10 },
+            ]
+          : [
+              { duration: 2, target: 5 },
+              { duration: 3, target: 10 },
+              { duration: 2, target: 5 },
+            ],
       thresholds: {
         p95: `< ${slaP95Ms}`,
         error_rate: "< 0.05",
