@@ -13,12 +13,13 @@ test.describe("Tenant Management", () => {
 
   test("page loads with tenant list", async ({ page }) => {
     await page.goto("/admin/tenants");
-    // The page may redirect or show an empty state if multi-tenancy is disabled,
-    // or the page itself may fail to load. Wait for any recognizable content.
+    // The heading "Tenants" is the unambiguous signal the page loaded.
+    // Fall back to error/empty-state text only if multi-tenancy is disabled
+    // and the page redirects or shows a placeholder.
     await expect(
       page
-        .getByRole("heading", { level: 1 })
-        .or(page.getByText(/tenant|multi.tenant|no tenants|not found|access denied/i)),
+        .getByRole("heading", { level: 1, name: /tenants/i })
+        .or(page.getByText(/no tenants|not found|access denied/i)),
     ).toBeVisible({
       timeout: 15_000,
     });

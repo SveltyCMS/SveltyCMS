@@ -13,7 +13,7 @@ SveltyCMS is built with **defense-in-depth security** featuring 4-layer zero-tru
 
 **Weighted: ~98/100** — self-assessed (June 2026). Remaining: WebAuthn passkey management UI, third-party penetration test.
 
-📖 **Full Security Docs**: [docs/architecture/security/index.mdx](./docs/architecture/security/index.mdx)  
+📖 **Full Security Docs**: [docs/reference/security/index.mdx](./docs/reference/security/index.mdx)
 📋 **Security.txt**: [static/.well-known/security.txt](./static/.well-known/security.txt)  
 🇪🇺 **EU Directive 2006/114/EC Compliant**: All competitive comparisons use verifiable public data.
 

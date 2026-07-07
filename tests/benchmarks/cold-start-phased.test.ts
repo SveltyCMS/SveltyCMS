@@ -34,6 +34,7 @@ async function runColdStartPhasedAudit() {
   const coldStarts: number[] = [];
   const TOTAL_ITERATIONS = 5;
 
+  // oxlint-disable-next-line eslint/no-unreachable-loop
   for (let i = 0; i < TOTAL_ITERATIONS; i++) {
     console.log(`   → Cold start iteration ${i + 1}/${TOTAL_ITERATIONS}...`);
     const start = performance.now();
@@ -42,9 +43,6 @@ async function runColdStartPhasedAudit() {
     try {
       server = await setupBenchmarkServer();
       coldStarts.push(performance.now() - start);
-    } catch (err) {
-      console.error(`   ❌ Critical failure on boot step iteration index ${i}:`, err);
-      throw err;
     } finally {
       // Ensure the background infrastructure process is dropped cleanly before proceeding
       if (server && typeof server.stop === "function") {

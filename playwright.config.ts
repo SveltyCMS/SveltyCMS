@@ -174,6 +174,11 @@ export default defineConfig({
       testMatch: ["**/user/profile.spec.ts", "**/user/management.spec.ts"],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
+      // Serialize: both specs mutate the shared user table (rename admin,
+      // block/delete developer), and parallel runs can race on the admin-area
+      // component's tableData refetch → selectedMap reset, which flakes the
+      // bulk-actions checkbox flow.
+      workers: 1,
     },
     {
       name: "builder",

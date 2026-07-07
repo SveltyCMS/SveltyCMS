@@ -3,17 +3,16 @@ id: "smart-importer"
 title: "Smart AI-Driven Migration Pro"
 description: "Enterprise Universal Content Pipeline — 40+ platforms, AI mapping, visual wizard, background jobs, audit logging, PII scrubbing."
 category: "Migration"
-version: "2.1.0"
 author: "SveltyCMS Team"
 license: "Freemium (marketplace.sveltycms.com)"
 tags: [migration, AI, wordpress, drupal, contentful, sanity, shopify, headless]
 ---
 
-# Smart AI-Driven Migration Pro v2.1
+# Smart AI-Driven Migration Pro
 
-A comprehensive migration tool for headless CMS platforms — as of June 2026, supporting 40+ source platforms, spreadsheets, databases, APIs, and Markdown — with AI-guided field mapping, visual transformation, background jobs, and enterprise-grade security.
+A comprehensive migration tool for headless CMS platforms — supporting 40+ source platforms, spreadsheets, databases, APIs, and Markdown — with AI-guided field mapping, visual transformation, background jobs, and enterprise-grade security.
 
-## 🚀 v2.1 Highlights
+## 🚀 Highlights
 
 - **40+ CMS platforms** — WordPress, Drupal, Shopify, Contentful, Strapi, Ghost, Webflow, and 34 more
 - **Forward-Reference Auto-Stubbing** — handles circular dependencies automatically with placeholder resolution
@@ -40,7 +39,7 @@ flowchart LR
     H -->|No| J[Rollback]
 ```
 
-## Visual Wizard Architecture (v2.1)
+## Visual Wizard Architecture
 
 The 5-step wizard opens via the `plugin_workspace` slot (`/config?plugin=smart-importer`) and is backed by shared orchestration modules:
 
@@ -71,7 +70,7 @@ When the target collection does not exist, Step 3 (Validate) offers **Create Col
 
 Imports also call `ensureTargetCollectionProvisioned()` before ingestion when mappings are present, so CLI/API paths auto-create missing collections. Target collection names are **inferred from migration data** (e.g. WordPress `wp:post_type` → `post`, Strapi `type` → collection id) via `infer-collection.ts`; IDs are normalized (`My Posts` → `my_posts`) for file paths and CRUD.
 
-### Multi-content-type imports (v2.1)
+### Multi-content-type imports
 
 When multiple source content types are selected (e.g. WordPress `post` + `page`), the wizard still imports into **one** SveltyCMS collection:
 

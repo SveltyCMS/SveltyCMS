@@ -16,7 +16,7 @@ tags:
 
 # Content System Architecture (2026 Edition)
 
-The SveltyCMS Content System is a high-performance, reactive engine. As of June 2026 the server tier is consolidated into **two modules** — `engine.server.ts` (scan, reconcile, cache, watcher, CRUD) and `loader.server.ts` (path security, native/pooled import, worker pool) — down from 16 files.
+The SveltyCMS Content System is a high-performance, reactive engine. The server tier is consolidated into **two modules** — `engine.server.ts` (scan, reconcile, cache, watcher, CRUD) and `loader.server.ts` (path security, native/pooled import, worker pool) — down from 16 files.
 
 ## 📁 Module Layout (`src/content/`)
 
@@ -196,7 +196,7 @@ Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Re
 
 ---
 
-## 🔬 Incremental Reload Benchmark (June 2026)
+## 🔬 Incremental Reload Benchmark
 
 **File**: `tests/benchmarks/content-incremental-reload.test.ts`
 

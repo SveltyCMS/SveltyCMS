@@ -24,6 +24,71 @@ function rawResponse(data: any, status = 200) {
 }
 
 /**
+ * Invalidate all caches (setup, cache-service, auth, API spec, theme).
+ */
+async function invalidateAllCaches(tenantId: DatabaseId) {
+  const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
+  invalidateSetupCache(false, null);
+
+  try {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    await cacheService.invalidateAll();
+
+    const { securityResponseService } = await import("@src/services/security/response-service");
+    securityResponseService.reset();
+
+    const { invalidateUserCountCache, invalidateRolesCache } =
+      await import("@src/hooks/handle-authorization");
+    await invalidateUserCountCache(tenantId);
+    await invalidateRolesCache(tenantId);
+
+    const { apiSpecService } = await import("@services/system/api-spec-service");
+    await apiSpecService.invalidateCache(tenantId);
+
+    const { ThemeManager } = await import("@src/databases/theme-manager");
+    const themeManager = ThemeManager.getInstance();
+    if (themeManager.isInitialized()) {
+      await themeManager.refresh();
+    }
+  } catch (err) {
+    console.warn(`[TestingHandler] Non-fatal cache invalidation error: ${err}`);
+  }
+}
+
+/**
+ * Wipe the media folder and recreate it empty.
+ */
+async function wipeMediaFolder() {
+  const { getPublicSettingSync } = await import("@src/services/core/settings-service");
+  const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+  const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
+  if (fs.existsSync(fullMediaRoot)) {
+    try {
+      await fsp.rm(fullMediaRoot, { recursive: true, force: true });
+      await fsp.mkdir(fullMediaRoot, { recursive: true });
+    } catch (err) {
+      console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
+    }
+  }
+}
+
+/**
+ * Reset system state stores and rate limit buckets.
+ */
+async function resetSystemStores() {
+  const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
+  resetSystemState();
+  const { resetInitializationState } = await import("@src/hooks/handle-system-state");
+  resetInitializationState();
+  try {
+    const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
+    resetRateLimitBuckets();
+  } catch (err) {
+    console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+  }
+}
+
+/**
  * MASTER TESTING HANDLER
  * Provides backdoors for test runners to reset state, seed users, and verify internals.
  * 🛡️ This handler is only active when TEST_MODE=true or in authorized benchmark runs.
@@ -52,16 +117,19 @@ export async function handleTestingRoutes(
     throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
   }
 
-  // 🛡️ TIMING-SAFE: Use constant-time comparison to prevent timing side-channel attacks
+  // 🛡️ TIMING-SAFE: Pad to equal length before constant-time comparison.
+  // timingSafeEqual throws if buffers differ in length, so we pad the shorter.
   const { timingSafeEqual } = await import("node:crypto");
   const encoder = new TextEncoder();
-  const secretBuffer = encoder.encode(requestSecret);
-  const expectedBuffer = encoder.encode(expectedSecret);
+  let secretBuffer = encoder.encode(requestSecret);
+  let expectedBuffer = encoder.encode(expectedSecret);
+  const maxLen = Math.max(secretBuffer.length, expectedBuffer.length);
+  if (secretBuffer.length < maxLen)
+    secretBuffer = Buffer.concat([secretBuffer, Buffer.alloc(maxLen - secretBuffer.length)]);
+  if (expectedBuffer.length < maxLen)
+    expectedBuffer = Buffer.concat([expectedBuffer, Buffer.alloc(maxLen - expectedBuffer.length)]);
 
-  if (
-    secretBuffer.length !== expectedBuffer.length ||
-    !timingSafeEqual(secretBuffer, expectedBuffer)
-  ) {
+  if (!timingSafeEqual(secretBuffer, expectedBuffer)) {
     throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
   }
 
@@ -123,53 +191,10 @@ export async function handleTestingRoutes(
         await (initializedAdapter as any).reset();
       }
 
-      // Wipe Media Folder
-      const { getPublicSettingSync } = await import("@src/services/core/settings-service");
-      const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
-      const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
-      if (fs.existsSync(fullMediaRoot)) {
-        try {
-          await fsp.rm(fullMediaRoot, { recursive: true, force: true });
-          await fsp.mkdir(fullMediaRoot, { recursive: true });
-        } catch (err) {
-          console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
-        }
-      }
-
-      // Invalidate caches
-      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
-      invalidateSetupCache(false, null);
-
-      try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
-        await cacheService.invalidateAll();
-
-        const { securityResponseService } = await import("@src/services/security/response-service");
-        securityResponseService.reset();
-
-        const { invalidateUserCountCache, invalidateRolesCache } =
-          await import("@src/hooks/handle-authorization");
-        await invalidateUserCountCache(tenantId);
-        await invalidateRolesCache(tenantId);
-
-        const { apiSpecService } = await import("@services/system/api-spec-service");
-        await apiSpecService.invalidateCache(tenantId);
-      } catch (err) {
-        console.warn(`[TestingHandler] Non-fatal cache invalidation error during reset: ${err}`);
-      }
-
-      // Reset system state store
-      const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
-      resetSystemState();
-      const { resetInitializationState } = await import("@src/hooks/handle-system-state");
-      resetInitializationState();
-
-      try {
-        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
-        resetRateLimitBuckets();
-      } catch (err) {
-        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
-      }
+      // Wipe media and caches (common to both states)
+      await wipeMediaFolder();
+      await invalidateAllCaches(tenantId);
+      await resetSystemStores();
 
       const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
       const configFileName = isTest ? "private.test.ts" : "private.ts";
@@ -289,65 +314,10 @@ export async function handleTestingRoutes(
         );
       }
 
-      // 2. Wipe Media Folder
-      const { getPublicSettingSync } = await import("@src/services/core/settings-service");
-      const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
-      const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
-      if (fs.existsSync(fullMediaRoot)) {
-        try {
-          await fsp.rm(fullMediaRoot, { recursive: true, force: true });
-          await fsp.mkdir(fullMediaRoot, { recursive: true });
-        } catch (err) {
-          console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
-        }
-      }
-
-      // Invalidate cache to reflect empty DB
-      const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
-      invalidateSetupCache(false, null);
-
-      try {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
-        await cacheService.invalidateAll();
-
-        try {
-          const { securityResponseService } =
-            await import("@src/services/security/response-service");
-          securityResponseService.reset();
-        } catch (err) {
-          console.warn(`[TestingHandler] Failed to reset security response service: ${err}`);
-        }
-
-        const { invalidateUserCountCache, invalidateRolesCache } =
-          await import("@src/hooks/handle-authorization");
-        await invalidateUserCountCache(tenantId);
-        await invalidateRolesCache(tenantId);
-
-        // Invalidate OpenAPI spec cache
-        const { apiSpecService } = await import("@services/system/api-spec-service");
-        await apiSpecService.invalidateCache(tenantId);
-
-        const { ThemeManager } = await import("@src/databases/theme-manager");
-        const themeManager = ThemeManager.getInstance();
-        if (themeManager.isInitialized()) {
-          await themeManager.refresh();
-        }
-      } catch (err) {
-        console.warn(`[TestingHandler] Failed to invalidate authorization/api-spec caches: ${err}`);
-      }
-
-      // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
-      const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
-      resetSystemState();
-      const { resetInitializationState } = await import("@src/hooks/handle-system-state");
-      resetInitializationState();
-
-      try {
-        const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
-        resetRateLimitBuckets();
-      } catch (err) {
-        console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
-      }
+      // 2. Wipe media and reset caches + state
+      await wipeMediaFolder();
+      await invalidateAllCaches(tenantId);
+      await resetSystemStores();
 
       return rawResponse({
         success: true,

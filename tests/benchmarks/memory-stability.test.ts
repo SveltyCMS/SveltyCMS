@@ -83,12 +83,11 @@ export async function runMemoryStabilityAudit() {
 
     // Background sampler
     const sampler = (async () => {
-      let tick = 0;
-      while (running) {
+      // oxlint-disable-next-line eslint/no-unreachable-loop
+      for (let tick = 0; running; tick++) {
         const targetTime = tick * SAMPLING_INTERVAL_MS;
         const delay = targetTime - (performance.now() - startTime);
         if (delay > 0) await new Promise((r) => setTimeout(r, delay));
-        if (!running) break;
 
         const sampleStart = performance.now();
         const controller = new AbortController();
@@ -110,7 +109,6 @@ export async function runMemoryStabilityAudit() {
           clearTimeout(tid);
           controllers.delete(controller);
         }
-        tick++;
       }
     })();
 
@@ -119,6 +117,7 @@ export async function runMemoryStabilityAudit() {
     console.log(`🔥 Sustaining load with ${CONCURRENCY} concurrent workers...`);
 
     const workers = Array.from({ length: CONCURRENCY }, async (_, i) => {
+      // oxlint-disable-next-line eslint/no-unreachable-loop
       while (running) {
         const controller = new AbortController();
         controllers.add(controller);

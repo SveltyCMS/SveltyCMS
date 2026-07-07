@@ -1,6 +1,6 @@
 /**
  * @file src/plugins/smart-importer/index.ts
- * @description Smart AI-Driven Migration Pro v2.1 — Freemium plugin.
+ * @description Smart AI-Driven Migration Pro — Freemium plugin.
  *
  * ### Free Tier (no license — covers 95% of migration needs)
  * - 5 platform parsers (WordPress, Drupal, Strapi, Directus, SveltyCMS)

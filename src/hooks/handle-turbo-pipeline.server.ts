@@ -377,21 +377,6 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // Base security header map
   const baseHeaderMap = BASE_HEADERS;
 
-  // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────
-  // Must include /files/ (uploaded media) — see isStaticOrInternalRequest().
-  if (pathname.length > 1 && isStaticOrInternalRequest(pathname)) {
-    const response = await resolve(event);
-    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    if (pathname.startsWith("/files/")) {
-      const { MEDIA_RESOURCE_HEADERS } = await import("@root/src/utils/security/constants");
-      for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
-        response.headers.set(key, value);
-      }
-    }
-    if (dev) logRequest(event, performance.now() - requestStart, response.status);
-    return response;
-  }
-
   try {
     // ── 2. STATE DISCOVERY (ONE-TIME) ────────────────────────────────────────
     const systemState = getSystemState();

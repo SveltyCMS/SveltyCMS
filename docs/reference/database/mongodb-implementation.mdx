@@ -20,7 +20,7 @@ tags:
 
 # MongoDB Implementation
 
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
 This guide covers the **MongoDB-specific** implementation in SveltyCMS, including optimizations, indexing strategy, connection pooling, and advanced features. For database-agnostic architecture, see the [Core Infrastructure](/docs/reference/database/core-infrastructure) documentation.
 
@@ -110,13 +110,13 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 - Intelligent user caching (92% hit rate)
 - QueryMeta performance tracking
 
-**Phase 5**: Lazy Activation & Resiliency (2026)
+**Phase 5**: Lazy Activation & Resiliency
 
 - **Lazy Model Registration**: Models are only compiled on-demand and cached in a local `Map` to prevent Mongoose re-registration errors and reduce cold-start memory.
 - **Dependency Guards (`ensure<Feature>`)**: Background services explicitly await the readiness of their specific database sub-systems.
 - **Promise-Based Locking**: Internal initialization is protected by a promise map to prevent race conditions during concurrent startup requests.
 
-**Phase 6: L2 Persistence & Typed SDK (2026)**
+**Phase 6: L2 Persistence & Typed SDK**
 
 - **L2 Schema Persistence**: The full `Schema` object is stored in the database. Cold starts skip the filesystem scan entirely if the DB version matches.
 - **Typed Collection Proxy**: Generated types provide full IntelliSense for database operations, reducing developer error and improving speed.
@@ -159,9 +159,9 @@ This ensures that security audits only need to verify the `mapQuery` utility rat
 
 ---
 
-## 🏗️ Modular Adapter Architecture (2026)
+## 🏗️ Modular Adapter Architecture
 
-As of April 2026, the MongoDB adapter has been fully modularized to align with the enterprise-grade architecture used by SveltyCMS's SQL engines.
+The MongoDB adapter has been fully modularized to align with the enterprise-grade architecture used by SveltyCMS's SQL engines.
 
 ### Module Breakdown
 
@@ -1425,9 +1425,7 @@ console.log("Index statistics:", indexStats);
 
 ```
 # Enable MongoDB slow query log
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 # In mongod.conf:
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 systemLog:
   verbosity: 1
   component:
@@ -1435,7 +1433,6 @@ systemLog:
       verbosity: 2  # Log slow queries
 
 # View slow queries
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 tail -f /var/log/mongodb/mongod.log | grep "slow query"
 ```
 
@@ -1540,7 +1537,7 @@ The MongoDB implementation provides:
 
 **Result**: **95-99% performance improvement** across all operations, enterprise-ready for production at scale! 🚀
 
-### Recent Enhancements (2024)
+### Recent Enhancements
 
 1. **Dual-Layer Caching System**: Redis + MongoDB with 8 category-specific TTLs
 2. **Dynamic Collection Indexing**: Every user collection gets optimized indexes automatically
@@ -1548,15 +1545,15 @@ The MongoDB implementation provides:
 4. **Cache Warming**: Zero-restart setup with pre-cached first load
 5. **Combined Impact**: 10x-160x faster operations depending on cache state
 
-### Security Hardening (June 2026)
+### Security Hardening
 
 1. **NoSQL Injection Protection**: `sanitizeMongoQuery()` in `src/utils/security/mongo-sanitize.ts` recursively blocks dangerous MongoDB operators (`$where`, `$function`, `$expr`, `$accumulator`) at the `mapQuery` level — every query, including fast-path ID lookups, is sanitized before reaching the database.
 2. **ReDoS Prevention**: `$regex` patterns validated to maximum 500 characters, preventing catastrophic backtracking attacks.
 
 3. **Soft-Delete Filter Enforcement**: `safeQuery()` now always applies the `isDeleted: { $ne: true }` filter unless explicitly opted out — closing a gap where callers could bypass soft-deletion by setting `isDeleted` in their query.
-4. **Website Token Parity (June 2026)**: `website-token-methods.ts` declares `tenantId` and `isDeleted` on the Mongoose schema (`strict: true`), routes all CRUD through `safeQuery` (no `bypassSafeQuery`), and aligns with the SQL `ISystemAdapter.websiteTokens` contract. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
+4. **Website Token Parity**: `website-token-methods.ts` declares `tenantId` and `isDeleted` on the Mongoose schema (`strict: true`), routes all CRUD through `safeQuery` (no `bypassSafeQuery`), and aligns with the SQL `ISystemAdapter.websiteTokens` contract. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 
-### Runtime Compatibility (June 2026)
+### Runtime Compatibility
 
 1. **Bun Runtime Alignment**: The MongoDB adapter now runs natively under `bun test` — no need for vitest/Node.js. A `v8` shim in `src/utils/v8-shim.ts` patches `process.getBuiltinModule('v8')` to handle the `bson` package's `isBuildingSnapshot()` call, which Bun (JavaScriptCore) doesn't implement. All 4 database adapters (MariaDB, PostgreSQL, SQLite, MongoDB) use `bun test` uniformly.
 

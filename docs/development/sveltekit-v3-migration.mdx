@@ -1,0 +1,70 @@
+---
+path: "docs/development/sveltekit-v3-migration.mdx"
+title: "SvelteKit 3.0 Migration Checklist"
+description: "Breaking changes from SvelteKit 3.0 that require code changes in SveltyCMS. Apply when upgrading from Kit 2.x."
+order: 50
+icon: "mdi:package-up"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "migration"
+  - "sveltekit"
+  - "v3"
+  - "breaking-changes"
+---
+
+# SvelteKit 3.0 Migration Checklist
+
+> [!WARNING]
+> Do **not** apply these changes while on SvelteKit 2.x — they will break the build.
+> Apply after upgrading `@sveltejs/kit` to `^3.0.0`.
+
+## A) `process.env.ORIGIN` → `event.url.origin` / `kit.paths.origin`
+
+Kit 3.0 removes `process.env.ORIGIN`. Replace with `event.url.origin` (where event is available) or a custom env var.
+
+| File                                  | Line | Change                                                                                      |
+| ------------------------------------- | ---- | ------------------------------------------------------------------------------------------- |
+| `src/hooks/handle-system-state.ts`    | 90   | `process.env.ORIGIN` → `event.url.origin`                                                   |
+| `src/plugins/sitemap/index.server.ts` | 50   | `process.env.ORIGIN` → `process.env.SVELTYCMS_ORIGIN` (plugin context — no event available) |
+
+## B) External Redirects Require `allowExternal: true`
+
+Kit 3.0 forbids redirects to external URLs by default. OAuth flows need `{ allowExternal: true }`.
+
+| File                                     | Lines              | Change                                                                       |
+| ---------------------------------------- | ------------------ | ---------------------------------------------------------------------------- |
+| `src/routes/login/+page.server.ts`       | 490, 500           | `redirect(303, authUrl)` → `redirect(303, authUrl, { allowExternal: true })` |
+| `src/routes/login/oauth/+page.server.ts` | 380, 398, 412, 612 | `redirect(302, authUrl)` → `redirect(302, authUrl, { allowExternal: true })` |
+
+## C) `handleError` Returns Status Code
+
+Kit 3.0 allows `handleError` to influence the HTTP response status code by returning `{ message, code, status }`.
+
+| File                  | Line | Change                                                                  |
+| --------------------- | ---- | ----------------------------------------------------------------------- |
+| `src/hooks.server.ts` | 607  | Add `return { message, code, status };` after the `logger.error()` call |
+
+## D) `fail()` Status Code Propagation
+
+Kit 3.0 now propagates the status code from `fail(status)` to the HTTP response automatically. No code changes required — verify that auth/rate-limiting `fail(401)` and `fail(429)` calls in these files still behave correctly:
+
+- `src/routes/login/+page.server.ts` — `fail(401)`, `fail(429)` for auth/rate limiting
+- `src/routes/(app)/config/collectionbuilder/collectionbuilder.server.ts` — `fail(400)`, `fail(404)`, `fail(500)`
+- 21 other files using `fail()` — full list: `grep -rn "fail(" src/ --include="*.ts"`
+
+## Upgrade Order
+
+1. Upgrade `@sveltejs/kit` to `^3.0.0`
+2. Apply **A**, **B**, **C** changes above
+3. Run `bun run check && bun run test:unit`
+4. Verify OAuth login flows still redirect correctly
+5. Verify sitemap pings use the correct origin
+
+---
+
+## Related
+
+- [SvelteKit 3.0 Release Notes](https://github.com/sveltejs/kit/releases/tag/%40sveltejs/kit%403.0.0-next.6)
+- [Project Roadmap](../project/roadmap-2026.mdx)

@@ -297,6 +297,11 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
     - Flags missing `data-preload` attributes on collection entry links.
     - **Reference**: `src/utils/link-validator.ts`
 18. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
+    - **Common patterns to watch for**:
+      - **`bun:test` imports** → Always use `vi.fn()` from `vitest`, never `mock` from `bun:test`. Vitest is the canonical test runner.
+      - **`vi.mock` module-scope leakage** → `vi.mock` calls in one test file pollute subsequent files. When adding a `vi.mock`, add a matching one in affected test files to restore the real module.
+      - **`response.clone()`** → When recreating a Response with modified headers, clone the body first to avoid `ReadableStream already used` errors from upstream hooks.
+      - **Dead code in middleware** → Check for duplicate handler sections in the pipeline that became unreachable after refactoring.
 
 ### Mandatory Documentation Updates
 
@@ -716,4 +721,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-07-04_
+_Last Updated: 2026-07-07_

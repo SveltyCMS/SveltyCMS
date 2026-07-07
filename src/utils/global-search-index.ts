@@ -2,7 +2,7 @@
  * @file src/utils/global-search-index.ts
  * @description Global search index for admin navigation and content discovery.
  *
- * Refactored June 2026: Now delegates to the semantic search index for intelligent
+ * Now delegates to the semantic search index for intelligent
  * ranking (NPU-accelerated embeddings when Ollama is available, TF-IDF fallback).
  * The writable store remains as the reactive binding layer for the search UI component.
  *

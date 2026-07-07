@@ -2,17 +2,13 @@
  * @file src/utils/form.svelte.ts
  * @description Modern Svelte 5 Form Suite for SveltyCMS.
  *
- * Consolidates:
- * - Form class (rune-based state management)
- * - Validation helpers (Valibot integration)
- * - Transformation utilities (obj2formData, col2formData)
+ * Provides rune-based reactive form state management with Valibot validation.
  *
- * ### Deprecation Notice
- * The `enhance()` method previously provided SvelteKit `use:enhance` integration
- * for server-side form actions. It has been removed in favor of SvelteKit 5
- * remote functions (Server Functions), which offer full type safety, automatic
- * serialization, and a simpler mental model. Migrate your form actions to
- * `.server.ts` remote functions instead.
+ * ### Features:
+ * - `Form<T>` class with `$state`-based reactive data, errors, and message
+ * - Valibot schema validation via `validate()`
+ * - Utility helpers: `obj2formData`, `col2formData`
+ * - Manual `submit()` for standard API endpoints
  */
 
 import { type BaseSchema, flatten, safeParse } from "valibot";
@@ -77,17 +73,6 @@ export class Form<T extends Record<string, unknown>> {
     }
     return true;
   }
-
-  /**
-   * @deprecated The `enhance()` method has been removed in favor of
-   * SvelteKit 5 remote functions (Server Functions). Remote functions
-   * offer full type safety, automatic serialization, and a simpler
-   * mental model over traditional form actions with `use:enhance`.
-   *
-   * To migrate, replace your `+page.server.ts` form actions with
-   * exported async functions and call them directly from your
-   * components using SvelteKit's remote function mechanism.
-   */
 
   /**
    * Manual submission for standard API endpoints.
