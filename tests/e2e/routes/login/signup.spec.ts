@@ -56,7 +56,9 @@ test.beforeEach(async ({ page }) => {
 
 test("Test loading homepage and login screen", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/$/);
+  // Both root and /login are valid: root stays when no users exist (first-user),
+  // /login is the redirect target when the system is already set up (post-wizard).
+  await expect(page).toHaveURL(/\/($|login)/);
 
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await dismissCookieConsent(page);
