@@ -58,6 +58,14 @@ export async function runDatabaseBenchmark() {
 
     const dbType = getDbType();
 
+    // 🛡️ SANITIZER: Pre-flight validation before any benchmark measurement
+    await validateBenchmarkEnvironment({
+      collectionId: COLLECTION_ID,
+      db,
+      tenantId: TEST_TENANT,
+      warmupIterations: 150,
+    });
+
     await prepareCollection(db);
 
     // 🛡️ SANITIZER: Pre-flight validation before any benchmark measurement

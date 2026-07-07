@@ -120,8 +120,13 @@ Advanced permission management interface with bulk actions and presets.
 		return initialized;
 	}
 
-	// Initialize state from props — Svelte re-creates component when parent passes new props
+	// Initialize state from props — $effect re-syncs when parent passes new props
 	let permissionsState = $state<PermissionsMap>(initializePermissions(permissions, roles));
+
+	$effect(() => {
+		// Re-initialize when parent passes updated permissions/roles
+		permissionsState = initializePermissions(permissions, roles);
+	});
 
 	// Save to history
 	function saveToHistory() {
