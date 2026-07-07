@@ -121,8 +121,8 @@ export async function handleTestingRoutes(
   // timingSafeEqual throws if buffers differ in length, so we pad the shorter.
   const { timingSafeEqual } = await import("node:crypto");
   const encoder = new TextEncoder();
-  let secretBuffer = encoder.encode(requestSecret);
-  let expectedBuffer = encoder.encode(expectedSecret);
+  let secretBuffer: any = encoder.encode(requestSecret);
+  let expectedBuffer: any = encoder.encode(expectedSecret);
   const maxLen = Math.max(secretBuffer.length, expectedBuffer.length);
   if (secretBuffer.length < maxLen)
     secretBuffer = Buffer.concat([secretBuffer, Buffer.alloc(maxLen - secretBuffer.length)]);
@@ -230,6 +230,7 @@ export async function handleTestingRoutes(
         }
 
         // Invalidate cache with complete state
+        const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
 
         // 2. Seed roles

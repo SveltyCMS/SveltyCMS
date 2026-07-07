@@ -566,6 +566,8 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
     // Ignore errors
   }
 
+  let resetLink: string | undefined;
+
   try {
     const user = await auth.checkUser({ email: result.output.email });
     if (user?._id) {
@@ -587,7 +589,7 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
         });
       const origin = new URL(event.request.url).origin;
       const baseUrl = publicEnv.HOST_PROD || origin;
-      const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
+      resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
 
       sendMail({
         recipientEmail: result.output.email,
@@ -608,8 +610,13 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
 
   return {
     success: true,
-    message: "If an account exists, a reset link has been sent.",
+    message: smtpConfigured
+      ? "If an account exists, a reset link has been sent."
+      : "SMTP not configured — use the link below to reset your password.",
     smtpConfigured,
+    // Only expose the reset link when SMTP is off (dev/no-config mode).
+    // When SMTP is on, the link is delivered via email for security.
+    resetLink: smtpConfigured ? undefined : resetLink,
   };
 }
 

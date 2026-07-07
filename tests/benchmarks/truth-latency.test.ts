@@ -162,7 +162,7 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     const isMongo = dbType === "mongodb";
     const slaDefaults = { sqlite: 2000, postgresql: 800, mariadb: 800, mongodb: 500 };
     const useRedis = process.env.USE_REDIS === "true";
-    const slaP95Ms = slaEnv > 0 ? slaEnv : (slaDefaults[dbType] ?? 800);
+    const slaP95Ms = slaEnv > 0 ? slaEnv : (slaDefaults[dbType as keyof typeof slaDefaults] ?? 800);
 
     console.log(`   SLA target: p95 < ${slaP95Ms}ms (DB: ${dbType}${useRedis ? "+Redis" : ""})`);
 
