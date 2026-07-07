@@ -1,6 +1,10 @@
 {
-  "src/**/*.{ts,js,svelte}": [
+  "src/**/*.{ts,js}": [
     "bun x oxfmt",
+    "bun x oxlint --deny-warnings",
+    "bun run scripts/slop-scanner.ts --strict --files"
+  ],
+  "src/**/*.svelte": [
     "bun x oxlint --deny-warnings",
     "bun run scripts/slop-scanner.ts --strict --files"
   ],
