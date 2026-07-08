@@ -401,35 +401,56 @@ Contact us if you're struggling with installation or other issues:
 - 📖 [Documentation](./docs/)
 - 📧 Email: support@sveltycms.com
 
-## 🚀 Semantic Versioning
+## 🚀 Versioning & Release Process
 
 For detailed information on our Git workflow, branching strategy, and commit conventions, see our [Git Workflow & Automated Releases guide](docs/tests/git-workflow.mdx).
 
-We use [semantic versioning](https://semver.org/) to manage our releases. This means that our version numbers follow a specific format: `MAJOR.MINOR.PATCH`.
+### How Releases Work
 
-- `MAJOR` version changes when we make incompatible API changes
-- `MINOR` version changes when we add functionality in a backwards-compatible manner
-- `PATCH` version changes when we make backwards-compatible bug fixes
+SveltyCMS uses **tag-driven releases** — the maintainer controls the version number.
 
-When submitting pull requests, please make sure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This will help us automatically generate changelogs and release notes.
+```
+next:  feat: add media gallery    ─┐
+       fix: toolbar spacing        ├─ accumulate over days/weeks
+       feat: image derivatives     ─┘
+                                         │
+                               merge next → main (when stable)
+                               git tag v0.0.7
+                               git push --tags
+                                         │
+                                         ▼
+                              Tag push triggers auto-release:
+                              ├─ npm publish → npmjs.com
+                              ├─ GitHub Release with auto-generated notes
+                              └─ package.json version set from tag
+```
 
-Please also read our [Code of Conduct](https://github.com/SveltyCMS/SveltyCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+- **`next` branch**: Active development — all features and fixes land here. No releases.
+- **`main` branch**: Production — merged from `next` when stable. Releases triggered by pushing a version tag.
+- **Version source**: Git tags are the source of truth — NOT `package.json`.
 
-If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running `pnpm changeset` and following the prompts. Changesets that add features should be `minor` and those that fix bugs should be `patch`.
+### Commit Convention
 
-### 🧪 Verified CI Parity
+Every commit must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+
+- `feat:` — new feature
+- `fix:` — bug fix
+- `perf:` — performance improvement
+- `docs:`, `chore:`, `refactor:`, `test:`, `ci:`, `security:` — maintenance
+
+Commit prefixes inform the auto-generated release notes but do not drive version bumps — the maintainer chooses the version.
+
+### Verified CI Parity
 
 Before submitting Pull Requests, ensure your changes pass all checks by running:
 
 ```bash
-bun run lint && bun run check && bun run test:unit:bun
+bun run lint && bun run check && bun run test:unit
 ```
 
-This runs the linter (`oxlint`), type checker (`svelte-check`), and the full unit test suite (`bun test`) exactly as the CI pipeline does.
+This runs the linter (`oxlint`), type checker (`svelte-check`), and the full unit test suite (`vitest`) exactly as the CI pipeline does.
 
-Please prefix changeset messages with `feat:`, `fix:`, or `chore:`.
-
-Thank you for helping us maintain a consistent and predictable release process! ❤️
+Thank you for helping us maintain a consistent and predictable release process!
 
 ## 🤝 Contributing
 

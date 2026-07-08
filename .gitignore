@@ -99,3 +99,4 @@ agent-tools/
 tests/e2e/.auth/
 nul
 .tmp_config_backup/database/
+bun.lock

@@ -1,9 +1,9 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewNode.svelte
 @component
 **Enhanced TreeView Node with improved design and drag & drop support**
 
-Features:	
+Features:
 - Modern card-like design with depth shadows
 - Smooth animations and transitions
 - Clear visual hierarchy between categories and collections
@@ -160,7 +160,7 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Name & Badge: flexible width for responsiveness -->
 	<div class="flex flex-1 flex-col gap-1 min-w-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
-			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-[150px] sm:max-w-[380px]" title={name}>{name}</span>
+			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-37.5 sm:max-w-95" title={name}>{name}</span>
 			{#if isCategory}
 				<Badge variant="primary" size="sm" rounded={false} class="border-0 bg-blue-600 text-white shadow-sm">Category</Badge>
 			{:else}
@@ -179,7 +179,7 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Description: hidden on small screens -->
 	{#if screen.isDesktop && item.description}
 		<div class="flex-1 px-4 min-w-0 hidden md:flex justify-start">
-			<span class="italic text-sm opacity-70 truncate w-full max-w-[640px] md:max-w-[1200px] text-start" title={item.description}>
+			<span class="italic text-sm opacity-70 truncate w-full max-w-160 md:max-w-300 text-start" title={item.description}>
 				{item.description}
 			</span>
 		</div>

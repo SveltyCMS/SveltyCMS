@@ -1454,15 +1454,6 @@ export const PRESETS: Preset[] = [
     collections: [],
   },
   {
-    id: "demo",
-    title: "Demo / Test Suite",
-    description: "Comprehensive test suite with all widget types and nested collections.",
-    icon: "mdi:test-tube",
-    features: ["All Widgets", "Deep Nesting", "Relations", "Menu Structure", "Revision History"],
-    complexity: "advanced",
-    collections: [],
-  },
-  {
     id: "blog",
     title: "Blog / Editorial",
     description:
