@@ -228,13 +228,13 @@ Features:
         {/if}
 
         <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg">
-          <button
+          <Button
             type="button"
             variant="ghost"
             onclick={() => handleItemClick(file)}
             onkeydown={(e) => handleKeyDown(e, file)}
             aria-label="Preview {file.filename}"
-            class=" pt-0! pb-0! relative h-full! w-full! rounded-none! px-0! text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 "
+            class="relative h-full! w-full! rounded-none! px-0! text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
           >
             {#if file.type === "image" && !failedImages.has(fileId)}
               <div
