@@ -53,6 +53,7 @@ const JSON_FIELDS = new Set([
   "usage",
   "roleIds",
   "permissions",
+  "preferences",
   "details",
   "errorDetails",
   "instances",

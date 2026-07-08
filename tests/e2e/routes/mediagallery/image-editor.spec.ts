@@ -131,104 +131,59 @@ test.describe("Image Editor", () => {
     await openImageEditor(page);
     await waitForEditorReady(page);
 
-    // Verify the canvas area is present
-    const dialog = page.getByRole("dialog").first();
+    const dialog = page.getByRole("dialog", { name: /image editor/i });
     await expect(
       dialog
         .locator("canvas")
         .or(dialog.locator(".editor-canvas-frame"))
-        .or(dialog.locator(".canvas-wrapper")),
-    )
-      .toBeVisible({ timeout: 15_000 })
-      .catch(() => {
-        console.log("[Image Editor] Canvas not found — image may not have loaded");
-      });
+        .or(dialog.locator(".canvas-wrapper"))
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("activates crop and focal point tools", async ({ page }) => {
     await openImageEditor(page);
     await waitForEditorReady(page);
 
-    const dialog = page.getByRole("dialog").first();
+    const dialog = page.getByRole("dialog", { name: /image editor/i });
 
-    // Click Crop tab — aria-label begins with "Crop"
-    const cropTab = dialog.getByRole("tab", { name: /^crop/i });
-    const cropVisible = await cropTab.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!cropVisible) {
-      console.log("[Image Editor] Crop tab not found — test skipped gracefully");
-      test.skip();
-      return;
-    }
-    await cropTab.click();
-    await expect(cropTab)
-      .toHaveAttribute("aria-selected", "true", { timeout: 5000 })
-      .catch(() => {
-        console.log("[Image Editor] Crop tab aria-selected not updated");
-      });
+    await dialog.getByRole("tab", { name: /^crop/i }).click();
+    await expect(dialog.getByRole("tab", { name: /^crop/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
-    // Click Focal tab — aria-label begins with "Focal"
-    const focalTab = dialog.getByRole("tab", { name: /^focal/i });
-    const focalVisible = await focalTab.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!focalVisible) {
-      console.log("[Image Editor] Focal tab not found — skipping focal check");
-      return;
-    }
-    await focalTab.click();
-    await expect(focalTab)
-      .toHaveAttribute("aria-selected", "true", { timeout: 5000 })
-      .catch(() => {
-        console.log("[Image Editor] Focal tab aria-selected not updated");
-      });
+    await dialog.getByRole("tab", { name: /^focal/i }).click();
+    await expect(dialog.getByRole("tab", { name: /^focal/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   test("saves edits via manipulate API", async ({ page }) => {
     await openImageEditor(page);
     await waitForEditorReady(page);
 
-    const dialog = page.getByRole("dialog").first();
+    const dialog = page.getByRole("dialog", { name: /image editor/i });
+    await dialog.getByRole("tab", { name: /^rotate/i }).click();
+    await expect(dialog.getByRole("tab", { name: /^rotate/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
-    // Click Rotate tab — aria-label begins with "Rotate"
-    const rotateTab = dialog.getByRole("tab", { name: /^rotate/i });
-    const rotateVisible = await rotateTab.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!rotateVisible) {
-      console.log("[Image Editor] Rotate tab not found — test skipped gracefully");
-      test.skip();
-      return;
-    }
-    await rotateTab.click();
+    const manipulateResponse = page.waitForResponse(
+      (res) =>
+        res.request().method() === "POST" &&
+        /\/api\/media\/manipulate\//.test(res.url()) &&
+        res.status() === 200,
+      { timeout: 30_000 },
+    );
 
-    // Set up response detection for the manipulate API
-    const manipulateResponse = page
-      .waitForResponse(
-        (res) =>
-          res.request().method() === "POST" &&
-          /\/api\/media\/manipulate\//.test(res.url()) &&
-          res.status() === 200,
-        { timeout: 30_000 },
-      )
-      .catch(() => null);
-
-    // Click the save button — aria-label="Save edited image"
-    const saveBtn = dialog
-      .getByRole("button", { name: /save edited image/i })
-      .or(dialog.locator("button").filter({ hasText: /done|save/i }))
-      .first();
-    const saveVisible = await saveBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!saveVisible) {
-      console.log("[Image Editor] Save button not found — test skipped gracefully");
-      test.skip();
-      return;
-    }
-    await saveBtn.click();
-
-    // Wait for the manipulate response
+    await dialog.getByRole("button", { name: /save edited image/i }).click();
     await manipulateResponse;
 
-    // Check for success toast
-    await expect(page.getByText(/image processed and saved/i).or(page.getByText(/saved/i)))
-      .toBeVisible({ timeout: 15_000 })
-      .catch(() => {
-        console.log("[Image Editor] Success toast not shown — save may have completed silently");
-      });
+    await expect(page.getByText(/image processed and saved/i)).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

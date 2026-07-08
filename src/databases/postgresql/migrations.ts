@@ -68,6 +68,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"backupCodes" JSONB,
 			"last2FAVerification" TIMESTAMP WITH TIME ZONE,
 			"authenticators" JSONB,
+			"preferences" JSONB,
 			"failedAttempts" INT NOT NULL DEFAULT 0,
 			"lockoutUntil" TIMESTAMP WITH TIME ZONE,
 			"tenantId" VARCHAR(36),
@@ -508,6 +509,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "last2FAVerification" TIMESTAMP WITH TIME ZONE`,
     );
     await sql.unsafe(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "authenticators" JSONB`);
+    await sql.unsafe(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "preferences" JSONB`);
     await sql.unsafe(
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "failedAttempts" INT NOT NULL DEFAULT 0`,
     );

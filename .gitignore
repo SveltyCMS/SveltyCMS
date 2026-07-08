@@ -8,8 +8,14 @@ terminals/
 src/types/*/
 /.svelte-kit
 /package
+# Lock files — bun is the recommended package manager; commit its lock file.
+# npm, yarn, and pnpm users generate their own locally.
 package-lock.json
+yarn.lock
+pnpm-lock.yaml
 bun.lockb
+# Visual regression snapshot baselines (generated locally, committed separately)
+**/*-snapshots/
 node_modules
 .bun-cache
 vite.config.js.timestamp-*

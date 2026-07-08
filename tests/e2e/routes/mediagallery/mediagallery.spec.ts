@@ -1,6 +1,6 @@
 /**
  * @file tests/e2e/routes/mediagallery/mediagallery.spec.ts
- * @description E2E smoke tests for /mediagallery — toolbar, views, upload.
+ * @description E2E tests for /mediagallery — toolbar, grid/table views, search, upload, delete.
  */
 
 import path from "node:path";
@@ -14,110 +14,99 @@ const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 test.describe("Media Gallery", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
-  });
-
-  test("page loads with toolbar and grid", async ({ page }) => {
     await page.goto("/mediagallery");
-
-    // Heading: AdminPageShell renders title as h1
-    await expect(
-      page.getByRole("heading", { level: 1 }).or(page.locator("h1")).first(),
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Toolbar container
-    await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({
-      timeout: 10_000,
+    await expect(page.getByRole("heading", { level: 1, name: /media gallery/i })).toBeVisible({
+      timeout: 15_000,
     });
-
-    // Content area
-    await expect(page.getByTestId("media-gallery-content")).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Grid or table — grid is default view
-    await expect(
-      page.getByTestId("media-grid").or(page.getByRole("table")).or(page.getByRole("grid")),
-    ).toBeVisible({ timeout: 10_000 });
   });
 
-  test("search and filter controls are interactive", async ({ page }) => {
-    await page.goto("/mediagallery");
-
-    // Search input: the Input component has aria-label="Search media assets"
-    const search = page
-      .getByLabel("Search media assets")
-      .or(page.getByPlaceholder(/search media/i))
-      .or(page.locator("#media-gallery-search"))
-      .first();
-    await expect(search).toBeVisible({ timeout: 10_000 });
-    await search.fill("e2e-no-match-xyz");
-
-    // If there are no files or the search filters everything, the empty state appears
-    const emptyState = page.getByTestId("media-grid-empty").or(page.getByText(/no media found/i));
-    await expect(emptyState.first()).toBeVisible({ timeout: 10_000 });
-
-    // Filter by type — label is sr-only "Filter by media type", select id="media-type-filter"
-    const typeFilter = page
-      .locator("#media-type-filter")
-      .or(page.getByLabel(/filter by type/i))
-      .first();
-    // Only visible in grid view; if it's not there, skip gracefully
-    if (await typeFilter.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await typeFilter.selectOption("IMAGE");
-    }
-
-    // Table view toggle
-    const tableViewBtn = page
-      .getByRole("button", { name: /table view/i })
-      .or(page.getByLabel(/table view/i))
-      .first();
-    if (await tableViewBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await tableViewBtn.click();
-      // Accept any visible content after toggle (table/grid may not use role="table"/"grid")
-      await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
-    }
+  test("loads with toolbar, content area and default grid view", async ({ page }) => {
+    await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible();
+    await expect(page.getByTestId("media-gallery-content")).toBeVisible();
+    await expect(page.getByTestId("media-grid")).toBeVisible();
+    await expect(page.getByRole("button", { name: /grid view/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
-  test("can upload a test image", async ({ page }) => {
-    await page.goto("/mediagallery");
+  test("supports search and type filtering", async ({ page }) => {
+    const search = page.getByRole("searchbox", { name: /search media assets/i });
+    await expect(search).toBeVisible();
 
+    // Search with no results triggers empty state
+    await search.fill("e2e-no-match-xyz-random");
+    await expect(page.getByTestId("media-grid-empty")).toBeVisible({ timeout: 10_000 });
+
+    // Clearing search restores the grid
+    await search.clear();
+    await expect(page.getByTestId("media-grid")).toBeVisible();
+
+    // Filter by type persists selection
+    await page.locator("#media-type-filter").selectOption("IMAGE");
+    await expect(page.locator("#media-type-filter")).toHaveValue("IMAGE");
+    await expect(page.getByTestId("media-grid")).toBeVisible();
+  });
+
+  test("can switch between grid and table views", async ({ page }) => {
+    const gridBtn = page.getByRole("button", { name: /grid view/i });
+    const tableBtn = page.getByRole("button", { name: /table view/i });
+
+    // Default is grid
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("media-grid")).toBeVisible();
+
+    // Switch to table
+    await tableBtn.click();
+    await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("table")).toBeVisible({ timeout: 10_000 });
+
+    // Switch back to grid
+    await gridBtn.click();
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("media-grid")).toBeVisible();
+  });
+
+  test("can upload an image and verify it appears", async ({ page }) => {
     const uploadInput = page.getByTestId("media-upload-input");
-    await expect(uploadInput).toBeAttached({ timeout: 10_000 });
-
-    // Set up response detection for the upload POST
-    const uploadResponse = page
-      .waitForResponse(
-        (res) =>
-          res.request().method() === "POST" &&
-          (res.url().includes("?/upload") || res.url().includes("/api/media/upload")) &&
-          res.ok(),
-        { timeout: 30_000 },
-      )
-      .catch(() => null); // Don't fail if we can't detect the response
+    await expect(uploadInput).toBeAttached();
 
     await uploadInput.setInputFiles(TEST_IMAGE);
+    await page.waitForLoadState("domcontentloaded");
 
-    // Wait for upload to complete
-    await uploadResponse;
+    // Empty state must disappear after upload
+    await expect(page.getByTestId("media-grid-empty")).toHaveCount(0, { timeout: 25_000 });
+    // Gridcell with the uploaded file must be visible
+    await expect(page.getByRole("gridcell").first()).toBeVisible({ timeout: 15_000 });
+    // Filename text appears in the grid
+    await expect(page.getByText(path.basename(TEST_IMAGE))).toBeVisible({ timeout: 10_000 });
+  });
 
-    // After upload, the page may reload — wait for it
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {
-      // Fallback: just wait for DOM to settle
-    });
-    await page.waitForTimeout(1000);
+  test("can delete an uploaded asset via grid action menu", async ({ page }) => {
+    const filename = path.basename(TEST_IMAGE);
 
-    // The empty state should be gone (if upload succeeded)
-    const emptyState = page.getByTestId("media-grid-empty");
-    const isEmpty = await emptyState.isVisible({ timeout: 3000 }).catch(() => false);
-    if (isEmpty) {
-      // Graceful skip: upload may not have worked in this environment
-      console.log("[Media Gallery] Upload did not produce visible media — test skipped gracefully");
-      test.skip();
-    }
+    // Upload a file to delete
+    await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
+    await page.waitForLoadState("domcontentloaded");
+    await expect(page.getByText(filename)).toBeVisible({ timeout: 20_000 });
 
-    // Verify at least one gridcell is visible
-    await expect(page.getByRole("gridcell").first()).toBeVisible({
-      timeout: 20_000,
-    });
+    // Hover the gridcell to reveal the action buttons
+    const cell = page.getByRole("gridcell").first();
+    await cell.hover();
+    const actions = cell.locator("[data-testid='media-grid-actions']");
+    await expect(actions).toBeVisible({ timeout: 5_000 });
+
+    // Click the delete button — aria-label="Delete {filename}"
+    await actions.getByRole("button", { name: new RegExp(filename) }).click();
+
+    // Confirm dialog appears — click confirm
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.getByRole("button", { name: /confirm/i }).click();
+
+    // After delete, the filename must no longer be visible
+    await expect(dialog).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(filename)).not.toBeVisible({ timeout: 15_000 });
   });
 });

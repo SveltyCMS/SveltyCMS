@@ -107,7 +107,7 @@ export async function prepareLoginForm(page: Page) {
     }
 
     // Reload login page with seeded database
-    await page.goto("/login", { waitUntil: "networkidle", timeout: 100000 });
+    await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForTimeout(1000);
   }
 

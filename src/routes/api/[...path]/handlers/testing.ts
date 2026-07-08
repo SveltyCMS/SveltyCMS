@@ -340,18 +340,54 @@ export async function handleTestingRoutes(
         logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
       }
 
-      // Create admin user
-      const result = await cms.auth.createUser(
+      // Idempotent seed: try createUser first, fallback to update-by-email.
+      // The reset action clears auth_users, but a race with handleSystemState
+      // or a duplicate seed call can cause CREATE_USER_FAILED.
+      // Explicitly clear auth_users to avoid UNIQUE constraint races
+      // with system init or previous test runs.
+      try {
+        const { sql } = await import("drizzle-orm");
+        if ((initializedAdapter as any).sqlite) {
+          (initializedAdapter as any).sqlite.exec("DELETE FROM auth_users;");
+        } else if ((initializedAdapter as any).db) {
+          await (initializedAdapter as any).db.execute(sql`DELETE FROM auth_users;`);
+        }
+      } catch (err: any) {
+        logger.warn(`[TestingHandler] Non-fatal auth_users clear error: ${err.message}`);
+      }
+
+      const seedOpts = { tenantId } as any;
+      let result: any = await cms.auth.createUser(
         {
           email,
           password,
-          username,
+          username: username || email.split("@")[0],
           role: "admin",
+          isAdmin: true,
           isRegistered: true,
           emailVerified: true,
         },
-        { tenantId },
+        seedOpts,
       );
+      if (!result?.success) {
+        // User likely already exists — update password/role instead.
+        const existing = await cms.auth.getUserByEmail(email, seedOpts);
+        if (existing?.success && existing?.data) {
+          await cms.auth.updateUserAttributes(
+            (existing.data as { _id: string })._id,
+            {
+              password,
+              username: username || email.split("@")[0],
+              role: "admin",
+              isAdmin: true,
+              isRegistered: true,
+              emailVerified: true,
+            },
+            seedOpts,
+          );
+          result = { success: true, data: existing.data };
+        }
+      }
 
       logger.debug("Seed user creation result", {
         success: result.success,

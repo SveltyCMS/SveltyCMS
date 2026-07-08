@@ -113,7 +113,9 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
             const cn = eqI >= 0 ? cp.slice(0, eqI) : cp;
             const cv = eqI >= 0 ? cp.slice(eqI + 1) : "";
             const bu = new URL(loginResp.url());
-            const origin = `${bu.protocol}//${bu.host}`;
+            const secure = cn.startsWith("__Host-") || cn.startsWith("__Secure-");
+            const urlScheme = secure ? "https://" : "http://";
+            const origin = `${urlScheme}${bu.host}`;
             await page.context().addCookies([
               {
                 name: cn,
@@ -121,6 +123,7 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
                 url: origin,
                 httpOnly: true,
                 sameSite: "Lax",
+                secure,
               },
             ]);
             console.log("[Setup] Direct login fallback succeeded");

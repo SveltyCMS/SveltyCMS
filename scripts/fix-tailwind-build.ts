@@ -15,14 +15,13 @@
  * on Unix) in `node_modules/@xxx` → `actual/path`, making Node's native resolver
  * find these "packages" successfully.
  *
- * The shims are gitignored and recreated on each build by the prepare lifecycle.
+ * The shims are gitignored and recreated on each install by the prepare lifecycle.
  *
  * Usage:
  *   bun run scripts/fix-tailwind-build.ts
- *   # Called automatically by `bun run prepare` before every build.
  */
 
-import { existsSync, mkdirSync, symlinkSync, rmSync, lstatSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, symlinkSync, rmSync, lstatSync, realpathSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 
 const SHIMS_DIR = resolve(process.cwd(), "node_modules");
@@ -48,13 +47,12 @@ const ALIAS_SHIMS: Record<string, string> = {
   "@static": "static",
   "@types": "src/types",
   "@tests": "tests",
-  // SvelteKit internal virtual modules — Tailwind's loader hook can't resolve them
-  $app: "node_modules/@sveltejs/kit/src/runtime/app",
+  $paraglide: "src/paraglide",
 };
 
-function isSymlink(path: string): boolean {
+function isSymlink(p: string): boolean {
   try {
-    return lstatSync(path).isSymbolicLink();
+    return lstatSync(p).isSymbolicLink();
   } catch {
     return false;
   }
@@ -65,37 +63,25 @@ function ensureShim(scope: string, target: string): boolean {
   const targetPath = resolve(process.cwd(), target);
 
   if (!existsSync(targetPath)) {
-    console.log(`  ⚠️  Skipping ${scope} → ${target} (target doesn't exist)`);
+    console.log(`  \u26A0\uFE0F  Skipping ${scope} \u2192 ${target} (target doesn't exist)`);
     return false;
   }
 
-  // Already correct
+  // Already a correct symlink — nothing to do
   if (isSymlink(shimPath)) {
     try {
-      const current = require("node:fs").realpathSync(shimPath);
-      if (current === targetPath) return false; // already correct
-      try {
-        unlinkSync(shimPath);
-      } catch {
-        rmSync(shimPath, { force: true });
-      }
+      if (realpathSync(shimPath) === targetPath) return false;
     } catch {
-      try {
-        unlinkSync(shimPath);
-      } catch {
-        rmSync(shimPath, { force: true });
-      }
+      // Broken symlink — will recreate below
     }
-  } else if (existsSync(shimPath)) {
-    // Not a symlink — remove it
+  }
+
+  // Remove existing shim if present (rmSync can fail on Windows junctions — ignore)
+  if (existsSync(shimPath)) {
     try {
       rmSync(shimPath, { recursive: true, force: true });
     } catch {
-      try {
-        unlinkSync(shimPath);
-      } catch {
-        // ignore
-      }
+      /* ignore */
     }
   }
 
@@ -105,23 +91,23 @@ function ensureShim(scope: string, target: string): boolean {
     mkdirSync(parent, { recursive: true });
   }
 
+  // Create the junction (Windows: "junction", Unix: "dir")
   try {
     symlinkSync(targetPath, shimPath, "junction");
     return true;
   } catch {
-    // Fallback: try dir junction on Windows
     try {
       symlinkSync(targetPath, shimPath, "dir");
       return true;
     } catch {
-      console.log(`  ⚠️  Could not create junction for ${scope}`);
+      console.log(`  \u26A0\uFE0F  Could not create junction for ${scope}`);
       return false;
     }
   }
 }
 
 function main() {
-  console.log("🔧 Fixing Tailwind build resolution (junction shims)...");
+  console.log("\uD83D\uDD27 Fixing Tailwind build resolution (junction shims)...");
 
   let created = 0;
   let skipped = 0;
@@ -134,7 +120,7 @@ function main() {
     }
   }
 
-  console.log(`✅ Created ${created} junction shims (${skipped} skipped/unchanged)`);
+  console.log(`\u2705 Created ${created} junction shims (${skipped} skipped/unchanged)`);
 }
 
 main();

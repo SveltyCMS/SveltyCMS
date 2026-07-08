@@ -24,8 +24,8 @@ import type { DatabaseResult, Role } from "../../databases/db-interface";
  * Checks if config/private.ts exists.
  * Safe to call from anywhere (middleware, Vite, etc.)
  */
-import { isSetupComplete } from "../setup-check-fast";
-export { isSetupComplete };
+import { isSetupComplete, invalidateFastSetupCache } from "../setup-check-fast";
+export { isSetupComplete, invalidateFastSetupCache };
 
 // Memoization
 let setupDbStatus: boolean | null = null;
@@ -185,6 +185,7 @@ export function invalidateSetupCache(
   clearPrivateEnv = false,
   forceStatus: boolean | null = null,
 ): void {
+  invalidateFastSetupCache();
   setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
   if (typeof globalThis !== "undefined") {
