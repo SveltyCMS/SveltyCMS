@@ -1,164 +1,51 @@
 # .github/workflows/auto-release.yaml
-# This workflow uses semantic-release to automatically publish new versions of your package to GitHub based on commit messages.
-#
-# CURRENT: Tests run against MongoDB only before release
-# FUTURE: Will test against multiple databases (MongoDB, PostgreSQL, MariaDB, MySQL) before allowing release
+# Publishes GitHub releases via semantic-release after the full CI matrix passes on main.
+# npm publish is disabled in .releaserc until NPM_TOKEN and the create-sveltycms package are ready.
 name: Auto Release
 
-# Triggers the workflow ONLY when a push happens to the main or next branch.
 on:
-  push:
-    branches: [main] # Only release from protected main branch
-  workflow_dispatch: {} # Allow manual release if needed
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
 
 permissions:
-  contents: write # Allow changelog + tags
-  issues: write # Allow release notes on issues
-  pull-requests: write # Comment on PRs for releases
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  test:
-    name: Run Playwright Tests
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:latest
-        ports: [27017:27017]
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
-    env:
-      DB_TYPE: mongodb
-      DB_HOST: localhost
-      DB_PORT: 27017
-      DB_NAME: sveltycms_test
-      DB_USER: admin
-      DB_PASSWORD: admin
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        id: bun-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Verify Codegen
-        run: |
-          bun run paraglide
-          bun x svelte-kit sync
-
-      - name: Build project
-        run: bun run build
-
-      - name: Install Playwright Browsers
-        run: bun x playwright install --with-deps chromium
-
-      - name: Run Playwright tests
-        env:
-          DB_TYPE: ${{ env.DB_TYPE }}
-          DB_HOST: 127.0.0.1
-          DB_NAME: sveltycms_test
-          DB_USER: admin
-          DB_PASSWORD: admin
-          TEST_MODE: true
-        run: |
-          # 1. Generate E2E Test Secret dynamically and save it for process sync
-          mkdir -p tests/e2e/.auth
-          echo "SVELTYCMS_E2E_RELEASE_SECRET_$(date +%s)" > tests/e2e/.auth/test-secret.txt
-          export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-
-          # 2. Start preview server in background
-          HOST=127.0.0.1 PORT=4173 TEST_API_SECRET="$TEST_API_SECRET" node build/index.js > preview.log 2>&1 &
-          bun x wait-on tcp:127.0.0.1:4173 --timeout 60000
-
-          # 3. Run Setup Wizard via Playwright to generate config/private.test.ts naturally
-          bun x playwright test tests/e2e/setup-wizard.spec.ts
-
-          # 4. Run remaining Playwright tests
-          bun x playwright test
-        timeout-minutes: 15
-
   release:
-    name: Release with Semantic Release # Auto version + changelog
+    name: Release with Semantic Release
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     timeout-minutes: 15
     runs-on: ubuntu-latest
-    needs: [test] # Only release if tests pass
 
     steps:
-      # Get git code
       - name: Checkout Repository
         uses: actions/checkout@v7
         with:
-          # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # Setup Bun environment
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.14"
 
-      # Cache Bun dependencies
-      - name: Cache Bun dependencies
-        id: bun-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      # Install only what's needed for release
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      # This step is specific to your main branch cleanup requirement.
-      - name: Ensure /config/collections is empty in main
-        # This only runs on the main branch.
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # If the collections directory exists, remove it.
-          if [ -d "config/collections" ]; then
-            echo "Removing config/collections to maintain a clean main branch..."
-            git rm -r --cached config/collections
-            rm -rf config/collections
-            
-            # Commit the changes if any files were removed.
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            # The '|| true' ensures the workflow doesn't fail if there's nothing to commit.
-            git commit -m "chore(build): auto-remove collections directory for release [skip ci]" || true
-            git push origin main
-            echo "Collections directory removed and changes pushed."
-          else
-            echo "No collections directory found — main is already clean."
-          fi
 
       - name: Run semantic-release
-        run: bunx semantic-release
+        run: bun x semantic-release
         env:
-          # The GITHUB_TOKEN is automatically provided by GitHub Actions.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 💡 Phase 2: Enable NPM publishing once core is separated
-          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Upload Logs on Failure
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-preview-log
-          path: preview.log
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
