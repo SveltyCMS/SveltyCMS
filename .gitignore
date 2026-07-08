@@ -25,6 +25,7 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 /config/*
+!/config/aliases.json
 /data.json
 .bundle-history.json
 

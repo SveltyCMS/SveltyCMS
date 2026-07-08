@@ -1,43 +1,26 @@
 /**
  * @file scripts/fix-tailwind-build.mjs
- * @description Creates junction shims in node_modules/@xxx for Vite path aliases.
+ * @description Creates junction shims in node_modules for Vite path aliases.
  *
- * Runs with plain `node` (no bun/tsx needed) so it works regardless of package manager.
- * Called automatically by the `prepare` lifecycle hook on every install.
+ * Tailwind CSS v4 registers an ESM loader hook during the SSR build. Vite's
+ * resolve.alias does NOT apply through this hook, so Node's native resolver
+ * treats @src/routes, @utils/logger etc. as npm scoped packages.
  *
- * Tailwind CSS v4 registers a Node.js ESM loader hook that intercepts ALL module
- * resolution during the SSR build. Vite's `resolve.alias` does NOT apply through
- * this hook. This script creates directory symlinks in `node_modules/@xxx` so
- * Node's native resolver finds path aliases as if they were npm packages.
+ * Reads aliases from config/aliases.json (single source of truth shared
+ * with vite.config.ts and vitest.config.ts). Creates directory symlinks
+ * in node_modules/@xxx -> actual path. Runs automatically via prepare hook.
  */
 
 import { existsSync, mkdirSync, symlinkSync, rmSync, lstatSync, realpathSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, dirname as _d } from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
-const SHIMS_DIR = resolve(process.cwd(), "node_modules");
+const __dirname = _d(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, "..");
+const SHIMS_DIR = join(ROOT, "node_modules");
 
-const ALIAS_SHIMS = {
-  "@src": "src",
-  "@utils": "src/utils",
-  "@components": "src/components",
-  "@databases": "src/databases",
-  "@services": "src/services",
-  "@stores": "src/stores",
-  "@widgets": "src/widgets",
-  "@config": "config",
-  "@content": "src/content",
-  "@hooks": "src/hooks",
-  "@themes": "src/themes",
-  "@plugins": "src/plugins",
-  "@api": "src/routes/api",
-  "@auth": "src/databases/auth",
-  "@collections": "config/collections",
-  "@root": ".",
-  "@static": "static",
-  "@types": "src/types",
-  "@tests": "tests",
-  $paraglide: "src/paraglide",
-};
+const aliases = JSON.parse(readFileSync(join(ROOT, "config", "aliases.json"), "utf8"));
 
 function isSymlink(p) {
   try {
@@ -47,29 +30,30 @@ function isSymlink(p) {
   }
 }
 
-function ensureShim(scope, target) {
+let created = 0,
+  skipped = 0;
+for (const [scope, target] of Object.entries(aliases)) {
   const shimPath = join(SHIMS_DIR, scope);
-  const targetPath = resolve(process.cwd(), target);
+  const targetPath = resolve(ROOT, target);
 
   if (!existsSync(targetPath)) {
-    console.log(`  Skipping ${scope} (target doesn't exist)`);
-    return false;
+    skipped++;
+    continue;
   }
 
   if (isSymlink(shimPath)) {
     try {
-      if (realpathSync(shimPath) === targetPath) return false;
-    } catch {
-      /* broken */
-    }
+      if (realpathSync(shimPath) === targetPath) {
+        skipped++;
+        continue;
+      }
+    } catch {}
   }
 
   if (existsSync(shimPath)) {
     try {
       rmSync(shimPath, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 
   const parent = dirname(shimPath);
@@ -77,24 +61,14 @@ function ensureShim(scope, target) {
 
   try {
     symlinkSync(targetPath, shimPath, "junction");
-    return true;
+    created++;
   } catch {
     try {
       symlinkSync(targetPath, shimPath, "dir");
-      return true;
+      created++;
     } catch {
-      console.log(`  Could not create junction for ${scope}`);
-      return false;
+      skipped++;
     }
   }
 }
-
-let created = 0;
-let skipped = 0;
-
-for (const [scope, target] of Object.entries(ALIAS_SHIMS)) {
-  if (ensureShim(scope, target)) created++;
-  else skipped++;
-}
-
-console.log(`Tailwind shims: ${created} created, ${skipped} skipped/unchanged`);
+console.log(`Tailwind shims: ${created} created, ${skipped} skipped`);

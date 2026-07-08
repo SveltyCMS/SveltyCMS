@@ -1,0 +1,22 @@
+{
+  "$paraglide": "./src/paraglide",
+  "@api": "./src/routes/api",
+  "@auth": "./src/databases/auth",
+  "@collections": "./config/collections",
+  "@components": "./src/components",
+  "@config": "./config",
+  "@content": "./src/content",
+  "@databases": "./src/databases",
+  "@hooks": "./src/hooks",
+  "@plugins": "./src/plugins",
+  "@root": ".",
+  "@services": "./src/services",
+  "@src": "./src",
+  "@static": "./static",
+  "@stores": "./src/stores",
+  "@tests": "./tests",
+  "@themes": "./src/themes",
+  "@types": "./src/types",
+  "@utils": "./src/utils",
+  "@widgets": "./src/widgets"
+}
