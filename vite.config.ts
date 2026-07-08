@@ -41,7 +41,7 @@ import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { isSetupComplete } from "./src/utils/setup-check-fast";
 import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
-import aliases from "./config/aliases.json";
+import { pathAliases } from "./path-aliases";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -946,7 +946,7 @@ export default defineConfig((): any => {
         experimental: {
           remoteFunctions: true,
         },
-        alias: aliases,
+        alias: pathAliases,
         csrf: {
           trustedOrigins: [
             "http://127.0.0.1:4173",
@@ -1056,12 +1056,7 @@ export default defineConfig((): any => {
         "@tailwindcss/node",
       ],
     },
-    resolve: {
-      alias: Object.entries(aliases).map(([find, replacement]) => ({
-        find,
-        replacement: path.resolve(CWD, replacement),
-      })),
-    },
+
     define: {
       __FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
       __SVELTY_SETUP_COMPLETE__: setupComplete,

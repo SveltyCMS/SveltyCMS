@@ -31,7 +31,10 @@ let lastHash = "";
 const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || "svelty-cms-default-log-secret";
 
 function chainHash(prev: string, content: string): string {
-  return crypto.createHmac("sha256", HMAC_SECRET).update(prev + content).digest("hex");
+  return crypto
+    .createHmac("sha256", HMAC_SECRET)
+    .update(prev + content)
+    .digest("hex");
 }
 
 async function ensureStream(): Promise<fs.WriteStream> {
@@ -46,7 +49,9 @@ async function ensureStream(): Promise<fs.WriteStream> {
         const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
         if (match) lastHash = match[1];
       }
-    } catch { /* fresh log */ }
+    } catch {
+      /* fresh log */
+    }
     stream = fs.createWriteStream(file, { flags: "a" });
   }
   return stream;
@@ -95,14 +100,19 @@ async function flush() {
       const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
       const plain = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(e.args)}`;
       lastHash = chainHash(lastHash, plain);
-      s.write(`${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(e.args)} [CHAIN:${lastHash}]\n`);
+      s.write(
+        `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(e.args)} [CHAIN:${lastHash}]\n`,
+      );
     }
   } catch (err: any) {
     console.error("[Logger] Flush failed:", err.message);
   } finally {
     flushing = false;
     if (queue.length > 0 && !flushTimer) {
-      flushTimer = setTimeout(() => { flushTimer = null; flush(); }, 5000);
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flush();
+      }, 5000);
     }
   }
 }
@@ -111,7 +121,10 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
   queue.push({ level, msg, args });
   if (queue.length >= 100) flush();
   else if (!flushTimer) {
-    flushTimer = setTimeout(() => { flushTimer = null; flush(); }, 5000);
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      flush();
+    }, 5000);
   }
 }
 
@@ -121,7 +134,19 @@ const _error = coreLogger.error;
 const _warn = coreLogger.warn;
 const _info = coreLogger.info;
 
-coreLogger.fatal = (m: string, ...a: unknown[]) => { _fatal(m, ...a); enqueue("fatal", m, a); };
-coreLogger.error = (m: string, ...a: unknown[]) => { _error(m, ...a); enqueue("error", m, a); };
-coreLogger.warn  = (m: string, ...a: unknown[]) => { _warn(m, ...a); enqueue("warn", m, a); };
-coreLogger.info  = (m: string, ...a: unknown[]) => { _info(m, ...a); enqueue("info", m, a); };
+coreLogger.fatal = (m: string, ...a: unknown[]) => {
+  _fatal(m, ...a);
+  enqueue("fatal", m, a);
+};
+coreLogger.error = (m: string, ...a: unknown[]) => {
+  _error(m, ...a);
+  enqueue("error", m, a);
+};
+coreLogger.warn = (m: string, ...a: unknown[]) => {
+  _warn(m, ...a);
+  enqueue("warn", m, a);
+};
+coreLogger.info = (m: string, ...a: unknown[]) => {
+  _info(m, ...a);
+  enqueue("info", m, a);
+};

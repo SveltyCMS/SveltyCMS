@@ -14,16 +14,38 @@ export type LoggableValue = string | number | boolean | null | undefined | objec
 
 // ── Priorities ──
 const PRIORITY: Record<LogLevel, number> = {
-  none: 0, fatal: 1, error: 2, warn: 3, info: 4, debug: 5, trace: 6,
+  none: 0,
+  fatal: 1,
+  error: 2,
+  warn: 3,
+  info: 4,
+  debug: 5,
+  trace: 6,
 };
 
 const ICONS: Record<string, string> = {
-  FATAL: "\u{1F480}", ERROR: "\u274C", WARN: "\u26A0\uFE0F",
-  INFO: "\u2139\uFE0F", DEBUG: "\u{1F41B}", TRACE: "\u{1F50D}", NONE: "",
+  FATAL: "\u{1F480}",
+  ERROR: "\u274C",
+  WARN: "\u26A0\uFE0F",
+  INFO: "\u2139\uFE0F",
+  DEBUG: "\u{1F41B}",
+  TRACE: "\u{1F50D}",
+  NONE: "",
 };
 
 // ── Sensitive data masking ──
-const SENSITIVE = ["password", "passwd", "pwd", "token", "secret", "key", "authorization", "auth", "api_key", "apikey"];
+const SENSITIVE = [
+  "password",
+  "passwd",
+  "pwd",
+  "token",
+  "secret",
+  "key",
+  "authorization",
+  "auth",
+  "api_key",
+  "apikey",
+];
 const EMAILS = ["email", "mail", "userid", "username"];
 
 function mask(v: unknown, depth = 0): unknown {
@@ -46,7 +68,11 @@ function mask(v: unknown, depth = 0): unknown {
 // ── Formatting ──
 const HIGHLIGHTS = [
   { re: /\b\d+(\.\d+)?(ms|s)\b/g, color: pc.green, css: "color:#22c55e" },
-  { re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi, color: pc.yellow, css: "color:#f59e0b" },
+  {
+    re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
+    color: pc.yellow,
+    css: "color:#f59e0b",
+  },
   { re: /\/api\/[^\s]+/g, color: pc.cyan, css: "color:#06b6d4" },
   { re: /\b(true)\b/g, color: pc.green, css: "color:#22c55e" },
   { re: /\b(false)\b/g, color: pc.red, css: "color:#ef4444" },
@@ -64,10 +90,15 @@ const IS_BROWSER = typeof window !== "undefined";
 
 function getLogLevel(): LogLevel {
   const raw = (
-    (typeof process !== "undefined" ? process.env?.LOG_LEVELS || process.env?.LOG_LEVEL : undefined) ??
+    (typeof process !== "undefined"
+      ? process.env?.LOG_LEVELS || process.env?.LOG_LEVEL
+      : undefined) ??
     (import.meta as any).env?.VITE_LOG_LEVELS ??
-    ((typeof process !== "undefined" && process.env?.NODE_ENV === "production") ? "error" : "info")
-  ).split(",")[0].trim().toLowerCase() as LogLevel;
+    (typeof process !== "undefined" && process.env?.NODE_ENV === "production" ? "error" : "info")
+  )
+    .split(",")[0]
+    .trim()
+    .toLowerCase() as LogLevel;
   return PRIORITY[raw] !== undefined ? raw : "info";
 }
 
@@ -82,12 +113,14 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
     (process.env?.QUIET === "true" || process.env?.BENCHMARK === "true") &&
     process.env?.BENCHMARK_DEBUG !== "true" &&
     PRIORITY[level] > PRIORITY.warn
-  ) return;
+  )
+    return;
 
   const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
   const icon = ICONS[level.toUpperCase()] || "\u25CF";
   const maskedArgs = args.map((a) => mask(a));
-  const method = level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
+  const method =
+    level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
 
   if (IS_BROWSER) {
     const styles: string[] = [];
@@ -99,15 +132,26 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
         return `%c${m}%c`;
       },
     );
-    console[method](`%c${ts}%c ${icon} [${level.toUpperCase()}] %c${formatted}`, "color:#9ca3af", "", "color:inherit", ...styles, ...maskedArgs);
+    console[method](
+      `%c${ts}%c ${icon} [${level.toUpperCase()}] %c${formatted}`,
+      "color:#9ca3af",
+      "",
+      "color:inherit",
+      ...styles,
+      ...maskedArgs,
+    );
   } else {
     const colored = formatAnsi(msg).replace(/\n/g, " ");
-    const argsStr = maskedArgs.map((a) => {
-      if (a instanceof Error) return `\n${pc.red(a.stack || a.message)}`;
-      if (typeof a === "object" && a !== null) return JSON.stringify(a).replace(/\n/g, " ");
-      return String(a);
-    }).join(" ");
-    console[method](`${pc.dim(ts)} ${pc.bold(icon)} [${level.toUpperCase().padEnd(5)}] ${colored} ${argsStr}`);
+    const argsStr = maskedArgs
+      .map((a) => {
+        if (a instanceof Error) return `\n${pc.red(a.stack || a.message)}`;
+        if (typeof a === "object" && a !== null) return JSON.stringify(a).replace(/\n/g, " ");
+        return String(a);
+      })
+      .join(" ");
+    console[method](
+      `${pc.dim(ts)} ${pc.bold(icon)} [${level.toUpperCase().padEnd(5)}] ${colored} ${argsStr}`,
+    );
   }
 }
 
@@ -132,7 +176,10 @@ export const logger = {
   dump: (data: unknown, label?: string) => {
     if (PRIORITY.trace > (PRIORITY[getLogLevel()] ?? PRIORITY.info)) return;
     const prefix = label ? `DUMP[${label}]` : "DUMP";
-    if (IS_BROWSER) { console.group(`\u{1F50D} ${prefix}`); console.dir(mask(data), { depth: null }); console.groupEnd(); }
-    else log("trace", prefix, [data]);
+    if (IS_BROWSER) {
+      console.group(`\u{1F50D} ${prefix}`);
+      console.dir(mask(data), { depth: null });
+      console.groupEnd();
+    } else log("trace", prefix, [data]);
   },
 };

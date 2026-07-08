@@ -1,24 +1,25 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration. Aliases from config/aliases.json.
+ * @description Vitest configuration. Path aliases from path-aliases.ts.
  */
 
 import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
+import { pathAliases } from "./path-aliases";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const aliases = JSON.parse(readFileSync(path.resolve(__dirname, "config/aliases.json"), "utf8"));
+
+const resolvedAliases = Object.fromEntries(
+  Object.entries(pathAliases).map(([key, value]) => [key, path.resolve(__dirname, value)]),
+);
 
 export default defineConfig({
   plugins: [svelte() as any],
   resolve: {
     alias: {
-      ...Object.fromEntries(
-        Object.entries(aliases).map(([k, v]) => [k, path.resolve(__dirname, v as string)]),
-      ),
+      ...resolvedAliases,
       "$app/environment": path.resolve(__dirname, "tests/unit/mocks/$app/environment.ts"),
       "$app/navigation": path.resolve(__dirname, "tests/unit/mocks/$app/navigation.ts"),
       "$app/state": path.resolve(__dirname, "tests/unit/mocks/$app/state.ts"),

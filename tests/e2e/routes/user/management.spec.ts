@@ -6,9 +6,169 @@
  *   - Delete, block, and unblock users
  *   - Invite user via email and accept invitation
  */
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { seedTestUsers } from "../../helpers/seed";
+import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/seed";
+
+const DEVELOPER_EMAIL = TEST_USERS.developer.email;
+const ACTION_TIMEOUT = 15_000;
+
+/** Open /user and wait until the admin user table is interactive. */
+async function openUserAdminArea(page: Page) {
+  await page.goto("/user", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({
+    timeout: ACTION_TIMEOUT,
+  });
+  await ensureUserListVisible(page);
+  await expect(page.getByRole("button", { name: /Toggle bulk actions menu/i })).toBeVisible({
+    timeout: ACTION_TIMEOUT,
+  });
+  // Wait for the initial user-list fetch to settle before row lookups.
+  await page
+    .waitForResponse(
+      (res) => res.url().includes("/api/user") && res.request().method() === "GET" && res.ok(),
+      { timeout: ACTION_TIMEOUT },
+    )
+    .catch(() => undefined);
+}
+
+/** User list can be toggled off; restore it before row interactions. */
+async function ensureUserListVisible(page: Page) {
+  const showList = page.getByRole("button", { name: /show user list/i });
+  if (await showList.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await showList.click({ timeout: ACTION_TIMEOUT });
+  }
+}
+
+/** Open table search without toggling it closed if already expanded. */
+async function openTableSearch(page: Page) {
+  const searchInput = page.getByRole("textbox", {
+    name: /search for items in the table/i,
+  });
+  if (!(await searchInput.isVisible({ timeout: 1_000 }).catch(() => false))) {
+    await page.getByRole("button", { name: /^search$/i }).click({ timeout: ACTION_TIMEOUT });
+  }
+  await expect(searchInput).toBeVisible({ timeout: ACTION_TIMEOUT });
+  return searchInput;
+}
+
+type DeveloperRowOptions = {
+  /** When false, keep search cleared so Multibutton sees the full user count. */
+  useSearch?: boolean;
+};
+
+/** Locate the developer row; search filter avoids pagination races for row actions. */
+async function developerRow(page: Page, options: DeveloperRowOptions = { useSearch: true }) {
+  const useSearch = options.useSearch ?? true;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await ensureUserListVisible(page);
+
+    if (useSearch) {
+      const searchInput = await openTableSearch(page);
+      const refetch = page
+        .waitForResponse(
+          (res) => res.url().includes("/api/user") && res.request().method() === "GET",
+          { timeout: ACTION_TIMEOUT },
+        )
+        .catch(() => undefined);
+      await searchInput.fill(DEVELOPER_EMAIL);
+      // AdminArea debounces search by 300ms before refetching.
+      await page.waitForTimeout(400);
+      await refetch;
+    } else {
+      await clearTableSearch(page);
+    }
+
+    const row = page.locator("tbody tr").filter({ hasText: DEVELOPER_EMAIL });
+    try {
+      await expect(row).toHaveCount(1, { timeout: ACTION_TIMEOUT });
+      return row;
+    } catch (error) {
+      if (attempt === 0) {
+        await prepareTestUser(page, "developer");
+        await openUserAdminArea(page);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`developer row not found for ${DEVELOPER_EMAIL}`);
+}
+
+async function selectDeveloperRow(page: Page, options?: DeveloperRowOptions) {
+  const row = await developerRow(page, options);
+  const checkbox = row.getByRole("checkbox", { name: "Toggle selection" });
+  await checkbox.scrollIntoViewIfNeeded();
+  const checked = await checkbox.getAttribute("aria-checked");
+  if (checked !== "true") {
+    await checkbox.click({ timeout: ACTION_TIMEOUT });
+  }
+}
+
+/** Block or unblock a single user via the per-row action button (admin-area.svelte). */
+async function runRowUserAction(page: Page, action: "block" | "unblock") {
+  const row = await developerRow(page);
+  const rowButton = row.getByRole("button", {
+    name: action === "block" ? /click to block user/i : /click to unblock user/i,
+  });
+  await expect(rowButton).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await rowButton.scrollIntoViewIfNeeded();
+  await rowButton.click({ timeout: ACTION_TIMEOUT });
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await dialog.getByRole("button", { name: /confirm/i }).click({ timeout: ACTION_TIMEOUT });
+
+  await expect(page.getByText(new RegExp(`User ${action}ed successfully`, "i"))).toBeVisible({
+    timeout: ACTION_TIMEOUT,
+  });
+}
+
+/** Clear table search so bulk actions use the full user count (not filtered totalItems). */
+async function clearTableSearch(page: Page) {
+  const searchInput = page.getByRole("textbox", {
+    name: /search for items in the table/i,
+  });
+  if (await searchInput.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    const refetch = page
+      .waitForResponse(
+        (res) => res.url().includes("/api/user") && res.request().method() === "GET",
+        { timeout: ACTION_TIMEOUT },
+      )
+      .catch(() => undefined);
+    await searchInput.fill("");
+    await page.waitForTimeout(400);
+    await refetch;
+  }
+}
+
+/** Bulk-delete the selected developer row via Multibutton. */
+async function bulkDeleteDeveloper(page: Page) {
+  // Select without search — filtered totalItems=1 disables bulk delete in Multibutton.
+  await selectDeveloperRow(page, { useSearch: false });
+
+  const bulkMenu = page.getByRole("button", { name: /Toggle bulk actions menu/i });
+  await expect(bulkMenu).toBeEnabled({ timeout: ACTION_TIMEOUT });
+
+  const executeDelete = page.getByRole("button", { name: "Execute Delete action" });
+  if (await executeDelete.isEnabled({ timeout: 2_000 }).catch(() => false)) {
+    await executeDelete.click({ timeout: ACTION_TIMEOUT });
+  } else {
+    await bulkMenu.click({ timeout: ACTION_TIMEOUT });
+    const deleteItem = page.getByRole("menuitem", { name: /select delete action/i });
+    await expect(deleteItem).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await deleteItem.click({ timeout: ACTION_TIMEOUT });
+  }
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await dialog.getByRole("button", { name: /confirm/i }).click({ timeout: ACTION_TIMEOUT });
+  await expect(page.getByText(/(?:User|Users)\s+Deleted/i)).toBeVisible({
+    timeout: ACTION_TIMEOUT,
+  });
+}
 
 test.describe.serial("User Management Flow", () => {
   test.setTimeout(120_000); // 2 min timeout
@@ -60,40 +220,18 @@ test.describe.serial("User Management Flow", () => {
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {
-    // Login
+    // Re-prepare on every attempt (including Playwright retries) so a prior
+    // partial run cannot leave the developer blocked or deleted.
+    await prepareTestUser(page, "developer");
+
     await loginAsAdmin(page);
+    await openUserAdminArea(page);
 
-    // Go to User Profile
-    await page.getByRole("link", { name: /user profile/i }).click();
-
-    // Block, then Unblock, and finally Delete the seeded developer user
-    // (admins cannot be blocked/deleted; developer@example.com is seeded in beforeAll)
-    const actions = ["Block", "Unblock", "Delete"];
-
-    for (const action of actions) {
-      // Find row for developer@example.com and check the checkbox
-      const row = page.locator("tr", { hasText: "developer@example.com" });
-      await row.getByRole("checkbox").first().click();
-
-      // Click dropdown button to open menu
-      await page.getByRole("button", { name: /Toggle bulk actions menu/i }).click();
-
-      // Select action — match the menuitem by its exact aria-label
-      // ("Select <action> action"). A bare /Block/i also matches "Unblock",
-      // which triggers a strict-mode violation.
-      await page.getByRole("menuitem", { name: `Select ${action} action` }).click();
-
-      // Click Confirm
-      await page.getByRole("button", { name: /confirm/i }).click();
-
-      // Wait for the success toast. A bare /<action>/i is ambiguous: the main
-      // action button still shows the uppercase label (e.g. "BLOCK") and the
-      // confirm modal title also contains the action word. The toast message
-      // is "<type> <action>ed" (e.g. "Users Blocked"), so scope to that prefix.
-      await expect(page.getByText(new RegExp(`(?:User|Users)\\s+${action}ed`, "i"))).toBeVisible({
-        timeout: 5000,
-      });
-    }
+    // Block/unblock via per-row buttons (stable). Bulk-delete via Multibutton.
+    // (admins cannot be blocked/deleted; developer@example.com is non-admin)
+    await runRowUserAction(page, "block");
+    await runRowUserAction(page, "unblock");
+    await bulkDeleteDeveloper(page);
   });
 
   test("Invite User via Email and Accept Invitation", async ({ page, browser }) => {

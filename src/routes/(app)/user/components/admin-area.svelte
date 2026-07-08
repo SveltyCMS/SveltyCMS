@@ -120,6 +120,9 @@
 	let tableData: TableDataType[] = $state([]);
 	let totalItems = $state(0);
 
+	// System-wide user count for bulk safety checks (search/pagination must not shrink this).
+	const systemUserCount = $derived(page.data.totalUsers ?? totalItems);
+
 	async function fetchData() {
 		await globalLoadingStore.withLoading(
 			loadingOperations.dataFetch,
@@ -724,7 +727,13 @@
 			<div class="order-3 sm:order-2"><TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density /></div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onUpdate={handleBatchUpdate} />
+				<Multibutton
+					{selectedRows}
+					type={showUserList ? 'user' : 'token'}
+					totalUsers={showUserList ? systemUserCount : totalItems}
+					{currentUser}
+					onUpdate={handleBatchUpdate}
+				/>
 			</div>
 		</div>
 

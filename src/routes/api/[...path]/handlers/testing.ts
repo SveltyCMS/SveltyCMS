@@ -911,6 +911,46 @@ export async function handleTestingRoutes(
       });
     }
 
+    if (action === "prepare-test-user") {
+      const { email, password, username, role = "editor" } = params;
+      if (!email || !password) throw new AppError("Email and password required", 400);
+
+      const listResult = await cms.auth.listUsers({ tenantId, limit: 500 });
+      const users = listResult.success ? listResult.data?.data : [];
+      let user = Array.isArray(users)
+        ? users.find((candidate: { email?: string }) => candidate.email === email)
+        : undefined;
+
+      if (!user) {
+        const createResult = await cms.auth.createUser(
+          {
+            email,
+            password,
+            username: username || email.split("@")[0],
+            role,
+            isRegistered: true,
+            emailVerified: true,
+          },
+          { tenantId },
+        );
+        if (!createResult.success) {
+          throw new AppError(
+            (createResult as { message?: string }).message || "Create failed",
+            400,
+          );
+        }
+        user = createResult.data;
+      } else if (user.blocked) {
+        const unblockResult = await cms.auth.batchAction([user._id], "unblock", { tenantId });
+        if (!unblockResult.success) {
+          throw new AppError(unblockResult.message || "Unblock failed", 500);
+        }
+        user = { ...user, blocked: false };
+      }
+
+      return rawResponse({ success: true, user });
+    }
+
     if (action === "emit-event") {
       const { event: eventName, data } = params;
       if (!eventName) throw new AppError("Event name required", 400);

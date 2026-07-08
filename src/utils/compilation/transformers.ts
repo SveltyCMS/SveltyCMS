@@ -5,7 +5,12 @@
 
 import * as ts from "typescript";
 import path from "node:path";
+import { pathAliases } from "../../../path-aliases.ts";
 import { generateUUID } from "../native-utils.ts";
+
+const compileAliases: Record<string, string> = Object.fromEntries(
+  Object.entries(pathAliases).map(([key, value]) => [key, value.replace(/^\.\//, "")]),
+);
 
 // Transformer factory for widget-related changes
 export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
@@ -227,17 +232,7 @@ export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
         ts.isStringLiteral(node.moduleSpecifier)
       ) {
         const specifier = node.moduleSpecifier.text;
-        const aliases: Record<string, string> = {
-          "@src": "src",
-          "@utils": "src/utils",
-          "@stores": "src/stores",
-          "@widgets": "src/widgets",
-          "@databases": "src/databases",
-          "@components": "src/components",
-          "@config": "config",
-        };
-
-        for (const [alias, target] of Object.entries(aliases)) {
+        for (const [alias, target] of Object.entries(compileAliases)) {
           if (specifier.startsWith(alias)) {
             const cwd = process.cwd();
             // Source file is in config/collections/... or similar

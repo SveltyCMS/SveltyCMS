@@ -63,9 +63,8 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     let sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
     // Outside benchmark runtime, never compile test/ fixtures into the live tree
-    const { isBenchmarkArtifact, isBenchmarkRuntime } =
-      await import("../../routes/setup/preset-collections.server");
-    const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths");
+    const { isBenchmarkArtifact, isBenchmarkRuntime } = await import("../benchmark-runtime.ts");
+    const { isBenchmarkRelativePath } = await import("../benchmark-paths.ts");
     if (!isBenchmarkRuntime()) {
       sourceFiles = sourceFiles.filter((relativePath) => {
         if (isBenchmarkRelativePath(relativePath)) return false;

@@ -12,7 +12,9 @@ export const TEST_USERS = {
     password: "Editor123!",
     role: "editor",
   },
-};
+} as const;
+
+type TestUserKey = keyof typeof TEST_USERS;
 
 /**
  * Seeds the database with additional test users (Developer, Editor)
@@ -44,4 +46,37 @@ export async function seedTestUsers(page: Page) {
       );
     }
   }
+}
+
+/**
+ * Idempotently ensures a test user exists and is unblocked.
+ * Safe to call before each bulk-action test (including Playwright retries).
+ */
+export async function prepareTestUser(page: Page, key: TestUserKey) {
+  const user = TEST_USERS[key];
+  const username = key.charAt(0).toUpperCase() + key.slice(1);
+
+  const response = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "prepare-test-user",
+      email: user.email,
+      password: user.password,
+      role: user.role,
+      username,
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(
+      `prepare-test-user failed for ${user.email}: ${response.status()} ${await response.text()}`,
+    );
+  }
+
+  const body = await response.json();
+  if (!body.success) {
+    throw new Error(`prepare-test-user returned failure for ${user.email}`);
+  }
+
+  return body.user as { _id: string; email: string; blocked?: boolean };
 }

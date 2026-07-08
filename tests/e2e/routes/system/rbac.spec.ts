@@ -13,7 +13,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
 import { seedTestUsers, TEST_USERS } from "../../helpers/seed";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
@@ -95,25 +94,12 @@ test.describe("Role-Based Access Control", () => {
   test.setTimeout(60_000); // 1 minute timeout for all tests
 
   test.beforeAll(async ({ browser }) => {
-    // Use a separate context/page to seed users via testing API bypass
+    // Idempotent seed only — do NOT reset the DB here. This shard runs in parallel
+    // with user/management.spec.ts and shares the same SQLite DB; a reset races and
+    // wipes users mid-test. auth-setup already seeded admin + roles.
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
-      // 1. Reset database
-      await page.request.post("/api/testing", {
-        headers: TEST_API_HEADERS,
-        data: { action: "reset" },
-      });
-      // 2. Seed database (creates default roles & admin)
-      await page.request.post("/api/testing", {
-        headers: TEST_API_HEADERS,
-        data: {
-          action: "seed",
-          email: ADMIN_CREDENTIALS.email,
-          password: ADMIN_CREDENTIALS.password,
-        },
-      });
-      // 3. Seed test users (developer, editor)
       await seedTestUsers(page);
     } catch (error) {
       console.error("Failed to seed test users:", error);

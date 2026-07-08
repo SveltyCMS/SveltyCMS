@@ -814,9 +814,9 @@ export async function setupBenchmarkServer() {
 
   const dbType = getDbType() || "sqlite";
   const port = 4173 + Math.floor(Math.random() * 500);
-  // Use DB_NAME from env (set by CI/Matrix runner), fall back to sveltycms_test
-  // which is the default database created by docker-compose for all adapters.
-  const dbName = process.env.DB_NAME || "sveltycms_test";
+  // Use DB_NAME from env (CI bench-core / run-core-benchmarks), else adapter default.
+  const dbName =
+    process.env.DB_NAME || (dbType === "sqlite" ? "benchmark_shared" : "sveltycms_test");
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
   const adminPw = process.env.ADMIN_PASSWORD || "Admin123!";
 

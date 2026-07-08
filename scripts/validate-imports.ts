@@ -15,27 +15,17 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname, resolve, relative } from "node:path";
+import { pathAliases } from "../path-aliases";
 
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
 
-// Vite path aliases (from vite.config.ts)
 const ALIASES: Record<string, string> = {
-  "@src": SRC,
-  "@utils": join(SRC, "utils"),
-  "@stores": join(SRC, "stores"),
-  "@components": join(SRC, "components"),
-  "@widgets": join(SRC, "widgets"),
-  "@services": join(SRC, "services"),
-  "@databases": join(SRC, "databases"),
-  "@content": join(SRC, "content"),
-  "@hooks": join(SRC, "hooks"),
-  "@config": join(ROOT, "config"),
-  "@root": ROOT,
-  "@tests": join(ROOT, "tests"),
+  ...Object.fromEntries(
+    Object.entries(pathAliases).map(([key, value]) => [key, resolve(ROOT, value)]),
+  ),
   $lib: join(SRC, "lib"),
-  $app: join(ROOT, ".svelte-kit", "generated"), // SvelteKit internal
-  $paraglide: join(SRC, "paraglide"),
+  $app: join(ROOT, ".svelte-kit", "generated"),
 };
 
 // Mandatory import prefix — the previous optional (?:...)? degraded to matching
