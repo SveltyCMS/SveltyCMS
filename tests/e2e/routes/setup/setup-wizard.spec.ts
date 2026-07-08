@@ -5,7 +5,6 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "../../helpers/setup-wizard";
-import { resetToSetupMode } from "../../helpers/test-orch";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -20,7 +19,10 @@ class SetupWizardPage {
 
   async hardReset() {
     try {
-      await resetToSetupMode();
+      // Use page.request so the API call goes to the same server (port 4174 for setup tests)
+      await this.page.request.post("/api/testing", {
+        data: { action: "reset-to-state", state: "setup" },
+      });
     } catch (err: any) {
       console.warn(`[E2E Setup Wizard] Cryptographic hardReset failed: ${err.message}`);
     }
@@ -284,7 +286,9 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
       test.setTimeout(240_000);
 
       await test.step("Step 0: Clean Reset (API-seeded)", async () => {
-        await resetToSetupMode();
+        await page.request.post("/api/testing", {
+          data: { action: "reset-to-state", state: "setup" },
+        });
         await page.goto("/setup");
         await page.waitForSelector("body", { timeout: 60000 });
         await wizard.dismissModals();

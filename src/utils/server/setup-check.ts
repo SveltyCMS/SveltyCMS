@@ -24,8 +24,8 @@ import type { DatabaseResult, Role } from "../../databases/db-interface";
  * Checks if config/private.ts exists.
  * Safe to call from anywhere (middleware, Vite, etc.)
  */
-import { isSetupComplete } from "../setup-check-fast";
-export { isSetupComplete };
+import { isSetupComplete, clearSetupCache } from "../setup-check-fast";
+export { isSetupComplete, clearSetupCache };
 
 // Memoization
 let setupDbStatus: boolean | null = null;
@@ -180,10 +180,16 @@ export function invalidateSetupCache(
   clearPrivateEnv = false,
   forceStatus: boolean | null = null,
 ): void {
+  clearSetupCache();
   setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
   if (typeof globalThis !== "undefined") {
     (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
+    // When not force-completing, also clear the deep-setup-complete flag
+    // to prevent stale state from previous reset-to-state("ready") calls.
+    if (forceStatus !== true) {
+      (globalThis as any).__SVELTY_SETUP_COMPLETE__ = undefined;
+    }
   }
 
   if (clearPrivateEnv) {

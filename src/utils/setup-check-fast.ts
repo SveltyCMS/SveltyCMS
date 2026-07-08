@@ -5,6 +5,15 @@ let cachedResult: boolean | null = null;
 let cacheTime = 0;
 
 /**
+ * Clears the internal 2-second cache. Called by invalidateSetupCache()
+ * to ensure isSetupComplete() immediately re-reads the filesystem.
+ */
+export function clearSetupCache(): void {
+  cachedResult = null;
+  cacheTime = 0;
+}
+
+/**
  * ⚡️ FAST SHALLOW CHECK
  * Checks if config/private.ts exists and contains the required fields.
  * Safe to call from anywhere (middleware, Vite, etc.) without pulling in DB dependencies.
@@ -13,12 +22,22 @@ let cacheTime = 0;
  * The cache is intentionally short-lived to pick up config changes after a setup restart.
  */
 export function isSetupComplete(): boolean {
-  if (
-    typeof globalThis !== "undefined" &&
-    ((globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true ||
-      (globalThis as any).__SVELTY_SETUP_COMPLETE__ === true ||
-      process.env.BENCHMARK === "true")
-  ) {
+  // 🧪 TEST MODE SHORTCUT (Non-strict)
+  // When STRICT_SETUP_CHECK is "false" and we're in test mode, always consider
+  // setup complete. E2E tests manage setup state via /api/testing API calls
+  // (reset-to-state, seed) rather than through config files on disk.
+  // The SETUP server sets STRICT_SETUP_CHECK="true", so it still does real checks.
+  const isStrictCheck = process.env.STRICT_SETUP_CHECK === "true";
+  const isTestMode =
+    typeof process !== "undefined" &&
+    (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true");
+  if (isTestMode && !isStrictCheck) {
+    return true;
+  }
+
+  const __forced = (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__;
+  const __complete = (globalThis as any).__SVELTY_SETUP_COMPLETE__;
+  if (__forced === true || __complete === true) {
     return true;
   }
 
@@ -28,12 +47,6 @@ export function isSetupComplete(): boolean {
   }
 
   try {
-    const isTestMode =
-      typeof process !== "undefined" &&
-      (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true");
-
-    if (isTestMode && !process.env.STRICT_SETUP_CHECK) return true;
-
     const configFileName = isTestMode ? "private.test.ts" : "private.ts";
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
