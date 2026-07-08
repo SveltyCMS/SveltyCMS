@@ -384,6 +384,58 @@ Then in `+page.svelte`:
 
 ---
 
+## 🔑 Plugin Licensing & Trials
+
+SveltyCMS plugins support monetization gating matching the widget system:
+
+- **14-day trials**: Automatically calculated from the first admin registration timestamp. During the trial period, the plugin has full capability without requiring any license keys.
+- **Superadmin Demo Keys**: Superadmins can provide trial keys starting with `SLM-DEMO-` that verify as valid 14-day trial activations.
+- **License Walls**: Completely prevent specific plugin hooks, background tasks, or workspaces from executing once the trial has expired and no valid license key is present.
+
+### Verifying Plugin License Status
+
+Invoke `checkExtensionLicense("plugin", "plugin-id")` within your plugin lifecycle.
+
+#### 1. Gating Backend Lifecycle Hooks (`index.server.ts`)
+
+Intercept or block server-side mutations or services:
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+export const hooks = {
+  beforeSave: async (context: any) => {
+    const status = await checkExtensionLicense("plugin", "my-plugin-id");
+    if (!status.active) {
+      throw new Error("403 Forbidden: Active license required for MyPlugin.");
+    }
+    return context;
+  },
+};
+```
+
+#### 2. Gating UI Slots
+
+Block access to plugin workspace pages or settings tiles:
+
+```svelte
+<script lang="ts">
+	import UpgradePrompt from '@components/ui/upgrade-prompt.svelte';
+
+	let { status } = $props(); // status is resolved from checkExtensionLicense
+</script>
+
+{#if status.active}
+	<div class="plugin-workspace">
+		<!-- Render Premium Plugin Workspace -->
+	</div>
+{:else}
+	<UpgradePrompt extensionId="plugin:my-plugin-id" price="€19.99" />
+{/if}
+```
+
+---
+
 ## Related
 
 - [Plugin Architecture Guide](architecture.mdx) — Deep dive into the system design

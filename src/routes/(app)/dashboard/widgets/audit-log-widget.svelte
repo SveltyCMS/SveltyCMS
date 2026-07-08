@@ -100,28 +100,12 @@ export const widgetMeta = {
 			.catch(() => {
 				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
 			});
-	});
-</script>
+		});
 
-{#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
+		const isLicensed = $derived(licenseStatus?.active || licenseStatus?.hasLicense || false);
+	</script>
+
 	<BaseWidget
-		{label}
-		{theme}
-		{icon}
-		{widgetId}
-		{size}
-		{onSizeChange}
-		onCloseRequest={onRemove}
-	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for Audit Log has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">Upgrade License &rarr;</a>
-		</div>
-	</BaseWidget>
-{:else}
-<BaseWidget
 	{label}
 	{theme}
 	endpoint="/api/dashboard/audit?limit=8"
@@ -212,9 +196,21 @@ export const widgetMeta = {
 				</div>
 			</div>
 		{/if}
+
+
+
+			<!-- Premium upgrade banner -->
+			{#if !isLicensed && !isCompact}
+			<div class="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 flex items-center justify-between">
+				<span class="text-xs text-amber-700 dark:text-amber-300">
+					<iconify-icon icon="mdi:crown" class="inline me-1 text-amber-500"></iconify-icon>
+					Full audit history, export, and compliance reports are premium features.
+				</span>
+				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-800 underline shrink-0 ms-3">Upgrade €24.99 →</a>
+			</div>
+		{/if}
 	{/snippet}
 </BaseWidget>
-{/if}
 
 <style>
 	.scrollbar-none {

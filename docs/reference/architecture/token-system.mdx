@@ -17,6 +17,9 @@ tags:
 
 # Token System
 
+> **This is the content templating token system** — `{{ entry.title }}`, `{{ user.email }}`, etc.
+> For authentication secrets (API keys, JWT, website tokens), see [Secrets & Tokens Inventory](../security/secrets-inventory.mdx).
+
 The SveltyCMS Token System injects dynamic content into entries, templates, and automation configurations. Every token resolution passes through RBAC checks — you can only access content you have permission to read.
 
 ---
@@ -190,6 +193,7 @@ The Automation Service resolves tokens in webhook bodies, email templates, and A
 
 ## Related
 
-- [API Security & Token Hardening](./api-security.mdx)
+- [API Security & Token Hardening](../security/api-security.mdx)
 - [Authentication System](../security/authentication-system.mdx)
 - [Security Overview](../security/index.mdx)
+- [Secrets & Tokens Inventory](../security/secrets-inventory.mdx)

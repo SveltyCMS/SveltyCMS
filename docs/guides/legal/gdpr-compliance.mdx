@@ -17,7 +17,6 @@ tags:
 # GDPR Compliance Suite
 
 **Status:** ✅ **Available (v1.1)**
-**Updated:** 2026-02-17
 
 ## Overview
 
@@ -50,7 +49,7 @@ System Administrators can generate a full JSON export of all data associated wit
 import { gdprService } from "@src/services/security/gdpr-service";
 
 // Generates a JSON export of all user data
-const userData = await gdprService.exportUserData(userId);
+const userData = await gdprService.exportUserData(userId, tenantId);
 ```
 
 ### 2. Right to Erasure (Anonymization)
@@ -70,7 +69,7 @@ Permanently remove a user's Personal Identifiable Information (PII) without brea
 import { gdprService } from "@src/services/security/gdpr-service";
 
 // Anonymizes user and logs the erasure request
-await gdprService.anonymizeUser(userId, "User initiated deletion");
+await gdprService.anonymizeUser(userId, tenantId, "User initiated deletion");
 ```
 
 ## Privacy & Cookies

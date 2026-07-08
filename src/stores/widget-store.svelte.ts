@@ -120,13 +120,16 @@ class WidgetState {
   async initialize(tenantId = "default", dbAdapter?: DatabaseAdapter | null) {
     const wsLogger = logger.channel("WidgetStore");
     wsLogger.debug(`initialize called for tenant: ${tenantId}. isLoaded: ${this.isLoaded}`);
-    // 🛡️ Optimization: Don't load widgets during setup wizard
-    // We only need them for the actual CMS functionality.
-    const { isSetupComplete } = await import("@src/utils/setup-check-fast");
-    const setupDone = isSetupComplete();
-    if (!setupDone) {
-      wsLogger.trace("setup NOT complete, exiting initialize early.");
-      return;
+    // 🛡️ Server-side only: skip widget loading during setup wizard.
+    // isSetupComplete() uses node:fs / process.cwd() which are unavailable
+    // in the browser. On the client, setup is implicitly complete — the user
+    // already passed server-side auth gates to reach an authenticated route.
+    if (typeof window === "undefined") {
+      const { isSetupComplete } = await import("@src/utils/setup-check-fast");
+      if (!isSetupComplete()) {
+        wsLogger.trace("setup NOT complete, exiting initialize early.");
+        return;
+      }
     }
 
     if (this.initPromise) {

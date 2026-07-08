@@ -49,7 +49,7 @@ export function getIntegrationDbName(): string {
 
 /** DB name used by bench-core CI job (isolated SQLite file for benchmarks). */
 export function getBenchmarkDbName(dbType: string): string {
-  return dbType === "sqlite" ? "sveltycms_test" : getIntegrationDbName();
+  return dbType === "sqlite" ? "benchmark_shared" : getIntegrationDbName();
 }
 
 /** Env block shared by integration runner invocations (local + CI parity). */
@@ -76,7 +76,7 @@ export function getBenchmarkTestEnv(dbType: string, overrides: Record<string, st
     DB_TYPE: dbType,
     DB_HOST: "127.0.0.1",
     DB_PORT: getDefaultDbPort(dbType),
-    DB_NAME: getBenchmarkDbName(dbType),
+    DB_NAME: process.env.DB_NAME || getBenchmarkDbName(dbType),
     DB_USER: creds.user,
     DB_PASSWORD: creds.password,
     TEST_MODE: "true",

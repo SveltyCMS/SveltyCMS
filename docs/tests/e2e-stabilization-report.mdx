@@ -24,9 +24,9 @@ tags:
 
 ## Summary
 
-E2E tests have been fully stabilized and integrated with the new **Fail-Closed API Security Model**. As of June 2026, all 14 E2E app projects run in CI (plus `wizard` and `auth-setup`) with 1,100+ unit tests passing. This report confirms that the central gatekeeper correctly enforces permissions across all database adapters while maintaining high performance.
+E2E tests have been fully stabilized and integrated with the new **Fail-Closed API Security Model**. All 14 E2E app projects run in CI (plus `wizard` and `auth-setup`) with 1,100+ unit tests passing. This report confirms that the central gatekeeper correctly enforces permissions across all database adapters while maintaining high performance.
 
-## 2026 Security Hardening Fixes
+## Security Hardening Fixes
 
 ### 1. Fail-Closed Authorization Verification
 
@@ -38,7 +38,7 @@ E2E tests have been fully stabilized and integrated with the new **Fail-Closed A
 **Issue:** Mock events in tests needed to correctly simulate the `locals.roles` structure used by the new `checkEndpointPermission` logic.
 **Fix:** Synchronized the `createMockEvent` helper across all test suites to include mandatory `tenantId` and `Role` objects.
 
-## CI Status (June 17, 2026 Update)
+## CI Status
 
 **All tests passing** (1,100+ unit + 12 E2E projects + integration):
 
@@ -55,13 +55,13 @@ E2E tests have been fully stabilized and integrated with the new **Fail-Closed A
 
 ## Audit Integration
 
-In April 2026, we integrated the **High-Frequency Benchmark Matrix** into the stabilization suite. E2E tests now verify:
+We integrated the **High-Frequency Benchmark Matrix** into the stabilization suite. E2E tests now verify:
 
 - ✅ **Zero-Resolution SDK**: 0.35ms lookups are stable across concurrent worker loads.
 - ✅ **Migration Integrity**: 10,000 entry ingestion (6,625 entries/s) leaves the system in a consistent state.
 - ✅ **Chaos Survival**: System remains responsive during simulated 500ms database "brownouts."
 
-## June 2026 Enterprise Expansion
+## Enterprise Expansion
 
 All 12 E2E projects now run in CI (up from 6). New coverage includes:
 

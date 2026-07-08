@@ -736,6 +736,10 @@ export async function handleTelemetryRoutes(
       event,
       await cms.telemetry.checkUpdateStatus({ tenantId: _tenantId as any }),
     );
+  if (action === "diagnose") {
+    const { telemetryService } = await import("@src/services/observability/telemetry-service");
+    return successResponse(event, await telemetryService.diagnoseConnection());
+  }
   if (action === "report" && event.request.method === "POST") {
     return rawResponse(event, { status: "active", success: true });
   }

@@ -41,6 +41,7 @@ import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { isSetupComplete } from "./src/utils/setup-check-fast";
 import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
+import { pathAliases } from "./path-aliases";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -945,28 +946,7 @@ export default defineConfig((): any => {
         experimental: {
           remoteFunctions: true,
         },
-        alias: {
-          $paraglide: "./src/paraglide",
-          "@plugins": "./src/plugins",
-          "@api": "./src/routes/api",
-          "@auth": "./src/databases/auth",
-          "@collections": "./config/collections",
-          "@config": "./config",
-          "@components": "./src/components",
-          "@content": "./src/content",
-          "@databases": "./src/databases",
-          "@hooks": "./src/hooks",
-          "@root": ".",
-          "@services": "./src/services",
-          "@src": "./src",
-          "@static": "./static",
-          "@stores": "./src/stores",
-          "@themes": "./src/themes",
-          "@types": "./src/types",
-          "@utils": "./src/utils",
-          "@widgets": "./src/widgets",
-          "@tests": "./tests",
-        },
+        alias: pathAliases,
         csrf: {
           trustedOrigins: [
             "http://127.0.0.1:4173",
@@ -1076,25 +1056,7 @@ export default defineConfig((): any => {
         "@tailwindcss/node",
       ],
     },
-    resolve: {
-      alias: [
-        { find: "@root", replacement: path.resolve(CWD, "./") },
-        { find: "@src", replacement: path.resolve(CWD, "./src") },
-        {
-          find: "@components",
-          replacement: path.resolve(CWD, "./src/components"),
-        },
-        { find: "@content", replacement: path.resolve(CWD, "./src/content") },
-        {
-          find: "@databases",
-          replacement: path.resolve(CWD, "./src/databases"),
-        },
-        { find: "@config", replacement: path.resolve(CWD, "config") },
-        { find: "@utils", replacement: path.resolve(CWD, "./src/utils") },
-        { find: "@stores", replacement: path.resolve(CWD, "./src/stores") },
-        { find: "@widgets", replacement: path.resolve(CWD, "./src/widgets") },
-      ],
-    },
+
     define: {
       __FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
       __SVELTY_SETUP_COMPLETE__: setupComplete,

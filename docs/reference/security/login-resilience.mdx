@@ -4,7 +4,7 @@ title: Login Resilience & Recovery
 description: How SveltyCMS handles database errors and provides recovery options for users
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-03-27"
+updated: "2026-07-07"
 tags:
   - "architecture"
   - "error-handling"
@@ -81,16 +81,26 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 
 ### 3. Reduced Timeout for Auth Service
 
-```
-// Before: 30 seconds timeout
-async function waitForAuthService(maxWaitMs: number = 30000);
+The login page (`src/routes/login/+page.server.ts`) polls for the auth service with a tight timeout:
 
-// After: 10 seconds timeout
-async function waitForAuthService(maxWaitMs: number = 10000);
+```typescript
+// Module-level constant in login/+page.server.ts
+const AUTH_SERVICE_TIMEOUT_MS = 10_000; // 10 seconds
+
+async function waitForAuthService(): Promise<boolean> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < AUTH_SERVICE_TIMEOUT_MS) {
+    if (auth && typeof auth.getUserCount === "function") return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return !!(auth && typeof auth.getUserCount === "function");
+}
 ```
 
 **Rationale:**
 
+- Previously: 30 seconds timeout (too long for user-facing login)
+- Now: 10 seconds (module-level constant `AUTH_SERVICE_TIMEOUT_MS`)
 - If database is healthy, auth initializes in <1 second
 - 10 seconds is 10x the normal initialization time
 - Failing fast (10s vs 30s) improves user experience

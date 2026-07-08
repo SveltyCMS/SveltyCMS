@@ -115,6 +115,11 @@ function validateSignature(payload: TelemetryPayload, clientSecret: string): boo
 
 The telemetry receiver is stateless and ideal for serverless deployment on Cloudflare Workers, Vercel, or Fly.io.
 
+## 6. Client Auto-Recovery & Diagnostics
+
+- **Auto-Recovery**: When the telemetry receiver returns a `403 Forbidden` response (e.g. indicating database resets or desynchronized secrets), the SveltyCMS client is designed to purge its locally cached `TELEMETRY_CLIENT_SECRET` and immediately invoke the `/api/register` endpoint to start a new handshake session.
+- **Client Diagnostics Route**: The SveltyCMS client exposes a local route `/api/telemetry/diagnose` that runs a step-by-step diagnostic test (checking endpoint GET ping, registration OPTIONS availability, and real payload signature verification).
+
 ---
 
 ## Related

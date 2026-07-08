@@ -120,9 +120,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		class={cn(
 			'fixed inset-0 z-101 bg-transparent border-0 backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
 			isFullscreen
-				? 'open:flex m-0 h-[100dvh] max-h-[100dvh] w-full max-w-none overflow-hidden p-0'
+				? 'open:flex m-0 h-dvh max-h-dvh w-full max-w-none overflow-hidden p-0'
 				: isEditorShell
-					? 'open:flex m-auto max-md:m-0 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-hidden p-0 max-md:p-0'
+					? 'open:flex m-auto max-md:m-0 max-md:h-dvh max-md:max-h-dvh max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-hidden p-0 max-md:p-0'
 					: 'open:flex m-auto items-center justify-center overflow-visible p-4 sm:p-6 lg:p-8',
 			dialogClass,
 		)}

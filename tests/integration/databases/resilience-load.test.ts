@@ -4,12 +4,17 @@
  *
  * Runs progressive load tests to determine system limits without crashing.
  * Levels: TINY -> LOW -> MEDIUM -> HIGH -> EXTREME
+ *
+ * @note This test requires Bun runtime for the resilience module's internal
+ * timing and retry mechanisms. Runs under vitest with bun:test compatibility
+ * shims via bun-preload. Uses dynamic import for the resilience module to
+ * avoid SvelteKit environment dependency issues.
  */
 
-import { beforeAll, describe, expect, it, mock } from "bun:test";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 // Bun integration tests run outside SvelteKit, so mock SvelteKit runtime env.
-mock.module("$app/environment", () => ({
+vi.mock("$app/environment", () => ({
   browser: false,
   dev: false,
   building: false,
@@ -20,7 +25,7 @@ let getDatabaseResilience: any;
 
 // Import after mocking $app/environment.
 beforeAll(async () => {
-  const resilienceModule = await import("../../../src/databases/database-resilience");
+  const resilienceModule = await import("@src/databases/database-resilience");
   getDatabaseResilience = resilienceModule.getDatabaseResilience;
 });
 

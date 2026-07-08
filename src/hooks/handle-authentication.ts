@@ -49,7 +49,7 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { getRequestFlags } from "@utils/hook-utils";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
@@ -123,7 +123,6 @@ const lastRotationAttempt = new Map<string, number>();
  */
 const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per industry best practice
 
-const pendingDemoTenants = new Map<string, string>();
 const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses
 
 /**
@@ -366,50 +365,74 @@ async function handleSessionRotation(
 }
 
 /**
+ * Determines the secure cookie name for demo tenant identification.
+ * Uses __Host- prefix on HTTPS per RFC 6265bis for subdomain isolation.
+ */
+function getDemoTenantCookieName(isSecure: boolean): string {
+  return isSecure ? "__Host-demo_tenant_id" : "demo_tenant_id";
+}
+
+/**
+ * Reads DEMO_TTL from public settings (default: 60 minutes).
+ * Returns the TTL in seconds for cookie maxAge.
+ */
+function getDemoTTLSeconds(): number {
+  try {
+    const demoTTL = Number(getPublicSettingSync("DEMO_TTL")) || 60;
+    return demoTTL * 60; // Convert minutes to seconds
+  } catch {
+    return 3600; // Default: 60 minutes
+  }
+}
+
+/**
  * Handles automatic demo tenant generation and seeding.
+ * Each visitor gets their own unique tenantId — no hostname-based dedup.
  */
 async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: boolean) {
   const { cookies, url, locals } = event;
-  const tenantIdFromCookie = cookies.get("demo_tenant_id") || null;
+  const isSecure = url.protocol === "https:";
+  const cookieName = getDemoTenantCookieName(isSecure);
+  const tenantIdFromCookie =
+    cookies.get(cookieName) ||
+    // Also check the unprefixed variant for backward compat
+    (!isSecure ? null : cookies.get("demo_tenant_id")) ||
+    null;
 
   if (tenantIdFromCookie) {
     locals.tenantId = tenantIdFromCookie as DatabaseId;
     return;
   }
 
+  // If user has a session cookie but no user is present, skip assignment
   if (
     (cookies.get(SESSION_COOKIE_NAME) || cookies.get(`__Host-${SESSION_COOKIE_NAME}`)) &&
     !isUserPresent
   )
     return;
 
-  const sessionKey = url.hostname;
-  const existing = pendingDemoTenants.get(sessionKey);
-  let tenantId: string;
+  // Generate a unique tenantId per visitor — no shared dedup
+  const tenantId = crypto.randomUUID();
 
-  if (existing) {
-    tenantId = existing;
-  } else {
-    tenantId = crypto.randomUUID();
-    pendingDemoTenants.set(sessionKey, tenantId);
-    setTimeout(() => pendingDemoTenants.delete(sessionKey), 10_000);
-
-    try {
-      const { seedDemoTenant } = await import("@src/routes/setup/seed");
-      await seedDemoTenant(dbAdapter!, tenantId);
-    } catch (e) {
-      logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
-    }
-  }
-
-  cookies.set("demo_tenant_id", tenantId, {
+  // SET COOKIE FIRST (before async seeding) to prevent race conditions
+  // where sign-up arrives mid-seed and generates a different tenantId.
+  const maxAge = getDemoTTLSeconds();
+  cookies.set(cookieName, tenantId, {
     path: "/",
     httpOnly: true,
-    secure: url.protocol === "https:",
-    sameSite: "lax",
-    maxAge: 3600,
+    secure: isSecure,
+    sameSite: "strict",
+    maxAge,
   });
   locals.tenantId = tenantId as DatabaseId;
+
+  // Fire-and-forget seeding — cookie is already set, user can proceed
+  try {
+    const { seedDemoTenant } = await import("@src/routes/setup/seed");
+    await seedDemoTenant(dbAdapter!, tenantId);
+  } catch (e) {
+    logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+  }
 }
 
 // --- MAIN HOOK ---

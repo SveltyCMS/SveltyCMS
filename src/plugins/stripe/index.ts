@@ -1,10 +1,14 @@
 /**
  * @file src/plugins/stripe/index.ts
- * @description Stripe Payments plugin for SveltyCMS — headless payment processing.
+ * @description Stripe Payments plugin for SveltyCMS — freemium payment processing.
  *
  * Accept payments via Stripe for gated content, memberships, or e-commerce.
  * Uses the official Stripe SDK server-side and Stripe.js via CDN client-side
  * for PCI-compliant card collection. Zero npm dependencies beyond `stripe`.
+ *
+ * ### Licensing (Freemium):
+ * - Free tier: one-time payments via PaymentIntents (amount, currency, description)
+ * - Premium tier: subscriptions, invoices, multi-currency, custom themes
  *
  * ### Features:
  * - PaymentIntent creation/confirmation via server API
@@ -113,14 +117,21 @@ export const stripePlugin: Plugin = {
   ],
   hooks: {
     beforeSave: async (context, _collection, data) => {
-      // SECURITY: Enforce Premium Licensing for Stripe Integration
       const { checkExtensionLicense } = await import("@src/utils/license-manager");
       const status = await checkExtensionLicense("plugin", "stripe");
+
+      // Premium features require a license
       if (!status.active && !status.hasLicense) {
-        throw new Error("403 Forbidden: Premium License Required for Stripe Plugin");
+        // Strip premium fields — keep free tier (one-time payments only)
+        delete data._stripeSubscriptionPlan;
+        delete data._stripeInvoiceSettings;
+        delete data._stripeMultiCurrency;
+        delete data._stripeCustomTheme;
+        delete data._stripeAnalytics;
+        console.warn("[stripe] Premium fields stripped due to missing license. Free tier active.");
       }
 
-      // If a payment intent is attached, verify it succeeded before saving
+      // If a payment intent is attached, verify it succeeded (free + premium)
       if (data._stripePaymentIntent) {
         const { getStripe } = await import("./server/stripe");
         const stripe = await getStripe(context.tenantId);

@@ -27,10 +27,18 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
 
   let sessionEstablished = false;
 
-  // If the seed/login response includes cookies, use them directly
+  // If the seed/login response includes cookies, use them directly.
+  // Use the API response URL to build the cookie origin (page.url() may be
+  // "about:blank" when the test only issues API requests without navigation).
+  // Use `url` instead of domain/path for addCookies — simpler and avoids
+  // "Invalid cookie fields" from empty/edge-case domain values.
   if (cookies && sessionId) {
     const cookieParts = cookies.split(";")[0];
-    const [name, value] = cookieParts.split("=");
+    // Use indexOf (not split("=")) so cookie values containing "=" aren't
+    // truncated — base64 session IDs and signed tokens often contain "=".
+    const eqIdx = cookieParts.indexOf("=");
+    const name = eqIdx >= 0 ? cookieParts.slice(0, eqIdx) : cookieParts;
+    const value = eqIdx >= 0 ? cookieParts.slice(eqIdx + 1) : "";
     const context = page.context();
     let hostname = "127.0.0.1";
     try {
@@ -39,6 +47,9 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
         hostname = new URL(pageUrl).hostname;
       }
     } catch {}
+    // Match the upstream secure-cookie handling: __Host- and __Secure-
+    // prefixed cookies MUST be set with secure: true, otherwise Playwright
+    // rejects them / they don't get sent back over http.
     const isHostCookie = name.startsWith("__Host-");
     const secure = isHostCookie || name.startsWith("__Secure-");
     const urlScheme = secure ? "https://" : "http://";
@@ -59,17 +70,22 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
     console.log("[Setup] No set-cookie in seed response — navigating to establish session...");
   }
 
-  // Verify session by navigating to homepage
-  try {
-    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 30_000 });
-    const currentUrl = page.url();
-    if (!currentUrl.includes("/login")) {
-      sessionEstablished = true;
-    } else {
-      console.log("[Setup] Session not established via navigation — will attempt direct login");
+  // Verify session by navigating to homepage — but only if we haven't
+  // already established the session via the cookie. The networkidle wait
+  // can time out when the system is in IDLE state (the /api/content/events
+  // endpoint is blocked and the page keeps polling).
+  if (!sessionEstablished) {
+    try {
+      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15_000 });
+      const currentUrl = page.url();
+      if (!currentUrl.includes("/login")) {
+        sessionEstablished = true;
+      } else {
+        console.log("[Setup] Session not established via navigation — will attempt direct login");
+      }
+    } catch (navErr) {
+      console.log("[Setup] Navigation failed:", navErr);
     }
-  } catch (navErr) {
-    console.log("[Setup] Navigation failed:", navErr);
   }
 
   // If all session checks fail, attempt direct login via test API
@@ -93,17 +109,21 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
           const loginSid = loginResp.headers()["x-test-session-id"];
           if (loginCookies && loginSid) {
             const cp = loginCookies.split(";")[0];
-            const [cn, cv] = cp.split("=");
-            const ctx = page.context();
-            const bu = new URL(page.url());
-            await ctx.addCookies([
+            const eqI = cp.indexOf("=");
+            const cn = eqI >= 0 ? cp.slice(0, eqI) : cp;
+            const cv = eqI >= 0 ? cp.slice(eqI + 1) : "";
+            const bu = new URL(loginResp.url());
+            const secure = cn.startsWith("__Host-") || cn.startsWith("__Secure-");
+            const urlScheme = secure ? "https://" : "http://";
+            const origin = `${urlScheme}${bu.host}`;
+            await page.context().addCookies([
               {
                 name: cn,
                 value: cv,
-                domain: bu.hostname,
-                path: "/",
+                url: origin,
                 httpOnly: true,
                 sameSite: "Lax",
+                secure,
               },
             ]);
             console.log("[Setup] Direct login fallback succeeded");

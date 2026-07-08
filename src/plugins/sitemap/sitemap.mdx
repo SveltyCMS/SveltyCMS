@@ -1,23 +1,54 @@
 ---
 path: "src/plugins/sitemap/sitemap.mdx"
 title: "Sitemap Generator Plugin"
-description: "Documentation for the Sitemap Generator plugin for SveltyCMS."
+description: "Automated XML sitemap with i18n/hreflang support and search engine indexing pings. Free and included with SveltyCMS."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "sitemap"
+  - "seo"
+  - "free"
 ---
 
 # Sitemap Generator Plugin
 
-Documentation for the **Sitemap Generator** plugin is being prepared.
+Automated XML sitemap generator with full i18n/hreflang support and automatic search engine indexing pings. Designed for headless frontend architectures with configurable domain mapping.
 
-For implementation details, see the source code in `src/plugins/sitemap/`.
+> **Free Plugin** — Included with SveltyCMS. No license required.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## Features
+
+| Feature              | Description                                               |
+| :------------------- | :-------------------------------------------------------- |
+| XML sitemap          | Auto-generates standards-compliant XML sitemaps           |
+| i18n/hreflang        | Multi-language support with proper `hreflang` annotations |
+| Search engine pings  | Automatically notifies Google and Bing on content changes |
+| Headless domain      | Configurable `frontendDomain` for decoupled frontend URLs |
+| Robots.txt injection | Optionally auto-injects sitemap reference into robots.txt |
+| Multi-tenant         | Per-tenant sitemap configuration                          |
+| Collection scoping   | Include/exclude specific collections from the sitemap     |
+
+---
+
+## Configuration
+
+| Setting                 | Type    | Default | Description                                             |
+| :---------------------- | :------ | :------ | :------------------------------------------------------ |
+| `pingBing`              | Public  | `true`  | Notify Bing on sitemap updates                          |
+| `includeHreflang`       | Public  | `true`  | Include hreflang annotations for multi-language content |
+| `frontendDomain`        | Private | `""`    | Base domain for sitemap URLs (headless frontend)        |
+| `autoInjectToRobotsTxt` | Private | `true`  | Auto-add sitemap reference to `/robots.txt`             |
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [Redirect Manager Plugin](../redirect-manager/redirect-manager.mdx)

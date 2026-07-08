@@ -227,8 +227,8 @@ Features:
           </div>
         {/if}
 
-        <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-[8px]">
-          <Button
+        <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg">
+          <button
             type="button"
             variant="ghost"
             onclick={() => handleItemClick(file)}
@@ -297,7 +297,7 @@ Features:
                 <span class="font-serif text-sm font-semibold italic leading-none text-primary-500">i</span>
               {/snippet}
               {#snippet content()}
-                <div class="flex flex-col text-[11px] text-surface-800 dark:text-surface-200 min-w-[240px]">
+                <div class="flex flex-col text-[11px] text-surface-800 dark:text-surface-200 min-w-60">
                   <div class="border-b border-surface-300 dark:border-surface-700 pb-2 mb-0 text-center text-[13px]">
                     File NAME : {file.filename}
                   </div>

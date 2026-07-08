@@ -141,6 +141,9 @@
 			}
 			localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
 			isFavorited = !isFavorited;
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(new CustomEvent('favorites_changed'));
+			}
 		} catch { /* ignore */ }
 	}
 </script>
@@ -215,7 +218,8 @@
 					onclick={(e: MouseEvent) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
-					class="flex min-w-0 shrink-0 items-center justify-center rounded-full p-0! {compact ? 'h-9 w-9' : 'h-10 w-10'}"
+					rounded={true}
+					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact ? 'h-9 w-9' : 'h-10 w-10'}"
 					data-cms-action="back"
 				>
 					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
@@ -223,14 +227,14 @@
 			{/if}
 		{/if}
 
-		<!-- Bookmark: add/remove this page from floating-nav favorites -->
 		<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
 			<Button
 					variant="ghost"
 					type="button"
 					onclick={toggleFavorite}
 					aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-					class="flex shrink-0 items-center justify-center rounded-full border transition-colors {compact ? 'h-9 w-9' : 'h-10 w-10'} {isFavorited ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-surface-300 hover:bg-surface-500/10 dark:border-surface-600'}"
+					rounded={true}
+					class="flex shrink-0 items-center justify-center border transition-colors {compact ? 'h-9 w-9' : 'h-10 w-10'} {isFavorited ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-surface-300 hover:bg-surface-500/10 dark:border-surface-600'}"
 				>
 					<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
 				</Button>

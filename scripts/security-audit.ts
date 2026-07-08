@@ -723,6 +723,90 @@ async function auditInfoLeakage() {
   }
 }
 
+async function auditSecretLeakage() {
+  console.log("\n🔐 [A05] Secret & Credential Leakage");
+
+  const forbiddenPatterns = [
+    { pattern: /DB_PASSWORD/i, name: "DB_PASSWORD" },
+    { pattern: /DB_USER/i, name: "DB_USER" },
+    { pattern: /JWT_SECRET_KEY/i, name: "JWT_SECRET_KEY" },
+    { pattern: /ENCRYPTION_KEY/i, name: "ENCRYPTION_KEY" },
+    { pattern: /SAML_CLIENT_SECRET/i, name: "SAML_CLIENT_SECRET" },
+    { pattern: /SAML_ENCRYPTION_KEY/i, name: "SAML_ENCRYPTION_KEY" },
+    { pattern: /-----BEGIN (RSA )?PRIVATE KEY-----/i, name: "Private key header" },
+    { pattern: /Bearer\s+[A-Za-z0-9+/=]{32,}/i, name: "Bearer token in body" },
+  ];
+
+  const probeEndpoints = [
+    { method: "GET", path: "/api/collections" },
+    { method: "GET", path: "/api/settings/system" },
+    { method: "GET", path: "/api/user" },
+    { method: "GET", path: "/api/system/health" },
+    { method: "GET", path: "/api/theme/public" },
+    { method: "GET", path: "/api/collections/nonexistent_404_test" },
+    {
+      method: "POST",
+      path: "/api/user/login",
+      body: JSON.stringify({ email: "x", password: "x" }),
+    },
+  ];
+
+  let passed = 0;
+  let blocked = 0;
+
+  for (const ep of probeEndpoints) {
+    const hdrs: Record<string, string> = { Origin: BASE };
+    if (ep.body) hdrs["Content-Type"] = "application/json";
+    const res = await probe(ep.method as any, ep.path, hdrs, (ep as any).body);
+    if (!res) {
+      blocked++;
+      continue;
+    }
+
+    const combined = res.body + JSON.stringify(res.headers || {});
+    let leaked = false;
+    for (const { pattern, name } of forbiddenPatterns) {
+      if (pattern.test(combined)) {
+        leaked = true;
+        report(
+          ep.path,
+          `Secret "${name}" leaked in response`,
+          "A05",
+          "CRITICAL",
+          `${ep.method} ${ep.path} response contains "${name}"`,
+        );
+      }
+    }
+    if (!leaked) passed++;
+  }
+
+  const errRes = await probe("GET", "/api/this/does/not/exist/anywhere");
+  if (errRes) {
+    const b = errRes.body.toLowerCase();
+    if (
+      b.includes("password") ||
+      b.includes("secret_key") ||
+      b.includes("private.ts") ||
+      b.includes("\\src\\") ||
+      b.includes("/src/")
+    ) {
+      report(
+        "/api/this/does/not/exist/anywhere",
+        "Error response leaks internal paths",
+        "A05",
+        "HIGH",
+        "404 body contains filesystem paths or sensitive keywords",
+      );
+    }
+  }
+
+  if (passed === probeEndpoints.length) {
+    console.log(`  ✅ All ${passed} endpoints: no secrets leaked`);
+  } else {
+    console.log(`  ✅ ${passed}/${probeEndpoints.length} clean, ${blocked} unreachable`);
+  }
+}
+
 // ── SELF-TEST ───────────────────────────────────────────────────────────
 
 async function auditSelfTest() {
@@ -767,6 +851,7 @@ async function main() {
   await auditCookieSecurity(); // A02
   await auditRateLimit(); // A07
   await auditInfoLeakage(); // A05
+  await auditSecretLeakage(); // A05 — credentialed secrets in responses
 
   // Teardown: clean up seeded test admin
   if (AUTH_MODE) {

@@ -48,7 +48,8 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
       tenantInitializationFlights.set(tenantId, initPromise);
     }
 
-    const isContentRoute = pathname.includes("/[language]/") || pathname.includes("/content");
+    const isContentRoute =
+      /^\/[a-z]{2,5}(?:-[a-zA-Z]+)?\//.test(pathname) || pathname.includes("/content");
     const isApi = pathname.startsWith("/api") && !pathname.includes("/system/");
 
     if (locals.user && (isContentRoute || isApi)) {

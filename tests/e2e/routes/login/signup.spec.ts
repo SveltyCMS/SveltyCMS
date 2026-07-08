@@ -39,9 +39,26 @@ async function dismissCookieConsent(page: any) {
 
 test.describe.configure({ timeout: 60_000 });
 
+/**
+ * Pre-set cookie consent in localStorage so the GDPR banner never appears.
+ * This eliminates flakiness from the consent dialog intercepting clicks.
+ * `addInitScript` runs before any page scripts, so the consent store reads
+ * the pre-set value and skips showing the banner entirely.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "sveltycms_consent",
+      JSON.stringify({ necessary: true, analytics: false, marketing: false, responded: true }),
+    );
+  });
+});
+
 test("Test loading homepage and login screen", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/$/);
+  // Both root and /login are valid: root stays when no users exist (first-user),
+  // /login is the redirect target when the system is already set up (post-wizard).
+  await expect(page).toHaveURL(/\/($|login)/);
 
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await dismissCookieConsent(page);
@@ -149,9 +166,11 @@ test.describe("SignIn & SignOut Flows", () => {
     await dismissCookieConsent(page);
 
     await page.getByText(/sign in/i).click();
+    await dismissCookieConsent(page); // Re-dismiss after page interaction
     await page.getByTestId("signin-email").fill("test@test.de");
     await page.getByTestId("signin-password").fill("Test123!");
-    await page.getByTestId("signin-submit").click();
+    await dismissCookieConsent(page); // Re-dismiss before submit
+    await page.getByTestId("signin-submit").click({ force: true });
 
     const signOutButton = page.getByRole("button", { name: /sign out/i });
     if (await signOutButton.isVisible().catch(() => false)) {
@@ -171,7 +190,14 @@ test.describe("SignIn & SignOut Flows", () => {
     await dismissCookieConsent(page); // Re-dismiss before submit
     await page.getByTestId("signin-submit").click({ force: true });
 
-    await expect(page).toHaveURL(/\/config\/collectionbuilder/);
+    // Login succeeds when we leave the /login page. On a fresh system
+    // (no collections) the app redirects to /config/collectionbuilder;
+    // when collections already exist it redirects to the first
+    // collection (/en/collection/<slug>). Both are valid login outcomes.
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/(config\/collectionbuilder|collection)\b/, {
+      timeout: 15000,
+    });
   });
 });
 

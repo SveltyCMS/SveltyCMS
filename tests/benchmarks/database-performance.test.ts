@@ -58,9 +58,10 @@ export async function runDatabaseBenchmark() {
 
     const dbType = getDbType();
 
+    // SQL adapters need createModel/migrations before CRUD — MongoDB does not.
     await prepareCollection(db);
 
-    // 🛡️ SANITIZER: Pre-flight validation before any benchmark measurement
+    // 🛡️ SANITIZER: Pre-flight validation after collection table exists
     await validateBenchmarkEnvironment({
       collectionId: COLLECTION_ID,
       db,
@@ -216,7 +217,7 @@ function createUpdateTest(db: any) {
 
 function createDeleteTest(db: any) {
   // Map static target records pre-allocated in setup steps
-  const deleteKeys = Array.from({ length: 1500 }, (_, i) => `del-shared-${i}`);
+  const deleteKeys = Array.from({ length: 1200 }, (_, i) => `del-shared-${i}`);
   return async (i: number) => {
     const id = deleteKeys[i] ?? `del-fallback-${i}`;
     // DELETE may return success:false if the record was already deleted by a
@@ -244,17 +245,27 @@ function createUpsertNativeTest(db: any) {
 
   // SQL path: upsertNative is optional on ISqlAdapter and returns raw data
   // (not { success: boolean }), so we use a lightweight existence check instead
-  const table = db.getTable(COLLECTION_ID);
-  const idCol = db.getColumn(table, "_id");
-  const sqlKeys = [idCol];
-  const sqlPayload = {
-    [idCol.name]: targetId,
-    title: "Native Static Segment Baseline SQL",
-    tenantId: TEST_TENANT,
-  };
+  let table: any;
+  let idCol: any;
+  try {
+    table = db.getTable(COLLECTION_ID);
+    idCol = db.getColumn(table, "_id");
+  } catch {
+    // getTable/getColumn not available on this adapter — fall through to crud.upsert
+    table = null;
+    idCol = null;
+  }
+  const sqlKeys = idCol ? [idCol] : [];
+  const sqlPayload = idCol
+    ? {
+        [idCol.name]: targetId,
+        title: "Native Static Segment Baseline SQL",
+        tenantId: TEST_TENANT,
+      }
+    : { _id: targetId, title: "Native Static Segment Baseline SQL", tenantId: TEST_TENANT };
 
   return async () => {
-    if (typeof db.upsertNative === "function") {
+    if (table && idCol && typeof db.upsertNative === "function") {
       await db.upsertNative(table, sqlPayload, sqlKeys);
     } else {
       // Fallback: use standard crud.upsert
@@ -345,8 +356,9 @@ async function prepareCollection(db: any) {
   );
   assertSuccess(seedRes, "prepareCollection seed");
 
-  console.log("   [DB Trace] Pre-populating delete batch (4000 records)...");
-  const deleteBatch = Array.from({ length: 4000 }, (_, i) => ({
+  const batchSize = db.type === "mongodb" ? 4000 : 1000;
+  console.log(`   [DB Trace] Pre-populating delete batch (${batchSize} records)...`);
+  const deleteBatch = Array.from({ length: batchSize }, (_, i) => ({
     _id: `del-shared-${i}` as any,
     title: `To remove ${i}`,
     status: i % 2 === 0 ? "active" : "inactive",

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:api"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-27"
+updated: "2026-07-07"
 tags:
   - "api"
   - "developer"
@@ -30,6 +30,7 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 | [⚡ **Local SDK**](../../development/local-vs-http-api.mdx)    | **Server-side** (`.server.ts`)   | **0–5ms**   | Native SvelteKit, high-throughput   |
 | [🌐 **REST API**](./collections.mdx)                           | **External** (Mobile, Apps)      | 50–150ms    | Simple CRUD & Integrations          |
 | [📊 **GraphQL API**](./graphql.mdx)                            | **Frontend** (React, Vue, SPA)   | 50–200ms    | Complex data fetching               |
+| [🔌 **GraphQL Subscriptions**](./graphql-subscriptions.mdx)    | **Real-time** (WebSocket)        | **<50ms**   | Live updates, collaborative editing |
 | [📖 **OpenAPI Spec**](../../development/openapi-spec.mdx)      | **Documentation & SDKs**         | **Unified** | Fastest automated client generation |
 
 ---
@@ -113,7 +114,7 @@ SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...pa
 - [📈 **Dashboard (dashboard.ts)**](./dashboard.mdx) — Metrics, logs, and health data.
 - [🛠 **Utilities (utility.ts)**](./utility.mdx) — Cache, trash, and email services.
 
-**New June 2026:** `GET /api/health`, `POST /api/system-jobs`, `POST /api/ai/translate`
+**New** `GET /api/health`, `POST /api/system-jobs`, `POST /api/ai/translate`
 
 ---
 

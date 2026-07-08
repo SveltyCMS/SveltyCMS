@@ -11,6 +11,9 @@
           }
         ]
       }
-    ]
+    ],
+    "unicorn/explicit-timer-delay": "error",
+    "eslint/no-unreachable-loop": "error",
+    "unicorn/no-confusing-array-with": "error"
   }
 }

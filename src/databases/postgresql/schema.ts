@@ -59,6 +59,7 @@ export const authUsers = pgTable(
     backupCodes: jsonb("backupCodes").$type<string[]>(),
     last2FAVerification: timestamp("last2FAVerification"),
     authenticators: jsonb("authenticators").$type<import("../auth/types").Authenticator[]>(),
+    preferences: jsonb("preferences").$type<import("../auth/types").User["preferences"]>(),
     failedAttempts: integer("failedAttempts").notNull().default(0),
     lockoutUntil: timestamp("lockoutUntil"),
     tenantId: tenantField(),
@@ -590,6 +591,47 @@ export const authApiKeys = pgTable(
   }),
 );
 
+// Workflow Definitions Table
+export const workflowDefinitions = pgTable(
+  "workflow_definitions",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    collectionId: varchar("collectionId", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    states: jsonb("states").notNull().default([]),
+    transitions: jsonb("transitions").notNull().default([]),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index("workflow_def_tenant_idx").on(table.tenantId),
+    collectionIdx: index("workflow_def_collection_idx").on(table.collectionId),
+  }),
+);
+
+// Workflow Instances Table
+export const workflowInstances = pgTable(
+  "workflow_instances",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    entryId: varchar("entryId", { length: 36 }).notNull(),
+    collectionId: varchar("collectionId", { length: 255 }).notNull(),
+    currentState: varchar("currentState", { length: 100 }).notNull(),
+    history: jsonb("history").notNull().default([]),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index("workflow_inst_tenant_idx").on(table.tenantId),
+    entryIdx: index("workflow_inst_entry_idx").on(table.entryId),
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
@@ -612,4 +654,6 @@ export const schema = {
   pluginMigrations,
   auditLogs,
   tenants,
+  workflowDefinitions,
+  workflowInstances,
 };

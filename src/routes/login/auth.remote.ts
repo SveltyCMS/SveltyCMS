@@ -482,7 +482,11 @@ async function signUpInternal(event: RequestEvent, input: any) {
     role = "admin";
     // Use the demo_tenant_id cookie if present (set by handleDemoTenantAssignment)
     // to keep tenant IDs consistent between the middleware and the sign-up flow.
-    tid = event.cookies.get("demo_tenant_id") || crypto.randomUUID();
+    // Check both __Host- prefixed (HTTPS) and unprefixed (HTTP) variants.
+    tid =
+      event.cookies.get("__Host-demo_tenant_id") ||
+      event.cookies.get("demo_tenant_id") ||
+      crypto.randomUUID();
   } else {
     if (!t) return { success: false, message: "Invitation required." };
     const td = await auth.validateRegistrationToken(t);
@@ -566,6 +570,8 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
     // Ignore errors
   }
 
+  let resetLink: string | undefined;
+
   try {
     const user = await auth.checkUser({ email: result.output.email });
     if (user?._id) {
@@ -587,7 +593,7 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
         });
       const origin = new URL(event.request.url).origin;
       const baseUrl = publicEnv.HOST_PROD || origin;
-      const resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
+      resetLink = `${baseUrl}/login?token=${token}&email=${encodeURIComponent(result.output.email)}`;
 
       sendMail({
         recipientEmail: result.output.email,
@@ -608,8 +614,13 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
 
   return {
     success: true,
-    message: "If an account exists, a reset link has been sent.",
+    message: smtpConfigured
+      ? "If an account exists, a reset link has been sent."
+      : "SMTP not configured — use the link below to reset your password.",
     smtpConfigured,
+    // Only expose the reset link when SMTP is off (dev/no-config mode).
+    // When SMTP is on, the link is delivered via email for security.
+    resetLink: smtpConfigured ? undefined : resetLink,
   };
 }
 
@@ -707,7 +718,7 @@ async function consumeWebAuthnChallenge(
     type: "registration" | "authentication";
   }>(key, null);
   await cacheService.delete(key, null);
-  return stored;
+  return stored ?? null;
 }
 
 export const getPasskeyAuthOptions = command("unchecked", async (data: { email: string }) => {
@@ -742,7 +753,7 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
   const options = buildAuthenticationOptions(
     rpId,
     challenge,
-    user.authenticators.map((a) => ({
+    user.authenticators.map((a: any) => ({
       id: a.credentialID,
       type: "public-key" as const,
       transports: a.transports,
@@ -807,7 +818,7 @@ export const verifyPasskeyAuth = command(
           message: "Passkey signature verification failed.",
         };
 
-      const updatedAuthenticators = (user.authenticators || []).map((a) =>
+      const updatedAuthenticators = (user.authenticators || []).map((a: any) =>
         a.credentialID === stored.credentialID ? { ...a, counter: newCounter } : a,
       );
       await auth.updateUserAttributes(

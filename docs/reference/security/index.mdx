@@ -497,15 +497,18 @@ Security issues should be reported to:
 
 ### Scaffolding Security Defaults
 
-When a new SveltyCMS project is created via `create-sveltycms`, the setup wizard automatically generates `config/private.ts` with:
+When a new SveltyCMS project is created via the setup wizard, the following bootstrap values are written to `config/private.ts`:
 
-- **`PASSWORD_MIN_LENGTH: 12`** — enforces strong passwords
-- **`RATE_LIMIT_SECRET`** — 32-character CSPRNG-generated secret for rate limiting
 - **`JWT_SECRET_KEY`** — 32-character CSPRNG-generated signing key
 - **`ENCRYPTION_KEY`** — 32-character CSPRNG-generated encryption key
-- **RSA-2048 SAML signing keys** — auto-generated key pair
 
-These defaults ensure new deployments start with a hardened security posture. Review and customize all values in `config/private.ts` before deploying to production.
+All other security settings (password policy, rate limiting, SAML/SSO keys) are seeded into the database and managed via the **System Settings UI** at `/config/system-settings`:
+
+- **`PASSWORD_MIN_LENGTH`** — default 8, adjustable via Security settings
+- **`RATE_LIMIT_SECRET`** — auto-generated on first use, managed via Security settings
+- **SAML/SSO keys** — RSA-2048 key pair generated during setup, managed via SAML / Enterprise SSO settings
+
+Review and customize all values before deploying to production.
 
 ### Deployment
 

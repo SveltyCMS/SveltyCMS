@@ -4,7 +4,7 @@ title: "Collaborative Editing Architecture"
 description: "Implementation strategy for real-time collaborative editing using Yjs CRDTs and a lightweight WebSocket sync server."
 author: "SveltyCMS Team"
 created: "2026-04-08"
-updated: "2026-06-27"
+updated: "2026-07-07"
 tags:
   - "collaboration"
   - "yjs"
@@ -38,7 +38,7 @@ flowchart LR
 1. **Yjs Integration**: Leveraging `yjs` for the core CRDT logic and `y-svelte` for native Rune bindings.
 2. **Synchronization**:
    - **Primary**: WebSocket via lightweight `ws` + `y-protocols` server at `/ws` for sub-10ms latency.
-   - **Fallback**: Server-Sent Events (SSE) for environments with restrictive proxies.
+   - **Fallback**: REST HTTP endpoint at `POST /api/collaboration/yjs` for environments with restrictive proxies. Clients POST base64-encoded Yjs updates; the server publishes them via `pubSub` to the `yjsService` for server-side doc application.
    - **Plesk/VPS**: Enable with `ENABLE_WEBSOCKET=true` env var and `websocket: true` in adapter config.
 3. **Presence & Cursors**:
    - Real-time remote cursor tracking with user-specific colors.

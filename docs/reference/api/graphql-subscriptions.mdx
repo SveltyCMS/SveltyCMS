@@ -6,7 +6,7 @@ order: 8
 icon: "mdi:websocket"
 author: "SveltyCMS Team"
 created: "2025-10-29"
-updated: "2026-05-19"
+updated: "2026-07-07"
 tags:
   - "graphql"
   - "websocket"
@@ -58,38 +58,21 @@ const eventStream = realtime(events);
 
 // 2. Derive reactive state directly from the stream using Svelte 5 runes
 const latestEvent = $derived(eventStream.value?.at(-1));
-```text
-
-onMount(() => {
-const client = createClient({
-url: "ws://localhost:3001/api/graphql",
-connectionParams: { cookie: document.cookie }, // Use cookies for auth
-});
-
-const unsubscribe = client.subscribe(
-{ query: "subscription { postAdded { title } }" },
-{ next: (res) => (latestPost = res.data.postAdded) },
-);
-
-return () => {
-unsubscribe();
-client.dispose();
-};
-});
-
-````
+```
 
 ### Authentication and Connection
 
 Client connections must pass authentication parameters to establish a secure stream.
+The unified `ws://[domain]/live` endpoint handles auth via session cookies or
+connection parameters.
 
 ```typescript
-// Client-side Connection with Authorization Header
-const client = createClient({
-  url: "ws://localhost:3001/api/graphql",
-  connectionParams: {
-    authorization: "Bearer your-api-token-here",
-  },
+// Client-side connection with svelte-realtime and auth context
+import { realtime } from "svelte-realtime/client";
+import { events } from "$live/system";
+
+const stream = realtime(events, {
+  auth: { token: "your-api-token-here" },
 });
 ```
 
@@ -100,11 +83,12 @@ const client = createClient({
 SveltyCMS utilizes a **Unified Port Architecture** where `svelte-adapter-uws` manages both HTTP endpoints and WebSockets efficiently.
 
 ````
+
 sequenceDiagram
-    participant Client
-    participant UWS as uWebSockets (Port 5173)
-    participant Auth as WS Upgrade Hook
-    participant Live as svelte-realtime
+participant Client
+participant UWS as uWebSockets (Port 5173)
+participant Auth as WS Upgrade Hook
+participant Live as svelte-realtime
 
     Client->>UWS: Connection Init
     UWS->>Auth: Validate Session/Token (hooks.ws.ts)
@@ -115,6 +99,7 @@ sequenceDiagram
     Note over Live: Data Mutation in CMS
     Live->>Live: live.publish(topic, payload)
     Live-->>Client: Real-time Update
+
 ```
 
 ### Performance & Security
@@ -130,4 +115,4 @@ sequenceDiagram
 - [GraphQL API Reference](./graphql.mdx)
 - [Content, Search & Events Reference](./content.mdx)
 - [Security Architecture](../security/index.mdx)
-````
+```

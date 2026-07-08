@@ -23,12 +23,14 @@ export const widgetMeta = {
 			.catch(() => {
 				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
 			});
-	});
-</script>
+		});
 
-<script lang="ts">
-	import type { WidgetSize } from '@src/content/types';
-	import BaseWidget from '../base-widget.svelte';
+		const isLicensed = $derived(licenseStatus?.active || licenseStatus?.hasLicense || false);
+	</script>
+
+	<script lang="ts">
+		import type { WidgetSize } from '@src/content/types';
+		import BaseWidget from '../base-widget.svelte';
 
 	const {
 		label = 'Security Monitor',
@@ -114,24 +116,6 @@ export const widgetMeta = {
 	}
 </script>
 
-{#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
-	<BaseWidget
-		{label}
-		{theme}
-		{icon}
-		{widgetId}
-		{size}
-		{onSizeChange}
-		onCloseRequest={onRemove}
-	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">Upgrade License &rarr;</a>
-		</div>
-	</BaseWidget>
-{:else}
 <BaseWidget
 	{label}
 	{theme}
@@ -264,8 +248,8 @@ export const widgetMeta = {
 							</div>
 						</div>
 
-						<!-- Active Incidents Feed (if height allows) -->
-						{#if size.h >= 3}
+						<!-- Active Incidents Feed (if height allows) — premium feature -->
+						{#if isLicensed && size.h >= 3}
 							<div class="flex-1 flex flex-col min-h-0">
 								<h4 class="mb-2 text-xs font-semibold text-surface-500 dark:text-surface-400 flex items-center gap-1.5 tracking-wider">
 									<iconify-icon icon="mdi:alert-circle" class="text-orange-500" ></iconify-icon>
@@ -305,10 +289,22 @@ export const widgetMeta = {
 								{/if}
 							</div>
 						{/if}
+
+
+
+							<!-- Premium upgrade banner for active incidents (only when height allows) -->
+							{#if !isLicensed && size.h >= 3}
+							<div class="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 flex items-center justify-between">
+								<span class="text-xs text-amber-700 dark:text-amber-300">
+									<iconify-icon icon="mdi:crown" class="inline me-1 text-amber-500"></iconify-icon>
+									Active incident feed and threat analytics are premium features.
+								</span>
+								<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-800 underline shrink-0 ms-3">Upgrade €19.99 →</a>
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
 		{/if}
 	{/snippet}
-</BaseWidget>
-{/if}
+	</BaseWidget>

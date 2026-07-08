@@ -32,15 +32,17 @@ runs:
       with:
         bun-version: ${{ inputs.bun-version }}
 
-    - name: Cache Bun dependencies
+    - name: Cache Bun dependencies & build tooling
       id: cache-bun
       uses: actions/cache@v6
       with:
         path: |
           node_modules
+          node_modules/.cache
           .bun-cache
           ~/.bun
-        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          .svelte-kit
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'vite.config.ts', 'svelte.config.js') }}
         restore-keys: |
           bun-${{ runner.os }}-
 

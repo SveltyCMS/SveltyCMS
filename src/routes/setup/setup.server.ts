@@ -627,14 +627,13 @@ async function dropDatabase(db: any) {
     const { buildDatabaseConnectionString } = await import("./utils");
     const p = buildDatabaseConnectionString(db);
     if (require("node:fs").existsSync(p)) {
-      let a = 0;
-      while (a < 5) {
+      let deleted = false;
+      for (let attempt = 0; attempt < 5 && !deleted; attempt++) {
         try {
           require("node:fs").unlinkSync(p);
-          break;
+          deleted = true;
         } catch {
-          a++;
-          await new Promise((r) => setTimeout(r, 500));
+          if (attempt < 4) await new Promise((r) => setTimeout(r, 500));
         }
       }
     }

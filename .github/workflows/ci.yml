@@ -464,7 +464,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 7. E2E Matrix — TS config
+  # 7. E2E Matrix — named shard groups
   # ------------------------------------------------
   e2e-matrix:
     name: 📋 E2E Matrix
@@ -486,13 +486,15 @@ jobs:
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   # ------------------------------------------------
-  # 8. E2E Tests (sharded, uses single prep artifact)
+  # 8. E2E Tests — named groups with grep filtering
   # ------------------------------------------------
+  # wizard + firstuser + auth-setup run sequentially in e2e-prep.
+  # All other CMS route tests run here via named chromium shards.
   e2e:
-    name: 🧪 E2E - ${{ matrix.project }}${{ matrix.total-shards > 1 && format(' ({0})', matrix.shard) || '' }}
+    name: 🧪 E2E — ${{ matrix.name }}
     needs: [bootstrap, e2e-prep, e2e-matrix]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
@@ -561,15 +563,14 @@ jobs:
           node build/index.js > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test \
-            --project=${{ matrix.project }} \
-            --shard=${{ matrix.shard }} \
-            --fully-parallel \
-            ${{ matrix.parallel == false && ' --workers=1' || '' }}
+            --project=chromium \
+            --grep="${{ matrix.grep }}" \
+            --shard=${{ matrix.shard }}
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: playwright-report-${{ matrix.project }}-${{ matrix.shardId }}
+          name: playwright-report-${{ matrix.name }}
           path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
@@ -577,7 +578,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: preview-log-${{ matrix.project }}-${{ matrix.shardId }}
+          name: preview-log-${{ matrix.name }}
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7
@@ -594,6 +595,7 @@ jobs:
       - build
       - whitebox
       - e2e-prep
+      - e2e-matrix
       - e2e
       - db-tests
       - bench-core

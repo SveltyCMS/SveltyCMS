@@ -1,23 +1,57 @@
 ---
 path: "src/plugins/redirect-manager/redirect-manager.mdx"
 title: "Redirect Manager Plugin"
-description: "Documentation for the Redirect Manager plugin for SveltyCMS."
+description: "Enterprise-grade headless redirect router with auto-slug tracking, edge KV sync, and multi-tenant support. Free and included with SveltyCMS."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:directions-fork"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "redirect-manager"
+  - "seo"
+  - "free"
 ---
 
 # Redirect Manager Plugin
 
-Documentation for the **Redirect Manager** plugin is being prepared.
+Enterprise-grade headless redirect router with auto-slug tracking, edge KV synchronization for decoupled frontends, and multi-tenant support.
 
-For implementation details, see the source code in `src/plugins/redirect-manager/`.
+> **Free Plugin** — Included with SveltyCMS. No license required.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## Features
+
+| Feature                | Description                                                      |
+| :--------------------- | :--------------------------------------------------------------- |
+| Auto-slug tracking     | Automatically creates 301 redirects when entry slugs change      |
+| Manual redirects       | Create and manage custom redirect rules via the config page      |
+| Edge KV sync           | Push redirects to edge key-value stores for sub-10ms resolution  |
+| Fail-closed semantics  | Return 404 on cache miss when `failClosedOnCacheMiss` is enabled |
+| Trailing slash control | Normalize URLs: ignore, add, or remove trailing slashes          |
+| Force lowercase        | Optionally force all URLs to lowercase                           |
+| Multi-tenant           | Per-tenant redirect rules and configurations                     |
+| Headless delivery      | Compatible with Next.js, Astro, and other decoupled frontends    |
+
+---
+
+## Configuration
+
+| Setting                    | Type    | Default  | Description                                                      |
+| :------------------------- | :------ | :------- | :--------------------------------------------------------------- |
+| `autoRedirectOnSlugChange` | Public  | `true`   | Auto-create 301 redirects on slug changes                        |
+| `trailingSlash`            | Public  | `ignore` | URL trailing slash behavior: `ignore`, `add`, `remove`           |
+| `forceLowercase`           | Public  | `true`   | Force all redirect URLs to lowercase                             |
+| `frontendBaseUrl`          | Private | `""`     | Base URL of the headless frontend for redirect target resolution |
+| `syncToEdgeOnPublish`      | Private | `false`  | Push redirects to edge KV on content publish                     |
+| `failClosedOnCacheMiss`    | Private | `true`   | Return 404 instead of falling through on cache miss              |
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [Sitemap Generator Plugin](../sitemap/sitemap.mdx)

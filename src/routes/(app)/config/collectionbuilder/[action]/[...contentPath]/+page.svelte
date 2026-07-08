@@ -26,7 +26,7 @@ import { onMount, onDestroy } from "svelte";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import CollectionForm from "./tabs/collection-form.svelte";
-import CollectionWidgetOptimized from "./tabs/collection-widget-optimized.svelte";
+import CollectionWidget from "./tabs/collection-widget.svelte";
 import CollectionPermissions from "./tabs/collection-permissions.svelte";
 import Tabs from "@src/components/ui/tabs.svelte";
 import Button from '@components/ui/button.svelte';
@@ -124,6 +124,19 @@ async function handleCollectionSave(confirmDeletions = false) {
 	) {
 		toast.error("Please fix validation errors before saving");
 		return;
+	}
+
+	// Validate required name client-side. Without this, saving with an empty
+	// name succeeds on the server (writing a broken collection file), then the
+	// post-save redirect to /edit/<name> 500s because the name is empty.
+	if (!collection.value?.name?.trim()) {
+		validationStore.setError("name", "Collection name is required");
+		toast.error("Collection name is required");
+		return;
+	}
+	// Name is present — clear any stale name error from a prior failed save.
+	if (validationStore.hasError("name")) {
+		validationStore.clearError("name");
 	}
 
 	try {
@@ -262,7 +275,7 @@ $effect(() => {
 	            </div>
 	          {:else if activeTab === 'widgets'}
 	            <div class="h-full animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-widgets" aria-labelledby="tab-widgets">
-	              <CollectionWidgetOptimized fields={(collection.value?.fields as FieldInstance[]) || []} roles={data.roles} />
+	<CollectionWidget fields={(collection.value?.fields as FieldInstance[]) || []} roles={data.roles} />
 	            </div>
 	          {:else if activeTab === 'permissions'}
 	            <div class="animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">

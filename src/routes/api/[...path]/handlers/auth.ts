@@ -120,6 +120,10 @@ export async function handleAuthUserRoutes(
         return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":
         return reqMethod === "POST" ? handleUpdateRoles(event, cms, tenantId, user) : notAllowed();
+      case "batch":
+        return namespace === "user" && reqMethod === "POST"
+          ? handleUserSpecificRoutes(event, cms, tenantId, user, "batch", segments)
+          : notAllowed();
 
       // Sub-routes
       case "sessions":

@@ -21,7 +21,7 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** July 3, 2026
+**Last Updated:** July 7, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
@@ -37,7 +37,8 @@ tags:
 - [Master Performance Leaderboard](../project/benchmarks/index.mdx) 🏆
 - [Audit (Analysis)](../project/benchmarks/index.mdx)
 - [Memory Stability Audit](../project/benchmarks/benchmark_sqlite.mdx#memGrowth) 🚀
-- **[Black-Box Testing Architecture](./black-box-testing.mdx)**
+- [Black-Box Testing Architecture](./black-box-testing.mdx)
+- **[E2E Architecture & Flow](./e2e-architecture.mdx)** 🏗️
 - **[E2E Troubleshooting Guide](./e2e-troubleshooting.mdx)** 🚀
 - **[Git Workflow & Quality Gate](./git-workflow.mdx)**
 - **[Security Testing](./security-testing.mdx)** (Encryption, Auth, Fail-Closed API)
@@ -205,7 +206,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 - **Tools:** Vitest / Bun Unit Tests.
 - **What we test:** Pure functions, utility validators, service methods, Svelte 5 reactivity logic, database proxy behaviors (self-healing HMR recovery, tenant auto-injection, hot-swap zero-tax), and tenant filter application logic.
 - **Benefit:** Provides high speed and deep coverage, ensuring internal logic is mathematically sound.
-- **New (June 2026):** `tests/unit/core/` — 23 dedicated tests for `proxy-utils.ts` and `relational-utils.ts` covering previously untested database layer patterns.
+- **New:** `tests/unit/core/` — 23 dedicated tests for `proxy-utils.ts` and `relational-utils.ts` covering previously untested database layer patterns.
 
 ### 2. Black-Box Testing (Integration & E2E)
 

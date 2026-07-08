@@ -50,6 +50,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   } from "@utils/layout-state-prefs";
   import { untrack, onMount } from "svelte";
   import { invalidate } from "$app/navigation";
+  import { browser } from "$app/environment";
 
   const layoutVisibilityOptions = [
     { value: "", label: "Use theme default" },
@@ -63,6 +64,17 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
 
   // ── Per-user theme overrides ──
   const userPrefs = $derived((data as any).user?.preferences?.theme as Record<string, any> | undefined);
+  const LOCAL_PREFS_KEY = "sveltycms:theme-prefs";
+
+  function readLocalThemePrefs(): Record<string, any> | undefined {
+    if (!browser) return undefined;
+    try {
+      const raw = localStorage.getItem(LOCAL_PREFS_KEY);
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
   let myDensity = $state<string>(
     untrack(() => userPrefs?.density || "")
   );
@@ -133,11 +145,20 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       });
       if (!res.ok) throw new Error("Save failed");
 
+      if (browser) localStorage.setItem(LOCAL_PREFS_KEY, JSON.stringify(themePrefs));
       userThemePrefs.apply(themePrefs);
       if (!layoutLocked && themePrefs.layoutState) {
         applyLayoutPrefsToUiState(themePrefs.layoutState, ui.state);
       }
       await invalidate("app:user-prefs");
+      // Keep this page's server data in sync for reload-less validation/tests.
+      data.user = {
+        ...(data as any).user,
+        preferences: {
+          ...(data as any).user?.preferences,
+          theme: { ...themePrefs },
+        },
+      };
       toast.success("Preferences applied across the admin panel.");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
@@ -156,6 +177,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       for (const key of USER_LAYOUT_PREF_KEYS) {
         myLayoutPrefs[key] = "";
       }
+      if (browser) localStorage.removeItem(LOCAL_PREFS_KEY);
       userThemePrefs.apply({ reducedMotion: false, highContrast: false, layoutState: {} });
       await invalidate("app:user-prefs");
       toast.success("Overrides cleared — using active theme defaults.");
@@ -214,6 +236,17 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   }
 
   onMount(() => {
+    const localPrefs = readLocalThemePrefs();
+    if (localPrefs && !userPrefs) {
+      myDensity = localPrefs.density || "";
+      myVariant = localPrefs.variant || "";
+      myReducedMotion = localPrefs.reducedMotion ?? false;
+      myHighContrast = localPrefs.highContrast ?? false;
+      for (const key of USER_LAYOUT_PREF_KEYS) {
+        myLayoutPrefs[key] = localPrefs.layoutState?.[key] ?? "";
+      }
+      userThemePrefs.apply(localPrefs as UserThemePreferences);
+    }
     loadThemes();
     loadMarketplaceThemes();
   });

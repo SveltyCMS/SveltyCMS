@@ -4,6 +4,11 @@ import path from "node:path";
 let cachedResult: boolean | null = null;
 let cacheTime = 0;
 
+export function invalidateFastSetupCache(): void {
+  cachedResult = null;
+  cacheTime = 0;
+}
+
 /**
  * ⚡️ FAST SHALLOW CHECK
  * Checks if config/private.ts exists and contains the required fields.

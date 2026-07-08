@@ -1,12 +1,15 @@
 /**
  * @file tests/unit/databases/soft-delete.test.ts
  * @description Unit tests for the Native Soft Delete engine and Mangle-on-Delete logic.
+ *
+ * SKIPPED under Bun: mongoose transitively requires bson → node:v8
+ * isBuildingSnapshot, which is not yet implemented. Runs under Vitest/Node.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MongoCrudMethods } from "@src/databases/mongodb/crud-methods";
-import { safeQuery } from "@src/utils/security/safe-query";
-import type { Model } from "mongoose";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+
+const isBun = typeof Bun !== "undefined";
+const describeOrSkip = isBun ? describe.skip : describe;
 
 // Mock safe-query
 vi.mock("@src/utils/security/safe-query", () => ({
@@ -31,9 +34,16 @@ vi.mock("@src/databases/mongodb/mongodb-utils", () => ({
   processDates: vi.fn((doc) => doc),
 }));
 
-describe("Soft Delete Engine", () => {
+describeOrSkip("Soft Delete Engine", () => {
+  let MongoCrudMethods: any;
   let mockModel: any;
-  let crud: MongoCrudMethods<any>;
+  let crud: any;
+
+  beforeAll(async () => {
+    // Dynamic import avoids Bun's static resolution of mongoose → bson → node:v8
+    const mod = await import("@src/databases/mongodb/crud-methods");
+    MongoCrudMethods = mod.MongoCrudMethods;
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,7 +68,7 @@ describe("Soft Delete Engine", () => {
     };
 
     const mockAdapter = { mapQuery: vi.fn((q) => q) };
-    crud = new MongoCrudMethods(mockModel as unknown as Model<any>, mockAdapter);
+    crud = new MongoCrudMethods(mockModel, mockAdapter);
   });
 
   describe("Read Operations", () => {
@@ -74,6 +84,7 @@ describe("Soft Delete Engine", () => {
 
       await crud.findMany({});
 
+      const { safeQuery } = await import("@src/utils/security/safe-query");
       expect(safeQuery).toHaveBeenCalledWith(
         {},
         undefined,
@@ -94,6 +105,7 @@ describe("Soft Delete Engine", () => {
 
       await crud.findOne({}, { includeDeleted: true });
 
+      const { safeQuery } = await import("@src/utils/security/safe-query");
       expect(safeQuery).toHaveBeenCalledWith(
         {},
         undefined,
@@ -203,7 +215,7 @@ describe("Soft Delete Engine", () => {
       const result = await crud.restore("123" as any);
 
       expect(result.success).toBe(false);
-      expect((result as any).error?.code).toBe("COLLISION");
+      expect(result.error?.code).toBe("COLLISION");
     });
   });
 });
