@@ -16,7 +16,8 @@ Registers and manages the service worker for offline support and caching.
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+		import Button from '@components/ui/button.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -89,7 +90,7 @@ Registers and manages the service worker for offline support and caching.
 
 {#if updateAvailable}
 	<!-- Update notification -->
-	<div class="card preset-filled-tertiary-500 dark:preset-filled-primary-500 fixed bottom-4 inset-e-4 z-50 max-w-sm p-4 shadow-xl">
+	<AdminCard class="preset-filled-tertiary-500 dark:preset-filled-primary-500 fixed bottom-4 inset-e-4 z-50 max-w-sm p-4 shadow-xl">
 		<div class="flex items-center gap-3">
 			<svg aria-hidden="true" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
@@ -108,12 +109,12 @@ Registers and manages the service worker for offline support and caching.
 			<Button variant="outline" onclick={updateServiceWorker} size="sm">Update Now</Button>
 			<Button variant="outline" onclick={() => (updateAvailable = false)} size="sm">Later</Button>
 		</div>
-	</div>
+	</AdminCard>
 {/if}
 
 <!-- Debug tools (only in dev mode) -->
 {#if import.meta.env.DEV && browser}
-	<div class="card preset-tonal-surface fixed bottom-4 inset-s-4 z-50 p-2 text-xs">
+	<AdminCard class="preset-tonal-surface fixed bottom-4 inset-s-4 z-50 p-2 text-xs">
 		<Button variant="outline" onclick={clearCache} size="sm">Clear Cache</Button>
-	</div>
+	</AdminCard>
 {/if}

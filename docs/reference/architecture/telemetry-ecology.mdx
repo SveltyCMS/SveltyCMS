@@ -30,8 +30,9 @@ This is a mutually beneficial exchange:
 
 ### How Identification Works (Privacy First)
 
-We do **NOT** track your IP address as an identifier.
-We do **NOT** read your content.
+- **No IP Address Storage**: We do **NOT** store your raw IP address. Incoming IPs are salted, hashed (SHA-256), and truncated to 16 characters on arrival. This allows us to count unique active servers without storing any traceable IP data.
+- **No Content Tracking**: We do **NOT** read, inspect, or transmit database content, collections, or user credentials.
+- **Geolocation Anonymization**: Coordinates (latitude and longitude) are rounded to 1 decimal place, offering a precision window of ~11km. This shows the general region or city while preventing the identification of specific homes or offices.
 
 Instead, your CMS generates a unique **Installation ID** by hashing your private `JWT_SECRET_KEY`.
 
@@ -173,17 +174,46 @@ To prevent data spoofing and ensure that only authentic SveltyCMS installations 
 
 ### The Registration Flow
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CMS as SveltyCMS Instance
+    participant Server as Telemetry Server (telemetry.sveltycms.com)
+
+    Note over CMS: First Boot (No Client Secret)
+    CMS->>Server: POST /api/register { installation_id }
+    Server-->>CMS: 200 OK { secret: "client_secret" }
+    Note over CMS: Save secret as TELEMETRY_CLIENT_SECRET
+
+    Note over CMS, Server: Subsequent Telemetry Checks
+    CMS->>CMS: Sign payload using client_secret & timestamp
+    CMS->>Server: POST /api/check-update { payload, signature, timestamp }
+    alt Signature Valid
+        Server-->>CMS: 200 OK { latest_version, ... }
+    else Signature Invalid (403 / DB Reset)
+        Server-->>CMS: 403 Forbidden
+        Note over CMS: Clear locally saved client_secret
+        CMS->>Server: POST /api/register { installation_id } (Re-register)
+        Server-->>CMS: 200 OK { secret: "new_client_secret" }
+        CMS->>CMS: Sign payload using new secret
+        CMS->>Server: POST /api/check-update { payload, signature, timestamp } (Retry)
+        Server-->>CMS: 200 OK { latest_version, ... }
+    end
+```
+
 1.  **First Boot**: On the very first telemetry check, the CMS calls `/api/register` on the telemetry server.
 2.  **Secret Issuance**: The server generates a **Unique, Cryptographically Secure Secret** (64-character hex) and returns it to the CMS.
 3.  **Local Storage**: The CMS saves this secret securely in its own database (`TELEMETRY_CLIENT_SECRET`).
 4.  **Signing**: Every subsequent payload is signed using this unique secret.
 5.  **Validation**: The telemetry server fetches the secret associated with the `installation_id` and verifies the HMAC signature.
 
-### Benefits of this Architecture
+### Benefits and Resilience of this Architecture
 
 - **Anti-Spoofing**: Even though the code is open-source, an attacker cannot spoof your installation's data because they do not have your unique secret.
 - **No Hardcoded Salts**: We've eliminated the "public salt" vulnerability.
 - **Replay Protection**: All requests include a 5-minute timestamp window. Invalid or expired signatures result in a `403 Forbidden` response.
+- **Auto-Recovery**: If the signature fails (e.g. database resets causing desynchronization, returning a `403 Forbidden` code), the CMS automatically purges the cached secret and invokes the handshake again to obtain a fresh one.
+- **Connection Diagnostics**: Admins can query `/api/telemetry/diagnose` to run automated pings and status checks.
 
 ## 5. Fair Source Licensing (BSL 1.1)
 

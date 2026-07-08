@@ -7,6 +7,7 @@ Sidebar navigation for System Settings
 
 <script lang="ts">
 	// Components
+	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
@@ -53,14 +54,13 @@ Sidebar navigation for System Settings
 <div class="mt-2 flex flex-col h-full bg-transparent">
 	<!-- Search -->
 	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-33.75'}">
-		<input aria-label="Search settings"
+		<Input
+			aria-label="Search settings"
 			type="text"
 			bind:value={searchTerm}
 			placeholder={isFullSidebar ? 'Search settings...' : 'Search'}
-			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pe-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
-				? 'h-12 py-3'
-					: 'h-10 py-2'}"
-			/>
+			class="w-full {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
+		/>
 		<div class="absolute inset-e-0 top-0 flex h-full items-center pe-3 pointer-events-none text-surface-400">
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>

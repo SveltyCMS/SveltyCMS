@@ -120,8 +120,14 @@ Advanced permission management interface with bulk actions and presets.
 		return initialized;
 	}
 
-	// Initialize state from props - use $derived to react to prop changes
-	let permissionsState = $derived(initializePermissions(permissions, roles));
+	// Initialize state from props — $effect re-syncs when parent passes new props.
+	// Use empty default to avoid Svelte 5 state_referenced_locally warnings;
+	// the $effect immediately populates with actual props on mount.
+	let permissionsState = $state<PermissionsMap>({});
+
+	$effect(() => {
+		permissionsState = initializePermissions(permissions, roles);
+	});
 
 	// Save to history
 	function saveToHistory() {
@@ -241,27 +247,33 @@ Advanced permission management interface with bulk actions and presets.
 		toast.success('Permissions exported');
 	}
 
-	// Import permissions
-	async function importPermissions(event: Event) {
-		const input = event.target as HTMLInputElement;
-		const file = input.files?.[0];
+	// Import permissions — uses hidden file input for clean ARIA handling
+	let fileInput = $state<HTMLInputElement | null>(null);
 
-		if (!file) {
-			return;
-		}
-
-		try {
-			const text = await file.text();
-			const imported = JSON.parse(text);
-			permissionsState = { ...permissionsState, ...imported };
-			saveToHistory();
-			updateParent();
-			toast.success('Permissions imported successfully');
-		} catch {
-			toast.error('Failed to import permissions');
-			error = 'Invalid permissions file';
-		}
+	function triggerImport() {
+		fileInput?.click();
 	}
+		async function handleImport(event: Event) {
+			const input = event.target as HTMLInputElement;
+			const file = input.files?.[0];
+
+			if (!file) return;
+
+			try {
+				const text = await file.text();
+				const imported = JSON.parse(text);
+				permissionsState = { ...permissionsState, ...imported };
+				saveToHistory();
+				updateParent();
+				toast.success('Permissions imported successfully');
+			} catch {
+				toast.error('Failed to import permissions');
+				error = 'Invalid permissions file';
+			} finally {
+				// Reset so same file can be re-selected
+				if (input) input.value = '';
+			}
+		}
 
 	// Filter roles
 	const filteredRoles = $derived(
@@ -345,15 +357,16 @@ Advanced permission management interface with bulk actions and presets.
 				</Button>
 
 				<!-- Import -->
-				<Button variant="warning" size="sm" onclick={() => {
-					const input = document.createElement('input');
-					input.type = 'file';
-					input.accept = '.json';
-					input.onchange = importPermissions;
-					input.click();
-				}} aria-label="Import permissions from JSON">
+				<Button variant="warning" size="sm" onclick={triggerImport} aria-label="Import permissions from JSON">
 					<iconify-icon icon="mdi:upload" width="18"></iconify-icon>
 				</Button>
+				<label for="import-permissions-file" class="hidden">Import permissions file</label>
+									<input type="file" id="import-permissions-file"
+															accept=".json"
+															class="hidden"
+					bind:this={fileInput}
+					onchange={handleImport}
+										/>
 			</div>
 		</div>
 
@@ -433,16 +446,15 @@ Advanced permission management interface with bulk actions and presets.
 							<!-- Permission Toggles -->
 							{#each Object.values(PermissionAction) as action (action)}
 								<td class="px-4 py-3 text-center">
-									<Button variant="error"
+									<Button
+										variant="ghost"
 										onclick={() => togglePermission(role._id, action)}
 										disabled={role.isAdmin}
 										aria-label={`${permissionsState[role._id]?.[action] ? 'Disable' : 'Enable'} ${action} for ${role.name}`}
-									 class="p-0! min-w-0 transition-all {permissionsState[role._id]?.[action] ? ' hover:scale-110' : ' opacity-50 hover:opacity-100 hover:scale-110'} {role.isAdmin ? ' opacity-30' : ''}">
-										<iconify-icon
-											icon={permissionsState[role._id]?.[action] ? 'mdi:check' : 'mdi:check'}
-											width="18"
-											class={permissionsState[role._id]?.[action] ? 'text-white' : 'text-white'}
-										></iconify-icon>
+										data-testid={`perm-${role._id}-${action}`}
+										class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150 {permissionsState[role._id]?.[action] ? 'bg-success-500 text-white hover:bg-success-600' : 'bg-surface-200 text-surface-400 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-500 dark:hover:bg-surface-600'} {role.isAdmin ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:scale-110'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+									>
+										<iconify-icon icon={permissionsState[role._id]?.[action] ? 'mdi:check' : 'mdi:close'} width="16"></iconify-icon>
 									</Button>
 								</td>
 							{/each}

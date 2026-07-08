@@ -7,12 +7,10 @@ import { handleAuthentication, clearAllSessionCaches } from "@src/hooks/handle-a
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 
 vi.mock("$app/environment", () => ({ dev: true, browser: false }));
-vi.mock("@src/databases/db", () => ({
-  auth: {
-    validateSession: vi.fn().mockResolvedValue(null),
-    getUserById: vi.fn().mockResolvedValue(null),
-  },
-}));
+
+// Import the mocked dbAdapter — authentication.test.ts provides the vi.mock
+// for @src/databases/db. This test modifies mock return values in beforeEach.
+const { dbAdapter } = await import("@src/databases/db");
 
 function createEvent(path: string, overrides: any = {}) {
   const host = overrides.hostname || "localhost";
@@ -55,14 +53,22 @@ describe("Adversarial Hook Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearAllSessionCaches();
+    // Configure shared db mock to reject all sessions for adversarial tests
+    if (dbAdapter?.auth) {
+      (dbAdapter.auth as any).validateSession = vi.fn().mockResolvedValue(null);
+      (dbAdapter.auth as any).getUserById = vi.fn().mockResolvedValue(null);
+    }
   });
 
-  it("should reject __Host- cookie on HTTP", async () => {
+  it("should read __Host- cookie on HTTP (prefix enforcement is browser-side per RFC 6265bis)", async () => {
     const event = createEvent("/dashboard", {
       protocol: "http:",
       cookies: { [`__Host-${SESSION_COOKIE_NAME}`]: "stolen" },
     });
     await safe(async () => handleAuthentication({ event, resolve }));
+    // The server reads whatever cookies are sent; the browser enforces __Host-
+    // prefix restrictions (no insecure origins). The hook validates the session
+    // value normally — null means the mock returns null (invalid session).
     expect(event.locals.user).toBeNull();
   });
 

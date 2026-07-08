@@ -114,24 +114,28 @@ with the AI collaboration assistant.
 
 	<!-- Tabs -->
 	<div class="flex border-b border-surface-500/30 shrink-0">
-		<button
+		<Button
 			id="tab-activity"
+			variant="ghost"
+			role="tab"
 			class="flex-1 py-2 text-sm font-medium transition-colors {collaboration.activeTab === 'activity'
 				? 'bg-tertiary-500 dark:bg-primary-500/10 border-b-2 border-tertiary-500 dark:border-primary-500'
 				: 'opacity-60 hover:opacity-100'}"
 			onclick={() => (collaboration.activeTab = 'activity')}
 		>
 			Activity
-		</button>
-		<button
+		</Button>
+		<Button
 			id="tab-chat"
+			variant="ghost"
+			role="tab"
 			class="flex-1 py-2 text-sm font-medium transition-colors {collaboration.activeTab === 'chat'
 				? 'bg-tertiary-500 dark:bg-primary-500/10 border-b-2 border-tertiary-500 dark:border-primary-500'
 				: 'opacity-60 hover:opacity-100'}"
 			onclick={() => (collaboration.activeTab = 'chat')}
 		>
 			{chatLabel}
-		</button>
+		</Button>
 	</div>
 
 	<!-- Content Area -->

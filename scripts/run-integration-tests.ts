@@ -741,55 +741,67 @@ async function main() {
     throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
   }
 
+  // Split: regular tests share one server (reset/seed between files);
+  // setup-mode tests need a fresh server per file.
+  const regularTests = testFiles.filter((f) => !isSetupModeTest(f));
+  const setupTests = testFiles.filter((f) => isSetupModeTest(f));
+
   let passed = 0;
   const results: { file: string; success: boolean; time: number }[] = [];
+  const db = getDbDefaults();
+  const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
 
-  for (const file of testFiles) {
-    if (isShuttingDown) break; // Respect signal flag synchronously
-
+  async function runOneTest(file: string, setupMode: boolean) {
     const relPath = relative(ROOT, file);
     const start = Date.now();
-
-    console.log("\n" + "-".repeat(80));
-    console.log(`🧪 Preparing isolated environment on port ${PORT} for ${relPath}`);
-    console.log("-".repeat(80));
-
-    await prepareIsolatedServerForTestFile(file);
-
-    console.log(`\n▶️ Running ${relPath}...`);
+    console.log(`Running ${relPath}...`);
 
     const bunTestPath = `./${normalizePath(relPath)}`;
-    const setupModeTest = isSetupModeTest(file);
-    const db = getDbDefaults();
-
-    const testCmd = "bun";
-    // MongoDB and MariaDB need extra timeout for post-reset stabilize loop (up to 32s + seed + auth)
-    const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
-    const testArgs = ["test", "--timeout", dbTimeout, bunTestPath];
-
-    const { code } = await runCommand(testCmd, testArgs, {
+    const { code } = await runCommand("bun", ["test", "--timeout", dbTimeout, bunTestPath], {
       env: {
         ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
-        SVELTYCMS_SETUP_MODE_TEST: setupModeTest ? "true" : "false",
+        SVELTYCMS_SETUP_MODE_TEST: setupMode ? "true" : "false",
       },
     });
 
     const duration = Date.now() - start;
     const success = code === 0;
-
     results.push({ file: relPath, success, time: duration });
+    if (success) passed++;
+    console.log(success ? `Passed (${(duration / 1000).toFixed(1)}s)` : "Failed");
+    return success;
+  }
 
-    if (success) {
-      passed++;
+  // Phase 1: Regular tests - shared server, reset/seed between files
+  if (regularTests.length > 0) {
+    console.log(`Phase 1: ${regularTests.length} regular test(s) - shared server`);
+
+    await startPreviewServer();
+    await testingAction("seed");
+
+    for (const file of regularTests) {
+      if (isShuttingDown) break;
+      const ok = await runOneTest(file, false);
+      if (!ok && failFast) break;
+      if (!isShuttingDown) {
+        await testingAction("reset");
+        await testingAction("seed");
+      }
     }
 
-    console.log(success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed");
+    await stopPreviewServer();
+    await freePort(Number.parseInt(PORT, 10));
+  }
 
-    if (!success && failFast) {
-      console.log("\n🛑 Fail-fast: Aborting integration test suite due to failure.");
-      break;
-    }
+  // Phase 2: Setup-mode tests - fresh server per file
+  for (const file of setupTests) {
+    if (isShuttingDown) break;
+    const relPath = relative(ROOT, file);
+    console.log(`Preparing isolated environment on port ${PORT} for ${relPath}`);
+    await prepareIsolatedServerForTestFile(file);
+    const ok = await runOneTest(file, true);
+    if (!ok && failFast) break;
   }
 
   console.log("\n" + "=".repeat(80));

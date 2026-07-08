@@ -240,7 +240,7 @@ services:
 
 ### All 4 Adapters Now Run Under Bun
 
-As of June 2026, all four database adapters (MariaDB, PostgreSQL, SQLite, MongoDB) run natively under `bun test` — no need for vitest/Node.js for any database.
+All four database adapters (MariaDB, PostgreSQL, SQLite, MongoDB) run natively under `bun test` — no need for vitest/Node.js for any database.
 
 **The fix**: A `v8` shim in `src/utils/v8-shim.ts` patches `process.getBuiltinModule('v8')` to return a safe stub for `startupSnapshot.isBuildingSnapshot()` — the only Bun-incompatible API call in the dependency chain:
 
@@ -350,5 +350,3 @@ services:
 > MongoDB tuning requires a custom config file mounted into the container (not just `command` flags). See the [MongoDB section](#mongodb) above for details and the [official docs](https://www.mongodb.com/docs/manual/reference/configuration-options/) for syntax.
 
 ---
-
-**Last Updated**: 2026-06-28 (lazy request-scoped batching, direct primary key index loaders, allocation-floor optimizations, schema-aware conversion, database tuning recommendations)

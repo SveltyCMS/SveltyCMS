@@ -6,7 +6,7 @@ order: 50
 icon: "mdi:robot"
 author: "SveltyCMS Team"
 created: "2026-02-07"
-updated: "2026-05-29"
+updated: "2026-07-07"
 tags:
   - "ai"
   - "mcp"
@@ -535,14 +535,14 @@ All tools are **completely read-only** — your agent can explore and learn, but
 
 All endpoints require authentication. Admin role required for `translate-collection`.
 
-| Endpoint                       | Method | Description                              |
-| :----------------------------- | :----- | :--------------------------------------- |
-| `/api/ai/chat`                 | POST   | AI chat with RAG context                 |
-| `/api/ai/enrich`               | POST   | Text enrichment (summarize, SEO, tags)   |
-| `/api/ai/score`                | POST   | Content quality scoring                  |
-| `/api/ai/suggest-fields`       | POST   | Schema-aware field suggestions           |
-| `/api/ai/generate-layout`      | POST   | Generative UI layout spec                |
-| `/api/ai/translate-collection` | POST   | Bulk collection translation (background) |
+| Endpoint                       | Method | Description                                            |
+| :----------------------------- | :----- | :----------------------------------------------------- |
+| `/api/chat`                    | POST   | Real-time chat with AI Assistant (+ EventBus dispatch) |
+| `/api/ai/enrich`               | POST   | Text enrichment (summarize, SEO, tags)                 |
+| `/api/ai/score`                | POST   | Content quality scoring                                |
+| `/api/ai/suggest-fields`       | POST   | Schema-aware field suggestions                         |
+| `/api/ai/generate-layout`      | POST   | Generative UI layout spec                              |
+| `/api/ai/translate-collection` | POST   | Bulk collection translation (background)               |
 
 ## Deployment & Updates
 
@@ -556,7 +556,7 @@ This ensures that the sensitive build process remains local, while the structure
 
 ---
 
-n## Implementation Files
+## Implementation Files
 
 | Service            | File                                                        |       NPU        |
 | :----------------- | :---------------------------------------------------------- | :--------------: |
@@ -571,7 +571,7 @@ n## Implementation Files
 
 ## Related
 
-n- [State Management](../../reference/architecture/state-management.mdx) — SystemMonitor + hardware-aware rate limiting
+- [State Management](../../reference/architecture/state-management.mdx) — SystemMonitor + hardware-aware rate limiting
 
 - [Cache System](../../reference/architecture/cache-system.mdx) — Dual-layer cache pre-warmed by behavioral engine
 - [Behavioral Learning Engine](../../reference/architecture/behavioral-learning.mdx)

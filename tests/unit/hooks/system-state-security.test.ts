@@ -109,6 +109,7 @@ describe("handleSystemState - Host Validation Security", () => {
 
   it("should block bootstrap routes on untrusted hosts during restricted states", async () => {
     setSystemState("IDLE");
+    process.env.HOST_DEV = "localhost";
     const event = createMockEvent("/setup", "attacker.com");
 
     try {

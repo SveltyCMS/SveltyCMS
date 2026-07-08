@@ -111,38 +111,38 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {#each presets as preset (preset.id)}
-          <button
-            class="group relative flex flex-col items-center gap-3 rounded-lg border-2 border-surface-200 dark:border-surface-700 p-5 text-start transition-all duration-200 hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-surface-900/50"
-            onclick={() => activate(preset.id)}
-            disabled={activating !== null}
-            aria-label={`Activate ${preset.name} workspace`}
-          >
-            <!-- Preset accent dot -->
-            <div class="h-3 w-3 rounded-full {preset.accent} ring-2 {preset.ring} ring-offset-2 ring-offset-white dark:ring-offset-surface-900"></div>
+	        {#each presets as preset (preset.id)}
+	          <div
+	            class="group relative flex flex-col items-center gap-3 rounded-lg border-2 border-surface-200 dark:border-surface-700 p-5 text-start transition-all duration-200 hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-surface-900/50"
+	          >
+	            <!-- Preset accent dot -->
+	            <div class="h-3 w-3 rounded-full {preset.accent} ring-2 {preset.ring} ring-offset-2 ring-offset-white dark:ring-offset-surface-900"></div>
 
-            <iconify-icon icon={preset.icon} width="28" class="text-tertiary-500 dark:text-primary-500 group-hover:scale-110 transition-transform"></iconify-icon>
+	            <iconify-icon icon={preset.icon} width="28" class="text-tertiary-500 dark:text-primary-500 group-hover:scale-110 transition-transform"></iconify-icon>
 
-            <div class="text-center">
-              <div class="font-bold text-surface-900 dark:text-white">{preset.name}</div>
-              <div class="flex items-center justify-center gap-2 mt-1">
-                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-100 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.density}</span>
-                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-100 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.variant}</span>
-              </div>
-            </div>
+	            <div class="text-center">
+	              <div class="font-bold text-surface-900 dark:text-white">{preset.name}</div>
+	              <div class="flex items-center justify-center gap-2 mt-1">
+	                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-100 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.density}</span>
+	                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-100 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.variant}</span>
+	              </div>
+	            </div>
 
-            <p class="text-xs text-surface-500 dark:text-surface-400 text-center leading-relaxed">{preset.description}</p>
+	            <p class="text-xs text-surface-500 dark:text-surface-400 text-center leading-relaxed">{preset.description}</p>
 
-            <Button
-              variant="tertiary"
-              size="sm"
-              class="mt-1 w-full"
-              loading={activating === preset.id}
-            >
-              {activating === preset.id ? 'Applying...' : `Use ${preset.name}`}
-            </Button>
-          </button>
-        {/each}
+	            <Button
+	              variant="tertiary"
+	              size="sm"
+	              class="mt-1 w-full"
+	              loading={activating === preset.id}
+	              onclick={() => activate(preset.id)}
+	              disabled={activating !== null}
+	              aria-label={`Activate ${preset.name} workspace`}
+	            >
+	              {activating === preset.id ? 'Applying...' : `Use ${preset.name}`}
+	            </Button>
+	          </div>
+	        {/each}
       </div>
     </AdminCard>
   </div>

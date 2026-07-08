@@ -29,30 +29,55 @@ function formatValue(val: string): string {
   return val;
 }
 
+function findValue(content: string, keywords: string[]): string {
+  const lines = content.split("\n");
+  for (const line of lines) {
+    if (!line.startsWith("|")) continue;
+    const columns = line.split("|").map((c) => c.trim());
+    if (columns.length < 3) continue;
+    const firstCol = columns[1].replace(/[*\s]/g, "").toLowerCase();
+
+    for (const keyword of keywords) {
+      const cleanKeyword = keyword.replace(/[*\s]/g, "").toLowerCase();
+      if (firstCol.includes(cleanKeyword)) {
+        for (let i = 2; i < columns.length; i++) {
+          const colVal = columns[i].replace(/[*\s]/g, "");
+          if (colVal && colVal !== "-" && /^\d+(\.\d+)?(ms)?$/i.test(colVal)) {
+            return formatValue(colVal);
+          }
+        }
+      }
+    }
+  }
+  return "-";
+}
+
 async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
   try {
     const content = await fs.readFile(filePath, "utf8");
     const dbName = path.basename(filePath, ".mdx").replace("benchmark_", "").replace(/_/g, "-");
 
     // Extract summary status.
-    // Format A (stale MDX from previous failed run):   **Status:** ❌ FAIL
-    // Format B (fresh rebuildSummary output):          **Status:** 15/20 tests recorded · 3 skipped
-    // Format C (fresh with explicit status):           **Status:** PASS
     let status = "⏳";
 
-    // Try Format A/C first: explicit PASS/FAIL/WARN/INCOMPLETE keyword
-    const explicitMatch = content.match(
+    // Try finding PASS/FAIL/WARN/INCOMPLETE status keywords with or without **Status:** prefix
+    let explicitMatch = content.match(
       /\*\*Status:\*\*\s*(?:[^\w\s]*)\s*(PASS|FAIL|WARN|INCOMPLETE)/i,
     );
+    if (!explicitMatch) {
+      explicitMatch = content.match(/\*\*(?:[^\w\s]*)\s*(PASS|FAIL|WARN|INCOMPLETE)\*\*/i);
+    }
+
     if (explicitMatch) {
       status = explicitMatch[1].toUpperCase();
     } else {
-      // Try Format B: "X/Y tests recorded" — derive status from regression sections
-      const recordedMatch = content.match(/\*\*Status:\*\*\s*(\d+)\/(\d+)\s+tests recorded/i);
+      let recordedMatch = content.match(/\*\*Status:\*\*\s*(\d+)\/(\d+)\s+tests recorded/i);
+      if (!recordedMatch) {
+        recordedMatch = content.match(/(\d+)\/(\d+)\s+tests/i);
+      }
       if (recordedMatch) {
         const recorded = parseInt(recordedMatch[1], 10);
         const total = parseInt(recordedMatch[2], 10);
-        // Check if the Needs Attention section has actual entries (not just the header)
         const needsAttentionSection = content.match(
           /###\s+⚠️\s+Needs Attention\s*\n\n\|\s*Metric\s*\|/i,
         );
@@ -70,18 +95,17 @@ async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
       }
     }
 
-    // Extract core benchmark values from the summary table
-    const truthMatch = content.match(/\|\s*\*\*REST \(Collections\)\*\*\s*\|\s*([^\s|]+)/i);
-    const truth = truthMatch ? formatValue(truthMatch[1]) : "-";
-
-    const coldMatch = content.match(/\|\s*\*\*Cold Start\*\*\s*\|\s*([^\s|]+)/i);
-    const cold = coldMatch ? formatValue(coldMatch[1]) : "-";
-
-    const hooksMatch = content.match(/\|\s*\*\*Middleware Hooks\*\*\s*\|\s*([^\s|]+)/i);
-    const hooks = hooksMatch ? formatValue(hooksMatch[1]) : "-";
-
-    const insertMatch = content.match(/\|\s*\*\*DB Raw \(p95\)\*\*\s*\|\s*([^\s|]+)/i);
-    const insert = insertMatch ? formatValue(insertMatch[1]) : "-";
+    // Extract core benchmark values from the report
+    const truth = findValue(content, [
+      "REST (Collections)",
+      "REST API PERFORMANCE",
+      "HTTP End-to-End",
+      "System",
+      "Truth Latency",
+    ]);
+    const cold = findValue(content, ["Cold Start", "Phased Cold Start", "Cold"]);
+    const hooks = findValue(content, ["Middleware Hooks", "HOOKS PERFORMANCE", "Middleware"]);
+    const insert = findValue(content, ["DB Raw (p95)", "DATABASE PERFORMANCE", "INSERT", "DB Raw"]);
 
     return {
       db: dbName,

@@ -1,5 +1,5 @@
 ---
-path: "docs/reference/architecture/api-security.mdx"
+path: "docs/reference/security/api-security.mdx"
 title: "API Security & Token Hardening"
 description: "Enterprise-grade API security architecture: 4-layer defense-in-depth, bearer tokens, tenant isolation, rate limiting, CSRF, and CSP."
 order: 5
@@ -187,7 +187,7 @@ All metrics self-measured via `bun test tests/benchmarks/` — reproducible on a
 - **Crypto-chained logs**: Every API mutation is logged with SHA-256 chained audit entries — tamper-evident verification
 - **security.txt**: RFC 9116 standard at `/.well-known/security.txt`
 - **EU Directive 2006/114/EC**: All competitive comparisons use verifiable public data
-- **Incident response**: [Full runbook](../security/incident-response.mdx)
+- **Incident response**: [Full runbook](./incident-response.mdx)
 - **0 published CVEs** — private reporting via [GitHub Security Advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories)
 
 ---
@@ -195,8 +195,9 @@ All metrics self-measured via `bun test tests/benchmarks/` — reproducible on a
 ## Related
 
 - [Token API Reference](../api/tokens.mdx)
-- [Authentication System](../security/authentication-system.mdx)
-- [Security Overview](../security/index.mdx)
-- [Incident Response](../security/incident-response.mdx)
-- [Login Security](../security/login-security.mdx)
+- [Authentication System](./authentication-system.mdx)
+- [Security Overview](./index.mdx)
+- [Incident Response](./incident-response.mdx)
+- [Login Security](./login-security.mdx)
+- [Secrets & Tokens Inventory](./secrets-inventory.mdx)
 - [Database Architecture](../database/index.mdx)

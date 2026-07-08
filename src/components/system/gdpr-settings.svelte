@@ -14,8 +14,9 @@
 -->
 
 <script lang="ts">
+	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
-	import Input from '@components/ui/input.svelte';
+		import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import type { SettingGroup } from '../../routes/(app)/config/system-settings/settings-groups';
 
@@ -123,14 +124,14 @@
 
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 		<!-- Data Export (Article 20) -->
-		<div class="card preset-tonal-surface p-6 rounded space-y-4 border border-surface-200 dark:border-surface-700">
-			<div class="flex items-center gap-3 mb-2">
-				<div class="p-2 rounded-full bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500"><iconify-icon icon="mdi:database-export" width="24"></iconify-icon></div>
-				<div>
-					<h3 class="font-bold">Data Portability</h3>
-					<p class="text-xs opacity-70">Export all user data to JSON</p>
-				</div>
-			</div>
+		<AdminCard class="p-6 rounded space-y-4" preset="tonal" variant="surface">
+						<div class="flex items-center gap-3 mb-2">
+							<div class="p-2 rounded-full bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500"><iconify-icon icon="mdi:database-export" width="24"></iconify-icon></div>
+							<div>
+								<h3 class="font-bold">Data Portability</h3>
+								<p class="text-xs opacity-70">Export all user data to JSON</p>
+							</div>
+						</div>
 
 			<Input
 				label="User ID"
@@ -147,17 +148,17 @@
 					Download JSON
 				{/if}
 			</Button>
-		</div>
+				</AdminCard>
 
-		<!-- Right to Erasure (Article 17) -->
-		<div class="card preset-tonal-surface p-6 rounded space-y-4 border border-surface-200 dark:border-surface-700">
-			<div class="flex items-center gap-3 mb-2">
-				<div class="p-2 rounded-full bg-error-500/10 text-error-500"><iconify-icon icon="mdi:account-remove" width="24"></iconify-icon></div>
-				<div>
-					<h3 class="font-bold">Right to Erasure</h3>
-					<p class="text-xs opacity-70">Permanently anonymize user</p>
-				</div>
-			</div>
+				<!-- Right to Erasure (Article 17) -->
+		<AdminCard class="p-6 rounded space-y-4" preset="tonal" variant="surface">
+						<div class="flex items-center gap-3 mb-2">
+							<div class="p-2 rounded-full bg-error-500/10 text-error-500"><iconify-icon icon="mdi:account-remove" width="24"></iconify-icon></div>
+							<div>
+								<h3 class="font-bold">Right to Erasure</h3>
+								<p class="text-xs opacity-70">Permanently anonymize user</p>
+							</div>
+						</div>
 
 			<Input
 				label="User ID"
@@ -182,6 +183,6 @@
 			{#if confirmAnonymize}
 				<p class="text-xs text-center text-error-500 animate-pulse">Click again to confirm. This action cannot be undone.</p>
 			{/if}
+			</AdminCard>
 		</div>
 	</div>
-</div>

@@ -19,10 +19,6 @@ tags:
   - embed
 ---
 
-> [!WARNING]
-> **Premium Extension**
-> This extension is available to test during a **14-day trial**, after which a valid `LICENSE_KEY` from marketplace.sveltycms.com is required.
-
 # RemoteVideo Widget
 
 <blockquote>
@@ -49,6 +45,47 @@ The **RemoteVideo widget** provides a secure and efficient way to embed videos f
 - ✅ **Unified Error Handler**: Uses `handleWidgetValidation` for consistent error management
 - ✅ **Non-Translatable**: Video metadata is universal
 - ✅ **Tailwind CSS**: Fully styled using Tailwind utility classes (no custom CSS)
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €9.99** — Freemium model with a **14-day free trial** (no key required).
+
+> During the trial period, all features are available without a license key. After the trial expires, a valid license key from [marketplace.sveltycms.com](https://marketplace.sveltycms.com) is required to unlock premium platforms.
+
+### Free Tier (No License)
+
+| Feature            | Description                                                            |
+| :----------------- | :--------------------------------------------------------------------- |
+| YouTube            | Full metadata fetching, embedding, and display                         |
+| Vimeo              | Full metadata fetching, embedding, and display                         |
+| Automatic metadata | Title, thumbnail, duration, channel info auto-fetched                  |
+| Server-side APIs   | API keys protected, CORS handled server-side                           |
+| Rich preview       | Visual thumbnail and video details display                             |
+| Structured data    | Comprehensive video object storage                                     |
+| Trial period       | Full access to ALL platforms for 14 days from first admin registration |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                 |
+| :--------------------- | :------------------------------------------ |
+| **Everything in Free** | All free tier features included             |
+| Twitch                 | Live stream and VOD embedding with metadata |
+| TikTok                 | Short-form video embedding with metadata    |
+| Platform expansion     | Access to new platforms as they are added   |
+
+### License Verification
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+const status = await checkExtensionLicense("widget", "remote-video");
+if (!status.active && !status.hasLicense) {
+  // Premium platforms (Twitch, TikTok) are unavailable
+  // YouTube and Vimeo remain functional
+}
+```
 
 ---
 

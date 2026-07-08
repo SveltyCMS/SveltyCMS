@@ -121,8 +121,13 @@ test.describe("Extended Authentication UI Flows", () => {
     await page.locator('[data-testid="signin-password"]').fill(ADMIN_CREDENTIALS.password);
     await page.locator('[data-testid="signin-submit"]').click();
 
-    // Verify UI switches to 2FA input
-    const twofaInput = page.locator("input#twofa-code");
-    await expect(twofaInput).toBeVisible({ timeout: 10000 });
+    // Verify UI switches to 2FA input.
+    // The Input component renders <input id="twofa-code"> — but to be resilient
+    // also accept the 2FA region's aria-label.
+    const twofaInput = page
+      .locator("input#twofa-code")
+      .or(page.locator('[aria-label="Two-factor authentication"] input[type="text"]'))
+      .or(page.locator('[aria-label="Two-factor authentication"]').getByRole("textbox"));
+    await expect(twofaInput).toBeVisible({ timeout: 10_000 });
   });
 });

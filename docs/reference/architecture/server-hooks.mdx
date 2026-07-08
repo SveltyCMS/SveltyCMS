@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-07-05"
+updated: "2026-07-07"
 tags:
   - "architecture"
   - "hooks"
@@ -319,17 +319,17 @@ if (flags.isStatic) return resolve(event); // 0 redundant computes
 
 ### Middleware Pipeline Overhead
 
-**Full Pipeline End-to-End** (SQLite ledger 2026-07-05; matrix 53/57 tests passed):
+**Full Pipeline End-to-End** (SQLite, 2026-07-07):
 
-| Scenario                         | Avg Latency | p95     | RPS       | Δ vs 2026-07-04 ledger |
-| :------------------------------- | :---------- | :------ | :-------- | :--------------------- |
-| Static Asset (no hooks)          | **0.085ms** | 0.127ms | **9,776** | within variance        |
-| Turbo Pipeline (Light)           | **0.527ms** | 0.652ms | **1,569** | **−11%**               |
-| Full Security + Auth Pipeline    | **0.780ms** | 0.883ms | **1,176** | **−19%**               |
-| REST with API Caching (warm GET) | **0.765ms** | 1.046ms | **1,113** | −8%                    |
-| Mutation + Audit Logging         | **2.924ms** | 3.510ms | **342**   | +63% (audit path)      |
+| Scenario                         | Avg Latency | p95     | RPS        |
+| :------------------------------- | :---------- | :------ | :--------- |
+| Static Asset (no hooks)          | **0.085ms** | 0.125ms | **10,608** |
+| Turbo Pipeline (Light)           | **0.431ms** | 0.496ms | **2,065**  |
+| Full Security + Auth Pipeline    | **0.617ms** | 0.690ms | **1,405**  |
+| REST with API Caching (warm GET) | **0.579ms** | 0.674ms | **1,683**  |
+| Mutation + Audit Logging         | **2.261ms** | 3.091ms | **442**    |
 
-> **Benchmark**: `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts` or `bun run scripts/benchmark-matrix/index.ts --db=sqlite`. Full security stack, no turbo-auth shortcut. Warmed shared-server matrix runs reach **0.555ms** full-auth avg (p95 **0.668ms**). Per-hook timing: `GET /api/system/health` → `hooks`. Ledger: [SQLite Hooks section](../../project/benchmarks/benchmark_sqlite.mdx#section-hooks_trace).
+> **Benchmark**: `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Dead static-asset section removed in v2026-07-07 — contributed to 18–24% latency reduction across all pipeline stages.
 
 ### Competitive Comparison (2026)
 
@@ -347,7 +347,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 | Metric                     | Before (v2025) | After (v2026) | Gain             |
 | -------------------------- | -------------- | ------------- | ---------------- |
-| Full Auth Pipeline (hooks) | 0.96ms         | 0.780ms       | **🚀 19%**       |
+| Full Auth Pipeline (hooks) | 0.780ms        | 0.617ms       | **🚀 21%**       |
 | Full Auth p95 (hooks)      | 1.23ms         | 0.883ms       | **🚀 28%**       |
 | Turbo Pipeline (hooks)     | 0.59ms         | 0.527ms       | **🚀 11%**       |
 | Hot Reads (findById)       | 6.87ms         | 3.81ms        | **🚀 44.6%**     |

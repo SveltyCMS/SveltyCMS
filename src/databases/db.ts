@@ -111,23 +111,68 @@ export const dbInitPromise: Promise<any | null> = new Proxy(Promise.resolve(null
 let _dbInit: any = null;
 let _resilienceIntegration: any = null;
 
+// Demo cleanup interval reference (for shutdown)
+let _demoCleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Starts the demo tenant cleanup scheduler.
+ * Runs every 5 minutes, only when DEMO mode is enabled.
+ */
+function startDemoCleanupScheduler() {
+  if (_demoCleanupInterval) return; // Already running
+
+  const env = getEnv();
+  const isDemoEnv = process.env.SVELTYCMS_DEMO === "true";
+  const isDemo = isDemoEnv || env?.DEMO === true;
+
+  if (!isDemo) {
+    logger.debug("[Demo Cleanup] DEMO mode not enabled, skipping scheduler.");
+    return;
+  }
+
+  const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  logger.info("[Demo Cleanup] Starting cleanup scheduler (every 5 minutes).");
+
+  _demoCleanupInterval = setInterval(async () => {
+    try {
+      const { cleanupExpiredDemoTenants } = await import("@src/utils/demo-cleanup");
+      await cleanupExpiredDemoTenants();
+    } catch (err) {
+      logger.error("[Demo Cleanup] Scheduler error:", err);
+    }
+  }, CLEANUP_INTERVAL_MS);
+
+  // Allow the event loop to exit (don't keep the process alive for cleanup alone)
+  if (
+    _demoCleanupInterval &&
+    typeof _demoCleanupInterval === "object" &&
+    "unref" in _demoCleanupInterval
+  ) {
+    _demoCleanupInterval.unref();
+  }
+}
+
+/**
+ * Stops the demo cleanup scheduler (called during shutdown).
+ */
+function stopDemoCleanupScheduler() {
+  if (_demoCleanupInterval) {
+    clearInterval(_demoCleanupInterval);
+    _demoCleanupInterval = null;
+    logger.debug("[Demo Cleanup] Scheduler stopped.");
+  }
+}
+
 async function getDbInit() {
   if (!_dbInit) {
-    // Use variable-based dynamic import to prevent the bundler from statically
-    // resolving this path into the client bundle. db-init.ts pulls in .server.ts
-    // modules (media-service, content/index) that must never reach the browser.
-    const mod = "./db-init";
-    _dbInit = await import(mod);
+    _dbInit = await import("./db-init");
   }
   return _dbInit;
 }
 
 async function getResilienceIntegration() {
   if (!_resilienceIntegration) {
-    // Variable-based import to prevent bundler from tracing into client bundle.
-    // resilience-integration.ts → database-resilience.ts → email.server.ts
-    const mod = "./resilience-integration";
-    _resilienceIntegration = await import(mod);
+    _resilienceIntegration = await import("./resilience-integration");
   }
   return _resilienceIntegration;
 }
@@ -267,6 +312,9 @@ export async function ensureFullInitialization(): Promise<any | null> {
         )
         .catch(() => {});
 
+      // Start demo tenant cleanup scheduler (fire-and-forget, only in DEMO mode)
+      startDemoCleanupScheduler();
+
       return { adapter, auth: authInstance };
     } catch (error) {
       logger.error("[Boot] Initialization CRASHED:", error);
@@ -299,6 +347,9 @@ export async function shutdownSystem(): Promise<void> {
   // Flush behavioral learning data before shutdown
   const { stopBehavioralEngine } = await import("@src/services/intelligence/behavioral-learner");
   stopBehavioralEngine();
+
+  // Stop demo cleanup scheduler
+  stopDemoCleanupScheduler();
 
   // 🚀 HARDENING: Clear registries and promises
   const { dbPluginRegistry } = await import("./core/plugin-registry");

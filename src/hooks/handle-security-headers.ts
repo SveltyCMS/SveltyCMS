@@ -130,7 +130,10 @@ export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
     pathname,
   );
 
-  return new Response(response.body, {
+  // Clone response body to avoid "ReadableStream has already been used"
+  // when an upstream hook has already consumed the body stream.
+  const cloned = response.clone();
+  return new Response(cloned.body, {
     status: response.status,
     statusText: response.statusText,
     headers: mutableHeaders,

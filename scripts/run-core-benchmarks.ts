@@ -18,6 +18,7 @@ const ROOT = process.cwd();
 const VALID_DBS = ["sqlite", "mongodb", "mariadb", "postgresql"] as const;
 
 export const CI_CORE_BENCHMARK_TESTS = [
+  "cold-start-phased",
   "truth-latency",
   "database-performance",
   "transaction-acid",
@@ -72,9 +73,12 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
         shell: process.platform === "win32",
       });
     } catch {}
-    await new Promise((r) => setTimeout(r, 2000));
+    // Wait for port to be freed + Docker container to stabilize
+    await new Promise((r) => setTimeout(r, 3000));
+
     const file = `tests/benchmarks/${name}.test.ts`;
     console.log(`  ▶ ${file}`);
+
     const result = spawnSync("bun", ["test", file, "--timeout", "120000"], {
       cwd: ROOT,
       stdio: "inherit",

@@ -21,11 +21,12 @@
 -->
 <script lang="ts">
 import { tick } from "svelte";
+	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
-	import Badge from '@components/ui/badge.svelte';
-	import Input from '@components/ui/input.svelte';
-	import Loader from '@components/ui/loader.svelte';
-	import Select from '@components/ui/select.svelte';
+		import Badge from '@components/ui/badge.svelte';
+		import Input from '@components/ui/input.svelte';
+		import Loader from '@components/ui/loader.svelte';
+		import Select from '@components/ui/select.svelte';
   import { logger } from "@utils/logger";
   import { getFieldName } from "@utils/utils";
 
@@ -625,8 +626,8 @@ import { tick } from "svelte";
                       {@const isTranslating = aiTranslatingFields.has(fieldName)}
                       <div class="flex items-center gap-1">
                         <!-- Locale badge / switcher -->
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
                           class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-100 dark:hover:bg-primary-500/20"
                           style="background: var(--color-surface-200, #e5e7eb); color: var(--color-tertiary-500, #6b7280)"
                           onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
@@ -637,11 +638,11 @@ import { tick } from "svelte";
                           {#if availableLanguages.length > 1}
                             <iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"></iconify-icon>
                           {/if}
-                        </button>
+                        </Button>
                         <!-- AI Translate button -->
                         {#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
-                          <button
-                            type="button"
+                          <Button
+                            variant="ghost"
                             class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-purple-100 dark:hover:bg-purple-500/20"
                             style="color: var(--color-purple-500, #a855f7)"
                             onclick={() => aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
@@ -653,7 +654,7 @@ import { tick } from "svelte";
                             {:else}
                               <iconify-icon icon="mdi:auto-fix" width="14" aria-hidden="true"></iconify-icon>
                             {/if}
-                          </button>
+                          </Button>
                         {/if}
                       </div>
                     {/if}
@@ -868,11 +869,11 @@ import { tick } from "svelte";
             Copy
           </Button>
         </div>
-        <div
-          class="card p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"
-        >
+        <AdminCard
+                  class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"
+                >
           <pre>{JSON.stringify((collectionValue as any).value, null, 2)}</pre>
-        </div>
+                  </AdminCard>
       </div>
     </Tabs.Content>
 

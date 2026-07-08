@@ -245,6 +245,15 @@ export const widgetMeta = {
 
 `generativedashboard.svelte` provides an AI-assisted layout builder on the dashboard page. It consumes JSON render specs and integrates with the same widget registry — layouts are persisted via `system-preferences`.
 
+### 🔑 Licensing & Monetization for Dashboard Widgets
+
+Certain advanced dashboard widgets are designated as premium features (e.g. SCIM Status, Unified Metrics, DB Pool Diagnostics, Security Overview).
+
+- **14-day trials**: Like plugins and custom collection widgets, all premium dashboard widgets feature a built-in key-less 14-day trial period from initial installation.
+- **Licensing check**: To gate premium widgets, they evaluate license status client-side or server-side:
+  - **Client-side gating**: Verify key validity via `checkExtensionLicense("dashboard", widgetId)`. If the trial is expired and no valid `SLM-` or `SLM-DEMO-` key is configured, the widget renders an upgrade prompt instead of dashboard content.
+  - **Server-side gating**: The backing API endpoint checks `checkExtensionLicense` and returns `403 Forbidden` for data requests when license check fails.
+
 ---
 
 ## 5. The Mechanics

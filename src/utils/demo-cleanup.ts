@@ -103,45 +103,76 @@ export async function cleanupExpiredDemoTenants() {
       logger.debug(`[Demo Cleanup] Deleting tenant: ${tenantId}`);
       const tenantUserIds = allTenantUsers.filter((u) => u.tenantId === tenantId).map((u) => u._id);
 
-      // 2. Delete Physical Files & Media Records
+      // 2. Delete Physical Files & Media Records (full pagination)
       try {
         await db.media.setupMediaModels();
-        // Get media files via the adapter's paginated method, then filter by tenantId.
-        // PaginatedResult has .items (not .data).
-        const mediaResult = await db.media.files.getByFolder(undefined, {
-          page: 1,
-          pageSize: 10_000,
-        });
-        if (mediaResult.success && mediaResult.data) {
-          const tenantMedia = mediaResult.data.items.filter(
-            (m) => (m as unknown as Tenanted).tenantId === tenantId,
+
+        const PAGE_SIZE = 500;
+        let page = 1;
+        let hasMore = true;
+        const allTenantMedia: any[] = [];
+
+        // Paginate through ALL media files — no 10k cap
+        while (hasMore) {
+          const mediaResult = await db.media.files.getByFolder(undefined, {
+            page,
+            pageSize: PAGE_SIZE,
+          });
+          if (mediaResult.success && mediaResult.data) {
+            const items = mediaResult.data.items || [];
+            const tenantItems = items.filter(
+              (m) => (m as unknown as Tenanted).tenantId === tenantId,
+            );
+            allTenantMedia.push(...tenantItems);
+
+            hasMore = mediaResult.data.hasNextPage;
+            page++;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        if (allTenantMedia.length > 0) {
+          logger.debug(
+            `[Demo Cleanup] Deleting ${allTenantMedia.length} media files for tenant ${tenantId}`,
           );
 
-          if (tenantMedia.length > 0) {
-            logger.debug(
-              `[Demo Cleanup] Deleting ${tenantMedia.length} files for tenant ${tenantId}`,
-            );
+          // Collect directories to clean up after file deletion
+          const dirsToClean = new Set<string>();
 
-            // Delete physical files
-            for (const media of tenantMedia) {
-              if (media.originalFilename) {
-                try {
-                  const filePath = path.resolve(media.originalFilename);
-                  await fs.unlink(filePath);
-                } catch (err) {
-                  if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-                    logger.warn(
-                      `[Demo Cleanup] Failed to delete file ${media.originalFilename}:`,
-                      err,
-                    );
-                  }
+          // Delete physical files
+          for (const media of allTenantMedia) {
+            if (media.originalFilename) {
+              try {
+                const filePath = path.resolve(media.originalFilename);
+                await fs.unlink(filePath);
+                // Track parent directory for cleanup
+                dirsToClean.add(path.dirname(filePath));
+              } catch (err) {
+                if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+                  logger.warn(
+                    `[Demo Cleanup] Failed to delete file ${media.originalFilename}:`,
+                    err,
+                  );
                 }
               }
             }
+          }
 
-            // Delete media records via adapter
-            const mediaIds = tenantMedia.map((m) => m._id);
-            await db.media.files.deleteMany(mediaIds);
+          // Delete media records via adapter
+          const mediaIds = allTenantMedia.map((m) => m._id);
+          await db.media.files.deleteMany(mediaIds);
+
+          // Clean up empty media directories for this tenant
+          for (const dir of dirsToClean) {
+            try {
+              const files = await fs.readdir(dir);
+              if (files.every((f) => f.startsWith("."))) {
+                await fs.rm(dir, { recursive: true, force: true });
+              }
+            } catch {
+              // Directory may already be cleaned or inaccessible
+            }
           }
         }
       } catch (err) {
@@ -158,6 +189,26 @@ export async function cleanupExpiredDemoTenants() {
         await db.crud.deleteMany("content_revisions", { tenantId } as Record<string, unknown>);
       } catch (err) {
         logger.error(`[Demo Cleanup] Error cleaning up content for tenant ${tenantId}:`, err);
+      }
+
+      // 3b. Delete Filesystem Artifacts (compiled collections, tenant config, uploads)
+      try {
+        const cwd = process.cwd();
+        const tenantDirs = [
+          path.resolve(cwd, ".compiledCollections", tenantId),
+          path.resolve(cwd, "config", tenantId),
+          path.resolve(cwd, "uploads", tenantId),
+        ];
+        for (const dir of tenantDirs) {
+          try {
+            await fs.rm(dir, { recursive: true, force: true });
+            logger.debug(`[Demo Cleanup] Removed directory: ${dir}`);
+          } catch {
+            // Directory may not exist — that's fine
+          }
+        }
+      } catch (err) {
+        logger.error(`[Demo Cleanup] Error cleaning up filesystem for tenant ${tenantId}:`, err);
       }
 
       // 4. Delete System Data via namespaced adapter methods

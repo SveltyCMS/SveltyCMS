@@ -1,23 +1,99 @@
 ---
 path: "src/plugins/stripe/stripe.mdx"
 title: "Stripe Payments Plugin"
-description: "Documentation for the Stripe Payments plugin for SveltyCMS."
+description: "Accept payments via Stripe — one-time payments, subscriptions, webhooks, and PCI-compliant checkout. Freemium model with free basic checkout and premium subscription billing."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:credit-card-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "stripe"
+  - "payments"
+  - "freemium"
 ---
 
 # Stripe Payments Plugin
 
-Documentation for the **Stripe Payments** plugin is being prepared.
-
-For implementation details, see the source code in `src/plugins/stripe/`.
+Accept payments via Stripe for gated content, memberships, or e-commerce with PCI-compliant card collection. Uses the official Stripe SDK server-side and Stripe.js client-side for secure, isolated payment fields.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## 💰 Licensing & Pricing
+
+**Price: €4.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License)
+
+| Feature               | Description                                           |
+| :-------------------- | :---------------------------------------------------- |
+| One-time payments     | Create and confirm single PaymentIntents              |
+| Basic checkout        | Standard Stripe Elements card input                   |
+| Webhook handling      | Receive payment status updates via webhooks           |
+| Payment status column | View payment status in entry lists                    |
+| Tenant-level API keys | Per-tenant Stripe configuration                       |
+| Trial period          | Full access for 14 days from first admin registration |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                            |
+| :--------------------- | :----------------------------------------------------- |
+| **Everything in Free** | All free tier features included                        |
+| Subscription billing   | Recurring payments, plans, and customer portals        |
+| Invoices               | Auto-generated PDF invoices and billing history        |
+| Payment analytics      | Revenue dashboards, conversion metrics, churn tracking |
+| Multi-currency         | Accept 135+ currencies with automatic conversion       |
+| Custom checkout themes | Branded checkout with custom colors, logos, and fonts  |
+
+> **Note**: Without a valid license after the trial expires, only one-time payments and basic checkout remain available. Premium fields are stripped on save.
+
+### License Verification
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+const status = await checkExtensionLicense("plugin", "stripe");
+if (!status.active && !status.hasLicense) {
+  // Premium fields (subscription, analytics, multi-currency) are unavailable
+}
+```
+
+---
+
+## Quick Start
+
+1. **Enable the plugin** in System Settings → Plugins
+2. **Configure API keys** in System Settings → Stripe (or set `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` in settings)
+3. **Add Stripe to a collection** by enabling it in the plugin's collection settings
+4. **Collect payments** — Stripe Elements appear automatically on enabled collections
+
+---
+
+## Configuration
+
+| Setting                  | Type    | Required | Description                                           |
+| :----------------------- | :------ | :------- | :---------------------------------------------------- |
+| `secretKey`              | Private | Yes      | Stripe secret key (`sk_live_...` or `sk_test_...`)    |
+| `publishableKey`         | Public  | Yes      | Stripe publishable key (`pk_live_...`)                |
+| `webhookSecret`          | Private | No       | Stripe webhook signing secret for verification        |
+| `currency`               | Public  | No       | Default currency (default: `usd`)                     |
+| `appearance`             | Public  | No       | Checkout theme (`default`, `stripe`, `night`, `flat`) |
+| `allowedCheckoutOrigins` | Private | No       | CORS origins for headless frontend checkouts          |
+
+---
+
+## Security
+
+- **PCI Compliance**: Card data is collected via Stripe Elements in an iframe — never touches your server
+- **Webhook Verification**: All webhooks are verified using the signing secret
+- **Audit Logging**: All payment transactions are logged to the audit trail
+- **Draft-by-Default**: External webhook mutations save as draft pending review
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

@@ -2,7 +2,7 @@
  * @file tests/unit/hooks/test-utils.ts
  * @description Shared hook test utilities — eliminates repeated mock event creation across 12 files.
  */
-import { mock } from "bun:test";
+import { vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { PRIMARY_TENANT } from "@tests/harness/fixtures";
@@ -51,15 +51,15 @@ export function createMockEvent(
       },
     }),
     cookies: {
-      get: mock((name: string) => cookieStore[name] ?? null),
-      getAll: mock(() => Object.entries(cookieStore).map(([name, value]) => ({ name, value }))),
-      set: mock((name: string, value: string) => {
+      get: vi.fn((name: string) => cookieStore[name] ?? null),
+      getAll: vi.fn(() => Object.entries(cookieStore).map(([name, value]) => ({ name, value }))),
+      set: vi.fn((name: string, value: string) => {
         cookieStore[name] = value;
       }),
-      delete: mock((name: string) => {
+      delete: vi.fn((name: string) => {
         delete cookieStore[name];
       }),
-      serialize: mock((name: string, value: string) => `${name}=${value}`),
+      serialize: vi.fn((name: string, value: string) => `${name}=${value}`),
     },
     locals: {
       user: options.user ?? null,
@@ -83,7 +83,7 @@ export function createMockEvent(
 }
 
 /** Resolves with 200 OK by default — override per test if needed. */
-export const mockResolve = mock((_event: RequestEvent) =>
+export const mockResolve = vi.fn((_event: RequestEvent) =>
   Promise.resolve(new Response("OK", { status: 200 })),
 );
 

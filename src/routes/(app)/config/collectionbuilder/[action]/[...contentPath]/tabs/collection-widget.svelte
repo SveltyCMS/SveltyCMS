@@ -1,255 +1,433 @@
 <!--
-@file src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
+@file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/CollectionWidgetOptimized.svelte
 @component
-**This component displays the collection widget**
+**This Component handles the optimized collection widget**
 -->
-
 <script lang="ts">
+import { SvelteSet } from "svelte/reactivity";
+import type { FieldInstance } from "@src/content/types";
+import type { Role } from "@src/databases/auth/types";
+import BuzzForm from "@src/routes/(app)/config/collectionbuilder/buzz-form/buzz-form.svelte";
 import {
 	collection,
+	setCollection,
 	setTargetWidget,
+	targetWidget,
 } from "@src/stores/collection-store.svelte";
-import { getWidgetFunction, getWidgetNames } from "@src/stores/widget-store.svelte.ts";
-import { logger } from "@utils/logger";
-import { getGuiFields } from "@utils/utils";
-// Using iconify-icon web component
-// Stores
-import { page } from "$app/state";
-
-// Native UI Components
-
-import VerticalList from "@src/components/vertical-list.svelte";
-import {
-	button_edit,
-	button_previous,
-	button_save,
-	collection_widgetfield_addFields,
-	collection_widgetfield_addrequired,
-	collection_widgetfield_drag,
-} from "@src/paraglide/messages";
-import { app } from "@src/stores/store.svelte.ts";
+import { toast } from "@src/stores/toast.svelte.ts";
+import { getWidgetFunction, widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
+import { sveltyRegistry } from "@src/services/json-render/catalog";
+import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { modalState } from "@utils/modal.svelte";
+import { getGuiFields } from "@utils/utils";
+import { untrack } from "svelte";
+import { flip } from "svelte/animate";
+import type { DndEvent } from "svelte-dnd-action";
+import { dndzone } from "svelte-dnd-action";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
-import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
-	import Button from '@components/ui/button.svelte';
+import WidgetInspector from "./collection-widget/widget-inspector.svelte";
+import Button from "@src/components/ui/button.svelte";
+import Card from "@src/components/ui/card.svelte";
+import SegmentedControl from "@src/components/ui/segmented-control.svelte";
 
-const props = $props();
+type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
-// Extract the collection path from the URL (param name matches folder [...contentPath])
-const contentPath = Array.isArray(page.params.contentPath)
-	? page.params.contentPath.join("/")
-	: (page.params.contentPath ?? "");
+let { fields = [], roles = [] } = $props<{
+	fields: FieldInstance[];
+	roles?: Role[];
+}>();
 
-// Helper function to map fields
-function mapFieldsWithWidgets(fields: any[]) {
-	if (!fields) {
-		return [];
-	}
-	return fields.map((field, index) => {
-		const widgetType =
-			field.widget?.key || // For new widgets
-			field.widget?.Name || // For existing widgets
-			field.__type || // For schema-defined widgets
-			field.type || // Backup type field
-			getWidgetNames().find((key: string) => field[key]) || // Check if field has widget property
-			"Unknown Widget"; // Fallback
+// Stable _dragId by index so we can sync items from props without losing drag identity
+let dragIdsByIndex = $state<Record<number, string>>({});
 
-		return {
-			id: index + 1,
-			...field,
-			widget: {
-				key: widgetType,
-				Name: widgetType,
-				...field.widget,
-			},
-		};
-	});
-}
+let items = $state<WidgetListItem[]>(
+	untrack(() =>
+		(fields ?? []).map((f: FieldInstance, i: number) => {
+			const id = (dragIdsByIndex[i] ??= Math.random()
+				.toString(36)
+				.substring(7));
+			return { id: i + 1, ...f, _dragId: id } as WidgetListItem;
+		}),
+	),
+);
 
-// Use state for fields (not derived, since we need to mutate it via drag-and-drop)
-const getInitialFields = () => $state.snapshot(props.fields) ?? [];
-let fields = $state(mapFieldsWithWidgets(getInitialFields()));
-
-// Watch for changes in props.fields and update our state
+// Sync items from props when store updates (e.g. after save) so list and inspector show saved data
 $effect(() => {
-	if (props.fields) {
-		fields = mapFieldsWithWidgets(props.fields);
+	const nextFields = fields ?? [];
+	const nextDragIds = { ...dragIdsByIndex };
+	let added = false;
+	for (let i = 0; i < nextFields.length; i++) {
+		if (nextDragIds[i] === undefined) {
+			nextDragIds[i] = Math.random().toString(36).substring(7);
+			added = true;
+		}
 	}
+	if (added) {
+		dragIdsByIndex = nextDragIds;
+	}
+	items = nextFields.map((f: FieldInstance, i: number) => ({
+		id: i + 1,
+		...f,
+		_dragId: nextDragIds[i] ?? Math.random().toString(36).substring(7),
+	})) as WidgetListItem[];
 });
 
-// Collection headers
-const headers = ["Id", "Icon", "Name", "DBName", "Widget"];
+const flipDurationMs = 200;
 
-// svelte-dnd-action
-const flipDurationMs = 300;
+function handleDndConsider(_e: CustomEvent<DndEvent<WidgetListItem>>) {}
 
-const handleDndConsider = (e: CustomEvent) => {
-	fields = e.detail.items;
-};
+function handleDndFinalize(e: CustomEvent<DndEvent<WidgetListItem>>) {
+	items = e.detail.items;
+	dragIdsByIndex = items.reduce(
+		(acc, it, i) => {
+			acc[i] = it._dragId;
+			return acc;
+		},
+		{} as Record<number, string>,
+	);
+	updateStore();
+}
 
-const handleDndFinalize = (e: CustomEvent) => {
-	fields = e.detail.items;
-};
+function updateStore() {
+	if (collection.value) {
+		const nextFields = items.map(
+			({
+				_dragId,
+				id: _id,
+				...rest
+			}: {
+				_dragId?: string;
+				id?: number;
+				[key: string]: any;
+			}) => rest as FieldInstance,
+		);
+		setCollection({ ...collection.value, fields: nextFields });
+	}
+}
 
-function modalSelectWidget(): void {
+function addField() {
 	modalState.trigger(
 		ModalSelectWidget as any,
 		{
-			title: "Select a Widget",
-			body: "Select your widget and then press submit.",
+			title: "Add New Field",
+			body: "Select a widget type to add to your collection",
 		},
 		(r: { selectedWidget: string } | undefined) => {
-			if (!r) {
-				return;
-			}
-			const { selectedWidget } = r;
-			const widgetInstance = getWidgetFunction(selectedWidget);
-			if (selectedWidget && widgetInstance) {
-				// Create a new widget object with the selected widget data
+			if (!r) return;
+			const widgetInstance = getWidgetFunction(r.selectedWidget);
+			if (widgetInstance) {
 				const newWidget = {
-					widget: { key: selectedWidget, Name: selectedWidget },
+					widget: { key: r.selectedWidget, Name: r.selectedWidget } as any,
 					GuiFields: getGuiFields(
-						{ key: selectedWidget },
+						{ key: r.selectedWidget },
 						(widgetInstance.GuiSchema as any),
 					),
-					permissions: {}, // Initialize empty permissions object
+					permissions: {},
 				};
-				// Call modalWidgetForm with the new widget object
-				modalWidgetForm(newWidget);
+				editField(newWidget);
 			}
 		},
 	);
 }
 
-// Modal 2 to Edit a selected widget
-function modalWidgetForm(selectedWidget: any): void {
-	// Ensure permissions object exists
-	if (!selectedWidget.permissions) {
-		selectedWidget.permissions = {};
-	}
-	setTargetWidget(selectedWidget);
-	modalState.trigger(
-		ModalWidgetForm as any,
-		{
-			title: "Define your Widget",
-			body: "Setup your widget and then press Save.",
-			value: selectedWidget,
-		},
-		(r: any) => {
-			if (!r) {
-				return;
-			}
-			// Find the index of the existing widget based on its ID
-			const existingIndex = fields.findIndex((widget) => widget.id === r.id);
+function editField(field: any) {
+	const idx = items.findIndex((i: WidgetListItem) => i.id === field.id);
+	setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
+}
 
-			if (existingIndex !== -1) {
-				// If the existing widget is found, update its properties
-				const updatedFields = [
-					...fields.slice(0, existingIndex), // Copy widgets before the updated one
-					{ ...r }, // Update the existing widget
-					...fields.slice(existingIndex + 1), // Copy widgets after the updated one
-				];
-				fields = updatedFields;
-			} else {
-				// If the existing widget is not found, add it as a new widget
-				const newField = {
-					id: fields.length + 1,
-					...r,
-				};
-				fields = [...fields, newField];
-			}
-			// Update the collectionValue store
-			if (collection?.value) {
-				collection.value.fields = fields;
-			}
-		},
+function handleInspectorSave(updated: any) {
+	const idx = items.findIndex(
+		(i: WidgetListItem) => i.id === updated.id || i._dragId === updated._dragId,
 	);
+	const existingNames = new SvelteSet(
+		items.map((i) => i.db_fieldName).filter(Boolean),
+	);
+
+	const ensureFieldName = (obj: Record<string, unknown>): string => {
+		const name =
+			(obj.db_fieldName as string) ||
+			(obj.label as string) ||
+			(obj.widget as { Name?: string })?.Name ||
+			"field";
+		const base =
+			String(name)
+				.trim()
+				.replace(/\s+/g, "_")
+				.replace(/[^a-zA-Z0-9_]/g, "") || "field";
+		let candidate = base;
+		let n = 0;
+		// If editing, don't count itself as conflict
+		if (idx !== -1 && items[idx].db_fieldName === candidate) return candidate;
+		while (existingNames.has(candidate)) candidate = `${base}_${++n}`;
+		existingNames.add(candidate);
+		return candidate;
+	};
+
+	const normalized = {
+		...updated,
+		db_fieldName: updated.db_fieldName || ensureFieldName(updated),
+	};
+
+	if (idx !== -1) {
+		items = items.map((item, i) =>
+			i === idx ? ({ ...item, ...normalized } as WidgetListItem) : item,
+		);
+	} else {
+		const newIndex = items.length;
+		const newDragId = Math.random().toString(36).substring(7);
+		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+		items = [
+			...items,
+			{ id: newIndex + 1, _dragId: newDragId, ...normalized } as WidgetListItem,
+		];
+	}
+	updateStore();
 }
 
-// Function to save data by sending a POST request
-async function handleSave() {
-	try {
-		const updatedFields = fields.map((field) => {
-			const widgetInstance = field.widget?.Name
-				? getWidgetFunction(field.widget.Name)
-				: undefined;
-			if (field.widget?.Name && widgetInstance) {
-				const GUI_FIELDS = getGuiFields(
-					{ key: field.widget.Name },
-					(widgetInstance.GuiSchema as any),
-				);
-				for (const [property, value] of Object.entries(field)) {
-					if (typeof value !== "object" && property !== "id") {
-						GUI_FIELDS[property] = field[property];
-					}
-				}
-				field.widget.GuiFields = GUI_FIELDS;
-			}
-			return field;
-		});
+function deleteField(id: number) {
+	items = items
+		.filter((i: WidgetListItem) => i.id !== id)
+		.map((item, idx) => ({ ...item, id: idx + 1 }));
+	dragIdsByIndex = items.reduce(
+		(acc, it, i) => {
+			acc[i] = it._dragId;
+			return acc;
+		},
+		{} as Record<number, string>,
+	);
+	updateStore();
+	toast.info("Field removed");
+}
 
-		// Update the collection fields
-		if (collection?.value) {
-			collection.value.fields = updatedFields;
-		}
+function duplicateField(field: WidgetListItem) {
+	const newIndex = items.length;
+	const newDragId = Math.random().toString(36).substring(7);
+	dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+	const newField = {
+		...field,
+		id: newIndex + 1,
+		_dragId: newDragId,
+		label: `${field.label} (Copy)`,
+		db_fieldName: field.db_fieldName
+			? `${field.db_fieldName}_copy`
+			: field.db_fieldName,
+	} as WidgetListItem;
+	items = [...items, newField];
+	updateStore();
+	toast.success("Field duplicated");
+}
 
-		await props.handleCollectionSave();
-	} catch (error) {
-		logger.error("Error saving collection:", error);
+let builderView = $state<"list" | "buzz" | "preview">("list");
+let mockData = $state<Record<string, any>>({});
+
+function generatePreviewSpec(fieldsToRender: FieldInstance[]): Spec {
+	const elements: Record<string, any> = {
+		root: {
+			type: "VerticalLayout",
+			elements: fieldsToRender.map((f) => f.db_fieldName || f.label),
+		},
+	};
+	fieldsToRender.forEach((field) => {
+		const widgetName = field.widget?.Name || "Text";
+		const id = field.db_fieldName || field.label;
+		elements[id] = {
+			type: "Control",
+			scope: `#/properties/${id}`,
+			label: field.label,
+			options: { widget: widgetName, ...(field.GuiFields as any) },
+		};
+	});
+	return { root: "root", elements } as unknown as Spec;
+}
+
+const quickWidgets = [
+  { key: "Input", icon: "material-symbols:text-fields", label: "Short Text" },
+  { key: "RichText", icon: "material-symbols:format-list-bulleted-rounded", label: "Rich Text" },
+  { key: "MediaUpload", icon: "material-symbols:image-outline", label: "Image" },
+  { key: "Relation", icon: "material-symbols:account-tree-outline", label: "Relation" },
+];
+
+async function addQuickWidget(key: string) {
+	// Ensure widget store has finished initializing before resolving widget functions.
+	// The page's onMount fires initializeWidgets() without awaiting, so an early
+	// click could otherwise find getWidgetFunction(key) === undefined.
+	await widgetStoreActions.initializeWidgets();
+	const widgetInstance = getWidgetFunction(key);
+	if (widgetInstance) {
+		const newIndex = items.length;
+		const newDragId = Math.random().toString(36).substring(7);
+		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+		const newWidget = {
+			label: `New ${key}`,
+			db_fieldName: `new_${key.toLowerCase()}`,
+			widget: { key, Name: key } as any,
+			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
+			permissions: {},
+		};
+		items = [
+			...items,
+			{
+				id: newIndex + 1,
+				_dragId: newDragId,
+				...newWidget,
+			} as unknown as WidgetListItem,
+		];
+		updateStore();
+		toast.success(`Added ${key} field`);
 	}
 }
+
+const viewOptions = [
+	{ value: "list", label: "Standard List", icon: "mdi:format-list-bulleted" },
+	{ value: "buzz", label: "BuzzForm", icon: "fluent:design-ideas-24-filled" },
+	{ value: "preview", label: "Live Preview", icon: "mdi:eye" },
+];
 </script>
 
-<div class="flex w-full flex-col">
-	<div class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500">
-		<p>
-			{collection_widgetfield_addrequired()}
-			<span class="text-tertiary-500 dark:text-primary-500">{contentPath}</span>
-			Collection inputs.
-		</p>
-		<p class="mb-2">{collection_widgetfield_drag()}</p>
+<div class="flex-1 min-h-0 flex gap-6">
+	<!-- Left Side: View Toggle & List -->
+	<div class="flex-1 flex flex-col gap-6 min-w-0">
+		<div class="flex items-center justify-between gap-4">
+		<SegmentedControl
+			options={viewOptions}
+			bind:value={builderView}
+			class="max-w-md"
+		/>
+		<div class="text-xs font-medium text-surface-500 dark:text-surface-50 bg-surface-100 dark:bg-surface-800 px-3 py-1 rounded-full border border-surface-200 dark:border-surface-700">
+			{items.length} Fields
+		</div>
 	</div>
-	<div style="max-height: 55vh !important;">
-		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-			{#each fields as field (field.id)}
-				<div
-					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
-				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500">{field.id}</div>
 
-					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
-					<div class="font-bold dark:text-primary-500">{field.label}</div>
-					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
+	<div class="flex-1 overflow-y-auto min-h-0 pe-1">
+		{#if builderView === 'buzz'}
+			<BuzzForm />
+		{:else if builderView === 'preview'}
+			<div class="space-y-6">
+				<Card class="p-6 border-t-4 border-t-primary-500">
+					<h3 class="text-lg font-bold text-primary-500 flex items-center gap-2 mb-2">
+						<iconify-icon icon="mdi:magic-staff"></iconify-icon>
+						Live UI Preview
+					</h3>
+					<p class="text-sm text-surface-500 dark:text-surface-50 mb-6">
+						Experience the exact layout rendered by our AI-Native engine. Perfect parity between builder and live CMS.
+					</p>
 
-					<Button variant="ghost" onclick={() => modalWidgetForm(field)} type="button" aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
-						<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
+					<div class="max-w-3xl border border-surface-200 dark:border-surface-700 rounded p-8 bg-surface-50 dark:bg-surface-900 shadow-inner">
+						{#key items}
+							<JSONUIProvider initialState={mockData}>
+								<Renderer registry={sveltyRegistry} spec={generatePreviewSpec(items)} />
+							</JSONUIProvider>
+						{/key}
+					</div>
+				</Card>
+
+				<Card class="p-4 bg-surface-900 overflow-hidden">
+					<h4 class="text-[10px] font-bold uppercase text-surface-400 mb-2 px-2">Live Store Data</h4>
+					<pre class="text-[11px] text-primary-300 overflow-auto max-h-40 font-mono scrollbar-hide">{JSON.stringify(mockData, null, 2)}</pre>
+				</Card>
+			</div>
+		{:else}
+			<div class="space-y-6">
+				<!-- Add Bar -->
+				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50 dark:bg-surface-900 border-dashed">
+					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 me-2 uppercase tracking-tight">Quick Add:</span>
+					{#each quickWidgets as qw (qw.key)}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => addQuickWidget(qw.key)}
+							leadingIcon={qw.icon}
+							class="text-[11px] h-8"
+							data-testid="quick-add-{qw.key.toLowerCase()}"
+						>
+							{qw.label}
+						</Button>
+					{/each}
+					<Button
+						variant="primary"
+						size="sm"
+						onclick={addField}
+						leadingIcon="mdi:plus"
+						class="ml-auto h-8"
+						data-testid="add-field-button"
+					>
+						More Widgets
 					</Button>
+				</Card>
+
+				<!-- Fields List -->
+				<div
+					use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
+					onconsider={handleDndConsider}
+					onfinalize={handleDndFinalize}
+					class="space-y-3 min-h-50"
+					data-testid="widget-fields-list"
+				>
+					{#each items as item (item._dragId)}
+						<div animate:flip={{ duration: flipDurationMs }} class="group relative">
+							<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
+								<!-- Drag Handle -->
+								<div class="cursor-grab text-surface-300 active:cursor-grabbing group-hover:text-primary-500 transition-colors">
+									<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
+								</div>
+
+								<!-- Field Icon & Index -->
+								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
+									<iconify-icon icon={item.icon || 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
+								</div>
+
+								<!-- Field Info -->
+								<div class="flex-1 min-w-0 pe-4">
+									<div class="flex items-center gap-2 mb-0.5">
+										<span class="font-bold truncate text-sm sm:text-base">{item.label}</span>
+										<span class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
+											{(item.widget as { key?: string })?.key || 'Generic'}
+										</span>
+									</div>
+									<div class="flex items-center gap-3">
+										<code class="text-[10px] text-surface-400 dark:text-surface-50 bg-surface-100 dark:bg-surface-900 px-1 rounded truncate">
+											{item.db_fieldName || 'unnamed_field'}
+										</code>
+										{#if item.required}
+											<span class="text-[9px] font-bold text-error-500 flex items-center gap-0.5">
+												<iconify-icon icon="mdi:asterisk" width="8"></iconify-icon> Required
+											</span>
+										{/if}
+									</div>
+								</div>
+
+								<!-- Actions -->
+								<div class="flex gap-1.5 items-center">
+									<Button variant="ghost" size="sm" onclick={() => editField(item)} title="Configure">
+										<iconify-icon icon="mdi:cog" width="18"></iconify-icon>
+									</Button>
+									<Button variant="ghost" size="sm" onclick={() => duplicateField(item)} title="Duplicate">
+										<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
+									</Button>
+									<Button variant="ghost" size="sm" onclick={() => deleteField(item.id)} class="text-error-500 hover:bg-error-500/10" title="Remove">
+										<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
+									</Button>
+								</div>
+							</Card>
+						</div>
+					{/each}
+
+					{#if items.length === 0}
+						<div class="flex h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/10 text-surface-400 dark:text-surface-50">
+							<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"></iconify-icon>
+							<p class="text-sm font-medium">Add your first widget to start building</p>
+						</div>
+					{/if}
 				</div>
-			{/each}
-		</VerticalList>
+			</div>
+		{/if}
 	</div>
-	<div>
-		<div class="mt-2 flex items-center justify-center gap-3">
-			<Button variant="tertiary"
-				onclick={() => modalSelectWidget()}
-				aria-label={collection_widgetfield_addFields()}
-				data-testid="add-field-button"
-			>
-				{collection_widgetfield_addFields()}
-			</Button>
+
+	<!-- Right Side: Inspector -->
+	{#if targetWidget.value && builderView === 'list'}
+		<div class="shrink-0 flex animate-in slide-in-from-right duration-500">
+			<WidgetInspector roles={roles} onSave={handleInspectorSave} />
 		</div>
-		<div class=" flex items-center justify-between">
-			<Button variant="secondary" onclick={() => (app.tabSetState = 0)} type="button" aria-label={button_previous()} class="mt-2 justify-end">
-				{button_previous()}
-			</Button>
-			<Button variant="tertiary"
-				onclick={handleSave}
-				type="button"
-				aria-label={button_save()}
-			 class="mt-2 justify-end dark: dark:text-black">
-				{button_save()}
-			</Button>
-		</div>
-	</div>
+	{/if}
+</div>
 </div>

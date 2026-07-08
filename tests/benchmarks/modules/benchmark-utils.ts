@@ -814,9 +814,9 @@ export async function setupBenchmarkServer() {
 
   const dbType = getDbType() || "sqlite";
   const port = 4173 + Math.floor(Math.random() * 500);
-  // Use DB_NAME from env (set by CI/Matrix runner), fall back to sveltycms_test
-  // which is the default database created by docker-compose for all adapters.
-  const dbName = process.env.DB_NAME || "sveltycms_test";
+  // Use DB_NAME from env (CI bench-core / run-core-benchmarks), else adapter default.
+  const dbName =
+    process.env.DB_NAME || (dbType === "sqlite" ? "benchmark_shared" : "sveltycms_test");
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
   const adminPw = process.env.ADMIN_PASSWORD || "Admin123!";
 
@@ -845,10 +845,20 @@ export async function setupBenchmarkServer() {
     shell: process.platform === "win32",
   });
 
+  // Forward server stderr for visibility into startup failures
+  let _stderr = "";
+  serverProcess.stderr?.on("data", (chunk: Buffer) => {
+    const msg = chunk.toString().trim();
+    if (msg) {
+      _stderr += msg + "\n";
+      process.stderr.write(`[bench-server] ${msg}\n`);
+    }
+  });
+
   // Wait for server to become healthy
   const healthUrl = `http://127.0.0.1:${port}/api/system/health`;
   let healthy = false;
-  for (let attempt = 0; attempt < 60; attempt++) {
+  for (let attempt = 0; attempt < 90; attempt++) {
     try {
       const res = await fetch(healthUrl);
       if (res.ok) {
@@ -863,7 +873,8 @@ export async function setupBenchmarkServer() {
 
   if (!healthy) {
     serverProcess.kill("SIGTERM");
-    throw new Error(`Server at ${healthUrl} did not become healthy within 30s`);
+    const stderrSnippet = _stderr ? `\nServer stderr:\n${_stderr.trim().slice(-2000)}` : "";
+    throw new Error(`Server at ${healthUrl} did not become healthy within 45s${stderrSnippet}`);
   }
 
   // Run system setup (non-fatal — data seeding handled by /api/testing)

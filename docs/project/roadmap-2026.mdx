@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-04"
+updated: "2026-07-06"
 tags:
   - "roadmap"
   - "todo"
@@ -33,16 +33,14 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 **Recently Completed**: Inline editing of asset metadata (name, alt text, caption) in the media details modal via `media-details-modal.svelte` — click-to-edit directly in the media drawer.
 
+## ✅ Recently Completed
+
+- [x] **E2E Architecture Simplification**: Collapsed 20 Playwright projects → 4 (wizard, firstuser, auth-setup, chromium). Reduced CI jobs from 19 to 6, server startups from 19 to 1. Total E2E time ~70-110min → ~12-15min.
+
 ## 🏗️ In Progress
 
 - 🏗️ **Phased Marketplace Migration**: Phase 1 (core widget doc naming) ✅. Phase 2 pending: custom widgets → `marketplace.sveltycms.com`. Backend API ✅ (`marketplace-service.ts`, `marketplace-client.ts`, `/api/marketplace` endpoint), but **no in-app catalog/browse UI yet** — Extensions page links externally. See [Marketplace System](../reference/architecture/marketplace.mdx).
-- ✅ **Hybrid Package Model + Public API Surface (Complete)**: Monorepo workspaces with `@sveltycms/core` (LocalCMS, IDBAdapter, types, AppError) and `@sveltycms/widgets` (createWidget, FieldConfig, validation, scanner). Type-safe barrel exports, esbuild bundling pipeline (`bun run packages:build`), consumer READMEs. See `packages/core/` and `packages/widgets/`. ⚠️ Main codebase still uses `@src/` aliases internally — migration to package imports is a future optimization.
 - 🏗️ **Published DB Adapters**: `sveltycms-sqlite`, `sveltycms-mongodb`, `sveltycms-mariadb`, `sveltycms-postgresql` as separate npm packages. Pending: adapter extraction from `src/databases/`, CI publishing, consumer docs.
-- ✅ **`create-sveltycms` CLI (Complete)**: `scripts/create-app.ts` — clones latest release, `--template` (blog/agency/saas/corporate/ecommerce), `--db` (sqlite/postgresql/mariadb/mongodb), published as `create-sveltycms` in `package.json` bin + files.
-- ✅ **Version Channels (Complete)**: `src/services/core/version-service.ts` (LTS/Stable/Next), `src/routes/api/[...path]/handlers/version.ts` (channels + check endpoints), `scripts/upgrade.ts` (automated core updates). ⚠️ Missing: docs MDX, settings-page UI channel switcher.
-- 🏗️ **WebAuthn/Passkeys UI**: Backend ✅ (`webauthn-service.ts`, attestation parsing, unit tests). User page has only a checkbox toggle — **missing: settings-page UI for passkey management** (add/remove/list registered passkeys), `db:push` for `authenticators` column on SQL deployments.
-- ✅ **MCP / AI Integration (Complete)**: Hosted Knowledge Core (`mcp.sveltycms.com/mcp`), Local RAG (Ollama + LanceDB), WebMCP Browser Bridge (7 tools, draft-gated), AI Co-Pilot (chat, scoring, suggestions, translation, generative layouts, behavioral learning, anomaly detection, semantic index, AI widget scaffolder). All via `/api/ai/*` dispatcher → `src/services/core/ai-service.ts` + `src/services/intelligence/`. See [ai-integration.mdx](/docs/development/ai-integration.mdx).
-- 🏗️ **API Key Management UI**: Backend ✅ (`api-keys.ts` handler — POST create, GET list, DELETE revoke). Access Management page has Permissions/Roles/Website Tokens tabs but **no API Keys tab**. Pending: admin dashboard section for creating, listing, and revoking API keys.
 
 ## 🚀 Planned
 
@@ -68,5 +66,7 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 - **AI Command Bar Guardrails**: Permission-aware gating, diff previews, audit logging.
 - **[TSV](https://tsv.fuz.dev/) Integration**: Waiting for upstream native Node.js libraries so we can use TSV for even faster testing.
 - **Aggressive Adoption Onboarding**: One-click deploy buttons (Vercel, Netlify, Railway, Fly.io), 0-config Setup Wizard with auto-detection, `create-sveltycms` scaffolding with interactive template picker, interactive example gallery (20+ use-cases), and live interactive playground at `try.sveltycms.com` — eliminating friction for first-time users while ensuring instant enterprise trial readiness.
+
+- **SvelteKit 3.0 Upgrade**: Breaking changes checklist tracked in [Migration Guide](../development/sveltekit-v3-migration.mdx).
 
 ---

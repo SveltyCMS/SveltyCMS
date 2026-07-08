@@ -22,6 +22,7 @@ latest version available on GitHub with comprehensive status reporting.
 - Reduced motion support
 -->
 <script lang="ts">
+	import Badge from '@components/ui/badge.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -272,6 +273,17 @@ latest version available on GitHub with comprehensive status reporting.
 		}
 		return `Application version ${pkg}. ${versionStatusMessage}`;
 	});
+
+	// Map statusSeverity to Badge variant
+	const severityVariant = $derived.by(() => {
+		switch (statusSeverity) {
+			case 'success': return 'success' as const;
+			case 'warning': return 'warning' as const;
+			case 'critical': return 'error' as const;
+			case 'info': return 'surface' as const;
+			default: return 'surface' as const;
+		}
+	});
 </script>
 
 {#if children}
@@ -300,13 +312,15 @@ latest version available on GitHub with comprehensive status reporting.
 		</a>
 	{:else}
 		<SystemTooltip title={versionStatusMessage}>
-			<a
+			<Badge
 				href={GITHUB_RELEASES_URL}
 				target="_blank"
 				rel="noopener noreferrer"
+				variant={severityVariant}
+				size="md"
 				class={compact
-					? `inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500`
-					: `inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 badge ${badgeVariant} ${badgeColor} rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500`}
+					? 'inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500'
+					: 'inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary-500'}
 				aria-label={statusAriaLabel}
 				aria-live="polite"
 			>
@@ -335,7 +349,7 @@ latest version available on GitHub with comprehensive status reporting.
 						aria-hidden="true"
 					></span>
 				{/if}
-			</a>
+			</Badge>
 		</SystemTooltip>
 	{/if}
 

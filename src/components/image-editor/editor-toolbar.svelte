@@ -138,7 +138,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 		<div class="flex gap-1.5 items-center justify-self-end">
 			<button
 				type="button"
-				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-[--editor-control-h] px-4.5 text-[13px] font-semibold tracking-[0.01em] text-[#111] cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-[0_1px_6px_rgba(245,197,24,0.28)] transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65"
+				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-[--editor-control-h] px-4.5 text-[13px] font-semibold tracking-[0.01em] text-white cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-[0_1px_6px_rgba(34,197,94,0.28)] transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65"
 				onclick={onsave}
 				disabled={isSaving}
 				title="Save changes (Mod+S)"
@@ -155,7 +155,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 	{#if imageEditorStore.state.error}
 		<div
-				class="editor-toolbar-error absolute start-1/2 top-[calc(100%+0.375rem)] z-50 flex gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-[rgba(220,38,38,0.94)] rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.35)] -translate-x-1/2"
+				class="editor-toolbar-error absolute inset-s-1/2 top-[calc(100%+0.375rem)] z-50 flex gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-[rgba(220,38,38,0.94)] rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.35)] -translate-x-1/2"
 			transition:fade={{ duration: 200 }}
 			role="alert"
 		>

@@ -13,9 +13,10 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import Input from '@components/ui/input.svelte';
-	import Select from '@components/ui/select.svelte';
-	import Badge from '@components/ui/badge.svelte';
+			import Input from '@components/ui/input.svelte';
+			import Select from '@components/ui/select.svelte';
+			import Badge from '@components/ui/badge.svelte';
+			import Tabs from '@components/ui/tabs.svelte';
   import { fade } from "svelte/transition";
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
@@ -557,27 +558,7 @@
       </Button>
     </div>
 
-    <div
-      class="mb-3 grid shrink-0 grid-cols-4 gap-0 border-b border-surface-200 text-[11px] dark:border-surface-800 md:mb-3 md:flex md:gap-1 md:overflow-x-auto md:px-1 md:text-sm"
-      role="tablist"
-      aria-label="Media details sections"
-    >
-      {#each tabs as tab (tab.id)}
-        <button
-          type="button"
-          onclick={() => (activeTab = tab.id)}
-          class="min-w-0 border-b-2 px-1 py-2.5 text-center font-medium leading-tight transition-colors md:shrink-0 md:px-3 md:py-2 md:text-start {activeTab === tab.id
-            ? 'border-primary-500 text-surface-800 dark:text-surface-100'
-            : 'border-transparent text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
-          aria-label="{tab.label} tab"
-          aria-selected={activeTab === tab.id}
-          role="tab"
-        >
-          <span class="md:hidden">{tab.shortLabel}</span>
-          <span class="hidden md:inline">{tab.label}</span>
-        </button>
-      {/each}
-    </div>
+    <Tabs tabs={tabs} bind:activeTab variant="underline" ariaLabel="Media details sections" />
 
     <div class="min-h-0 flex-1 overflow-y-auto pe-0 sm:pe-1">
       {#if activeTab === 'info'}
@@ -606,11 +587,7 @@
                       </Button>
                     </div>
                   {:else}
-                    <button
-                      class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100"
-                      onclick={startEditName}
-                      aria-label="Edit asset name"
-                    >{file.metadata?.name || file.filename || 'Untitled'}</button>
+                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditName} aria-label="Edit asset name">{file.metadata?.name || file.filename || 'Untitled'}</Button>
                   {/if}
                 </dd>
               </div>
@@ -637,11 +614,7 @@
                         </Button>
                       </div>
                     {:else}
-                      <button
-                        class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100"
-                        onclick={startEditAlt}
-                        aria-label="Edit alt text"
-                      >{file.metadata?.alt || 'Add alt text…'}</button>
+                      <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditAlt} aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button>
                     {/if}
                   </dd>
                 </div>
@@ -668,11 +641,7 @@
                       </Button>
                     </div>
                   {:else}
-                    <button
-                      class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100"
-                      onclick={startEditCaption}
-                      aria-label="Edit caption"
-                    >{file.metadata?.caption || 'Add caption…'}</button>
+                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditCaption} aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button>
                   {/if}
                 </dd>
               </div>
@@ -717,14 +686,9 @@
               {#each file.metadata?.tags || [] as tag (tag)}
                 <Badge variant="surface" preset="tonal" size="sm" class="gap-1 pe-1">
                   <span>{tag}</span>
-                  <button
-                    type="button"
-                    onclick={() => handleRemoveTag(tag)}
-                    class="rounded-full p-0.5 text-surface-500 hover:text-error-500"
-                    aria-label="Remove tag {tag}"
-                  >
+                  <Button variant="ghost" size="sm" class="rounded-full p-0.5" onclick={() => handleRemoveTag(tag)} aria-label="Remove tag {tag}">
                     <iconify-icon icon="mdi:close" width="12"></iconify-icon>
-                  </button>
+                  </Button>
                 </Badge>
               {:else}
                 <span class="text-xs text-surface-500 dark:text-surface-400">No tags added yet.</span>

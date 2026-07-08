@@ -12,11 +12,13 @@
 -->
 
 <script lang="ts">
+	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
 	import { modifierMetadata } from '@src/services/token/modifiers';
 	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
@@ -329,7 +331,8 @@
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pe-1">
 				{#each Object.entries(filteredGroups) as [cat, tokens] (cat)}
 					<div class="card preset-tonal p-2">
-						<button
+						<Button
+							variant="ghost"
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
 							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
 						 aria-label="Toggle {cat} category">
@@ -338,16 +341,16 @@
 								<span>{cat}</span>
 							</div>
 							<iconify-icon icon="mdi:chevron-down" class="transition-transform {openCategories[cat] || search ? 'rotate-180' : ''}"></iconify-icon>
-						</button>
+						</Button>
 
 						{#if openCategories[cat] || search}
 							<div transition:slide class="mt-2 space-y-1">
 								{#each tokens as t (t.token)}
-									<div
-										class="card preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
+									<AdminCard
+										class="preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}
 										onkeydown={(e) => e.key === 'Enter' && selectToken(t)}
-										tabindex="0"
+										tabindex={0}
 										role="button"
 									>
 										<div class="flex items-start justify-between gap-2">
@@ -373,7 +376,7 @@
 												<code class="code block overflow-x-auto p-2"> {t.example || `{{ ${t.token} }}`} </code>
 											</div>
 										{/if}
-									</div>
+									</AdminCard>
 								{/each}
 							</div>
 						{/if}
@@ -454,11 +457,12 @@
 			<div class="mt-4 space-y-3 border-t border-surface-500/30 pt-4">
 				<div>
 					<div class="mb-1 text-[10px] uppercase opacity-50">Token Editor</div>
-					<textarea aria-label="Token value"
+					<Textarea aria-label="Token value"
 						bind:value={editablePreview}
-						rows="3"
-						class="textarea rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
+						rows={3}
+						class="rounded bg-surface-900 p-3 font-mono text-sm text-secondary-400"
 						placeholder="Edit token syntax here..."
+					/>
 				</div>
 
 				<div>

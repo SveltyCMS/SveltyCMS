@@ -8,6 +8,7 @@ import { fade, slide } from "svelte/transition";
 import type { FieldInstance } from "@src/content/types";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 
 interface Props {
     oldData: Record<string, unknown>;
@@ -79,7 +80,7 @@ function onKeydown(e: KeyboardEvent) {
         </div>
         <div class="flex items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer bg-surface-200 dark:bg-surface-800 px-3 py-1.5 rounded-full transition-colors hover:bg-surface-300 dark:hover:bg-surface-700">
-                <input type="checkbox" bind:checked={showOnlyChanged} class="checkbox checkbox-sm" id="show-only-changed" />
+                <Checkbox bind:checked={showOnlyChanged} />
                 <span class="text-xs font-bold">Show Only Changes</span>
             </label>
             <Button variant="surface" onclick={close} aria-label="Close dialog" size="sm">Close</Button>

@@ -1,46 +1,37 @@
 /**
  * @file vitest.config.ts
- * @description
- * Vitest configuration file for the CMS.
+ * @description Vitest configuration. Path aliases from path-aliases.ts.
  */
 
 import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pathAliases } from "./path-aliases";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const resolvedAliases = Object.fromEntries(
+  Object.entries(pathAliases).map(([key, value]) => [key, path.resolve(__dirname, value)]),
+);
 
 export default defineConfig({
   plugins: [svelte() as any],
   resolve: {
     alias: {
-      "@plugins": path.resolve(__dirname, "./src/plugins"),
-      "@src": path.resolve(__dirname, "./src"),
-      "@components": path.resolve(__dirname, "./src/components"),
-      "@content": path.resolve(__dirname, "./src/content"),
-      "@databases": path.resolve(__dirname, "./src/databases"),
-      "@services": path.resolve(__dirname, "./src/services"),
-      "@config": path.resolve(__dirname, "./config"),
-      "@api": path.resolve(__dirname, "./src/routes/api"),
-      "@utils": path.resolve(__dirname, "./src/utils"),
-      "@stores": path.resolve(__dirname, "./src/stores"),
-      "@widgets": path.resolve(__dirname, "./src/widgets"),
-      "@tests": path.resolve(__dirname, "./tests"),
-      "@root": path.resolve(__dirname, "./"),
-      $paraglide: path.resolve(__dirname, "./src/paraglide"),
-      "$app/environment": path.resolve(__dirname, "./tests/unit/mocks/$app/environment.ts"),
-      "$app/navigation": path.resolve(__dirname, "./tests/unit/mocks/$app/navigation.ts"),
-      "$app/state": path.resolve(__dirname, "./tests/unit/mocks/$app/state.ts"),
-      "$app/paths": path.resolve(__dirname, "./tests/unit/mocks/$app/paths.ts"),
-      "$app/forms": path.resolve(__dirname, "./tests/unit/mocks/$app/forms.ts"),
-      "$app/server": path.resolve(__dirname, "./tests/unit/mocks/$app/server.ts"),
-      "$env/dynamic/private": path.resolve(__dirname, "./tests/unit/mocks/$env/dynamic/private.ts"),
+      ...resolvedAliases,
+      "$app/environment": path.resolve(__dirname, "tests/unit/mocks/$app/environment.ts"),
+      "$app/navigation": path.resolve(__dirname, "tests/unit/mocks/$app/navigation.ts"),
+      "$app/state": path.resolve(__dirname, "tests/unit/mocks/$app/state.ts"),
+      "$app/paths": path.resolve(__dirname, "tests/unit/mocks/$app/paths.ts"),
+      "$app/forms": path.resolve(__dirname, "tests/unit/mocks/$app/forms.ts"),
+      "$app/server": path.resolve(__dirname, "tests/unit/mocks/$app/server.ts"),
+      "$env/dynamic/private": path.resolve(__dirname, "tests/unit/mocks/$env/dynamic/private.ts"),
       "sveltekit-rate-limiter/server": path.resolve(
         __dirname,
         "node_modules/sveltekit-rate-limiter/dist/server/index.js",
       ),
+      "bun:sqlite": path.resolve(__dirname, "tests/unit/mocks/bun-sqlite.ts"),
     },
   },
   define: { "import.meta.env.SSR": "true" },
@@ -50,7 +41,6 @@ export default defineConfig({
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
-    // Default to node for speed. Individual files opt into jsdom via @vitest-environment pragma.
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

@@ -97,8 +97,8 @@ function onDragLeave() {
 	class={cn(
 		'relative group flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl transition-all duration-200 cursor-pointer outline-none',
 		'bg-surface-50/50 dark:bg-surface-900/50',
-		isDragging ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/5 ring-4 ring-primary-500/10' : 'border-surface-300 dark:border-surface-700 hover:border-tertiary-500 dark:border-primary-500/50',
-		'focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-tertiary-500 dark:border-primary-500',
+		isDragging ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/5 ring-4 ring-primary-500/10' : 'border-surface-300 hover:border-tertiary-500 dark:hover:border-primary-500/50',
+		'focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-tertiary-500 dark:focus-within:border-primary-500',
 		disabled && 'opacity-50 cursor-not-allowed grayscale pointer-events-none',
 		className
 	)}

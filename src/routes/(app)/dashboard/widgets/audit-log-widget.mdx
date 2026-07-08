@@ -1,0 +1,90 @@
+---
+path: "src/routes/(app)/dashboard/widgets/audit-log-widget.mdx"
+title: "Audit Log Dashboard Widget"
+description: "Monitor system activity and security events with color-coded action icons. Freemium — last 100 entries free; full history, export, and compliance reports are premium."
+order: 100
+icon: "mdi:history"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "dashboard"
+  - "audit"
+  - "security"
+  - "freemium"
+---
+
+# Audit Log Widget
+
+Monitor system activity and security events with adaptive layouts and color-coded action icons. Compact timeline at height 1, rich scrollable card list with result badges at height 2+.
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €24.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License / Trial Active)
+
+| Feature              | Description                                                      |
+| :------------------- | :--------------------------------------------------------------- |
+| Recent audit entries | View the last 100 audit log entries                              |
+| Action icons         | Color-coded icons for create, delete, auth, config, media events |
+| Result badges        | Success/failure pill indicators on each entry                    |
+| Compact timeline     | Horizontal event timeline (h:1 widget size)                      |
+| Rich card list       | Scrollable detail cards (h:2+ widget size)                       |
+| Actor attribution    | See who performed each action                                    |
+| Auto-polling         | Data refreshes every 25 seconds                                  |
+| Trial period         | Full access for 14 days from first admin registration            |
+
+### Premium Tier (Valid License Required)
+
+| Feature                   | Description                                         |
+| :------------------------ | :-------------------------------------------------- |
+| **Everything in Free**    | All free tier features included                     |
+| Full history              | Access complete audit log beyond 100 entries        |
+| CSV/JSON export           | Export audit data for external analysis             |
+| Compliance reports        | Generate GDPR, SOC 2, and ISO 27001 audit reports   |
+| Crypto-chain verification | Verify SHA-256 audit chain integrity                |
+| Advanced filtering        | Filter by user, action type, collection, date range |
+| Per-content audit viewer  | View audit trail for specific content entries       |
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=audit-log
+```
+
+Without a valid license after trial expiry, only the last 100 entries are shown. Full history, export, and compliance features require an active license.
+
+---
+
+## Data Source
+
+| Endpoint                           | Description                             |
+| :--------------------------------- | :-------------------------------------- |
+| `GET /api/dashboard/audit?limit=8` | Recent audit events for the widget feed |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Audit Log",
+  icon: "mdi:history",
+  description: "Monitor system activity and security events",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [System Logs Widget](./logs-widget.mdx)
+- [Security Widget](./security-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

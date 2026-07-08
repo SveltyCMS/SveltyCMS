@@ -1,0 +1,81 @@
+---
+path: "src/routes/(app)/dashboard/widgets/scim-status-widget.mdx"
+title: "SCIM Identity Sync Dashboard Widget"
+description: "Monitor SCIM identity synchronization status from Okta, Azure AD, and other IdPs. Fully paid — license required, no free tier."
+order: 100
+icon: "mdi:cloud-sync"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "dashboard"
+  - "scim"
+  - "identity"
+  - "paid"
+---
+
+# SCIM Identity Sync Widget
+
+Monitor SCIM identity synchronization status with real-time health indicators, active user counts, sync history with client-side mini sparklines, and provider-specific endpoint health monitoring.
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €12.99** — **Fully paid widget.** No free tier. A valid marketplace license key is required for all functionality.
+
+A **14-day trial** is available from the first admin registration timestamp — no key required during trial. After the trial expires, the widget shows a lock screen until a valid license key is configured.
+
+### All Features (License Required)
+
+| Feature          | Description                                                    |
+| :--------------- | :------------------------------------------------------------- |
+| Sync status      | Real-time healthy/degraded/error indicator with ping animation |
+| Active users     | Total provisioned user count from SCIM                         |
+| Sync history     | Client-side mini sparkline showing sync volume trends          |
+| Last sync time   | Timestamp of the most recent synchronization                   |
+| Provider display | Shows the connected identity provider (Okta, Azure AD, etc.)   |
+| Endpoint health  | Per-endpoint health status with icons                          |
+| Error display    | Last SCIM error message with formatted error card              |
+| Auto-polling     | Data refreshes every 15 seconds                                |
+| Trial period     | Full access for 14 days from first admin registration          |
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=scim-status
+```
+
+Without a valid license after trial expiry, a lock screen is displayed with an upgrade link to the marketplace.
+
+---
+
+## Data Source
+
+| Endpoint                  | Description                                               |
+| :------------------------ | :-------------------------------------------------------- |
+| `GET /api/dashboard/scim` | SCIM provisioning health derived from tenant user records |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Identity Sync",
+  icon: "mdi:cloud-sync",
+  description: "Monitor SCIM identity synchronization status",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Security Widget](./security-widget.mdx)
+- [SCIM 2.0 Documentation](/docs/reference/security/authentication-system.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

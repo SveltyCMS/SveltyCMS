@@ -220,6 +220,16 @@ export function getErrorMessage(err: unknown): string {
 }
 
 /**
+ * Unified error-throwing helper. Use instead of raw `error()` or `throw new AppError()`.
+ * @param status HTTP status code
+ * @param message Human-readable error message
+ * @param code Optional machine-readable error code (e.g. "LICENSE_REQUIRED")
+ */
+export function raise(status: number, message: string, code?: string): never {
+  throw new AppError(message, status, code);
+}
+
+/**
  * Type Guard: Checks if an error is an AppError.
  */
 export function isAppError(err: unknown): err is AppError {

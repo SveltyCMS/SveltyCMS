@@ -1,23 +1,93 @@
 ---
 path: "src/plugins/pagespeed/pagespeed.mdx"
 title: "PageSpeed Insights Plugin"
-description: "Documentation for the PageSpeed Insights plugin for SveltyCMS."
+description: "Monitor Core Web Vitals and Lighthouse performance scores. Free tier covers single-page analysis; premium unlocks bulk audits, scheduled scanning, and historical trend tracking."
 order: 100
-icon: "mdi:puzzle"
+icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-07"
 tags:
   - "plugin"
   - "pagespeed"
+  - "performance"
+  - "freemium"
 ---
 
 # PageSpeed Insights Plugin
 
-Documentation for the **PageSpeed Insights** plugin is being prepared.
-
-For implementation details, see the source code in `src/plugins/pagespeed/`.
+Monitors Core Web Vitals and performance scores using the Google PageSpeed Insights API. Scores are cached for efficiency and displayed in collection entry lists with color-coded indicators.
 
 ---
 
-**Related**: [Plugin Architecture](/docs/guides/development/plugin/architecture.mdx) · [Plugin Development](/docs/guides/development/plugin/development.mdx)
+## 💰 Licensing & Pricing
+
+**Price: €19.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License)
+
+| Feature              | Description                                           |
+| :------------------- | :---------------------------------------------------- |
+| Single-page analysis | Run Lighthouse audit on any individual page URL       |
+| Core Web Vitals      | View LCP, FID, CLS, FCP, and SI metrics               |
+| Performance score    | Color-coded 0–100 score in entry list columns         |
+| Mobile & desktop     | Choose device emulation per audit                     |
+| Result caching       | Cached results reduce API quota consumption           |
+| Trial period         | Full access for 14 days from first admin registration |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                          |
+| :--------------------- | :--------------------------------------------------- |
+| **Everything in Free** | All free tier features included                      |
+| Bulk analysis          | Audit multiple URLs in batch with progress tracking  |
+| Scheduled scanning     | Set daily/weekly cron schedules for recurring audits |
+| Historical tracking    | Trend charts for performance scores over time        |
+| Regression alerts      | Get notified when scores drop below thresholds       |
+| CSV/JSON export        | Export audit results for reporting                   |
+| Advanced filtering     | Filter by score range, device, collection, date      |
+
+> **Note**: Without a valid license after the trial expires, only single-page manual audits remain available. Bulk, scheduled, and historical features require an active license.
+
+### License Verification
+
+```typescript
+import { checkExtensionLicense } from "@src/utils/license-manager";
+
+const status = await checkExtensionLicense("plugin", "pagespeed");
+// Gate premium features: bulk, scheduled, historical, export
+```
+
+---
+
+## Quick Start
+
+1. **Enable the plugin** in System Settings → Plugins
+2. **Configure API key** — set your Google PageSpeed Insights API key in System Settings
+3. **Add to collections** — enable the plugin for specific collections
+4. **Run audits** — use the "Refresh PageSpeed" action on entries
+
+---
+
+## Configuration
+
+| Setting         | Type    | Required | Description                                                          |
+| :-------------- | :------ | :------- | :------------------------------------------------------------------- |
+| `apiKeySource`  | Private | Yes      | Google PageSpeed Insights API key (stored in system settings)        |
+| `defaultDevice` | Public  | No       | Default device for audits: `mobile` or `desktop` (default: `mobile`) |
+
+---
+
+## Entry List Columns
+
+| Column              | Description                                                       |
+| :------------------ | :---------------------------------------------------------------- |
+| `performance_score` | Color-coded Lighthouse score (0–100) with FCP/LCP/CLS sub-metrics |
+
+---
+
+## Related
+
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Plugin Development](/docs/development/plugins/development.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

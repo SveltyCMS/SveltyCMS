@@ -483,8 +483,8 @@
 			onclick={!hasSelections ? handleMainButtonClick : undefined}
 		>
 			<!-- Main Contextual Button -->
-			<button
-				type="button"
+			<Button
+				variant="ghost"
 				onclick={hasSelections ? handleMainButtonClick : undefined}
 				disabled={isProcessing}
 				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200
@@ -501,7 +501,7 @@
 					<iconify-icon icon={currentConfig.icon} width="24"></iconify-icon>
 				{/if}
 				<span class="hidden md:inline-block">{dynamicLabel}</span>
-			</button>
+			</Button>
 
 			<!-- Selection Badge -->
 			{#if hasSelections && selectedCount > 0}
@@ -515,8 +515,8 @@
 
 			<!-- Dropdown Toggle -->
 			{#if !isCollectionEmpty}
-				<button
-					type="button"
+				<Button
+					variant="ghost"
 					onclick={hasSelections ? toggleDropdown : undefined}
 					disabled={!hasSelections || isProcessing}
 					class="h-10 w-8 border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner
@@ -534,7 +534,7 @@
 							class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}"
 						></iconify-icon>
 					{/if}
-				</button>
+				</Button>
 			{/if}
 
 			<!-- Dropdown Menu -->
@@ -554,9 +554,9 @@
 									onmouseenter={() => (hoveredAction = config.type)}
 									onmouseleave={() => (hoveredAction = null)}
 								>
-									<button
-										type="button"
-										onclick={(e) => handleOptionClick(e, config.type)}
+									<Button
+										variant="ghost"
+										onclick={(e: MouseEvent) => handleOptionClick(e, config.type)}
 										role="menuitem"
 										class="group/item relative flex w-full items-center gap-3 rounded px-3 py-2.5 text-start text-white transition-all duration-200 hover:bg-white/5"
 										aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
@@ -585,7 +585,7 @@
 												Warn
 											</span>
 										{/if}
-									</button>
+									</Button>
 								</li>
 							{/each}
 						</ul>

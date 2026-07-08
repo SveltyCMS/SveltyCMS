@@ -169,11 +169,18 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
           headers: { Location: "/login" },
         });
       }
-      if (pathname === "/" && systemState.overallState === "SETUP" && !setupComplete)
-        return new Response(null, {
-          status: 302,
-          headers: { Location: "/setup" },
-        });
+      // Redirect root to /setup when setup is incomplete, regardless of
+      // system state. getSetupState() may have triggered a background boot
+      // that changed the state, so re-fetch after the setup check.
+      if (pathname === "/" && !setupComplete) {
+        const currentState = getSystemState();
+        if (currentState.overallState === "SETUP" || currentState.overallState === "READY") {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: "/setup" },
+          });
+        }
+      }
       return resolve(event);
     }
 

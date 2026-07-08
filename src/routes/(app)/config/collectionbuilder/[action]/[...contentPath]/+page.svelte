@@ -26,9 +26,10 @@ import { onMount, onDestroy } from "svelte";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import CollectionForm from "./tabs/collection-form.svelte";
-import CollectionWidgetOptimized from "./tabs/collection-widget-optimized.svelte";
-import Stepper from "@src/components/ui/stepper.svelte";
-	import Button from '@components/ui/button.svelte';
+import CollectionWidget from "./tabs/collection-widget.svelte";
+import CollectionPermissions from "./tabs/collection-permissions.svelte";
+import Tabs from "@src/components/ui/tabs.svelte";
+import Button from '@components/ui/button.svelte';
 
 const action = $derived(page.params.action);
 const { data } = $props<{ data: { collection?: Schema; user: User } }>();
@@ -65,22 +66,31 @@ const editorSyncKey = $derived(
 		: `new:${String(page.params.contentPath ?? "")}`,
 );
 
-// Studio Mode Stepper sync
-let activeStep = $derived(collections.stepper.activeStep);
-let completedSteps = $derived(collections.stepper.completedSteps);
-const steps = $derived(collections.stepper.steps);
+// Studio Mode Tab sync
+let activeTab = $state("basic");
+
+const editorTabs = [
+  { id: "basic", label: "Basic Setup", icon: "mdi:cog" },
+  { id: "widgets", label: "Widgets & Fields", icon: "mdi:widgets" },
+  { id: "permissions", label: "Settings & Permissions", icon: "mdi:shield-lock" },
+];
 
 // Effect: Synchronize step completion with collection name presence
 $effect(() => {
-	if (collection.value?.name && collection.value.name !== "new") {
-		if (!collections.stepper.completedSteps.has(0)) {
-			// Stepper indices are 0-based
-			collections.stepper.completedSteps.add(0);
-		}
-	} else {
-		collections.stepper.completedSteps.delete(0);
-	}
+  if (collection.value?.name && collection.value.name !== "new") {
+    if (!collections.stepper.completedSteps.has(0)) {
+      collections.stepper.completedSteps.add(0);
+    }
+  }
 });
+
+function handleTabChange(tabId: string) {
+  activeTab = tabId;
+  // Keep stepper in sync for backward compatibility
+  if (tabId === "basic") collections.stepper.activeStep = 1;
+  else if (tabId === "widgets") collections.stepper.activeStep = 2;
+  else if (tabId === "permissions") collections.stepper.activeStep = 3;
+}
 
 onMount(() => {
 	widgetStoreActions.initializeWidgets();
@@ -114,6 +124,19 @@ async function handleCollectionSave(confirmDeletions = false) {
 	) {
 		toast.error("Please fix validation errors before saving");
 		return;
+	}
+
+	// Validate required name client-side. Without this, saving with an empty
+	// name succeeds on the server (writing a broken collection file), then the
+	// post-save redirect to /edit/<name> 500s because the name is empty.
+	if (!collection.value?.name?.trim()) {
+		validationStore.setError("name", "Collection name is required");
+		toast.error("Collection name is required");
+		return;
+	}
+	// Name is present — clear any stale name error from a prior failed save.
+	if (validationStore.hasError("name")) {
+		validationStore.clearError("name");
 	}
 
 	try {
@@ -230,35 +253,36 @@ $effect(() => {
 		</div>
 	{/snippet}
 
-	<!-- Studio stepper — visible on all breakpoints for E2E + keyboard navigation -->
-	<div
-		class="p-4 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm z-20 shrink-0"
-		data-testid="collection-editor-stepper"
-	>
-		<Stepper
-			{steps}
-			currentStep={activeStep - 1}
-			{completedSteps}
-			orientation="horizontal"
-			onStepClick={(index) => {
-				collections.stepper.activeStep = index + 1;
-			}}
-		/>
-	</div>
+	    <!-- Tab navigation — replaces the studio stepper -->
+	    <div
+	      class="px-4 pt-4 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm z-20 shrink-0"
+	      data-testid="collection-editor-tabs"
+	    >
+	      <Tabs
+	        tabs={editorTabs}
+	        activeTab={activeTab}
+	        onTabChange={handleTabChange}
+	        variant="underline"
+	      />
+	    </div>
 
-	<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-		<div class="flex-1 overflow-y-auto w-full scroll-smooth">
-			<div class="h-full {activeStep === 1 ? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10' : 'p-0'}">
-				{#if activeStep === 1}
-					<div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-						<CollectionForm data={collection.value} syncKey={editorSyncKey} />
-					</div>
-				{:else if activeStep === 2}
-					<div class="h-full animate-in fade-in slide-in-from-right-4 duration-700">
-						<CollectionWidgetOptimized fields={(collection.value?.fields as FieldInstance[]) || []} roles={data.roles} />
-					</div>
-				{/if}
-			</div>
-		</div>
-	</div>
+	    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+	      <div class="flex-1 overflow-y-auto w-full scroll-smooth">
+	        <div class="h-full {activeTab === 'basic' ? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10' : 'p-0'}">
+	          {#if activeTab === 'basic'}
+	            <div class="animate-in fade-in slide-in-from-bottom-4 duration-500" role="tabpanel" id="tabpanel-basic" aria-labelledby="tab-basic">
+	              <CollectionForm data={collection.value} syncKey={editorSyncKey} />
+	            </div>
+	          {:else if activeTab === 'widgets'}
+	            <div class="h-full animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-widgets" aria-labelledby="tab-widgets">
+	<CollectionWidget fields={(collection.value?.fields as FieldInstance[]) || []} roles={data.roles} />
+	            </div>
+	          {:else if activeTab === 'permissions'}
+	            <div class="animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">
+	              <CollectionPermissions />
+	            </div>
+	          {/if}
+	        </div>
+	      </div>
+	    </div>
 </AdminPageShell>

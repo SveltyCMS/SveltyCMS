@@ -1,5 +1,5 @@
 /**
- * @file src/services/GDPRService.ts
+ @file src/services/security/gdpr-service.ts
  * @description GDPR Compliance Service for SveltyCMS.
  * Handles "Right to Erasure" and "Right to Access" / Data Portability.
  *

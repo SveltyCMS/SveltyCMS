@@ -3,13 +3,12 @@
  * @description
  * Generates a GitHub Actions matrix JSON for Playwright E2E test sharding.
  *
- * Defines project types for the sharded E2E job. Wizard and Auth projects
- * are run separately in e2e-prep (sequential, state-dependent), so they
- * are excluded from this matrix.
+ * Simplified architecture (4 projects):
+ *   wizard + firstuser + auth-setup → run sequentially in e2e-prep
+ *   chromium → sharded into N named groups for CI parallelism
  *
- * Each entry has two shard representations:
- *   - shard:   "1/2" format for Playwright's --shard flag
- *   - shardId: "1-2" format for safe artifact names (no / in filenames)
+ * Each shard has a descriptive name so CI results clearly show which test
+ * category failed instead of just "1/6", "2/6", etc.
  *
  * Usage:
  *   node .github/workflows/e2e-matrix.ts
@@ -21,38 +20,62 @@ interface E2eMatrixInclude {
   shard: string;
   shardId: string;
   "total-shards": number;
-  parallel: boolean;
+  name: string;
+  grep: string;
 }
 
 interface E2eMatrix {
-  project: string[];
+  name: string[];
   include: E2eMatrixInclude[];
 }
 
-// Wizard and Auth run in e2e-prep (state-dependent, must be sequential).
-// Only chromium runs in the sharded parallel matrix.
-const projectDefinitions: Array<{
-  name: string;
-  shards: number;
-  parallel: boolean;
-}> = [{ name: "chromium", shards: 2, parallel: true }];
+// Named groups — each maps to specific test files via Playwright --grep.
+// Groups are sized roughly by test count to balance shard duration.
+const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
+  {
+    name: "Config & System",
+    grep: "(appearance|design-system|webhooks|operations|access-management|automations|data-management|system-settings|monitor|queue|extensions|sync|trash|redirects)",
+  },
+  {
+    name: "Builder & Content",
+    grep: "(collection-builder|journey|empty-state|content-smoke)",
+  },
+  {
+    name: "Users & RBAC",
+    grep: "(user/profile|user/management|permissions|rbac|account-smoke)",
+  },
+  {
+    name: "Media & Dashboard",
+    grep: "(mediagallery|image-editor|dashboard)",
+  },
+  {
+    name: "Auth & Branding",
+    grep: "(branding|visual-regression|accessibility|language)",
+  },
+  {
+    name: "Admin & Catch-All",
+    grep: "(tenants|settings|catch-all)",
+  },
+];
 
 const include: E2eMatrixInclude[] = [];
+const TOTAL = SHARD_GROUPS.length;
 
-for (const def of projectDefinitions) {
-  for (let i = 1; i <= def.shards; i++) {
-    include.push({
-      project: def.name,
-      shard: `${i}/${def.shards}`,
-      shardId: `${i}-${def.shards}`,
-      "total-shards": def.shards,
-      parallel: def.parallel,
-    });
-  }
+for (let i = 0; i < SHARD_GROUPS.length; i++) {
+  const group = SHARD_GROUPS[i]!;
+  const idx = i + 1;
+  include.push({
+    project: "chromium",
+    shard: `${idx}/${TOTAL}`,
+    shardId: `${idx}-${TOTAL}`,
+    "total-shards": TOTAL,
+    name: group.name,
+    grep: group.grep,
+  });
 }
 
 const e2eMatrix: E2eMatrix = {
-  project: projectDefinitions.map((d) => d.name),
+  name: SHARD_GROUPS.map((g) => g.name),
   include,
 };
 

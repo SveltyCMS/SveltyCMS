@@ -342,7 +342,7 @@ Comprehensive documentation is available to help you get started:
 
 - 📖 **[Documentation](./docs/)** — Guides, API reference, and architecture
 - 🎯 **[Getting Started](./docs/getting-started.mdx)** — Quick start guide
-- 🔄 **[Upgrading SveltyCMS](./docs/guides/configuration/Upgrading.mdx)** — Safe update guide
+- 🔄 **[Upgrading SveltyCMS](./docs/guides/configuration/upgrading.mdx)** — Safe update guide
 - 🏗️ **Architecture: Database Resilience** — [./docs/architecture/database-resilience.mdx](./docs/architecture/database-resilience.mdx)
 - 🤝 **[Contributing Guide](./CONTRIBUTING.md)** — How to contribute
 

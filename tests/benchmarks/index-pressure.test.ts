@@ -249,11 +249,13 @@ async function seedLargeDataset(baseUrl: string, headers: Record<string, string>
       return generateRealisticEntry(idx, idx % 10 === 0 ? "heavy" : "medium");
     });
 
-    let retryCount = 0;
-    const maxRetries = 5;
     const payloadBody = JSON.stringify(batch);
 
-    while (true) {
+    let retryCount = 0;
+    const maxRetries = 5;
+    let batchOk = false;
+
+    while (!batchOk) {
       const res = await fetch(targetUrl, {
         method: "POST",
         headers,
@@ -262,7 +264,8 @@ async function seedLargeDataset(baseUrl: string, headers: Record<string, string>
 
       if (res.ok) {
         await res.arrayBuffer();
-        break;
+        batchOk = true;
+        continue;
       }
 
       const bodyText = await res.text().catch(() => "");

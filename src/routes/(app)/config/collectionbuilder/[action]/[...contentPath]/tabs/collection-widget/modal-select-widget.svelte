@@ -17,9 +17,11 @@ import { onMount } from "svelte";
 // Props
 interface Props {
 	/** Exposes parent props to this component. */
-	parent: any;
+	parent?: any;
+	/** Close handler injected by DialogManager. */
+	close?: (result?: any) => void;
 }
-const { parent }: Props = $props();
+const { close }: Props = $props();
 
 // Define the search term variable
 let searchTerm: string = $state("");
@@ -55,7 +57,7 @@ const cHeader =
 	<div class={cBase}>
 		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
 			<h2 class={cHeader}>{modalState.active?.props?.title || 'Select Widget'}</h2>
-			<Button variant="outline" onclick={parent.onClose} aria-label="Close modal" class="p-0! min-w-0">
+			<Button variant="outline" onclick={() => (close ? close() : modalState.close())} aria-label="Close modal" class="p-0! min-w-0">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 			</Button>
 		</header>

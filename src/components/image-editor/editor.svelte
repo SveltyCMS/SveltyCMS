@@ -441,7 +441,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		>
 			<div class="editor-canvas-slot flex min-h-0 flex-col overflow-hidden">
 				<div class="canvas-wrapper relative flex min-h-0 flex-1 flex-col">
-					<div class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden bg-[var(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a))] border-none rounded-none shadow-none outline-none">
+					<div class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none">
 						<EditorCanvas
 							bind:containerRef
 							bind:containerWidth

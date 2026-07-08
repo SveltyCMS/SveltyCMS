@@ -1,0 +1,88 @@
+---
+path: "src/routes/(app)/dashboard/widgets/unified-metrics-widget.mdx"
+title: "Unified Metrics Dashboard Widget"
+description: "Comprehensive system performance and security metrics with trend sparklines. Freemium — current snapshot free; historical trends, alerting, and bottleneck analysis are premium."
+order: 100
+icon: "mdi:chart-donut"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "dashboard"
+  - "metrics"
+  - "performance"
+  - "freemium"
+---
+
+# Unified Metrics Widget
+
+Comprehensive system performance and security metrics with adaptive 3-tier layouts and mini SVG sparklines for trend visualization. Displays response times, error rates, auth success rates, cache hit rates, and bottleneck detection.
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €14.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License / Trial Active)
+
+| Feature          | Description                                             |
+| :--------------- | :------------------------------------------------------ |
+| Health score     | Real-time excellent/good/fair/poor/critical status      |
+| Current snapshot | Response time, error rate, auth success, cache hit rate |
+| Compact mode     | Single-row metric chips (h:1 widget size)               |
+| Rich layout      | Detailed metric cards (h:2 widget size)                 |
+| Auto-polling     | Data refreshes every 6 seconds                          |
+| Rolling buffer   | 30-point data buffer (3 minutes at 6s poll)             |
+| Trial period     | Full access for 14 days from first admin registration   |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                                 |
+| :--------------------- | :---------------------------------------------------------- |
+| **Everything in Free** | All free tier features included                             |
+| Historical trends      | Full timeline charts for all metrics                        |
+| Bottleneck analysis    | Detect and display performance bottlenecks                  |
+| Full detail mode       | Extended metrics with request breakdowns (h:3+ widget size) |
+| Alerting               | Threshold-based notifications for performance degradation   |
+| Export reports         | CSV/JSON export of metric history                           |
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=unified-metrics
+```
+
+Without a valid license after trial expiry, the current snapshot and health score remain visible. Historical trends, bottleneck analysis, and alerting require an active license.
+
+---
+
+## Data Source
+
+| Endpoint                     | Description                                                          |
+| :--------------------------- | :------------------------------------------------------------------- |
+| `GET /api/dashboard/metrics` | Full `MetricsService` report with API hits, cache stats, error rates |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Unified Metrics",
+  icon: "mdi:chart-donut",
+  description: "Comprehensive system performance and security metrics with trend sparklines",
+  defaultSize: { w: 2, h: 3 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Cache Monitor Widget](./cache-monitor-widget.mdx)
+- [Performance Widget](./performance-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

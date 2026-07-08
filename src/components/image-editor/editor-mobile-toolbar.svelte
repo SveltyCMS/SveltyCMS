@@ -28,10 +28,10 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 <header class="shrink-0 p-0 bg-transparent border-b-0" role="toolbar" aria-label="Image editor mobile">
 	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-[--editor-control-h]">
 		<div class="flex gap-1.5 items-center justify-self-start min-h-[--editor-control-h]">
-			<div class="editor-mobile-chrome-pill inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/[0.09] box-border">
+			<div class="inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/9 box-border">
 				<button
 					type="button"
-					class="editor-mobile-icon-btn inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-22 disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
+					class="inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-[0.22] disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
 					style="width:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2);height:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2)"
 					onclick={onclose}
 					aria-label="Close editor"
@@ -40,8 +40,7 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 				</button>
 				<button
 					type="button"
-					class="editor-mobile-icon-btn inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-22 disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0] {isComparing ? 'bg-white/12' : ''}"
-					class:text-white={isComparing}
+					class="inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none disabled:opacity-[0.22] disabled:cursor-not-allowed hover:text-white hover:bg-white/10 shadow-[inset_1px_0_0_rgba(255,255,255,0.12)] [&_iconify-icon]:block [&_iconify-icon]:leading-[0] {isComparing ? 'bg-white/[0.12] text-white' : 'text-[rgba(255,255,255,0.94)]'}"
 					style="width:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2);height:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2)"
 					onclick={toggleCompare}
 					aria-label="Compare before and after"
@@ -53,10 +52,10 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 		</div>
 
 		<div class="flex gap-1.5 items-center justify-self-center min-h-[--editor-control-h]">
-			<div class="editor-mobile-chrome-pill inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/[0.09] box-border">
+			<div class="inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/9 box-border">
 				<button
 					type="button"
-					class="editor-mobile-icon-btn inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-22 disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
+					class="inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-[0.22] disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
 					style="width:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2);height:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2)"
 					onclick={() => imageEditorStore.handleUndo()}
 					disabled={!canUndo}
@@ -66,7 +65,7 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 				</button>
 				<button
 					type="button"
-					class="editor-mobile-icon-btn inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-22 disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
+					class="inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-[0.22] disabled:cursor-not-allowed hover:text-white hover:bg-white/10 shadow-[inset_1px_0_0_rgba(255,255,255,0.12)] [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
 					style="width:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2);height:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2)"
 					onclick={() => imageEditorStore.handleRedo()}
 					disabled={!canRedo}
@@ -78,25 +77,22 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 		</div>
 
 		<div class="flex gap-1.5 items-center justify-self-end min-h-[--editor-control-h]">
-			<button
-				type="button"
-				class="editor-mobile-done-round inline-flex items-center justify-center shrink-0 size-[--editor-control-h] p-0 text-[#111] cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-none transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65 [&_iconify-icon]:block [&_iconify-icon]:leading-[0] [&_iconify-icon]:text-[#111]"
-				onclick={onsave}
-				disabled={isSaving}
-				aria-label="Save edited image"
-			>
-				{#if isSaving}
-					<iconify-icon icon="mdi:loading" width="17" class="animate-spin" aria-hidden="true"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:check-bold" width="18" aria-hidden="true"></iconify-icon>
-				{/if}
-			</button>
+			<div class="inline-flex items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/[0.09] box-border">
+				<button
+					type="button"
+					class="inline-flex items-center justify-center shrink-0 p-0 text-white cursor-pointer bg-[--editor-accent] border-none rounded-full shadow-none transition-[background,transform,opacity] duration-150 hover:not-disabled:bg-[--editor-accent-hover] active:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-65 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
+					style="width:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2);height:calc(var(--editor-control-h) - var(--editor-pill-pad) * 2)"
+					onclick={onsave}
+					disabled={isSaving}
+					aria-label="Save edited image"
+				>
+					{#if isSaving}
+						<iconify-icon icon="mdi:loading" width="17" class="animate-spin" aria-hidden="true"></iconify-icon>
+					{:else}
+						<iconify-icon icon="mdi:check-bold" width="18" aria-hidden="true"></iconify-icon>
+					{/if}
+				</button>
+			</div>
 		</div>
 	</div>
 </header>
-
-<style>
-	.editor-mobile-chrome-pill .editor-mobile-icon-btn + .editor-mobile-icon-btn {
-		box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.12);
-	}
-</style>

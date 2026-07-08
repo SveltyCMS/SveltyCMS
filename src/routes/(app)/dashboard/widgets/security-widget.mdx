@@ -1,0 +1,88 @@
+---
+path: "src/routes/(app)/dashboard/widgets/security-widget.mdx"
+title: "Security Monitor Dashboard Widget"
+description: "Real-time threat visibility with SVG sparkline trends and incident feed. Freemium — basic checks and current status free; full audit, vulnerability DB, and automated fixes are premium."
+order: 100
+icon: "mdi:shield-alert"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "dashboard"
+  - "security"
+  - "threat-monitoring"
+  - "freemium"
+---
+
+# Security Monitor Widget
+
+Real-time security threat monitoring with native SVG sparkline trends, color-coded threat levels, and an active incident feed. Displays blocked IPs, throttled IPs, CSP violations, and rate limit hits.
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €19.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License / Trial Active)
+
+| Feature                | Description                                                 |
+| :--------------------- | :---------------------------------------------------------- |
+| Threat level indicator | Real-time safe/low/medium/high/critical status              |
+| Key metrics            | Blocked IPs, throttled IPs, CSP violations, rate limit hits |
+| Compact mode           | Single-row status bar (h:1 widget size)                     |
+| Full dashboard         | Detailed metric cards with sparkline trends (h:2+)          |
+| Auto-polling           | Data refreshes every 8 seconds                              |
+| Trial period           | Full access for 14 days from first admin registration       |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                                 |
+| :--------------------- | :---------------------------------------------------------- |
+| **Everything in Free** | All free tier features included                             |
+| Active incident feed   | Real-time list of active security incidents with IP details |
+| Incident history       | Historical threat data with trend analysis                  |
+| Vulnerability database | CVE integration for known vulnerability scanning            |
+| Automated fixes        | One-click remediation for common security issues            |
+| Full audit reports     | Detailed security audit with recommendations                |
+| Alerting               | Email/Slack/webhook notifications on threat level changes   |
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=security
+```
+
+Without a valid license after trial expiry, basic metrics and threat level remain visible. The incident feed, vulnerability DB, and audit reports require an active license.
+
+---
+
+## Data Source
+
+| Endpoint                      | Description                                                 |
+| :---------------------------- | :---------------------------------------------------------- |
+| `GET /api/dashboard/security` | Security incident statistics from `securityResponseService` |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Security Monitor",
+  icon: "mdi:shield-alert",
+  description: "Advanced security threat monitoring and incident response",
+  defaultSize: { w: 2, h: 3 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Audit Log Widget](./audit-log-widget.mdx)
+- [Security Overview](/docs/reference/security/index.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

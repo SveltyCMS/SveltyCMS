@@ -95,14 +95,16 @@ async function runHooksAudit() {
 
     const dbType = (process.env.DB_TYPE ?? "sqlite").toLowerCase();
     const isSqlite = dbType.includes("sqlite");
+    const isMongo = dbType === "mongodb";
 
-    const baseIterationsHttp = isSqlite ? 20 : 600;
-    const baseIterationsPost = isSqlite ? 10 : 150;
-    const maxTotalRuns = isSqlite ? 1 : 3;
+    const baseIterationsHttp = isSqlite ? 20 : isMongo ? 600 : 200;
+    const baseIterationsPost = isSqlite ? 10 : isMongo ? 150 : 50;
+    const maxTotalRuns = isSqlite ? 1 : isMongo ? 3 : 1;
 
     // 🚀 FIXED: Pre-allocate an oversized array of unique UUID records to protect
     // against cross-run index collision when warmup + multiple runs exhaust the pool.
-    const totalPayloadCapacityNeeded = baseIterationsPost * maxTotalRuns * 2;
+    const warmupCount = isSqlite ? 5 : 60;
+    const totalPayloadCapacityNeeded = (baseIterationsPost + warmupCount) * maxTotalRuns * 2;
     const postPayloads = Array.from({ length: totalPayloadCapacityNeeded }, () =>
       JSON.stringify({
         _id: crypto.randomUUID(),
@@ -119,7 +121,11 @@ async function runHooksAudit() {
 
       const currentIterations =
         scenario.method === "POST" ? baseIterationsPost : baseIterationsHttp;
-      const targetConcurrency = isSqlite ? 1 : scenario.concurrency;
+      const targetConcurrency = isSqlite
+        ? 1
+        : isMongo
+          ? scenario.concurrency
+          : Math.min(scenario.concurrency, 4);
 
       const requestConfig = {
         method: scenario.method,

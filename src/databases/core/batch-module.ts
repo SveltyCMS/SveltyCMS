@@ -120,43 +120,10 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
 
           // Fallback: individual ops for updates, upserts, or single-item groups
           for (const op of ops) {
-            let res: DatabaseResult<T | undefined>;
-            switch (op.operation) {
-              case "insert":
-                res = await this.crud.insert(
-                  collection,
-                  op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
-                );
-                break;
-              case "update":
-                if (!op.id) throw new Error("ID required for update operation");
-                res = await this.crud.update(
-                  collection,
-                  op.id,
-                  op.data as Partial<Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">>,
-                );
-                break;
-              case "delete":
-                if (!op.id) throw new Error("ID required for delete operation");
-                res = (await this.crud.delete(
-                  collection,
-                  op.id,
-                )) as unknown as DatabaseResult<undefined>;
-                break;
-              case "upsert":
-                if (!(op.query && op.data)) throw new Error("Query and data required");
-                res = await this.crud.upsert(
-                  collection,
-                  op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
-                  op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
-                );
-                break;
-              default:
-                throw new Error(`Unsupported batch operation: ${op.operation}`);
-            }
+            const res = await this.executeSingleOp(collection, op);
             results.push(res as DatabaseResult<T>);
-            if (res!.success) totalProcessed++;
-            else errors.push(res!.error!);
+            if (res.success) totalProcessed++;
+            else if (res.error) errors.push(res.error);
           }
         } catch (error) {
           const dbError = utils.createDatabaseError(
@@ -182,6 +149,38 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
         errors,
       };
     }, "BATCH_EXECUTE_FAILED");
+  }
+
+  private async executeSingleOp<T extends BaseEntity>(
+    collection: string,
+    op: BatchOperation<T>,
+  ): Promise<DatabaseResult<T | undefined>> {
+    switch (op.operation) {
+      case "insert":
+        return await this.crud.insert(
+          collection,
+          op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+        );
+      case "update":
+        if (!op.id) throw new Error("ID required for update operation");
+        return await this.crud.update(
+          collection,
+          op.id,
+          op.data as Partial<Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">>,
+        );
+      case "delete":
+        if (!op.id) throw new Error("ID required for delete operation");
+        return (await this.crud.delete(collection, op.id)) as unknown as DatabaseResult<undefined>;
+      case "upsert":
+        if (!(op.query && op.data)) throw new Error("Query and data required");
+        return await this.crud.upsert(
+          collection,
+          op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
+          op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+        );
+      default:
+        throw new Error(`Unsupported batch operation: ${op.operation}`);
+    }
   }
 
   async bulkInsert<T extends BaseEntity>(

@@ -390,10 +390,25 @@ async function handleForgotSubmit(event: Event) {
 
 	try {
 		const { forgotPW: remoteForgotPW } = await import("../auth.remote");
-		await remoteForgotPW({ email: forgotForm.data.email });
+		const result: any = await remoteForgotPW({ email: forgotForm.data.email });
 		isSubmitting = false;
-		P_WRESET = true;
-		toast.success({ description: signin_forgottontoast() });
+
+		if (result.smtpConfigured === false && result.resetLink) {
+			// No SMTP configured — pre-fill the reset form so user can reset immediately.
+			// The reset link is also printed in the server terminal for sharing.
+			const url = new URL(result.resetLink as string);
+			resetForm.data.token = url.searchParams.get("token") || "";
+			resetForm.data.email = url.searchParams.get("email") || "";
+			P_WRESET = true;
+			toast.info({
+				description:
+					"SMTP not configured. Enter a new password below to reset.",
+				duration: 10000,
+			});
+		} else {
+			P_WRESET = true;
+			toast.success({ description: signin_forgottontoast() });
+		}
 	} catch (error: any) {
 		isSubmitting = false;
 		const errorMessage = error?.message || "Password reset failed";

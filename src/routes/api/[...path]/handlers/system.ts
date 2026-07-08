@@ -11,6 +11,7 @@ import { rawResponse, successResponse } from "./base";
 import { webhookService } from "@src/services/background/webhook-service";
 import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { cacheService } from "@src/databases/cache/cache-service";
 
 export async function handleSystemRoutes(
   event: RequestEvent,
@@ -735,6 +736,10 @@ export async function handleTelemetryRoutes(
       event,
       await cms.telemetry.checkUpdateStatus({ tenantId: _tenantId as any }),
     );
+  if (action === "diagnose") {
+    const { telemetryService } = await import("@src/services/observability/telemetry-service");
+    return successResponse(event, await telemetryService.diagnoseConnection());
+  }
   if (action === "report" && event.request.method === "POST") {
     return rawResponse(event, { status: "active", success: true });
   }
@@ -1129,6 +1134,14 @@ export async function handleImportRoutes(
 /**
  * --- SYSTEM VIRTUAL FOLDERS ---
  */
+// The mediagallery breadcrumb/folder-tree load uses a 5-min SWR cache
+// (`mediagallery:virtualFolders:<tenantId>`) keyed the same way here — must be
+// invalidated on any folder mutation or newly created/renamed/deleted folders
+// stay invisible client-side until the cache naturally expires.
+async function invalidateVirtualFolderCache(tenantId: DatabaseId) {
+  await cacheService.delete(`mediagallery:virtualFolders:${tenantId || "global"}`);
+}
+
 export async function handleSystemVirtualFolderRoutes(
   event: RequestEvent,
   cms: LocalCMS,
@@ -1173,6 +1186,7 @@ export async function handleSystemVirtualFolderRoutes(
       },
       tenantId,
     );
+    await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
   }
 
@@ -1225,6 +1239,7 @@ export async function handleSystemVirtualFolderRoutes(
         await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
       }
 
+      await invalidateVirtualFolderCache(tenantId);
       return successResponse(event, { success: true });
     }
 
@@ -1265,6 +1280,7 @@ export async function handleSystemVirtualFolderRoutes(
 
     await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
 
+    await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
   }
 
@@ -1280,6 +1296,7 @@ export async function handleSystemVirtualFolderRoutes(
     }
 
     const result = await cms.db.system.virtualFolder.delete(folderId as DatabaseId, tenantId);
+    await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
   }
 

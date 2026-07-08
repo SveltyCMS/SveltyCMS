@@ -6,7 +6,7 @@
  * ### Features:
  * - Incremental `fullReload(changedFile)` — dev watcher / hot-reload path
  * - Full `fullReload()` — complete reconciliation with SCHEMA cache wipe
- * - Validates June 2026 optimization: skip category invalidation on single-file updates
+ * - Validates optimization: skip category invalidation on single-file updates
  * - Isolated under `.compiledCollections/test/incremental/` (user live data untouched)
  */
 

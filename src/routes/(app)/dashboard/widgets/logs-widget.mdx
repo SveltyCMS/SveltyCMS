@@ -1,0 +1,89 @@
+---
+path: "src/routes/(app)/dashboard/widgets/logs-widget.mdx"
+title: "System Logs Dashboard Widget"
+description: "Filterable system log viewer with adaptive compact/rich layouts. Freemium — basic viewer is free; advanced filtering, export, and real-time tail are premium."
+order: 100
+icon: "mdi:text-box-outline"
+author: "SveltyCMS Team"
+created: "2026-07-07"
+updated: "2026-07-07"
+tags:
+  - "dashboard"
+  - "logs"
+  - "freemium"
+---
+
+# System Logs Widget
+
+Filterable system log viewer with adaptive dual layouts — compact horizontal chips at height 1, rich expandable cards at height 2+. Color-coded severity icons and text search with real-time filtering.
+
+---
+
+## 💰 Licensing & Pricing
+
+**Price: €6.99** — Freemium model with a **14-day free trial** (no key required).
+
+### Free Tier (No License / Trial Active)
+
+| Feature              | Description                                           |
+| :------------------- | :---------------------------------------------------- |
+| Basic log viewer     | View recent system log entries                        |
+| Level filter         | Filter by severity: fatal, error, warn, info, debug   |
+| Text search          | Real-time search across log messages                  |
+| Compact layout       | Horizontal chip view (h:1 widget size)                |
+| Rich layout          | Expandable card view (h:2+ widget size)               |
+| Color-coded severity | Visual indicators for log levels                      |
+| Auto-polling         | Data refreshes every 20 seconds                       |
+| Trial period         | Full access for 14 days from first admin registration |
+
+### Premium Tier (Valid License Required)
+
+| Feature                | Description                                     |
+| :--------------------- | :---------------------------------------------- |
+| **Everything in Free** | All free tier features included                 |
+| Date range filtering   | Filter logs by start and end date               |
+| Advanced filtering     | Multi-criteria filter combinations              |
+| CSV/JSON export        | Export filtered log results                     |
+| Real-time tail         | Live streaming log feed with WebSocket          |
+| Extended history       | Access logs beyond the default retention window |
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=logs
+```
+
+Without a valid license after trial expiry, the free tier features remain accessible; premium controls (date range, export, real-time) are hidden with an upgrade prompt.
+
+---
+
+## Data Source
+
+| Endpoint                  | Description                                                   |
+| :------------------------ | :------------------------------------------------------------ |
+| `GET /api/dashboard/logs` | Paginated log entries with severity filtering and text search |
+
+**Parameters**: `limit` (max 100), `page`, `level` (fatal|error|warn|info|debug), `search` (full-text)
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "System Logs",
+  icon: "mdi:text-box-outline",
+  description: "Recent system activity with filtering and search",
+  defaultSize: { w: 2, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Audit Log Widget](./audit-log-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

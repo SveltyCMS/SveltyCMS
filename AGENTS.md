@@ -86,7 +86,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline**. Developers do NOT need to manually run the full chain — git hooks handle it automatically:
   - **Pre-commit** (`git commit`): `gate:fast` runs format, lint, and slop scanner on **staged files only** (~2-3s)
   - **Pre-push** (`git push`): `verify:push` runs `scripts/precheck.ts` (push tier) — static analysis, format, lint, unit tests, production build, with **progress dashboard, adaptive ETA, and error remediation hints** (~1-3min). Heavy DB integration + benchmarks are CI-only; opt in with `--include-db-tasks`.
-  - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (18 projects), benchmarks
+  - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (4 projects, 6 shards), benchmarks
   - Manual: `bun run gate:fast` (pre-commit checks), `bun run verify:push` (pre-push checks), `bun run verify:full` (local CI parity — static + unit + build + DB matrix + benchmarks), `bun run ci:local` (adds Playwright E2E), `bun run scripts/precheck.ts --plan` (dry-run task inspection)
 
 | Category          | Convention           | Examples                                                                         |
@@ -192,10 +192,10 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 - **Location**: Use utilities in `@src/utils/native-utils.ts` (`generateSecureToken`, `generateUUID`) or `@src/databases/auth/constants.ts` (`generateRandomToken`).
 - **Policy**: If `crypto` is unavailable, the system MUST throw an error rather than falling back to weak randomness.
 
-### 2. SSO & SAML Security
+### 2. Secrets Management
 
-- **No Hard-coded Secrets**: All SSO/SAML secrets (Jackson verifiers, JWT signing keys) MUST be stored in `config/private.ts` and validated via `privateConfigSchema`.
-- **Uniqueness**: Each deployment must have its own unique, high-entropy secrets.
+- **Location Matters**: Bootstrap secrets (DB creds, `JWT_SECRET_KEY`, `ENCRYPTION_KEY`) live in `config/private.ts`. All other secrets (SSO, SMTP, API keys, rate limit) are DB-driven and managed via System Settings UI — never hard-code them.
+- **Reference**: See `docs/reference/security/secrets-inventory.mdx` for the full inventory of every secret and its storage tier.
 
 ### 3. API Authorization (Granular Gatekeeping)
 
@@ -297,6 +297,11 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
     - Flags missing `data-preload` attributes on collection entry links.
     - **Reference**: `src/utils/link-validator.ts`
 18. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
+    - **Common patterns to watch for**:
+      - **`bun:test` imports** → Always use `vi.fn()` from `vitest`, never `mock` from `bun:test`. Vitest is the canonical test runner.
+      - **`vi.mock` module-scope leakage** → `vi.mock` calls in one test file pollute subsequent files. When adding a `vi.mock`, add a matching one in affected test files to restore the real module.
+      - **`response.clone()`** → When recreating a Response with modified headers, clone the body first to avoid `ReadableStream already used` errors from upstream hooks.
+      - **Dead code in middleware** → Check for duplicate handler sections in the pipeline that became unreachable after refactoring.
 
 ### Mandatory Documentation Updates
 
@@ -642,24 +647,26 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 > [!TIP]
 > Every test suite has corresponding documentation. When modifying tests, update the linked docs.
 
-| Test File                                        | Documentation                                                                                       |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `tests/unit/hooks/defense-in-depth.test.ts`      | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                              |
-| `tests/unit/hooks/authentication.test.ts`        | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                   |
-| `tests/unit/hooks/authorization.test.ts`         | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                  |
-| `tests/unit/hooks/system-state.test.ts`          | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
-| `tests/unit/hooks/setup.test.ts`                 | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
-| `tests/unit/hooks/security-headers.test.ts`      | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/role-permission-access.test.ts`      | `docs/tests/rbac-testing.mdx`                                                                       |
-| `tests/unit/api/media-security.test.ts`          | `docs/reference/security/widget-security.mdx`                                                       |
-| `tests/unit/services/media-manipulation.test.ts` | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
-| `tests/unit/services/media-service.test.ts`      | `docs/tests/utility-test-coverage.mdx`                                                              |
-| `tests/benchmarks/security-audit.test.ts`        | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
-| `tests/benchmarks/**/*.test.ts`                  | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
-| `tests/e2e/accessibility.spec.ts`                | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/e2e/branding.spec.ts`                     | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`                |
-| `tests/e2e/visual-regression.spec.ts`            | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`                           |
-| `tests/unit/widgets/core/*.test.ts`              | `docs/tests/widget-test-coverage.mdx`                                                               |
+| Test File                                          | Documentation                                                                                       |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `tests/unit/hooks/defense-in-depth.test.ts`        | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                              |
+| `tests/unit/hooks/authentication.test.ts`          | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                   |
+| `tests/unit/hooks/authorization.test.ts`           | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                  |
+| `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
+| `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
+| `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
+| `tests/unit/role-permission-access.test.ts`        | `docs/tests/rbac-testing.mdx`                                                                       |
+| `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
+| `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
+| `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |
+| `tests/benchmarks/security-audit.test.ts`          | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
+| `tests/benchmarks/**/*.test.ts`                    | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
+| `tests/e2e/accessibility.spec.ts`                  | `docs/tests/accessibility-audit.mdx`                                                                |
+| `tests/e2e/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`                |
+| `tests/e2e/visual-regression.spec.ts`              | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`                           |
+| `tests/unit/security/token-secret-leakage.test.ts` | `docs/reference/security/secrets-inventory.mdx`                                                     |
+| `tests/unit/scripts/scan-secret-misuse.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                     |
+| `tests/unit/widgets/core/*.test.ts`                | `docs/tests/widget-test-coverage.mdx`                                                               |
 
 ## Key Files Reference
 
@@ -716,4 +723,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-07-04_
+_Last Updated: 2026-07-07_

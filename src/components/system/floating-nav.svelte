@@ -12,11 +12,12 @@
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
+		import Button from '@components/ui/button.svelte';
+		import { fade } from 'svelte/transition';
 
-	type Any = any;
+		type Any = any;
 
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+		import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Auth
 	import type { User } from '@src/databases/auth/types';
 	// Stores
@@ -72,6 +73,7 @@
 	// User-pinned endpoint IDs stored in localStorage
 	const PINNED_KEY = 'floatingNav_pins';
 	let pinnedIds = $state<string[]>(['home']);
+	let favoritesVersion = $state(0);
 
 	$effect(() => {
 		try {
@@ -84,7 +86,8 @@
 	const FAVORITES_KEY = 'floatingNav_favorites';
 
 	const endpoints = $derived.by(() => {
-		// Read favorites from localStorage
+		// Read favorites from localStorage (trigger reactive re-eval)
+		void favoritesVersion;
 		let favorites: Endpoint[] = [];
 		try {
 			const saved = localStorage.getItem(FAVORITES_KEY);
@@ -269,10 +272,14 @@
 		let dragging = false;
 		let startX = 0;
 		let startY = 0;
+		let startButtonX = 0;
+		let startButtonY = 0;
 
 		node.onpointerdown = (e) => {
 			startX = e.clientX;
 			startY = e.clientY;
+			startButtonX = buttonInfo.x;
+			startButtonY = buttonInfo.y;
 			moved = false;
 			dragging = false;
 			node.setPointerCapture(e.pointerId);
@@ -288,13 +295,11 @@
 
 				if (dragging) {
 					moved = true;
-					const OFFSET_X = e.offsetX - node.offsetWidth / 2;
-					const OFFSET_Y = e.offsetY - node.offsetHeight / 2;
 
 					buttonInfo = {
 						...buttonInfo,
-						x: moveEvent.clientX - OFFSET_X,
-						y: moveEvent.clientY - OFFSET_Y
+						x: startButtonX + DX,
+						y: startButtonY + DY
 					};
 
 					if (firstLine) {
@@ -413,6 +418,10 @@
 		return { delay, duration, easing: easingFn, css: (_: number) => '' };
 	}
 
+	function handleFavoritesChanged() {
+		favoritesVersion += 1;
+	}
+
 	// Effects
 	$effect(() => {
 		if (!showRoutes) {
@@ -434,6 +443,7 @@
 
 		window.addEventListener('resize', handleResize, { passive: true });
 		window.addEventListener('keydown', onKeyDown);
+		window.addEventListener('favorites_changed', handleFavoritesChanged);
 	});
 
 	onDestroy(() => {
@@ -443,6 +453,7 @@
 
 		window.removeEventListener('resize', handleResize);
 		window.removeEventListener('keydown', onKeyDown);
+		window.removeEventListener('favorites_changed', handleFavoritesChanged);
 	});
 </script>
 
@@ -479,8 +490,9 @@
 	</div>
 </SystemTooltip>
 
-{#if showRoutes}
-	<button out:keepAlive|local onclick={closeMenu} class="fixed inset-s-0 top-0 z-9999999" aria-label="Close navigation overlay">
+	{#if showRoutes}
+			<div out:keepAlive|local class="fixed inset-s-0 top-0 z-9999999">
+			<Button variant="ghost" onclick={closeMenu} class="fixed inset-s-0 top-0 z-9999999" aria-label="Close navigation overlay">
 		<svg
 			bind:this={svg}
 			xmlns="http://www.w3.org/2000/svg"
@@ -550,8 +562,9 @@
 				</a>
 			</SystemTooltip>
 		{/each}
-	</button>
-{/if}
+	</Button>
+		</div>
+	{/if}
 
 <style lang="postcss">
 	@keyframes showEndPoints {
