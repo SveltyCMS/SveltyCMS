@@ -700,8 +700,15 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 ## Version Control
 
 - Branches: `next` (dev), `main` (stable).
-- **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
-- Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
+- **Release flow**: All work happens on `next`. When stable, `next` is merged into `main`. The maintainer then manually tags the release:
+  ```bash
+  git tag v0.0.7
+  git push --tags
+  ```
+  Pushing a `v*` tag triggers the auto-release workflow: npm publish + GitHub Release with auto-generated notes from commits since the last tag.
+- **Commit Convention**: Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`). Commit prefixes inform the auto-generated release notes but do NOT drive version bumps — the maintainer chooses the version.
+- **Version source**: Git tags are the source of truth. The `package.json` version on `next` is for UI display only. NEVER manually bump `package.json` version — it gets set from the tag during release.
+- **Commit Attribution**: NEVER include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
 - **Pre-commit 100% enforcement (hardened)**: The `.githooks/pre-commit`, `.githooks/pre-push`, and `scripts/precheck.ts` have been made as strict as client-side Git hooks reasonably allow:
   - No convenient local `GIT_HOOK_SKIP` (only real CI envs bypass).
   - **Enhanced pre-push**: Progress dashboard with adaptive ETA, per-task timing, and error remediation hints (`→ Run: bun run check`). Dry-run with `--plan` to inspect task selection without executing.
@@ -723,4 +730,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-07-07_
+_Last Updated: 2026-07-08_

@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/git-workflow.mdx"
 title: "Git Workflow & Automated Testing"
-description: "Complete guide to branching strategy, commit conventions, automated testing with Vitest and Playwright, and semantic releases with GitHub Actions."
+description: "Complete guide to branching strategy, commit conventions, automated testing with Vitest and Playwright, and tag-driven releases."
 order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-04"
+updated: "2026-07-08"
 tags:
   - "git"
   - "workflow"
@@ -29,7 +29,7 @@ Our CI/CD and Local pipeline uses:
 - **Unified Formatting**: oxfmt-powered `bun run format` for lightning-fast cleanup.
 - **Vitest Unit Suite**: Fast unit testing (1,100+ tests in under 10 seconds for the full suite).
 - **Playwright**: Comprehensive E2E testing across multiple database backends.
-- **Semantic Release**: Automated versioning on `main`.
+- **Tag-Driven Releases**: Push a `v*` tag to `main` to trigger npm publish + GitHub Release.
 - **Standardized Network**: Always use `127.0.0.1` for local consistency.
 
 ---
@@ -99,10 +99,9 @@ We have two primary, long-lived branches: `main` and `next`.
 - **Purpose**: Production-ready, stable code. This branch represents the latest official release.
 - **Protection**: Protected branch requiring pull request reviews.
 - **Automated Actions**:
-  - ✅ Runs full Playwright + Vitest test suite.
-  - ✅ Only releases if tests pass.
-  - ✅ Creates stable semantic version (e.g., `v1.3.0`).
-  - ✅ Generates changelog and release notes.
+  - Runs full Playwright + Vitest test suite.
+  - **Tag-driven releases**: pushing a `v*` tag triggers npm publish + GitHub Release with auto-generated notes from commits.
+- **Version source**: Git tags, not `package.json`.
 
 ### `next` Branch (Development)
 
