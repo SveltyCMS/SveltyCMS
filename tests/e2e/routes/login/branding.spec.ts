@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/database";
-import { enableBrandedLogin, resetAdminTheme } from "../../helpers/theme";
+import { enableBrandedLogin, getAdminTheme, resetAdminTheme } from "../../helpers/theme";
 import { openLoginSignInForm } from "../../helpers/visual";
 
 test.describe.configure({ mode: "serial" });
@@ -42,10 +42,10 @@ test.describe("Login Branding", () => {
     await loginAsAdmin(page);
     await enableBrandedLogin(page, "elevated");
 
-    const themeRes = await page.request.get("/api/theme/admin-theme");
-    expect(themeRes.ok()).toBeTruthy();
-    const theme = await themeRes.json();
-    expect(theme.features?.brandedLogin).toBe(true);
+    const themeRes = await getAdminTheme(page);
+    expect(themeRes.ok).toBeTruthy();
+    const theme = themeRes.data as Record<string, unknown>;
+    expect((theme as any).features?.brandedLogin).toBe(true);
 
     await logout(page);
     await openLoginSignInForm(page);
