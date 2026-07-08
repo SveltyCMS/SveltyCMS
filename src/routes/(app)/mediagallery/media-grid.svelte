@@ -153,6 +153,7 @@ Features:
   class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:p-3"
   style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
   role="grid"
+  tabindex="-1"
   aria-label="Media asset grid"
   data-testid="media-grid"
   ontouchstart={() => { touchActiveId = null; }}
@@ -201,6 +202,7 @@ Features:
         class="group relative flex h-full flex-col focus-within:outline-none
           {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
         role="gridcell"
+        tabindex="-1"
         aria-selected={isSelected}
         in:fade={{ duration: 180 }}
         ontouchstart={(e) => { e.stopPropagation(); touchActiveId = fileId; }}
@@ -232,7 +234,7 @@ Features:
             type="button"
             variant="ghost"
             onclick={() => handleItemClick(file)}
-            onkeydown={(e) => handleKeyDown(e, file)}
+            onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
             aria-label="Preview {file.filename}"
             class="relative h-full! w-full! rounded-none! px-0! text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
           >
