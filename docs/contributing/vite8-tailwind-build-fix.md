@@ -1,22 +1,15 @@
 ---
-title: Vite 8 + Tailwind v4 Build Fix
-description: Fix module resolution failures during vite build with Tailwind v4
+title: Vite + Tailwind v4 — Path Alias Resolution Fix
+description: Fix ERR_MODULE_NOT_FOUND for @-prefixed path aliases during vite build
 path: docs/contributing/vite8-tailwind-build-fix.md
 updated: 2026-07-08
 ---
 
-# Vite 8 + Tailwind v4 Build Fix
+# Vite + Tailwind v4 — Path Alias Resolution Fix
 
 ## Problem
 
-`vite build` shows UNRESOLVED_IMPORT warnings:
-
-```
-Could not resolve '@utils/logger' in src/routes/setup/preset-collections.server.ts
-Module not found, treating it as an external dependency
-```
-
-Or in some environments, the build fails with:
+`vite build` fails with:
 
 ```
 Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@utils/logger'
@@ -25,39 +18,57 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@utils/logger'
 
 ## Root Cause
 
-`@tailwindcss/vite` registers a Node.js ESM loader hook that intercepts module
-resolution during the SSR build. Vite's `resolve.alias` does NOT apply through
-this hook. When the build encounters `import("@utils/logger")`, Node's native
-resolver treats `@utils/logger` as an npm scoped package and either warns
-(UNRESOLVED_IMPORT) or errors (ERR_MODULE_NOT_FOUND).
+`@tailwindcss/node` ships `dist/esm-cache.loader.mjs` — an ESM customization
+hook registered via `module.register()` that wraps Node's global module
+resolver. This hook intercepts ALL `import()` calls during the build pipeline.
 
-The `@source` CSS directive only limits which files Tailwind scans for utility
-classes — it does not affect module resolution.
+When Vite evaluates the config (copied to `.vite-temp/` for safe processing),
+the evaluation chain passes through Tailwind's hook. Our `@src/*` and `@utils/*`
+path aliases are not `node_modules` packages, so Node's native resolver fails
+with `ERR_MODULE_NOT_FOUND`.
+
+**Vite's `resolve.alias` does NOT apply through this hook** — the hook operates
+at the Node.js module resolution level, before Vite's resolver runs.
+
+### Why a fresh SvelteKit install doesn't need this
+
+Simple setups (`tailwindcss()` + `sveltekit()` only) don't trigger module
+resolution through Tailwind's hook during config evaluation. Our config has
+10+ custom plugins, `vitest/config` import, and dynamic imports that reach
+the hook during config processing.
+
+### Why `package.json` `"imports"` doesn't fix it
+
+Node's subpath imports map (`"@utils/*": "./src/utils/*"`) resolves to paths
+without `.ts` extensions. Node can't find `./src/utils/logger` because the
+actual file is `./src/utils/logger.ts`. Direct imports with explicit `.ts`
+extensions work, but the imports map strips them.
 
 ## Fix: Junction Shims
 
-`scripts/fix-tailwind-build.mjs` creates directory symlinks in
-`node_modules/@xxx` → actual path for every Vite path alias:
+`scripts/fix-tailwind-build.mjs` creates directory symlinks at the filesystem
+level where Node's native resolver CAN find them:
 
-- `@src` → `src/`
-- `@utils` → `src/utils/`
-- `@components` → `src/components/`
-- ... (all `@`-prefixed path aliases from `vite.config.ts` and `svelte.config.js`)
+```
+node_modules/@src    → src/
+node_modules/@utils  → src/utils/
+... (all 20 aliases from config/aliases.json)
+```
 
-The script runs automatically via the `prepare` lifecycle hook on every install:
+Now `import("@utils/logger")` resolves to `node_modules/@utils/logger` →
+`src/utils/logger.ts` which Node can find directly.
+
+The script runs automatically via the `prepare` lifecycle hook:
 
 ```json
 "prepare": "git config core.hooksPath .githooks && node scripts/fix-tailwind-build.mjs"
 ```
 
-It uses plain `node` — no bun, tsx, or npx required. Works with any package manager.
-
-The shims live in `node_modules/` (always gitignored) and are recreated on each
-`bun install` or `npm install`.
+- Uses plain `node` — no bun/tsx/npx dependency
+- Reads aliases from `config/aliases.json` (shared with vite/vitest configs)
+- Shims live in `node_modules/` (gitignored), recreated on every install
 
 ## Manual Fix
-
-If the build shows UNRESOLVED_IMPORT warnings or ERR_MODULE_NOT_FOUND:
 
 ```bash
 node scripts/fix-tailwind-build.mjs
