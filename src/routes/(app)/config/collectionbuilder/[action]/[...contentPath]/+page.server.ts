@@ -275,6 +275,25 @@ export const actions: Actions = {
       //await contentSystem.generateContentTypes();
       //await contentSystem.generateCollectionFieldTypes();
       await contentSystem.refresh(tenantId);
+
+      // Ensure physical table exists for the newly created collection
+      const { getDb } = await import("@src/databases/db");
+      const db = getDb();
+      if (db) {
+        // Compute _id the same way as createSchemaObjectLiteral does
+        const collectionId = contentName.toLowerCase().replace(/\s+/g, "_");
+        // Try lookup by computed _id first, then fallback to display name
+        const schema =
+          (await contentSystem.getCollection(collectionId, tenantId)) ??
+          (await contentSystem.getCollection(contentName, tenantId));
+        if (schema) {
+          await db.collection.createModel(schema);
+          // Bump global version so entry list cache is invalidated immediately
+          const { cacheService } = await import("@src/databases/cache/cache-service");
+          await cacheService.incrementGlobalVersion(tenantId);
+        }
+      }
+
       return { status: 200 };
     } catch (err) {
       const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;

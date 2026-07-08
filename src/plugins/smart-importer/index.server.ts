@@ -112,6 +112,57 @@ export const migrations: PluginMigration[] = [
   },
 ];
 
+const IMPORTER_OPERATIONAL_COLLECTIONS = [
+  {
+    _id: "plugin_importer_ledger",
+    name: "plugin_importer_ledger",
+    slug: "plugin_importer_ledger",
+    fields: [
+      { label: "Transaction Token", name: "transactionToken", type: "text", required: true },
+      { label: "Source Platform", name: "sourcePlatform", type: "text" },
+      { label: "Target Collection", name: "targetCollection", type: "text" },
+      { label: "Timestamp", name: "timestamp", type: "text" },
+      { label: "Imported Count", name: "importedCount", type: "number", defaultValue: 0 },
+      { label: "Mirrored Asset Paths", name: "mirroredAssetPaths", type: "text" },
+    ],
+    status: "publish",
+  },
+  {
+    _id: "plugin_importer_dlq",
+    name: "plugin_importer_dlq",
+    slug: "plugin_importer_dlq",
+    fields: [
+      { label: "Transaction Token", name: "transactionToken", type: "text", required: true },
+      { label: "External ID", name: "externalId", type: "text" },
+      { label: "Raw Entry", name: "rawEntry", type: "text" },
+      { label: "Error Trace", name: "errorTrace", type: "text" },
+      { label: "Timestamp", name: "timestamp", type: "text" },
+    ],
+    status: "publish",
+  },
+];
+
+export async function ensureImporterOperationalCollections(dbAdapter: unknown): Promise<void> {
+  const adapter = dbAdapter as {
+    collection?: {
+      createModel?: (schema: (typeof IMPORTER_OPERATIONAL_COLLECTIONS)[number]) => Promise<void>;
+    };
+  };
+  const createModel = adapter.collection?.createModel;
+  if (!createModel) return;
+
+  for (const schema of IMPORTER_OPERATIONAL_COLLECTIONS) {
+    try {
+      await createModel.call(adapter.collection, schema);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes("already exists") && !message.includes("duplicate")) {
+        throw err;
+      }
+    }
+  }
+}
+
 // ============================================================================
 // Lifecycle Hooks
 // ============================================================================
@@ -460,7 +511,7 @@ async function persistEntry(
   options: IngestionOptions,
   resolveStubs: boolean,
 ): Promise<void> {
-  if (resolveStubs && !options.overwrite) {
+  if (resolveStubs && !options.overwrite && entry.parentExternalId) {
     const { resolveRelationStub } = await import("./advanced-features");
     await resolveRelationStub({ dbAdapter }, targetCollection, entry.externalId, payload);
     return;
@@ -528,6 +579,7 @@ export async function executeUCPIngestion(
   const batchSize = options.batchSize || 100;
   const useBulk = options.useBulk !== false;
   const resolveStubs = options.resolveStubs !== false;
+  await ensureImporterOperationalCollections(dbAdapter);
 
   const { ordered, cycles } = await orderEntriesForIngestion(envelope.entries);
   if (cycles.length > 0) {
@@ -610,6 +662,7 @@ export async function executeUCPIngestion(
           await persistEntry(dbAdapter, targetCollection, entry, payload, options, resolveStubs);
           imported++;
         } catch (err) {
+          logger.error(`[SmartImporter] Failed to persist entry "${entry.externalId}":`, err);
           failed++;
           await pushToDlq(dbAdapter, envelope.transactionToken, entry, err);
         }

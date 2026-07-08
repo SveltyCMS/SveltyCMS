@@ -7,9 +7,10 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = string & {};
+export type ContentTypes = 'Names' | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
+  Names: CollectionEntry & { first_name: string; last_name: string }
 }
 /* AUTOGEN_END: ContentTypes */

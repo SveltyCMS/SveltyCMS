@@ -571,6 +571,9 @@ export class TokensNamespace {
           case "2 days":
             expiresDate = new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString();
             break;
+          case "2 weeks":
+            expiresDate = new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString();
+            break;
           case "1 week":
             expiresDate = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
             break;

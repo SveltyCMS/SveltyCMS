@@ -173,7 +173,7 @@ Features:
         <iconify-icon icon="mdi:plus" width="18"></iconify-icon>
         <span>Upload First File</span>
       </Button>
-      <input
+      <input aria-label="Upload files"
         type="file"
         multiple
         class="hidden"
@@ -245,10 +245,10 @@ Features:
                   />
                 {/if}
 
-                <img
-                  src={file.url}
-                  alt=""
-                  class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02]"
+				<img
+				  src={file.url}
+				  alt={file.filename}
+				  class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02]"
                   style:object-position={file.metadata?.focalPoint
                     ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
                     : "center"}

@@ -39,7 +39,8 @@ async function getCachedPluginState(pluginId: string, tenantId: string) {
   }
   try {
     const state = await pluginRegistry.getPluginState(pluginId, tenantId);
-    const enabled = state ? state.enabled : false;
+    const plugin = pluginRegistry.get(pluginId);
+    const enabled = state ? state.enabled : plugin ? plugin.metadata.enabled : false;
     _stateCache.set(key, { enabled, ts: Date.now() });
     return enabled;
   } catch {

@@ -12,7 +12,12 @@ import { test, expect } from "@playwright/test";
 
 test("focus indicator is visible on keyboard navigation", async ({ page }) => {
   // Navigate to admin dashboard
-  await page.goto("/admin");
+  await page.goto("/dashboard");
+
+  // CRITICAL: Wait for SvelteKit hydration before keyboard interaction.
+  // Prevents Tab presses on SSR-only DOM from being silently absorbed
+  // before Svelte attaches event handlers (same pattern as auth.ts).
+  await page.waitForLoadState("networkidle");
 
   // Press Tab to move focus through interactive elements
   await page.keyboard.press("Tab");

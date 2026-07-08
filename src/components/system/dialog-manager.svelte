@@ -18,6 +18,14 @@
 		}
 	});
 
+	// Reset body scroll lock when dialog is removed from DOM (conditional render)
+	$effect(() => {
+		if (!open) {
+			document.documentElement.style.overflow = "";
+			document.body.style.overflow = "";
+		}
+	});
+
 	/* Derived state */
 	const title = $derived(modalState.active?.props?.title);
 	const size = $derived(modalState.active?.props?.size || 'md');
@@ -39,12 +47,14 @@
 	});
 </script>
 
-<Modal bind:open {title} {size} class={modalClasses} {dialogClass} {contentClass}>
-	{#if ActiveComponent}
-		<div
-			class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor' ? 'flex h-full flex-1 flex-col' : ''}"
-		>
-			<ActiveComponent {...componentProps} close={modalState.close.bind(modalState)} />
-		</div>
-	{/if}
-</Modal>
+{#if open}
+	<Modal bind:open {title} {size} class={modalClasses} {dialogClass} {contentClass}>
+		{#if ActiveComponent}
+			<div
+				class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor' ? 'flex h-full flex-1 flex-col' : ''}"
+			>
+				<ActiveComponent {...componentProps} close={modalState.close.bind(modalState)} />
+			</div>
+		{/if}
+	</Modal>
+{/if}

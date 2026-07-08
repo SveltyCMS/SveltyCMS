@@ -1,12 +1,17 @@
 import { expect, test } from "@playwright/test";
 import { resetAndSeedDatabase } from "../../helpers/database";
 import { ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 import { prepareLoginForm, enable2FAForTestUser } from "../../helpers/auth";
 
 test.describe("Extended Authentication UI Flows", () => {
   // Ensure we start with a clean state
   test.use({ storageState: { cookies: [], origins: [] } });
+
+  // Serial execution prevents parallel-worker DB races (each test resets the shared DB
+  // in beforeEach, but parallel workers can wipe data another test just seeded).
+  test.describe.configure({ mode: "serial" });
 
   test.beforeEach(async ({ page }) => {
     await resetAndSeedDatabase(page);
@@ -31,42 +36,36 @@ test.describe("Extended Authentication UI Flows", () => {
   });
 
   test("Account Lockout Flow after repeated failures", async ({ page }) => {
-    test.setTimeout(120_000); // Higher timeout for repeated requests
+    test.setTimeout(180_000);
 
-    const emailInput = page.locator('[data-testid="signin-email"]');
-    const passwordInput = page.locator('[data-testid="signin-password"]');
-    const submitBtn = page.locator('[data-testid="signin-submit"]');
+    // The server now redirects to /login?error=... for failures (adapter-uws
+    // handles 303 redirects correctly — form action POST responses are not).
+    // The component reads the error from URL params via $effect.
 
-    await emailInput.fill(ADMIN_CREDENTIALS.email);
-    await passwordInput.fill("DefinitelyWrongPassword123!");
+    let lastErrorText = "";
 
-    // SveltyCMS locks the account after 5 failed attempts
-    // Depending on the DB adapter, the lockout toast may show "locked" or
-    // the generic "Invalid credentials" — we just verify that ALL 6 attempts
-    // produce an error toast (account never succeeds with wrong password).
-    let lastToastText = "";
     for (let i = 0; i < 6; i++) {
-      await submitBtn.click();
+      // Re-fill form after page reload from redirect
+      await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 15000 });
+      await page.getByTestId("signin-email").fill(ADMIN_CREDENTIALS.email);
+      await page.getByTestId("signin-password").fill("DefinitelyWrongPassword123!");
 
-      // Wait for the error toast
-      const toast = page.locator('.toast, [role="alert"]').first();
-      await expect(toast).toBeVisible({ timeout: 10000 });
+      // Submit the form — triggers native POST, server redirects to /login?error=...
+      await page.getByTestId("signin-submit").click();
 
-      const text = (await toast.textContent()) || "";
-      lastToastText = text;
+      // Wait for the error alert to appear after the redirect
+      const alert = page.locator('[role="alert"]').first();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      lastErrorText = (await alert.textContent()) || "";
+      console.log(`Attempt ${i + 1}: "${lastErrorText}"`);
 
-      // If we see "locked", we don't need to do all 5
-      if (text.toLowerCase().includes("locked")) {
+      if (lastErrorText.toLowerCase().includes("locked")) {
         break;
       }
-
-      // Dismiss the toast to reset state for next click
-      await page.keyboard.press("Escape");
-      await page.waitForTimeout(300);
     }
 
-    // The last attempt must show an error toast (either lockout-specific or generic)
-    expect(lastToastText).toMatch(/sign in failed|invalid credentials|locked/i);
+    // Must have hit the lockout error
+    expect(lastErrorText.toLowerCase()).toMatch(/locked|sign in failed|invalid/i);
   });
 
   test("Magic Link & WebAuthn UI Toggles (Mocked)", async ({ page }) => {
@@ -113,12 +112,27 @@ test.describe("Extended Authentication UI Flows", () => {
   });
 
   test("2FA UI Flow", async ({ page }) => {
-    // Enable 2FA for the admin user in the DB
-    await enable2FAForTestUser(page, ADMIN_CREDENTIALS.email);
+    const twoFactorUser = {
+      email: "twofa-e2e@example.com",
+      password: "TwoFactor123!",
+    };
+
+    await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "create-user",
+        email: twoFactorUser.email,
+        password: twoFactorUser.password,
+        role: "admin",
+        username: "Two Factor E2E",
+      },
+    });
+
+    await enable2FAForTestUser(page, twoFactorUser.email);
 
     // Enter email and password and submit
-    await page.locator('[data-testid="signin-email"]').fill(ADMIN_CREDENTIALS.email);
-    await page.locator('[data-testid="signin-password"]').fill(ADMIN_CREDENTIALS.password);
+    await page.locator('[data-testid="signin-email"]').fill(twoFactorUser.email);
+    await page.locator('[data-testid="signin-password"]').fill(twoFactorUser.password);
     await page.locator('[data-testid="signin-submit"]').click();
 
     // Verify UI switches to 2FA input

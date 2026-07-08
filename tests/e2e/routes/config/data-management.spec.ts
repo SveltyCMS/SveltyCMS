@@ -19,10 +19,9 @@ test.describe("Data Management Pages", () => {
 
   test("migration page loads", async ({ page }) => {
     await page.goto("/config?plugin=smart-importer");
-    // The plugin workspace loads asynchronously — wait for any heading or the file input
-    await expect(
-      page.getByRole("heading", { level: 1 }).or(page.locator("#migration-file-input")),
-    ).toBeVisible({ timeout: 15_000 });
+
+    // The plugin workspace loads asynchronously — wait for the file input (key wizard element)
+    await page.locator("#migration-file-input").waitFor({ state: "attached", timeout: 15_000 });
     await expect(
       page.getByText(/upload|select file|drag|choose|source|browse/i).first(),
     ).toBeVisible({ timeout: 10_000 });
@@ -58,6 +57,7 @@ test.describe("Data Management Pages", () => {
 
   test("migration wizard detects WordPress WXR upload", async ({ page }) => {
     await page.goto("/config?plugin=smart-importer");
+    const workspace = page.getByLabel("Plugin workspace");
 
     const fileInput = page.locator("#migration-file-input");
     await fileInput.waitFor({ state: "attached", timeout: 20_000 });
@@ -69,7 +69,7 @@ test.describe("Data Management Pages", () => {
     await expect(page.getByText(/wordpress/i).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByRole("button", { name: /next: map fields/i })).toBeEnabled({
+    await expect(workspace.getByRole("button", { name: /next: map fields/i })).toBeEnabled({
       timeout: 15_000,
     });
   });
@@ -99,7 +99,7 @@ test.describe("Data Management Pages", () => {
     await expect(page.getByRole("heading", { level: 1, name: /redirect/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByRole("button", { name: /add|create|new/i }).first()).toBeVisible({
+    await expect(page.getByRole("button", { name: /^add redirect$/i })).toBeVisible({
       timeout: 10_000,
     });
   });

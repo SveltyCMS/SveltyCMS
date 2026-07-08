@@ -19,11 +19,12 @@ async function uploadTestImage(page: import("@playwright/test").Page) {
   );
   await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
   await uploadResponse;
-  // Upload handler reloads the page once the file is persisted
-  await page.waitForLoadState("load");
+  // Upload handler calls invalidateAll() which re-fetches page data via the load
+  // function. Wait for the grid cell to appear (includes the invalidateAll wait).
   const cell = page.getByRole("gridcell", { name: /testthumb\.png/i }).first();
   await expect(cell).toBeVisible({ timeout: 20_000 });
-  // Grid renders a blur placeholder img (data URL) before the real thumbnail
+  // Grid renders a blur placeholder img (data URL) before the real thumbnail.
+  // The real img has alt={file.filename} so it can be found by role.
   const thumb = cell.getByRole("img", { name: /testthumb\.png/i });
   await expect(thumb).toBeVisible({ timeout: 10_000 });
   const imgSrc = await thumb.getAttribute("src");

@@ -11,17 +11,10 @@ import { logger } from "@utils/logger";
 import type { Schema } from "@src/content/types";
 import type { MappingFieldInput } from "./schema-preview";
 import { buildProposedFieldsFromMappings } from "./schema-preview";
-import { FALLBACK_MIGRATION_COLLECTION } from "./infer-collection";
+import { normalizeCollectionId } from "./collection-id";
 
-/** Normalize wizard collection name to a safe collection _id / filename */
-export function normalizeCollectionId(name: string): string {
-  const id = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return id || FALLBACK_MIGRATION_COLLECTION;
-}
+// Re-export for dynamic importers (import-runner, migration-page.server, cli)
+export { normalizeCollectionId, FALLBACK_MIGRATION_COLLECTION } from "./collection-id";
 
 /** Map importer field types to SveltyCMS widget definitions */
 export function importTypeToWidget(type: string): {

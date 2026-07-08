@@ -172,6 +172,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     const globalSearch = url.searchParams.get("search") || "";
 
     const filterParams: Record<string, { contains: string }> = {};
+    const bypassCache = url.searchParams.has("bypassCache");
 
     for (const [key, value] of url.searchParams.entries()) {
       if (key.startsWith("filter_")) {
@@ -202,6 +203,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         user: typedUser,
         tenantId,
         editEntryId: editEntryId || undefined,
+        bypassCache,
       });
 
     // =================================================================

@@ -41,20 +41,22 @@ async function logout(page: Page) {
   const logoutButton = page.getByTestId("sign-out-button");
   if (await logoutButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await logoutButton.click();
-    await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => {});
-  } else {
-    // Fallback: try role-based button
-    const fallbackLogout = page.getByRole("button", {
-      name: /sign out|logout/i,
-    });
-    if (await fallbackLogout.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await fallbackLogout.click();
-      await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => {});
-    } else {
-      // Final fallback: navigate to login directly
-      await page.goto("/login");
-    }
+    await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
+    return;
   }
+  // Fallback: try role-based button
+  const fallbackLogout = page.getByRole("button", {
+    name: /sign out|logout/i,
+  });
+  if (await fallbackLogout.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await fallbackLogout.click();
+    await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
+    return;
+  }
+  // Final fallback: clear session and navigate to login directly
+  await page.context().clearCookies();
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
 }
 
 test.describe("Role-Based Access Control", () => {

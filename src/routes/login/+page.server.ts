@@ -238,6 +238,33 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     if (!locals) locals = {} as App.Locals;
 
+    // Allow invite flow even when already authenticated (admin creating invite
+    // then navigating to the URL in the same browser context).
+    const inviteToken = url.searchParams.get("invite_token");
+    if (inviteToken) {
+      const tokenData = await auth.validateRegistrationToken(inviteToken);
+      if (tokenData.isValid && tokenData.details) {
+        return {
+          ...errorDefaults,
+          hasAdminUser: locals.isFirstUser === false,
+          showGoogleOAuth: await shouldShowGoogleOAuth(true),
+          showGithubOAuth: await shouldShowGithubOAuth(true),
+          isInviteFlow: true,
+          token: inviteToken,
+          invitedEmail: tokenData.details.email,
+          roleId: tokenData.details.role,
+        };
+      }
+      return {
+        ...errorDefaults,
+        hasAdminUser: locals.isFirstUser === false,
+        showGoogleOAuth: await shouldShowGoogleOAuth(true),
+        showGithubOAuth: await shouldShowGithubOAuth(true),
+        inviteError: "This invitation token appears to be invalid, expired, or already used.",
+        signUpForm: { token: inviteToken },
+      };
+    }
+
     if (locals.user) {
       throw redirect(302, "/config/collectionbuilder");
     }
@@ -266,32 +293,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
           error: result.message || "Invalid or expired magic link.",
         };
       }
-    }
-
-    // Invite flow
-    const inviteToken = url.searchParams.get("invite_token");
-    if (inviteToken) {
-      const tokenData = await auth.validateRegistrationToken(inviteToken);
-      if (tokenData.isValid && tokenData.details) {
-        return {
-          ...errorDefaults,
-          hasAdminUser: locals.isFirstUser === false,
-          showGoogleOAuth: await shouldShowGoogleOAuth(true),
-          showGithubOAuth: await shouldShowGithubOAuth(true),
-          isInviteFlow: true,
-          token: inviteToken,
-          invitedEmail: tokenData.details.email,
-          roleId: tokenData.details.role,
-        };
-      }
-      return {
-        ...errorDefaults,
-        hasAdminUser: locals.isFirstUser === false,
-        showGoogleOAuth: await shouldShowGoogleOAuth(true),
-        showGithubOAuth: await shouldShowGithubOAuth(true),
-        inviteError: "This invitation token appears to be invalid, expired, or already used.",
-        signUpForm: { token: inviteToken },
-      };
     }
 
     // Authoritative check: at least one admin user must exist for the CMS to be usable.
@@ -482,7 +483,14 @@ export const actions: Actions = {
     if (result?.success && result?.redirectPath) {
       throw redirect(303, result.redirectPath);
     }
-    return fail(401, result ?? { success: false, message: "Sign in failed" });
+    // adapter-uws doesn't render form action POST responses as full HTML
+    // (even with 200 status), so $page.form is never populated.
+    // Redirect with error/2FA params instead — GET requests render correctly.
+    if (result?.requires2FA && result?.userId) {
+      throw redirect(303, `/login?2fa=${encodeURIComponent(result.userId)}`);
+    }
+    const errorMsg = encodeURIComponent(result?.message || "Sign in failed");
+    throw redirect(303, `/login?error=${errorMsg}`);
   },
   signUp: async (event) => {
     const formData = await event.request.formData();

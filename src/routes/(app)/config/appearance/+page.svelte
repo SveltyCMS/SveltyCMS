@@ -63,6 +63,10 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
 
   // ── Per-user theme overrides ──
   const userPrefs = $derived((data as any).user?.preferences?.theme as Record<string, any> | undefined);
+  console.log("[DEBUG] data.user?.preferences?.theme =", JSON.stringify(userPrefs));
+  console.log("[DEBUG] data keys:", Object.keys(data as any));
+  console.log("[DEBUG] data.user keys:", Object.keys((data as any).user || {}));
+  console.log("[DEBUG] data.user.preferences:", JSON.stringify((data as any).user?.preferences));
   let myDensity = $state<string>(
     untrack(() => userPrefs?.density || "")
   );
@@ -77,18 +81,24 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   );
 
   function readLayoutPref(key: LayoutPrefKey): string {
-    return userPrefs?.layoutState?.[key] ?? "";
+    const val = userPrefs?.layoutState?.[key] ?? "";
+    console.log(`[DEBUG] readLayoutPref("${key}") = "${val}"`, userPrefs);
+    return val;
   }
 
   let myLayoutPrefs = $state<Record<LayoutPrefKey, string>>(
-    untrack(() => ({
-      leftSidebar: readLayoutPref("leftSidebar"),
-      rightSidebar: readLayoutPref("rightSidebar"),
-      pageheader: readLayoutPref("pageheader"),
-      pagefooter: readLayoutPref("pagefooter"),
-      header: readLayoutPref("header"),
-      footer: readLayoutPref("footer"),
-    })),
+    untrack(() => {
+      const prefs = {
+        leftSidebar: readLayoutPref("leftSidebar"),
+        rightSidebar: readLayoutPref("rightSidebar"),
+        pageheader: readLayoutPref("pageheader"),
+        pagefooter: readLayoutPref("pagefooter"),
+        header: readLayoutPref("header"),
+        footer: readLayoutPref("footer"),
+      };
+      console.log("[DEBUG] myLayoutPrefs initialized:", JSON.stringify(prefs));
+      return prefs;
+    }),
   );
 
   const layoutLocked = $derived(isPreferenceLocked(loadedTheme?.lockedSettings, "layoutState"));
@@ -125,12 +135,14 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     try {
       const themePrefs = buildMyThemePrefs();
       const payload: Record<string, any> = { preferences: { theme: { ...themePrefs } } };
-
+      console.log("[DEBUG] saveMyOverrides payload:", JSON.stringify(payload));
       const res = await fetch("/api/user/update-user-attributes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: "self", newUserData: payload }),
       });
+      const respBody = await res.clone().json().catch(() => res.statusText);
+      console.log("[DEBUG] saveMyOverrides response:", res.status, JSON.stringify(respBody));
       if (!res.ok) throw new Error("Save failed");
 
       userThemePrefs.apply(themePrefs);
@@ -672,7 +684,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                 Quick-apply curated presets or import from Skeleton.dev theme builder.
               </p>
               <p class="text-sm mb-4">
-                <a href="/config/design-system" class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1">
+                <a href="/config/design-system" aria-label="Browse the Design System playground" class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1">
                   <iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
                   Browse the Design System playground
                 </a>

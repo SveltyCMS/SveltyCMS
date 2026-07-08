@@ -30,8 +30,18 @@ test.describe("Collection & Entry Flow", () => {
           name: "Names",
           slug: "Names",
           fields: [
-            { db_fieldName: "first_name", label: "First Name", widget: { Name: "Input" }, type: "string" },
-            { db_fieldName: "last_name", label: "Last Name", widget: { Name: "Input" }, type: "string" },
+            {
+              db_fieldName: "first_name",
+              label: "First Name",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "last_name",
+              label: "Last Name",
+              widget: { Name: "Input" },
+              type: "string",
+            },
           ],
         },
       },
@@ -64,8 +74,10 @@ test.describe("Collection & Entry Flow", () => {
     });
     expect(entryRes.ok()).toBeTruthy();
 
-    // Refresh page to see the entry
-    await page.reload();
-    await expect(page.getByRole("row", { name: /draft/i })).toBeVisible({ timeout: 10_000 });
+    // Refresh with cache bypass to see the entry
+    const refreshUrl = new URL(page.url());
+    refreshUrl.searchParams.set("bypassCache", "true");
+    await page.goto(refreshUrl.toString());
+    await expect(page.locator("tr").filter({ hasText: /draft/i }).first()).toBeVisible({ timeout: 10_000 });
   });
 });

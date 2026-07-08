@@ -132,6 +132,7 @@ functionality for image editing and basic file information display.
 			image: value,
 			watermarkPreset,
 			onsave: handleEditorSave,
+			title: "Image Editor",
 			size: IMAGE_EDITOR_MODAL_SIZE,
 			modalClasses: IMAGE_EDITOR_MODAL_CLASSES,
 		});

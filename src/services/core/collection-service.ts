@@ -71,8 +71,9 @@ export class CollectionService {
       bypassCache = false,
     } = params;
 
-    // 1. Define Cache Key
-    const cacheKey = `collection:${collection._id}:page:${page}:size:${pageSize}:filter:${JSON.stringify(
+    // 1. Define Cache Key (includes global version for auto-invalidation on changes)
+    const globalVersion = await cacheService.getGlobalVersion(tenantId);
+    const cacheKey = `collection:${collection._id}:v${globalVersion}:page:${page}:size:${pageSize}:filter:${JSON.stringify(
       filter,
     )}:search:${search}:sort:${JSON.stringify(sort)}:edit:${editEntryId || "none"}:lang:${language}:tenant:${tenantId}:user:${user._id}`;
 

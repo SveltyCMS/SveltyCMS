@@ -62,6 +62,7 @@ export const authUsers = mysqlTable(
     authenticators: json("authenticators").$type<import("../auth/types").Authenticator[]>(),
     failedAttempts: int("failedAttempts").notNull().default(0),
     lockoutUntil: datetime("lockoutUntil"),
+    preferences: json("preferences").$type<Record<string, unknown>>(),
     tenantId: tenantField(),
     ...timestamps,
   },

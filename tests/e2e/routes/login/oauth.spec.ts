@@ -7,9 +7,32 @@
  *   - Simulates avatar processing and email sending during signup
  *   - Checks for proper error handling and configuration in different environments
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function waitForLoginRouteReady(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        try {
+          const response = await page.request.get("/api/setup/status", {
+            timeout: 5_000,
+          });
+          return response.status() < 500;
+        } catch {
+          return false;
+        }
+      },
+      {
+        timeout: 45_000,
+        intervals: [500, 1_000, 2_000, 5_000],
+      },
+    )
+    .toBe(true);
+}
 
 test.describe("OAuth First User Signup", () => {
+  test.describe.configure({ timeout: 60_000 });
+
   test.beforeEach(async ({ page }) => {
     // Block all real Google/GitHub OAuth calls to prevent network access
     await page.route("**/accounts.google.com/**", (route) => route.abort());
@@ -45,7 +68,8 @@ test.describe("OAuth First User Signup", () => {
       window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
     });
 
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    await waitForLoginRouteReady(page);
+    await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 45_000 });
   });
 
   test("OAuth button should be visible when OAuth is enabled", async ({ page }) => {

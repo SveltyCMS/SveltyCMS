@@ -176,11 +176,35 @@ export async function prepareLoginForm(page: Page) {
     const signUpIcon = page.getByTestId("signup-icon");
     if (await signUpIcon.isVisible()) {
       console.log(
-        "[Auth] WARNING: Only SIGN UP icon visible. DB might not be seeded or isFirstUser=true.",
+        "[Auth] WARNING: Only SIGN UP icon visible. Seeding admin once and retrying sign in.",
       );
-      // In first user mode, we'll try to click signup and fill it, but expect error later
-      await signUpIcon.click({ force: true });
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      await page.context().clearCookies();
+      await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+      const retrySignInIcon = page.getByTestId("signin-icon");
+      await retrySignInIcon.click({ force: true, timeout: 10_000 });
       await page.waitForTimeout(1000);
+    }
+  }
+
+  if (!(await page.getByTestId("signin-email").isVisible({ timeout: 2_000 }).catch(() => false))) {
+    const goBack = page.getByRole("button", { name: /go back/i }).first();
+    if (await goBack.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await goBack.click({ force: true });
+      await page.waitForTimeout(300);
+    }
+
+    const signInChooser = page.getByRole("button", { name: /go to sign in|sign in/i }).first();
+    if (await signInChooser.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await signInChooser.click({ force: true, timeout: 5_000 });
+      await page.waitForTimeout(500);
     }
   }
 

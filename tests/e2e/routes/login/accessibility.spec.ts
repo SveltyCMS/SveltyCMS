@@ -11,6 +11,7 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/database";
+import { openLoginSignInForm } from "../../helpers/visual";
 
 test.describe("Universal Accessibility Audits", () => {
   test.beforeEach(async ({ page }) => {
@@ -18,18 +19,7 @@ test.describe("Universal Accessibility Audits", () => {
   });
 
   test("Login Page - Automated Axe Audit", async ({ page }) => {
-    await page.goto("/login");
-    // Click Sign In to reveal the signin form (hidden behind chooser by default)
-    const signInIcon = page.getByTestId("signin-icon");
-    if (await signInIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await signInIcon.click({ force: true });
-    } else {
-      await page
-        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-        .first()
-        .click({ force: true });
-    }
-    await page.getByTestId("signin-email").waitFor({ state: "visible" });
+    await openLoginSignInForm(page);
 
     // Run Axe audit
     const results = await new AxeBuilder({ page })
@@ -51,9 +41,7 @@ test.describe("Universal Accessibility Audits", () => {
   test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
     // 1. Login first
     await loginAsAdmin(page);
-    await page.waitForURL(/\/(Collections|admin|dashboard|collectionbuilder)/, {
-      timeout: 15_000,
-    });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 
     // 2. Set HTML dir="rtl" to simulate RTL layout (Arabic/Hebrew locale flow)
     await page.evaluate(() => {
@@ -84,18 +72,7 @@ test.describe("Universal Accessibility Audits", () => {
   });
 
   test("Keyboard Traversal - Focus Trap & Focus Ring Visibility", async ({ page }) => {
-    await page.goto("/login");
-    // Click Sign In to reveal the signin form (hidden behind chooser by default)
-    const signInIcon = page.getByTestId("signin-icon");
-    if (await signInIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await signInIcon.click({ force: true });
-    } else {
-      await page
-        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-        .first()
-        .click({ force: true });
-    }
-    await page.getByTestId("signin-email").waitFor({ state: "visible" });
+    await openLoginSignInForm(page);
 
     // Check that we can move focus using Tab key
     const emailField = page.getByTestId("signin-email");

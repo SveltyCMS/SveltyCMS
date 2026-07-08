@@ -4,8 +4,8 @@
 -->
 
 <script lang="ts">
-	import '@src/plugins/index';
-	import { slotRegistry } from '@src/plugins/slot-registry';
+	import { slotRegistry, ensurePluginsScanned } from '@src/plugins';
+	ensurePluginsScanned();
 	import type { InjectionZone } from '@src/plugins/types';
 
 	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
@@ -21,15 +21,16 @@
 
 	const { name, props = {}, inline = false }: Props = $props();
 
-	// In a real implementation, this would be reactive to registry changes if we had a comprehensive store.
-	// For now, we fetch on mount/reactivity.
+	const slots = $derived(slotRegistry.getSlots(name).filter(slot => {
+		if (!slot.condition) return true;
+		try {
+			return slot.condition(props);
+		} catch (err) {
+			console.error(`[Slot.svelte] condition error for slot "${slot.id}":`, err);
+			return false;
+		}
+	}));
 
-	// We need to import slotRegistry in a way that works on client usage if it's isomorphic,
-	// but slotRegistry might be populated on client or server?
-	// Plugins usually register on startup. If this is client-side, we need to ensure registry is available.
-	// Assuming plugins register isomorphic slots.
-
-	const slots = $derived(slotRegistry.getSlots(name).filter(slot => !slot.condition || slot.condition(props)));
 </script>
 
 <div class={inline ? 'contents' : 'slot-zone'} data-zone={name}>

@@ -197,6 +197,11 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			overscroll-behavior: contain;
 		}
 
+		/* Ensure closed dialog never intercepts pointer events */
+		dialog:not([open]) {
+			display: none !important;
+		}
+
 	dialog[data-fullscreen='true'][open] > div,
 	dialog[data-editor='true'][open] > div {
 		animation: none;

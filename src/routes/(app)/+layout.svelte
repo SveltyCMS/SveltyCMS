@@ -155,6 +155,14 @@ $effect(() => {
 	const effectivePrefs = userThemePrefs.getEffective(data.user?.preferences?.theme);
 	const userLayout = effectivePrefs?.layoutState;
 	const serialized = JSON.stringify(userLayout ?? {});
+	console.log("[DEBUG Layout]", {
+		layoutStateRestored,
+		effectivePrefs: JSON.stringify(effectivePrefs),
+		userLayout: JSON.stringify(userLayout),
+		dbAdminLayoutState: JSON.stringify(dbAdminConfig?.layoutState),
+		screen: screen.isDesktop ? "desktop" : "mobile",
+		manualOverrideActive: ui.manualOverrideActive,
+	});
 
 	if (!layoutStateRestored && dbAdminConfig?.layoutState) {
 		applyLayoutPrefsToUiState(dbAdminConfig.layoutState, ui.state);
@@ -166,6 +174,7 @@ $effect(() => {
 			if ((key === "leftSidebar" || key === "rightSidebar") && !screen.isDesktop) continue;
 			if (key === "leftSidebar" && screen.isDesktop) continue; // Respect userPreferred from localStorage
 			if (val === "full" || val === "hidden") {
+				console.log("[DEBUG Layout] Applying", key, "=", val);
 				ui.state[key as keyof typeof ui.state] = val;
 			}
 		}

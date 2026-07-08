@@ -98,6 +98,11 @@ eventBus.on("*", (payload: any) => {
     // 🚀 Performance: skip events that don't need real-time broadcasting
     if (!shouldBridgeEvent(event)) return;
 
+    // Use the tenantId from the event data if available; otherwise fall back to the default.
+    // IMPORTANT: This derivation must remain consistent with the stream topic derivation
+    // in the events stream above (line 37: ctx.user?.tenantId || DEFAULT_TENANT_ID).
+    // If the user has a tenantId in their session but events carry undefined/null,
+    // the topic will mismatch and subscribers will never receive events.
     const tenantId = data?.tenantId || DEFAULT_TENANT_ID;
     const topic = `system_events:${tenantId}`;
 

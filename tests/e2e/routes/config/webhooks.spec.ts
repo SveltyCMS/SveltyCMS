@@ -16,14 +16,14 @@ test.describe("Webhooks", () => {
     await expect(page.getByRole("heading", { level: 1, name: /webhook/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByRole("button", { name: /add|create|new/i }).first()).toBeVisible({
+    await expect(page.getByRole("button", { name: /add webhook/i })).toBeVisible({
       timeout: 10_000,
     });
   });
 
   test("can open create webhook form", async ({ page }) => {
     await page.goto("/config/webhooks");
-    const addButton = page.getByRole("button", { name: /add|create|new/i }).first();
+    const addButton = page.getByRole("button", { name: /add webhook/i });
     if (await addButton.isVisible()) {
       await addButton.click();
       await expect(page.getByLabel(/webhook name/i).or(page.getByPlaceholder(/name/i))).toBeVisible(

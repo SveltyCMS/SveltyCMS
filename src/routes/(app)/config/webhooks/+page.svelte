@@ -177,7 +177,7 @@ onMount(loadWebhooks);
 			<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
 			<h3 class="h3 font-bold">No Webhooks Configured</h3>
 			<p class="mb-6 opacity-60">Add a webhook to start integrating with external systems.</p>
-			<Button variant="tertiary" onclick={openAddModal} aria-label="Add webhook" class="dark:">Get Started</Button>
+			<Button variant="tertiary" onclick={openAddModal} class="dark:">Get Started</Button>
 		</AdminCard>
 		</div>
 	{:else}

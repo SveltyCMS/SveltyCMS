@@ -78,9 +78,23 @@ export async function signInInternal(event: RequestEvent, input: any) {
       ok = true;
     } else return { success: false, message: tr.message || "Invalid token." };
   } else {
-    const ar = await auth.authenticate(e, p, undefined, {
-      bypassTenantCheck: true,
-    });
+    let ar;
+    try {
+      ar = await auth.authenticate(e, p, undefined, {
+        bypassTenantCheck: true,
+      });
+    } catch (err: any) {
+      // Account lockout (423 SvelteKit error) should return as form data,
+      // not propagate to an error page, so the login form displays it inline.
+      if (err?.status === 423) {
+        const message =
+          typeof err?.body === "string"
+            ? err.body
+            : err?.body?.message || err?.message || "Account is temporarily locked.";
+        return { success: false, message };
+      }
+      throw err;
+    }
     if (ar?.user) {
       user = ar.user;
       if (user.is2FAEnabled)
@@ -284,5 +298,5 @@ export async function signUpInternal(event: RequestEvent, input: any) {
       logger.debug("Registration token consumption failed silently during signup");
     });
 
-  return { success: true, redirectPath: "/config/collectionbuilder" };
+  return { success: true, redirectPath: invited ? "/" : "/config/collectionbuilder" };
 }

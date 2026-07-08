@@ -16,14 +16,14 @@ test.describe("Automations", () => {
     await expect(page.getByRole("heading", { level: 1, name: /automation/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByRole("button", { name: /new|create|add/i }).first()).toBeVisible({
+    await expect(page.getByRole("button", { name: /new automation/i })).toBeVisible({
       timeout: 10_000,
     });
   });
 
   test("can start creating an automation", async ({ page }) => {
     await page.goto("/config/automations");
-    const createBtn = page.getByRole("button", { name: /new|create|add/i }).first();
+    const createBtn = page.getByRole("button", { name: /new automation/i });
     if (await createBtn.isVisible()) {
       await createBtn.click();
       await expect(page).toHaveURL(/automations/, { timeout: 10_000 });

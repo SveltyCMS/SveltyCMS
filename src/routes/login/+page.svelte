@@ -76,6 +76,12 @@ let hasResetParams = $state(false);
 // so the form doesn't collapse during language change.
 let active: undefined | 0 | 1 = $state(undefined);
 $effect(() => {
+	// Invite flow always shows the signup form — must come before sessionStorage
+	// to prevent a previous admin visit (which saved active=0) from collapsing the form.
+	if (data.isInviteFlow) {
+		active = 1;
+		return;
+	}
 	if (typeof window !== "undefined") {
 		const saved = sessionStorage.getItem("login_active");
 		if (saved === "0" || saved === "1") {
@@ -323,7 +329,7 @@ function handleSignUpPointerEnter() {
 	{/if}
 </svelte:head>
 
-<div class={`flex min-h-lvh w-full overflow-y-auto transition-colors duration-300`} style="background-color: {background}" role="main" aria-label="Authentication Page">
+<main class="flex min-h-lvh w-full overflow-y-auto transition-colors duration-300" style="background-color: {background}" aria-label="Authentication Page">
 	<div
 		class="pointer-events-none fixed inset-0 z-10 transition-all duration-300"
 		class:opacity-0={active === undefined}
@@ -532,7 +538,7 @@ function handleSignUpPointerEnter() {
 		<!-- CMS Version -->
 		<div class="absolute bottom-5 inset-s-1/2 -translate-x-1/2"><VersionCheck transparent={true} /></div>
 	{/if}
-</div>
+</main>
 
 <style>
 	/* Scrollbar styling */

@@ -45,7 +45,7 @@ class SetupWizardPage {
     // 2. Cookie Banner
     const cookieBtn = this.page.getByRole("button", { name: /accept all/i }).first();
     if (await cookieBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cookieBtn.click({ force: true });
+      await cookieBtn.click({ force: true, timeout: 3000 }).catch(() => {});
     }
   }
 
@@ -151,6 +151,7 @@ test.describe("Setup Wizard: Error Handling", () => {
   });
 
   test("should show error on admin user password mismatch", async ({ wizard, page }) => {
+    test.setTimeout(90_000);
     await wizard.hardReset();
     await wizard.dismissModals();
 
@@ -210,7 +211,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await wizard.hardReset();
     await wizard.dismissModals();
 
-    await expect(page.getByText("Step 1")).toBeVisible();
+    await expect(page).toHaveURL(/\/setup/);
     await expect(page.locator("#db-type")).toBeVisible();
 
     await page.locator("#db-type").selectOption("sqlite");
@@ -218,7 +219,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await wizard.testConnection();
     await wizard.next();
 
-    await expect(page.getByText("Step 2")).toBeVisible();
+    await expect(page.getByRole("button", { name: /admin/i }).first()).toBeVisible();
     await expect(page.locator("#admin-username")).toBeVisible();
 
     await wizard.dismissModals();

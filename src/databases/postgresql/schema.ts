@@ -61,6 +61,7 @@ export const authUsers = pgTable(
     authenticators: jsonb("authenticators").$type<import("../auth/types").Authenticator[]>(),
     failedAttempts: integer("failedAttempts").notNull().default(0),
     lockoutUntil: timestamp("lockoutUntil"),
+    preferences: jsonb("preferences").$type<Record<string, unknown>>(),
     tenantId: tenantField(),
     ...timestamps,
   },

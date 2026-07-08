@@ -16,6 +16,7 @@ import { logger } from "@utils/logger";
 import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
+import { cacheService } from "@src/databases/cache/cache-service";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
@@ -398,9 +399,8 @@ export async function handleTestingRoutes(
 
       // Invalidate first-collection redirect cache
       try {
-        const { invalidateFirstCollectionCache } = await import(
-          "@src/utils/server/collection-utils.server"
-        );
+        const { invalidateFirstCollectionCache } =
+          await import("@src/utils/server/collection-utils.server");
         invalidateFirstCollectionCache();
       } catch (err) {
         console.warn(`[TestingHandler] Failed to invalidate collection redirect cache: ${err}`);
@@ -458,6 +458,7 @@ export async function handleTestingRoutes(
           isAdmin: true,
           isRegistered: true,
           emailVerified: true,
+          tenantId: null,
         },
         {
           expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
@@ -808,9 +809,8 @@ export async function handleTestingRoutes(
       const { refreshContent } = await import("@src/content/engine.server");
       await refreshContent(tenantId, { mode: "schemas" }).catch(() => {});
       // Invalidate first-collection redirect cache
-      const { invalidateFirstCollectionCache } = await import(
-        "@src/utils/server/collection-utils.server"
-      );
+      const { invalidateFirstCollectionCache } =
+        await import("@src/utils/server/collection-utils.server");
       invalidateFirstCollectionCache();
       return rawResponse({ success: true, message: "Compiled collections cleared" });
     }
@@ -1060,7 +1060,11 @@ export async function handleTestingRoutes(
     if (action === "get-user") {
       const { email } = params;
       const result = await cms.auth.listUsers({ tenantId });
-      const user = result.data.find((u: any) => u.email === email);
+      let user = result.data.find((u: any) => u.email === email);
+      if (!user && tenantId !== null) {
+        const globalResult = await cms.auth.listUsers({ tenantId: null });
+        user = globalResult.data.find((u: any) => u.email === email);
+      }
       return rawResponse({ success: !!user, user });
     }
 
@@ -1416,6 +1420,51 @@ export async function handleTestingRoutes(
           redirects: 2,
         },
       });
+    }
+
+    if (action === "create-entry") {
+      const { collectionId, entryData } = params;
+      if (!collectionId) throw new AppError("collectionId required", 400);
+      if (!entryData) throw new AppError("entryData required", 400);
+
+      // Ensure physical table exists for the collection
+      const { contentSystem } = await import("@src/content/index.server");
+      const schema = await contentSystem.getCollection(collectionId, tenantId);
+      if (schema) {
+        await cms.db.collection.createModel(schema);
+      }
+
+      const result = await cms.collections.create(collectionId, entryData, {
+        tenantId,
+        system: true,
+      });
+
+      // 🚀 INVALIDATE CACHE: Bump global version so the collection service cache key changes
+      await cacheService.incrementGlobalVersion(tenantId);
+
+      return rawResponse({ success: true, data: result });
+    }
+
+    if (action === "increment-cache-version") {
+      const { collectionId } = params;
+      if (collectionId) {
+        // Look up schema by display name or _id to invalidate specific collection cache
+        const { contentSystem } = await import("@src/content/index.server");
+        const schema = await contentSystem.getCollection(collectionId, tenantId);
+        if (schema?._id) {
+          await cacheService.clearByPattern(`collection:${schema._id}:*`, tenantId);
+        }
+      }
+      await cacheService.incrementGlobalVersion(tenantId);
+      return rawResponse({ success: true });
+    }
+
+    if (action === "list-entries") {
+      const { collectionId } = params;
+      if (!collectionId) throw new AppError("collectionId required", 400);
+
+      const result = await cms.collections.find(collectionId, {}, { tenantId });
+      return rawResponse({ success: true, data: result });
     }
 
     throw new AppError(`Unknown action: ${action}`, 400);

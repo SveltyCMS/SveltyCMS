@@ -4,6 +4,7 @@
  */
 
 import { expect, type Page } from "@playwright/test";
+import { TEST_API_HEADERS } from "./test-api";
 
 export interface AdminThemePatch {
   density?: "compact" | "cozy" | "spacious";
@@ -28,6 +29,7 @@ export interface AdminThemePatch {
 /** Save admin theme settings via authenticated API (TEST_MODE skips CSRF) */
 export async function saveAdminTheme(page: Page, settings: AdminThemePatch) {
   const res = await page.request.post("/api/theme/admin-theme", {
+    headers: TEST_API_HEADERS,
     data: settings,
   });
   expect(res.ok()).toBeTruthy();
@@ -47,6 +49,6 @@ export async function enableBrandedLogin(
 
 /** Reset admin theme to factory defaults */
 export async function resetAdminTheme(page: Page) {
-  const res = await page.request.delete("/api/theme/admin-theme");
+  const res = await page.request.delete("/api/theme/admin-theme", { headers: TEST_API_HEADERS });
   expect(res.ok()).toBeTruthy();
 }

@@ -12,15 +12,30 @@
 export const existsSync = () => false;
 export const readFileSync = () => "";
 export const readdirSync = () => [];
+export const mkdirSync = () => undefined;
+export const writeFileSync = () => undefined;
+export const statSync = () => ({ size: 0, mtime: new Date(0) });
+export const unlinkSync = () => undefined;
+export const renameSync = () => undefined;
 
 export const stat = async () => ({ size: 0, mtime: new Date(0) });
 export const appendFile = async () => {};
 export const mkdir = async () => {};
+export const readFile = async () => "";
+export const writeFile = async () => undefined;
+export const unlink = async () => undefined;
+export const rename = async () => undefined;
+export const readdir = async () => [];
 
 export const promises = {
   stat,
   appendFile,
   mkdir,
+  readFile,
+  writeFile,
+  unlink,
+  rename,
+  readdir,
 };
 
 export class AsyncLocalStorage<T = unknown> {
@@ -36,10 +51,34 @@ export class AsyncLocalStorage<T = unknown> {
   }
 }
 
+export const createReadStream = () => {
+  const stream = { on: () => stream, pipe: () => stream, resume: () => stream };
+  return stream;
+};
+export const createWriteStream = () => {
+  const stream = { on: () => stream, write: () => true, end: () => {}, finish: () => {} };
+  return stream;
+};
+
 export default {
   existsSync,
   readFileSync,
   readdirSync,
+  mkdirSync,
+  writeFileSync,
+  statSync,
+  unlinkSync,
+  renameSync,
+  createReadStream,
+  createWriteStream,
+  stat,
+  appendFile,
+  mkdir,
+  readFile,
+  writeFile,
+  unlink,
+  rename,
+  readdir,
   promises,
   AsyncLocalStorage,
 };

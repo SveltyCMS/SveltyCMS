@@ -36,7 +36,7 @@ Renders current language text with truncation for long content
 	);
 
 	// ✨ IMPROVED: Separate truncation logic from display logic for better performance
-	const fullText = $derived(value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–');
+	const fullText = $derived(typeof value === 'string' ? value : (value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–'));
 	const shouldTruncate = $derived(typeof fullText === 'string' && fullText.length > 50);
 	const displayText = $derived(shouldTruncate ? `${fullText.substring(0, 50)}...` : fullText);
 </script>

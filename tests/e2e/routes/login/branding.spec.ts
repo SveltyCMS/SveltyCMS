@@ -30,6 +30,9 @@ test.describe("Login Branding", () => {
   });
 
   test("login chooser renders default SveltyCMS shell", async ({ page }) => {
+    // resetAndSeedDatabase sets a session cookie via the seed endpoint's Set-Cookie response,
+    // which causes login/+page.server.ts to redirect authenticated users away from /login.
+    await page.context().clearCookies();
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("main", { name: "Authentication Page" })).toBeVisible();
     await expect(page.getByTestId("signin-icon")).toBeVisible();

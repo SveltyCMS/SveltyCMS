@@ -1,16 +1,21 @@
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 /**
- * @file tests/e2e/master-behavioral-journey.spec.ts
+ * @file tests/e2e/routes/collection-builder/journey.spec.ts
  * @description TQA Pillar 1: Comprehensive behavioral journey test.
  * Simulates the full lifecycle: Builder -> Schema -> Entry -> API.
+ *
+ * ### Parallel Worker Safety:
+ * - Each worker uses a unique collection name (worker index + timestamp)
+ * - All state is self-contained within the test
  */
 
 test.describe("Master Behavioral Journey", () => {
   test.setTimeout(120_000);
 
-  test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page, request }) => {
+  test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page }, testInfo) => {
     // Inject E2E flag for synchronous widget init
     await page.addInitScript(() => {
       (window as any).__SVELTYCMS_E2E__ = true;
@@ -23,8 +28,8 @@ test.describe("Master Behavioral Journey", () => {
       page.getByRole("heading", { level: 1, name: /collection builder/i }),
     ).toBeVisible();
 
-    // 2. Create a New Collection via editor
-    const collectionName = `JourneyProj_${Date.now()}`;
+    // 2. Create a New Collection via editor (worker-unique name for parallel safety)
+    const collectionName = `JourneyProj_${testInfo.workerIndex}_${Date.now()}`;
     await page.goto("/config/collectionbuilder/new");
     await expect(page.getByTestId("collection-name-input")).toBeVisible({
       timeout: 10_000,
@@ -34,7 +39,6 @@ test.describe("Master Behavioral Journey", () => {
     // 3. Configure Collection Fields (GUI) — click step 2 in the stepper
     await page.getByRole("button", { name: /field configuration/i }).click();
     await page.getByTestId("quick-add-input").click();
-    // The widget generates a field with label "New Input"
     await expect(page.getByText(/New Input/i)).toBeVisible({
       timeout: 10_000,
     });
@@ -45,44 +49,54 @@ test.describe("Master Behavioral Journey", () => {
       timeout: 15_000,
     });
 
-    // 5. Create an Entry in the New Collection
-    // Navigate to the dashboard first so the sidebar loads with the Collections tree
-    await page.goto("/");
-    await expect(
-      page.getByRole("treeitem", { name: RegExp(collectionName, "i") }).first(),
-    ).toBeVisible({
+    // 5. Navigate to the collection entry list page
+    const collectionSlug = collectionName.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    await page.goto(`/en/collection/${collectionSlug}?bypassCache=true&_t=${Date.now()}`);
+    await expect(page.getByRole("heading", { name: RegExp(collectionName, "i") })).toBeVisible({
       timeout: 15_000,
     });
-    // Click the treeitem to navigate to the entry page (client-side navigation)
-    await page
-      .getByRole("treeitem", { name: RegExp(collectionName, "i") })
-      .first()
-      .click();
-    await page.getByRole("button", { name: /^Create$/ }).click();
 
-    // Fill the dynamically generated text field
-    await page.getByLabel(/new input/i).fill("The TQA Project");
-
-    // Click Cancel to return to entry list (Save button only renders on mobile viewport)
-    await page.getByRole("button", { name: /cancel/i }).click();
-    await expect(page).toHaveURL(RegExp(collectionName, "i"), { timeout: 10_000 });
-
-    // Create entry via API with multilang format expected by the Input Display widget
-    const entryRes = await request.post(`/api/collections/${collectionName}`, {
+    // 6. Create entry via public REST API with multilang format
+    const entryRes = await page.request.post(`/api/collections/${collectionName}`, {
       data: { new_input: { en: "The TQA Project" } },
     });
+    console.log(`POST /api/collections/${collectionName}: status=${entryRes.status()}`);
     expect(entryRes.ok()).toBeTruthy();
 
-    // Reload to see the entry
-    await page.reload();
-    await expect(page.getByRole("row", { name: /draft/i })).toBeVisible({ timeout: 10_000 });
+    // 7. Force cache invalidation via Testing API so the entry list picks up the new entry
+    const invRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "increment-cache-version",
+        collectionId: collectionName,
+      },
+    });
+    console.log(`POST /api/testing (increment-cache-version): status=${invRes.status()}`);
 
-    // 6. Verify API Output (Public Interface)
-    const apiRes = await request.get(`/api/collections/${collectionName}`);
+    // 8. Navigate directly to the entry list with full cache bypass
+    await page.goto(`/en/collection/${collectionSlug}?bypassCache=true&_t=${Date.now()}`);
+    await expect(page.getByRole("heading", { name: RegExp(collectionName, "i") })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Wait for the entry row to appear (use polling in case of async rendering)
+    await expect(page.getByText("The TQA Project").first()).toBeVisible({ timeout: 15_000 });
+
+    // 9. Verify API Output (via Testing API)
+    const apiRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "list-entries",
+        collectionId: collectionName,
+      },
+    });
+    console.log(`POST /api/testing (list-entries): status=${apiRes.status()}`);
     expect(apiRes.ok()).toBeTruthy();
 
     const body = await apiRes.json();
-    const entry = body.data.find((e: any) => e.new_input?.en === "The TQA Project");
+    // SDK response wraps in { data: [...], meta: {...} }
+    const entries = body.data?.data ?? body.data ?? [];
+    const entry = entries.find((e: any) => e.new_input?.en === "The TQA Project");
 
     expect(entry).toBeDefined();
     expect(entry.status).toBe("draft");

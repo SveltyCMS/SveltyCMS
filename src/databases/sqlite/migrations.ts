@@ -66,6 +66,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "authenticators" TEXT,
         "failedAttempts" INTEGER DEFAULT 0,
         "lockoutUntil" INTEGER,
+        "preferences" TEXT,
         "tenantId" TEXT,
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
@@ -459,6 +460,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
     execute(`ALTER TABLE "auth_users" ADD COLUMN "authenticators" TEXT`);
     execute(`ALTER TABLE "auth_users" ADD COLUMN "failedAttempts" INTEGER DEFAULT 0`);
     execute(`ALTER TABLE "auth_users" ADD COLUMN "lockoutUntil" INTEGER`);
+    execute(`ALTER TABLE "auth_users" ADD COLUMN "preferences" TEXT`);
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed
     try {

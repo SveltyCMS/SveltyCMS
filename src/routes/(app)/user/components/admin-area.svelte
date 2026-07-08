@@ -264,7 +264,13 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let selectAll = $state(false);
-	let selectedMap: Record<number, boolean> = $state({});
+	let selectedMap: Record<string, boolean> = $state({});
+
+	function getRowKey(row: TableDataType, index = 0): string {
+		if (isUser(row)) return String(row._id);
+		if (isToken(row)) return row.token;
+		return String(index);
+	}
 
 	// Derived rows to display and selection will be defined below
 	let density = $state(
@@ -615,19 +621,24 @@
 
 	// Derive selected rows from selectedMap; ensure type compatibility by mapping to UserData | TokenData
 	let selectedRows: TableDataType[] = $derived.by(() =>
-		Object.entries(selectedMap)
-			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[Number.parseInt(index, 10)])
-			.filter((item): item is User | Token => item !== undefined && item !== null)
+		tableData.filter((row, index) => selectedMap[getRowKey(row, index)] === true)
 	);
 
-	// Reset selection and page when the data source changes
+	// Keep selection aligned with the current API page without losing it on harmless refreshes.
 	$effect(() => {
 		void tableData; // track dependency
 		untrack(() => {
-			selectedMap = {};
-			selectAll = false;
-			currentPage = 1;
+			const availableKeys = new Set(tableData.map((row, index) => getRowKey(row, index)));
+			const nextSelectedMap: Record<string, boolean> = {};
+
+			for (const [key, selected] of Object.entries(selectedMap)) {
+				if (selected && availableKeys.has(key)) {
+					nextSelectedMap[key] = true;
+				}
+			}
+
+			selectedMap = nextSelectedMap;
+			selectAll = tableData.length > 0 && tableData.every((row, index) => nextSelectedMap[getRowKey(row, index)] === true);
 		});
 	});
 
@@ -772,10 +783,10 @@
 			<div class="max-h-[calc(100vh-120px)] overflow-x-auto overflow-y-auto">
 				<table class="table w-full table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead
-						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
+						class="divide-s divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
 					>
 						{#if filterShow}
-							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
+							<tr class="divide-s divide-surface-200/50 dark:divide-surface-700/50">
 								<th>
 									{#if Object.keys(filters).length > 0}
 										<Button variant="ghost" type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="p-0! min-w-0 preset-outline">
@@ -801,7 +812,7 @@
 						{/if}
 
 						<tr
-							class="divide-x divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+							class="divide-s divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
 						>
 							<TableIcons
 								cellClass="w-10 text-center"
@@ -809,7 +820,7 @@
 								onCheck={(checked: boolean) => {
 									selectAll = checked;
 									for (let i = 0; i < tableData.length; i++) {
-										selectedMap[i] = checked;
+										selectedMap[getRowKey(tableData[i], i)] = checked;
 									}
 								}}
 							/>
@@ -845,7 +856,7 @@
 							{const isConsumed = isToken(row) && row.consumed}
 							{const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired || isConsumed
+								class="divide-s divide-surface-200/50 dark:divide-surface-50 {isExpired || isConsumed
 									? 'bg-surface-50 opacity-60 dark:bg-surface-900/20'
 									: ''} {isExpired ? 'bg-error-50 dark:bg-error-900/10' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
@@ -858,9 +869,10 @@
 								}}
 							>
 								<TableIcons
-									checked={selectedMap[index] ?? false}
+									checked={selectedMap[getRowKey(row, index)] ?? false}
 									onCheck={(checked: boolean) => {
-										selectedMap[index] = checked;
+										selectedMap[getRowKey(row, index)] = checked;
+										selectAll = tableData.length > 0 && tableData.every((item, itemIndex) => selectedMap[getRowKey(item, itemIndex)] === true);
 									}}
 								/>
 								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}

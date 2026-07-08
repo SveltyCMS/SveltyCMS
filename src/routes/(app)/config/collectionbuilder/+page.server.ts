@@ -205,6 +205,12 @@ export const actions: Actions = {
 
     try {
       await contentSystem.upsertContentNodes(items, locals.tenantId);
+
+      // Refresh with adapter to create physical data tables and sync the store
+      const { getDb } = await import("@src/databases/db");
+      const db = getDb();
+      await contentSystem.refresh(locals.tenantId, false, false, db);
+
       const updatedStructure = await contentSystem.getContentStructureFromDatabase(
         "flat",
         locals.tenantId,

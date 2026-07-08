@@ -127,6 +127,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 		// Create a clean data object for the API call (just the user fields)
 		const submitData: Record<string, any> = {
+			user_id: editForm.data.user_id,
 			username: editForm.data.username,
 			email: editForm.data.email
 		};
@@ -357,7 +358,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
 					<div class="flex-auto">
-						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
+						<div class="flex flex-wrap justify-center gap-2 space-s-2 sm:justify-start" role="radiogroup" aria-label="Select Role">
 							{#if roles && roles.length > 0}
 								{#each roles as r (r._id)}
 									<Button

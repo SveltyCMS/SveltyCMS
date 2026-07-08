@@ -61,6 +61,14 @@ function resolveTargetFromForm(data: FormData, format: string): string {
   });
 }
 
+async function getActionFormData(context: { request: Request; parsedBody?: unknown }) {
+  if (context.parsedBody instanceof FormData) {
+    return context.parsedBody;
+  }
+
+  return context.request.formData();
+}
+
 // ============================================================================
 // Actions
 // ============================================================================
@@ -69,8 +77,8 @@ export const actions = {
   /**
    * Step 1: Detect format + AI field analysis + license check
    */
-  detect: async ({ request, locals }) => {
-    const data = await request.formData();
+  detect: async ({ request, parsedBody, locals }) => {
+    const data = await getActionFormData({ request, parsedBody });
     const file = data.get("file") as File | null;
     if (!file) return fail(400, { error: "No file provided" });
 
@@ -235,8 +243,8 @@ export const actions = {
   /**
    * Step 3: Dry-run validation
    */
-  dryRun: async ({ request, locals }) => {
-    const data = await request.formData();
+  dryRun: async ({ request, parsedBody, locals }) => {
+    const data = await getActionFormData({ request, parsedBody });
     const file = data.get("file") as File | null;
     const format = data.get("format") as string;
     const contentTypesRaw = data.get("contentTypes") as string | null;
@@ -281,10 +289,30 @@ export const actions = {
         : [];
 
       const { computeSchemaDiffReport } = await import("@plugins/smart-importer/schema-preview");
-      const { normalizeCollectionId } = await import("@plugins/smart-importer/collection-scaffold");
+      const { ensureTargetCollectionProvisioned, normalizeCollectionId } = await import(
+        "@plugins/smart-importer/collection-scaffold"
+      );
       const { contentSystem } = await import("@src/content/index.server");
       const tenantId = locals.tenantId ?? null;
       const collectionId = normalizeCollectionId(targetCollection);
+
+      if (dbAdapter && mappings.length > 0) {
+        const user = locals.user;
+        if (!user || !hasCollectionBuilderPermission(user, locals.roles ?? [], locals.isAdmin)) {
+          return fail(403, {
+            error: "config:collectionbuilder permission required to validate a new collection",
+          });
+        }
+
+        await ensureTargetCollectionProvisioned(
+          dbAdapter,
+          tenantId,
+          targetCollection,
+          mappings,
+          format,
+        );
+      }
+
       const existingSchema = contentSystem.getCollection(collectionId, tenantId);
       const schemaDiff = computeSchemaDiffReport(existingSchema, mappings);
 
@@ -319,7 +347,7 @@ export const actions = {
   /**
    * Step 3b: Scaffold target collection from field mappings (Collection Builder pipeline)
    */
-  scaffoldCollection: async ({ request, locals }) => {
+  scaffoldCollection: async ({ request, parsedBody, locals }) => {
     const user = locals.user;
     if (!user) return fail(401, { error: "Unauthorized" });
 
@@ -329,7 +357,7 @@ export const actions = {
       });
     }
 
-    const data = await request.formData();
+    const data = await getActionFormData({ request, parsedBody });
     const format = (data.get("format") as string) || "wordpress";
     const targetCollection = resolveTargetFromForm(data, format);
     const mappingsRaw = data.get("mappings") as string | null;
@@ -383,8 +411,8 @@ export const actions = {
   /**
    * Step 4: Import — gated by license for Pro platforms
    */
-  import: async ({ request, locals }) => {
-    const data = await request.formData();
+  import: async ({ request, parsedBody, locals }) => {
+    const data = await getActionFormData({ request, parsedBody });
     const file = data.get("file") as File | null;
     const format = data.get("format") as string;
     const contentTypesRaw = data.get("contentTypes") as string | null;
@@ -450,8 +478,8 @@ export const actions = {
   /**
    * Step 5: Rollback — Pro only
    */
-  rollback: async ({ request, locals }) => {
-    const data = await request.formData();
+  rollback: async ({ request, parsedBody, locals }) => {
+    const data = await getActionFormData({ request, parsedBody });
     const transactionToken = data.get("transactionToken") as string;
     const dbAdapter = (locals as any)?.dbAdapter;
     if (!transactionToken) return fail(400, { error: "transactionToken required" });

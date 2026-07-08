@@ -18,8 +18,14 @@ export const load = async ({ locals }: RequestEvent) => {
 
   // Fetch redirects for this tenant
   const result = await cms.collections.find("redirects", { tenantId });
+  const nestedResult = result.data as { data?: unknown } | null | undefined;
+  const redirects = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(nestedResult?.data)
+      ? nestedResult.data
+      : [];
 
   return {
-    redirects: result.success ? result.data : [],
+    redirects: result.success ? redirects : [],
   };
 };

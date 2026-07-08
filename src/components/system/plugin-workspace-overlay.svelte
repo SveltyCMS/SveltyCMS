@@ -4,7 +4,8 @@
 -->
 
 <script lang="ts">
-  import '@src/plugins/index';
+  import { ensurePluginsScanned } from '@src/plugins';
+  ensurePluginsScanned();
   import Slot from '@components/system/slot.svelte';
   import { pluginWorkspace } from '@stores/plugin-workspace.svelte';
   import { onMount } from 'svelte';

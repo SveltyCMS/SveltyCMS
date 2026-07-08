@@ -172,6 +172,7 @@ async function handleEditImage(file: any) {
 	modalState.trigger(ImageEditorModal as any, {
 		image: { ...file, url: fullUrl },
 		onsave: handleEditorSave,
+		title: "Image Editor",
 		size: IMAGE_EDITOR_MODAL_SIZE,
 		modalClasses: IMAGE_EDITOR_MODAL_CLASSES,
 	});
@@ -408,14 +409,13 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
 
-			<input
+			<input aria-label="upload-files"
 				type="file"
 				multiple
 				class="hidden"
 				bind:this={fileUploadInput}
 				onchange={handleUpload}
 				accept="image/*,video/*,audio/*,application/pdf"
-				aria-label="upload-files"
 				data-testid="media-upload-input"
 			/>
 		</div>

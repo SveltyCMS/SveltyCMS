@@ -6,11 +6,14 @@
  *   - Signs up the first user and checks validations
  *   - Tests sign out, login, and forgot password flows
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 
+const LOGGED_IN_URL_PATTERN =
+  /\/(?:[a-z]{2}\/)?collection\/|\/(Collections|admin|dashboard|collectionbuilder|config)/i;
+
 /** Dismiss cookie consent banner if visible. */
-async function dismissCookieConsent(page: any) {
+async function dismissCookieConsent(page: Page) {
   try {
     const btn = page.getByRole("button", { name: /accept all/i }).first();
     await btn.waitFor({ state: "visible", timeout: 3000 });
@@ -19,6 +22,21 @@ async function dismissCookieConsent(page: any) {
   } catch {
     /* banner not present */
   }
+}
+
+async function seedLoginUser(page: Page, email: string, password = "Test123!") {
+  const seedResponse = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "seed",
+      email,
+      password,
+    },
+  });
+  const seedBody = await seedResponse.json().catch(() => ({}));
+  expect(seedResponse.ok()).toBeTruthy();
+  expect(seedBody.success).toBe(true);
+  await page.context().clearCookies();
 }
 
 test.describe.configure({ timeout: 60_000 });
@@ -87,7 +105,7 @@ test("SignUp First User", async ({ page }) => {
 
   await page.locator("#signup-form button[type='submit']").click();
 
-  await expect(page).toHaveURL(/\/config\/collectionbuilder/);
+  await expect(page).toHaveURL(LOGGED_IN_URL_PATTERN);
 });
 
 test.describe("SignIn & SignOut Flows", () => {
@@ -95,17 +113,8 @@ test.describe("SignIn & SignOut Flows", () => {
     // Clear any leftover session from previous tests (e.g. test 2 signup)
     await page.context().clearCookies();
 
-    const seedResponse = await page.request.post("/api/testing", {
-      headers: TEST_API_HEADERS,
-      data: {
-        action: "seed",
-        email: "test@test.de",
-        password: "Test123!",
-      },
-    });
-    const seedBody = await seedResponse.json().catch(() => ({}));
-    expect(seedResponse.ok()).toBeTruthy();
-    expect(seedBody.success).toBe(true);
+    await seedLoginUser(page, "test@test.de");
+    await seedLoginUser(page, "test@test2.de");
 
     // Clear cookies again so the login page doesn't auto-redirect due to seed session
     await page.context().clearCookies();
@@ -136,18 +145,22 @@ test.describe("SignIn & SignOut Flows", () => {
     await page.getByTestId("signin-password").fill("Test123!");
     await page.getByTestId("signin-submit").click();
 
-    await expect(page).toHaveURL(/\/config\/collectionbuilder/);
+    await expect(page).toHaveURL(LOGGED_IN_URL_PATTERN);
   });
 });
 
 test("Forgot Password Flow", async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto("/login");
   await page.context().clearCookies();
+  await seedLoginUser(page, "test@test2.de");
+  await page.goto("/login");
   await page.reload({ waitUntil: "networkidle" });
   await dismissCookieConsent(page);
 
-  await page.getByText(/sign in/i).click();
+  if (!(await page.getByTestId("signin-forgot-password").isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: /go to sign in|sign in/i }).first().click();
+  }
+  await expect(page.getByTestId("signin-forgot-password")).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("signin-forgot-password").click();
 
   await page.locator("#emailforgot").fill("test@test2.de");

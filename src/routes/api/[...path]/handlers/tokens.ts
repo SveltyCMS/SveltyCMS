@@ -163,10 +163,11 @@ export async function handleTokenRoutes(
         return rawResponse(event, result, 201);
       }
 
-      if (body.expiresIn && !body.expires) body.expires = body.expiresIn;
       const result = await cms.auth.tokens.create({
-        ...body,
+        email: body.email,
+        role: body.role,
         userId: locals.user?._id,
+        expires: body.expiresIn || "2 days",
         tenantId,
       });
       if (!(result as any).success)

@@ -10,7 +10,7 @@ import { getDbInitPromise } from "@src/databases/db";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 
 const WHITELIST_REGEX =
-  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;
+  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|admin|login|email-previews)/;
 
 // Cache stampede containment: tracks active in-flight tenant initializations
 const tenantInitializationFlights = new Map<string, Promise<void>>();

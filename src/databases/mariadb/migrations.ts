@@ -62,6 +62,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			authenticators JSON,
 			failedAttempts INT NOT NULL DEFAULT 0,
 			lockoutUntil DATETIME,
+			preferences JSON,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -494,6 +495,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS failedAttempts INT NOT NULL DEFAULT 0`,
     );
     await connection.query(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS lockoutUntil DATETIME`);
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS preferences JSON`);
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
     await connection.query(
       `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'filesystem'`,

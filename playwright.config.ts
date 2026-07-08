@@ -52,7 +52,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 4 : undefined,
+  // Local E2E uses one shared ready server/database. Keep local full-suite runs
+  // serial so reset-heavy specs do not wipe state from other workers.
+  workers: process.env.CI ? 4 : 1,
   reporter: [
     ["html", { outputFolder: "tests/playwright-report", open: "never" }],
     [process.env.CI ? "github" : "list"],

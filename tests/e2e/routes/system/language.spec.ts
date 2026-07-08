@@ -13,7 +13,10 @@ test.describe("System Language Change", () => {
 
   test("Login and change system language between EN and DE", async ({ page }) => {
     // 1. Login
-    await loginAsAdmin(page, /\/(admin|Collections|collectionbuilder|dashboard)/);
+    await loginAsAdmin(
+      page,
+      /\/(?:[a-z]{2}\/)?collection\/|\/(admin|Collections|collectionbuilder|dashboard)/,
+    );
 
     // 2. On mobile viewports, open sidebar to access language selector
     await ensureSidebarVisible(page);
@@ -23,7 +26,7 @@ test.describe("System Language Change", () => {
     const isVisible = await languageSelector.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (!isVisible) {
-      console.log("⚠ Language selector not found in current UI, skipping language change test.");
+      console.log("[WARN] Language selector not found in current UI, skipping language change test.");
       return;
     }
 
@@ -38,9 +41,9 @@ test.describe("System Language Change", () => {
     const deOption = page.getByRole("button", { name: /deutsch/i, exact: false });
     const deVisible = await deOption.isVisible({ timeout: 2000 }).catch(() => false);
     if (deVisible) {
-      await deOption.click();
+      await deOption.evaluate((button: HTMLElement) => button.click());
       await page.waitForTimeout(1000);
-      console.log("✓ Language changed to DE");
+      console.log("OK Language changed to DE");
     }
 
     // 6. Switch back to English
@@ -50,9 +53,9 @@ test.describe("System Language Change", () => {
     const enOption = page.getByRole("button", { name: /english/i, exact: false });
     const enVisible = await enOption.isVisible({ timeout: 2000 }).catch(() => false);
     if (enVisible) {
-      await enOption.click();
+      await enOption.evaluate((button: HTMLElement) => button.click());
       await page.waitForTimeout(1000);
-      console.log("✓ Language changed to EN");
+      console.log("OK Language changed to EN");
     }
   });
 });

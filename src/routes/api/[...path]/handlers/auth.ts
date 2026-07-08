@@ -99,6 +99,8 @@ export async function handleAuthUserRoutes(
         return request.method === "POST"
           ? handleUpdateRoles(event, cms, tenantId, user)
           : notAllowed();
+      case "batch":
+        return handleUserSpecificRoutes(event, cms, tenantId, user, method, segments);
 
       // Sub-routes
       case "sessions":
@@ -301,8 +303,15 @@ export async function handleUpdateUserAttributesRoute(
   });
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
 
-  // 🔐 Password change: Invalidate all other sessions across all devices
+  // Invalidate current session cache so the next request reads fresh profile data.
+  // Skip for password changes: the password block below handles its own invalidation
+  // and intentionally preserves the current session.
   const hasPasswordField = "password" in updates || "password" in (body as any);
+  if (!hasPasswordField && event.locals.session_id) {
+    invalidateSessionCache(event.locals.session_id, tenantId);
+  }
+
+  // 🔐 Password change: Invalidate all other sessions across all devices
   if (hasPasswordField) {
     const currentSessionId = event.locals.session_id as DatabaseId | undefined;
     // 1. Get active sessions before invalidation so we can identify which to clean

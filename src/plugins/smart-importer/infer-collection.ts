@@ -10,7 +10,7 @@
  * Per-type collection split (separate `post` and `page` collections) is planned — see roadmap.
  */
 
-import { normalizeCollectionId } from "./collection-scaffold";
+import { normalizeCollectionId, FALLBACK_MIGRATION_COLLECTION } from "./collection-id";
 import type { SNCEntry } from "./types";
 
 export interface InferCollectionParams {
@@ -22,9 +22,6 @@ export interface InferCollectionParams {
   /** Parsed entries — used for frequency-based primary type */
   entries?: SNCEntry[];
 }
-
-/** Last-resort collection id when inference cannot derive a name */
-export const FALLBACK_MIGRATION_COLLECTION = "imported_content";
 
 /**
  * Resolve explicit user input or infer collection name from migration metadata.

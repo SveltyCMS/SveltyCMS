@@ -56,6 +56,7 @@ const JSON_FIELDS = new Set([
   "details",
   "errorDetails",
   "instances",
+  "preferences",
 ]);
 const DATE_FIELDS = new Set([
   "createdAt",
@@ -287,7 +288,7 @@ export function convertISOToDates(
       const key = jsonCols[i];
       const val = result[key];
       if (val !== null && typeof val === "object") {
-        result[key] = Array.isArray(val) ? JSON.stringify(val) : val;
+        result[key] = JSON.stringify(val);
       }
     }
   }
@@ -304,7 +305,7 @@ export function convertISOToDates(
           result[key] = new Date((val as any).getTime());
         }
       } else if (JSON_FIELDS.has(key) && val !== null && typeof val === "object") {
-        result[key] = Array.isArray(val) ? JSON.stringify(val) : val;
+        result[key] = JSON.stringify(val);
       }
     }
   }

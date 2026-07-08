@@ -112,6 +112,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 	let createdToken = $state('');
 	let invitationLink = $derived(createdToken ? `${page.url.origin}/login?invite_token=${createdToken}` : '');
 
+	// Svelte 5 sets `value` as DOM property, not HTML attribute, on client renders.
+	// CSS attribute selectors (e.g. input[value*=]) need the HTML attribute to match.
+	function syncValueAttr(node: HTMLInputElement) {
+		node.setAttribute('value', node.value);
+	}
+
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 
@@ -265,7 +271,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<label class="label">
 					<span class="text-xs uppercase font-bold opacity-60">Invitation Link</span>
 					<div class="flex gap-2 mt-1">
-						<input type="text" readonly value={invitationLink} class="input flex-1" />
+						<input type="text" readonly value={invitationLink} use:syncValueAttr class="input flex-1" aria-label="Invitation Link" />
 						<Button variant="primary" type="button" onclick={() => copyToClipboard(invitationLink, 'Link')} aria-label="Copy invitation link" class="shrink-0">
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 						</Button>
@@ -275,7 +281,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<label class="label">
 					<span class="text-xs uppercase font-bold opacity-60">Raw Token</span>
 					<div class="flex gap-2 mt-1">
-						<input type="text" readonly value={createdToken} class="input flex-1" />
+						<input type="text" readonly value={createdToken} class="input flex-1" aria-label="Raw Token" />
 						<Button variant="outline" type="button" onclick={() => copyToClipboard(createdToken, 'Token')} aria-label="Copy raw token" class="shrink-0">
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 						</Button>
@@ -337,11 +343,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 			<!-- Expires field -->
 			<div class="group relative z-0 w-full mt-2">
 				<label for="expires-select" class="mb-1 block text-sm opacity-70">{modaltokenuser_tokenvalidity()}</label>
-				<select
+				<select aria-label="Token Validity"
 					id="expires-select"
 					bind:value={tokenForm.data.expiresIn}
 					class="input bg-white text-black dark:bg-surface-700 dark:text-white"
-					aria-label="Token Validity"
 				>
 					<option value="2 hrs">2 Hours</option>
 					<option value="12 hrs">12 Hours</option>

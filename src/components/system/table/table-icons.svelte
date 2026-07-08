@@ -31,8 +31,7 @@
 	// Function to handle icon click and emit custom events
 	function handleIconClick(event: Event) {
 		event.stopPropagation();
-		checked = !checked;
-		onCheck(checked);
+		onCheck(!checked);
 	}
 
 	// Handle Enter or Space key presses for accessibility

@@ -347,6 +347,7 @@ $effect(() => {
 						name="email"
 						type="email"
 						required
+						readonly={isInviteFlow}
 						autocomplete="email"
 						autocapitalize="none"
 						spellcheck={false}
@@ -358,17 +359,11 @@ $effect(() => {
 						iconColor="white"
 						textColor="white"
 						inputClass="text-white {isInviteFlow ? 'opacity-70' : ''}"
-						disabled={isInviteFlow}
 						invalid={!!signUpForm.errors.email}
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
 					{#if isInviteFlow}
 						<span class="text-xs text-tertiary-500 dark:text-primary-500">? Email pre-filled from invitation</span>
-					{/if}
-
-					<!-- Hidden email input to ensure form submission when disabled -->
-					{#if isInviteFlow}
-						<input type="hidden" name="email" value={signUpForm.data.email} />
 					{/if}
 
 					<!-- Password field -->

@@ -253,6 +253,12 @@ export class RelationalAuthModule implements IAuthAdapter {
         const db = this.getDb(options);
 
         const preparedUpdate = utils.convertISOToDates(updateData);
+        // convertISOToDates stringifies JSON fields for raw DB writes,
+        // but Drizzle's mode:"json" also stringifies them — resulting in
+        // double-encoding. Parse back so Drizzle handles it correctly.
+        if (typeof preparedUpdate.preferences === "string") {
+          try { preparedUpdate.preferences = JSON.parse(preparedUpdate.preferences); } catch {}
+        }
         await db
           .update(this.schema.authUsers)
           .set(preparedUpdate)
@@ -519,7 +525,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   }
 
   async deleteUsers(userIds: DatabaseId[], options?: BaseQueryOptions) {
-    return this.adapter.transaction(async (tx: any) => {
+    const runWork = async (tx: any) => {
       const conditions = [inArray(this.schema.authUsers._id, userIds as string[])];
       if (options?.tenantId !== undefined) {
         conditions.push(
@@ -546,6 +552,14 @@ export class RelationalAuthModule implements IAuthAdapter {
 
       const deletedCount = (result as any).changes || userIds.length;
       return { success: true, data: { deletedCount } };
+    };
+
+    if (options?.transaction) {
+      return runWork(options.transaction);
+    }
+
+    return this.adapter.transaction(async (tx: any) => {
+      return runWork(tx);
     }, options as any);
   }
 
@@ -1121,7 +1135,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       const userRes = await this.createUser(
         {
           ...userData,
-          tenantId: userData.tenantId ?? options?.tenantId,
+          tenantId: userData.tenantId !== undefined ? userData.tenantId : sessionData.tenantId,
         },
         { transaction: tx },
       );
@@ -1130,7 +1144,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         {
           user_id: userRes.data._id,
           expires: sessionData.expires,
-          tenantId: sessionData.tenantId ?? options?.tenantId,
+          tenantId: sessionData.tenantId,
         },
         { transaction: tx },
       );

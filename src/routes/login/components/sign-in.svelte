@@ -125,6 +125,35 @@ let twoFACode = $state("");
 let useBackupCode = $state(false);
 let isVerifying2FA = $state(false);
 
+// Client-side error message for form action failures
+let errorMessage = $state("");
+
+// Pick up 2FA trigger from form action response (works when SSR renders form data)
+$effect(() => {
+	const form = page.form;
+	if (form?.requires2FA && form?.userId) {
+		requires2FA = true;
+		twoFAUserId = form.userId;
+	}
+});
+
+// adapter-uws doesn't render form action POST responses as full HTML,
+// so $page.form is never set for errors/2FA. Read redirect URL params instead.
+$effect(() => {
+	if (browser) {
+		const params = new URLSearchParams(page.url.search);
+		const errorParam = params.get("error");
+		if (errorParam && !errorMessage) {
+			errorMessage = errorParam;
+		}
+		const uid = params.get("2fa");
+		if (uid && !requires2FA) {
+			requires2FA = true;
+			twoFAUserId = uid;
+		}
+	}
+});
+
 let prefetched = $state(false);
 
 async function prefetchFirstCollection() {
@@ -636,6 +665,14 @@ $effect(() => {
 							/>
 							<button type="submit" class="hidden" aria-hidden="true">Sign in</button>
 						</form>
+
+						<!-- Server-side error from form action response -->
+						<div style="display:none" data-debug-form={JSON.stringify(page.form)}></div>
+						{#if (page.form?.message && !page.form?.success) || errorMessage}
+							<div role="alert" class="mb-4 rounded-lg bg-error-100 p-3 text-sm text-error-700">
+								{errorMessage || page.form?.message}
+							</div>
+						{/if}
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<div class="flex w-full flex-col sm:flex-row justify-between gap-2 sm:w-auto transition-all">

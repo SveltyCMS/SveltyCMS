@@ -13,15 +13,9 @@ test.describe("Tenant Management", () => {
 
   test("page loads with tenant list", async ({ page }) => {
     await page.goto("/admin/tenants");
-    // The page may redirect or show an empty state if multi-tenancy is disabled,
-    // or the page itself may fail to load. Wait for any recognizable content.
-    await expect(
-      page
-        .getByRole("heading", { level: 1 })
-        .or(page.getByText(/tenant|multi.tenant|no tenants|not found|access denied/i)),
-    ).toBeVisible({
-      timeout: 15_000,
-    });
+    console.log('[DIAG] final URL:', page.url());
+    const heading = page.getByRole("heading", { level: 1, name: /tenants/i });
+    await expect(heading).toBeVisible({ timeout: 15_000 });
     // Table is only present when tenants exist; skip if not visible
     const table = page.getByRole("table");
     if (await table.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -31,10 +25,16 @@ test.describe("Tenant Management", () => {
 
   test("shows quota information when tenants exist", async ({ page }) => {
     await page.goto("/admin/tenants");
-    const quotaHeaders = page.getByText(/users|storage|collections|quota/i);
-    const emptyState = page.getByText(/no tenants|not found/i);
-    await expect(quotaHeaders.or(emptyState).first()).toBeVisible({
-      timeout: 10_000,
-    });
+    // Check empty state first — if visible, no tenants loaded; otherwise verify quota column headers.
+    const emptyState = page.getByText(/no tenants/i);
+    if (await emptyState.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await expect(emptyState).toBeVisible();
+    } else {
+      // Tenants exist — quota column headers are rendered in the table
+      const table = page.getByRole("table");
+      await expect(table.getByRole("columnheader", { name: /users/i })).toBeVisible();
+      await expect(table.getByRole("columnheader", { name: /storage/i })).toBeVisible();
+      await expect(table.getByRole("columnheader", { name: /collections/i })).toBeVisible();
+    }
   });
 });

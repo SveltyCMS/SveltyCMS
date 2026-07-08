@@ -73,6 +73,7 @@ export const authUsers = sqliteTable(
     >(),
     failedAttempts: integer("failedAttempts").notNull().default(0),
     lockoutUntil: integer("lockoutUntil", { mode: "timestamp_ms" }),
+    preferences: text("preferences", { mode: "json" }),
     tenantId: tenantField(),
     ...timestamps,
   },

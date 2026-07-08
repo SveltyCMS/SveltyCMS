@@ -10,6 +10,15 @@ import { pluginRegistry } from "./registry";
 import { slotRegistry } from "./slot-registry";
 export { pluginRegistry, pluginServerRegistry, slotRegistry };
 
+/**
+ * Ensures the plugin scanning and slot registration code is not tree-shaken.
+ * The bundler may eliminate side-effect-only imports (`import '@src/plugins/index'`),
+ * so consumers must call this function to guarantee slots are registered.
+ */
+export function ensurePluginsScanned(): void {
+  /* no-op — module-level scanning already populated `availablePlugins` and registered slots */
+}
+
 import { logger } from "@utils/logger";
 import type { Plugin } from "./types";
 
@@ -72,7 +81,15 @@ for (const path in pluginModulesRaw) {
   if (!mod) continue;
 
   for (const key in mod) {
-    const value = mod[key];
+    let value = mod[key];
+    // Resolve lazy wrappers from bundler CommonJS interop (rolldown wraps exports in getter functions)
+    if (typeof value === "function") {
+      try {
+        value = value();
+      } catch {
+        continue;
+      }
+    }
     if (value && typeof value === "object" && value.metadata && value.metadata.id) {
       const id = value.metadata.id;
       if (!seenPluginIds.has(id)) {

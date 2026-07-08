@@ -120,24 +120,16 @@ export function handleApiError(err: unknown, event: RequestEvent) {
 
     // Log 500s as errors, everything else as info/warn
     if (status >= 500) {
-      logger.error(`AppError [${event.url.pathname}]: ${message}`, {
-        details: appErr.details,
-      });
+      logger.error(`AppError [${event.url.pathname}]: ${message}`, { details: appErr.details });
     } else if (status === 401) {
       // Silence noisy unauthorized logs during dev/restarts
-      logger.debug(`AppError [${event.url.pathname}]: ${message}`, {
-        details: appErr.details,
-      });
+      logger.debug(`AppError [${event.url.pathname}]: ${message}`, { details: appErr.details });
     } else {
       // Suppress expected 4xx errors during benchmark runs to keep output clean
       if (process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true") {
-        logger.debug(`AppError [${event.url.pathname}]: ${message}`, {
-          details: appErr.details,
-        });
+        logger.debug(`AppError [${event.url.pathname}]: ${message}`, { details: appErr.details });
       } else {
-        logger.warn(`AppError [${event.url.pathname}]: ${message}`, {
-          details: appErr.details,
-        });
+        logger.warn(`AppError [${event.url.pathname}]: ${message}`, { details: appErr.details });
       }
     }
   }

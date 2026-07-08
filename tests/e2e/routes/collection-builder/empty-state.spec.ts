@@ -17,6 +17,8 @@ import { loginAsAdmin } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Collection Builder — Empty State", () => {
+  test.setTimeout(60_000);
+
   test.beforeEach(async ({ page }) => {
     // Remove compiled collections so seed doesn't re-create them
     await page.request
@@ -106,14 +108,10 @@ test.describe("Collection Builder — Empty State", () => {
     // Click Install
     await page.getByRole("button", { name: /install selected template/i }).click();
 
-    // Should get a success toast
-    await expect(page.getByText(/created.*collections/i)).toBeVisible({
-      timeout: 15_000,
-    });
-
-    // Page should reload with collections visible
+    // Page should reload with collections visible. The toast can disappear quickly
+    // under the broader chromium project, so assert the durable end state.
     await expect(page.getByTestId("collection-builder-board")).toBeVisible({
-      timeout: 10_000,
+      timeout: 45_000,
     });
   });
 });
