@@ -121,6 +121,8 @@ bun run test:smart --suite=auth # filters by suite name
 | ------------------------------------- | ------------------------------------ |
 | `src/hooks/handle-authentication.ts`  | Auth & Security unit tests           |
 | `src/routes/api/[...path]/+server.ts` | Authorization & RBAC unit tests      |
+| `src/routes/api/[...path]/handlers/version.ts` | Version API unit tests     |
+| `src/services/core/version-service.ts` | Version comparison unit tests       |
 | `src/databases/**/*.ts`               | Full adapter contract matrix         |
 | `src/widgets/**/*.ts`                 | Widget unit + schema + accessibility |
 | `src/**/*.svelte`                     | Svelte Doctor (check + lint)         |

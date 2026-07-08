@@ -230,7 +230,7 @@ Are we faster? Yes, significantly, but more importantly, we are a **high-frequen
 - **AI-Native Efficiency**: CMS-side AI logic (enrichment, layout generation, field suggestions) adds a negligible **1.3ms tax**. 99.9% of the user's wait time is the LLM itself, ensuring a seamless "Intelligence-first" experience.
 - **AI Co-Pilot**: `suggestFields()` for schema-aware field type recommendations, `scoreContent()` for SEO/readability quality scoring. `@sveltycms/ai` scoped package for AI service consumption.
 - **Hybrid Package Model**: Scoped packages `@sveltycms/core`, `@sveltycms/widgets`, `@sveltycms/ai` for modular consumption while maintaining monorepo flexibility.
-- **Version Channels**: LTS/Stable/Next channel detection via `version-service.ts`. API endpoints at `/api/version/channels` and `/api/version/check`.
+- **Version Checking**: Automated update checking via `version-service.ts`. API endpoint at `/api/version/check` compares installed version against GitHub Releases.
 
 ### 2. 5-Pillar Architecture & Zero-Runtime Overhead
 

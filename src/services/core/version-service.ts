@@ -1,48 +1,25 @@
 /**
  * @file src/services/core/version-service.ts
  * @description
- * Core service for managing SveltyCMS version channels (LTS, Stable, Next).
+ * Core service for version detection and update checking.
  *
- * Responsibilities include:
- * - Defining available release channels and their version ranges
- * - Detecting the active channel based on the installed version
- * - Comparing local version against remote release tags
+ * SveltyCMS uses two branches:
+ * - `next`: Active development — all features and fixes land here.
+ * - `main`: Production — merged from `next` when stable. Releases triggered by tags.
+ *
+ * This service reads the installed version from package.json and checks
+ * GitHub Releases for newer versions.
  *
  * ### Features:
- * - channel enumeration (lts, stable, next)
- * - channel auto-detection from package.json
- * - lightweight update checking via GitHub Releases API
+ * - local version detection from package.json
+ * - update checking via GitHub Releases API
  */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { logger } from "@utils/logger";
 
-// ─── Channel Definitions ────────────────────────────────────────────
-
-/**
- * Release channel version ranges.
- *
- * - **lts**: Long-Term Support — patch-only updates within the current minor.
- * - **stable**: Current production release — latest stable features.
- * - **next**: Preview channel — upcoming minor/major features ahead of stable.
- */
-export const CHANNELS = {
-  lts: "v0.0.x",
-  stable: "v0.0.x",
-  next: "v0.1.x",
-} as const;
-
-export type ChannelName = keyof typeof CHANNELS;
-
-export interface ChannelInfo {
-  name: ChannelName;
-  range: string;
-  label: string;
-}
-
 export interface UpdateCheckResult {
-  channel: ChannelName;
   currentVersion: string;
   latestVersion: string | null;
   updateAvailable: boolean;
@@ -55,7 +32,7 @@ export interface UpdateCheckResult {
 export class VersionService {
   private static instance: VersionService;
   private readonly repoReleasesUrl = "https://api.github.com/repos/SveltyCMS/SveltyCMS/releases";
-  private readonly userAgent = "SveltyCMS-Version-Channel";
+  private readonly userAgent = "SveltyCMS-Version-Check";
 
   private constructor() {}
 
@@ -65,8 +42,6 @@ export class VersionService {
     }
     return VersionService.instance;
   }
-
-  // ─── Channel Detection ──────────────────────────────────────────
 
   /**
    * Reads the installed version from package.json.
@@ -83,51 +58,11 @@ export class VersionService {
   }
 
   /**
-   * Determines the active release channel based on the installed version.
-   *
-   * Logic:
-   * - Versions matching `0.0.x` resolve to `lts`.
-   * - Versions matching `0.1.x` (or higher minor) resolve to `next` if pre-release,
-   *   otherwise `stable`.
-   */
-  getCurrentChannel(): ChannelName {
-    const version = this.readLocalVersion();
-    const [major, minor] = version.split(".").map(Number);
-
-    if (major === 0 && minor === 0) return "lts";
-
-    // If the version contains a pre-release tag (e.g., `0.1.0-beta.1`), it's next
-    if (version.includes("-")) return "next";
-
-    // Otherwise, higher minors are on the stable channel
-    return "stable";
-  }
-
-  /**
-   * Returns metadata for all available channels.
-   */
-  getAvailableChannels(): ChannelInfo[] {
-    return (Object.entries(CHANNELS) as [ChannelName, string][]).map(([name, range]) => ({
-      name,
-      range,
-      label:
-        name === "lts"
-          ? "Long-Term Support"
-          : name === "stable"
-            ? "Stable Release"
-            : "Next (Preview)",
-    }));
-  }
-
-  // ─── Update Checking ────────────────────────────────────────────
-
-  /**
    * Compares the installed version against the latest release on GitHub.
    *
-   * Returns `updateAvailable: true` if a newer release exists for the active channel.
+   * Returns `updateAvailable: true` if a newer release exists.
    */
   async checkForUpdates(): Promise<UpdateCheckResult> {
-    const channel = this.getCurrentChannel();
     const currentVersion = this.readLocalVersion();
 
     try {
@@ -144,7 +79,6 @@ export class VersionService {
           `[VersionService] GitHub API returned ${response.status}: ${response.statusText}`,
         );
         return {
-          channel,
           currentVersion,
           latestVersion: null,
           updateAvailable: false,
@@ -157,7 +91,6 @@ export class VersionService {
 
       if (!Array.isArray(releases) || releases.length === 0) {
         return {
-          channel,
           currentVersion,
           latestVersion: null,
           updateAvailable: false,
@@ -166,15 +99,11 @@ export class VersionService {
         };
       }
 
-      // Filter releases by channel: next includes prereleases; lts/stable only full releases
-      const relevantReleases =
-        channel === "next" ? releases : releases.filter((r) => !r.prerelease);
-
-      const latestRelease = relevantReleases[0];
+      // Use the latest non-prerelease release
+      const latestRelease = releases.find((r) => !r.prerelease) ?? releases[0];
 
       if (!latestRelease) {
         return {
-          channel,
           currentVersion,
           latestVersion: null,
           updateAvailable: false,
@@ -186,7 +115,6 @@ export class VersionService {
       const updateAvailable = this.isNewer(latestVersion, currentVersion);
 
       return {
-        channel,
         currentVersion,
         latestVersion,
         updateAvailable,
@@ -196,7 +124,6 @@ export class VersionService {
       const message = err instanceof Error ? err.message : "Unknown error";
       logger.error(`[VersionService] Update check failed: ${message}`);
       return {
-        channel,
         currentVersion,
         latestVersion: null,
         updateAvailable: false,
