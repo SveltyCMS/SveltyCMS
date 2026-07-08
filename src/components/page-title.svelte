@@ -119,7 +119,10 @@
 		try {
 			const saved = localStorage.getItem(FAVORITES_KEY);
 			const existing = saved ? JSON.parse(saved) : [];
-			isFavorited = existing.some((f: any) => f.path === page.url.pathname);
+			const pathname = page.url.pathname;
+			isFavorited = existing.some((f: { url?: { path?: string }; path?: string }) =>
+				(f.url?.path ?? f.path) === pathname
+			);
 		} catch { /* ignore */ }
 	});
 
@@ -185,6 +188,17 @@
 					{/each}
 				</span>
 
+				<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
+					<button
+						type="button"
+						onclick={toggleFavorite}
+						aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+						class="ms-1.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500' : 'text-surface-400 opacity-60 hover:opacity-100 dark:text-surface-500'}"
+					>
+						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
+					</button>
+				</SystemTooltip>
+
 				<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
 			</h1>
 			{#if description}
@@ -226,18 +240,5 @@
 				</Button>
 			{/if}
 		{/if}
-
-		<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
-			<Button
-					variant="ghost"
-					type="button"
-					onclick={toggleFavorite}
-					aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-					rounded={true}
-					class="flex shrink-0 items-center justify-center border transition-colors {compact ? 'h-9 w-9' : 'h-10 w-10'} {isFavorited ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-surface-300 hover:bg-surface-500/10 dark:border-surface-600'}"
-				>
-					<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
-				</Button>
-		</SystemTooltip>
 	</div>
 </div>

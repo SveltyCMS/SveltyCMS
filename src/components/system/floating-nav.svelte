@@ -464,10 +464,19 @@
 	contentClass="z-[99999999]"
 	positioning={{ placement: 'top' }}
 	triggerClass="fixed z-99999999 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 !pointer-events-auto"
-	triggerStyle="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
-	              left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
-		(browser ? window.innerWidth : 1)) *
-		100}%;
+	triggerStyle="{browser
+		? (() => {
+			const clampedX = Math.min(Math.max(buttonInfo.x, BUTTON_RADIUS + EDGE_MARGIN), window.innerWidth - BUTTON_RADIUS - EDGE_MARGIN);
+			const clampedY = Math.min(buttonInfo.y, window.innerHeight - BUTTON_RADIUS);
+			const yPct = (clampedY / window.innerHeight) * 100;
+			if (isRightToLeft()) {
+				const rightPct = ((window.innerWidth - clampedX) / window.innerWidth) * 100;
+				return `top:${yPct}%; right:${rightPct}%;`;
+			}
+			const leftPct = (clampedX / window.innerWidth) * 100;
+			return `top:${yPct}%; left:${leftPct}%;`;
+		})()
+		: ''}
 	              width:{BUTTON_RADIUS * 2}px;
 	              height:{BUTTON_RADIUS * 2}px"
 >

@@ -504,7 +504,7 @@ search filtering, and RTL support.
             size="sm"
             id={`treenode-${node.id}`}
             class={cn(
-                'flex w-full cursor-pointer group focus:outline-none text-start',
+                'flex w-full cursor-pointer group focus:outline-none justify-start text-start',
                 isMedia
                     ? cn(
                         'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',

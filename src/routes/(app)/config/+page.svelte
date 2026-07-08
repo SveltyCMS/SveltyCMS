@@ -12,8 +12,13 @@ import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
 import { onMount } from "svelte";
 import { fade, fly } from "svelte/transition";
+import { page } from "$app/state";
 
 let { data } = $props();
+
+const showTenantsTile = $derived(
+	(page.data.isMultiTenant as boolean) && data.isAdmin && !page.data.tenantId,
+);
 
 onMount(() => {
 	collections.setCollection(null);
@@ -42,6 +47,22 @@ const configItems = [
 			contextId: "config:settings",
 			name: "System Settings",
 			description: "Database and infrastructure configuration — extensible via plugins",
+			requiredRole: "admin",
+			action: "manage",
+			contextType: "system",
+		},
+	},
+	{
+		id: "tenants",
+		href: "/admin/tenants",
+		label: "Tenants",
+		icon: "mdi:office-building",
+		iconColor: "text-tertiary-500",
+		visible: () => showTenantsTile,
+		permission: {
+			contextId: "config:settings",
+			name: "Tenant Management",
+			description: "Manage multi-tenant workspaces and provisioning",
 			requiredRole: "admin",
 			action: "manage",
 			contextType: "system",
@@ -288,7 +309,7 @@ const configItems = [
 	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500" in:fly={{ y: -10, duration: 300 }}>Manage your system configuration</h2>
 
 	<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-		{#each configItems as item, idx (item.id || item.label)}
+		{#each configItems.filter((item) => !('visible' in item) || item.visible?.()) as item, idx (item.id || item.label)}
 			{const usePermissionGuard = !!item.permission}
 
 			{#if usePermissionGuard}
