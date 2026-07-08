@@ -14,6 +14,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 	import { fade, scale } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ActivityStream from './activity-stream.svelte';
 
 	// --- Derived ---
@@ -159,11 +160,14 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 		return `transform: translateY(${layoutInfo.expandUp ? '0' : '0'}); height: ${layoutInfo.maxHeight}px; width: ${DESKTOP_PANEL_WIDTH}px; flex-direction: column; display: flex;`;
 	});
 
-	// Calculate container position and layout
+	// Calculate container position and layout (use physical left/top for reliable drag on all axes)
 	const containerStyle = $derived.by(() => {
 		if (screen.isMobile && isOpen) return '';
 
-		const commonStyle = `start: ${pos.x}px; width: ${BUTTON_RADIUS * 2}px; display: flex; align-items: ${layoutInfo.expandLeft ? 'flex-end' : 'flex-start'};`;
+		const panelWidth = screen.isMobile ? '100%' : `${DESKTOP_PANEL_WIDTH}px`;
+		const width = !screen.isMobile && isOpen ? panelWidth : `${BUTTON_RADIUS * 2}px`;
+		const alignItems = layoutInfo.expandLeft ? 'flex-end' : 'flex-start';
+		const commonStyle = `left: ${pos.x}px; width: ${width}; display: flex; align-items: ${alignItems};`;
 
 		if (!screen.isMobile && isOpen && layoutInfo.expandUp) {
 			return `${commonStyle} bottom: ${window.innerHeight - (pos.y + BUTTON_RADIUS * 2)}px; flex-direction: column-reverse;`;
@@ -171,6 +175,12 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 		return `${commonStyle} top: ${pos.y}px; flex-direction: column;`;
 	});
+
+	const connectionTooltip = $derived(
+		collaboration.isConnected
+			? 'SveltyCMS Knowledge Core: Connected'
+			: 'AI Assistant Offline — reconnecting…'
+	);
 </script>
 
 {#if shouldShowChat}
@@ -187,7 +197,10 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 		></div>
 	{/if}
 
-	<div class="fixed z-9999999 flex flex-col items-end gap-2 transition-transform {isDragging ? '' : 'duration-300'}" style={containerStyle}>
+	<div
+		class="fixed z-9999999 flex flex-col gap-2 transition-transform {isDragging ? '' : 'duration-300'}"
+		style={containerStyle}
+	>
 		<!-- Activity Panel -->
 		{#if isOpen}
 			<div
@@ -212,7 +225,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 				<iconify-icon icon="material-symbols:forum-outline" width="32"></iconify-icon>
 
 				<!-- Notification Badge -->
-				{#if !isOpen && collaboration.activities.length > 0}
+				{#if collaboration.activities.length > 0}
 					<span
 						class="absolute -top-1 -right-1 bg-error-500 text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center border-2 border-white"
 						transition:fade
@@ -222,12 +235,13 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 				{/if}
 
 				<!-- Connected Status Pulse -->
-				<span
-					class="absolute bottom-1 inset-e-1 h-3 w-3 rounded-full border-2 border-white {collaboration.isConnected
-						? 'bg-tertiary-500 dark:bg-primary-500 shadow-[0_0_5px_rgba(var(--color-primary-500),0.8)]'
-						: 'bg-error-500'}"
-					title={collaboration.isConnected ? 'SveltyCMS Knowledge Core: Connected' : 'AI Assistant Offline'}
-				></span>
+				<SystemTooltip title={connectionTooltip} positioning={{ placement: 'top' }}>
+					<span
+						class="absolute bottom-1 inset-e-1 h-3 w-3 rounded-full border-2 border-white {collaboration.isConnected
+							? 'bg-tertiary-500 dark:bg-primary-500 shadow-[0_0_5px_rgba(var(--color-primary-500),0.8)]'
+							: 'bg-error-500'}"
+					></span>
+				</SystemTooltip>
 			</div>
 		{/if}
 	</div>
