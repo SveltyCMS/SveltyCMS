@@ -26,7 +26,9 @@ test.describe("System Language Change", () => {
     const isVisible = await languageSelector.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (!isVisible) {
-      console.log("[WARN] Language selector not found in current UI, skipping language change test.");
+      console.log(
+        "[WARN] Language selector not found in current UI, skipping language change test.",
+      );
       return;
     }
 

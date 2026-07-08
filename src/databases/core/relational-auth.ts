@@ -257,7 +257,9 @@ export class RelationalAuthModule implements IAuthAdapter {
         // but Drizzle's mode:"json" also stringifies them — resulting in
         // double-encoding. Parse back so Drizzle handles it correctly.
         if (typeof preparedUpdate.preferences === "string") {
-          try { preparedUpdate.preferences = JSON.parse(preparedUpdate.preferences); } catch {}
+          try {
+            preparedUpdate.preferences = JSON.parse(preparedUpdate.preferences);
+          } catch {}
         }
         await db
           .update(this.schema.authUsers)

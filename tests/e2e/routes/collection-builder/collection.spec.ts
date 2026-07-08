@@ -78,6 +78,8 @@ test.describe("Collection & Entry Flow", () => {
     const refreshUrl = new URL(page.url());
     refreshUrl.searchParams.set("bypassCache", "true");
     await page.goto(refreshUrl.toString());
-    await expect(page.locator("tr").filter({ hasText: /draft/i }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("tr").filter({ hasText: /draft/i }).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });

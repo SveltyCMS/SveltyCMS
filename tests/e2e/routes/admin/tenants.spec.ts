@@ -13,7 +13,7 @@ test.describe("Tenant Management", () => {
 
   test("page loads with tenant list", async ({ page }) => {
     await page.goto("/admin/tenants");
-    console.log('[DIAG] final URL:', page.url());
+    console.log("[DIAG] final URL:", page.url());
     const heading = page.getByRole("heading", { level: 1, name: /tenants/i });
     await expect(heading).toBeVisible({ timeout: 15_000 });
     // Table is only present when tenants exist; skip if not visible

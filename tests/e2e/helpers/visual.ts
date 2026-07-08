@@ -79,15 +79,26 @@ export async function openLoginSignInForm(page: Page) {
       return;
     }
 
-    await page.getByRole("button", { name: /go to sign in|sign in/i }).first().click({
-      force: true,
-      timeout: 5_000,
-    });
+    await page
+      .getByRole("button", { name: /go to sign in|sign in/i })
+      .first()
+      .click({
+        force: true,
+        timeout: 5_000,
+      });
   };
 
   await openSignIn();
-  if (!(await page.getByTestId("signin-email").isVisible({ timeout: 3_000 }).catch(() => false))) {
-    await page.getByRole("button", { name: /go back/i }).click({ force: true }).catch(() => {});
+  if (
+    !(await page
+      .getByTestId("signin-email")
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false))
+  ) {
+    await page
+      .getByRole("button", { name: /go back/i })
+      .click({ force: true })
+      .catch(() => {});
     await page.waitForTimeout(300);
     await openSignIn();
   }

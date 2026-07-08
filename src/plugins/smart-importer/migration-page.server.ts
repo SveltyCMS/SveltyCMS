@@ -289,9 +289,8 @@ export const actions = {
         : [];
 
       const { computeSchemaDiffReport } = await import("@plugins/smart-importer/schema-preview");
-      const { ensureTargetCollectionProvisioned, normalizeCollectionId } = await import(
-        "@plugins/smart-importer/collection-scaffold"
-      );
+      const { ensureTargetCollectionProvisioned, normalizeCollectionId } =
+        await import("@plugins/smart-importer/collection-scaffold");
       const { contentSystem } = await import("@src/content/index.server");
       const tenantId = locals.tenantId ?? null;
       const collectionId = normalizeCollectionId(targetCollection);

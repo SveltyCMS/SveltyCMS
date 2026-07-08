@@ -123,7 +123,10 @@ test.describe("User Management Flow", () => {
     const tokenDialog = page.getByRole("dialog", { name: /edit token data/i });
     await expect(tokenDialog).toBeVisible({ timeout: 5_000 });
     await tokenDialog.locator('input[name="email"]:not([disabled])').fill(invitedEmail);
-    await tokenDialog.getByRole("button", { name: /^editor$/i }).first().click();
+    await tokenDialog
+      .getByRole("button", { name: /^editor$/i })
+      .first()
+      .click();
     await tokenDialog.getByRole("button", { name: /^save$/i }).click();
 
     await expect(tokenDialog.getByText(/invitation token created/i)).toBeVisible({

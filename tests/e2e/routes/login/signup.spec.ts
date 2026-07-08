@@ -157,8 +157,16 @@ test("Forgot Password Flow", async ({ page }) => {
   await page.reload({ waitUntil: "networkidle" });
   await dismissCookieConsent(page);
 
-  if (!(await page.getByTestId("signin-forgot-password").isVisible().catch(() => false))) {
-    await page.getByRole("button", { name: /go to sign in|sign in/i }).first().click();
+  if (
+    !(await page
+      .getByTestId("signin-forgot-password")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page
+      .getByRole("button", { name: /go to sign in|sign in/i })
+      .first()
+      .click();
   }
   await expect(page.getByTestId("signin-forgot-password")).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("signin-forgot-password").click();

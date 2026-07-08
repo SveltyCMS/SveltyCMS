@@ -194,7 +194,12 @@ export async function prepareLoginForm(page: Page) {
     }
   }
 
-  if (!(await page.getByTestId("signin-email").isVisible({ timeout: 2_000 }).catch(() => false))) {
+  if (
+    !(await page
+      .getByTestId("signin-email")
+      .isVisible({ timeout: 2_000 })
+      .catch(() => false))
+  ) {
     const goBack = page.getByRole("button", { name: /go back/i }).first();
     if (await goBack.isVisible({ timeout: 1_000 }).catch(() => false)) {
       await goBack.click({ force: true });

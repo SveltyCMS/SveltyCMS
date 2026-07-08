@@ -28,9 +28,9 @@ test.describe("Appearance — My Overrides", () => {
   test("persists left sidebar layout preference after reload", async ({ page }) => {
     // Capture browser console for debugging
     const logs: string[] = [];
-    page.on('console', msg => {
+    page.on("console", (msg) => {
       const text = msg.text();
-      if (text.includes('[DEBUG]')) logs.push(text);
+      if (text.includes("[DEBUG]")) logs.push(text);
     });
 
     await page.goto("/config/appearance");
@@ -49,7 +49,7 @@ test.describe("Appearance — My Overrides", () => {
       });
     } catch (e) {
       console.log("=== DEBUG LOGS ===");
-      logs.forEach(l => console.log(l));
+      logs.forEach((l) => console.log(l));
       console.log("=== END DEBUG LOGS ===");
       throw e;
     }
