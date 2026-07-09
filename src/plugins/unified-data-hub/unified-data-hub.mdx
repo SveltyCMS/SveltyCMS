@@ -1,10 +1,12 @@
 ---
-path: "src/plugins/unified-data-hub/unified-data-hub.mdx"
-title: "Unified Data Hub Plugin"
+id: "unified-data-hub"
+title: "Unified Data Hub"
 description: "Governed multi-source data federation for SveltyCMS — virtual collections, LocalCMS reads, WebMCP integration, and headless API contracts."
+category: "Federation"
+author: "SveltyCMS Team"
+pricing: "Free for 1 connector + 3 virtual collections; Pro tier unlocks unlimited connectors + cross-source joins + SaaS connectors"
 order: 100
 icon: "mdi:database-sync"
-author: "SveltyCMS Team"
 created: "2026-07-08"
 updated: "2026-07-09"
 tags:
@@ -69,7 +71,7 @@ GET /api/virtual-collections/bench-articles?limit=25&cursor=<nextCursor>
 
 **Decision tree:**
 
-1. Migrate away from a legacy CMS → [Smart Importer](/docs/guides/content/smart-importer.mdx)
+1. Migrate away from a legacy CMS → [Smart Importer](https://marketplace.sveltycms.com) (marketplace plugin)
 2. Keep legacy CMS as source of truth → Unified Data Hub
 3. Federate first, migrate later → Hub, then Smart Importer snapshot bridge
 
@@ -166,51 +168,59 @@ Follows [Plugin Architecture](/docs/development/plugins/architecture.mdx) and [P
 
 ---
 
-## Shipped feature matrix
+## Feature Matrix
 
-Coverage map for MVP / v1.5 / v2.0 scope and query-planner phase gates.
+### Core Features (Free Tier)
 
-| Area                                                                       | Status          | Implementation                                                                      |
-| -------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------- |
-| Passthrough executor (single-source read)                                  | ✅ Shipped      | `virtual-query-engine.ts`                                                           |
-| SQL + Mongo connectors (read + write)                                      | ✅ Shipped v2.3 | `postgres.ts`, `mariadb.ts`, `sqlite.ts`, `mongodb.ts`, `sql-dialect.ts`            |
-| REST connector (read + opt-in writes)                                      | ✅ Shipped v2.4 | `rest-openapi.ts`, `rest-egress.ts`, `writesEnabled` config                         |
-| Single-source write-back                                                   | ✅ Shipped v2.3 | `virtual-write-engine.ts`, `POST/PATCH/DELETE` + LocalCMS `create/update/delete`    |
-| LocalCMS `virtualCollections` namespace                                    | ✅ Shipped      | `virtual-collections-namespace.ts`                                                  |
-| HTTP `GET /api/virtual-collections`                                        | ✅ Shipped      | `handlers/virtual-collections.ts`                                                   |
-| GraphQL `virtualCollections` / `virtualCollection` / `virtualEnrich`       | ✅ Shipped      | `resolvers/virtual-collections.ts`                                                  |
-| GraphQL `createVirtualEntry` / `updateVirtualEntry` / `deleteVirtualEntry` | ✅ Shipped v2.3 | Same LocalCMS write path as REST `POST/PATCH/DELETE`                                |
-| AST normalization + capability pre-check (v1.5 P0)                         | ✅ Shipped      | `query-planner.ts`                                                                  |
-| Postgres pool cache (v1.5 P1, p95 ~12ms)                                   | ✅ Shipped      | `postgres-pool-cache.ts`                                                            |
-| WordPress REST filter/sort pushdown (v1.5 P2)                              | ✅ Shipped      | `query-planner.ts` + `wordpress-rest.ts`                                            |
-| Circuit breaker 3 failures / 60s (v1.5 P3)                                 | ✅ Shipped      | `connector-circuit-breaker.ts`                                                      |
-| Cache tenant index (v1.5 P4)                                               | ✅ Shipped      | `cache.ts`                                                                          |
-| Same-source virtual joins `?include=` (v1.5 P5)                            | ✅ Shipped      | `virtual-join.ts`                                                                   |
-| Native stitch enrich (v2.0 Phase C)                                        | ✅ Shipped      | `native-virtual-stitch.ts`, `/enrich`                                               |
-| Entry preview sidebar + enrichment picker                                  | ✅ Shipped      | `virtual-entry-preview.svelte`, `federation-enrichment-picker.svelte`               |
-| N+1 stitch telemetry                                                       | ✅ Shipped      | `stitch-telemetry.ts`, response headers                                             |
-| Decomposition plan tree (v3.0)                                             | ✅ Shipped      | `federated-decomposition.ts`, `meta.decomposition`                                  |
-| Per-source cursor pagination (v3.0 stable)                                 | ✅ Shipped      | `federated-cursor.ts`, `meta.nextCursor`                                            |
-| WebMCP virtual tools                                                       | ✅ Shipped      | `list_virtual_collections`, `query_virtual_collection`, `enrich_virtual_collection` |
-| Topology + content graph extension                                         | ✅ Shipped      | `mcp-extension.ts`, `navigation.ts`                                                 |
-| Headless API contracts                                                     | ✅ Shipped      | `headless-contracts.ts`, `getHeadlessContracts` action                              |
-| Cross-source join execution (v3.1 alpha)                                   | ✅ Opt-in       | `enableCrossSourceAlpha` + Pro license                                              |
-| Tier limits (Community 1 connector / 3 collections)                        | ✅ Shipped      | `tier-limits.ts`                                                                    |
-| Crypto-chained federation audit                                            | ✅ Shipped      | `audit.ts` → `plugin_unified-data-hub_federation_audit`                             |
+| #   | Feature                                                              | Implementation                                                        |
+| :-- | :------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | Passthrough executor — single-source virtual read                    | `virtual-query-engine.ts`                                             |
+| 2   | SQL + Mongo database connectors (read + write)                       | `postgres.ts`, `mariadb.ts`, `sqlite.ts`, `mongodb.ts`                |
+| 3   | REST API connector (read + opt-in writes)                            | `rest-openapi.ts`, `rest-egress.ts`                                   |
+| 4   | Single-source write-back via LocalCMS + API                          | `virtual-write-engine.ts`                                             |
+| 5   | LocalCMS `virtualCollections` namespace                              | `virtual-collections-namespace.ts`                                    |
+| 6   | HTTP `GET /api/virtual-collections/:slug`                            | `handlers/virtual-collections.ts`                                     |
+| 7   | GraphQL `virtualCollections` / `virtualCollection` / `virtualEnrich` | `resolvers/virtual-collections.ts`                                    |
+| 8   | AST normalization + connector capability pre-check                   | `query-planner.ts`                                                    |
+| 9   | Postgres connection pool cache (p95 ~12ms)                           | `postgres-pool-cache.ts`                                              |
+| 10  | WordPress REST filter/sort pushdown                                  | `query-planner.ts` + `wordpress-rest.ts`                              |
+| 11  | Circuit breaker — 3 failures / 60s                                   | `connector-circuit-breaker.ts`                                        |
+| 12  | Cache tenant index                                                   | `cache.ts`                                                            |
+| 13  | Same-source virtual joins `?include=`                                | `virtual-join.ts`                                                     |
+| 14  | Native entry stitch enrich (`/enrich`)                               | `native-virtual-stitch.ts`                                            |
+| 15  | Entry preview sidebar + federation enrichment picker                 | `virtual-entry-preview.svelte`, `federation-enrichment-picker.svelte` |
+| 16  | N+1 stitch telemetry + response headers                              | `stitch-telemetry.ts`                                                 |
+| 17  | Per-source cursor pagination                                         | `federated-cursor.ts`, `meta.nextCursor`                              |
+| 18  | Decomposition plan tree (v3.0)                                       | `federated-decomposition.ts`                                          |
+| 19  | Crypto-chained federation audit                                      | `audit.ts`                                                            |
+| 20  | Tier-enforced limits — 1 connector, 3 virtual collections            | `tier-limits.ts`                                                      |
 
-### Explicitly deferred (not in v2.3.0)
+### Pro Tier (Marketplace License)
 
-| Feature                                  | Planned phase | Notes                                                         |
-| ---------------------------------------- | ------------- | ------------------------------------------------------------- |
-| REST write-back hardening                | v2.5+         | OAuth2 forwarding, response schema validation, retry policies |
-| Row/column policy engine                 | v2+           | Collection-level RBAC today                                   |
-| Visual Studio query builder              | v2+           | Workspace covers connector/schema CRUD                        |
-| GraphQL supergraph / federation spec     | v3+           | Per-collection GraphQL queries only                           |
-| `search_entries` + `includeVirtual`      | v1.5+         | Not shipped                                                   |
-| AI Command Bar cross-source NL queries   | v1.5+         | WebMCP tools provide governed reads                           |
-| Materialized views                       | v2+           | TTL LRU cache today                                           |
-| GraphQL / SaaS OAuth connectors          | Post-MVP      | MariaDB, SQLite, MongoDB shipped in v2.3                      |
-| Hosted MCP `search_federation_docs` tool | Roadmap       | Plugin `.mdx` indexed via hosted MCP docs                     |
+| #   | Feature                                                                    | Implementation                                                                      |
+| :-- | :------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 21  | Unlimited connectors + virtual collections                                 | `tier-limits.ts` (threshold gating)                                                 |
+| 22  | Cross-source join execution (v3.1 alpha)                                   | `enableCrossSourceAlpha` config flag                                                |
+| 23  | WebMCP virtual tools — list, query, enrich                                 | `list_virtual_collections`, `query_virtual_collection`, `enrich_virtual_collection` |
+| 24  | Topology + content graph extension for AI agents                           | `mcp-extension.ts`, `navigation.ts`                                                 |
+| 25  | Headless API contracts — slot schemas + REST catalog                       | `headless-contracts.ts`                                                             |
+| 26  | GraphQL `createVirtualEntry` / `updateVirtualEntry` / `deleteVirtualEntry` | Same LocalCMS write path                                                            |
+| 27  | SaaS connectors (roadmap: GraphQL, Salesforce, HubSpot)                    | Post-MVP                                                                            |
+| 28  | Custom connector SDK for marketplace                                       | Post-MVP                                                                            |
+| 29  | Visual Studio query builder                                                | Post-MVP                                                                            |
+| 30  | Materialized views with configurable refresh schedules                     | Post-MVP                                                                            |
+
+### Explicitly deferred (not in current scope)
+
+| Feature                                  | Notes                                                         |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| REST write-back hardening                | OAuth2 forwarding, response schema validation, retry policies |
+| Row/column policy engine                 | Collection-level RBAC covers read access today                |
+| GraphQL supergraph / federation spec     | Per-collection GraphQL queries only in v2.x                   |
+| `search_entries` + `includeVirtual`      | Not shipped                                                   |
+| AI Command Bar cross-source NL queries   | WebMCP tools provide governed reads already                   |
+| GraphQL / SaaS OAuth connectors          | MariaDB, SQLite, MongoDB shipped — SaaS connectors post-MVP   |
+| Hosted MCP `search_federation_docs` tool | Plugin `.mdx` indexed via hosted MCP docs (roadmap)           |
 
 ---
 
@@ -454,13 +464,19 @@ Requires active Pro license. Integration tests may set `FEDERATION_CROSS_SOURCE_
 
 ## Licensing
 
-| Tier              | Connectors | Virtual collections | Notable features                                            |
-| ----------------- | ---------- | ------------------- | ----------------------------------------------------------- |
-| Community / trial | 1          | 3                   | Health widget, basic reads                                  |
-| Pro               | Unlimited  | Unlimited           | WebMCP tools, cross-source alpha, SaaS connectors (roadmap) |
-| Enterprise        | Unlimited  | Unlimited           | Custom connectors, compliance dashboard (roadmap)           |
+Unified Data Hub uses the same **freemium** model as [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx):
+
+| Tier              | Connectors | Virtual collections | Notable features                                                      |
+| ----------------- | ---------- | ------------------- | --------------------------------------------------------------------- |
+| Community / trial | 1          | 3                   | Passthrough reads, database + REST connectors, GraphQL, audit         |
+| Pro               | Unlimited  | Unlimited           | Cross-source joins, WebMCP tools, headless contracts, SaaS connectors |
+| Enterprise        | Unlimited  | Unlimited           | Custom connector SDK, compliance dashboard, priority support          |
+
+See [marketplace.sveltycms.com](https://marketplace.sveltycms.com) for current pricing.
 
 Enforced via `checkExtensionLicense("plugin", "unified-data-hub")` — 14-day trial; `SLM-DEMO-` keys supported. UI shows `<UpgradePrompt>` when trial expires.
+
+[Purchase on Marketplace](https://marketplace.sveltycms.com)
 
 ---
 
@@ -543,7 +559,7 @@ flowchart TB
 
 ## Related
 
-- [Smart Importer](/docs/guides/content/smart-importer.mdx) — one-time migration sibling
+- [Smart Importer](https://marketplace.sveltycms.com) — one-time migration sibling (marketplace plugin)
 - [Local SDK vs HTTP API](/docs/development/local-vs-http-api.mdx)
 - [Plugin Architecture](/docs/development/plugins/architecture.mdx)
 - [Plugin Development Guide](/docs/development/plugins/development.mdx)

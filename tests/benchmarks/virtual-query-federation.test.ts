@@ -191,28 +191,92 @@ async function runLivePostgresFederationBenchmark() {
 }
 
 async function runLiveWordPressRestFederationBenchmark() {
-  console.log(
-    `🚀 Virtual Query Federation LIVE Benchmark (CMS ${getDbType().toUpperCase()} → WP REST)...\n`,
-  );
+  // Database-agnostic: uses a mock db with in-process WordPress REST fixture.
+  // No Docker Postgres or CMS database initialization needed — works with any
+  // adapter and any environment.
+  const cmsDb = getDbType().toUpperCase();
+  console.log(`🚀 Virtual Query Federation LIVE Benchmark (${cmsDb} → WP REST)...\n`);
 
-  const { ensureFullInitialization, getDb } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-  if (!db) throw new Error("Database not initialized");
-
-  const { seedUnifiedDataHub } = await import("@plugins/unified-data-hub/server/hub-test-seed");
   const { executeVirtualRead } =
     await import("@plugins/unified-data-hub/server/virtual-query-engine");
+  const { buildWordPressVirtualCollection } =
+    await import("@plugins/unified-data-hub/server/shared-schema/wordpress-rest");
+  const {
+    startWordPressRestFixture,
+    stopWordPressRestFixture,
+    WORDPRESS_FIXTURE_CONNECTOR_ID,
+    WORDPRESS_FIXTURE_SLUG,
+  } = await import("@plugins/unified-data-hub/server/rest-fixture");
 
-  await seedUnifiedDataHub(db, "default", { fixture: "wordpress", rowCount: 50 });
+  // Start in-process WordPress REST mock server (no external dependency)
+  const baseUrl = await startWordPressRestFixture({ rowCount: 50 });
+  console.log(`   Fixture listening at ${baseUrl}\n`);
+
+  const TENANT = "default";
+  const COLLECTION_ID = "udh-rest-fixture-vc";
+
+  // Build connector config pointing to the live mock server
+  const connector = {
+    _id: WORDPRESS_FIXTURE_CONNECTOR_ID as string,
+    tenantId: TENANT,
+    name: "WordPress REST Fixture",
+    type: "rest" as const,
+    enabled: true,
+    config: { baseUrl },
+    allowedHosts: ["127.0.0.1", "localhost"],
+    capabilities: {
+      filterPushdown: false,
+      sortPushdown: false,
+      joinable: false as const,
+      maxPageSize: 100,
+      supportsTransactions: false,
+      staleness: "real-time" as const,
+      ttlSeconds: 0,
+    },
+    health: "ok" as const,
+    createdAt: "2026-07-09T00:00:00.000Z",
+    updatedAt: "2026-07-09T00:00:00.000Z",
+  };
+
+  // Build virtual collection using the shared WordPress REST schema
+  const wpDef = buildWordPressVirtualCollection("posts", String(connector._id), TENANT);
+  const collection = {
+    _id: COLLECTION_ID,
+    ...wpDef,
+    tenantId: TENANT,
+    enabled: true,
+    createdAt: "2026-07-09T00:00:00.000Z",
+    updatedAt: "2026-07-09T00:00:00.000Z",
+  };
+
+  // Mock db — returns connector + virtual collection from the fixture
+  const db = {
+    crud: {
+      findOne: async (col: string, query: any) => {
+        if (
+          col.includes("virtual_schemas") &&
+          (query.slug === WORDPRESS_FIXTURE_SLUG || query._id === COLLECTION_ID)
+        ) {
+          return { success: true, data: collection };
+        }
+        if (col.includes("connectors") && query._id === WORDPRESS_FIXTURE_CONNECTOR_ID) {
+          return { success: true, data: connector };
+        }
+        return { success: true, data: null };
+      },
+      findMany: async () => ({ success: true, data: [] }),
+      insert: async () => ({ success: true }),
+    },
+  } as any;
 
   const opts = {
-    tenantId: "default",
-    user: { isAdmin: true, role: "admin" },
+    tenantId: TENANT,
+    user: { isAdmin: true, role: "admin" as const },
     limit: 25,
     bypassCache: true,
   };
 
+  // Run benchmark — executeVirtualRead makes real HTTP calls to the in-process fixture
   const result = await runBenchmark({
     name: "Virtual Read Passthrough (live WordPress REST)",
     iterations: 50,
@@ -221,7 +285,7 @@ async function runLiveWordPressRestFederationBenchmark() {
     concurrency: 1,
     silent: true,
     onIteration: async () => {
-      const r = await executeVirtualRead(db, "wp-articles", opts);
+      const r = await executeVirtualRead(db, WORDPRESS_FIXTURE_SLUG, opts);
       if (r.data?.length !== 25) throw new Error(`expected 25 rows, got ${r.data?.length}`);
     },
   });
@@ -233,6 +297,9 @@ async function runLiveWordPressRestFederationBenchmark() {
 
   const p95 = result.p95Ms ?? 0;
   console.log(`✅ Live WordPress REST p95 ${p95.toFixed(2)}ms (target < 500ms external REST).\n`);
+
+  // Clean up in-process mock server
+  await stopWordPressRestFixture().catch(() => {});
 }
 
 test("Virtual Query Federation Live Postgres Benchmark", async () => {
