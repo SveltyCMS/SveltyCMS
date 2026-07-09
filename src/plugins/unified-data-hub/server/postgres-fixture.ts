@@ -92,7 +92,7 @@ export async function seedPostgresBenchFixture(
       ADD COLUMN IF NOT EXISTS author_id INTEGER REFERENCES "${schema}"."${authorsTable}"(id)
     `);
     await sql.unsafe(`TRUNCATE TABLE "${schema}"."${table}" RESTART IDENTITY CASCADE`);
-    await sql.unsafe(`TRUNCATE TABLE "${schema}"."${authorsTable}" RESTART IDENTITY`);
+    await sql.unsafe(`TRUNCATE TABLE "${schema}"."${authorsTable}" RESTART IDENTITY CASCADE`);
 
     const authorCount = Math.min(10, Math.max(1, rowCount));
     const authorValues: string[] = [];
