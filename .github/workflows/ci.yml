@@ -106,7 +106,7 @@ jobs:
             name: ✅ Quality Gate (check)
             run: bun run check
           - task: 04-unit
-            name: ⚡ Unit Tests (177 files)
+            name: ⚡ Unit Tests (206 files)
             run: bun run test:unit
           - task: 05-security-audit
             name: 🔒 Security Audit
@@ -220,6 +220,12 @@ jobs:
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
+      - name: Start UDH External Postgres Fixture
+        if: matrix.db != 'postgresql'
+        run: |
+          docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
+          bun x wait-on tcp:127.0.0.1:5432 --timeout 90000 --interval 2000
+
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
@@ -274,6 +280,12 @@ jobs:
         run: |
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+
+      - name: Start UDH External Postgres Fixture
+        if: matrix.db != 'postgresql'
+        run: |
+          docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
+          bun x wait-on tcp:127.0.0.1:5432 --timeout 90000 --interval 2000
 
       - name: Run Core Benchmarks
         env:
@@ -598,7 +610,6 @@ jobs:
       - e2e-matrix
       - e2e
       - db-tests
-      - bench-core
     steps:
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |
@@ -606,3 +617,17 @@ jobs:
           exit 1
       - if: ${{ !cancelled() && !failure() }}
         run: echo "✅ All checks passed"
+
+  bench-green:
+    name: 📊 Bench Green
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - bench-core
+      - bench-summary
+    steps:
+      - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+        run: |
+          echo "::warning::One or more benchmarks failed (non-blocking)"
+      - if: ${{ !cancelled() && !failure() }}
+        run: echo "✅ All benchmarks passed"

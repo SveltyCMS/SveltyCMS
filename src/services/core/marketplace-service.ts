@@ -21,6 +21,7 @@ import {
   type ThemeFilePayload,
 } from "./theme-file-sync";
 import type { ThemeSummary } from "./admin-theme-service";
+import { unifiedDataHubMarketplaceListing } from "@plugins/unified-data-hub/marketplace-listing";
 
 export type MarketplaceItemType = "theme" | "widget" | "plugin";
 
@@ -72,6 +73,10 @@ function matchesQuery(item: MarketplaceItem, params: MarketplaceListParams): boo
     if (!haystack.includes(q)) return false;
   }
   return true;
+}
+
+function loadLocalPluginCatalog(): MarketplaceItem[] {
+  return [unifiedDataHubMarketplaceListing];
 }
 
 function loadLocalThemeCatalog(): MarketplaceItem[] {
@@ -186,7 +191,9 @@ export class MarketplaceService {
   }
 
   async list(params: MarketplaceListParams = {}): Promise<MarketplaceListResult> {
-    const localItems = loadLocalThemeCatalog();
+    const localThemes = loadLocalThemeCatalog();
+    const localPlugins = params.type === "plugin" || !params.type ? loadLocalPluginCatalog() : [];
+    const localItems = [...localThemes, ...localPlugins];
     const remoteItems = await fetchRemoteCatalog(params);
 
     let items: MarketplaceItem[];

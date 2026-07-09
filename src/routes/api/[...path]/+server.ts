@@ -24,6 +24,7 @@ import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 const HANDLERS: Record<string, () => Promise<any>> = {
   auth: () => import("./handlers/auth"),
   collections: () => import("./handlers/collections"),
+  "virtual-collections": () => import("./handlers/virtual-collections"),
   content: () => import("./handlers/content"),
   dashboard: () => import("./handlers/dashboard"),
   media: () => import("./handlers/media"),
@@ -63,6 +64,10 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   user: { handler: "auth", fn: "handleAuthUserRoutes" },
   permission: { handler: "auth", fn: "handlePermissionRoutes" },
   collections: { handler: "collections", fn: "handleCollectionsRoutes" },
+  "virtual-collections": {
+    handler: "virtual-collections",
+    fn: "handleVirtualCollectionsRoutes",
+  },
   content: { handler: "content", fn: "handleContentRoutes" },
   "content-structure": { handler: "content", fn: "handleContentRoutes" },
   widgets: { handler: "system", fn: "handleSystemRoutes" },
@@ -124,6 +129,8 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
 const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
   collections: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+  "virtual-collections": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
   content: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
   "content-structure": (method: string) =>

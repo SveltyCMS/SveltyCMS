@@ -25,6 +25,7 @@ export const CI_CORE_BENCHMARK_TESTS = [
   "cache-performance",
   "hooks-performance",
   "rest-api-performance",
+  "virtual-query-federation",
 ] as const;
 
 function getArg(name: string): string | undefined {
