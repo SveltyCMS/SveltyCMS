@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { DatabaseId, ISODateString } from "@databases/db-interface";
 import type {
   ConnectorRecord,
   FederatedRow,
@@ -19,8 +20,8 @@ import {
 } from "@plugins/unified-data-hub/server/virtual-join";
 
 const connector: ConnectorRecord = {
-  _id: "conn-1",
-  tenantId: "default",
+  _id: "conn-1" as unknown as DatabaseId,
+  tenantId: "default" as unknown as DatabaseId,
   name: "PG",
   type: "postgres",
   enabled: true,
@@ -36,11 +37,13 @@ const connector: ConnectorRecord = {
     writable: true,
   },
   health: "ok",
+  createdAt: "" as unknown as ISODateString,
+  updatedAt: "" as unknown as ISODateString,
 };
 
 const articles: VirtualCollectionRecord = {
-  _id: "vc-articles",
-  tenantId: "default",
+  _id: "vc-articles" as unknown as DatabaseId,
+  tenantId: "default" as unknown as DatabaseId,
   name: "Articles",
   slug: "bench-articles",
   connectorId: "conn-1",
@@ -53,8 +56,8 @@ const articles: VirtualCollectionRecord = {
     { name: "author", targetSlug: "bench-authors", localField: "authorId", foreignField: "id" },
   ],
   enabled: true,
-  createdAt: "",
-  updatedAt: "",
+  createdAt: "" as unknown as ISODateString,
+  updatedAt: "" as unknown as ISODateString,
 };
 
 describe("virtual join v1.5 Phase B", () => {

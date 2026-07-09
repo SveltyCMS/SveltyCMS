@@ -31,8 +31,8 @@ const COLLECTION_ID = "vc-1" as DatabaseId;
 function createMockDb() {
   const collection = {
     _id: COLLECTION_ID,
-    tenantId: TENANT,
     ...buildWordPressVirtualCollection("posts", String(CONNECTOR_ID), TENANT),
+    tenantId: TENANT,
     enabled: true,
     createdAt: "2026-07-08T00:00:00.000Z",
     updatedAt: "2026-07-08T00:00:00.000Z",
@@ -92,7 +92,7 @@ describe("Unified Data Hub license gate", () => {
       ok: true,
       headers: { get: () => "100" },
       json: async () => [{ id: 1, title: "t", slug: "s", status: "publish" }],
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
   });
 
   it("allows read when trial is active", async () => {
