@@ -318,7 +318,7 @@ Features:
                         <td class="py-1 px-2 text-end tabular-nums">{formatBytes(file.size)}</td>
                       </tr>
                       {#if file.thumbnails}
-                        {#each Object.keys(file.thumbnails) as sizeKey (sizeKey)}
+                        {#each Object.keys(file.thumbnails).filter(k => !k.endsWith('_webp')) as sizeKey (sizeKey)}
                           {#if file.thumbnails[sizeKey]}
                             <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
                               <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>

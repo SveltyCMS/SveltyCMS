@@ -21,6 +21,8 @@
   import { formatBytes } from "@utils/utils";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { mediaUrl } from "@utils/media/media-utils";
+  import { page } from '$app/state';
+  import { invalidateAll } from '$app/navigation';
 
   // Props
   let {
@@ -98,14 +100,15 @@
     if (!file?._id) return;
     isSavingName = true;
     try {
+      await invalidateAll();
       const response = await fetch(`/api/media/${file._id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
         body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
       });
       const body = await response.json();
-      if (response.ok) {
-        file = body?.data ?? body ?? file;
+      if (response.ok && body.success) {
+        file = { ...file, metadata: { ...file.metadata, name: editName } };
         onUpdate(file);
         toast.success('Name saved');
       } else {
@@ -127,14 +130,15 @@
     if (!file?._id) return;
     isSavingAlt = true;
     try {
+      await invalidateAll();
       const response = await fetch(`/api/media/${file._id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
         body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
       });
       const body = await response.json();
-      if (response.ok) {
-        file = body?.data ?? body ?? file;
+      if (response.ok && body.success) {
+        file = { ...file, metadata: { ...file.metadata, alt: editAlt } };
         onUpdate(file);
         toast.success('Alt text saved');
       } else {
@@ -156,14 +160,15 @@
     if (!file?._id) return;
     isSavingCaption = true;
     try {
+      await invalidateAll();
       const response = await fetch(`/api/media/${file._id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
         body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
       });
       const body = await response.json();
-      if (response.ok) {
-        file = body?.data ?? body ?? file;
+      if (response.ok && body.success) {
+        file = { ...file, metadata: { ...file.metadata, caption: editCaption } };
         onUpdate(file);
         toast.success('Caption saved');
       } else {
@@ -184,6 +189,7 @@
 
     isSavingTags = true;
     try {
+      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       if (currentTags.includes(newTagInput.trim())) {
         toast.error("Tag already exists");
@@ -197,20 +203,18 @@
 
       const response = await fetch(`/api/media/${file._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": page.data.csrfToken ?? "" },
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          newTagInput = "";
-          toast.success("Tag added successfully");
-        }
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: updatedMetadata };
+        onUpdate(file);
+        newTagInput = "";
+        toast.success("Tag added successfully");
       } else {
-        toast.error("Failed to add tag");
+        toast.error(body?.message || "Failed to add tag");
       }
     } catch (err) {
       toast.error("An error occurred while adding tag");
@@ -223,6 +227,7 @@
     if (!file?._id) return;
 
     try {
+      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       const updatedMetadata = {
         ...file.metadata,
@@ -231,19 +236,17 @@
 
       const response = await fetch(`/api/media/${file._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": page.data.csrfToken ?? "" },
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          toast.success("Tag removed");
-        }
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: updatedMetadata };
+        onUpdate(file);
+        toast.success("Tag removed");
       } else {
-        toast.error("Failed to remove tag");
+        toast.error(body?.message || "Failed to remove tag");
       }
     } catch (err) {
       toast.error("An error occurred while removing tag");
