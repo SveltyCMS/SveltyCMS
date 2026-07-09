@@ -259,7 +259,7 @@ jobs:
   # ------------------------------------------------
   bench-core:
     name: 📊 Bench (${{ matrix.db }})
-    needs: [build, db-matrix, e2e-prep]
+    needs: [build, db-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -274,19 +274,6 @@ jobs:
           restore-build: "true"
       - uses: actions/download-artifact@v8
         with: { name: build-output }
-
-      - name: Download E2E Environment (config/private.ts)
-        uses: actions/download-artifact@v8
-        with:
-          name: e2e-env-${{ github.sha }}
-          path: .
-
-      - name: Extract config and auth from E2E environment
-        run: |
-          tar --zstd -xf e2e-env.tar.zst \
-            config/private.ts config/private.test.ts config/database/ \
-            tests/e2e/.auth/ 2>/dev/null || \
-          echo "⚠️ E2E env artifact not yet available — benchmarks will bootstrap from env vars"
 
       - name: Start Database
         if: matrix.db != 'sqlite'
