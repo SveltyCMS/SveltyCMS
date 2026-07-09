@@ -9,6 +9,7 @@
 import { logger } from "@utils/logger";
 import { registerContentTools } from "./tools/content";
 import { registerNavigationTools } from "./tools/navigation";
+import { registerVirtualCollectionTools } from "./tools/virtual-collections";
 import type { IDBAdapter } from "@src/databases/db-interface";
 
 /**
@@ -26,6 +27,7 @@ export async function initWebMCP(db?: IDBAdapter): Promise<void> {
       if (db) {
         registerContentTools(db);
         registerNavigationTools(db);
+        registerVirtualCollectionTools(db);
         logger.info("[WebMCP] Server-side AI tools registered with db adapter.");
       } else {
         logger.warn("[WebMCP] No db adapter provided for server-side registration.");
@@ -48,6 +50,7 @@ export async function initWebMCP(db?: IDBAdapter): Promise<void> {
   try {
     registerContentTools();
     registerNavigationTools();
+    registerVirtualCollectionTools();
     logger.info("[WebMCP] Client-side AI tools registered successfully.");
   } catch (err) {
     logger.error("[WebMCP] Failed to register client tools", { error: err });

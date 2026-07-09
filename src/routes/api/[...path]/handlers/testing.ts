@@ -1052,6 +1052,29 @@ export async function handleTestingRoutes(
       }
     }
 
+    if (action === "seed-unified-data-hub") {
+      const { seedUnifiedDataHub } = await import("@plugins/unified-data-hub/server/hub-test-seed");
+      try {
+        const result = await seedUnifiedDataHub(initializedAdapter, String(tenantId), {
+          fixture: params.fixture || "postgres",
+          rowCount: params.rowCount ?? 100,
+          connectorId: params.connectorId,
+          collectionId: params.collectionId,
+          userId: params.userId,
+        });
+        return rawResponse({ success: true, ...result });
+      } catch (err: any) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("POSTGRES_FIXTURE_UNAVAILABLE")) {
+          return rawResponse(
+            { success: false, code: "POSTGRES_FIXTURE_UNAVAILABLE", message },
+            503,
+          );
+        }
+        throw new AppError(message, 500);
+      }
+    }
+
     if (action === "benchmark-seed") {
       const AUTHOR_COUNT = params.authorCount || 10;
       const POSTS_PER_AUTHOR = params.postsPerAuthor || 5;

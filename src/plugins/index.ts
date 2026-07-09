@@ -107,8 +107,19 @@ export async function initializePlugins(dbAdapter: any, tenantId = "default"): P
     // 1. Initialize settings service
     await pluginRegistry.initializeSettings(dbAdapter);
 
-    // 2. Register all available plugins
+    // 2. Register all available plugins (merge index.server hooks/migrations per architecture)
     for (const plugin of availablePlugins) {
+      try {
+        const serverMod = await import(`./${plugin.metadata.id}/index.server`);
+        if (serverMod.hooks) {
+          plugin.hooks = { ...plugin.hooks, ...serverMod.hooks };
+        }
+        if ((!plugin.migrations || plugin.migrations.length === 0) && serverMod.migrations) {
+          plugin.migrations = serverMod.migrations;
+        }
+      } catch {
+        /* UI-only plugin — no index.server.ts */
+      }
       await pluginRegistry.register(plugin);
     }
 

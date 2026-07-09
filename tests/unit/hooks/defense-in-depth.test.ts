@@ -351,6 +351,8 @@ describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
     settings: (m: string) => (["GET", "OPTIONS"].includes(m) ? "system:read" : "system:settings"),
     automations: "config:automations",
     permission: "system:admin",
+    "virtual-collections": (m: string) =>
+      ["GET", "OPTIONS"].includes(m) ? "collection:read" : "collection:write",
   };
 
   function checkEndpointPermission(

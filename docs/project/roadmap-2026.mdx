@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-06"
+updated: "2026-07-09"
 tags:
   - "roadmap"
   - "todo"
@@ -35,6 +35,8 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 ## ✅ Recently Completed
 
+- [x] **Unified Data Hub v2.4.0 (REST write-back)**: All 5 connector types (Postgres, MariaDB, SQLite, MongoDB, REST) support read+write. REST writes are opt-in (`writesEnabled`), SSRF-safe, with Idempotency-Key dedup and circuit breaker. GraphQL mutations (`createVirtualEntry`, `updateVirtualEntry`, `deleteVirtualEntry`) for headless clients. Full API parity across LocalCMS, HTTP, GraphQL, and WebMCP agents. 96 unit tests.
+- [x] **Unified Data Hub v2.2 (stable)**: Marketplace plugin — Postgres + REST federation, same-source joins, native stitch enrich, Collection Builder enrichment picker, GraphQL/WebMCP parity, per-source cursor pagination, decomposition telemetry, headless contracts, cross-source alpha (opt-in). See [unified-data-hub.mdx](/src/plugins/unified-data-hub/unified-data-hub.mdx).
 - [x] **E2E Architecture Simplification**: Collapsed 20 Playwright projects → 4 (wizard, firstuser, auth-setup, chromium). Reduced CI jobs from 19 to 6, server startups from 19 to 1. Total E2E time ~70-110min → ~12-15min.
 
 ## 🏗️ In Progress
@@ -44,6 +46,9 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 ## 🚀 Planned
 
+- **Cross-Source Merge Execution (v3.1 → stable)**: Decomposition planner ships in v3.0 (plan-only); v3.1+ enables in-memory hash-join across connectors. Currently opt-in alpha (`enableCrossSourceAlpha` + Pro license).
+- **Visual Studio Query Builder**: Drag-and-drop query builder for virtual collections — relationship visualizer, live data preview panes, permission matrix editor.
+- **GraphQL Supergraph / Federation**: Apollo-like schema stitching across native + virtual collections for cross-source GraphQL queries.
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
 - **Enterprise Infrastructure Scaling**: Generate a multi-stage production `Dockerfile` and Terraform configurations (AWS Fargate, RDS Proxy, ElastiCache) for effortless horizontal scaling by large corporations.
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.

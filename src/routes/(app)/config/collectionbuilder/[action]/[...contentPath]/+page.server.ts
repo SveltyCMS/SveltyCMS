@@ -215,6 +215,16 @@ export const actions: Actions = {
       const defaultSortDir = (formData.get("defaultSortDir") as string) || "desc";
       const apiVisible = formData.get("apiVisible") !== "false";
 
+      const federationEnrichmentsRaw = formData.get("federationEnrichments") as string | null;
+      let federationEnrichments: Schema["federationEnrichments"];
+      if (federationEnrichmentsRaw) {
+        try {
+          federationEnrichments = JSON.parse(federationEnrichmentsRaw);
+        } catch {
+          return { status: 400, error: "Invalid federationEnrichments JSON" };
+        }
+      }
+
       // Widgets Fields
       const fields = JSON.parse(fieldsData) as FieldsData;
 
@@ -260,6 +270,7 @@ export const actions: Actions = {
         defaultSortField,
         defaultSortDir,
         apiVisible,
+        federationEnrichments,
       });
 
       // Use tenant-aware path resolution
@@ -495,6 +506,7 @@ interface CollectionData {
   defaultSortField?: string;
   defaultSortDir?: string;
   apiVisible?: boolean;
+  federationEnrichments?: Schema["federationEnrichments"];
 }
 
 async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
@@ -691,6 +703,16 @@ function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpres
       ts.factory.createPropertyAssignment(
         ts.factory.createIdentifier("apiVisible"),
         ts.factory.createFalse(),
+      ),
+    );
+  }
+
+  if (data.federationEnrichments?.length) {
+    const enrichmentsJson = JSON.stringify(data.federationEnrichments);
+    properties.push(
+      ts.factory.createPropertyAssignment(
+        ts.factory.createIdentifier("federationEnrichments"),
+        ts.factory.createIdentifier(`🗑️${enrichmentsJson}🗑️`),
       ),
     );
   }

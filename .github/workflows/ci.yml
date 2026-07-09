@@ -220,6 +220,12 @@ jobs:
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
+      - name: Start UDH External Postgres Fixture
+        if: matrix.db != 'postgresql'
+        run: |
+          docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
+          bun x wait-on tcp:127.0.0.1:5432 --timeout 90000 --interval 2000
+
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
@@ -274,6 +280,12 @@ jobs:
         run: |
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+
+      - name: Start UDH External Postgres Fixture
+        if: matrix.db != 'postgresql'
+        run: |
+          docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
+          bun x wait-on tcp:127.0.0.1:5432 --timeout 90000 --interval 2000
 
       - name: Run Core Benchmarks
         env:

@@ -256,6 +256,20 @@ export interface MinimalSchema {
   [key: string]: any;
 }
 
+/** Native collection → virtual collection enrichment (Unified Data Hub sidebar preview) */
+export interface FederationEnrichment {
+  /** Sidebar section label */
+  label: string;
+  /** Native field holding the foreign key */
+  nativeField: string;
+  /** Virtual collection slug to enrich from */
+  virtualSlug: string;
+  /** Virtual field to match against native value (default: id) */
+  virtualKeyField?: string;
+  /** Optional subset of virtual fields to display in preview */
+  displayFields?: string[];
+}
+
 // Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
   _id?: string;
@@ -282,6 +296,8 @@ export interface Schema {
   displaySpec?: Record<string, unknown>; // json-render-svelte display specification
   /** If true, bulk delete operations are forbidden for this collection */
   disableBulkDelete?: boolean;
+  /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */
+  federationEnrichments?: FederationEnrichment[];
 }
 
 export interface MinimalContentNode {
