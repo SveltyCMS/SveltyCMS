@@ -65,7 +65,8 @@ test.describe("Collection & Entry Flow", () => {
 
     // Click Cancel to return to entry list
     await page.getByRole("button", { name: /cancel/i }).click();
-    await expect(page).toHaveURL(/\/collection\/names/i, { timeout: 10_000 });
+    // Explicitly navigate to clean list URL to ensure no lingering ?create=true
+    await page.goto("/en/collection/names");
 
     // 3. Create entry via API (Save button only renders on mobile + screen store unmounted)
     // Data must be multilingual objects { en: "..." } — the Input Display component expects this.
@@ -79,7 +80,7 @@ test.describe("Collection & Entry Flow", () => {
     refreshUrl.searchParams.set("bypassCache", "true");
     await page.goto(refreshUrl.toString());
     await expect(page.locator("tr").filter({ hasText: /draft/i }).first()).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
   });
 });

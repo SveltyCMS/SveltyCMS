@@ -56,7 +56,7 @@ export async function openLoginSignInForm(page: Page) {
   // CRITICAL: Wait for SvelteKit hydration before interacting.
   // Prevents clicks on SSR-only DOM nodes from being silently absorbed
   // before Svelte attaches event handlers (same pattern as auth.ts's prepareLoginForm).
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("load");
 
   const signInIcon = page.getByTestId("signin-icon");
   if (!(await signInIcon.isVisible({ timeout: 5_000 }).catch(() => false))) {
@@ -69,7 +69,7 @@ export async function openLoginSignInForm(page: Page) {
       },
     });
     await page.context().clearCookies();
-    await page.goto("/login", { waitUntil: "networkidle" });
+    await page.goto("/login", { waitUntil: "load" });
   }
 
   const openSignIn = async () => {
