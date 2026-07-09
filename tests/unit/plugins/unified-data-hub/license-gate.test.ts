@@ -5,7 +5,6 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { DatabaseId } from "@databases/db-interface";
-import { FederationError } from "@plugins/unified-data-hub/types";
 import { executeVirtualRead } from "@plugins/unified-data-hub/server/virtual-query-engine";
 import {
   buildWordPressVirtualCollection,
@@ -65,7 +64,7 @@ function createMockDb() {
 
   return {
     crud: {
-      findOne: vi.fn(async (col: string, query: any) => {
+      findOne: vi.fn(async (col: string, _query: any) => {
         if (col.includes("virtual_schemas")) {
           return { success: true, data: collection };
         }

@@ -3,7 +3,7 @@
  * @description v1.5 Phase B — same-source virtual join planner tests.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type {
   ConnectorRecord,
   FederatedRow,
