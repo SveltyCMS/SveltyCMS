@@ -303,13 +303,28 @@ async function runLiveWordPressRestFederationBenchmark() {
 }
 
 test("Virtual Query Federation Live Postgres Benchmark", async () => {
-  await runLivePostgresFederationBenchmark();
+  try {
+    await runLivePostgresFederationBenchmark();
+  } catch (e: any) {
+    process.stderr.write(`[FAIL:live-postgres] ${e?.stack || e?.message || e}\n`);
+    throw e;
+  }
 }, 180000);
 
 test("Virtual Query Federation Live WordPress REST Benchmark", async () => {
-  await runLiveWordPressRestFederationBenchmark();
+  try {
+    await runLiveWordPressRestFederationBenchmark();
+  } catch (e: any) {
+    process.stderr.write(`[FAIL:wp-rest] ${e?.stack || e?.message || e}\n`);
+    throw e;
+  }
 }, 180000);
 
 test("Virtual Query Federation POC Benchmark", async () => {
-  await runVirtualFederationBenchmark();
+  try {
+    await runVirtualFederationBenchmark();
+  } catch (e: any) {
+    process.stderr.write(`[FAIL:poc] ${e?.stack || e?.message || e}\n`);
+    throw e;
+  }
 }, 120000);
