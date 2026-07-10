@@ -407,6 +407,7 @@ async function handleOpenFileDetails(file: any) {
 }
 
 function handleUpdateImage(updatedFile: MediaImage) {
+  if (!updatedFile?._id) return;
 	const index = files.findIndex((f) => f._id === updatedFile._id);
 	if (index !== -1) {
 		files[index] = updatedFile;

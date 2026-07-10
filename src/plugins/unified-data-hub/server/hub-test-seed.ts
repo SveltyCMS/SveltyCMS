@@ -111,13 +111,13 @@ async function seedPostgresHub(
     enabled: true,
     config: {
       host: process.env.UDH_PG_HOST || "127.0.0.1",
-      port: Number(process.env.UDH_PG_PORT || process.env.DB_PORT || 5432),
+      port: Number(process.env.UDH_PG_PORT || 5432),
       database: process.env.UDH_PG_DATABASE || getIntegrationDbName(),
       schema: FIXTURE_SCHEMA,
     },
     credentials: {
-      username: process.env.UDH_PG_USER || process.env.DB_USER || "postgres",
-      password: process.env.UDH_PG_PASSWORD || process.env.DB_PASSWORD || "postgres",
+      username: process.env.UDH_PG_USER || "postgres",
+      password: process.env.UDH_PG_PASSWORD || "postgres",
     },
     capabilities: {
       filterPushdown: true,

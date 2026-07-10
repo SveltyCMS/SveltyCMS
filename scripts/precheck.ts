@@ -472,8 +472,10 @@ export async function runPrecheck(
     );
   }
 
-  // Compact result table — like CI summary in generate-ci-markdown.ts
-  printResultTable(results);
+  // Compact result table — only shown on failures (dashboard covers success path)
+  if (failedTasks.length > 0) {
+    printResultTable(results);
+  }
 
   return {
     passed: failedTasks.length === 0,
