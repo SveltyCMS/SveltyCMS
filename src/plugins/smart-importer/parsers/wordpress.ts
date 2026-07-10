@@ -442,7 +442,6 @@ function parsePHPArray(serialized: string): unknown[] {
   // Parse elements
   let depth = 0;
   let current = "";
-  let _inString = false;
   let stringLen = 0;
   let parsingStringLen = false;
 

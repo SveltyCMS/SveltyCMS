@@ -11,12 +11,14 @@ import { SecurityResponseService } from "@services/security/response-service";
 vi.mock("@src/utils/system-monitor", () => ({
   systemMonitor: {
     getAdaptiveCostMultiplier: vi.fn(() => 1.0),
-    getMetrics: vi.fn(() => ({
-      cpuLoad: 0.1,
-      eventLoopLag: 1,
-      memoryUsage: 100,
-      pressureScore: 0.1,
-      status: "nominal",
+    getLatestSnapshot: vi.fn(() => ({
+      timestamp: Date.now(),
+      cpu: 10,
+      memory: 40,
+      loadAvg: 0.5,
+      eventLoopLagMs: 1,
+      heapUsedPercent: 30,
+      pressure: "normal",
     })),
   },
 }));
@@ -59,22 +61,24 @@ describe("Adaptive Rate Limiting", () => {
   });
 
   it("should report nominal system status under normal load", () => {
-    const metrics = systemMonitor.getMetrics();
-    expect(metrics.status).toBe("nominal");
-    expect(metrics.pressureScore).toBeLessThan(0.5);
+    const snapshot = systemMonitor.getLatestSnapshot();
+    expect(snapshot?.pressure).toBe("normal");
+    expect(snapshot?.cpu).toBeLessThan(50);
   });
 
   it("should handle extreme pressure scores", () => {
     (systemMonitor.getAdaptiveCostMultiplier as any).mockReturnValue(10.0);
-    (systemMonitor.getMetrics as any).mockReturnValue({
-      cpuLoad: 0.95,
-      eventLoopLag: 500,
-      memoryUsage: 90,
-      pressureScore: 0.95,
-      status: "critical",
+    (systemMonitor.getLatestSnapshot as any).mockReturnValue({
+      timestamp: Date.now(),
+      cpu: 95,
+      memory: 90,
+      loadAvg: 8,
+      eventLoopLagMs: 500,
+      heapUsedPercent: 95,
+      pressure: "critical",
     });
-    const metrics = systemMonitor.getMetrics();
-    expect(metrics.status).toBe("critical");
+    const snapshot = systemMonitor.getLatestSnapshot();
+    expect(snapshot?.pressure).toBe("critical");
     expect(systemMonitor.getAdaptiveCostMultiplier()).toBe(10.0);
   });
 });

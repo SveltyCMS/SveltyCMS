@@ -12,6 +12,7 @@
  * ### Privacy: All analysis is server-side, tenant-isolated, zero PII exposure.
  */
 
+import type { DatabaseId } from "@src/databases/db-interface";
 import { getHotCollections } from "./behavioral-learner";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -61,11 +62,15 @@ export async function findSimilarEntries(
 
     // Get current entry text for query
     const { dbAdapter } = await import("@src/databases/db");
-    const entry = await dbAdapter?.crud?.findOne({ _id: entryId }, { tenantId: "global" });
+    const entry = await dbAdapter?.crud?.findOne(
+      collectionId,
+      { _id: entryId as DatabaseId },
+      { tenantId: "global" as DatabaseId },
+    );
 
-    if (!entry?.data) return [];
+    if (!entry?.success || !entry.data) return [];
 
-    const entryData = entry.data as Record<string, unknown>;
+    const entryData = entry.data as unknown as Record<string, unknown>;
     const queryText = [entryData.title, entryData.description, entryData.excerpt]
       .filter(Boolean)
       .join(" ");
@@ -110,12 +115,12 @@ export async function suggestFieldDefaults(
     const result = await dbAdapter?.crud?.findMany(
       collectionId,
       {},
-      { limit, sortField: "updatedAt", sortDirection: "desc" },
+      { limit, sort: { updatedAt: "desc" } },
     );
 
-    if (!result?.success || !result.data?.items?.length) return null;
+    if (!result?.success || !result.data?.length) return null;
 
-    const values = (result.data.items as Record<string, unknown>[])
+    const values = (result.data as unknown as Record<string, unknown>[])
       .map((item) => item[fieldName])
       .filter((v): v is string => typeof v === "string" && v.length > 0);
 
@@ -392,8 +397,8 @@ export async function getContentInsights(tenantId: string): Promise<{
       const result = await dbAdapter?.crud?.findMany(id, {}, { limit: 10 });
       if (!result?.success) continue;
 
-      for (const entry of result.data?.items || []) {
-        const e = entry as Record<string, unknown>;
+      for (const entry of result.data ?? []) {
+        const e = entry as unknown as Record<string, unknown>;
         const quality = scoreContentQuality({
           title: String(e.title || ""),
           body: String(e.body || e.content || ""),

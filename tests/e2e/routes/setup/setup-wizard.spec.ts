@@ -333,6 +333,10 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
 
       await test.step("Step 3: System Settings", async () => {
         console.log(`[${dbType}] Configuring system...`);
+        const websitePreset = page.getByRole("option", { name: /website starter/i }).first();
+        if (await websitePreset.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await websitePreset.click();
+        }
         await page.locator("#site-name").fill(`SveltyCMS ${dbType.toUpperCase()}`);
         await page.locator("#media-folder").fill(`./mediaFolder_${dbType}`);
         await wizard.next();

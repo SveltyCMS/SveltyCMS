@@ -140,7 +140,8 @@ export class MongoDbConnector extends BaseConnector {
     const coll = await this.getCollection(connector, collection);
     const idField = resolveIdSourceField(collection);
     const sourceKey = parseEntrySourceKey(entryId, String(connector._id));
-    const filter = idField === "_id" ? { _id: sourceKey } : { [idField]: sourceKey };
+    const filter: Record<string, unknown> =
+      idField === "_id" ? { _id: sourceKey } : { [idField]: sourceKey };
 
     const { columns, values } = mapWritePayloadToColumns(collection, data);
     const $set: Record<string, unknown> = {};
@@ -168,7 +169,8 @@ export class MongoDbConnector extends BaseConnector {
     const coll = await this.getCollection(connector, collection);
     const idField = resolveIdSourceField(collection);
     const sourceKey = parseEntrySourceKey(entryId, String(connector._id));
-    const filter = idField === "_id" ? { _id: sourceKey } : { [idField]: sourceKey };
+    const filter: Record<string, unknown> =
+      idField === "_id" ? { _id: sourceKey } : { [idField]: sourceKey };
 
     const result = await coll.deleteOne(filter);
     if (result.deletedCount === 0) {
@@ -184,7 +186,7 @@ export class MongoDbConnector extends BaseConnector {
         connectionString,
         database,
       );
-      await conn.db.command({ ping: 1 });
+      await conn.db!.command({ ping: 1 });
       return { health: "ok" as const };
     } catch (err) {
       return {

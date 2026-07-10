@@ -94,6 +94,9 @@ export const publicConfigSchema = object({
   LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))),
   LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))),
 
+  // --- Site Starter (optional in-repo SvelteKit frontend) ---
+  SITE_STARTER_ENABLED: optional(boolean()),
+
   // --- Demo Mode ---
   USE_GOOGLE_OAUTH: optional(boolean()),
   DEMO_TTL: optional(pipe(number(), minValue(1))),

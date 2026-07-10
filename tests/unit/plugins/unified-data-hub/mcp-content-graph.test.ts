@@ -17,7 +17,7 @@ vi.mock("@src/plugins/registry", () => ({
   },
 }));
 
-const TENANT = "default";
+const TENANT = "default" as DatabaseId;
 const CONNECTOR_ID = "conn-graph" as DatabaseId;
 
 function createMockDb() {

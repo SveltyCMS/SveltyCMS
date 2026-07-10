@@ -286,6 +286,11 @@ export async function completeSetup(
     } catch (e) {
       logger.warn("[Setup] Content refresh after preset seeding failed:", e);
     }
+
+    if (system.preset === "website") {
+      const { seedWebsiteStarterPages } = await import("./seed");
+      await seedWebsiteStarterPages(dbAdapter, { siteName: system.siteName || "SveltyCMS" });
+    }
   }
 
   // Save custom configuration settings to database preferences
@@ -466,6 +471,19 @@ export async function completeSetup(
   }
 
   if (!session) return { success: false, error: "Session creation failed" };
+
+  if (system.preset === "website") {
+    try {
+      const { pluginRegistry } = await import("@src/plugins/registry");
+      const adminUserId = String((session as { user_id?: string }).user_id || "");
+      await pluginRegistry.togglePlugin("editable-website", true, "default", adminUserId);
+      logger.info(
+        "[Setup] Auto-enabled Editable Website plugin for Website Starter (trial active)",
+      );
+    } catch (e) {
+      logger.warn("[Setup] Failed to auto-enable Editable Website plugin:", e);
+    }
+  }
 
   // 🚀 Prime the in-memory session cache so getUserFromSession gets an instant hit,
   // bypassing the sqlite-proxy validateSession query entirely.

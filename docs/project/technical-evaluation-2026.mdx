@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-06"
+updated: "2026-07-10"
 tags:
   - "evaluation"
   - "technical"
@@ -230,19 +230,20 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 | **SEO Redirects**    | **0.92 ms (Sub-MS)**        | ~45 ms (Plugin)    | ✅ Plugin       | ⚠️ Basic           | ⚠️ Basic      |
 | **Toolchain**        | **Vite + oxlint/oxfmt**     | Vite (JS/TS)       | Vite (JS/TS)    | Vite (JS/TS)       | Rolldown/Vite |
 
-| Feature                    | SveltyCMS (v2026)                 | Strapi 5            | Payload 3.0  | Directus 11  | Sveltia CMS |
-| :------------------------- | :-------------------------------- | :------------------ | :----------- | :----------- | :---------- |
-| **Scheduled Publishing**   | **✅ Adaptive Job Scheduler**     | ⚠️ Cron Plugin      | ✅ Job Queue | ✅ Flows     | ❌          |
-| **Content Versioning**     | **✅ Revisions + Diff + Restore** | ⚠️ Basic            | ✅ Versions  | ✅ Revisions | ❌          |
-| **Per-Field Localization** | **✅ Record<Locale,string> + AI** | ⚠️ Separate Entries | ✅           | ✅           | ❌          |
-| **Full-Text Search**       | **✅ DB-Native FTS (Zero Deps)**  | ⚠️ Plugin           | ⚠️ Plugin    | ⚠️ Plugin    | ❌          |
-| **Crypto-Chained Audit**   | **✅ SHA-256 Tamper-Evident**     | ❌                  | ❌           | ❌           | ❌          |
-| **Smart CMS Migration**    | **✅ AI-Smart 5-Format Importer** | ❌                  | ❌           | ❌           | ❌          |
-| **Cold Start UX**          | **✅ Warming-Up Dashboard**       | ⚠️ Spinner          | ⚠️ Spinner   | ⚠️ Spinner   | ✅ Local    |
-| **Quick-Start Templates**  | **✅ 5 Presets**                  | ❌                  | ❌           | ❌           | ❌          |
-| **Behavioral Learning**    | **✅ Server-side, zero PII**      | ❌                  | ❌           | ❌           | ❌          |
-| **AI Widget Scaffolder**   | **✅ LLM-ready code generation**  | ❌                  | ❌           | ❌           | ❌          |
-| **Token Security**         | **✅ SHA-256 all adapters**       | ⚠️                  | ⚠️           | ⚠️           | ❌          |
+| Feature                    | SveltyCMS (v2026)                          | Strapi 5            | Payload 3.0  | Directus 11  | Sveltia CMS |
+| :------------------------- | :----------------------------------------- | :------------------ | :----------- | :----------- | :---------- |
+| **Scheduled Publishing**   | **✅ Adaptive Job Scheduler**              | ⚠️ Cron Plugin      | ✅ Job Queue | ✅ Flows     | ❌          |
+| **Content Versioning**     | **✅ Revisions + Diff + Restore**          | ⚠️ Basic            | ✅ Versions  | ✅ Revisions | ❌          |
+| **Per-Field Localization** | **✅ Record<Locale,string> + AI**          | ⚠️ Separate Entries | ✅           | ✅           | ❌          |
+| **Full-Text Search**       | **✅ DB-Native FTS (Zero Deps)**           | ⚠️ Plugin           | ⚠️ Plugin    | ⚠️ Plugin    | ❌          |
+| **Crypto-Chained Audit**   | **✅ SHA-256 Tamper-Evident**              | ❌                  | ❌           | ❌           | ❌          |
+| **Smart CMS Migration**    | **✅ AI-Smart 5-Format Importer**          | ❌                  | ❌           | ❌           | ❌          |
+| **Cold Start UX**          | **✅ Warming-Up Dashboard**                | ⚠️ Spinner          | ⚠️ Spinner   | ⚠️ Spinner   | ✅ Local    |
+| **Quick-Start Templates**  | **✅ 7 Presets (Website Starter default)** | ❌                  | ❌           | ❌           | ❌          |
+| **In-Repo Site Frontend**  | **✅ SvelteKit + Svedit at `/`**           | ❌ (bring your own) | ❌           | ❌           | ⚠️ Git-only |
+| **Behavioral Learning**    | **✅ Server-side, zero PII**               | ❌                  | ❌           | ❌           | ❌          |
+| **AI Widget Scaffolder**   | **✅ LLM-ready code generation**           | ❌                  | ❌           | ❌           | ❌          |
+| **Token Security**         | **✅ SHA-256 all adapters**                | ⚠️                  | ⚠️           | ⚠️           | ❌          |
 
 ### 3.2 Competitive Benchmark Analysis (2026)
 
@@ -328,13 +329,28 @@ Universal migration pipeline (v2.1, June 2026) — **40+ CMS platforms**, 5-step
 
 #### Collection Builder Quick-Start Templates
 
-5 pre-built collection schemas for instant onboarding:
+7 setup presets — **Website Starter** is the recommended default; five additional content templates ship full schemas:
 
+- **Website Starter** _(default, recommended)_: `pages` collection, Svedit homepage at `/`, Editable Website trial auto-enabled
 - **Blog/Editorial**: Posts, Categories, Authors with SEO and Rich Text
 - **Agency/Portfolio**: Projects, Services, Team with media and testimonials
 - **SaaS Product**: Features, Pricing, Documentation with multi-tenant support
 - **Corporate Site**: Team, Careers, Press with locations
 - **E-commerce**: Products, Categories, Orders with variants, inventory, CRM
+- **Blank**: Clean slate for pure headless or custom frontends
+
+#### Website Starter + Svedit (July 2026)
+
+Default onboarding path for SvelteKit teams — headless-capable, same-repo public frontend:
+
+- **Public routes**: `src/routes/(site)/` — SSR homepage (`slug: home` → `/`) and catch-all pages; guests see published content, authenticated editors redirect to CMS
+- **Svedit rendering**: `svedit@0.12.0` — block components (hero, paragraph, CTA) in `src/components/site/svedit/`; `page-renderer.svelte` is Svedit-first with flat-field fallback
+- **Seeding**: `seedWebsiteStarterPages()` publishes default Svedit document; `seedWebsiteStarterBlueprint` shared by setup + testing API
+- **Headless toggle**: `SITE_STARTER_ENABLED` (public, default `true`) — set `false` for API-only deployments
+- **Monetization split**: CMS form + Svedit JSON saves are **free**; **Editable Website** plugin (€14.99, 14-day trial) gates Live Preview iframe sync and inline click-to-edit only
+- **Testing**: 15 unit tests (Svedit helpers, homepage seed, preview utils, license gate, protocol), website preset integration, `site-starter.spec.ts` E2E smoke
+
+See [Site Starter](/docs/development/site-starter.mdx) and [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx).
 
 #### Cold Start & Progressive Initialization UX
 
@@ -612,6 +628,7 @@ A focused sprint to eliminate accidental complexity in the content and media sub
 - Added 4 DAM API endpoints: bulk download (`GET /api/media/bulk-download`), storage analytics (`GET /api/media/analytics`), version list (`GET /api/media/{id}/version/list`), version compare (`GET /api/media/{id}/version/compare`).
 
 - Implemented real `parseMultipartStream` in `streaming-upload.ts` — chunk-based multipart parser for multi-GB uploads.
+- **Inline metadata editing** in `media-details-modal.svelte` — click-to-edit name, alt text, and caption directly in the media drawer.
 - 40 new unit tests: sharing (13), media-utils (15), slim-sniffer (12).
 - Benchmark-verified: media upload 10MB at **32.3ms** (310 MB/s), SDK processing at **2.7ms** (319 images/s).
 
@@ -621,7 +638,8 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 
 ### 4.1 Visual In-Context Editing
 
-- **Features:** Drag-to-reorder blocks in preview, field-level pulsing highlights, and auto-scroll-to-field interactions via the Enterprise Handshake Bridge.
+- **Features:** Drag-to-reorder blocks in preview, field-level pulsing highlights, and auto-scroll-to-field interactions via the Enterprise Handshake Bridge. **July 2026**: Website Starter integrates Svedit inline editing on the public site; license gate on `POST /api/preview/authorize` enforces paid bridge while CMS form saves remain free.
+- **Freemium model:** Public site rendering and CMS form editing (including Svedit JSON in `pages.content`) require no plugin license. Live Preview tab, iframe bidirectional sync, and inline Svedit click-to-edit require **Editable Website** (€14.99 marketplace, 14-day trial auto-started on Website Starter setup).
 - **Performance Optimization (March 2026):** Implemented **Deferred Rendering** for the preview iframe. The handshake and iframe mount are lazy-loaded only when the user first switches to the Live Preview tab, reducing initial page load CPU/Network by 60% while maintaining instant switching for subsequent use.
 - **Fail-Closed API Security (April 2026):** Implemented a central dispatcher gatekeeper requiring mandatory endpoint registration. Any unmapped or unauthorized request is denied by default, eliminating "Shadow API" data leaks.
 
@@ -776,7 +794,8 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 
 ### 7.2 Visual Intelligence & Enterprise Collaboration
 
-- **In-Context Live Preview**: Visual DnD, pulses, and editable highlights within the live site frame.
+- **Website Starter + Svedit (July 2026)**: Default Setup Wizard preset — in-repo SvelteKit site at `/`, Svedit block renderer, seeded homepage, headless toggle. Free site + form saves; paid Live Preview bridge.
+- **In-Context Live Preview**: Visual DnD, pulses, and editable highlights within the live site frame (Editable Website plugin).
 - **AI-as-a-Field-Type**: Native `AIEnrichment` widget and LLM-driven Smart Translation.
 - **Agent-Ready WebMCP Protocol (April 2026)**: Native `content.ts` WebMCP integration offering "Draft-by-Default" execution buffers and schema-aware, token-optimized context payload generation to power external Autonomous Agents.
 - **Multi-Cloud Storage Engine**: Universal strategy adapters for S3, R2, and Cloudinary.
@@ -797,12 +816,17 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **Zero-Dependency Full-Text Search**: Database-native FTS across PostgreSQL, MariaDB, SQLite, and MongoDB with no additional npm packages.
 
 - **AI-Smart CMS Migration**: 5-format importer with heuristic field mapping, ACF/CMB2 detection, and drag-and-drop UI.
-- **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) for instant onboarding.
+- **Quick-Start Collection Templates**: 7 setup presets — Website Starter (default) plus Blog, Agency, SaaS, Corporate, E-commerce, and Blank.
+- **Website Starter Test Suite (July 2026)**: Unit, integration, and E2E smoke coverage for Svedit helpers, homepage seed, license gate, and public `/` route.
 - **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
 - **Behavioral Learning Engine (June 2026)**: Server-side access pattern tracking with exponential decay scoring, driving adaptive cache warming, smart prefetch, and automatic dashboard reordering.
 
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.
 - **Hosted Marketplace (June 2026)**: Plugin/widget ecosystem at marketplace.sveltycms.com with REST API, Stripe checkout, and License v1 verification.
+
+- **Unified Data Hub v2.4.0 (REST write-back)**: All 5 connector types (Postgres, MariaDB, SQLite, MongoDB, REST) support read+write. REST writes are opt-in (`writesEnabled`), SSRF-safe, with Idempotency-Key dedup and circuit breaker. GraphQL mutations (`createVirtualEntry`, `updateVirtualEntry`, `deleteVirtualEntry`) for headless clients. Full API parity across LocalCMS, HTTP, GraphQL, and WebMCP agents. 96 unit tests.
+- **Unified Data Hub v2.2 (stable)**: Marketplace plugin — Postgres + REST federation, same-source joins, native stitch enrich, Collection Builder enrichment picker, GraphQL/WebMCP parity, per-source cursor pagination, decomposition telemetry, headless contracts, cross-source alpha (opt-in). See [unified-data-hub.mdx](/src/plugins/unified-data-hub/unified-data-hub.mdx).
+- **E2E Architecture Simplification**: Collapsed 20 Playwright projects → 4 (wizard, firstuser, auth-setup, chromium). Reduced CI jobs from 19 to 6, server startups from 19 to 1. Total E2E time ~70–110 min → ~12–15 min.
 
 ---
 
@@ -817,5 +841,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)
+- [Competitive Comparison](./competitive-comparison.mdx)
+- [Site Starter](/docs/development/site-starter.mdx)
 - [Performance Benchmarks](./benchmarks/index.mdx)
 - [Getting Started](../getting-started.mdx)

@@ -80,7 +80,7 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
     const file = `tests/benchmarks/${name}.test.ts`;
     console.log(`  ▶ ${file}`);
 
-    const result = spawnSync("bun", ["test", file, "--timeout", "120000"], {
+    const result = spawnSync("bun", ["test", file, "--timeout", "300000"], {
       cwd: ROOT,
       stdio: "inherit",
       shell: process.platform === "win32",

@@ -59,7 +59,14 @@ export interface SNCEnvelope {
     | "builder"
     | "dato"
     | "ghost"
-    | "sveltycms";
+    | "sveltycms"
+    | "csv"
+    | "markdown"
+    | "sql"
+    | "mysql"
+    | "postgresql"
+    | "sqlite"
+    | "api";
   /** Source platform version */
   version: string;
   /** Unique transaction token for idempotency and rollback */
@@ -128,7 +135,7 @@ export interface FieldMapping {
   targetField: string;
   widgetType: string;
   confidence: "high" | "medium" | "low";
-  action: "map" | "merge" | "scaffold" | "ignore";
+  action: "map" | "merge" | "scaffold" | "ignore" | "transform";
   reason?: string;
 }
 

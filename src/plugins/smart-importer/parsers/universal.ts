@@ -85,7 +85,6 @@ export function parseSpreadsheet(
       columnTypes[col] = inferColumnType(samples);
     }
 
-    const _sheetLabel = opts.sheetName;
     const entries: SNCEntry[] = [];
 
     for (let i = dataStart; i < lines.length; i++) {

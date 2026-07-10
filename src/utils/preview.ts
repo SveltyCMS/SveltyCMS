@@ -102,7 +102,7 @@ export function createLivePreviewListener(options: LivePreviewOptions): {
   if (typeof window !== "undefined") {
     window.addEventListener("message", handleMessage);
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: "svelty:init" }, "*");
+      window.parent.postMessage({ type: "svelty:init", version: "1.2.0" }, "*");
     }
   }
 

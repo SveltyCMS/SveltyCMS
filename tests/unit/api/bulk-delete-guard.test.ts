@@ -22,7 +22,12 @@ vi.mock("@src/databases/db", () => ({
 
 // ── Test data ──────────────────────────────────────────────────────────────
 
-const NO_GUARD_SCHEMA = {
+const NO_GUARD_SCHEMA: {
+  _id: string;
+  name: string;
+  fields: unknown[];
+  disableBulkDelete?: boolean;
+} = {
   _id: "posts",
   name: "Posts",
   fields: [{ name: "title", type: "text" as const, required: true }],

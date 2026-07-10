@@ -40,4 +40,25 @@ describe("Setup Presets Integration", () => {
 
     expect(liveRootSnapshot()).toEqual(beforeLiveRoot);
   });
+
+  it("writes website preset files with livePreview and editable-website plugin", async () => {
+    const website = PRESETS.find((p) => p.id === "website");
+    expect(website?.collections?.length).toBeGreaterThan(0);
+    expect(website?.recommended).toBe(true);
+
+    const beforeLiveRoot = liveRootSnapshot();
+    await writePresetCollectionFiles(website!.collections!, { tenantId });
+
+    const pages = website!.collections!.find((c) => c.name === "pages");
+    expect(pages?.livePreview).toBe("/{slug}?lang={lang}");
+    expect(pages?.plugins).toContain("editable-website");
+
+    const targetFile = path.join(configDir, "pages.ts");
+    expect(fs.existsSync(targetFile)).toBe(true);
+    const content = fs.readFileSync(targetFile, "utf-8");
+    expect(content).toContain('livePreview: "/{slug}?lang={lang}"');
+    expect(content).toContain('plugins: ["editable-website"]');
+
+    expect(liveRootSnapshot()).toEqual(beforeLiveRoot);
+  });
 });

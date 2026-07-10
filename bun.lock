@@ -5,13 +5,13 @@
     "": {
       "name": "sveltycms",
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.1083.0",
+        "@aws-sdk/client-s3": "^3.1084.0",
         "@better-svelte-email/components": "^2.1.1",
         "@better-svelte-email/preview": "^2.1.1",
         "@better-svelte-email/server": "^2.1.1",
         "@envelop/graphql-jit": "^11.1.1",
         "@googlemaps/js-api-loader": "^2.1.1",
-        "@inlang/paraglide-js": "^2.20.2",
+        "@inlang/paraglide-js": "^2.21.0",
         "@mcp-b/webmcp-polyfill": "^4.0.0",
         "@node-saml/node-saml": "^5.1.0",
         "@opentelemetry/api": "^1.9.1",
@@ -64,7 +64,8 @@
         "rolldown": "^1.1.5",
         "sharp": "^0.35.3",
         "shiki": "^4.3.1",
-        "stripe": "^22.3.0",
+        "stripe": "^22.3.1",
+        "svedit": "^0.12.0",
         "svelte-adapter-uws": "^0.5.8",
         "svelte-canvas": "^2.1.0",
         "svelte-realtime": "^0.5.10",
@@ -1617,6 +1618,8 @@
 
     "supports-preserve-symlinks-flag": ["supports-preserve-symlinks-flag@1.0.0", "", {}, "sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w=="],
 
+    "svedit": ["svedit@0.12.0", "", { "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-I6niDShyOdN5Npv8azgqWhRx2bECC/P6/5eloP+2GPXOKXnpCnIR3P3M9AHvcF1uh6ln6ZBinXFe79S8M/quSA=="],
+
     "svelte": ["svelte@5.56.4", "", { "dependencies": { "@jridgewell/remapping": "^2.3.4", "@jridgewell/sourcemap-codec": "^1.5.0", "@sveltejs/acorn-typescript": "^1.0.10", "@types/estree": "^1.0.5", "@types/trusted-types": "^2.0.7", "acorn": "^8.12.1", "aria-query": "5.3.1", "axobject-query": "^4.1.0", "clsx": "^2.1.1", "devalue": "^5.8.1", "esm-env": "^1.2.1", "esrap": "^2.2.12", "is-reference": "^3.0.3", "locate-character": "^3.0.0", "magic-string": "^0.30.11", "zimmerframe": "^1.1.2" } }, "sha512-/d0QHehmRuJW8gVz395MTkPcPozxzdjBMBE8oEYGz8O3b9KTMzzQ9ZHJQLuFKOHOPQbU6kx/X4iid/EBBzH7iw=="],
 
     "svelte-adapter-uws": ["svelte-adapter-uws@0.5.8", "", { "dependencies": { "@rollup/plugin-commonjs": "^28.0.0", "@rollup/plugin-json": "^6.0.0", "@rollup/plugin-node-resolve": "^16.0.0", "rollup": "^4.0.0" }, "optionalDependencies": { "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.67.0" }, "peerDependencies": { "@sveltejs/kit": "^2.0.0", "svelte": "^4.0.0 || ^5.0.0", "ws": "^8.0.0" }, "optionalPeers": ["ws"] }, "sha512-XG1DLduJDO+p6cK49NFd0ItJTuRXRVXhtukBNGS3ikW7NwUV2OIF+qhG0piNBP+vAVyvMfLvWM7sPVttFfBMjg=="],
@@ -1856,8 +1859,6 @@
     "slice-ansi/ansi-styles": ["ansi-styles@6.2.3", "", {}, "sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg=="],
 
     "strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
-
-    "svelte-adapter-uws/uWebSockets.js": ["uWebSockets.js@github:uNetworking/uWebSockets.js#e0f56eb", {}, "uNetworking-uWebSockets.js-e0f56eb", "sha512-yavEkGZoIuDFwnZCBEGF6Vo4dJxmIphYTtyITQ86riShfJh2B4b3H+Uy3Cc6Im/vXUKIhZARkNsXlLpyzbQleA=="],
 
     "tsx/fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 

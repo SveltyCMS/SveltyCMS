@@ -158,8 +158,6 @@ export function parseDrupalYAML(yamlText: string, transactionToken: string): SNC
     const entries: SNCEntry[] = [];
     const lines = yamlText.split("\n");
     let current: Record<string, any> | null = null;
-    let _inEntry = false;
-    let _currentKey = "";
 
     for (const line of lines) {
       const trimmed = line.trimEnd();
@@ -180,13 +178,11 @@ export function parseDrupalYAML(yamlText: string, transactionToken: string): SNC
           entries.push(buildDrupalSNCEntry(current, transactionToken));
         }
         current = {};
-        inEntry = true;
         continue;
       }
 
       if (!current) current = {};
       current[key] = value || null;
-      currentKey = key;
     }
 
     if (current && Object.keys(current).length > 0) {

@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-09"
+updated: "2026-07-10"
 tags:
   - "roadmap"
   - "todo"
@@ -27,17 +27,7 @@ This document is the **living roadmap** — only in-progress and planned work. C
 
 **Wired & Tested**: sharing.ts (secure links), slim-sniffer.server.ts (binary MIME fallback), media-utils.ts (65-type MIME DB), media-processing.server.ts (Sharp hash/metadata/thumbnails), cloud-storage.ts (SSRF-protected S3/R2), media-service.server.ts (upload + dedup + versions).
 
-Additional integrations: advanced-search.ts (media library modal), webgpu-processor.ts (browser-side), bulk-download.ts (TAR.GZ streaming endpoint), storage-analytics.ts (breakdown/insights/trends endpoint), version-history.ts (list + compare endpoints), streaming-upload.ts (real multipart parser).
-
-**Pending UI Wiring Only** (API endpoints complete): Bulk download archive button, analytics dashboard widget, version diff UI in media details modal, streaming upload handler integration.
-
-**Recently Completed**: Inline editing of asset metadata (name, alt text, caption) in the media details modal via `media-details-modal.svelte` — click-to-edit directly in the media drawer.
-
-## ✅ Recently Completed
-
-- [x] **Unified Data Hub v2.4.0 (REST write-back)**: All 5 connector types (Postgres, MariaDB, SQLite, MongoDB, REST) support read+write. REST writes are opt-in (`writesEnabled`), SSRF-safe, with Idempotency-Key dedup and circuit breaker. GraphQL mutations (`createVirtualEntry`, `updateVirtualEntry`, `deleteVirtualEntry`) for headless clients. Full API parity across LocalCMS, HTTP, GraphQL, and WebMCP agents. 96 unit tests.
-- [x] **Unified Data Hub v2.2 (stable)**: Marketplace plugin — Postgres + REST federation, same-source joins, native stitch enrich, Collection Builder enrichment picker, GraphQL/WebMCP parity, per-source cursor pagination, decomposition telemetry, headless contracts, cross-source alpha (opt-in). See [unified-data-hub.mdx](/src/plugins/unified-data-hub/unified-data-hub.mdx).
-- [x] **E2E Architecture Simplification**: Collapsed 20 Playwright projects → 4 (wizard, firstuser, auth-setup, chromium). Reduced CI jobs from 19 to 6, server startups from 19 to 1. Total E2E time ~70-110min → ~12-15min.
+Additional integrations: advanced-search.ts (media library modal), webgpu-processor.ts (browser-side), bulk-download.ts (TAR.GZ streaming endpoint + gallery selection toolbar), storage-analytics.ts (breakdown/insights/trends endpoint + dashboard widget), version-history.ts (list + compare endpoints + media details diff UI), streaming-upload.ts (real multipart parser + upload-client routing).
 
 ## 🏗️ In Progress
 
@@ -70,7 +60,7 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 - **Deep JSON/Object Field Filtering**: Path-based SQL/NoSQL filtering across REST, GraphQL, LocalCMS.
 - **AI Command Bar Guardrails**: Permission-aware gating, diff previews, audit logging.
 - **[TSV](https://tsv.fuz.dev/) Integration**: Waiting for upstream native Node.js libraries so we can use TSV for even faster testing.
-- **Aggressive Adoption Onboarding**: One-click deploy buttons (Vercel, Netlify, Railway, Fly.io), 0-config Setup Wizard with auto-detection, `create-sveltycms` scaffolding with interactive template picker, interactive example gallery (20+ use-cases), and live interactive playground at `try.sveltycms.com` — eliminating friction for first-time users while ensuring instant enterprise trial readiness.
+- **Aggressive Adoption Onboarding** _(partial)_: One-click deploy buttons (Vercel, Netlify, Railway, Fly.io), `create-sveltycms` scaffolding CLI, interactive example gallery (20+ use-cases), live playground at `try.sveltycms.com`. Completed onboarding pieces are documented in [Technical Evaluation](./technical-evaluation-2026.mdx#72-visual-intelligence--enterprise-collaboration).
 
 - **SvelteKit 3.0 Upgrade**: Breaking changes checklist tracked in [Migration Guide](../development/sveltekit-v3-migration.mdx).
 

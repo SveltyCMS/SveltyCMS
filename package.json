@@ -181,6 +181,7 @@
     "sharp": "^0.35.3",
     "shiki": "^4.3.1",
     "stripe": "^22.3.1",
+    "svedit": "^0.12.0",
     "svelte-adapter-uws": "^0.5.8",
     "svelte-canvas": "^2.1.0",
     "svelte-realtime": "^0.5.10",

@@ -216,9 +216,11 @@ export function applyImportFilters(
       case "random":
         sampled = shuffleArray([...entries]).slice(0, filter.sample.count);
         break;
-      case "every_nth":
-        sampled = entries.filter((_, i) => i % filter.sample.count === 0);
+      case "every_nth": {
+        const nth = filter.sample.count;
+        sampled = entries.filter((_, i) => i % nth === 0);
         break;
+      }
     }
     reasons["sampled_out"] = entries.length - sampled.length;
     excluded += entries.length - sampled.length;
@@ -373,8 +375,8 @@ export function resolvePerField(
   incoming: Record<string, any>,
   existing: Record<string, any>,
   config: PerFieldConflictConfig,
-): Record<string, any> {
-  const result = { ...existing, _id: existing._id };
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...existing, _id: existing._id };
 
   for (const [key, value] of Object.entries(incoming)) {
     if (key === "_id" || key.startsWith("_")) continue;

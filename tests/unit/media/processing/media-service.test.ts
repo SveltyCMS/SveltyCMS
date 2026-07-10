@@ -16,8 +16,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // the same check-then-write pattern it uses.
 
 describe("ensureOriginalOnDisk — dedup check", () => {
-  let fileExists: ReturnType<typeof vi.fn>;
-  let saveFile: ReturnType<typeof vi.fn>;
+  let fileExists = vi.fn();
+  let saveFile = vi.fn();
 
   beforeEach(() => {
     fileExists = vi.fn();

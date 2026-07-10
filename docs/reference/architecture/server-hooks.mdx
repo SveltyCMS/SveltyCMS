@@ -573,45 +573,36 @@ The root path has special handling to provide an optimal user experience across 
     - `handleSetup` → Redirect to `/setup`
     - User completes installation wizard
 
-2.  **Has `config/private.ts`, no valid session**
+2.  **Has `config/private.ts`, no valid session, `SITE_STARTER_ENABLED`**
     - `handleSetup` → Passes through
     - `handleAuthentication` → Sets `locals.user = null`
-    - Root `+page.server.ts` → Redirect to `/login`
+    - `(site)/+page.server.ts` → SSR public homepage (`pages` entry with `slug: home`)
 
-3.  **Has `config/private.ts`, valid session**
+3.  **Has `config/private.ts`, no valid session, site starter disabled**
+    - `(site)/+page.server.ts` → Redirect to `/login`
+
+4.  **Has `config/private.ts`, valid session**
     - `handleSetup` → Passes through
     - `handleAuthentication` → Sets `locals.user = User`
-    - Root `+page.server.ts` → Redirect to first collection
+    - `(site)/+page.server.ts` → Redirect authenticated editors to first collection (or Collection Builder for admins)
 
-**Implementation** (`src/routes/+page.server.ts`):
+> [!NOTE]
+> The legacy root loader at `src/routes/+page.server.ts` was removed to avoid a SvelteKit route conflict with `src/routes/(site)/+page.server.ts` — both mapped to `/`. CMS redirect logic now lives in `redirectAuthenticatedUserToCms()` inside the site starter loader.
 
-```
-export const load: PageServerLoad = async ({ locals, url }) => {
-  const { user } = locals;
+**Implementation** (`src/routes/(site)/+page.server.ts`):
 
-  // No session - redirect to login
-  if (!user) {
-    throw redirect(302, "/login");
+```typescript
+// Guests: resolve published homepage via resolveSitePage()
+// Editors: redirectAuthenticatedUserToCms() → first collection or /config/collectionbuilder
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
+  if (!isSiteStarterEnabled()) {
+    if (!user) throw redirect(302, "/login");
+    return redirectAuthenticatedUserToCms(locals, url);
   }
-
-  // Only for root path
-  if (url.pathname !== "/") {
-    return { user, permissions: locals.permissions };
+  if (user && !user.isAnonymous) {
+    return redirectAuthenticatedUserToCms(locals, url);
   }
-
-  // Wait for system initialization
-  await dbInitPromise;
-  await contentSystem.initialize(tenantId);
-
-  // Get first collection and redirect
-  const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
-
-  if (redirectUrl) {
-    throw redirect(302, redirectUrl);
-  }
-
-  // No collections found - stay on root
-  return { user, permissions: locals.permissions };
+  // ... resolveSitePage({ pathname: "/" }) for public SSR
 };
 ```
 

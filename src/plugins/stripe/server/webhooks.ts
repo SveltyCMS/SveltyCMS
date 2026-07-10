@@ -6,7 +6,7 @@
  * Uses dbAdapter.crud.upsert to safely handle duplicate webhook deliveries.
  */
 
-import type { IDBAdapter } from "@databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { getStripe } from "./stripe";
 
 interface WebhookEvent {
@@ -56,16 +56,20 @@ export async function handleStripeWebhook(
     // Use findOne + insert/update for idempotent webhook handling
     const existing = await dbAdapter.crud.findOne("plugin_stripe_payments", {
       stripeIntentId: intent.id,
-    });
+    } as Record<string, unknown>);
 
     if (existing?.success && existing.data) {
-      await dbAdapter.crud.update("plugin_stripe_payments", (existing.data as any)._id, {
-        status,
-        amount: intent.amount,
-        currency: intent.currency,
-        metadata: intent.metadata || {},
-        updatedAt: now,
-      });
+      await dbAdapter.crud.update(
+        "plugin_stripe_payments",
+        (existing.data as { _id: DatabaseId })._id,
+        {
+          status,
+          amount: intent.amount,
+          currency: intent.currency,
+          metadata: intent.metadata || {},
+          updatedAt: now,
+        } as Record<string, unknown>,
+      );
     } else {
       await dbAdapter.crud.insert("plugin_stripe_payments", {
         _id: `stripe_${intent.id}`,
@@ -76,8 +80,8 @@ export async function handleStripeWebhook(
         metadata: intent.metadata || {},
         createdAt: now,
         updatedAt: now,
-        tenantId,
-      });
+        tenantId: tenantId as DatabaseId,
+      } as Record<string, unknown>);
     }
 
     return { received: true };

@@ -161,7 +161,7 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const method = "POST";
+        const method = "POST" as "GET" | "POST" | "DELETE";
         const mapping =
           method === "DELETE" ? "media:delete" : method === "GET" ? "media:read" : "media:write";
         const permitted = mockPermissions.includes(mapping);
@@ -184,7 +184,7 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const method = "POST";
+        const method = "POST" as "GET" | "POST" | "DELETE";
         const mapping =
           method === "DELETE" ? "media:delete" : method === "GET" ? "media:read" : "media:write";
         const dispatcherPassed = mockPermissions.includes(mapping);

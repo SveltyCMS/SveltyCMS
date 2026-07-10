@@ -21,7 +21,11 @@ export async function safeCall<T>(
       return {
         success: false,
         message: err.message,
-        error: { code: (err as any).code, status: err.status },
+        error: {
+          code: String((err as AppError).code ?? "APP_ERROR"),
+          message: err.message,
+          statusCode: err.status,
+        },
       };
     }
     return {

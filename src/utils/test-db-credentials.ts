@@ -80,6 +80,7 @@ export function getBenchmarkTestEnv(dbType: string, overrides: Record<string, st
     DB_USER: creds.user,
     DB_PASSWORD: creds.password,
     TEST_MODE: "true",
+    BENCHMARK: "true",
     JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-32ch",
     ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-32ch",
     BENCHMARK_NO_REDIS: "1",

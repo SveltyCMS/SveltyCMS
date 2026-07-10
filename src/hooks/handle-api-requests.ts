@@ -60,7 +60,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
       const userRole = locals.user?.role || "guest";
       if (!hasApiPermission(userRole, apiEndpoint, isAdmin(locals.user))) {
         // Ephemeral anonymous users (no real auth) should get 401, not 403
-        if (locals.user?.isAnonymous) {
+        if ((locals.user as { isAnonymous?: boolean } | undefined)?.isAnonymous) {
           throw new AppError("Authentication required", 401, "UNAUTHORIZED");
         }
         throw new AppError(

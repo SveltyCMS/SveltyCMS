@@ -29,7 +29,7 @@ vi.mock("@src/plugins/registry", () => ({
   },
 }));
 
-const TENANT = "default";
+const TENANT = "default" as DatabaseId;
 const CONNECTOR_ID = "conn-rest-1" as DatabaseId;
 const COLLECTION_ID = "vc-wp-articles" as DatabaseId;
 
@@ -125,7 +125,7 @@ describe("Phase 0 POC — federation validation", () => {
           featured_media: 0,
         },
       ],
-    })) as typeof fetch;
+    })) as unknown as typeof fetch;
   });
 
   it("WordPress REST virtual Articles returns mapped fields", async () => {

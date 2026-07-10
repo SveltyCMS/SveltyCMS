@@ -1052,6 +1052,23 @@ export async function handleTestingRoutes(
       }
     }
 
+    if (action === "seed-website-starter") {
+      const { seedWebsiteStarterBlueprint } =
+        await import("@src/services/site/website-starter-seed.server");
+      try {
+        const result = await seedWebsiteStarterBlueprint(initializedAdapter, {
+          siteName: (params.siteName as string) || "E2E Test Site",
+          tenantId,
+          enablePlugin: params.enablePlugin !== false,
+          adminUserId: params.userId as string | undefined,
+        });
+        return rawResponse({ success: true, ...result });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new AppError(`Website Starter seed failed: ${message}`, 500);
+      }
+    }
+
     if (action === "seed-unified-data-hub") {
       const { seedUnifiedDataHub } = await import("@plugins/unified-data-hub/server/hub-test-seed");
       try {

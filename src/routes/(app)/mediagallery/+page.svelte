@@ -33,6 +33,7 @@ import {
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
+import { uploadMediaFiles } from "@utils/media/upload-client";
 import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -50,6 +51,7 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
 	let isUploading = $state(false);
+	let isBulkDownloading = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	let sortBy = $state("newest");
@@ -302,29 +304,63 @@ async function uploadFiles(fileList: FileList | File[]) {
 	const list = Array.from(fileList ?? []);
 	if (!list.length || isUploading) return;
 
-	const formData = new FormData();
-	for (const file of list) {
-		formData.append("files", file);
-	}
-	formData.append("folder", data.currentFolder?._id || "global");
-
 	isUploading = true;
 	try {
-		const response = await fetch("?/upload", {
-			method: "POST",
-			body: formData,
+		const result = await uploadMediaFiles(list, {
+			formActionUrl: "?/upload",
+			folder: data.currentFolder?._id || "global",
 		});
-		if (response.ok) {
+		if (result.success) {
 			toast.success("Media uploaded successfully");
 			await invalidateAll();
 		} else {
-			toast.error("Upload failed");
+			toast.error(result.message || "Upload failed");
 		}
 	} catch (err) {
 		logger.error("Upload failed", err);
 		toast.error("Upload failed");
 	} finally {
 		isUploading = false;
+	}
+}
+
+async function handleBulkDownload() {
+	if (selectedFiles.size === 0 || isBulkDownloading) return;
+
+	isBulkDownloading = true;
+	try {
+		const params = new URLSearchParams();
+		for (const id of selectedFiles) {
+			params.append("id", id);
+		}
+
+		const response = await fetch(`/api/media/bulk-download?${params}`);
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			toast.error((err as { message?: string }).message || "Bulk download failed");
+			return;
+		}
+
+		const blob = await response.blob();
+		const disposition = response.headers.get("Content-Disposition");
+		let filename = `media-bulk-${Date.now()}.tar.gz`;
+		const match = disposition?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+		if (match?.[1]) {
+			filename = match[1].replace(/['"]/g, "");
+		}
+
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = filename;
+		anchor.click();
+		URL.revokeObjectURL(url);
+		toast.success("Archive download started");
+	} catch (err) {
+		logger.error("Bulk download failed", err);
+		toast.error("Bulk download failed");
+	} finally {
+		isBulkDownloading = false;
 	}
 }
 
@@ -485,14 +521,32 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	<div class="flex min-h-0 flex-1 flex-col gap-0">
 		{#if assetStats.selected > 0}
 			<div class="shrink-0 px-2 sm:px-3">
-				<p
-					class="border-b border-primary-500/30 py-2 text-xs text-surface-600 dark:text-surface-300"
+				<div
+					class="flex flex-wrap items-center justify-between gap-2 border-b border-primary-500/30 py-2"
 					role="status"
 					aria-live="polite"
 				>
-				<span class="font-medium text-surface-800 dark:text-surface-100">{assetStats.selected} selected</span>
-				<span class="hidden text-surface-500 sm:inline dark:text-surface-400"> · Del to remove · Esc to clear</span>
-				</p>
+					<p class="text-xs text-surface-600 dark:text-surface-300">
+						<span class="font-medium text-surface-800 dark:text-surface-100">{assetStats.selected} selected</span>
+						<span class="hidden text-surface-500 sm:inline dark:text-surface-400"> · Del to remove · Esc to clear</span>
+					</p>
+					<Button
+						variant="surface"
+						size="sm"
+						onclick={handleBulkDownload}
+						disabled={isBulkDownloading}
+						aria-busy={isBulkDownloading}
+						aria-label="Download selected files as archive"
+						class="h-8 gap-1.5 px-3"
+					>
+						<iconify-icon
+							icon={isBulkDownloading ? "mdi:loading" : "mdi:archive-arrow-down-outline"}
+							width="16"
+							class={isBulkDownloading ? "animate-spin" : ""}
+						></iconify-icon>
+						<span>{isBulkDownloading ? "Preparing…" : "Download Archive"}</span>
+					</Button>
+				</div>
 			</div>
 		{/if}
 

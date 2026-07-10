@@ -40,7 +40,10 @@ async function openSqlite(filePath: string): Promise<SqliteHandle> {
       return {
         all() {
           const stmt = db.prepare(sql);
-          return stmt.all(...params) as Record<string, unknown>[];
+          return stmt.all(...(params as (string | number | bigint | Buffer | null)[])) as Record<
+            string,
+            unknown
+          >[];
         },
       };
     },

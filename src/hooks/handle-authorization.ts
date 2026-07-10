@@ -205,8 +205,11 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   if (isPublic) {
     if (pathname === "/" && !locals.isFirstUser && !user) {
-      logger.info("[Authz] Redirecting unauthenticated user from / to /login");
-      throw redirect(302, "/login");
+      const { isSiteStarterEnabled } = await import("@src/services/site/site-config.server");
+      if (!isSiteStarterEnabled()) {
+        logger.info("[Authz] Redirecting unauthenticated user from / to /login");
+        throw redirect(302, "/login");
+      }
     }
     locals.isAdmin = false;
     locals.hasManageUsersPermission = false;

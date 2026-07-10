@@ -142,7 +142,7 @@ const initialSystemSettings: SystemSettings = {
   contentLanguages: ["en", "de"], // Will be populated from DB after seeding (reads from settings.json)
   mediaStorageType: "local",
   mediaFolder: "./mediaFolder",
-  preset: "blank",
+  preset: "website",
   passwordMinLength: 8,
   timezone: "UTC",
   useRedis: false,
@@ -564,7 +564,7 @@ function createSetupStore() {
         admin: wizard.adminUser,
         system: {
           ...wizard.systemSettings,
-          preset: wizard.systemSettings.preset || "blank",
+          preset: wizard.systemSettings.preset || "website",
           cfPurgeMode: wizard.systemSettings.cfPurgeMode || "tags",
         },
         emailSettings: {

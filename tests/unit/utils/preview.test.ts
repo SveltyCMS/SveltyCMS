@@ -42,7 +42,7 @@ describe("LivePreview Utility", () => {
     const { destroy } = createLivePreviewListener({ onUpdate: mockOnUpdate });
 
     expect(window.addEventListener).toHaveBeenCalledWith("message", expect.any(Function));
-    expect(mockPostMessage).toHaveBeenCalledWith({ type: "svelty:init" }, "*");
+    expect(mockPostMessage).toHaveBeenCalledWith({ type: "svelty:init", version: "1.2.0" }, "*");
 
     destroy();
     expect(window.removeEventListener).toHaveBeenCalledWith("message", expect.any(Function));

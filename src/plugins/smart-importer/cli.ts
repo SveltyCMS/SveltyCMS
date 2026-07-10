@@ -277,8 +277,10 @@ async function handleScaffold(args: CLIArgs, dbAdapter?: any) {
     console.log(`\n📋 Collection: ${schema._id} (preview — pass dbAdapter to write)`);
     console.log("   Fields:");
     for (const field of schema.fields) {
+      if (!("db_fieldName" in field)) continue;
+      const widget = field.widget as { Name: string };
       console.log(
-        `   - ${field.name} (${field.widget.Name})${field.required ? " *required" : ""} — ${field.label}`,
+        `   - ${field.db_fieldName} (${widget.Name})${field.required ? " *required" : ""} — ${field.label}`,
       );
     }
   } catch (err: any) {

@@ -21,8 +21,8 @@ export { migrations };
  * Single-page analysis remains free.
  */
 export async function beforeSave(
-  context: PluginContext,
-  collection: string,
+  _context: PluginContext,
+  _collection: string,
   data: Record<string, unknown>,
 ) {
   if (data._pagespeedBulk || data._pagespeedScheduled || data._pagespeedHistorical) {
