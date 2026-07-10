@@ -23,6 +23,7 @@ let apiSpecService: any;
 let cacheService: any;
 let versionCheckService: any;
 let marketplaceService: import("@src/services/core/marketplace-service").MarketplaceService;
+let configService: import("@src/services/core/config-service").ConfigService;
 
 async function getApiSpecService() {
   if (!apiSpecService) {
@@ -52,6 +53,13 @@ async function getMarketplaceService() {
     marketplaceService = mod.marketplaceService;
   }
   return marketplaceService;
+}
+
+async function getConfigService() {
+  if (!configService) {
+    configService = (await import("@src/services/core/config-service")).configService;
+  }
+  return configService;
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -95,12 +103,30 @@ export async function handleUtilityRoutes(
     }
 
     // ── Config Sync ──
-    if (namespace === "config_sync" && request.method === "GET") {
-      return successResponse(event, {
-        success: true,
-        message: "Configuration synchronized successfully.",
-        timestamp: new Date().toISOString(),
-      });
+    if (namespace === "config_sync") {
+      const service = await getConfigService();
+
+      if (request.method === "GET") {
+        const status = await service.getStatus(tenantId as string);
+        return successResponse(event, status);
+      }
+
+      if (request.method === "POST") {
+        const body = await request.json().catch(() => ({}));
+        const action = typeof body?.action === "string" ? body.action : "";
+
+        if (action === "import") {
+          await service.performImport({ tenantId: tenantId as string });
+          return successResponse(event, {
+            success: true,
+            message: "Configuration imported successfully.",
+          });
+        }
+
+        throw new AppError(`Unknown config_sync action: "${action}". Valid actions: import.`, 400);
+      }
+
+      throw new AppError("Method not allowed", 405);
     }
 
     // ── Email Service ──

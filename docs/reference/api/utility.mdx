@@ -38,7 +38,7 @@ The Utilities API provides a set of essential maintenance and support services t
 | **Restore Entry**       | `/api/trash/restore` | `POST` |     ✅     |
 | **Send Email**          | `/api/send-mail`     | `POST` |     ✅     |
 | **Version Check**       | `/api/version-check` | `GET`  |     ✅     |
-| **Config Sync**         | `/api/config_sync`   | `GET`  |     ✅     |
+| ~~**Config Sync**~~     | `/api/config_sync`   | `GET`  |     ✅     |
 | **Debug / Diagnostics** | `/api/debug`         | `GET`  |     ✅     |
 | **Marketplace**         | `/api/marketplace`   | `GET`  |     ✅     |
 
@@ -130,9 +130,13 @@ Checks for available updates.
 
 ### Configuration Sync
 
-Triggers a configuration synchronization.
-
-**Endpoint**: `GET /api/config_sync`
+> [!WARNING]
+> **Deprecated.** `GET /api/config_sync` is deprecated and routed to `GET /api/config/status`.
+> Use the new [Configuration Promotion API](./configuration-promotion.mdx) instead.
+> The old endpoint will continue to work via the dispatcher alias but will be removed
+> in a future major version.
+>
+> **Migration**: Replace `GET /api/config_sync` with `GET /api/config/status`.
 
 ### Debug / Diagnostics
 
