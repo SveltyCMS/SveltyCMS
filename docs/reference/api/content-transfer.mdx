@@ -1,0 +1,403 @@
+---
+path: "docs/reference/api/content-transfer.mdx"
+title: "Content Export & Import"
+description: "Reference for the content transfer API — export, import, and migrate content between environments with NDJSON streaming, identity matching, and duplicate resolution strategies."
+order: 100
+icon: "mdi:package-variant-closed"
+author: "SveltyCMS Team"
+created: "2026-07-10"
+updated: "2026-07-10"
+tags:
+  - "api"
+  - "content"
+  - "export"
+  - "import"
+  - "transfer"
+  - "migration"
+---
+
+# Content Export & Import
+
+The Content Transfer API provides a plan-first, streaming workflow for exporting content out of a SveltyCMS instance and importing it into another. It supports NDJSON streaming for large datasets, configurable duplicate resolution, and deterministic identity matching across environments.
+
+> [!IMPORTANT]
+> All content transfer endpoints are **admin-gated**. GET requests require `content:read`, POST requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature               | HTTP Endpoint                         | Method | Permission      |
+| :-------------------- | :------------------------------------ | :----- | :-------------- |
+| **Validate Export**   | `/api/content-export/validate`        | `POST` | `content:write` |
+| **Plan Export**       | `/api/content-export/plan`            | `POST` | `content:write` |
+| **Run Export**        | `/api/content-export/run`             | `POST` | `content:write` |
+| **Export Job Status** | `/api/content-export/jobs/:jobId`     | `GET`  | `content:read`  |
+| **Download Export**   | `/api/content-export/download/:jobId` | `GET`  | `content:read`  |
+| **Validate Import**   | `/api/content-import/validate`        | `POST` | `content:write` |
+| **Plan Import**       | `/api/content-import/plan`            | `POST` | `content:write` |
+| **Apply Import**      | `/api/content-import/apply`           | `POST` | `content:write` |
+| **Import Job Status** | `/api/content-import/jobs/:jobId`     | `GET`  | `content:read`  |
+
+---
+
+## 1. Content Export
+
+Content export follows a validate → plan → run workflow. Each step validates incrementally before proceeding, ensuring the export is safe and predictable.
+
+### Validate Export
+
+Checks that the requested content can be exported without blocking issues.
+
+**Endpoint**: `POST /api/content-export/validate`
+
+**Payload**:
+
+```json
+{
+  "collections": ["blog-posts", "authors"],
+  "filters": {
+    "blog-posts": { "status": "published" }
+  },
+  "includeMedia": true
+}
+```
+
+| Field          | Type       | Required | Description                                     |
+| :------------- | :--------- | :------- | :---------------------------------------------- |
+| `collections`  | `string[]` | ✅       | Collection names to export                      |
+| `filters`      | `object`   | —        | Per-collection query filters                    |
+| `includeMedia` | `boolean`  | —        | Include referenced media assets (default: true) |
+
+**Response**:
+
+```json
+{
+  "valid": true,
+  "estimatedCount": 1427,
+  "estimatedSize": "45.3 MB",
+  "warnings": [
+    {
+      "collection": "blog-posts",
+      "message": "Some entries have unpublished status — these will be skipped"
+    }
+  ],
+  "blockedReasons": []
+}
+```
+
+### Plan Export
+
+Generates a detailed plan of the export with exact entry counts, media references, and any conflicts.
+
+**Endpoint**: `POST /api/content-export/plan`
+
+**Payload**:
+
+```json
+{
+  "collections": ["blog-posts", "authors"],
+  "filters": {
+    "blog-posts": { "status": "published" }
+  },
+  "includeMedia": true
+}
+```
+
+**Response**:
+
+```json
+{
+  "planId": "e4f56a7b-...",
+  "operationType": "content-export",
+  "collections": [
+    {
+      "name": "blog-posts",
+      "entryCount": 1420,
+      "mediaRefs": 2156
+    },
+    {
+      "name": "authors",
+      "entryCount": 7,
+      "mediaRefs": 7
+    }
+  ],
+  "totalEntries": 1427,
+  "totalMedia": 2163,
+  "estimatedSize": "45.3 MB"
+}
+```
+
+### Run Export
+
+Executes the export and returns a streaming NDJSON response. Each line is a self-contained JSON record.
+
+**Endpoint**: `POST /api/content-export/run`
+
+**Payload**:
+
+```json
+{
+  "planId": "e4f56a7b-..."
+}
+```
+
+| Field    | Type     | Required | Description                                                       |
+| :------- | :------- | :------- | :---------------------------------------------------------------- |
+| `planId` | `string` | ✅       | Plan identifier from the `POST /api/content-export/plan` response |
+
+**Response** (NDJSON stream):
+
+```ndjson
+{"type":"header","version":1,"exportedAt":"2026-07-10T12:00:00.000Z","sourceUrl":"https://prod.example.com"}
+{"type":"collection","name":"blog-posts","entryCount":1420}
+{"type":"entry","_syncId":"a1b2c3d4-...","collection":"blog-posts","data":{"title":"My First Post","slug":"my-first-post","body":"..."}}
+{"type":"entry","_syncId":"b2c3d4e5-...","collection":"blog-posts","data":{"title":"Another Post","slug":"another-post","body":"..."}}
+{"type":"entry","_syncId":"c3d4e5f6-...","collection":"authors","data":{"name":"Jane Doe","email":"jane@example.com","bio":"..."}}
+{"type":"footer","totalEntries":1427,"checksum":"sha256:abc123def456..."}
+```
+
+> [!NOTE]
+> The NDJSON format allows streaming of arbitrarily large exports. Each line is a complete JSON object terminated by `\n`. Lines with `"type":"entry"` contain the full entry data, including all localized fields and relation references.
+
+### Job Status & Download
+
+After a long-running export completes, the job is stored for download.
+
+**Endpoint**: `GET /api/content-export/jobs/:jobId`
+
+**Response**:
+
+```json
+{
+  "jobId": "job_xyz789",
+  "status": "completed",
+  "progress": { "exported": 1427, "total": 1427 },
+  "downloadUrl": "/api/content-export/download/job_xyz789",
+  "completedAt": "2026-07-10T12:01:30.000Z"
+}
+```
+
+**Endpoint**: `GET /api/content-export/download/:jobId`
+
+Returns the NDJSON file as a streaming download with `Content-Type: application/x-ndjson` and `Content-Disposition: attachment`.
+
+---
+
+## 2. Content Import
+
+Content import follows a validate → plan → apply workflow. The import engine matches entries using identity resolution and applies the configured duplicate strategy.
+
+### Validate Import
+
+Checks that the uploaded content is structurally valid and compatible with the target instance.
+
+**Endpoint**: `POST /api/content-import/validate`
+
+**Payload** (multipart/form-data or JSON reference):
+
+```json
+{
+  "source": "upload",
+  "format": "ndjson",
+  "content": "<base64-encoded or file reference>"
+}
+```
+
+**Response**:
+
+```json
+{
+  "valid": true,
+  "collections": ["blog-posts", "authors"],
+  "totalEntries": 1427,
+  "warnings": [
+    { "message": "Collection 'tags' does not exist in target — entries will be skipped" }
+  ],
+  "blockedReasons": []
+}
+```
+
+### Plan Import
+
+Generates a detailed plan showing exactly what will be created, updated, or skipped, based on identity matching and the duplicate strategy.
+
+**Endpoint**: `POST /api/content-import/plan`
+
+**Payload**:
+
+```json
+{
+  "source": "upload",
+  "planId": "e4f56a7b-...",
+  "duplicateStrategy": "skip",
+  "targetLocale": "en"
+}
+```
+
+| Field               | Type     | Required | Description                                                                            |
+| :------------------ | :------- | :------- | :------------------------------------------------------------------------------------- |
+| `source`            | `string` | ✅       | Source of the import data (`upload`, `url`, `job`)                                     |
+| `planId`            | `string` | ✅       | Previously validated export plan identifier                                            |
+| `duplicateStrategy` | `string` | —        | How to handle duplicates: `skip`, `update`, `create-copy`, or `fail` (default: `skip`) |
+| `targetLocale`      | `string` | —        | Target locale for imported content (default: instance default locale)                  |
+
+**Response**:
+
+```json
+{
+  "planId": "f5a67b8c-...",
+  "operationType": "content-import",
+  "duplicateStrategy": "skip",
+  "operations": [
+    { "action": "create", "collection": "blog-posts", "title": "My First Post", "matchKey": null },
+    {
+      "action": "skip",
+      "collection": "blog-posts",
+      "title": "Already Exists",
+      "matchKey": "syncId:a1b2c3d4-...",
+      "reason": "duplicate-skipped"
+    },
+    {
+      "action": "update",
+      "collection": "authors",
+      "title": "Jane Doe",
+      "matchKey": "externalId:ext_456",
+      "reason": "identity-match"
+    }
+  ],
+  "summary": {
+    "create": 1200,
+    "update": 3,
+    "skip": 224,
+    "fail": 0
+  },
+  "requiresConfirmation": false
+}
+```
+
+### Apply Import
+
+Executes the import plan. For large imports, the response may include a `jobId` for async tracking.
+
+**Endpoint**: `POST /api/content-import/apply`
+
+**Payload**:
+
+```json
+{
+  "planId": "f5a67b8c-..."
+}
+```
+
+| Field    | Type     | Required | Description                                                       |
+| :------- | :------- | :------- | :---------------------------------------------------------------- |
+| `planId` | `string` | ✅       | Plan identifier from the `POST /api/content-import/plan` response |
+
+**Response** (synchronous):
+
+```json
+{
+  "success": true,
+  "imported": 1200,
+  "updated": 3,
+  "skipped": 224,
+  "failed": 0,
+  "appliedAt": "2026-07-10T12:05:00.000Z"
+}
+```
+
+**Response** (async with job tracking):
+
+```json
+{
+  "success": true,
+  "jobId": "import_job_abc123",
+  "status": "processing",
+  "message": "Import started. Track progress via GET /api/content-import/jobs/import_job_abc123"
+}
+```
+
+### Import Job Status
+
+**Endpoint**: `GET /api/content-import/jobs/:jobId`
+
+**Response**:
+
+```json
+{
+  "jobId": "import_job_abc123",
+  "status": "completed",
+  "progress": { "processed": 1427, "total": 1427 },
+  "results": {
+    "created": 1200,
+    "updated": 3,
+    "skipped": 224,
+    "failed": 0
+  },
+  "completedAt": "2026-07-10T12:06:45.000Z"
+}
+```
+
+---
+
+## 3. Duplicate Strategies
+
+When importing content that may already exist in the target instance, the import engine applies one of four strategies:
+
+| Strategy          | Behavior                                                              |
+| :---------------- | :-------------------------------------------------------------------- |
+| **`skip`**        | **Default.** Entries matching an existing identity are skipped.       |
+| **`update`**      | Existing entries are updated in-place with imported data.             |
+| **`create-copy`** | A new entry is created alongside the existing one with a unique slug. |
+| **`fail`**        | The import halts with an error on the first duplicate match.          |
+
+> [!CAUTION]
+> The `update` strategy overwrites existing content. Ensure your identity matching is correct before applying updates to a production instance.
+
+---
+
+## 4. Identity Matching
+
+The import engine resolves entry identity using a priority-ordered chain. The first matching field determines whether an entry is treated as new or existing:
+
+1. **`syncId`** — A UUID assigned by the export system. This is the strongest identifier and is always checked first.
+2. **External ID** — A user-defined `externalId` field on the entry. Useful for entries synced from third-party systems.
+3. **Natural Key** — A configurable natural key per collection (typically `slug`). Falls back to collection-specific field combinations.
+
+> [!NOTE]
+> `syncId` matching is the recommended approach for reliable content synchronization between environments. If you plan to repeatedly import from the same source, always include `_syncId` in your exports.
+
+---
+
+## 5. NDJSON Streaming Format
+
+Content is transferred using **Newline-Delimited JSON (NDJSON)** — a format where each line is a complete, self-contained JSON object:
+
+```ndjson
+{"type":"header","version":1,"exportedAt":"2026-07-10T12:00:00.000Z"}
+{"type":"collection","name":"blog-posts","entryCount":3}
+{"type":"entry","_syncId":"a1b2c3d4-...","collection":"blog-posts","data":{"title":"Post 1","slug":"post-1","body":"..."}}
+{"type":"entry","_syncId":"b2c3d4e5-...","collection":"blog-posts","data":{"title":"Post 2","slug":"post-2","body":"..."}}
+{"type":"footer","totalEntries":3,"checksum":"sha256:def456..."}
+```
+
+**Record types**:
+
+| Type         | Description                                          |
+| :----------- | :--------------------------------------------------- |
+| `header`     | File metadata: version, timestamp, source URL        |
+| `collection` | Collection declaration: name, entry count            |
+| `entry`      | Content entry: `_syncId`, collection name, full data |
+| `footer`     | Trailer: total entries, integrity checksum           |
+
+> [!IMPORTANT]
+> Each line **must** be a single complete JSON object. Multi-line JSON or pretty-printed output will cause parse failures during import.
+
+---
+
+## Next Steps
+
+- [Configuration Promotion](./configuration-promotion.mdx) — Promote config resources between environments with deterministic checksums.
+- [Data Operations Architecture](../architecture/data-operations.mdx) — Understand the underlying transfer pipeline and Local SDK integration.
+- [Backup & Restore](./backups.mdx) — Full-instance backup with AES-256-GCM encryption and safety gating.

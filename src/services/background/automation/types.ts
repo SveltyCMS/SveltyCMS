@@ -24,7 +24,26 @@ export type AutomationEvent =
   | "webhook:success"
   | "webhook:failure"
   | "ai:response"
-  | "chat:message";
+  | "chat:message"
+  // Config promotion events
+  | "config.exported"
+  | "config.plan.created"
+  | "config.applied"
+  // Content package events
+  | "content.exported"
+  | "content.import.started"
+  | "content.import.completed"
+  // Backup events
+  | "backup.created"
+  | "backup.restore.started"
+  | "backup.restore.completed"
+  // Migration events
+  | "migration.applied"
+  | "migration.verified"
+  | "migration.failed"
+  // Content sync events
+  | "content.sync.started"
+  | "content.sync.completed";
 
 /** All available automation events with metadata for the GUI */
 export const AUTOMATION_EVENTS: {
@@ -98,6 +117,90 @@ export const AUTOMATION_EVENTS: {
     label: "Chat Message Sent",
     icon: "mdi:chat-outline",
     category: "ai",
+  },
+  {
+    event: "config.exported",
+    label: "Config Exported",
+    icon: "mdi:file-export-outline",
+    category: "system",
+  },
+  {
+    event: "config.plan.created",
+    label: "Config Plan Created",
+    icon: "mdi:clipboard-list-outline",
+    category: "system",
+  },
+  {
+    event: "config.applied",
+    label: "Config Applied",
+    icon: "mdi:file-import-outline",
+    category: "system",
+  },
+  {
+    event: "content.exported",
+    label: "Content Exported",
+    icon: "mdi:file-export-outline",
+    category: "content",
+  },
+  {
+    event: "content.import.started",
+    label: "Content Import Started",
+    icon: "mdi:file-import-outline",
+    category: "content",
+  },
+  {
+    event: "content.import.completed",
+    label: "Content Import Completed",
+    icon: "mdi:file-check-outline",
+    category: "content",
+  },
+  {
+    event: "backup.created",
+    label: "Backup Created",
+    icon: "mdi:backup-restore",
+    category: "system",
+  },
+  {
+    event: "backup.restore.started",
+    label: "Backup Restore Started",
+    icon: "mdi:database-import-outline",
+    category: "system",
+  },
+  {
+    event: "backup.restore.completed",
+    label: "Backup Restore Completed",
+    icon: "mdi:database-check-outline",
+    category: "system",
+  },
+  {
+    event: "migration.applied",
+    label: "Migration Applied",
+    icon: "mdi:database-arrow-up-outline",
+    category: "system",
+  },
+  {
+    event: "migration.verified",
+    label: "Migration Verified",
+    icon: "mdi:database-check-outline",
+    category: "system",
+  },
+  {
+    event: "migration.failed",
+    label: "Migration Failed",
+    icon: "mdi:database-alert-outline",
+    category: "system",
+  },
+  {
+    event: "content.sync.started",
+    label: "Content Sync Started",
+    icon: "mdi:sync",
+    category: "content",
+  },
+  {
+    event: "content.sync.completed",
+    label: "Content Sync Completed",
+    icon: "mdi:sync-check",
+    category: "content",
   },
 ];
 

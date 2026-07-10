@@ -23,7 +23,7 @@ import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-in
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
 
-abstract class BaseNamespace {
+export abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}
 }
 
