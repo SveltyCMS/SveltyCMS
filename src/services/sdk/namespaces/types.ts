@@ -15,6 +15,7 @@ export interface LocalApiOptions {
   system?: boolean;
   skipValidation?: boolean;
   disableErrors?: boolean;
+  populate?: string[];
 }
 
 export interface TokenOptions extends LocalApiOptions {

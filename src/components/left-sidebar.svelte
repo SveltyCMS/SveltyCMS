@@ -74,7 +74,6 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
 	// Reactive user data
 	const user = $derived(page.data.user);
-	const isAdmin = $derived(page.data.isAdmin as boolean ?? false);
 	const currentPath = $derived(page.url.pathname);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
 	let searchQuery = $state('');

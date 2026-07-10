@@ -60,7 +60,25 @@
   // Versions Tab State
   let isUploadingVersion = $state(false);
   let isRestoringVersion = $state(false);
+  let isComparingVersions = $state(false);
+  let compareFrom = $state("");
+  let compareTo = $state("");
+  let compareResult = $state<{
+    changes: Array<{ field: string; type: string; oldValue?: unknown; newValue?: unknown }>;
+    contentChanged: boolean;
+    metadataChanged: boolean;
+    sizeDifference: number;
+    fromVersion: number;
+    toVersion: number;
+  } | null>(null);
   let fileInputEl = $state<HTMLInputElement | null>(null);
+
+  const versionOptions = $derived(
+    (file?.versions || []).map((ver: { version: number; size: number; createdAt: string }) => ({
+      value: String(ver.version),
+      label: `v${ver.version} · ${formatBytes(ver.size)} · ${new Date(ver.createdAt).toLocaleDateString()}`,
+    })),
+  );
 
   // References Tab State
   let isScanningRefs = $state(false);
@@ -285,6 +303,38 @@
     } finally {
       isUploadingVersion = false;
       input.value = ""; // reset file input
+    }
+  }
+
+  async function handleCompareVersions() {
+    if (!file?._id || !compareFrom || !compareTo) {
+      toast.warning("Select two versions to compare");
+      return;
+    }
+    if (compareFrom === compareTo) {
+      toast.warning("Select two different versions");
+      return;
+    }
+
+    isComparingVersions = true;
+    compareResult = null;
+    try {
+      const response = await fetch(
+        `/api/media/version/${file._id}/compare?from=${compareFrom}&to=${compareTo}`,
+      );
+      if (response.ok) {
+        const body = await response.json();
+        if (body.success) {
+          compareResult = body.data;
+        }
+      } else {
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.message || "Failed to compare versions");
+      }
+    } catch {
+      toast.error("An error occurred while comparing versions");
+    } finally {
+      isComparingVersions = false;
     }
   }
 
@@ -752,6 +802,91 @@
               {/if}
             </Button>
           </div>
+
+          {#if (file.versions?.length || 0) >= 2}
+            <div class="rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-900/60">
+              <h3 class="mb-1 text-sm font-semibold text-surface-800 dark:text-surface-100">Compare Versions</h3>
+              <p class="mb-3 text-xs text-surface-500 dark:text-surface-400">Diff two historical versions to inspect content, metadata, and size changes.</p>
+
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Select
+                  bind:value={compareFrom}
+                  label="From"
+                  size="sm"
+                  placeholder="Select version…"
+                  options={versionOptions}
+                />
+                <Select
+                  bind:value={compareTo}
+                  label="To"
+                  size="sm"
+                  placeholder="Select version…"
+                  options={versionOptions}
+                />
+              </div>
+
+              <Button
+                variant="surface"
+                size="sm"
+                onclick={handleCompareVersions}
+                disabled={isComparingVersions || !compareFrom || !compareTo}
+                aria-label="Compare selected versions"
+                class="mt-3 h-9 gap-1.5"
+              >
+                {#if isComparingVersions}
+                  <iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
+                  <span>Comparing…</span>
+                {:else}
+                  <iconify-icon icon="mdi:file-compare" width="16"></iconify-icon>
+                  <span>Compare</span>
+                {/if}
+              </Button>
+
+              {#if compareResult}
+                <div class="mt-4 rounded-lg border border-surface-200 bg-white p-3 dark:border-surface-700 dark:bg-surface-950/40">
+                  <div class="mb-3 flex flex-wrap gap-2">
+                    <Badge variant={compareResult.contentChanged ? "warning" : "success"} size="sm">
+                      {compareResult.contentChanged ? "Content changed" : "Content identical"}
+                    </Badge>
+                    <Badge variant={compareResult.metadataChanged ? "warning" : "surface"} size="sm">
+                      {compareResult.metadataChanged ? "Metadata changed" : "Metadata unchanged"}
+                    </Badge>
+                    <Badge variant="surface" size="sm">
+                      Size delta: {compareResult.sizeDifference >= 0 ? "+" : ""}{formatBytes(Math.abs(compareResult.sizeDifference))}
+                    </Badge>
+                  </div>
+
+                  {#if compareResult.changes.length > 0}
+                    <div class="flex flex-col gap-2">
+                      {#each compareResult.changes as change (change.field + change.type)}
+                        <div class="rounded border border-surface-200 px-3 py-2 text-xs dark:border-surface-700">
+                          <p class="font-semibold text-surface-800 dark:text-surface-100">
+                            {change.field}
+                            <span class="ms-1 font-normal text-surface-500">({change.type})</span>
+                          </p>
+                          {#if change.oldValue !== undefined || change.newValue !== undefined}
+                            <p class="mt-1 font-mono text-[11px] text-surface-500 dark:text-surface-400">
+                              {#if change.oldValue !== undefined}
+                                <span class="text-error-500 line-through">{String(change.oldValue)}</span>
+                              {/if}
+                              {#if change.oldValue !== undefined && change.newValue !== undefined}
+                                <span class="mx-1">→</span>
+                              {/if}
+                              {#if change.newValue !== undefined}
+                                <span class="text-emerald-600 dark:text-emerald-400">{String(change.newValue)}</span>
+                              {/if}
+                            </p>
+                          {/if}
+                        </div>
+                      {/each}
+                    </div>
+                  {:else}
+                    <p class="text-xs text-surface-500 dark:text-surface-400">No field-level differences detected.</p>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {/if}
 
           <div>
             <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Version History</h3>

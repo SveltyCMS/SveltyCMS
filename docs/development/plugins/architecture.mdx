@@ -6,7 +6,7 @@ icon: "mdi:puzzle-outline"
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
-updated: "2026-06-25"
+updated: "2026-07-10"
 tags:
   - plugins
   - architecture
@@ -201,16 +201,29 @@ export const virtualSlots = [
 ];
 ```
 
-### 2. Dynamic Preview Authentication
+### 2. Optional SvelteKit Site Starter
 
-Live preview uses **ephemeral signed tokens** (`/api/preview/authorize`) to grant temporary access to draft content on external frontend domains. The collection schema's `previewTargetUrl` determines the allowed origin — no hardcoded localhost assumptions.
+SveltyCMS ships a **free, recommended** SvelteKit public frontend at `routes/(site)` with **Svedit** inline page design. **Website Starter** is the default setup preset; `SITE_STARTER_ENABLED` (default `true`) toggles public routes at `/`.
+
+- **Free**: Public routes, `pages` collection, native UI components
+- **Not required**: Disable for pure headless; use Astro/Next/Vue with the same APIs
+
+See [Site Starter guide](/docs/development/site-starter.mdx).
+
+### 3. Premium Live Preview (Editable Website plugin)
+
+Real-time iframe preview and bidirectional editing require the **[Editable Website & Live Preview](/src/plugins/editable-website/editable-website.mdx)** plugin (€14.99 marketplace, 14-day trial):
 
 ```typescript
-// Preview token flow
-POST /api/preview/authorize  →  { previewUrl: "https://myfrontend.com?preview=abc123&token=eyJ..." }
+// Preview token flow (plugin calls this from the Live Preview tab)
+POST /api/preview/authorize  →  { previewUrl: "https://myfrontend.com/?preview_token=..." }
 ```
 
-### 3. Stateless API Contracts
+- Collection schema: `livePreview: "/{slug}?lang={lang}"` + `plugins: ["editable-website"]`
+- Works with the site starter (same origin) or external frontends (absolute URL pattern)
+- Protocol: `svelty:init`, `svelty:update`, `svelty:field:click`, `svelty:save` — see [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx)
+
+### 4. Stateless API Contracts
 
 All plugin interaction with external frontends goes through **documented REST/GraphQL endpoints** with:
 
@@ -264,13 +277,14 @@ The recommended architecture for admin-facing plugins uses TWO layers:
 | **Smart AI-Driven Migration Pro** | Migration   | [smart-importer.mdx](/src/plugins/smart-importer/smart-importer.mdx) |
 | PageSpeed                         | Performance | [pagespeed.mdx](/src/plugins/pagespeed/pagespeed.mdx)                |
 
-| Editable Website | Editing | [editable-website.mdx](/src/plugins/editable-website/editable-website.mdx) |
+| Editable Website | Editing (premium) | [editable-website.mdx](/src/plugins/editable-website/editable-website.mdx) — €14.99 live preview |
 | Redirect Manager | SEO | [redirect-manager.mdx](/src/plugins/redirect-manager/redirect-manager.mdx) |
 | Sitemap | SEO | [sitemap.mdx](/src/plugins/sitemap/sitemap.mdx) |
 
 | WebMCP | AI | [webmcp.mdx](/src/plugins/webmcp/webmcp.mdx) |
 | Cookie Consent | Privacy | [cookie-consent.mdx](/src/plugins/cookie-consent/cookie-consent.mdx) |
 | Stripe | Payments | [stripe.mdx](/src/plugins/stripe/stripe.mdx) |
+| Unified Data Hub | Data federation | [unified-data-hub.mdx](/src/plugins/unified-data-hub/unified-data-hub.mdx) |
 
 ---
 

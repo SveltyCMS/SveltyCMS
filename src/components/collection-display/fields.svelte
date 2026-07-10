@@ -438,6 +438,29 @@ import { tick } from "svelte";
     return () => window.removeEventListener("svelty:focus-field" as any, handleFocusField);
   });
 
+  // Bidirectional live preview: merge edits from iframe back into the form
+  $effect(() => {
+    const handlePreviewUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        data: Record<string, unknown>;
+        source?: string;
+      }>;
+      const merged = customEvent.detail?.data;
+      if (!merged || typeof merged !== "object") return;
+
+      currentCollectionValue = { ...currentCollectionValue, ...merged };
+      setCollectionValue({ ...(collectionValue.value as Record<string, unknown>), ...merged });
+      dataChangeStore.compareWithCurrent({
+        ...(collectionValue.value as Record<string, unknown>),
+        ...merged,
+      });
+    };
+
+    window.addEventListener("svelty:preview-update" as any, handlePreviewUpdate);
+    return () =>
+      window.removeEventListener("svelty:preview-update" as any, handlePreviewUpdate);
+  });
+
   // --- 7. PLUGIN SLOTS ---
   const entryEditSlots = $derived(
     slotRegistry.getSlots("entry_edit").filter(
@@ -890,19 +913,21 @@ import { tick } from "svelte";
           {#if Component.default}
             <Component.default
               {collection}
-              {currentCollectionValue}
+              currentCollectionValue={currentCollectionValue}
               {user}
               {tenantId}
               contentLanguage={currentContentLanguage}
+              active={localTabSet === slot.id}
               {...slot.props}
             />
           {:else}
             <Component
               {collection}
-              {currentCollectionValue}
+              currentCollectionValue={currentCollectionValue}
               {user}
               {tenantId}
               contentLanguage={currentContentLanguage}
+              active={localTabSet === slot.id}
               {...slot.props}
             />
           {/if}

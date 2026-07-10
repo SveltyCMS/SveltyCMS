@@ -2,7 +2,7 @@
 @file src/routes/setup/PresetSelector.svelte
 @component
 Horizontal snap-scroll preset carousel for selecting project blueprints.
-Default value is 'blank'.
+Default value is 'website' (SvelteKit + Svedit frontpage design).
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
@@ -10,7 +10,7 @@ Default value is 'blank'.
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { Preset } from './presets';
 
-	let { presets, selected = $bindable('blank') } = $props<{
+	let { presets, selected = $bindable('website') } = $props<{
 		presets: Preset[];
 		selected: string | null;
 	}>();
@@ -172,7 +172,16 @@ Default value is 'blank'.
 						<iconify-icon icon={preset.icon} width="22" class={selected === preset.id ? 'text-white dark:text-white' : 'text-tertiary-500 dark:text-primary-500'}></iconify-icon>
 						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id ? 'text-white dark:text-white' : 'text-black dark:text-white'}">{preset.title}</span>
 
-						{#if preset.complexity}
+						{#if preset.recommended}
+							<Badge
+								variant="primary"
+								preset="tonal"
+								size="sm"
+								class="absolute top-1 inset-e-1 shrink-0"
+							>
+								Recommended
+							</Badge>
+						{:else if preset.complexity}
 							<Badge
 								variant={preset.complexity === 'simple' ? 'tertiary' : preset.complexity === 'moderate' ? 'warning' : 'error'}
 								preset="tonal"
@@ -238,7 +247,9 @@ Default value is 'blank'.
 	</div>
 
 	<p class="mb-1 text-[0.71rem] italic text-center text-black dark:text-white">
-		{#if selected === 'blank'}
+		{#if selected === 'website'}
+			"Website Starter" selected — SvelteKit frontend, Svedit page design, and a published homepage will be ready after setup.
+		{:else if selected === 'blank'}
 			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
 		{:else if selected}
 			"{presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.

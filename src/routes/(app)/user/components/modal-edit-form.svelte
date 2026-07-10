@@ -32,24 +32,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { Form } from '@root/src/utils/form.svelte.ts';
 	import { updateProfile, verifyPassword as verifyPw, deleteUser as deleteUserRemote } from '../user.remote';
 
-	// Config for the general edit form permissions
-	const modaleEditFormConfig = {
-		name: 'Admin User Edit Form',
-		description: 'Allows admins to manage user accounts, including editing and assigning roles.',
-		contextId: 'user:manage',
-		action: 'manage',
-		contextType: 'user'
-	};
-
-	// Config for delete permission guard
-	const deleteUserPermissionConfig = {
-		name: 'Delete User',
-		description: 'Allows deleting a user account.',
-		contextId: 'user:delete',
-		action: 'delete',
-		contextType: 'user'
-	};
-
 	// Props
 	interface Props {
 		body?: string;

@@ -83,8 +83,30 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.value }}
 
+      - name: Verify npm authentication
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "❌ NPM_TOKEN secret is not set — skipping publish"
+            exit 1
+          fi
+          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          npm whoami || { echo "❌ npm token is invalid or expired"; exit 1; }
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Check if package exists in registry
+        id: check-pkg
+        run: |
+          if npm view create-sveltycms version >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Package exists — will publish new version"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Package does not exist in registry — first publish will create it"
+          fi
+
       - name: Publish to npm
-        run: bun x npm publish --access public
+        run: npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 

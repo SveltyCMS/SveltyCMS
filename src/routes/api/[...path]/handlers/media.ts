@@ -1031,6 +1031,7 @@ export async function handleMediaStreamUpload(
   }
 
   const operationId = crypto.randomUUID();
+  let uploadFolder = "global";
   const uploaded: {
     fileName: string;
     success: boolean;
@@ -1063,6 +1064,7 @@ export async function handleMediaStreamUpload(
             {
               userId: user?._id || "system",
               tenantId,
+              folder: uploadFolder,
             },
           );
           uploaded.push({
@@ -1079,8 +1081,10 @@ export async function handleMediaStreamUpload(
           });
         }
       },
-      onField: (_name, _value) => {
-        // Form fields captured for extensibility (e.g. folderId, tags)
+      onField: (name, value) => {
+        if (name === "folder" && value) {
+          uploadFolder = value;
+        }
       },
     });
   } catch (err: any) {

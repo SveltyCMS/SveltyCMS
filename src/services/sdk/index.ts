@@ -22,6 +22,7 @@ import type {
   AutomationNamespace,
   WebsiteTokensNamespace,
 } from "./namespaces/misc-namespaces";
+import type { VirtualCollectionsNamespace } from "./namespaces/virtual-collections-namespace";
 import { traceSpan } from "@utils/context";
 import { defineLazyNamespace } from "@src/databases/core/proxy-utils";
 
@@ -72,6 +73,7 @@ export class LocalCMS {
   public readonly telemetry!: TelemetryNamespace;
   public readonly automation!: AutomationNamespace;
   public readonly websiteTokens!: WebsiteTokensNamespace;
+  public readonly virtualCollections!: VirtualCollectionsNamespace;
 
   /**
    * Access the underlying database adapter directly.
@@ -158,6 +160,15 @@ export class LocalCMS {
       const { WebsiteTokensNamespace } = await import("./namespaces/misc-namespaces");
       return instrumentNamespace("websiteTokens", new WebsiteTokensNamespace(this._dbAdapter));
     });
+
+    defineLazyNamespace(this, "virtualCollections", async () => {
+      const { VirtualCollectionsNamespace } =
+        await import("./namespaces/virtual-collections-namespace");
+      return instrumentNamespace(
+        "virtualCollections",
+        new VirtualCollectionsNamespace(this._dbAdapter),
+      );
+    });
   }
 
   /**
@@ -206,6 +217,7 @@ export class LocalCMS {
       telemetry: cms.telemetry,
       websiteTokens: cms.websiteTokens,
       widgets: cms.widgets,
+      virtualCollections: cms.virtualCollections,
     };
   }
 

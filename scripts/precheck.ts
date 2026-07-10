@@ -6,13 +6,11 @@
  *
  * Tiers:
  *   push → pre-push hook: static analysis, unit tests, build (+ conditional lints)
- *          Heavy DB integration + benchmarks are CI-only (run via ci:local or --include-db-tasks).
- *   full → complete local CI parity (static + unit + build + DB matrix + benchmarks;
- *          E2E stays in ci-local.ts).
+ *          Heavy DB integration + benchmarks are CI-only (opt in with --include-db-tasks).
+ *   full → optional manual run (static + unit + build + DB matrix + benchmarks).
  *
  * Usage:
  *   bun run verify:push                        # push tier (default)
- *   bun run verify:full                        # full tier
  *   bun run scripts/precheck.ts --plan         # explain what WOULD run
  *   bun run scripts/precheck.ts --tier=push --include-db-tasks
  *   bun run scripts/precheck.ts --tier=full --db=postgresql
@@ -472,8 +470,10 @@ export async function runPrecheck(
     );
   }
 
-  // Compact result table — like CI summary in generate-ci-markdown.ts
-  printResultTable(results);
+  // Compact result table — only shown on failures (dashboard covers success path)
+  if (failedTasks.length > 0) {
+    printResultTable(results);
+  }
 
   return {
     passed: failedTasks.length === 0,
@@ -515,9 +515,7 @@ function printHeader(options: PrecheckOptions, profile: ReturnType<typeof analyz
 function printSuccess(options: PrecheckOptions) {
   if (options.tier === "full") {
     console.log("\n╔══════════════════════════════════════════════════════════════╗");
-    console.log("║  ✅ Full precheck passed — CI core parity cleared.          ║");
-    console.log("╠══════════════════════════════════════════════════════════════╣");
-    console.log("║  Optional: bun run ci:local  (adds Playwright E2E)          ║");
+    console.log("║  ✅ Full precheck passed.                                   ║");
     console.log("╚══════════════════════════════════════════════════════════════╝\n");
     return;
   }
@@ -525,8 +523,7 @@ function printSuccess(options: PrecheckOptions) {
   console.log("\n╔══════════════════════════════════════════════════════════════╗");
   console.log("║  ✅ Pre-push passed — build + unit tests cleared.           ║");
   console.log("╠══════════════════════════════════════════════════════════════╣");
-  console.log("║  4-DB integration + benchmarks run in CI:                   ║");
-  console.log("║    bun run ci:local   (local, requires Docker)              ║");
+  console.log("║  4-DB integration + benchmarks + E2E run in GitHub CI only. ║");
   console.log("╚══════════════════════════════════════════════════════════════╝\n");
 }
 
@@ -538,7 +535,9 @@ function printFailure(options: PrecheckOptions, failedTasks: string[]) {
     "   Ensure Docker DBs are up: docker compose -f tests/docker-compose.yml --profile postgresql up -d",
   );
   if (options.tier === "push") {
-    console.error("   Full CI precheck (+ E2E): bun run ci:local");
+    console.error(
+      "   Optional DB matrix locally: bun run scripts/precheck.ts --tier=push --include-db-tasks",
+    );
   }
   console.error("   DO NOT bypass the gate — CI will reject the same issues.\n");
 }

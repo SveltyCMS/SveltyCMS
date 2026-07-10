@@ -143,6 +143,43 @@ Features:
     return "N/A";
   }
 
+  /** Return thumbnail size keys excluding _webp variants (grouped into the same row). */
+  function deriveSizeKeys(thumbnails: Record<string, any>): string[] {
+    return Object.keys(thumbnails).filter((k) => !k.endsWith('_webp') && thumbnails[k]);
+  }
+
+  /** Get the webp variant key for a given thumbnail size, if it exists. */
+  function getWebpKey(thumbnails: Record<string, any>, sizeKey: string): string | null {
+    const webp = `${sizeKey}_webp`;
+    return thumbnails[webp]?.size ? webp : null;
+  }
+
+  /**
+   * Detect if the thumbnails record has _webp variant entries.
+   * When MEDIA_OUTPUT_FORMAT is "webp" or "avif", no _webp suffix variants are generated.
+   */
+  function hasWebpVariants(thumbnails: Record<string, any>): boolean {
+    return Object.keys(thumbnails).some((k) => k.endsWith('_webp'));
+  }
+
+  /**
+   * Derive the primary thumbnail format label from the first thumbnail's mimeType.
+   * Handles: webp, avif, jpeg, png, gif, etc.
+   */
+  function primaryFormatLabel(thumbnails: Record<string, any>): string {
+    const keys = deriveSizeKeys(thumbnails);
+    if (!keys.length) return 'Size';
+    const mime = (thumbnails[keys[0]] as any)?.mimeType || '';
+    if (mime === 'image/webp') return 'WebP';
+    if (mime === 'image/avif') return 'AVIF';
+    if (mime === 'image/jpeg') return 'JPEG';
+    if (mime === 'image/png') return 'PNG';
+    if (mime === 'image/gif') return 'GIF';
+    // Extract clean label from mime
+    const fmt = mime.split('/').pop();
+    return fmt ? fmt.toUpperCase() : 'Size';
+  }
+
   const actionBtnClass =
     "flex h-8 w-8 min-w-0 shrink-0 items-center justify-center rounded-full bg-black/45 p-0! shadow-sm backdrop-blur-sm transition-colors hover:bg-black/60";
 </script>
@@ -152,6 +189,7 @@ Features:
   class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:p-3"
   style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
   role="grid"
+  tabindex="-1"
   aria-label="Media asset grid"
   data-testid="media-grid"
 >
@@ -199,6 +237,7 @@ Features:
         class="group relative flex h-full flex-col focus-within:outline-none
           {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
         role="gridcell"
+        tabindex="-1"
         aria-selected={isSelected}
         in:fade={{ duration: 180 }}
       >
@@ -225,11 +264,11 @@ Features:
         {/if}
 
         <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg">
-          <button
+          <Button
             type="button"
             class="relative h-full w-full text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
             onclick={() => handleItemClick(file)}
-            onkeydown={(e) => handleKeyDown(e, file)}
+            onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
             aria-label="Preview {file.filename}"
           >
             {#if file.type === "image" && !failedImages.has(fileId)}
@@ -276,7 +315,7 @@ Features:
                 {file.filename}
               </p>
             </div>
-          </button>
+          </Button>
 
 
           <div
@@ -300,30 +339,50 @@ Features:
                   <table class="w-full text-start border-collapse mt-2">
                     <thead>
                       <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-400">
-                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Format</th>
+                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Size</th>
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-center">Pixel</th>
-                        <th class="font-bold py-1 px-2 text-center">Size</th>
+                        <th class="font-bold py-1 px-2 text-end" colspan="2">Size</th>
                       </tr>
                     </thead>
                     <tbody class="text-surface-700 dark:text-surface-300">
                       <tr class="border-b border-surface-300 dark:border-surface-700">
                         <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
                         <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
-                        <td class="py-1 px-2 text-end tabular-nums">{formatBytes(file.size)}</td>
+                        <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes(file.size)}</td>
                       </tr>
                       {#if file.thumbnails}
-                        {#each Object.keys(file.thumbnails) as sizeKey (sizeKey)}
-                          {#if file.thumbnails[sizeKey]}
-                            <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
-                              <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>
-                              <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">
-                                {file.thumbnails[sizeKey].width}x{file.thumbnails[sizeKey].height}
+                        {@const hasWebp = hasWebpVariants(file.thumbnails)}
+                        {@const primaryLabel = primaryFormatLabel(file.thumbnails)}
+                        <tr class="border-b border-surface-300 dark:border-surface-700">
+                          <td class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-surface-300 dark:border-surface-700 text-start" colspan="4">
+                            Resized variants — {primaryLabel}{#if hasWebp} + WebP{/if}
+                          </td>
+                        </tr>
+                        {#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
+                          {@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
+                          {@const thumb = file.thumbnails[sizeKey]!}
+                          <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
+                            <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>
+                            <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">
+                              {thumb.width}x{thumb.height}
+                            </td>
+                            {#if hasWebp}
+                              <td class="py-1 px-2 text-end tabular-nums border-e border-surface-300 dark:border-surface-700">
+                                {(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
                               </td>
                               <td class="py-1 px-2 text-end tabular-nums">
-                                {(file.thumbnails[sizeKey] as any).size ? formatBytes((file.thumbnails[sizeKey] as any).size) : '-'}
+                                {#if webpKey}
+                                  {formatBytes((file.thumbnails[webpKey] as any).size)}
+                                {:else}
+                                  <span class="text-surface-400 dark:text-surface-600">—</span>
+                                {/if}
                               </td>
-                            </tr>
-                          {/if}
+                            {:else}
+                              <td class="py-1 px-2 text-end tabular-nums">
+                                {(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+                              </td>
+                            {/if}
+                          </tr>
                         {/each}
                       {/if}
                     </tbody>

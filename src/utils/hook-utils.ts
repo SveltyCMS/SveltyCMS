@@ -9,6 +9,7 @@
  * - Standardized error/restricted response generation
  */
 
+import { isSiteStarterPublicPath } from "@src/services/site/site-config.server";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { BASE_HEADERS } from "./security/constants";
@@ -248,6 +249,9 @@ export function isBootstrapRoute(pathname: string): boolean {
 export function isPublicRoute(pathname: string, testMode = false): boolean {
   // 1. Prefix match against common public routes (fastest)
   if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) return true;
+
+  // Optional in-repo SvelteKit site starter (/, /about, etc.)
+  if (isSiteStarterPublicPath(pathname)) return true;
 
   if (testMode && pathname.startsWith("/api/testing")) return true;
 

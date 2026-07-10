@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-23"
+updated: "2026-07-10"
 tags:
   - "api"
   - "media"
@@ -17,27 +17,31 @@ tags:
 
 # Media Reference (`media.ts`)
 
-The Media API provides a centralized interface for managing all assets within SveltyCMS. It handles multi-part uploads, intelligent deduplication, and folder-based organization.
+The Media API provides a centralized interface for managing all assets within SveltyCMS. It handles multi-part uploads, intelligent deduplication, folder-based organization, and DAM features (analytics, versioning, bulk download, secure sharing).
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint                     | Method     | Permission Required |
-| :------------------ | :-------------------------------- | :--------- | :------------------ |
-| **List Media**      | `/api/media`                      | `GET`      | `media:read`        |
-| **Get Manifest**    | `/api/media/{id}`                 | `GET`      | `media:read`        |
-| **Upload Media**    | `/api/media`                      | `POST`     | `media:create`      |
-| **Update Metadata** | `/api/media/{id}`                 | `PATCH`    | `media:update`      |
-| **Delete Media**    | `/api/media/{id}`                 | `DELETE`   | `media:delete`      |
-| **Bulk Download**   | `/api/media/bulk-download`        | `GET/POST` | `media:read`        |
-| **Analytics**       | `/api/media/analytics`            | `GET`      | `media:read`        |
-| **Version List**    | `/api/media/{id}/version/list`    | `GET`      | `media:read`        |
-| **Version Compare** | `/api/media/{id}/version/compare` | `GET`      | `media:read`        |
-| **Create Share**    | `/api/media/share`                | `POST`     | `media:write`       |
-| **Access Share**    | `/api/media/share?id=&token=`     | `GET`      | Public (token)      |
-| **Job Status**      | `/api/media/jobs/{id}`            | `GET`      | `media:read`        |
-| **Folders**         | `/api/media/folders`              | `GET`      | `media:read`        |
+| Feature             | HTTP Endpoint                       | Method     | Permission Required |
+| :------------------ | :---------------------------------- | :--------- | :------------------ |
+| **List Media**      | `/api/media`                        | `GET`      | `media:read`        |
+| **Get Manifest**    | `/api/media/{id}`                   | `GET`      | `media:read`        |
+| **Upload Media**    | `/api/media` or `/api/media/upload` | `POST`     | `media:write`       |
+| **Stream Upload**   | `/api/media/stream`                 | `POST`     | `media:write`       |
+| **Update Metadata** | `/api/media/{id}`                   | `PATCH`    | `media:write`       |
+| **Delete Media**    | `/api/media/{id}`                   | `DELETE`   | `media:delete`      |
+| **Bulk Download**   | `/api/media/bulk-download`          | `GET/POST` | `media:read`        |
+| **Analytics**       | `/api/media/analytics`              | `GET`      | `media:read`        |
+| **Version List**    | `/api/media/version/{id}/list`      | `GET`      | `media:read`        |
+| **Version Compare** | `/api/media/version/{id}/compare`   | `GET`      | `media:read`        |
+| **Version Upload**  | `/api/media/version/{id}/upload`    | `POST`     | `media:write`       |
+| **Version Restore** | `/api/media/version/{id}/restore`   | `POST`     | `media:write`       |
+| **Create Share**    | `/api/media/share/{id}`             | `POST`     | `media:write`       |
+| **Access Share**    | `/api/media/share?id=&token=`       | `GET`      | Public (token)      |
+| **Revoke Share**    | `/api/media/share/{id}/{token}`     | `DELETE`   | `media:write`       |
+| **References Scan** | `/api/media/references/{id}`        | `GET`      | `media:read`        |
+| **Job Status**      | `/api/media/jobs/{id}`              | `GET`      | `media:read`        |
 
 ---
 
@@ -47,14 +51,26 @@ The Media API provides a centralized interface for managing all assets within Sv
 
 SveltyCMS supports single and bulk uploads via standard `multipart/form-data`.
 
-**Endpoint**: `POST /api/media`  
-**Payload**: `files` field (array or single stream).
+**Standard endpoint**: `POST /api/media` (or `POST /api/media/upload`)  
+**Payload**: `files` field (array or single stream), optional `folder` field (virtual folder ID or `"global"`).
+
+**Streaming endpoint** (large payloads): `POST /api/media/stream`  
+**Payload**: Same `multipart/form-data` shape; parsed via `streaming-upload.ts` with backpressure-safe chunk handling. The `folder` field is captured before file parts are processed.
+
+#### Client-Side Routing (`upload-client.ts`)
+
+The admin UI does not call these endpoints directly for every upload. `uploadMediaFiles()` in `src/utils/media/upload-client.ts` auto-routes:
+
+| Condition                                       | Route                                                         |
+| :---------------------------------------------- | :------------------------------------------------------------ |
+| Any single file ≥ 10 MB, or total batch ≥ 10 MB | `POST /api/media/stream`                                      |
+| Otherwise                                       | SvelteKit form action (`?/upload` or `/mediagallery?/upload`) |
+
+Used by `mediagallery/+page.svelte` and `upload-media/local-upload.svelte`.
 
 ### Folders & Structure
 
-Virtual folders allow you to organize your asset library without relying on physical directory structures.
-
-**Endpoint**: `GET /api/media/folders` — Returns the current folder hierarchy.
+Virtual folders allow you to organize your asset library without relying on physical directory structures. Folder context is passed on upload via the `folder` form field and resolved server-side by `MediaService.saveMedia()`.
 
 ---
 
@@ -83,7 +99,7 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
 **Endpoint**: `POST /api/media/manipulate/{id}`  
 **Payload**: JSON instructions for transformations.
 
-````json
+```json
 {
   "rotation": 90,
   "flipH": true,
@@ -92,7 +108,7 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
   "focalPoint": { "x": 45, "y": 60 },
   "saveBehavior": "overwrite"
 }
-```text
+```
 
 ---
 
@@ -102,7 +118,7 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
 
 The Media API is storage-agnostic. It can be configured to use local disk storage, AWS S3, or Cloudflare R2 through the **MediaAdapter** interface.
 
-```
+```mermaid
 sequenceDiagram
     participant User
     participant API as Media Handler
@@ -119,7 +135,7 @@ sequenceDiagram
         User->>API: GET /api/media/jobs/{id}
         API-->>User: status: completed
     end
-```text
+```
 
 ---
 
@@ -129,39 +145,74 @@ sequenceDiagram
 
 Download multiple media files as a single TAR.GZ archive.
 
-**Endpoint**: `GET /api/media/bulk-download?id={id1}&id={id2}`
+**Endpoint**: `GET /api/media/bulk-download?id={id1}&id={id2}&…`  
 **Returns**: `application/gzip` binary stream with `Content-Disposition: attachment`.
+
+**Admin UI**: When one or more assets are selected in the Media Gallery, the selection toolbar exposes a **Download Archive** button that builds the query string from `selectedFiles` and triggers a browser download.
 
 ### Storage Analytics
 
 Retrieve storage breakdowns, insights, and growth trends.
 
-**Endpoint**: `GET /api/media/analytics`
-**Returns**: JSON with `total`, `byType` (top 5), `insights` (large/old/dominant files), `trends` (last 12 months), and `quota` status.
+**Endpoint**: `GET /api/media/analytics`  
+**Returns**: JSON wrapped in `{ success: true, data: { … } }` with:
+
+- `total` — file count, byte size, `formattedSize`
+- `byType` — top 5 types by storage share
+- `insights` — actionable cards (large files, old files, dominant types)
+- `trends` — last 12 months of upload growth
+- `quota` — used/available bytes, percentage, `healthy` | `warning` | `critical` status
+
+**Admin UI**: Dashboard widget `media-storage-analytics-widget.svelte` polls this endpoint every 60 seconds. Add it from the dashboard widget picker.
 
 ### Version History
 
-Track and compare file versions over time.
+Track, compare, and restore file versions over time.
 
-**List versions**: `GET /api/media/{id}/version/list` — Returns all versions with stats (total size, most active user).
+| Operation  | Endpoint                                          | Notes                                        |
+| :--------- | :------------------------------------------------ | :------------------------------------------- |
+| List       | `GET /api/media/version/{id}/list`                | Returns `versions` array and `stats`         |
+| Compare    | `GET /api/media/version/{id}/compare?from=1&to=2` | Hash diff, size delta, field-level `changes` |
+| Upload new | `POST /api/media/version/{id}/upload`             | `multipart/form-data` with `file` field      |
+| Restore    | `POST /api/media/version/{id}/restore`            | JSON `{ versionNumber }`                     |
+| Create     | `POST /api/media/version/{id}`                    | Creates version record from uploaded binary  |
 
-**Compare versions**: `GET /api/media/{id}/version/compare?from=1&to=2` — Returns hash change detection, size difference, and field-level diffs.
+**Admin UI**: The **Versions** tab in `media-details-modal.svelte` provides upload, restore, per-version download, and a **Compare Versions** panel (From/To selects + diff results) when ≥2 historical versions exist.
+
+**Compare response shape**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "fromVersion": 1,
+    "toVersion": 2,
+    "contentChanged": true,
+    "metadataChanged": false,
+    "sizeDifference": 4096,
+    "changes": [{ "field": "content", "type": "modify", "oldValue": "…", "newValue": "…" }]
+  }
+}
+```
 
 ### Secure Share Links
 
-Generate expiring, password-protected share links for media assets.
+Generate expiring, password-protected share links for media assets. See also [Media Sharing Endpoint](./media-sharing.mdx).
 
-**Create**: `POST /api/media/share` with JSON `{ expiryHours, password }` — Returns `{ token, expiresAt }`.
+| Operation | Endpoint                                                        | Payload                             |
+| :-------- | :-------------------------------------------------------------- | :---------------------------------- |
+| Create    | `POST /api/media/share/{mediaId}`                               | `{ expiryHours, password? }`        |
+| Access    | `GET /api/media/share?id={mediaId}&token={token}&password={pw}` | Query only; public with valid token |
+| Revoke    | `DELETE /api/media/share/{mediaId}/{token}`                     | —                                   |
+| Extend    | `PATCH /api/media/share/{mediaId}/{token}`                      | `{ expiryHours }`                   |
 
-**Access**: `GET /api/media/share?id={mediaId}&token={token}&password={pw}` — Validates token, expiry, download limits, IP restrictions, and optional password before streaming the file.
-
-**Revoke**: `DELETE /api/media/share/{mediaId}/{token}` — Immediately invalidates a share link.
+**Admin UI**: The **Share** tab in `media-details-modal.svelte` generates links with configurable expiry and optional password, lists active tokens, and supports one-click revocation.
 
 ---
 
 ## Related Documents
 
 - [Media System Architecture](../architecture/media-system.mdx)
+- [Media Sharing Endpoint](./media-sharing.mdx)
 - [Collections Reference (collections.ts)](./collections.mdx)
 - [System Reference (system.ts)](./system.mdx)
-````

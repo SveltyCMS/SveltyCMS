@@ -119,6 +119,7 @@ export class MongoCollectionMethods {
           const fieldObj = field as Record<string, unknown>;
           const fieldKey =
             (fieldObj.db_fieldName as string) ||
+            (fieldObj.name as string) ||
             (fieldObj.label
               ? String(fieldObj.label)
                   .toLowerCase()
@@ -127,6 +128,12 @@ export class MongoCollectionMethods {
             (fieldObj.Name as string);
 
           if (!fieldKey) {
+            continue;
+          }
+
+          // Skip fields already in the base schema (e.g., tenantId, status)
+          // to avoid duplicate keys when migration field labels differ in case
+          if (fieldKey in schemaDefinition) {
             continue;
           }
 
@@ -396,6 +403,7 @@ export class MongoCollectionMethods {
             const fieldObj = field as Record<string, unknown>;
             const fieldKey =
               (fieldObj.db_fieldName as string) ||
+              (fieldObj.name as string) ||
               (fieldObj.label
                 ? String(fieldObj.label)
                     .toLowerCase()

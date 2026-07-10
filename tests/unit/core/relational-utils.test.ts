@@ -11,6 +11,50 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as utils from "@src/databases/core/relational-utils";
 import type { BaseQueryOptions } from "@src/databases/db-interface";
 
+describe("relational-utils — convertDatesToISO json flattening", () => {
+  it("flattens native jsonb data objects onto the row (PostgreSQL)", () => {
+    utils.registerTableSchema("collection_bench-articles", [
+      "_id",
+      "slug",
+      "data",
+      "createdAt",
+      "updatedAt",
+    ]);
+
+    const row = {
+      _id: "abc123",
+      slug: "bench-articles",
+      data: { enabled: true, label: "Bench Articles" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    };
+
+    const converted = utils.convertDatesToISO(row, { table: "collection_bench-articles" });
+
+    expect(converted.enabled).toBe(true);
+    expect(converted.label).toBe("Bench Articles");
+    expect(converted.slug).toBe("bench-articles");
+    expect(converted.data).toEqual({ enabled: true, label: "Bench Articles" });
+    expect(converted.createdAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("still flattens string-encoded JSON data columns (SQLite/MariaDB)", () => {
+    utils.registerTableSchema("collection_posts", ["_id", "data", "createdAt"]);
+
+    const row = {
+      _id: "post-1",
+      data: '{"enabled":true,"title":"Hello"}',
+      createdAt: "2026-03-01T12:00:00.000Z",
+    };
+
+    const converted = utils.convertDatesToISO(row, { table: "collection_posts" });
+
+    expect(converted.enabled).toBe(true);
+    expect(converted.title).toBe("Hello");
+    expect(converted.data).toEqual({ enabled: true, title: "Hello" });
+  });
+});
+
 describe("relational-utils — tenant filter centralization", () => {
   beforeEach(() => {
     vi.clearAllMocks();

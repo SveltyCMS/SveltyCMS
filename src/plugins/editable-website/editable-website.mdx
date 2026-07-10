@@ -5,8 +5,9 @@ description: "Real-time bidirectional live preview with visual editing and hands
 order: 100
 icon: "mdi:web"
 author: "SveltyCMS Team"
+pricing: "Paid plugin — license required, no free tier"
 created: "2025-10-05"
-updated: "2026-07-07"
+updated: "2026-07-10"
 tags:
   - "plugin"
   - "editable-website"
@@ -16,15 +17,26 @@ tags:
 
 # Editable Website & Live Preview Plugin
 
-Real-time bidirectional live preview with visual editing capabilities. Uses dynamic origin resolution from collection schema's `previewTargetUrl`, ephemeral preview token authorization, and a `postMessage` handshake protocol.
+Premium **Editable Website & Live Preview** plugin — bidirectional iframe sync between the CMS entry editor and your frontend. Works with the recommended [SvelteKit Site Starter + Svedit](/docs/development/site-starter.mdx) (same repo) or any decoupled frontend (Astro, Next.js, Vue) that implements the `postMessage` protocol.
 
 ---
 
 ## Licensing & Pricing
 
-**Price: €14.99** — **Fully paid plugin.** No free tier. A valid marketplace license key is required for all functionality.
+**Price: €14.99** — **Bridge plugin.** The public site, Svedit rendering, and CMS form editing stay **free**. You pay for the **Live Preview bridge** (iframe sync, visual editing, signed preview tokens).
 
-A **14-day trial** is available from the first admin registration timestamp — no key required during trial. After the trial expires, the Live Preview tab is blocked and returns 403 until a valid license key is configured.
+| Capability                        | Free (core) | Paid (this plugin) |
+| --------------------------------- | ----------- | ------------------ |
+| SvelteKit site at `/`             | ✅          | ✅                 |
+| Svedit layout rendering           | ✅          | ✅                 |
+| CMS form / JSON `content` editing | ✅          | ✅                 |
+| Live Preview tab                  | ❌          | ✅                 |
+| `/api/preview/authorize` tokens   | ❌          | ✅                 |
+| Bidirectional iframe sync         | ❌          | ✅                 |
+| Svedit inline edit in preview     | ❌          | ✅                 |
+| Click-to-edit field focus         | ❌          | ✅                 |
+
+A **14-day trial** starts at first admin registration — no key required during trial. **Website Starter** setup auto-enables this plugin so the trial applies immediately. After expiry, Live Preview shows an upgrade prompt; **page saves are never blocked**.
 
 ### License Verification
 
@@ -41,46 +53,66 @@ if (!status.active) {
 
 ## Features
 
-| Feature             | Description                                                          |
-| :------------------ | :------------------------------------------------------------------- |
-| Live preview        | Real-time content preview in an iframe as you edit                   |
-| Visual editing      | Click-to-edit elements directly in the preview                       |
-| Dynamic origin      | Uses collection schema's `previewTargetUrl` — no hardcoded localhost |
-| Preview tokens      | Ephemeral signed tokens for secure draft content access              |
-| Handshake protocol  | `postMessage`-based communication between CMS and frontend           |
-| Headless compatible | Works with Next.js, Astro, and any decoupled frontend                |
-| Multi-collection    | Enable per-collection via `livePreview: true` schema flag            |
-| 14-day trial        | Full access for 14 days from first admin registration                |
+| Feature            | Description                                                                           |
+| :----------------- | :------------------------------------------------------------------------------------ |
+| Live preview       | Real-time content preview in an iframe as you edit                                    |
+| Bidirectional sync | Preview → CMS via `svelty:save` and `svelty:document:update` (v1.2)                   |
+| Visual editing     | Click-to-edit — `data-svelty-field` markers focus the CMS form                        |
+| Site starter       | Same-origin preview with [Website Starter](/docs/development/site-starter.mdx) preset |
+| Dynamic origin     | `livePreview` URL pattern — relative or absolute frontend URL                         |
+| Preview tokens     | Signed tokens via `POST /api/preview/authorize`                                       |
+| Handshake protocol | Framework-agnostic `postMessage` (SvelteKit, Astro, React, Vue)                       |
+| Multi-collection   | Per-collection via `livePreview` + `plugins: ["editable-website"]`                    |
+| 14-day trial       | Full access for 14 days from first admin registration                                 |
 
 ---
 
 ## How It Works
 
-1. **Collection Schema** defines `previewTargetUrl` — the frontend URL to load in the iframe
-2. **Preview Token** is generated via `/api/preview/authorize` for temporary draft access
-3. **Handshake** — CMS sends a `postMessage` to the iframe; frontend responds to confirm readiness
-4. **Bidirectional Sync** — Content changes in the editor push to the preview; clicks in the preview highlight fields in the editor
+1. **Collection schema** sets `livePreview` (URL pattern) and `plugins: ["editable-website"]`
+2. **Preview URL** — `POST /api/preview/authorize` returns a signed `previewUrl`
+3. **Handshake** — iframe sends `svelty:init`; CMS responds with `svelty:update`
+4. **CMS → preview** — every form edit pushes fresh entry data to the iframe
+5. **Preview → CMS** — field clicks focus the form; save messages merge into the entry (save in CMS to persist)
 
 ---
 
 ## Configuration
 
-Set `livePreview: true` in your collection schema and provide a `previewTargetUrl`:
+Set `livePreview` on your collection schema (string pattern or `true` for same-origin site starter):
 
 ```typescript
 {
-  name: "blog_posts",
-  livePreview: true,
-  previewTargetUrl: "https://myfrontend.com/blog/{slug}?preview=true",
+  name: "pages",
+  livePreview: "/{slug}?lang={lang}",
+  plugins: ["editable-website"],
   fields: [ /* ... */ ]
 }
 ```
+
+For external frontends (Astro, Next.js), use a full URL pattern:
+
+```typescript
+{
+  livePreview: "https://myfrontend.com/{slug}?lang={lang}",
+  fields: [ /* ... */ ]
+}
+```
+
+### Site starter (recommended, free core + paid bridge)
+
+The **Website Starter** preset seeds a `pages` collection, publishes a Svedit homepage, and **auto-enables** this plugin (trial starts on setup). The **public site is free**; the plugin unlocks **visual editing from the CMS**.
+
+- `SITE_STARTER_ENABLED: true` (default) — guests see `/` with Svedit blocks
+- `SITE_STARTER_ENABLED: false` — pure headless; `/` redirects to login
+- **Without license/trial** — edit pages via the CMS form; Live Preview tab shows an upgrade prompt
 
 ---
 
 ## Related
 
+- [SvelteKit Site Starter](/docs/development/site-starter.mdx) — Recommended in-repo frontend with Svedit (free)
+- [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx) — Protocol and security
 - [Plugin Architecture](/docs/development/plugins/architecture.mdx)
 - [Plugin Development](/docs/development/plugins/development.mdx)
-- [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx)
 - [Marketplace](https://marketplace.sveltycms.com)

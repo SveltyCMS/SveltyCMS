@@ -26,6 +26,7 @@ For the full RBAC matrix with presets/bulk/undo/import-export, visit Access Mana
   import Input from "@src/components/ui/input.svelte";
   import Select from "@src/components/ui/select.svelte";
   import Badge from "@src/components/ui/badge.svelte";
+  import Slot from "@components/system/slot.svelte";
   import { onMount } from "svelte";
 
   // ── Reactive state (hydrated from collection store) ──────────────────────
@@ -294,4 +295,9 @@ For the full RBAC matrix with presets/bulk/undo/import-export, visit Access Mana
       </p>
     </div>
   </Card>
+
+  <Slot
+    name="collection_builder"
+    props={{ collection: collection.value, isCollectionEditor: true }}
+  />
 </div>

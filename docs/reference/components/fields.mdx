@@ -418,31 +418,24 @@ Only visible if `collection.revision` is enabled. Shows historical snapshots wit
 - Compare functionality
 - Revert capability
 
-### Tab 2: Preview (Live Preview)
+### Tab 2+: Live Preview (Editable Website plugin)
 
-Only visible if `collection.livePreview` is configured. Displays an **iframe** with the frontend preview:
+When the **[Editable Website & Live Preview](/src/plugins/editable-website/editable-website.mdx)** plugin is enabled on a collection (`plugins: ["editable-website"]` and `livePreview` configured), a **Live Preview** tab appears via the `entry_edit` injection zone.
 
-```
-sequenceDiagram
-    participant CMS as fields Component
-    participant IFrame as Preview IFrame
-    participant Frontend as Frontend /api/preview
-
-    CMS->>IFrame: Load {HOST_PROD}?preview={entryId}
-    IFrame->>Frontend: GET with preview param
-    Frontend->>Frontend: Set draft cookies
-    Frontend-->>IFrame: Render draft content
-```
+Requires a **marketplace license** (€14.99) or active **14-day trial**.
 
 **Features:**
 
-- **Live iframe preview** at `{HOST_PROD}?preview={entryId}`
-- **Copy URL button** for sharing preview link
-- **Open in new tab** link
-- **Sandboxed iframe** with `allow-same-origin allow-scripts allow-forms allow-popups`
+- **Signed preview URL** via `POST /api/preview/authorize`
+- **Bidirectional sync** — CMS edits push to iframe; preview can send `svelty:save` back to the form
+- **Click-to-edit** — click `data-svelty-field` elements in the preview to focus CMS fields
+- **Device preview** — desktop / tablet / mobile widths
+- **Copy URL** and **open in new tab**
+
+Works with the optional [SvelteKit Site Starter](/docs/development/site-starter.mdx) (`routes/(site)`) or any external frontend implementing the protocol.
 
 > [!NOTE]
-> For the full handshake architecture (cookies, security, multi-tenancy), see [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx).
+> For handshake security, postMessage types, and external frontend setup, see [Live Preview Architecture](/docs/reference/architecture/live-preview-architecture.mdx).
 
 ### Tab 3: API (Admin Only)
 

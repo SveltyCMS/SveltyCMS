@@ -253,3 +253,23 @@ export function isHttpError(err: unknown): err is HttpError {
     (err as any).status < 600
   );
 }
+
+/**
+ * Normalizes unknown errors into an AppError for consistent API handling.
+ * Preserves existing AppError instances; maps HttpError shapes to AppError.
+ */
+export function wrapError(
+  error: unknown,
+  message = "An unexpected error occurred",
+  status = 500,
+): AppError {
+  if (isAppError(error)) return error;
+
+  if (isHttpError(error)) {
+    const bodyMsg = (error as HttpError & { body?: { message?: string } }).body?.message;
+    return new AppError(bodyMsg || message, error.status, `HTTP_${error.status}`, error);
+  }
+
+  const errorMsg = getErrorMessage(error);
+  return new AppError(errorMsg || message, status, "INTERNAL_ERROR", error);
+}

@@ -67,6 +67,6 @@ export async function runBenchmarkSeed(options: {
     throw new Error(`Failed to seed benchmark data: ${text}`);
   }
 
-  const _result = await seedRes.json();
+  await seedRes.json();
   console.log(`  \u2705 Seeded benchmark data`);
 }

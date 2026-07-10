@@ -23,6 +23,7 @@
   "include": [
     "src/**/*.js",
     "src/**/*.ts",
+    "src/**/*.d.ts",
     "src/**/*.svelte",
     "config/**/*.ts",
     "scripts/**/*.ts",

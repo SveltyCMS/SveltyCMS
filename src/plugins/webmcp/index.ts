@@ -40,7 +40,7 @@ export const webmcpPlugin: Plugin = {
   },
   ui: {},
   hooks: {
-    beforeSave: async (context, _collection, data) => {
+    beforeSave: async (_context, _collection, data) => {
       const { checkExtensionLicense } = await import("@src/utils/license-manager");
       const status = await checkExtensionLicense("plugin", "webmcp");
       if (!status.active) {

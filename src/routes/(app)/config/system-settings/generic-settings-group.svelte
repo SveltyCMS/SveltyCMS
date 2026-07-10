@@ -23,7 +23,6 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
-import Badge from "@components/ui/badge.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";

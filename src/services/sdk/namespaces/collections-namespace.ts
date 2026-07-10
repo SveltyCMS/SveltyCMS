@@ -22,6 +22,9 @@ import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 
 type ContentSystem = typeof serverContentSystem;
 
+/** Narrow Schema fields for content-utils helpers (WidgetPlaceholder slots excluded). */
+type CollectionFieldSchema = Parameters<typeof sanitizeCollectionFields>[1];
+
 let resolvedContentSystem: ContentSystem | null = null;
 
 async function getContentSystem(): Promise<ContentSystem> {
@@ -1107,7 +1110,7 @@ export class CollectionsNamespace {
     const schema = await this.getSchema(collectionId, tenantId);
 
     // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
-    const sanitizedData = sanitizeCollectionFields(data, schema);
+    const sanitizedData = sanitizeCollectionFields(data, schema as CollectionFieldSchema);
 
     const entryData = {
       ...sanitizedData,
@@ -1117,7 +1120,7 @@ export class CollectionsNamespace {
     };
 
     // 🛡️ Validate numeric field ranges before they reach the database adapter
-    const rangeErrors = validateNumericFields(entryData, schema);
+    const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
     if (rangeErrors.length > 0) {
       throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
     }
@@ -1180,7 +1183,7 @@ export class CollectionsNamespace {
     const schema = await this.getSchema(collectionId, tenantId);
 
     // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
-    const sanitizedData = sanitizeCollectionFields(data, schema);
+    const sanitizedData = sanitizeCollectionFields(data, schema as CollectionFieldSchema);
 
     const updateData = {
       ...sanitizedData,
@@ -1189,7 +1192,7 @@ export class CollectionsNamespace {
     };
 
     // 🛡️ Validate numeric field ranges before they reach the database adapter
-    const rangeErrors = validateNumericFields(updateData, schema);
+    const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
     if (rangeErrors.length > 0) {
       throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
     }
