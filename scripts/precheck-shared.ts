@@ -5,7 +5,7 @@
  *
  * Single source of truth for what runs locally vs GitHub Actions ci.yml:
  *   push tier → pre-push hook (static analysis, unit, build)
- *   full tier → ci:local without E2E (push tasks + 4-DB integration + benchmarks)
+ *   full tier → optional manual run with DB matrix + benchmarks
  *
  * DB integration and benchmarks are opt-in on push tier via `includeDbTasks`
  * (default: false for push, true for full). CI runs them in separate jobs.
@@ -50,6 +50,11 @@ export interface Task {
   estimatedMs?: number;
   /** Command to run locally to fix this task if it fails */
   remediation?: string;
+  /**
+   * When false, failure is reported but does not fail the run.
+   * Mirrors ci.yml `bench-green` (bench-core is non-blocking for all-green).
+   */
+  blocking?: boolean;
 }
 
 export interface ChangeProfile {
@@ -100,6 +105,7 @@ export interface TaskSpec {
   ciJob?: string;
   estimatedMs?: number;
   remediation?: string;
+  blocking?: boolean;
   shouldInclude?: (ctx: RunContext) => boolean;
   shouldSkip?: (ctx: RunContext) => boolean;
   run: (ctx: RunContext) => boolean | Promise<boolean>;
@@ -365,14 +371,6 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "lint"]),
   },
   {
-    name: "Admin Theme Lint",
-    ciJob: "whitebox",
-    estimatedMs: 3000,
-    remediation: "bun run lint:admin-theme",
-    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasAdminTheme,
-    run: () => runCommand("bun", ["run", "lint:admin-theme"]),
-  },
-  {
     name: "Docs Lint",
     // Always runs — no corresponding CI job (local-only validation)
     estimatedMs: 2000,
@@ -585,6 +583,7 @@ export function buildPrecheckTasks(
         ciJob: spec.ciJob,
         estimatedMs: spec.estimatedMs,
         remediation: spec.remediation,
+        blocking: spec.blocking ?? true,
         skip: spec.shouldSkip ? spec.shouldSkip(ctx) : false,
         run: () => spec.run(ctx),
       }),

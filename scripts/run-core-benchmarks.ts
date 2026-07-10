@@ -5,12 +5,17 @@
  * Runs the same core benchmark suite as ci.yml `bench-core` for one or all DB adapters.
  *
  * Usage:
- *   bun run scripts/run-core-benchmarks.ts
+ *   COMPILE_ALL_ADAPTERS=true bun run build
+ *   docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
  *   bun run scripts/run-core-benchmarks.ts --db=postgresql
+ *
+ * Requires a production build with all DB adapters (CI sets COMPILE_ALL_ADAPTERS=true).
+ * A default local `bun run build` only bundles SQLite — other adapters are stubs and
+ * benchmarks that spawn `build/index.js` will fail immediately on DB init.
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getBenchmarkTestEnv } from "../src/utils/test-db-credentials.ts";
 
@@ -52,9 +57,29 @@ function ensureTestSecret(): string {
   return secret;
 }
 
+function assertBuildIncludesAdapter(db: (typeof VALID_DBS)[number]): boolean {
+  if (db === "sqlite") return true;
+  const chunksDir = join(ROOT, "build", "server", "chunks");
+  if (!existsSync(chunksDir)) return true;
+  const stubChunk = readdirSync(chunksDir).find((f) => f.includes(`_virtual_db-stub_${db}`));
+  if (!stubChunk) return true;
+
+  console.error(`\n❌ Production build stubs the ${db} adapter (found ${stubChunk}).`);
+  console.error(
+    "   Core benchmarks spawn build/index.js — PostgreSQL/MariaDB/MongoDB need a full adapter bundle.",
+  );
+  console.error("   Fix: COMPILE_ALL_ADAPTERS=true bun run build");
+  console.error("   (CI build job sets this automatically; pre-push does too.)\n");
+  return false;
+}
+
 async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boolean> {
   if (!existsSync(join(ROOT, "build", "index.js"))) {
-    console.error("❌ build/index.js missing. Run `bun run build` first.");
+    console.error("❌ build/index.js missing. Run COMPILE_ALL_ADAPTERS=true bun run build first.");
+    return false;
+  }
+
+  if (!assertBuildIncludesAdapter(db)) {
     return false;
   }
 
