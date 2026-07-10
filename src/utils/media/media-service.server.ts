@@ -150,15 +150,7 @@ export class MediaService {
     data: Buffer | ReadableStream | import("node:stream").Readable,
   ): Promise<string> {
     const relPath = buildOriginalRelPath(hash, filename);
-    try {
-      await getFile(relPath);
-      return relPath;
-    } catch {
-      // Missing on disk (e.g. after test reset with dedup hit) — re-persist below
-    }
-
-    if (data instanceof Buffer) {
-      await saveFile(data, relPath);
+    if (await fileExists(relPath)) {
       return relPath;
     }
 

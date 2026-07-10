@@ -136,9 +136,9 @@ export async function saveResized(
 
   // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP)
   const variants = Object.entries(SIZES).filter(([_, w]) => w > 0);
-  const results: [string, ResizedImage][] = [];
 
-  for (const [key, w] of variants) {
+  // Run all thumbnail sizes in parallel — each is an independent sharp pipeline.
+  const tasks = variants.map(async ([key, w]) => {
     const baseVariant = baseInstance.clone().resize(w, null, {
       fit: "cover",
       position: "center",
@@ -165,33 +165,42 @@ export async function saveResized(
 
     const fileName = `${baseName}-${hash}.${outExt}`;
     const relPath = path.posix.join(baseDir, key, fileName);
-    const resizedBuf = await instance.toBuffer();
-    const url = await saveFile(resizedBuf, relPath);
 
     const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
 
-    results.push([
-      key,
-      {
-        url,
-        width: w,
-        height,
-        size: resizedBuf.length,
-        mimeType,
-      },
-    ]);
+    // 2. Encode primary and webp variant in parallel (independent sharp pipelines)
+    const primaryBufP = instance.toBuffer();
+    const webpBufP =
+      outExt !== "webp"
+        ? baseVariant
+            .clone()
+            .webp({ quality: Math.max(quality, 75) })
+            .toBuffer()
+        : Promise.resolve(null);
 
-    // 2. ⚡ Auto-WebP generation (if not already WebP)
-    if (outExt !== "webp") {
-      const webpBuf = await baseVariant
-        .clone()
-        .webp({ quality: Math.max(quality, 75) })
-        .toBuffer();
+    const [resizedBuf, webpBuf] = await Promise.all([primaryBufP, webpBufP]);
+
+    // 3. Save files — primary always, WebP if generated
+    const url = await saveFile(resizedBuf, relPath);
+
+    const entries: [string, ResizedImage][] = [
+      [
+        key,
+        {
+          url,
+          width: w,
+          height,
+          size: resizedBuf.length,
+          mimeType,
+        },
+      ],
+    ];
+
+    if (webpBuf) {
       const webpFileName = `${baseName}-${hash}.webp`;
       const webpRelPath = path.posix.join(baseDir, key, webpFileName);
       const webpUrl = await saveFile(webpBuf, webpRelPath);
-
-      results.push([
+      entries.push([
         `${key}_webp`,
         {
           url: webpUrl,
@@ -202,9 +211,12 @@ export async function saveResized(
         },
       ]);
     }
-  }
 
-  return Object.fromEntries(results);
+    return entries;
+  });
+
+  const nested = await Promise.all(tasks);
+  return Object.fromEntries(nested.flat());
 }
 
 /** Save avatar (200x200) */
