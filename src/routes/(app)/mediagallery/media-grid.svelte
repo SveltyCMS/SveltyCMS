@@ -154,6 +154,32 @@ Features:
     return thumbnails[webp]?.size ? webp : null;
   }
 
+  /**
+   * Detect if the thumbnails record has _webp variant entries.
+   * When MEDIA_OUTPUT_FORMAT is "webp" or "avif", no _webp suffix variants are generated.
+   */
+  function hasWebpVariants(thumbnails: Record<string, any>): boolean {
+    return Object.keys(thumbnails).some((k) => k.endsWith('_webp'));
+  }
+
+  /**
+   * Derive the primary thumbnail format label from the first thumbnail's mimeType.
+   * Handles: webp, avif, jpeg, png, gif, etc.
+   */
+  function primaryFormatLabel(thumbnails: Record<string, any>): string {
+    const keys = deriveSizeKeys(thumbnails);
+    if (!keys.length) return 'Size';
+    const mime = (thumbnails[keys[0]] as any)?.mimeType || '';
+    if (mime === 'image/webp') return 'WebP';
+    if (mime === 'image/avif') return 'AVIF';
+    if (mime === 'image/jpeg') return 'JPEG';
+    if (mime === 'image/png') return 'PNG';
+    if (mime === 'image/gif') return 'GIF';
+    // Extract clean label from mime
+    const fmt = mime.split('/').pop();
+    return fmt ? fmt.toUpperCase() : 'Size';
+  }
+
   const actionBtnClass =
     "flex h-8 w-8 min-w-0 shrink-0 items-center justify-center rounded-full bg-black/45 p-0! shadow-sm backdrop-blur-sm transition-colors hover:bg-black/60";
 </script>
@@ -311,19 +337,25 @@ Features:
                     File NAME : {file.filename}
                   </div>
                   <table class="w-full text-start border-collapse mt-2">
+                    {@const hasWebp = file.thumbnails ? hasWebpVariants(file.thumbnails) : false}
+                    {@const primaryLabel = file.thumbnails ? primaryFormatLabel(file.thumbnails) : 'Size'}
                     <thead>
                       <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-400">
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Size</th>
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-center">Pixel</th>
-                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-end">JPEG/PNG</th>
-                        <th class="font-bold py-1 px-2 text-end">WebP</th>
+                        {#if hasWebp}
+                          <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-end">{primaryLabel}</th>
+                          <th class="font-bold py-1 px-2 text-end">WebP</th>
+                        {:else}
+                          <th class="font-bold py-1 px-2 text-end">{primaryLabel}</th>
+                        {/if}
                       </tr>
                     </thead>
                     <tbody class="text-surface-700 dark:text-surface-300">
                       <tr class="border-b border-surface-300 dark:border-surface-700">
                         <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
                         <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
-                        <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes(file.size)}</td>
+                        <td class="py-1 px-2 text-end tabular-nums" colspan={hasWebp ? '2' : '1'}>{formatBytes(file.size)}</td>
                       </tr>
                       {#if file.thumbnails}
                         {#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
@@ -334,16 +366,22 @@ Features:
                             <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">
                               {thumb.width}x{thumb.height}
                             </td>
-                            <td class="py-1 px-2 text-end tabular-nums border-e border-surface-300 dark:border-surface-700">
-                              {(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
-                            </td>
-                            <td class="py-1 px-2 text-end tabular-nums">
-                              {#if webpKey}
-                                {formatBytes((file.thumbnails[webpKey] as any).size)}
-                              {:else}
-                                <span class="text-surface-400 dark:text-surface-600">—</span>
-                              {/if}
-                            </td>
+                            {#if hasWebp}
+                              <td class="py-1 px-2 text-end tabular-nums border-e border-surface-300 dark:border-surface-700">
+                                {(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+                              </td>
+                              <td class="py-1 px-2 text-end tabular-nums">
+                                {#if webpKey}
+                                  {formatBytes((file.thumbnails[webpKey] as any).size)}
+                                {:else}
+                                  <span class="text-surface-400 dark:text-surface-600">—</span>
+                                {/if}
+                              </td>
+                            {:else}
+                              <td class="py-1 px-2 text-end tabular-nums">
+                                {(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+                              </td>
+                            {/if}
                           </tr>
                         {/each}
                       {/if}
