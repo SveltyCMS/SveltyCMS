@@ -85,28 +85,28 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 ## 3. Unit Tests
 
-| Metric                                 | Value                                                                               |
-| -------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Total tests                            | **1,616** (177 files, 1,601 passing, 3 skipped)                                     |
-| Pass rate                              | 100%                                                                                |
-| Test files                             | 178 (177 passing, 1 skipped)                                                        |
-| Security-specific                      | 87 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit) |
-| **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                          |
-| Collection builder                     | **29** (utils 10, compilation 11, code-gui parity 8)                                |
-| Content-specific                       | 35 (cache helpers, reconciliation, API surface)                                     |
-| **Collection builder utils**           | **10**                                                                              | `getDescendantIds`, `uniquePathForCategory` — tree traversal + slug dedup              |
-| **Collection builder compilation**     | **11**                                                                              | AST generation, TypeScript compiler pipeline, code↔GUI parity validation               |
-| **Collection builder code-gui parity** | **8**                                                                               | Integration tests validating GUI-generated files match hand-written TypeScript schemas |
-| Media-specific                         | 40 (sharing, MIME utils, binary sniffer)                                            |
-| Image editor                           | 35 (widget registry validation, plugin slot rendering, defaults + sorting)          |
-| Utils integrity                        | 4 (circular import detection, barrel health)                                        |
-| **Bulk delete guard**                  | 6 (API handler, SDK layer, 403 status, error code)                                  |
-| **Cache service**                      | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh)  |
-| **Test DB safety**                     | 11 (DB_NAME classifier, config source extraction, incident-shape regression)        |
-| **Route access audit**                 | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)              |
-| **Benchmark harness**                  | 11 (assertSuccess, warmup isolation, error visibility, >50% warmup guard)           |
-| **Cache integrity**                    | **6** (HMAC signing, tamper detection, signed entry contract)                       |
-| **Audit chain**                        | **7** (SHA-256 chaining, breakage detection, replay detection)                      |
+| Metric                                 | Value                                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Total tests                            | **1,657** (180 files, 1,642 passing, 3 skipped)                                                        |
+| Pass rate                              | 100%                                                                                                   |
+| Test files                             | 181 (180 passing, 1 skipped)                                                                           |
+| Security-specific                      | 114 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit, SVG sanitization) |
+| **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                                             |
+| Collection builder                     | **29** (utils 10, compilation 11, code-gui parity 8)                                                   |
+| Content-specific                       | 35 (cache helpers, reconciliation, API surface)                                                        |
+| **Collection builder utils**           | **10**                                                                                                 | `getDescendantIds`, `uniquePathForCategory` — tree traversal + slug dedup              |
+| **Collection builder compilation**     | **11**                                                                                                 | AST generation, TypeScript compiler pipeline, code↔GUI parity validation               |
+| **Collection builder code-gui parity** | **8**                                                                                                  | Integration tests validating GUI-generated files match hand-written TypeScript schemas |
+| Media-specific                         | 81 (sharing, MIME utils, binary sniffer, SVG sanitization, storage contract, service dedup)            |
+| Image editor                           | 35 (widget registry validation, plugin slot rendering, defaults + sorting)                             |
+| Utils integrity                        | 4 (circular import detection, barrel health)                                                           |
+| **Bulk delete guard**                  | 6 (API handler, SDK layer, 403 status, error code)                                                     |
+| **Cache service**                      | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh)                     |
+| **Test DB safety**                     | 11 (DB_NAME classifier, config source extraction, incident-shape regression)                           |
+| **Route access audit**                 | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)                                 |
+| **Benchmark harness**                  | 11 (assertSuccess, warmup isolation, error visibility, >50% warmup guard)                              |
+| **Cache integrity**                    | **6** (HMAC signing, tamper detection, signed entry contract)                                          |
+| **Audit chain**                        | **7** (SHA-256 chaining, breakage detection, replay detection)                                         |
 
 **Additions**:
 
@@ -139,6 +139,14 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | sharing.test.ts      | 13    | Share link generation, validation, revocation, expiry, download limits, IP checks                           |
 | media-utils.test.ts  | 15    | MIME lookup, reverse extension mapping, filename sanitization, file/buffer validation, hash-path resolution |
 | slim-sniffer.test.ts | 12    | Binary MIME detection for JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM                                   |
+
+`tests/unit/media/processing/` — 41 media pipeline unit tests:
+
+| Test file                | Tests | Covers                                                                                                                    |
+| ------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------- |
+| svg-sanitization.test.ts | 27    | SVG XSS defense: dangerous tag stripping, event handler removal, protocol blocking (javascript:/data:), CDATA/XXE/DOCTYPE |
+| media-storage.test.ts    | 10    | `saveResized` contract: size enumeration, parallel dispatch, aspect ratio calculation, format selection (jpg/webp/avif)   |
+| media-service.test.ts    | 6     | `ensureOriginalOnDisk` pattern: dedup check, write + verify, concurrency safety, path building                            |
 
 `tests/unit/components/image-editor/` — 35 image editor widget and plugin slot tests:
 

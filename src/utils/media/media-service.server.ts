@@ -35,7 +35,7 @@ import { sniffMimeType } from "./slim-sniffer.server";
  *
  * Defense-in-depth: the RichText/Sanitize display pipeline also applies DOMPurify client-side
  */
-function sanitizeSvg(svg: string): string {
+export function sanitizeSvg(svg: string): string {
   let cleaned = svg;
   let previous = "";
 

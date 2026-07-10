@@ -337,27 +337,27 @@ Features:
                     File NAME : {file.filename}
                   </div>
                   <table class="w-full text-start border-collapse mt-2">
-                    {@const hasWebp = file.thumbnails ? hasWebpVariants(file.thumbnails) : false}
-                    {@const primaryLabel = file.thumbnails ? primaryFormatLabel(file.thumbnails) : 'Size'}
                     <thead>
                       <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-400">
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Size</th>
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-center">Pixel</th>
-                        {#if hasWebp}
-                          <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-end">{primaryLabel}</th>
-                          <th class="font-bold py-1 px-2 text-end">WebP</th>
-                        {:else}
-                          <th class="font-bold py-1 px-2 text-end">{primaryLabel}</th>
-                        {/if}
+                        <th class="font-bold py-1 px-2 text-end" colspan="2">Size</th>
                       </tr>
                     </thead>
                     <tbody class="text-surface-700 dark:text-surface-300">
                       <tr class="border-b border-surface-300 dark:border-surface-700">
                         <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
                         <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
-                        <td class="py-1 px-2 text-end tabular-nums" colspan={hasWebp ? '2' : '1'}>{formatBytes(file.size)}</td>
+                        <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes(file.size)}</td>
                       </tr>
                       {#if file.thumbnails}
+                        {@const hasWebp = hasWebpVariants(file.thumbnails)}
+                        {@const primaryLabel = primaryFormatLabel(file.thumbnails)}
+                        <tr class="border-b border-surface-300 dark:border-surface-700">
+                          <td class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-surface-300 dark:border-surface-700 text-start" colspan="4">
+                            Resized variants — {primaryLabel}{#if hasWebp} + WebP{/if}
+                          </td>
+                        </tr>
                         {#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
                           {@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
                           {@const thumb = file.thumbnails[sizeKey]!}
