@@ -281,7 +281,7 @@ function stringSimilarity(a: string, b: string): number {
 // Action Detection
 // ============================================================================
 
-function determineAction(source: string, target: string, platform: string): TransformAction {
+function determineAction(source: string, _target: string, platform: string): TransformAction {
   // Date fields need transform
   if (source.includes("date") || source.includes("_at") || source.includes("timestamp")) {
     return "transform";

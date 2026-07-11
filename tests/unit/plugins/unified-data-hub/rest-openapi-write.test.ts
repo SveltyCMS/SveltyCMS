@@ -4,15 +4,18 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DatabaseId } from "@databases/db-interface";
+import type { DatabaseId, ISODateString } from "@databases/db-interface";
+import type { ConnectorRecord } from "@plugins/unified-data-hub/types";
 import { RestOpenApiConnector } from "@plugins/unified-data-hub/server/connectors/rest-openapi";
 import { resetConnectorCircuit } from "@plugins/unified-data-hub/server/connector-circuit-breaker";
 
 const CONNECTOR_ID = "rest-1" as DatabaseId;
+const TENANT = "default" as DatabaseId;
+const ISO_NOW = "2026-07-09T00:00:00.000Z" as ISODateString;
 
-const writableRestConnector = {
+const writableRestConnector: ConnectorRecord = {
   _id: CONNECTOR_ID,
-  tenantId: "default",
+  tenantId: TENANT,
   name: "WP REST",
   type: "rest" as const,
   enabled: true,
@@ -29,13 +32,13 @@ const writableRestConnector = {
     writable: true,
   },
   health: "ok" as const,
-  createdAt: "2026-07-09T00:00:00.000Z",
-  updatedAt: "2026-07-09T00:00:00.000Z",
+  createdAt: ISO_NOW,
+  updatedAt: ISO_NOW,
 };
 
 const collection = {
   _id: "vc1" as DatabaseId,
-  tenantId: "default",
+  tenantId: TENANT,
   name: "Articles",
   slug: "wp-articles",
   connectorId: CONNECTOR_ID,
@@ -46,8 +49,8 @@ const collection = {
     { name: "slug", label: "Slug", sourceField: "slug", type: "text" },
   ],
   enabled: true,
-  createdAt: "2026-07-09T00:00:00.000Z",
-  updatedAt: "2026-07-09T00:00:00.000Z",
+  createdAt: ISO_NOW,
+  updatedAt: ISO_NOW,
 };
 
 describe("REST connector write-back", () => {

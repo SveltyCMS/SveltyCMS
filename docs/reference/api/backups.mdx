@@ -1,0 +1,353 @@
+---
+path: "docs/reference/api/backups.mdx"
+title: "Backup & Restore"
+description: "Reference for the backup and restore API — create, validate, and restore full-instance backups with AES-256-GCM encryption, safety gating, and tenant isolation."
+order: 103
+icon: "mdi:backup-restore"
+author: "SveltyCMS Team"
+created: "2026-07-10"
+updated: "2026-07-10"
+tags:
+  - "api"
+  - "backup"
+  - "restore"
+  - "encryption"
+  - "security"
+  - "disaster-recovery"
+---
+
+# Backup & Restore
+
+The Backup & Restore API provides full-instance backup and restoration with configurable encryption, tenant-scoped safety gating, and a plan-first restore workflow. Backups capture the complete instance state — configuration, content, media, and users — in a portable `.svelty-backup` directory format.
+
+> [!IMPORTANT]
+> All backup endpoints are **admin-gated**. GET requests require `backup:read`, POST requests require `backup:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature                 | HTTP Endpoint               | Method | Permission     |
+| :---------------------- | :-------------------------- | :----- | :------------- |
+| **List Backups**        | `/api/backups`              | `GET`  | `backup:read`  |
+| **Create Backup**       | `/api/backups/create`       | `POST` | `backup:write` |
+| **Validate Backup**     | `/api/backups/validate`     | `POST` | `backup:write` |
+| **Create Restore Plan** | `/api/backups/restore-plan` | `POST` | `backup:write` |
+| **Execute Restore**     | `/api/backups/restore`      | `POST` | `backup:write` |
+| **Job Status**          | `/api/backups/jobs/:jobId`  | `GET`  | `backup:read`  |
+
+---
+
+## 1. Backup Operations
+
+### List Backups
+
+Returns all available backups for the current tenant.
+
+**Endpoint**: `GET /api/backups`
+
+**Response**:
+
+```json
+{
+  "backups": [
+    {
+      "id": "backup_20260710_120000",
+      "label": "Pre-migration snapshot",
+      "sizeBytes": 524288000,
+      "sizeFormatted": "500 MB",
+      "encrypted": true,
+      "createdAt": "2026-07-10T12:00:00.000Z",
+      "status": "complete",
+      "tenantId": "tenant_abc123"
+    },
+    {
+      "id": "backup_20260709_180000",
+      "label": "Daily scheduled backup",
+      "sizeBytes": 510027366,
+      "sizeFormatted": "486.4 MB",
+      "encrypted": true,
+      "createdAt": "2026-07-09T18:00:00.000Z",
+      "status": "complete",
+      "tenantId": "tenant_abc123"
+    }
+  ],
+  "totalCount": 2
+}
+```
+
+### Create Backup
+
+Initiates a full-instance backup. Backups are stored in the `.svelty-backup` directory format within the configured backup location.
+
+**Endpoint**: `POST /api/backups/create`
+
+**Payload**:
+
+```json
+{
+  "label": "Pre-migration snapshot",
+  "encrypt": true,
+  "includeMedia": true
+}
+```
+
+| Field          | Type      | Required | Description                                            |
+| :------------- | :-------- | :------- | :----------------------------------------------------- |
+| `label`        | `string`  | —        | Human-readable label for the backup                    |
+| `encrypt`      | `boolean` | —        | Encrypt the backup with AES-256-GCM (default: `true`)  |
+| `includeMedia` | `boolean` | —        | Include media binaries in the backup (default: `true`) |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "jobId": "backup_job_d4e5f6",
+  "backupId": "backup_20260710_120000",
+  "status": "processing",
+  "message": "Backup started. Track progress via GET /api/backups/jobs/backup_job_d4e5f6"
+}
+```
+
+### Backup Job Status
+
+**Endpoint**: `GET /api/backups/jobs/:jobId`
+
+**Response**:
+
+```json
+{
+  "jobId": "backup_job_d4e5f6",
+  "status": "completed",
+  "backupId": "backup_20260710_120000",
+  "progress": { "collections": 12, "entries": 1427, "media": 2163, "sizeBytes": 524288000 },
+  "durationMs": 32000,
+  "completedAt": "2026-07-10T12:00:32.000Z"
+}
+```
+
+---
+
+## 2. Backup Format
+
+Backups are stored as a `.svelty-backup` directory with the following structure:
+
+```text
+backup_20260710_120000.svelty-backup/
+├── manifest.json          # Backup metadata, checksums, tenant info
+├── config/                # Configuration resources (collections, roles, settings, etc.)
+│   ├── collections.json
+│   ├── roles.json
+│   └── settings.json
+├── content/               # Content entries as NDJSON streams
+│   ├── blog-posts.ndjson
+│   ├── authors.ndjson
+│   └── pages.ndjson
+├── media/                 # Media binaries (if includeMedia was true)
+│   ├── a1b2c3d4.jpg
+│   └── e5f6g7h8.png
+├── users.ndjson           # User records (hashes only — never raw passwords)
+└── manifest.json.sig      # HMAC signature of manifest (when encrypted)
+```
+
+Each NDJSON content file follows the same streaming format as the [Content Transfer API](./content-transfer.mdx).
+
+---
+
+## 3. AES-256-GCM Encryption
+
+When `encrypt: true` is set (the default), backups are encrypted using AES-256-GCM:
+
+- **Key derivation**: PBKDF2 with 600,000 iterations from a backup passphrase or instance key
+- **Per-file encryption**: Each file within the backup is individually encrypted with a unique IV
+- **Manifest integrity**: The `manifest.json` is signed with an HMAC stored in `manifest.json.sig`
+- **Tamper detection**: Any modification to encrypted files causes decryption to fail with an authentication error
+
+> [!NOTE]
+> The encryption key is derived from the instance's `ENCRYPTION_KEY` secret. Backups can only be restored to an instance with the same key — this provides built-in protection against cross-instance data leakage.
+
+---
+
+## 4. Restore Operations
+
+The restore workflow follows a validate → plan → apply pattern. Safety gating prevents accidental overwrites and cross-tenant contamination.
+
+### Validate Backup
+
+Checks the integrity and compatibility of a backup before planning a restore.
+
+**Endpoint**: `POST /api/backups/validate`
+
+**Payload**:
+
+```json
+{
+  "backupId": "backup_20260710_120000"
+}
+```
+
+| Field      | Type     | Required | Description                   |
+| :--------- | :------- | :------- | :---------------------------- |
+| `backupId` | `string` | ✅       | Backup identifier to validate |
+
+**Response**:
+
+```json
+{
+  "valid": true,
+  "backupId": "backup_20260710_120000",
+  "encrypted": true,
+  "integrityCheck": "passed",
+  "tenantMatch": true,
+  "contents": {
+    "collections": 12,
+    "entries": 1427,
+    "media": 2163,
+    "users": 8
+  },
+  "warnings": [],
+  "blockedReasons": []
+}
+```
+
+### Create Restore Plan
+
+Generates a detailed plan showing what will be overwritten, created, or merged during restore.
+
+**Endpoint**: `POST /api/backups/restore-plan`
+
+**Payload**:
+
+```json
+{
+  "backupId": "backup_20260710_120000",
+  "mode": "full",
+  "exclude": ["audit-logs"]
+}
+```
+
+| Field      | Type       | Required | Description                                              |
+| :--------- | :--------- | :------- | :------------------------------------------------------- |
+| `backupId` | `string`   | ✅       | Backup identifier to plan from                           |
+| `mode`     | `string`   | —        | Restore mode: `full` or `content-only` (default: `full`) |
+| `exclude`  | `string[]` | —        | Resource categories to skip during restore               |
+
+**Response**:
+
+```json
+{
+  "planId": "restore_plan_a1b2c3",
+  "backupId": "backup_20260710_120000",
+  "mode": "full",
+  "operations": [
+    {
+      "action": "replace",
+      "category": "collections",
+      "count": 12,
+      "note": "All existing collections will be replaced"
+    },
+    {
+      "action": "replace",
+      "category": "content",
+      "count": 1427,
+      "note": "All existing content will be replaced"
+    },
+    {
+      "action": "replace",
+      "category": "media",
+      "count": 2163,
+      "note": "All existing media will be replaced"
+    },
+    {
+      "action": "merge",
+      "category": "users",
+      "count": 8,
+      "note": "Users will be merged — existing users preserved"
+    }
+  ],
+  "risk": "destructive",
+  "requiresConfirmation": true
+}
+```
+
+### Execute Restore
+
+Applies the restore plan. Requires explicit confirmation and validates tenant isolation before execution.
+
+**Endpoint**: `POST /api/backups/restore`
+
+**Payload**:
+
+```json
+{
+  "planId": "restore_plan_a1b2c3",
+  "confirmed": true
+}
+```
+
+| Field       | Type      | Required | Description                                                        |
+| :---------- | :-------- | :------- | :----------------------------------------------------------------- |
+| `planId`    | `string`  | ✅       | Plan identifier from the `POST /api/backups/restore-plan` response |
+| `confirmed` | `boolean` | ✅       | Must be `true` — explicit user confirmation required               |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "jobId": "restore_job_x1y2z3",
+  "status": "processing",
+  "message": "Restore started. This instance will be unavailable until completion."
+}
+```
+
+> [!CAUTION]
+> A `full` mode restore replaces all existing data in the instance. This is a destructive operation that cannot be undone. Always create a backup of the current state before restoring from a previous backup.
+
+---
+
+## 5. Safety Gating
+
+The backup and restore system enforces several safety gates to prevent data loss and cross-tenant contamination:
+
+### Confirmation Gate
+
+All restore requests **must** include `"confirmed": true`. The API rejects any restore call without explicit confirmation:
+
+```json
+{
+  "error": "CONFIRMATION_REQUIRED",
+  "message": "Restore operations require explicit confirmation. Set 'confirmed: true' in the request body.",
+  "code": "BACKUP_CONFIRMATION_REQUIRED"
+}
+```
+
+### Tenant Isolation
+
+Backups are scoped to a specific tenant. A restore will be **blocked** if the backup's `tenantId` does not match the current instance:
+
+```json
+{
+  "error": "TENANT_MISMATCH",
+  "message": "Backup 'backup_20260710_120000' belongs to tenant 'tenant_xyz789' and cannot be restored to tenant 'tenant_abc123'.",
+  "code": "BACKUP_TENANT_MISMATCH"
+}
+```
+
+### Integrity Verification
+
+Before restoring, the system verifies:
+
+- The backup's manifest checksum matches
+- HMAC signature validates (for encrypted backups)
+- All referenced content and media files are present
+- The backup format version is compatible with the current SveltyCMS version
+
+---
+
+## Next Steps
+
+- [Content Export & Import](./content-transfer.mdx) — Transfer content between instances with NDJSON streaming.
+- [Data Migrations](./data-migrations.mdx) — Apply and verify schema migrations with risk scoring.
+- [Content Sync](./content-sync.mdx) — Real-time bidirectional content synchronization between environments.

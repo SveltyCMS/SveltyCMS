@@ -59,7 +59,7 @@ export async function assertCanAddConnector(
   if (existingId) {
     const found = await db.crud.findOne(
       CONNECTORS_COLLECTION,
-      { _id: existingId, tenantId },
+      { _id: existingId as DatabaseId, tenantId },
       { tenantId },
     );
     if (found.success && found.data) return;
@@ -84,7 +84,7 @@ export async function assertCanAddVirtualCollection(
   if (existingId) {
     const found = await db.crud.findOne(
       SCHEMAS_COLLECTION,
-      { _id: existingId, tenantId },
+      { _id: existingId as DatabaseId, tenantId },
       { tenantId },
     );
     if (found.success && found.data) return;

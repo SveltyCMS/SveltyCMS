@@ -230,7 +230,7 @@ function onVirtualScroll() {
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
                                             <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
-                                                onchange={() => toggleSelectRow(row._id || row.id)}
+                                                onchange={() => toggleSelectRow(row._id || row.id)} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}
@@ -313,7 +313,7 @@ function onVirtualScroll() {
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
                                             <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
-                                                onchange={() => toggleSelectRow(row._id || row.id)}
+                                                onchange={() => toggleSelectRow(row._id || row.id)} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}

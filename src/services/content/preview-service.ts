@@ -47,8 +47,18 @@ export class PreviewService {
     contentLanguage: string,
     tenantId?: string | null,
     userId?: string,
+    previewTargetUrl?: string,
   ): string {
-    const base = this.resolveBasePattern(schema, entry, contentLanguage, tenantId);
+    let base = "";
+    if (previewTargetUrl) {
+      base = this.resolveUrlPattern(previewTargetUrl, entry, contentLanguage, tenantId);
+    } else if (schema.livePreview === true) {
+      const slug = this.getFieldValue(entry, "slug", contentLanguage) || entry._id || "draft";
+      const path = slug === "home" ? "/" : `/${slug}`;
+      base = this.resolveUrlPattern(path, entry, contentLanguage, tenantId);
+    } else {
+      base = this.resolveBasePattern(schema, entry, contentLanguage, tenantId);
+    }
     if (!base) return "";
 
     const secret = getPrivateSettingSync("PREVIEW_SECRET");
@@ -88,14 +98,14 @@ export class PreviewService {
   public validateToken(
     token: string,
     entryId?: string,
-  ): { valid: boolean; userId: string; tenantId: string } {
+  ): { valid: boolean; userId: string; tenantId: string; entryId: string } {
     try {
       const secret = getPrivateSettingSync("PREVIEW_SECRET") as string;
-      if (!secret) return { valid: false, userId: "", tenantId: "" };
+      if (!secret) return { valid: false, userId: "", tenantId: "", entryId: "" };
 
       const decoded = Buffer.from(token, "base64url").toString();
       const separatorIdx = decoded.lastIndexOf(".");
-      if (separatorIdx === -1) return { valid: false, userId: "", tenantId: "" };
+      if (separatorIdx === -1) return { valid: false, userId: "", tenantId: "", entryId: "" };
 
       const payloadJson = decoded.slice(0, separatorIdx);
       const providedSig = decoded.slice(separatorIdx + 1);
@@ -110,21 +120,28 @@ export class PreviewService {
         providedBuf.length !== expectedBuf.length ||
         !crypto.timingSafeEqual(providedBuf, expectedBuf)
       ) {
-        return { valid: false, userId: "", tenantId: "" };
+        return { valid: false, userId: "", tenantId: "", entryId: "" };
       }
 
       // Parse payload
       const payload: PreviewPayload = JSON.parse(payloadJson);
 
       // Check expiration
-      if (Date.now() > payload.exp) return { valid: false, userId: "", tenantId: "" };
+      if (Date.now() > payload.exp) return { valid: false, userId: "", tenantId: "", entryId: "" };
 
       // Check entry ID binding (if provided)
-      if (entryId && payload.entryId !== entryId) return { valid: false, userId: "", tenantId: "" };
+      if (entryId && payload.entryId !== entryId) {
+        return { valid: false, userId: "", tenantId: "", entryId: "" };
+      }
 
-      return { valid: true, userId: payload.sub, tenantId: payload.tenantId };
+      return {
+        valid: true,
+        userId: payload.sub,
+        tenantId: payload.tenantId,
+        entryId: payload.entryId,
+      };
     } catch {
-      return { valid: false, userId: "", tenantId: "" };
+      return { valid: false, userId: "", tenantId: "", entryId: "" };
     }
   }
 
@@ -147,7 +164,15 @@ export class PreviewService {
   ): string {
     const pattern = schema.livePreview;
     if (!pattern || typeof pattern !== "string") return "";
+    return this.resolveUrlPattern(pattern, entry, contentLanguage, tenantId);
+  }
 
+  private resolveUrlPattern(
+    pattern: string,
+    entry: CollectionEntry,
+    contentLanguage: string,
+    tenantId?: string | null,
+  ): string {
     const baseUrl =
       getPublicSettingSync("HOST_PROD") ||
       getPublicSettingSync("HOST_DEV") ||
@@ -155,9 +180,11 @@ export class PreviewService {
     let resolvedPath = pattern;
 
     const slugValue = this.getFieldValue(entry, "slug", contentLanguage) || entry._id || "draft";
-    resolvedPath = resolvedPath.replace(/{slug}/g, String(slugValue));
+    const publicSlug = slugValue === "home" ? "" : String(slugValue);
+    resolvedPath = resolvedPath.replace(/{slug}/g, publicSlug || "home");
     resolvedPath = resolvedPath.replace(/{_id}/g, String(entry._id || "draft"));
     resolvedPath = resolvedPath.replace(/{id}/g, String(entry._id || "draft"));
+    resolvedPath = resolvedPath.replace(/{lang}/g, contentLanguage);
 
     if (!resolvedPath.includes("lang=")) {
       const separator = resolvedPath.includes("?") ? "&" : "?";

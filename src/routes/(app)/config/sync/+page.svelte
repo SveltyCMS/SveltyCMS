@@ -5,7 +5,6 @@
 Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
-import ImportExportManager from "@src/components/admin/import-export-manager.svelte";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
@@ -40,7 +39,7 @@ const changeSummary = $derived(() => ({
 async function loadStatus() {
 	isLoading = true;
 	try {
-		const res = await fetch("/api/config_sync");
+		const res = await fetch("/api/config/status");
 		if (!res.ok) {
 			throw new Error(`HTTP ${res.status}`);
 		}
@@ -63,20 +62,36 @@ async function performSync() {
 
 	isProcessing = true;
 	try {
-		const payload = { action: "import" };
-		toast.info("Performing standard filesystem sync...");
+		toast.info("Creating configuration promotion plan...");
 
-		const res = await fetch("/api/config_sync", {
+		const planRes = await fetch("/api/config/plan", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(payload),
+			body: JSON.stringify({ mode: "merge" }),
 		});
 
-		const result = await res.json();
-		if (!res.ok) {
-			throw new Error(result.message || `HTTP ${res.status}`);
+		const planEnvelope = await planRes.json();
+		if (!planRes.ok) {
+			throw new Error(planEnvelope.message || `HTTP ${planRes.status}`);
 		}
 
+		const plan = planEnvelope.data ?? planEnvelope;
+		if (!plan?.planId) {
+			throw new Error("Plan response did not include a planId.");
+		}
+
+		const res = await fetch("/api/config/apply", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ planId: plan.planId, mode: plan.mode }),
+		});
+
+		const resultEnvelope = await res.json();
+		if (!res.ok) {
+			throw new Error(resultEnvelope.message || `HTTP ${res.status}`);
+		}
+
+		const result = resultEnvelope.data ?? resultEnvelope;
 		toast.success(result.message || "Sync successful!");
 		await loadStatus();
 	} catch (err) {
@@ -125,8 +140,8 @@ onMount(() => {
 					<Button
 						variant="ghost"
 						class="flex-1 py-3 text-center text-sm font-medium {activeTab === tab
-							? '!bg-tertiary-500 dark:!bg-primary-500 !text-white dark:!text-surface-900'
-							: '!text-surface-700 dark:!text-surface-200'}"
+							? 'bg-tertiary-500! dark:bg-primary-500! text-white! dark:text-surface-900!'
+							: 'text-surface-700! dark:text-surface-200!'}"
 						onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
 						role="tab"
 						aria-selected={activeTab === tab}
@@ -224,7 +239,14 @@ onMount(() => {
 			{/if}
 
 			{#if activeTab === 'backups'}
-				<div transition:slide|local class="space-y-4"><ImportExportManager /></div>
+				<div transition:slide|local class="space-y-4">
+					<AdminCard class="p-8 text-center">
+						<iconify-icon icon="mdi:database-export-outline" class="mx-auto text-5xl text-surface-400"></iconify-icon>
+						<h3 class="mt-4 text-lg font-semibold">Backup & Import/Export</h3>
+						<p class="mt-2 text-surface-500">Backup and content transfer functionality is available via the dedicated API endpoints.</p>
+						<p class="mt-1 text-sm text-surface-400">Use the Smart Importer plugin for external data imports from WordPress, Drupal, CSV, and other formats.</p>
+					</AdminCard>
+				</div>
 			{/if}
 
 			{#if activeTab === 'debug'}

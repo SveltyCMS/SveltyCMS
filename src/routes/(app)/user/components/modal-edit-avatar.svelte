@@ -264,7 +264,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 
-				const result = await response.json();
+				await response.json();
 
 				// Avatar updated on server — invalidateAll below will refresh page.data.user
 

@@ -161,8 +161,8 @@ Allows users to add text, arrows, rectangles, and circles to images.
 
 	function resolveScreenPoint(
 		e: MouseEvent,
-		width: number,
-		height: number,
+		_width: number,
+		_height: number,
 		canvasX: number | undefined = undefined,
 		canvasY: number | undefined = undefined
 	) {
@@ -294,7 +294,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 	}
 
 	export function handleMouseUp(
-		e: MouseEvent,
+		_e: MouseEvent,
 		width: number,
 		height: number,
 		canvasX: number | undefined = undefined,

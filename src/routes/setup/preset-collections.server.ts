@@ -141,7 +141,7 @@ function resolveWidgetName(field: FieldTemplate): string {
  * Converts a CollectionPreset template into a database Schema object.
  */
 export function collectionPresetToSchema(collection: CollectionPreset): Schema {
-  return {
+  const schema: Schema = {
     _id: collection.name,
     name: collection.label,
     slug: collection.name,
@@ -160,6 +160,15 @@ export function collectionPresetToSchema(collection: CollectionPreset): Schema {
       return schemaField;
     }),
   } as Schema;
+
+  if (collection.livePreview !== undefined) {
+    (schema as Schema).livePreview = collection.livePreview;
+  }
+  if (collection.plugins?.length) {
+    (schema as Schema).plugins = collection.plugins;
+  }
+
+  return schema;
 }
 
 /**
@@ -203,7 +212,7 @@ export default {
   name: "${collection.name}",
   label: "${collection.label}",
   description: "${collection.description}",
-  icon: "${collection.icon}",
+  icon: "${collection.icon}",${collection.livePreview !== undefined ? `\n  livePreview: ${typeof collection.livePreview === "string" ? `"${collection.livePreview}"` : collection.livePreview},` : ""}${collection.plugins?.length ? `\n  plugins: ${JSON.stringify(collection.plugins)},` : ""}
   fields: [
 ${fieldEntries}
   ],

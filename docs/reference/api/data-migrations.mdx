@@ -1,0 +1,304 @@
+---
+path: "docs/reference/api/data-migrations.mdx"
+title: "Data Migrations"
+description: "Reference for the data migration API — plan, apply, and verify schema and content migrations with risk scoring, idempotent apply, and migration locking."
+order: 101
+icon: "mdi:database-arrow-right"
+author: "SveltyCMS Team"
+created: "2026-07-10"
+updated: "2026-07-10"
+tags:
+  - "api"
+  - "migrations"
+  - "schema"
+  - "data"
+  - "database"
+---
+
+# Data Migrations
+
+The Data Migration API provides a safety-first workflow for applying schema and content transformations across environments. Every migration is risk-scored, plan-checked, and tracked with a deterministic `planHash` that guarantees idempotent execution.
+
+> [!IMPORTANT]
+> All migration endpoints are **admin-gated**. GET requests require `migration:read`, POST requests require `migration:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature               | HTTP Endpoint             | Method | Permission        |
+| :-------------------- | :------------------------ | :----- | :---------------- |
+| **Migration Status**  | `/api/migrations/status`  | `GET`  | `migration:read`  |
+| **Migration History** | `/api/migrations/history` | `GET`  | `migration:read`  |
+| **Create Plan**       | `/api/migrations/plan`    | `POST` | `migration:write` |
+| **Apply Migration**   | `/api/migrations/apply`   | `POST` | `migration:write` |
+| **Verify Migration**  | `/api/migrations/verify`  | `POST` | `migration:write` |
+
+---
+
+## 1. Status & History
+
+### Migration Status
+
+Returns the current state of migrations — which have been applied, which are pending, and any migration lock status.
+
+**Endpoint**: `GET /api/migrations/status`
+
+**Response**:
+
+```json
+{
+  "locked": false,
+  "applied": 12,
+  "pending": 3,
+  "pendingMigrations": [
+    {
+      "id": "20260710_add_author_bio",
+      "description": "Add bio field to authors collection",
+      "risk": "safe",
+      "planHash": "sha256:abc123..."
+    },
+    {
+      "id": "20260710_drop_legacy_tags",
+      "description": "Drop legacy tags table",
+      "risk": "destructive",
+      "planHash": "sha256:def456..."
+    }
+  ],
+  "lastApplied": {
+    "id": "20260709_index_search_fields",
+    "appliedAt": "2026-07-09T18:30:00.000Z"
+  }
+}
+```
+
+| Field               | Description                                          |
+| :------------------ | :--------------------------------------------------- |
+| `locked`            | `true` if a migration is currently running           |
+| `applied`           | Number of migrations executed                        |
+| `pending`           | Number of migrations not yet applied                 |
+| `pendingMigrations` | Detailed list of pending migrations with risk scores |
+| `lastApplied`       | Most recent successful migration                     |
+
+### Migration History
+
+Returns the full history of applied migrations with timestamps and outcomes.
+
+**Endpoint**: `GET /api/migrations/history`
+
+**Response**:
+
+```json
+{
+  "history": [
+    {
+      "id": "20260709_index_search_fields",
+      "description": "Add full-text search index on content fields",
+      "risk": "safe",
+      "planHash": "sha256:ghi789...",
+      "appliedAt": "2026-07-09T18:30:00.000Z",
+      "status": "completed",
+      "durationMs": 1200
+    },
+    {
+      "id": "20260708_add_content_statuses",
+      "description": "Add draft/review/published statuses to blog-posts",
+      "risk": "safe",
+      "planHash": "sha256:jkl012...",
+      "appliedAt": "2026-07-08T14:15:00.000Z",
+      "status": "completed",
+      "durationMs": 850
+    }
+  ],
+  "totalCount": 12
+}
+```
+
+---
+
+## 2. Plan-First Workflow
+
+```
+Pending migrations  ──►  plan  ──►  review risks  ──►  apply  ──►  verify  ──►  applied
+```
+
+### Create a Migration Plan
+
+Generates a dry-run plan showing exactly what operations will be performed and their associated risk levels.
+
+**Endpoint**: `POST /api/migrations/plan`
+
+**Payload**:
+
+```json
+{
+  "migrations": ["20260710_add_author_bio"],
+  "dryRun": true
+}
+```
+
+| Field        | Type       | Required | Description                                          |
+| :----------- | :--------- | :------- | :--------------------------------------------------- |
+| `migrations` | `string[]` | —        | Specific migration IDs to plan (empty = all pending) |
+| `dryRun`     | `boolean`  | —        | Always `true` for plan — previews without executing  |
+
+**Response**:
+
+```json
+{
+  "planId": "mplan_a1b2c3",
+  "operations": [
+    {
+      "migrationId": "20260710_add_author_bio",
+      "description": "Add bio field to authors collection",
+      "risk": "safe",
+      "planHash": "sha256:abc123...",
+      "steps": [
+        {
+          "action": "alter_collection",
+          "collection": "authors",
+          "field": "bio",
+          "type": "text",
+          "reversible": true
+        }
+      ],
+      "estimatedDurationMs": 500
+    }
+  ],
+  "aggregateRisk": "safe",
+  "warnings": [],
+  "requiresConfirmation": false
+}
+```
+
+**Response fields**:
+
+| Field        | Description                                                       |
+| :----------- | :---------------------------------------------------------------- |
+| `planId`     | Unique plan identifier                                            |
+| `risk`       | Per-migration risk level: `safe`, `warning`, or `destructive`     |
+| `planHash`   | Deterministic hash of the migration — guarantees idempotent apply |
+| `steps`      | Individual database operations the migration will execute         |
+| `reversible` | `true` if the step can be rolled back                             |
+
+### Apply Migration
+
+Executes the planned migrations. The system checks the `planHash` against previously applied migrations to guarantee idempotency — if the hash matches an already-applied migration, it is skipped.
+
+**Endpoint**: `POST /api/migrations/apply`
+
+**Payload**:
+
+```json
+{
+  "planId": "mplan_a1b2c3",
+  "confirmed": true
+}
+```
+
+| Field       | Type      | Required | Description                                                   |
+| :---------- | :-------- | :------- | :------------------------------------------------------------ |
+| `planId`    | `string`  | ✅       | Plan identifier from the `POST /api/migrations/plan` response |
+| `confirmed` | `boolean` | ✅       | Must be `true` — explicit user confirmation required          |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "applied": [
+    {
+      "migrationId": "20260710_add_author_bio",
+      "status": "completed",
+      "planHash": "sha256:abc123...",
+      "durationMs": 480
+    }
+  ],
+  "skipped": [],
+  "failed": [],
+  "appliedAt": "2026-07-10T12:10:00.000Z"
+}
+```
+
+> [!NOTE]
+> **Idempotent Apply**: The `planHash` is a deterministic SHA-256 hash computed from the migration's full definition. If the hash matches a previously applied migration, the apply step is skipped even if the migration ID differs. This protects against duplicate execution across deployments.
+
+### Verify Migration
+
+Validates that an applied migration achieved the expected result. Compares the actual database state against the migration's target schema.
+
+**Endpoint**: `POST /api/migrations/verify`
+
+**Payload**:
+
+```json
+{
+  "migrations": ["20260710_add_author_bio"]
+}
+```
+
+| Field        | Type       | Required | Description             |
+| :----------- | :--------- | :------- | :---------------------- |
+| `migrations` | `string[]` | ✅       | Migration IDs to verify |
+
+**Response**:
+
+```json
+{
+  "verified": true,
+  "results": [
+    {
+      "migrationId": "20260710_add_author_bio",
+      "status": "verified",
+      "expectedHash": "sha256:abc123...",
+      "actualHash": "sha256:abc123...",
+      "driftDetected": false
+    }
+  ],
+  "verifiedAt": "2026-07-10T12:11:00.000Z"
+}
+```
+
+---
+
+## 3. Risk Scoring
+
+Every migration is assigned a risk level based on the operations it performs:
+
+| Risk Level        | Icon | Description                                                                                                                                        | Requires Confirmation |
+| :---------------- | :--: | :------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------: |
+| **`safe`**        |  🟢  | Additive operations only: new collections, new fields, new indexes. No data loss possible.                                                         |          No           |
+| **`warning`**     |  🟡  | Modifying operations: field renames, type changes that are backward-compatible, default value changes. May affect query results but is reversible. |          No           |
+| **`destructive`** |  🔴  | Destructive operations: dropping collections, removing fields, changing field types incompatibly. Data loss or downtime possible.                  |        **Yes**        |
+
+> [!CAUTION]
+> Destructive migrations require `"confirmed": true` in the apply payload. Review the plan output carefully — destructive operations cannot be automatically rolled back.
+
+---
+
+## 4. Migration Lock Behavior
+
+To prevent concurrent migration conflicts, the system acquires a **migration lock** before executing any apply:
+
+- **Acquired**: At the start of `POST /api/migrations/apply`
+- **Held for**: Duration of the apply operation plus verification
+- **Released**: Automatically on completion, failure, or timeout (configurable, default: 5 minutes)
+- **Conflict behavior**: If a lock is already held, subsequent apply requests return `423 Locked`
+
+```json
+{
+  "error": "MIGRATION_LOCKED",
+  "message": "A migration is already in progress. Lock holder: mplan_a1b2c3, acquired at 2026-07-10T12:10:00.000Z",
+  "retryAfter": 120
+}
+```
+
+The lock status is visible via `GET /api/migrations/status` (`"locked": true`).
+
+---
+
+## Next Steps
+
+- [Configuration Promotion](./configuration-promotion.mdx) — Promote config resources between environments.
+- [Backup & Restore](./backups.mdx) — Full-instance backup with safety gating and encryption.
+- [Content Export & Import](./content-transfer.mdx) — Transfer content between instances with NDJSON streaming.

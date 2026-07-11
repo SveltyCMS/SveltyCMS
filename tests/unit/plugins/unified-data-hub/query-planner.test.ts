@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { DatabaseId, ISODateString } from "@databases/db-interface";
 import type { ConnectorRecord, VirtualCollectionRecord } from "@plugins/unified-data-hub/types";
 import { FederationError } from "@plugins/unified-data-hub/types";
 import {
@@ -14,10 +15,11 @@ import {
   translateWordPressRestSort,
 } from "@plugins/unified-data-hub/server/query-planner";
 
-const TENANT = "default";
+const TENANT = "default" as DatabaseId;
+const ISO_NOW = "2026-07-09T00:00:00.000Z" as ISODateString;
 
 const wpCollection: VirtualCollectionRecord = {
-  _id: "vc-1",
+  _id: "vc-1" as DatabaseId,
   tenantId: TENANT,
   name: "Articles",
   slug: "wp-articles",
@@ -30,12 +32,12 @@ const wpCollection: VirtualCollectionRecord = {
     { name: "author", label: "Author", sourceField: "author", type: "number" },
   ],
   enabled: true,
-  createdAt: "",
-  updatedAt: "",
+  createdAt: ISO_NOW,
+  updatedAt: ISO_NOW,
 };
 
 const restConnector: ConnectorRecord = {
-  _id: "conn-1",
+  _id: "conn-1" as DatabaseId,
   tenantId: TENANT,
   name: "WP REST",
   type: "rest",
@@ -53,6 +55,8 @@ const restConnector: ConnectorRecord = {
     writable: false,
   },
   health: "ok",
+  createdAt: ISO_NOW,
+  updatedAt: ISO_NOW,
 };
 
 describe("query planner v1.5", () => {

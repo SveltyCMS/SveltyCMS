@@ -48,7 +48,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 		const filters = storeState.filters;
 
 		if (activeState === 'finetune') {
-			updateToolbar(isMobile, adjustment, filters);
+			updateToolbar(isMobile, adjustment, filters as unknown as Adjustments);
 		} else if (!activeState && isFinetuneToolbarComponent(imageEditorStore.state.toolbarControls?.component)) {
 			imageEditorStore.setToolbarControls(null);
 			imageEditorStore.compareSliderPosition = 0;

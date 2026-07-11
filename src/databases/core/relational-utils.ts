@@ -139,6 +139,39 @@ export const safeDate = (input: any): Date => {
   return new Date(input);
 };
 
+function isJsonString(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 1 &&
+    (value[0] === "{" || value[0] === "[" || value[0] === '"')
+  );
+}
+
+/** Parse string JSON columns; native jsonb objects (PostgreSQL) pass through unchanged. */
+function normalizeJsonFieldValue(
+  value: unknown,
+  options?: { mariaDoubleParseJson?: boolean },
+): unknown {
+  let v = value;
+  if (isJsonString(v)) {
+    try {
+      v = JSON.parse(v);
+    } catch {}
+  }
+  if (options?.mariaDoubleParseJson && isJsonString(v)) {
+    try {
+      v = JSON.parse(v);
+    } catch {}
+  }
+  return v;
+}
+
+function flattenDataColumn(result: Record<string, unknown>, key: string, value: unknown): void {
+  if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
+    Object.assign(result, value);
+  }
+}
+
 /**
  * Schema-aware row converter — only touches known date/JSON columns.
  * For unregistered tables, falls back to full-key iteration (backward compatible).
@@ -177,27 +210,8 @@ export function convertDatesToISO(
   if (jsonCols && jsonCols.length > 0) {
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
-      let v = row[k];
-      if (typeof v === "string" && v.length > 1 && (v[0] === "{" || v[0] === "[" || v[0] === '"')) {
-        try {
-          v = JSON.parse(v);
-        } catch {}
-        if (k === "data" && v && typeof v === "object" && !Array.isArray(v)) {
-          Object.assign(result, v);
-        }
-        if (
-          options?.mariaDoubleParseJson &&
-          typeof v === "string" &&
-          v.length > 1 &&
-          (v[0] === "{" || v[0] === "[" || v[0] === '"')
-        ) {
-          try {
-            v = JSON.parse(v);
-            if (k === "data" && v && typeof v === "object" && !Array.isArray(v))
-              Object.assign(result, v);
-          } catch {}
-        }
-      }
+      const v = normalizeJsonFieldValue(row[k], options);
+      flattenDataColumn(result, k, v);
       result[k] = v;
     }
   }
@@ -222,24 +236,9 @@ export function convertDatesToISO(
         (v && typeof v === "object" && typeof (v as any).getTime === "function")
       ) {
         v = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
-      } else if (
-        JSON_FIELDS.has(k) &&
-        typeof v === "string" &&
-        v.length > 1 &&
-        (v[0] === "{" || v[0] === "[" || v[0] === '"')
-      ) {
-        try {
-          v = JSON.parse(v);
-        } catch {}
-        if (k === "data" && v && typeof v === "object" && !Array.isArray(v))
-          Object.assign(result, v);
-        if (options?.mariaDoubleParseJson && typeof v === "string") {
-          try {
-            v = JSON.parse(v);
-            if (k === "data" && v && typeof v === "object" && !Array.isArray(v))
-              Object.assign(result, v);
-          } catch {}
-        }
+      } else if (JSON_FIELDS.has(k)) {
+        v = normalizeJsonFieldValue(v, options);
+        flattenDataColumn(result, k, v);
       }
       result[k] = v;
     }

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:api"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-07"
+updated: "2026-07-10"
 tags:
   - "api"
   - "developer"
@@ -115,6 +115,17 @@ SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...pa
 - [🛠 **Utilities (utility.ts)**](./utility.mdx) — Cache, trash, and email services.
 
 **New** `GET /api/health`, `POST /api/system-jobs`, `POST /api/ai/translate`
+
+### 📦 Data Operations
+
+APIs for configuration promotion, content transfer, migrations, importers, backups, and content sync.
+
+- [📤 **Configuration Promotion**](./configuration-promotion.mdx) — Promote CMS structure between environments with plan-first workflow.
+- [📦 **Content Transfer**](./content-transfer.mdx) — Export/import editorial content as portable packages with NDJSON streaming.
+- [🔄 **Data Migrations**](./data-migrations.mdx) — Idempotent schema/data transformations with locking and risk scoring.
+- [📥 **External Importers**](./importers.mdx) — Import from WordPress, Drupal, CSV, JSON, and other sources.
+- [💾 **Backups & Restore**](./backups.mdx) — Encrypted disaster recovery with manifest validation and restore plans.
+- [🔁 **Content Sync**](./content-sync.mdx) — Controlled cross-environment content synchronization.
 
 ---
 

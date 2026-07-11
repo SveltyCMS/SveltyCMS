@@ -4,7 +4,7 @@ title: Competitive Comparison
 description: A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus.
 author: SveltyCMS Team
 created: 2026-03-21
-updated: "2026-06-27"
+updated: "2026-07-10"
 tags:
   - comparison
   - benchmarks
@@ -19,10 +19,10 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 ## Comprehensive Comparison Matrix (March 2026)
 
-| CMS             | License / Cost                                    | Tech Stack                                                 | Approach                     | Admin UI                                | Databases                                            | APIs                | Bundle Size / Perf            | Maturity (2026)                                                                                    | Best For                                                                  |
-| :-------------- | :------------------------------------------------ | :--------------------------------------------------------- | :--------------------------- | :-------------------------------------- | :--------------------------------------------------- | :------------------ | :---------------------------- | :------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------ |
-| **SveltyCMS**   | BSL 1.1 (free if finances < $1M; converts to MIT) | SvelteKit 2 + Svelte 5, 5-Pillar Content Core, Drizzle ORM | Code-first + GUI collections | Svelte + Native UI (native, very light) | Any SQL (Postgres, MySQL, SQLite, MariaDB) + MongoDB | REST + GraphQL Yoga | **~843 KB Brotli** (smallest) | **Production Ready** (A++ Security Grade, see [Security Docs](/docs/reference/security/index.mdx)) | Performance-obsessed devs, Svelte ecosystem fans, enterprise-grade speed. |
-| **Sveltia CMS** | MIT (open source)                                 | Svelte (SPA)                                               | Git-based (Local)            | Svelte (Lightweight browser-based)      | N/A (Git Repos)                                      | Git Pull/Push       | **< 500 KB** (lightest)       | High (rapid UX iterations)                                                                         | Static sites, Git-centric workflows, zero-ops deployments.                |
+| CMS             | License / Cost                                    | Tech Stack                                                 | Approach                                 | Admin UI                                | Databases                                            | APIs                | Bundle Size / Perf            | Maturity (2026)                                                                                    | Best For                                                                                     |
+| :-------------- | :------------------------------------------------ | :--------------------------------------------------------- | :--------------------------------------- | :-------------------------------------- | :--------------------------------------------------- | :------------------ | :---------------------------- | :------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| **SveltyCMS**   | BSL 1.1 (free if finances < $1M; converts to MIT) | SvelteKit 2 + Svelte 5, 5-Pillar Content Core, Drizzle ORM | Code-first + GUI + optional in-repo site | Svelte + Native UI (native, very light) | Any SQL (Postgres, MySQL, SQLite, MariaDB) + MongoDB | REST + GraphQL Yoga | **~843 KB Brotli** (smallest) | **Production Ready** (A++ Security Grade, see [Security Docs](/docs/reference/security/index.mdx)) | Svelte teams wanting same-repo CMS + site (Website Starter), or pure headless API consumers. |
+| **Sveltia CMS** | MIT (open source)                                 | Svelte (SPA)                                               | Git-based (Local)                        | Svelte (Lightweight browser-based)      | N/A (Git Repos)                                      | Git Pull/Push       | **< 500 KB** (lightest)       | High (rapid UX iterations)                                                                         | Static sites, Git-centric workflows, zero-ops deployments.                                   |
 
 | **Payload CMS** | MIT (open source); Cloud paid tier | Next.js / React, Drizzle ORM | Code-first (GUI is secondary) | React (heavier, full Next.js rebuilds required for changes) | Postgres, MongoDB | REST + GraphQL | ~3-5 MB app bundle | Very mature, deeply funded, v4 in development (Figma acquisition) | React-heavy teams wanting strict code-first schema control. |
 | **Directus** | MSCL-1.0-GPL (free for individuals & <$5M revenue; active license enforcement in v12) | Vue.js, Node.js, Knex.js | Engine-first (wraps existing SQL DBs) | Vue.js (highly polished data studio) | Any SQL (Postgres, MySQL, SQLite, Oracle) | REST + GraphQL | Medium/Large | Highly mature (v12), massive enterprise adoption | Turning an existing messy SQL database into a clean API instantly. |
@@ -49,12 +49,14 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 
 | Feature                   | SveltyCMS                                        | Payload 3.x         | Strapi 5           | Directus 11      | WordPress     |
 | ------------------------- | ------------------------------------------------ | ------------------- | ------------------ | ---------------- | ------------- |
-| **Quick-Start Templates** | ✅ 5 presets with full schemas                   | ❌                  | ❌                 | ❌               | ✅ Thousands  |
+| **Quick-Start Templates** | ✅ 7 presets (Website Starter default)           | ❌                  | ❌                 | ❌               | ✅ Thousands  |
+| **In-Repo Site Frontend** | ✅ SvelteKit + Svedit at `/` (headless toggle)   | ❌ BYO frontend     | ❌ Admin-only      | ❌ API-only      | ⚠️ Git-based  |
 | **Cold Start UX**         | ✅ Warming-up dashboard with live service status | ⚠️ Connection error | ⚠️ Loading spinner | ⚠️ System status | ✅            |
 | **Collection Builder**    | ✅ Drag-and-drop GUI + 5 templates               | ❌ Code-only        | ✅ GUI             | ✅ GUI           | ✅ ACF/CPT UI |
 
 | **API Tokens** | ✅ Website tokens — content-api + admin-api, expiry, per-token perms | ✅ | ✅ | ✅ | ⚠️ Plugin |
-| **Live Preview** | ✅ Bidirectional handshake via editable-website plugin | ✅ Field highlight | ❌ No native | ✅ | ✅ Gutenberg |
+| **Live Preview** | ✅ Free site SSR + paid iframe bridge (Editable Website, 14-day trial) | ✅ Field highlight | ❌ No native | ✅ | ✅ Gutenberg |
+| **Visual Page Builder** | ✅ Svedit blocks (free form save; inline edit via plugin) | ⚠️ Blocks plugin | ⚠️ Plugin | ⚠️ Extension | ✅ Gutenberg |
 | **Behavioral Learning** | ✅ Server-side Skinnerian reinforcement, adaptive prediction, zero PII | ❌ | ❌ | ❌ | ❌ |
 | **Predictive Preloading** | ✅ 4 strategies (hover, viewport, physics cone, behavioral smart) | ❌ | ❌ | ❌ | ❌ |
 | **Semantic Search (NPU)** | ✅ Ollama embeddings + TF-IDF fallback, local NPU/GPU acceleration | ❌ | ❌ | ❌ | ❌ |
@@ -63,6 +65,12 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 | **Admin table performance** | SSR-first data + `$derived` (no deep proxy) + row virtualization + `content-visibility: auto` + connection-aware preload + URL-state navigation. Only visible rows render as DOM. | ❌ Renders full page through React VDOM (Payload). Not documented (Strapi, Directus). | ❌ | ❌ | ❌ |
 | **Hardware-Aware Rate Lim** | ✅ Adaptive 0.8x-2.0x based on CPU/memory/event-loop pressure | ❌ | ❌ | ❌ | ❌ |
 | **Token Security** | ✅ SHA-256 hashed across all 4 adapters, atomic TOCTOU guards | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
+| **Config Promotion** | ✅ Plan-first, 8 resource types, checksum diffing, destructive confirmation | ❌ (manual only) | ❌ | ⚠️ CLI export | ❌ |
+| **Content Packages** | ✅ NDJSON streaming, 4 duplicate strategies, relation remapping | ❌ | ❌ | ⚠️ Basic JSON | ❌ |
+| **Data Migrations** | ✅ Idempotent, planHash dedup, cross-adapter lock, ledger | ⚠️ CLI-based | ❌ | ⚠️ Schema snapshots | ❌ |
+| **Backup & Restore** | ✅ Manifest + SHA-256, AES-256-GCM, restore-plan dry-run | ❌ | ❌ | ⚠️ Basic | ⚠️ Plugin |
+| **Content Sync** | ✅ Channel-based, PII anonymization, disabled-by-default | ❌ | ❌ | ❌ | ❌ |
+| **GraphQL Data Ops** | ✅ 16 types, 4 queries, 12 mutations for all domains | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited | ❌ |
 
 ### Key Performance Metrics (June 2026 — Self-Measured, Reproducible)
 
@@ -89,6 +97,8 @@ The following matrix evaluates editor-facing features where SveltyCMS now leads 
 | **Setup Seeding** | **~80 round-trips → 1 batch query** (setMany + bulkUpdate) | `bun test tests/benchmarks/database-performance.test.ts` |
 | **Cold Start (to READY)** | **404-445ms** (progressive warmup) | `bun test tests/benchmarks/cold-start-phased.test.ts` |
 | **Content Scan (1k)** | **0.006ms** (dirty-bit tree) | `bun test tests/benchmarks/content-scale-stress.test.ts` |
+| **Config Promotion Export (100 cols)** | **5.3ms avg** | `bun test tests/benchmarks/config-promotion.test.ts` |
+| **Content Package Export (100 entries)** | **1.12ms avg** | `bun test tests/benchmarks/content-package.test.ts` |
 
 > **Competitive context**: SveltyCMS achieves 1.90-5.47ms full-pipeline REST responses on SQLite (Intel i7-13700H, Bun 1.3.14) by eliminating VDOM, using compiled Svelte 5 runes, pre-compressing cache HITs, and batching relational upserts into single queries. To our knowledge based on publicly available documentation as of June 2026, typical headless CMS REST reads range from 8-50ms (Payload, Strapi, Directus) due to React/Vue hydration and Express/Koa middleware overhead. The relational batch optimization (3a/3c) reduced content sync queries by ~98%. The fire-and-forget audit (P1) eliminated blocking logger.info from the mutation hot path. Compression metrics are now exported on every benchmark run. We encourage independent comparative verification on identical hardware.
 
@@ -308,12 +318,16 @@ Payload is a mature and powerful ecosystem, particularly with its v3 Next.js int
 
 Strapi and Directus excel at GUI-first content modeling and have large plugin marketplaces. SveltyCMS is a better fit for developers who prefer a **code-centric** approach with bi-directional GUI sync and sub-millisecond core logic.
 
+### Website Starter vs. Bring-Your-Own Frontend
+
+Most headless CMS platforms (Payload, Strapi, Directus) expect teams to scaffold a separate frontend. SveltyCMS ships an **optional, recommended** in-repo SvelteKit site at `routes/(site)` with [Svedit](https://github.com/michael/svedit) block editing — seeded by the default **Website Starter** preset. Teams can disable it (`SITE_STARTER_ENABLED: false`) and consume REST/GraphQL from Astro, Next.js, or any stack. Live Preview iframe sync is a **paid marketplace plugin** (€14.99, 14-day trial); public rendering and CMS form saves remain free. See [Site Starter](/docs/development/site-starter.mdx).
+
 > [!NOTE]
 > All SveltyCMS metrics are based on our **[Performance Benchmarks](./benchmarks/index.mdx)** conducted on dedicated Intel hardware. For raw results and methodology, visit the **[Benchmarks page](./benchmarks/index.mdx)**.
 
-## 🚀 The June 2026 Gap Closure
+## 🚀 The June–July 2026 Gap Closure
 
-As of June 2026, SveltyCMS has closed every feature gap identified in the March 2026 competitive analysis:
+As of July 2026, SveltyCMS has closed every feature gap identified in the March 2026 competitive analysis, plus the default-frontend onboarding gap:
 
 | Gap (March 2026)                  | Status                                               |
 | --------------------------------- | ---------------------------------------------------- |
@@ -323,23 +337,27 @@ As of June 2026, SveltyCMS has closed every feature gap identified in the March 
 | No full-text search               | ✅ Zero-dependency DB-native FTS across all adapters |
 | No CMS migration path             | ✅ AI-smart 5-format importer                        |
 | 503 error on cold start           | ✅ Warming-up dashboard with live service status     |
-| No onboarding templates           | ✅ 5 quick-start collection presets                  |
+| No onboarding templates           | ✅ 7 setup presets (Website Starter recommended)     |
 | Basic revision history            | ✅ Per-item revisions, diff, restore, auto-cleanup   |
+| No default public frontend        | ✅ Website Starter — SvelteKit + Svedit at `/` (July 2026) |
 
-**Result**: SveltyCMS is now the only headless CMS that combines:
+**Result**: To our knowledge based on publicly available documentation as of July 2026, SveltyCMS is among the few headless CMS platforms that combine:
 
-1. **Compiled zero-overhead performance** (Svelte 5 runes — impossible for React/Vue CMS platforms)
+1. **Compiled zero-overhead performance** (Svelte 5 runes — architectural difference vs. React/Vue admin stacks)
 2. **Enterprise security by default** (crypto-chained audits, SCIM 2.0, SAML, 4-layer defense-in-depth)
 3. **Complete editorial tooling** (scheduled publishing, per-field localization, AI translation, smart migration)
 4. **No dependency bloat** (zero-dependency FTS, no MeiliSearch/Elasticsearch required, native UI components)
+5. **Same-repo site starter** (optional SvelteKit frontend with Svedit — still headless-capable via `SITE_STARTER_ENABLED`)
 
-No competitor is known to offer this specific combination as of June 2026, based on publicly available documentation. The platform is ready to serve as a competitive alternative to Payload, Strapi, and Directus across all dimensions.
-````
+The platform is ready to serve as a competitive alternative to Payload, Strapi, and Directus across performance, security, and editorial dimensions.
 
 ---
 
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)
+- [Technical Evaluation](./technical-evaluation-2026.mdx)
+- [Site Starter](/docs/development/site-starter.mdx)
 - [Performance Benchmarks](./benchmarks/index.mdx)
 - [Getting Started](../getting-started.mdx)
+````

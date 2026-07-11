@@ -51,9 +51,11 @@ function validateSortDir(dir: string): string {
   return valid.includes(dir) ? dir : "desc";
 }
 
-function validateStatus(s: string): string {
+function validateStatus(s: string): (typeof statusOptions)[number]["value"] {
   const valid = statusOptions.map((o) => o.value);
-  return valid.includes(s) ? s : StatusTypes.unpublish;
+  return valid.includes(s as (typeof valid)[number])
+    ? (s as (typeof valid)[number])
+    : StatusTypes.unpublish;
 }
 
 // ── Debounce helper (simulates the 300ms pattern) ───────────────────────

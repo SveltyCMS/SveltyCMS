@@ -23,6 +23,7 @@ import { logger } from "@utils/logger";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
 import { optimizeImage } from "@src/utils/media/webgpu-processor";
+import { uploadMediaFiles } from "@utils/media/upload-client";
 	import Button from '@components/ui/button.svelte';
 
 interface Props {
@@ -255,7 +256,6 @@ async function uploadLocalFiles() {
 	isUploading = true;
 	uploadProgress = 0;
 	const startTime = Date.now();
-	let lastLoaded = 0;
 
     // --- WebGPU OPTIMIZATION STEP ---
     let filesToUpload = [...files];
@@ -283,73 +283,23 @@ async function uploadLocalFiles() {
         }
     }
 
-	const formData = new FormData();
-	filesToUpload.forEach((file) => {
-		formData.append("files", file);
-	});
-	formData.append("folder", folder);
-
 	try {
-		const xhr = new XMLHttpRequest();
-
-		// Track upload progress
-		xhr.upload.addEventListener("progress", (e) => {
-			if (e.lengthComputable) {
-				uploadProgress = Math.round((e.loaded * 100) / e.total);
-
-				// Calculate upload speed (bytes per second)
+		let lastProgressLoaded = 0;
+		const result = await uploadMediaFiles(filesToUpload, {
+			formActionUrl: "/mediagallery?/upload",
+			folder,
+			onProgress: (percent) => {
+				uploadProgress = percent;
 				const currentTime = Date.now();
-				const timeDiff = (currentTime - startTime) / 1000; // in seconds
-				const loadedDiff = e.loaded - lastLoaded;
+				const timeDiff = (currentTime - startTime) / 1000;
+				const estimatedLoaded = (percent / 100) * filesToUpload.reduce((sum, file) => sum + file.size, 0);
+				const loadedDiff = estimatedLoaded - lastProgressLoaded;
 				uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
-				lastLoaded = e.loaded;
-			}
+				lastProgressLoaded = estimatedLoaded;
+			},
 		});
 
-		// Handle completion
-		const uploadPromise = new Promise((resolve, reject) => {
-			xhr.onload = () => {
-				if (xhr.status >= 200 && xhr.status < 300) {
-					try {
-						const response = JSON.parse(xhr.responseText);
-						let data = response.data;
-
-						// Check if data is a JSON string that needs parsing
-						if (typeof data === "string") {
-							try {
-								data = JSON.parse(data);
-								logger.debug("Parsed stringified data:", data);
-							} catch (_e) {
-								logger.warn("Data is a string but not valid JSON:", data);
-							}
-						}
-						if (response.type === "success" && data) {
-							resolve(data);
-						} else if (response.success !== undefined) {
-							resolve(response);
-						} else {
-							reject(new Error("Invalid response format"));
-						}
-					} catch (_e) {
-						reject(new Error("Invalid response format"));
-					}
-				} else {
-					reject(new Error(`Upload failed: ${xhr.status}`));
-				}
-			};
-			xhr.onerror = () => reject(new Error("Network error"));
-		});
-
-		// Post to the base mediagallery route's upload form action
-		xhr.open("POST", "/mediagallery?/upload");
-		xhr.send(formData);
-
-		const result: any = await uploadPromise;
-		const success = Array.isArray(result)
-			? result[0]?.success
-			: result?.success;
-
-		if (success) {
+		if (result.success) {
 			toast.success("Files uploaded successfully");
 			handleCancel();
 			onUploadComplete();
@@ -357,10 +307,7 @@ async function uploadLocalFiles() {
 				goto("/mediagallery", { invalidateAll: true });
 			}
 		} else {
-			throw new Error(
-				(Array.isArray(result) ? result[0]?.error : result?.error) ||
-					"Upload failed",
-			);
+			throw new Error(result.message || "Upload failed");
 		}
 	} catch (error) {
 		logger.error("Error uploading files:", error);

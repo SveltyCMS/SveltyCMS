@@ -22,6 +22,14 @@ import type {
   AutomationNamespace,
   WebsiteTokensNamespace,
 } from "./namespaces/misc-namespaces";
+import type {
+  ConfigurationNamespace,
+  ContentTransferNamespace,
+  MigrationNamespace,
+  ImportersNamespace,
+  BackupNamespace,
+  ContentSyncNamespace,
+} from "./namespaces/data-operations";
 import type { VirtualCollectionsNamespace } from "./namespaces/virtual-collections-namespace";
 import { traceSpan } from "@utils/context";
 import { defineLazyNamespace } from "@src/databases/core/proxy-utils";
@@ -74,6 +82,12 @@ export class LocalCMS {
   public readonly automation!: AutomationNamespace;
   public readonly websiteTokens!: WebsiteTokensNamespace;
   public readonly virtualCollections!: VirtualCollectionsNamespace;
+  public readonly config!: ConfigurationNamespace;
+  public readonly contentTransfer!: ContentTransferNamespace;
+  public readonly migrations!: MigrationNamespace;
+  public readonly importers!: ImportersNamespace;
+  public readonly backups!: BackupNamespace;
+  public readonly contentSync!: ContentSyncNamespace;
 
   /**
    * Access the underlying database adapter directly.
@@ -169,6 +183,37 @@ export class LocalCMS {
         new VirtualCollectionsNamespace(this._dbAdapter),
       );
     });
+
+    // ── Data Operation Namespaces ──────────────────────────────────────────
+    defineLazyNamespace(this, "config", async () => {
+      const { ConfigurationNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace("config", new ConfigurationNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "contentTransfer", async () => {
+      const { ContentTransferNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace("contentTransfer", new ContentTransferNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "migrations", async () => {
+      const { MigrationNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace("migrations", new MigrationNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "importers", async () => {
+      const { ImportersNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace("importers", new ImportersNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "backups", async () => {
+      const { BackupNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace("backups", new BackupNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "contentSync", async () => {
+      const { ContentSyncNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace("contentSync", new ContentSyncNamespace(this._dbAdapter));
+    });
   }
 
   /**
@@ -218,6 +263,12 @@ export class LocalCMS {
       websiteTokens: cms.websiteTokens,
       widgets: cms.widgets,
       virtualCollections: cms.virtualCollections,
+      config: cms.config,
+      contentTransfer: cms.contentTransfer,
+      migrations: cms.migrations,
+      importers: cms.importers,
+      backups: cms.backups,
+      contentSync: cms.contentSync,
     };
   }
 

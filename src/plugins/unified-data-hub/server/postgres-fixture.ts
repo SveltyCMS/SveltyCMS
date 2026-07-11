@@ -35,13 +35,17 @@ function assertIdentifier(value: string): string {
 
 /** Connection string for the external federation Postgres (Docker default). */
 export function getFixtureConnectionString(): string {
+  // NOTE: Do NOT fall back to process.env.DB_PORT / DB_USER / DB_PASSWORD here.
+  // Those are the CMS database env vars (mariadb on 3306, mongodb on 27017, etc.).
+  // The UDH fixture is an independent Postgres container always on 5432 with
+  // Docker default Postgres credentials. Falling back to DB_PORT would cause the
+  // postgres library to connect to the wrong port and hang on protocol handshake.
   const host = process.env.UDH_PG_HOST || process.env.DB_HOST || "127.0.0.1";
-  const port = process.env.UDH_PG_PORT || process.env.DB_PORT || "5432";
-  // UDH fixture uses Docker integration DB — not CMS DB_NAME (benchmarks set bench_parent).
+  const port = process.env.UDH_PG_PORT || "5432";
   const database = process.env.UDH_PG_DATABASE || getIntegrationDbName();
   const creds = getDockerDefaultDbCredentials("postgresql");
-  const user = process.env.UDH_PG_USER || process.env.DB_USER || creds.user;
-  const password = process.env.UDH_PG_PASSWORD || process.env.DB_PASSWORD || creds.password;
+  const user = process.env.UDH_PG_USER || creds.user;
+  const password = process.env.UDH_PG_PASSWORD || creds.password;
   const encoded = encodeURIComponent(password);
   return `postgres://${user}:${encoded}@${host}:${port}/${database}`;
 }

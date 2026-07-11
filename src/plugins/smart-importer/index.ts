@@ -148,7 +148,7 @@ export const smartImporterPlugin: Plugin = {
   },
   migrations,
   hooks: {
-    beforeSave: async (context, _collection, data) => {
+    beforeSave: async (_context, _collection, data) => {
       // Pro-tier platforms require a license
       if (data._importerUseProPlatform || data._importerUseProFeatures) {
         const { checkExtensionLicense } = await import("@src/utils/license-manager");

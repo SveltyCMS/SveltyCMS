@@ -4,7 +4,6 @@
 # =============================================================================
 # Runs on STAGED FILES ONLY via lint-staged (.lintstagedrc.json):
 #   • oxfmt (auto-format), oxlint --deny-warnings, slop-scanner (src/**)
-#   • lint-admin-theme (src/routes/(app)/**)
 #   • lint-docs (docs/**)
 #   • check-test-db-safety (pre-check)
 #

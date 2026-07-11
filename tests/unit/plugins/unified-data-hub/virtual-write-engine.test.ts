@@ -17,7 +17,7 @@ vi.mock("@src/utils/license-manager", () => ({
   })),
 }));
 
-const TENANT = "default";
+const TENANT = "default" as DatabaseId;
 const CONNECTOR_ID = "conn-pg-1" as DatabaseId;
 const COLLECTION_ID = "vc-articles" as DatabaseId;
 
@@ -66,7 +66,9 @@ const collection = {
   updatedAt: "2026-07-09T00:00:00.000Z",
 };
 
-function createMockDb(connector = writableConnector) {
+type MockConnector = typeof writableConnector | typeof restConnector;
+
+function createMockDb(connector: MockConnector = writableConnector) {
   return {
     crud: {
       findOne: vi.fn(async (col: string, query: any) => {

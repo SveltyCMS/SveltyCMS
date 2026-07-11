@@ -1,0 +1,319 @@
+---
+path: "docs/reference/api/importers.mdx"
+title: "External Importers"
+description: "Reference for the external importers API — validate, preview, and run imports from WordPress, Drupal, Strapi, Directus, CSV, and JSON with auto-detection and scaffold mode."
+order: 102
+icon: "mdi:database-import"
+author: "SveltyCMS Team"
+created: "2026-07-10"
+updated: "2026-07-10"
+tags:
+  - "api"
+  - "importers"
+  - "migration"
+  - "wordpress"
+  - "drupal"
+  - "data"
+---
+
+# External Importers
+
+The External Importers API provides a unified interface for importing content from third-party CMS platforms and generic data formats. It supports auto-detection of source formats, heuristic field mapping, and a preview-before-run workflow.
+
+> [!IMPORTANT]
+> All importer endpoints are **admin-gated**. GET requests require `content:read`, POST requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature             | HTTP Endpoint                | Method | Permission      |
+| :------------------ | :--------------------------- | :----- | :-------------- |
+| **List Sources**    | `/api/importers/sources`     | `GET`  | `content:read`  |
+| **Validate Source** | `/api/importers/validate`    | `POST` | `content:write` |
+| **Preview Import**  | `/api/importers/preview`     | `POST` | `content:write` |
+| **Run Import**      | `/api/importers/run`         | `POST` | `content:write` |
+| **Job Status**      | `/api/importers/jobs/:jobId` | `GET`  | `content:read`  |
+
+---
+
+## 1. Source Discovery
+
+### List Supported Sources
+
+Returns all supported import source formats and their capabilities.
+
+**Endpoint**: `GET /api/importers/sources`
+
+**Response**:
+
+```json
+{
+  "sources": [
+    {
+      "format": "wordpress",
+      "label": "WordPress WXR",
+      "extensions": [".xml", ".wxr"],
+      "description": "WordPress eXtended RSS export files",
+      "features": ["auto-detect", "acf-detection", "media-import", "author-mapping"]
+    },
+    {
+      "format": "drupal",
+      "label": "Drupal",
+      "extensions": [".json", ".tar.gz"],
+      "description": "Drupal content and configuration exports",
+      "features": ["auto-detect", "content-type-mapping", "taxonomy-import"]
+    },
+    {
+      "format": "strapi",
+      "label": "Strapi",
+      "extensions": [".json", ".tar.gz"],
+      "description": "Strapi v4 content-type exports",
+      "features": ["auto-detect", "component-mapping", "media-import"]
+    },
+    {
+      "format": "directus",
+      "label": "Directus",
+      "extensions": [".json"],
+      "description": "Directus collection exports",
+      "features": ["auto-detect", "flow-mapping"]
+    },
+    {
+      "format": "sveltycms",
+      "label": "SveltyCMS",
+      "extensions": [".ndjson"],
+      "description": "SveltyCMS NDJSON content export",
+      "features": ["auto-detect", "syncId-matching"]
+    },
+    {
+      "format": "csv",
+      "label": "CSV",
+      "extensions": [".csv", ".tsv"],
+      "description": "Tabular data files with column headers",
+      "features": ["auto-detect", "column-mapping", "delimiter-detection"]
+    },
+    {
+      "format": "json",
+      "label": "JSON",
+      "extensions": [".json"],
+      "description": "Structured JSON arrays or NDJSON streams",
+      "features": ["auto-detect", "schema-inference"]
+    }
+  ]
+}
+```
+
+---
+
+## 2. Import Workflow
+
+The external import workflow follows a validate → preview → run pattern. The system auto-detects the source format where possible, and the preview step shows exactly what will be created before any data is written.
+
+### Validate Source
+
+Analyzes the uploaded file to auto-detect its format and verify structural integrity.
+
+**Endpoint**: `POST /api/importers/validate`
+
+**Payload** (multipart/form-data):
+
+| Field    | Type     | Required | Description                                     |
+| :------- | :------- | :------- | :---------------------------------------------- |
+| `file`   | `binary` | ✅       | The source export file to validate              |
+| `format` | `string` | —        | Explicit format hint (auto-detected if omitted) |
+
+**Response**:
+
+```json
+{
+  "valid": true,
+  "detectedFormat": "wordpress",
+  "confidence": 0.98,
+  "summary": {
+    "posts": 523,
+    "pages": 12,
+    "media": 847,
+    "authors": 4,
+    "categories": 18,
+    "tags": 56
+  },
+  "acfFields": ["hero_image", "call_to_action", "testimonial_quote"],
+  "warnings": [{ "message": "4 media files have broken URLs — these will be skipped" }],
+  "blockedReasons": []
+}
+```
+
+### Preview Import
+
+Generates a mapping plan showing how source entities will be transformed into target collections, with field-level mapping previews.
+
+**Endpoint**: `POST /api/importers/preview`
+
+**Payload**:
+
+```json
+{
+  "format": "wordpress",
+  "mappings": {
+    "posts": "blog-posts",
+    "pages": "pages"
+  },
+  "scaffold": false
+}
+```
+
+| Field      | Type      | Required | Description                                                                   |
+| :--------- | :-------- | :------- | :---------------------------------------------------------------------------- |
+| `format`   | `string`  | ✅       | Source format (from `/api/importers/sources`)                                 |
+| `mappings` | `object`  | —        | Source-to-target collection mapping overrides (auto-mapped if omitted)        |
+| `scaffold` | `boolean` | —        | Scaffold mode: create collections automatically if missing (default: `false`) |
+
+**Response**:
+
+```json
+{
+  "planId": "import_preview_d4e5f6",
+  "format": "wordpress",
+  "scaffold": false,
+  "fieldMappings": [
+    {
+      "sourceField": "post_title",
+      "targetField": "title",
+      "confidence": 1.0,
+      "type": "text"
+    },
+    {
+      "sourceField": "post_content",
+      "targetField": "body",
+      "confidence": 1.0,
+      "type": "richtext"
+    },
+    {
+      "sourceField": "acf_hero_image",
+      "targetField": "heroImage",
+      "confidence": 0.85,
+      "type": "media"
+    }
+  ],
+  "operations": [
+    { "action": "create", "sourceType": "post", "targetCollection": "blog-posts", "count": 523 },
+    { "action": "create", "sourceType": "page", "targetCollection": "pages", "count": 12 },
+    {
+      "action": "create",
+      "sourceType": "attachment",
+      "targetCollection": null,
+      "count": 847,
+      "note": "Media imported via media library"
+    }
+  ],
+  "estimatedDurationMs": 45000
+}
+```
+
+> [!NOTE]
+> ACF (Advanced Custom Fields) detection is supported for WordPress WXR files. Detected ACF fields are included in the field mappings with their detected type.
+
+### Run Import
+
+Executes the import based on the previewed plan. Large imports return a `jobId` for async tracking.
+
+**Endpoint**: `POST /api/importers/run`
+
+**Payload**:
+
+```json
+{
+  "planId": "import_preview_d4e5f6",
+  "confirmed": true
+}
+```
+
+| Field       | Type      | Required | Description                                                     |
+| :---------- | :-------- | :------- | :-------------------------------------------------------------- |
+| `planId`    | `string`  | ✅       | Plan identifier from the `POST /api/importers/preview` response |
+| `confirmed` | `boolean` | ✅       | Must be `true` — explicit user confirmation required            |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "jobId": "import_job_wp_abc456",
+  "status": "processing",
+  "message": "Import started. Track progress via GET /api/importers/jobs/import_job_wp_abc456"
+}
+```
+
+### Import Job Status
+
+**Endpoint**: `GET /api/importers/jobs/:jobId`
+
+**Response**:
+
+```json
+{
+  "jobId": "import_job_wp_abc456",
+  "status": "completed",
+  "format": "wordpress",
+  "progress": { "processed": 1382, "total": 1382 },
+  "results": {
+    "posts": { "imported": 523, "failed": 0 },
+    "pages": { "imported": 12, "failed": 0 },
+    "media": { "imported": 843, "failed": 4 }
+  },
+  "durationMs": 42300,
+  "completedAt": "2026-07-10T14:20:30.000Z"
+}
+```
+
+---
+
+## 3. Scaffold Mode
+
+When `scaffold: true` is set in the preview payload, the importer will auto-create any target collections that do not already exist in the instance:
+
+- Collection schemas are inferred from source field types
+- Default field widgets are assigned based on detected types
+- A `_source_import` metadata field tracks the origin format and timestamp
+- Scaffolded collections use the source entity name as the collection name by default
+
+> [!IMPORTANT]
+> Scaffold mode is intended for initial onboarding and evaluation imports. For production-quality imports, pre-create your collections with the desired schema and use explicit field mappings.
+
+---
+
+## 4. SSE Streaming (Smart Importer Plugin)
+
+For full end-to-end migration with real-time progress, SveltyCMS provides a dedicated smart-importer plugin that streams import progress via Server-Sent Events:
+
+**Endpoint**: `POST /api/migration/import`
+
+This SSE endpoint handles file upload, format detection, preview, and execution in a single streaming connection:
+
+```
+event: progress
+data: {"step":"detecting","message":"Analyzing file format...","percent":10}
+
+event: progress
+data: {"step":"parsing","message":"Parsed 523 posts, 12 pages, 847 media","percent":30}
+
+event: progress
+data: {"step":"mapping","message":"Field mapping complete — 15 fields matched","percent":50}
+
+event: progress
+data: {"step":"importing","message":"Imported 200 of 1382 items","percent":65}
+
+event: complete
+data: {"imported":1382,"failed":0,"durationMs":42300}
+```
+
+> [!NOTE]
+> The SSE endpoint at `/api/migration/import` is the recommended path for full-scale CMS migrations. It combines format detection, preview, and execution into one real-time stream with granular progress events.
+
+---
+
+## Next Steps
+
+- [Content Export & Import](./content-transfer.mdx) — Transfer content between SveltyCMS instances with NDJSON streaming.
+- [Data Migrations](./data-migrations.mdx) — Apply and verify schema migrations with risk scoring.
+- [Backup & Restore](./backups.mdx) — Full-instance backup with safety gating and encryption.

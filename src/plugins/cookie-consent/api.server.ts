@@ -8,7 +8,7 @@
  * - Records timestamp, consent choices, and tracking metadata
  */
 
-import type { IDBAdapter } from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 
 interface ConsentPayload {
@@ -58,9 +58,9 @@ export async function handleConsentLog(
       acceptedAt: payload.acceptedAt,
       userAgent: payload.userAgent || "unknown",
       origin: payload.origin || "unknown",
-      tenantId,
+      tenantId: tenantId as DatabaseId,
       createdAt: new Date().toISOString(),
-    });
+    } as Record<string, unknown>);
 
     logger.info("[CookieConsent] Consent decision logged", {
       consentId: payload.consentId,

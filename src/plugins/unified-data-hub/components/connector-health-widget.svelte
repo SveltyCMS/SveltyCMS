@@ -50,7 +50,11 @@
   }
 </script>
 
-<AdminCard title="Unified Data Hub" icon="mdi:database-sync">
+<AdminCard>
+  <div class="mb-3 flex items-center gap-2">
+    <iconify-icon icon="mdi:database-sync" width="20" class="text-primary-500"></iconify-icon>
+    <h3 class="text-sm font-semibold text-surface-800 dark:text-surface-100">Unified Data Hub</h3>
+  </div>
   {#if loading}
     <p class="text-sm text-surface-500">Loading connector health…</p>
   {:else if !summary}

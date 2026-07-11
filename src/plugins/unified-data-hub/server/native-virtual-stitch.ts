@@ -73,7 +73,6 @@ export async function executeVirtualEnrichByKeys(
       data: {},
       meta: {
         connectorId: "",
-        keyCount: 0,
         matched: 0,
         staleness: "real-time",
         ...computeStitchTelemetry(0),
@@ -121,7 +120,6 @@ export async function executeVirtualEnrichByKeys(
     action: "read",
     meta: {
       enrich: true,
-      keyCount: keys.length,
       matched,
       ...telemetry,
     },
@@ -131,7 +129,6 @@ export async function executeVirtualEnrichByKeys(
     data,
     meta: {
       connectorId: result.meta.connectorId,
-      keyCount: keys.length,
       matched,
       staleness: result.meta.staleness,
       ...telemetry,

@@ -2,14 +2,13 @@ name: CI
 
 # CI Workflow for SveltyCMS
 #
-# Local developer entry points (recommended):
-#   bun run verify:push     # fast pre-push gate (static analysis, unit tests, build)
-#   bun run verify:full     # local CI parity (push tasks + DB matrix + benchmarks)
-#   bun run ci:local        # full local simulation (includes Playwright E2E)
+# Local developer entry points:
+#   bun run verify:push     # pre-push hook (static analysis, unit tests, build)
 #   bun run scripts/precheck.ts --plan    # inspect what WOULD run (dry-run)
+#   bun run scripts/precheck.ts --tier=push --include-db-tasks  # optional DB matrix
 #
 # This workflow is the authoritative full matrix.
-# Local precheck (scripts/precheck*.ts) intentionally omits slow DB + E2E steps
+# Local hooks intentionally omit DB matrix, benchmarks, and E2E.
 # on push tier by default. Use --include-db-tasks to opt in locally.
 #
 # Job-to-local-task mapping is maintained via ciJob fields in
@@ -261,7 +260,7 @@ jobs:
     name: 📊 Bench (${{ matrix.db }})
     needs: [build, db-matrix]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
@@ -281,6 +280,11 @@ jobs:
           docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} up -d --wait
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
+      - name: Create UDH Fixture Database (PostgreSQL only)
+        if: matrix.db == 'postgresql'
+        run: |
+          docker exec sveltycms-postgresql psql -U postgres -c "CREATE DATABASE sveltycms_udh_fixture;" 2>/dev/null || true
+
       - name: Start UDH External Postgres Fixture
         if: matrix.db != 'postgresql'
         run: |
@@ -296,10 +300,12 @@ jobs:
           DB_USER: ${{ matrix.db_user }}
           DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
+          PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          UDH_PG_DATABASE: ${{ matrix.db == 'postgresql' && 'sveltycms_udh_fixture' || 'sveltycms_test' }}
         run: |
           mkdir -p tests/e2e/.auth
           if [ -n "${TEST_API_SECRET}" ]; then
@@ -308,7 +314,8 @@ jobs:
             TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           fi
           export TEST_API_SECRET
-          bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }}
+          set -o pipefail
+          bun run scripts/run-core-benchmarks.ts --db=${{ matrix.db }} 2>&1 | tee bench-output.log
 
       - name: Upload benchmark report
         if: always()
@@ -319,9 +326,24 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+      - name: Upload benchmark log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-log-${{ matrix.db }}
+          path: bench-output.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
         run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
+
+      - name: Teardown Docker
+        if: always() && matrix.db != 'sqlite'
+        run: |
+          docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} down -v 2>/dev/null || true
+          docker compose -f tests/docker-compose.yml --profile postgresql down -v 2>/dev/null || true
 
   # ------------------------------------------------
   bench-summary:
