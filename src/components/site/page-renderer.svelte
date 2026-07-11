@@ -45,7 +45,7 @@
   const blocks = $derived(parseContent(page.content));
   const sveditDocument = $derived(parseSveditContent(page.content));
   const hasHero = $derived(!!(page.heroHeading || page.heroSubheading || page.ctaText));
-  const sanitizedBody = $derived(page.body ? sanitizeHtml(page.body) : "");
+  const sanitizedBody = $derived(page.body ? sanitizeHtml(typeof page.body === "string" ? page.body : "") : "");
   const sanitizedBlockHtml = (raw: string | undefined) => sanitizeHtml(raw || "");
 
   function handleSveditChange(document: SveditDocument) {
@@ -64,7 +64,7 @@
   {#if hasHero}
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <section
-      class="mb-12 rounded-2xl bg-gradient-to-br from-primary-500/10 via-surface-50 to-tertiary-500/10 p-8 dark:from-primary-500/20 dark:via-surface-900 dark:to-tertiary-500/10"
+      class="mb-12 rounded-2xl bg-linear-to-br from-primary-500/10 via-surface-50 to-tertiary-500/10 p-8 dark:from-primary-500/20 dark:via-surface-900 dark:to-tertiary-500/10"
       data-svelty-field="heroHeading"
       onclick={() => handleFieldClick("heroHeading")}
       onkeydown={(e) => e.key === "Enter" && handleFieldClick("heroHeading")}

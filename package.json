@@ -118,7 +118,7 @@
     "packages:check": "bun run packages:build -- --check"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1084.0",
+    "@aws-sdk/client-s3": "^3.1085.0",
     "@better-svelte-email/components": "^2.1.1",
     "@better-svelte-email/preview": "^2.1.1",
     "@better-svelte-email/server": "^2.1.1",
@@ -128,7 +128,7 @@
     "@mcp-b/webmcp-polyfill": "^4.0.0",
     "@node-saml/node-saml": "^5.1.0",
     "@opentelemetry/api": "^1.9.1",
-    "@smithy/node-http-handler": "^4.9.4",
+    "@smithy/node-http-handler": "^4.9.5",
     "@sveltejs/kit": "^2.69.2",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/node": "^4.3.2",
@@ -186,7 +186,7 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.23.0",
-    "typescript": "^6.0.3",
+    "typescript": "^6",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.67.0",
     "uqr": "^0.1.3",
     "valibot": "^1.4.2",
