@@ -422,7 +422,10 @@ describe("Plugin Registration", () => {
     const plugin = mod.default || mod.smartImporterPlugin;
     expect(plugin.metadata.id).toBe("smart-importer");
     expect(plugin.metadata.version).toBe("2.1.0");
-    expect(plugin.config.public.supportedFormats.free).toHaveLength(5);
-    expect(plugin.config.public.supportedFormats.pro.length).toBeGreaterThan(30);
+    const supportedFormats = plugin.config?.public?.supportedFormats as
+      | { free: string[]; pro: string[] }
+      | undefined;
+    expect(supportedFormats?.free).toHaveLength(5);
+    expect(supportedFormats?.pro.length).toBeGreaterThan(30);
   });
 });

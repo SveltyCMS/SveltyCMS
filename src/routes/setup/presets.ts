@@ -63,6 +63,10 @@ export interface CollectionPreset {
   description: string;
   /** Field definitions */
   fields: FieldTemplate[];
+  /** Enable live preview for this collection */
+  livePreview?: boolean | string;
+  /** Plugin IDs to enable on this collection */
+  plugins?: string[];
 }
 
 export interface Preset {
@@ -72,6 +76,8 @@ export interface Preset {
   icon: string;
   id: string;
   title: string;
+  /** Shown in setup wizard as the recommended default path */
+  recommended?: boolean;
   /** Optional collection schemas for Quick-Start templates */
   collections?: CollectionPreset[];
 }
@@ -1439,11 +1445,145 @@ const ecommerceCollections: CollectionPreset[] = [
   },
 ];
 
+/** Website starter: Pages collection for the in-repo SvelteKit site template */
+const websiteStarterCollections: CollectionPreset[] = [
+  {
+    name: "pages",
+    label: "Pages",
+    icon: "mdi:file-document-outline",
+    description: "Frontend pages for the in-repo SvelteKit site starter with Svedit block editing",
+    livePreview: "/{slug}?lang={lang}",
+    plugins: ["editable-website"],
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        type: "input",
+        widget: "text",
+        required: true,
+        translated: true,
+        helper: "Page title shown in browser tab and headings",
+      },
+      {
+        db_fieldName: "slug",
+        label: "Slug",
+        type: "slug",
+        widget: "slug",
+        required: true,
+        translated: false,
+        helper: "URL path — use 'home' for the homepage (/)",
+      },
+      {
+        db_fieldName: "pageType",
+        label: "Page Type",
+        type: "select",
+        widget: "select",
+        required: true,
+        translated: false,
+        helper: "static = fully CMS-driven; template = mixed with dynamic routes",
+        default: "static",
+        options: ["static", "template"],
+      },
+      {
+        db_fieldName: "template",
+        label: "Template",
+        type: "select",
+        widget: "select",
+        required: false,
+        translated: false,
+        helper: "Frontend layout template key",
+        default: "default",
+        options: ["homepage", "default", "search", "product-detail"],
+      },
+      {
+        db_fieldName: "heroHeading",
+        label: "Hero Heading",
+        type: "input",
+        widget: "text",
+        required: false,
+        translated: true,
+        helper: "Large hero headline",
+      },
+      {
+        db_fieldName: "heroSubheading",
+        label: "Hero Subheading",
+        type: "textarea",
+        widget: "text",
+        required: false,
+        translated: true,
+        helper: "Supporting hero text",
+      },
+      {
+        db_fieldName: "body",
+        label: "Body",
+        type: "richtext",
+        widget: "richtext",
+        required: false,
+        translated: true,
+        helper: "Main page content (HTML)",
+      },
+      {
+        db_fieldName: "ctaText",
+        label: "CTA Text",
+        type: "input",
+        widget: "text",
+        required: false,
+        translated: true,
+        helper: "Call-to-action button label",
+      },
+      {
+        db_fieldName: "ctaHref",
+        label: "CTA Link",
+        type: "input",
+        widget: "text",
+        required: false,
+        translated: false,
+        helper: "Call-to-action URL",
+      },
+      {
+        db_fieldName: "content",
+        label: "Page Layout (Svedit)",
+        type: "textarea",
+        widget: "text",
+        required: false,
+        translated: false,
+        helper: "Primary page layout as a Svedit document JSON — edited inline in Live Preview",
+      },
+      {
+        db_fieldName: "seo",
+        label: "SEO",
+        type: "seo",
+        widget: "seo",
+        required: false,
+        translated: true,
+        helper: "Search engine metadata",
+      },
+    ],
+  },
+];
+
 // =============================================================================
 // Complete Preset Definitions
 // =============================================================================
 
 export const PRESETS: Preset[] = [
+  {
+    id: "website",
+    title: "Website Starter",
+    description:
+      "Recommended: SvelteKit frontend in the same repo with Svedit inline page design. Includes a seeded homepage, Pages collection, and Live Preview. Still headless-ready — swap the frontend for Astro/React later.",
+    icon: "mdi:web",
+    recommended: true,
+    features: [
+      "SvelteKit Site Starter",
+      "Svedit Block Editing",
+      "Seeded Homepage",
+      "Live Preview Plugin",
+      "Pages Collection",
+    ],
+    complexity: "simple",
+    collections: websiteStarterCollections,
+  },
   {
     id: "blank",
     title: "Blank Project",

@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-06-23"
+updated: "2026-07-10"
 tags:
   - "architecture"
   - "media"
@@ -29,7 +29,10 @@ The system follows a strict 4-layer architecture to ensure storage and framework
 graph TB
     subgraph "Client Layer (Svelte 5 Runes)"
         UI[Media Gallery UI]
-        UW[MediaUpload Widget]
+        MODAL[media-details-modal.svelte]
+        UW[local-upload.svelte]
+        UPLOAD[upload-client.ts]
+        DASH[media-storage-analytics-widget]
         VGRID[virtual-media-grid.svelte]
         EDITOR[ImageEditor Shell]
         WGPU[WebGPU/WASM Optimizer]
@@ -37,9 +40,10 @@ graph TB
 
     subgraph "API Layer (src/routes/api/[...path])"
         API1[GET /api/media]
-        API2[POST /api/media/edit]
-        API3[POST /api/media/process]
-        API4[GET /api/media/transform]
+        API2[POST /api/media/stream]
+        API3[GET /api/media/analytics]
+        API4[GET /api/media/bulk-download]
+        API5[GET /api/media/version/compare]
     end
 
     subgraph "Media Engine (src/utils/media/)"
@@ -63,10 +67,21 @@ graph TB
 
     UI --> VGRID
     VGRID --> API1
+    UI --> MODAL
+    MODAL --> API5
+    UI --> UPLOAD
+    UW --> UPLOAD
+    UPLOAD --> API2
+    UPLOAD --> API1
+    DASH --> API3
+    UI --> API4
     UI --> EDITOR
-    WGPU --> UI
-    EDITOR --> API2
+    WGPU --> UW
+    EDITOR --> MS
     API2 --> MS
+    API3 --> ANALYTICS
+    API4 --> BULK
+    API5 --> VERSIONS
     MS --> MPS
     MS --> MST
     MST --> CS
@@ -121,7 +136,8 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 ### Phase I: Ingestion (Client-Side & Hashing)
 
-- **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth.
+- **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth (`local-upload.svelte`).
+- **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved.
 - **Hash-First Approach**: Every file is identified by a **20-character SHA-256 hash**. This hash is the primary key for global deduplication across the entire system.
 - **SlimSniffer**: A lightweight native Magic Byte inspector replaces heavy MIME detection libraries, ensuring instant file validation.
 
@@ -142,6 +158,30 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 - **On-the-Fly Transforms**: Responsive images are generated via `GET /api/media/transform` using the `Sharp.js` thread pool and instance cloning for ~70% lower latency.
 - **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
 - **Lazy Loading**: `virtual-media-grid.svelte` handles 10,000+ files with sub-millisecond scroll performance using Svelte 5 runes.
+
+---
+
+## 🗂️ DAM Admin UI Integration
+
+The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third-party asset browser required.
+
+| Feature                   | UI Surface                                               | API / Utility                                           |
+| :------------------------ | :------------------------------------------------------- | :------------------------------------------------------ |
+| **Bulk archive download** | Selection toolbar in `mediagallery/+page.svelte`         | `GET /api/media/bulk-download?id=…` → TAR.GZ            |
+| **Storage analytics**     | Dashboard widget `media-storage-analytics-widget.svelte` | `GET /api/media/analytics` (60s poll)                   |
+| **Version diff**          | Versions tab in `media-details-modal.svelte`             | `GET /api/media/version/{id}/compare?from=&to=`         |
+| **Version history**       | Versions tab (upload, restore, download)                 | `POST /api/media/version/{id}`, `/restore`, `/upload`   |
+| **Secure share links**    | Share tab in `media-details-modal.svelte`                | `POST /api/media/share/{id}`, `DELETE …/{token}`        |
+| **Streaming upload**      | Gallery toolbar + `local-upload.svelte`                  | `upload-client.ts` → form action or `/api/media/stream` |
+
+### Media Details Modal
+
+`media-details-modal.svelte` is the asset control center with four tabs:
+
+1. **Info** — Inline editable name, alt text, caption, and tags (`PATCH /api/media/{id}`).
+2. **Versions** — Upload new version, restore historical copies, compare two versions with field-level diffs.
+3. **References** — Live scan of collection entries referencing the asset (`GET /api/media/references/{id}`).
+4. **Share** — Generate expiring, password-protected public links and revoke active tokens.
 
 ---
 

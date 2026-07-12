@@ -7,7 +7,7 @@
 #   • production build (always on any change)
 #   • progress dashboard with ETA, per-task timing, and error remediation
 #
-# 4-DB integration + benchmarks run in CI only (bun run ci:local for local).
+# 4-DB integration + benchmarks + E2E run in GitHub CI only.
 #
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push'.
 # =============================================================================

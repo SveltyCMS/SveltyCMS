@@ -78,7 +78,7 @@ async function runPayloadAudit() {
     const preallocatedFormData: FormData[] = Array.from({ length: uploadIterations }, () => {
       const { buffer, name } = generatePayload(sizeMb);
       const fd = new FormData();
-      fd.append("file", new Blob([buffer]), name);
+      fd.append("file", new Blob([new Uint8Array(buffer)]), name);
       return fd;
     });
 

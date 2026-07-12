@@ -257,7 +257,7 @@ export function getDefaultSessionManager(): SessionStore {
 }
 
 export function setDefaultSessionManager(manager: SessionStore): void {
-  defaultManager = manager;
+  (globalThis as Record<string, unknown>)[SESSION_STORE_GLOBAL_KEY] = manager;
 }
 
 // Legacy aliases for backward compatibility

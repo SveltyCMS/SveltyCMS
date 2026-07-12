@@ -31,7 +31,26 @@ export type WebhookEvent =
   | "entry:publish"
   | "entry:unpublish"
   | "media:upload"
-  | "media:delete";
+  | "media:delete"
+  // Config promotion events
+  | "config.exported"
+  | "config.plan.created"
+  | "config.applied"
+  // Content package events
+  | "content.exported"
+  | "content.import.started"
+  | "content.import.completed"
+  // Backup events
+  | "backup.created"
+  | "backup.restore.started"
+  | "backup.restore.completed"
+  // Migration events
+  | "migration.applied"
+  | "migration.verified"
+  | "migration.failed"
+  // Content sync events
+  | "content.sync.started"
+  | "content.sync.completed";
 
 export class WebhookService {
   private static instance: WebhookService | null = null;

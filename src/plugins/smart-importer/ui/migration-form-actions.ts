@@ -61,7 +61,7 @@ export async function postPluginPageAction<T extends Record<string, unknown>>(
   const response = await fetch(PLUGIN_API, { method: "POST", body: formData });
   const result = (await response.json()) as { data?: T; error?: string } & T;
   if (!response.ok && result.error) {
-    return { success: false, error: result.error } as T;
+    return { success: false, error: result.error } as unknown as T;
   }
   return unwrapFormActionResult(result);
 }

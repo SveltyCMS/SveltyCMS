@@ -257,7 +257,7 @@ Inputs, Cards, and semantic color palettes without Storybook.
       <p class="text-xs text-surface-400 text-center pb-4">
         Contributing? See
         <a href="https://docs.sveltycms.com" target="_blank" rel="noopener" class="text-tertiary-500 dark:text-primary-500 underline">style-guide-gui.mdx</a>
-        in the repo docs. CI enforces <code class="text-[10px]">lint:admin-theme</code> on admin routes.
+        in the repo docs.
       </p>
     {/if}
   </div>

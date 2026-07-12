@@ -512,8 +512,8 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 
 	function resolveScreenPoint(
 		e: MouseEvent,
-		width: number,
-		height: number,
+		_width: number,
+		_height: number,
 		canvasX: number | undefined = undefined,
 		canvasY: number | undefined = undefined
 	) {

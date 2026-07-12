@@ -14,7 +14,7 @@ import { slotRegistry } from "@src/plugins/slot-registry";
 import type { PluginSlot, InjectionZone } from "@src/plugins/types";
 
 // Verify the zone is in the type system (compile-time check)
-const _zone: InjectionZone = "image_editor_tool";
+void ("image_editor_tool" satisfies InjectionZone);
 
 const mockComponent = () => Promise.resolve({ default: () => null });
 const mockServer = () => Promise.resolve({ actions: {} });

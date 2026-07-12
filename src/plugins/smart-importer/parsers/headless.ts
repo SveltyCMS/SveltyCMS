@@ -55,14 +55,17 @@ export function parseContentfulExport(jsonText: string, token: string): SNCEnvel
       };
 
       // Resolve referenced assets
-      for (const [key, value] of Object.entries(fields)) {
-        const localized = value?.[locale] || value;
-        if (localized?.sys?.type === "Link" && localized.sys.linkType === "Asset") {
-          const asset = assets.get(localized.sys.id);
+      for (const [key, value] of Object.entries(
+        fields as Record<string, Record<string, unknown>>,
+      )) {
+        const localized = (value?.[locale] ?? value) as Record<string, unknown> | undefined;
+        const sys = localized?.sys as { type?: string; linkType?: string; id?: string } | undefined;
+        if (sys?.type === "Link" && sys.linkType === "Asset" && sys.id) {
+          const asset = assets.get(sys.id);
           if (asset) {
             entry.assetsToMirror.push({
               externalUrl: asset.url,
-              originalId: localized.sys.id,
+              originalId: sys.id,
               fieldTarget: key,
               altText: asset.title,
             });

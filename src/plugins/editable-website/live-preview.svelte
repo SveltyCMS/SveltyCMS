@@ -3,12 +3,15 @@
  @component Live Preview with bidirectional handshake and visual editing.
  Securely syncs CMS state with an external website preview using Svelte 5 runes.
 
- Uses collection schema's previewTargetUrl for dynamic origin resolution.
+ Uses collection schema livePreview / previewTargetUrl for dynamic origin resolution.
  Signs ephemeral preview tokens via /api/preview/authorize.
 -->
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Loader from '@components/ui/loader.svelte';
+	import UpgradePrompt from '@components/ui/upgrade-prompt.svelte';
+  import Badge from "@components/ui/badge.svelte";
   import type { User } from "@auth/types";
   import type { CollectionEntry, Schema } from "@src/content/types";
   import { publicEnv } from "@src/stores/global-settings.svelte";
@@ -16,7 +19,19 @@
   import { logger } from "@src/utils/logger";
   import { fade } from "svelte/transition";
 
-  import type { CmsUpdateMessage } from "./types";
+  import {
+    EDITABLE_WEBSITE_EXTENSION_ID,
+    EDITABLE_WEBSITE_PRICE,
+    fetchEditableWebsiteLicense,
+    type EditableWebsiteLicenseView,
+  } from "./license-gate";
+  import {
+    dispatchPreviewUpdate,
+    isCmsInboundMessage,
+    mergePreviewEdits,
+    PREVIEW_PROTOCOL_VERSION,
+  } from "./protocol";
+  import type { CmsEditModeMessage, CmsUpdateMessage } from "./types";
 
   interface Props {
     collection: { value: Schema };
@@ -42,19 +57,45 @@
   let authorizedUrl = $state("");
   let isLoadingUrl = $state(false);
   let shouldRender = $state(false);
+  let pendingPreviewEdits = $state(0);
+  let lastSyncSource = $state<"visual" | "form" | null>(null);
+  let licenseStatus = $state<EditableWebsiteLicenseView & { loaded: boolean }>({
+    active: false,
+    daysRemaining: null,
+    loaded: false,
+  });
 
-  // Dynamically resolve target host from collection schema's previewTargetUrl
-  const previewTargetUrl = $derived(
-    (collection.value as any)?.previewTargetUrl || publicEnv.HOST_PROD || "http://localhost:5173",
-  );
+  const licenseActive = $derived(licenseStatus.loaded && licenseStatus.active);
 
-  // Strictly derive allowed origins for message validation
+  $effect(() => {
+    let cancelled = false;
+    fetchEditableWebsiteLicense().then((status) => {
+      if (!cancelled) {
+        licenseStatus = { ...status, loaded: true };
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  const livePreviewPattern = $derived.by(() => {
+    const schema = collection.value as Schema & { previewTargetUrl?: string };
+    if (schema.previewTargetUrl) return schema.previewTargetUrl;
+    if (typeof schema.livePreview === "string") return schema.livePreview;
+    if (schema.livePreview === true) return "/{slug}?lang={lang}";
+    return publicEnv.HOST_PROD || "http://localhost:5173";
+  });
+
+  const previewTargetUrl = $derived(livePreviewPattern);
+
   const allowedOrigins = $derived(
     [previewTargetUrl, publicEnv.HOST_PROD, publicEnv.HOST_DEV, "http://localhost:5173"]
       .filter(Boolean)
       .map((url) => {
         try {
-          return new URL(url!).origin;
+          const normalized = url!.startsWith("http") ? url! : `http://localhost:5173${url}`;
+          return new URL(normalized).origin;
         } catch {
           return null;
         }
@@ -62,12 +103,8 @@
       .filter(Boolean) as string[],
   );
 
-  /**
-   * Securely generates a preview URL using the CMS handshake protocol.
-   * Signs ephemeral preview tokens via /api/preview/authorize.
-   */
   async function refreshAuthorizedUrl() {
-    if (!shouldRender || !currentCollectionValue) return;
+    if (!shouldRender || !currentCollectionValue || !licenseActive) return;
 
     isLoadingUrl = true;
     try {
@@ -79,36 +116,35 @@
           entry: currentCollectionValue,
           contentLanguage,
           tenantId,
-          previewTargetUrl,
+          previewTargetUrl: livePreviewPattern,
         }),
       });
 
       if (res.ok) {
         const { previewUrl } = await res.json();
         authorizedUrl = previewUrl;
+      } else if (res.status === 403) {
+        licenseStatus = { active: false, daysRemaining: 0, loaded: true };
+        authorizedUrl = "";
+        toast.error("Live Preview requires an active Editable Website license or trial");
       } else {
-        // Fallback: construct URL with preview query param
-        const entryId =
-          currentCollectionValue._id || currentCollectionValue.slug || "draft";
-        const base = previewTargetUrl.endsWith("/") ? previewTargetUrl.slice(0, -1) : previewTargetUrl;
-        authorizedUrl = `${base}?preview=${entryId}&lang=${contentLanguage}`;
+        logger.error("Preview authorize failed", { status: res.status });
+        authorizedUrl = "";
       }
     } catch (err) {
       logger.error("Failed to generate secure preview URL", { error: err });
-      authorizedUrl = `${previewTargetUrl}?preview=draft&lang=${contentLanguage}`;
+      authorizedUrl = "";
     } finally {
       isLoadingUrl = false;
     }
   }
 
-  // Deferred activation: wait until tab is active to start handshake
   $effect(() => {
     if (active && !shouldRender) {
       shouldRender = true;
     }
   });
 
-  // Refresh URL when the entry path might have changed (slug/ID)
   $effect(() => {
     if (
       shouldRender &&
@@ -118,51 +154,71 @@
     }
   });
 
-  /**
-   * Syncs the current CMS data state to the preview iframe
-   */
   function sendUpdate() {
     if (!iframeEl?.contentWindow || !isConnected || !authorizedUrl) return;
 
     const message: CmsUpdateMessage = {
       type: "svelty:update",
-      collection: collection.value?.name || "unknown",
-      data: currentCollectionValue,
+      collection: collection.value?.name || collection.value?._id || "unknown",
+      data: currentCollectionValue as Record<string, unknown>,
     };
 
-    // Strictly target the production origin
-    const targetOrigin = previewTargetUrl.startsWith("http")
-      ? new URL(previewTargetUrl).origin
-      : "*";
+    let targetOrigin = "*";
+    try {
+      const url = authorizedUrl.startsWith("http")
+        ? authorizedUrl
+        : `${publicEnv.HOST_DEV || "http://localhost:5173"}${authorizedUrl}`;
+      targetOrigin = new URL(url).origin;
+    } catch {
+      targetOrigin = "*";
+    }
+
     iframeEl.contentWindow.postMessage(message, targetOrigin);
+
+    const editModeMsg: CmsEditModeMessage = {
+      type: "svelty:edit-mode",
+      enabled: visualEditingEnabled,
+    };
+    iframeEl.contentWindow.postMessage(editModeMsg, targetOrigin);
   }
 
-  // Automatic sync on data changes (debounced by Svelte's microtask batching)
   $effect(() => {
     if (isConnected && shouldRender && currentCollectionValue) {
+      lastSyncSource = "form";
       sendUpdate();
     }
   });
 
-  /**
-   * Message listener for the bidirectional handshake and visual editing
-   */
+  function applyPreviewEdits(msg: Parameters<typeof mergePreviewEdits>[1]) {
+    const merged = mergePreviewEdits(
+      currentCollectionValue as Record<string, unknown>,
+      msg,
+    );
+    pendingPreviewEdits++;
+    lastSyncSource = "visual";
+    dispatchPreviewUpdate({
+      data: merged,
+      fieldName: msg.type === "svelty:document:update" ? msg.fieldName : undefined,
+      source: "visual",
+    });
+    toast.info("Preview changes synced to editor — save to persist");
+  }
+
   function handleMessage(event: MessageEvent) {
-    // Security: Strict Origin Check
-    if (!allowedOrigins.includes(event.origin)) {
-      return;
-    }
+    if (!allowedOrigins.includes(event.origin)) return;
+    if (!isCmsInboundMessage(event.data)) return;
 
     const data = event.data;
 
-    if (data?.type === "svelty:init") {
+    if (data.type === "svelty:init") {
       isConnected = true;
       sendUpdate();
-      logger.info("[Live Preview] Handshake completed");
+      logger.info("[Live Preview] Handshake completed", {
+        version: data.version || "unknown",
+      });
     }
 
-    // Click-to-Edit: Focus the field in the CMS when clicked in preview
-    if (data?.type === "svelty:field:click" && visualEditingEnabled) {
+    if (data.type === "svelty:field:click" && visualEditingEnabled) {
       document.dispatchEvent(
         new CustomEvent("svelty:focus-field", {
           detail: { fieldName: data.fieldName },
@@ -171,11 +227,21 @@
         }),
       );
     }
+
+    if (data.type === "svelty:save" || data.type === "svelty:document:update") {
+      applyPreviewEdits(data);
+    }
   }
 
   $effect(() => {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
+  });
+
+  $effect(() => {
+    if (isConnected) {
+      sendUpdate();
+    }
   });
 
   function copyUrl() {
@@ -184,11 +250,28 @@
       toast.success("Preview URL copied to clipboard");
     }
   }
+
+  function pushToPreview() {
+    sendUpdate();
+    toast.success("Changes pushed to preview");
+  }
 </script>
 
 <div class="flex h-150 flex-col p-4">
-  {#if !shouldRender}
-    <!-- Deferred Load State -->
+  {#if !licenseStatus.loaded}
+    <div class="flex flex-1 flex-col items-center justify-center gap-3">
+      <Loader variant="circle" width="size-10" height="size-10" ariaLabel="Checking license" />
+      <p class="text-sm text-surface-500">Checking Live Preview license…</p>
+    </div>
+  {:else if !licenseActive}
+    <UpgradePrompt
+      extensionId={EDITABLE_WEBSITE_EXTENSION_ID}
+      price={`${EDITABLE_WEBSITE_PRICE} · 14-day trial`}
+      title="Unlock visual frontpage editing"
+      message="Your SvelteKit site and Svedit layout are included free. The Editable Website plugin adds Live Preview — edit hero, text, and CTA blocks inline from the CMS. Standard form editing works without a license."
+      class="flex-1"
+    />
+  {:else if !shouldRender}
     <div
       class="flex flex-1 flex-col items-center justify-center gap-4 rounded border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
     >
@@ -199,45 +282,59 @@
           Live Preview Ready
         </p>
         <p class="text-sm text-surface-500">
-          Initialize handshake to start real-time syncing.
+          Bidirectional sync · protocol v{PREVIEW_PROTOCOL_VERSION}
         </p>
+        {#if licenseStatus.daysRemaining && licenseStatus.daysRemaining > 0 && !licenseStatus.hasLicense}
+          <Badge variant="tertiary" size="sm">
+            Trial · {licenseStatus.daysRemaining} day{licenseStatus.daysRemaining === 1 ? "" : "s"} left
+          </Badge>
+        {/if}
       </div>
-      <Button variant="primary"
-        onclick={() => (shouldRender = true)}
-       >
+      <Button variant="primary" onclick={() => (shouldRender = true)}>
         Start Preview
       </Button>
     </div>
   {:else}
-    <!-- Toolbar -->
     <div class="mb-4 flex items-center justify-between gap-3">
       <div class="flex min-w-0 flex-1 items-center gap-2">
         <iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"
         ></iconify-icon>
-        <input aria-label="Preview URL"
-            type="text"
-            class="input grow truncate text-sm font-mono"
-            readonly
-            value={authorizedUrl}
-            placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"}
-          />
-        <Button variant="outline"
+        <input aria-label="Preview URL" type="text" class="input grow truncate font-mono text-sm" readonly value={authorizedUrl} placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"} />
+        <Button
+          variant="outline"
           onclick={copyUrl}
           disabled={!authorizedUrl}
           title="Copy Preview URL"
-         aria-label="Copy preview URL" size="sm" class="preset-outline-surface">
+          aria-label="Copy preview URL"
+          size="sm"
+          class="preset-outline-surface"
+        >
           <iconify-icon icon="mdi:content-copy" width={16}></iconify-icon>
         </Button>
       </div>
 
       <div class="flex items-center gap-2">
-        <Button variant="primary"
-            onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
-            title="Toggle Click-to-Edit"
-            aria-label="Toggle Click-to-Edit"
-           size="sm" class={visualEditingEnabled ? '' : 'preset-soft-surface'}>
-          <iconify-icon icon="mdi:cursor-default-click" width={16}
-          ></iconify-icon>
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={pushToPreview}
+          disabled={!isConnected}
+          title="Push CMS changes to preview"
+          aria-label="Push to preview"
+        >
+          <iconify-icon icon="mdi:sync" width={16}></iconify-icon>
+          <span class="hidden sm:inline">Push</span>
+        </Button>
+
+        <Button
+          variant="primary"
+          onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
+          title="Toggle Click-to-Edit"
+          aria-label="Toggle Click-to-Edit"
+          size="sm"
+          class={visualEditingEnabled ? "" : "preset-soft-surface"}
+        >
+          <iconify-icon icon="mdi:cursor-default-click" width={16}></iconify-icon>
           <span class="hidden sm:inline">Visual Edit</span>
         </Button>
 
@@ -255,20 +352,21 @@
       </div>
     </div>
 
-    <!-- Device Simulation Controls -->
     <div class="mb-3 flex justify-center gap-1">
       {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device (device.label)}
-        <Button variant="primary"
+        <Button
+          variant="primary"
           onclick={() => (previewWidth = device.width)}
           title={device.label}
           aria-label={device.label}
-         size="sm" class="p-0! min-w-0 {previewWidth === device.width ? ' ' : ' '}">
+          size="sm"
+          class="min-w-0 p-0!"
+        >
           <iconify-icon icon={device.icon} width={20}></iconify-icon>
         </Button>
       {/each}
     </div>
 
-    <!-- Preview Iframe Container -->
     <div
       class="relative flex-1 overflow-hidden rounded border border-surface-300 bg-surface-100 dark:bg-surface-900"
     >
@@ -304,21 +402,29 @@
             <div
               class="h-8 w-8 animate-spin rounded-full border-4 border-surface-300 border-t-primary-500"
             ></div>
-            <p class="text-sm text-surface-500">
-              Generating secure preview session...
-            </p>
+            <p class="text-sm text-surface-500">Generating secure preview session...</p>
           </div>
         {/if}
       </div>
     </div>
 
     <div
-      class="mt-2 text-center text-[10px] uppercase tracking-wider text-surface-500"
+      class="mt-2 flex items-center justify-center gap-2 text-center text-[10px] uppercase tracking-wider text-surface-500"
     >
-      Status: <span class={isConnected ? "text-green-500" : "text-amber-500"}
-        >{isConnected ? "Synced" : "Handshaking"}</span
-      >
-      • Visual Edit: {visualEditingEnabled ? "Active" : "Disabled"}
+      <span>
+        Status:
+        <span class={isConnected ? "text-green-500" : "text-amber-500"}>
+          {isConnected ? "Synced" : "Handshaking"}
+        </span>
+      </span>
+      <span>·</span>
+      <span>Visual Edit: {visualEditingEnabled ? "On" : "Off"}</span>
+      {#if pendingPreviewEdits > 0}
+        <Badge variant="warning" size="sm">{pendingPreviewEdits} from preview</Badge>
+      {/if}
+      {#if lastSyncSource}
+        <span>· Last: {lastSyncSource}</span>
+      {/if}
     </div>
   {/if}
 </div>

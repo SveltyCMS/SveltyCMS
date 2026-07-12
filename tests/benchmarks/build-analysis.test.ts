@@ -75,7 +75,6 @@ async function runBuildAnalysis() {
       execSync("bun run build", {
         stdio: "inherit",
         env: { ...process.env, NODE_ENV: "production" },
-        shell: false,
       });
       buildTimeMs = performance.now() - startTime;
     }

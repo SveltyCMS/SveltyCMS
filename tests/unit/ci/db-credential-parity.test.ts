@@ -8,7 +8,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DOCKER_DEFAULT_DB_CREDENTIALS } from "@src/utils/test-db-credentials";
+import {
+  DOCKER_DEFAULT_DB_CREDENTIALS,
+  getBenchmarkTestEnv,
+  getBenchmarkUdhPgDatabase,
+  UDH_BENCHMARK_FIXTURE_DB,
+} from "@src/utils/test-db-credentials";
 
 const ROOT = join(import.meta.dirname, "../../..");
 
@@ -39,6 +44,20 @@ describe("Docker default DB credential parity", () => {
       expect(matrixSource).toContain(`db_user: ${userLiteral}`);
       expect(matrixSource).toContain(`db_password: ${passLiteral}`);
     }
+  });
+
+  it("getBenchmarkTestEnv mirrors ci.yml bench-core UDH_PG_DATABASE split", () => {
+    expect(getBenchmarkUdhPgDatabase("postgresql")).toBe(UDH_BENCHMARK_FIXTURE_DB);
+    expect(getBenchmarkUdhPgDatabase("mariadb")).toBe("sveltycms_test");
+
+    const pgEnv = getBenchmarkTestEnv("postgresql");
+    expect(pgEnv.UDH_PG_DATABASE).toBe(UDH_BENCHMARK_FIXTURE_DB);
+    expect(pgEnv.PASSWORD_MIN_LENGTH).toBe("8");
+    expect(pgEnv.BENCHMARK_NO_REDIS).toBe("1");
+
+    const ci = readRepoFile(".github/workflows/ci.yml");
+    expect(ci).toContain("UDH_PG_DATABASE:");
+    expect(ci).toContain("sveltycms_udh_fixture");
   });
 
   it("ci.yml db-tests and bench-core use matrix db_user/db_password from db-matrix", () => {

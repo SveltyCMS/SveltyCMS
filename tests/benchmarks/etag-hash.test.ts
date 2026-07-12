@@ -69,7 +69,7 @@ function measureSync(fn: () => void, iterations: number): number {
   return (performance.now() - start) / iterations;
 }
 
-async function measureAsync(fn: () => Promise<void>, iterations: number): Promise<number> {
+async function measureAsync(fn: () => Promise<unknown>, iterations: number): Promise<number> {
   const start = performance.now();
   for (let i = 0; i < iterations; i++) await fn();
   return (performance.now() - start) / iterations;

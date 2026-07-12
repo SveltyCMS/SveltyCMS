@@ -85,7 +85,6 @@ reveal after position calculation prevents layout flash.
 		padding: 5,
 		enabled: () => open,
 		showArrow: () => true,
-		useCssAnchor: () => false,
 	});
 
 	$effect(() => {

@@ -293,7 +293,7 @@ export function calculateMigrationHealth(
 
 function generateHealthSummary(
   status: string,
-  passed: number,
+  _passed: number,
   warnings: number,
   failed: number,
   entryCount: number,

@@ -57,6 +57,21 @@ import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
 import { seoResolvers, seoTypeDefs } from "./resolvers/seo";
+import {
+  virtualCollectionsMutationFields,
+  virtualCollectionsMutationResolvers,
+  virtualCollectionsQueryFields,
+  virtualCollectionsResolvers,
+  virtualCollectionsTypeDefs,
+} from "./resolvers/virtual-collections";
+import {
+  dataOperationsMutationFields,
+  dataOperationsMutationResolvers,
+  dataOperationsQueryFields,
+  dataOperationsQueryResolvers,
+  dataOperationsTypeDefs,
+  JSONScalar,
+} from "./resolvers/data-operations";
 import { createLoaders } from "./loaders";
 import { LocalCMS } from "@src/services/sdk";
 
@@ -95,6 +110,8 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
     ${mediaTypeDefs()}
     ${seoTypeDefs}
     ${collectionTypeDefs}
+    ${virtualCollectionsTypeDefs}
+    ${dataOperationsTypeDefs}
 
     type Query {
       _empty: String
@@ -107,6 +124,8 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
       mediaRemote(pagination: PaginationInput): [MediaRemote]
       mediaFolders: [MediaFolder]
       ${queryFields.join("\n      ")}
+      ${virtualCollectionsQueryFields}
+      ${dataOperationsQueryFields}
     }
 
     input PaginationInput {
@@ -116,6 +135,8 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
 
     type Mutation {
       _empty: String
+      ${virtualCollectionsMutationFields}
+      ${dataOperationsMutationFields}
     }
 
     type Subscription {
@@ -130,16 +151,21 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
   `;
 
   const resolvers = {
+    JSON: JSONScalar,
     Query: {
       ...userResolvers(dbAdapter),
       ...systemResolvers.Query,
       ...collectionResolversMap.Query,
       ...mediaResolvers(dbAdapter),
       ...seoResolvers.Query,
+      ...virtualCollectionsResolvers(dbAdapter, tenantId),
+      ...dataOperationsQueryResolvers(dbAdapter, tenantId),
     },
     Mutation: {
       ...(systemResolvers as any).Mutation,
       ...(collectionResolversMap as any).Mutation,
+      ...virtualCollectionsMutationResolvers(dbAdapter, tenantId),
+      ...dataOperationsMutationResolvers(dbAdapter, tenantId),
     },
     Subscription: {
       contentStructureUpdated: {

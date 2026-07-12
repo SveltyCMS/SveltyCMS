@@ -24,6 +24,7 @@ import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 const HANDLERS: Record<string, () => Promise<any>> = {
   auth: () => import("./handlers/auth"),
   collections: () => import("./handlers/collections"),
+  "virtual-collections": () => import("./handlers/virtual-collections"),
   content: () => import("./handlers/content"),
   dashboard: () => import("./handlers/dashboard"),
   media: () => import("./handlers/media"),
@@ -37,6 +38,12 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   database: () => import("./handlers/database"),
   logs: () => import("./handlers/logs"),
   "api-keys": () => import("./handlers/api-keys"),
+  config: () => import("./handlers/config"),
+  "content-transfer": () => import("./handlers/content-transfer"),
+  migrations: () => import("./handlers/migrations"),
+  importers: () => import("./handlers/importers"),
+  backups: () => import("./handlers/backups"),
+  "content-sync": () => import("./handlers/content-sync"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -63,6 +70,10 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   user: { handler: "auth", fn: "handleAuthUserRoutes" },
   permission: { handler: "auth", fn: "handlePermissionRoutes" },
   collections: { handler: "collections", fn: "handleCollectionsRoutes" },
+  "virtual-collections": {
+    handler: "virtual-collections",
+    fn: "handleVirtualCollectionsRoutes",
+  },
   content: { handler: "content", fn: "handleContentRoutes" },
   "content-structure": { handler: "content", fn: "handleContentRoutes" },
   widgets: { handler: "system", fn: "handleSystemRoutes" },
@@ -75,7 +86,6 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   settings: { handler: "system", fn: "handleSettingsRoutes" },
   "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
   importer: { handler: "system", fn: "handleImporterRoutes" },
-  "import-data": { handler: "system", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
   setup: { handler: "setup", fn: "handleSetupRoutes" },
@@ -97,7 +107,6 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   cache: { handler: "utility", fn: "handleUtilityRoutes" },
   marketplace: { handler: "utility", fn: "handleUtilityRoutes" },
   "version-check": { handler: "utility", fn: "handleUtilityRoutes" },
-  config_sync: { handler: "utility", fn: "handleUtilityRoutes" },
   "send-mail": { handler: "utility", fn: "handleUtilityRoutes" },
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
@@ -118,12 +127,28 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   version: { handler: "version", fn: "handleVersionRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
   "system-jobs": { handler: "system", fn: "handleSystemJobRoutes" },
+
+  // Data Operations (Phase 1)
+  config: { handler: "config", fn: "handleConfigRoutes" },
+  "content-export": { handler: "content-transfer", fn: "handleContentExportRoutes" },
+  "content-import": { handler: "content-transfer", fn: "handleContentImportRoutes" },
+  migrations: { handler: "migrations", fn: "handleMigrationRoutes" },
+  importers: { handler: "importers", fn: "handleImporterRoutes" },
+  backups: { handler: "backups", fn: "handleBackupRoutes" },
+  "content-sync": { handler: "content-sync", fn: "handleContentSyncRoutes" },
+
+  // Deprecated Aliases
+  "import-data": { handler: "importers", fn: "handleImporterRoutes" },
+  config_sync: { handler: "config", fn: "handleConfigRoutes" },
+  "config-sync": { handler: "config", fn: "handleConfigRoutes" },
 };
 
 // Fail-closed mapping of namespaces/methods to core SveltyCMS permission IDs
 const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
   collections: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+  "virtual-collections": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
   content: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
   "content-structure": (method: string) =>
@@ -175,6 +200,22 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   logs: "system:admin",
   "api-keys": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+
+  // Data Operations permissions
+  config: (method: string) => (method === "POST" ? "config:write" : "config:read"),
+  "content-export": (method: string) => (method === "POST" ? "content:export" : "content:read"),
+  "content-import": (method: string) => (method === "POST" ? "content:import" : "content:read"),
+  migrations: (method: string) => (method === "POST" ? "migration:apply" : "migration:read"),
+  importers: (method: string) => (method === "POST" ? "content:import" : "content:read"),
+  backups: (method: string) => {
+    if (method === "OPTIONS") return "backup:read";
+    if (method === "GET") return "backup:read";
+    if (method === "POST") return "backup:create";
+    return "backup:read";
+  },
+  "content-sync": (method: string) => (method === "POST" ? "content:sync" : "content:read"),
+  config_sync: (method: string) => (method === "POST" ? "config:write" : "config:read"),
+  "config-sync": (method: string) => (method === "POST" ? "config:write" : "config:read"),
 };
 
 /**

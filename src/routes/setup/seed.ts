@@ -820,6 +820,65 @@ export async function seedCollectionsForSetup(
 }
 
 /**
+ * Seeds a published homepage for the Website Starter preset (Svedit document in `content`).
+ */
+export async function seedWebsiteStarterPages(
+  dbAdapter: DatabaseAdapter,
+  options: { siteName?: string; tenantId?: string | null } = {},
+): Promise<void> {
+  const { siteName = "SveltyCMS", tenantId = null } = options;
+
+  if (!dbAdapter?.crud) {
+    logger.warn("[Website Starter] CRUD unavailable — skipping homepage seed");
+    return;
+  }
+
+  try {
+    const existing = await dbAdapter.crud.findMany(
+      "pages",
+      { slug: "home", ...(tenantId && { tenantId: tenantId as DatabaseId }) } as Record<
+        string,
+        unknown
+      >,
+      { tenantId: tenantId as DatabaseId, bypassTenantCheck: true, limit: 1 },
+    );
+
+    if (Array.isArray(existing) && existing.length > 0) {
+      logger.info("[Website Starter] Homepage already exists — skipping seed");
+      return;
+    }
+
+    const { createDefaultHomeDocument, serializeSveditContent } =
+      await import("@src/services/site/svedit/default-home-document");
+    const document = createDefaultHomeDocument(siteName);
+
+    const homepage = {
+      title: "Home",
+      slug: "home",
+      pageType: "static",
+      template: "homepage",
+      heroHeading: `Welcome to ${siteName}`,
+      heroSubheading:
+        "Design your frontpage visually with SvelteKit and Svedit — edit blocks directly on the live site.",
+      ctaText: "Open CMS",
+      ctaHref: "/login",
+      content: serializeSveditContent(document),
+      status: "published",
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
+    };
+
+    await dbAdapter.crud.insertMany("pages", [homepage], {
+      tenantId: tenantId as DatabaseId,
+      bypassTenantCheck: true,
+    });
+
+    logger.info("✅ Seeded Website Starter homepage (slug: home)");
+  } catch (error) {
+    logger.error("[Website Starter] Failed to seed homepage:", error);
+  }
+}
+
+/**
  * Seeds demo records for the standard collections (Posts, Menu, etc.)
  * This adds actual content entries so the CMS doesn't look empty after setup.
  */
@@ -1113,6 +1172,11 @@ export const defaultPublicSettings: Array<{
     key: "SITE_NAME",
     value: "SveltyCMS",
     description: "The public name of the website",
+  },
+  {
+    key: "SITE_STARTER_ENABLED",
+    value: true,
+    description: "Enable optional in-repo SvelteKit site starter at / (disable for pure headless)",
   },
   {
     key: "TIMEZONE",

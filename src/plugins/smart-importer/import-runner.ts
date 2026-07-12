@@ -54,7 +54,7 @@ export const PRO_PLATFORMS = new Set([
 ]);
 
 export async function getMigrationLicenseTier(locals: {
-  tenantId?: string;
+  tenantId?: string | null;
 }): Promise<{ valid: boolean; tier: "free" | "pro" }> {
   try {
     const pluginRegistry = (await import("@src/plugins/registry")).pluginRegistry;

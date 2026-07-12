@@ -246,7 +246,7 @@ describe("UCP Pipeline — End-to-End", () => {
     ];
 
     const dr = computeDelta(
-      { sourcePlatform: "wp", version: "1.0", transactionToken: "t1", entries },
+      { sourcePlatform: "wordpress", version: "1.0", transactionToken: "t1", entries },
       null,
     );
     expect(dr.new).toBe(2); // Old post has no previous hash, treated as new
@@ -265,8 +265,10 @@ describe("UCP Pipeline — End-to-End", () => {
       "wordpress",
     );
     expect(schema._id).toBe("test");
-    expect(schema.fields.some((f) => f.name === "title")).toBe(true);
-    expect(schema.fields.some((f) => f.name === "content")).toBe(true);
+    expect(schema.fields.some((f) => "db_fieldName" in f && f.db_fieldName === "title")).toBe(true);
+    expect(schema.fields.some((f) => "db_fieldName" in f && f.db_fieldName === "content")).toBe(
+      true,
+    );
   });
 
   // ── 6. PII Scrubbing ──
@@ -558,9 +560,13 @@ describe("UCP Pipeline — End-to-End", () => {
     };
 
     const firstRun = buildDeltaStateFromImport("posts", "wordpress", "txn_delta_1", entries, null);
-    await saveDeltaState(db, firstRun);
+    await saveDeltaState(db as Parameters<typeof saveDeltaState>[0], firstRun);
 
-    const loaded = await loadDeltaState(db, "posts", "wordpress");
+    const loaded = await loadDeltaState(
+      db as Parameters<typeof loadDeltaState>[0],
+      "posts",
+      "wordpress",
+    );
     expect(loaded?.importedCount).toBe(2);
     expect(loaded?.checksums["1"]).toBeDefined();
 
@@ -717,6 +723,8 @@ describe("UCP Pipeline — End-to-End", () => {
         {
           sourceField: "contact_email",
           targetField: "contactEmail",
+          widgetType: "text",
+          confidence: "high" as const,
           action: "map",
         },
       ],

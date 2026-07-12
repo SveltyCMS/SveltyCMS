@@ -26,7 +26,7 @@ const DANGEROUS_TAGS_RE =
   /<\/?(?:script|iframe|object|embed|meta|link|style|base|form|input|button|textarea|select|option|optgroup|datalist|keygen|output|progress|meter)\b[^>]*>/gi;
 
 // Allowlisted safe HTML tags to preserve (reference for future allowlist-based sanitizer)
-const _SAFE_TAGS = new Set([
+export const SAFE_TAGS = new Set([
   "a",
   "abbr",
   "address",

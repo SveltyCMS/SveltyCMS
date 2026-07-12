@@ -11,7 +11,7 @@
  * before executing premium features. Degrades gracefully when offline.
  */
 
-import { fail } from "@sveltejs/kit";
+import { fail, type RequestEvent } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
@@ -69,7 +69,7 @@ export const actions = {
   /**
    * Step 1: Detect format + AI field analysis + license check
    */
-  detect: async ({ request, locals }) => {
+  detect: async ({ request, locals }: RequestEvent) => {
     const data = await request.formData();
     const file = data.get("file") as File | null;
     if (!file) return fail(400, { error: "No file provided" });
@@ -235,7 +235,7 @@ export const actions = {
   /**
    * Step 3: Dry-run validation
    */
-  dryRun: async ({ request, locals }) => {
+  dryRun: async ({ request, locals }: RequestEvent) => {
     const data = await request.formData();
     const file = data.get("file") as File | null;
     const format = data.get("format") as string;
@@ -319,7 +319,7 @@ export const actions = {
   /**
    * Step 3b: Scaffold target collection from field mappings (Collection Builder pipeline)
    */
-  scaffoldCollection: async ({ request, locals }) => {
+  scaffoldCollection: async ({ request, locals }: RequestEvent) => {
     const user = locals.user;
     if (!user) return fail(401, { error: "Unauthorized" });
 
@@ -383,7 +383,7 @@ export const actions = {
   /**
    * Step 4: Import — gated by license for Pro platforms
    */
-  import: async ({ request, locals }) => {
+  import: async ({ request, locals }: RequestEvent) => {
     const data = await request.formData();
     const file = data.get("file") as File | null;
     const format = data.get("format") as string;
@@ -431,7 +431,7 @@ export const actions = {
         mappingsRaw,
         importMedia,
       });
-      return { success: true, ...result };
+      return result;
     } catch (err) {
       if (
         err instanceof MigrationLicenseError ||
@@ -450,7 +450,7 @@ export const actions = {
   /**
    * Step 5: Rollback — Pro only
    */
-  rollback: async ({ request, locals }) => {
+  rollback: async ({ request, locals }: RequestEvent) => {
     const data = await request.formData();
     const transactionToken = data.get("transactionToken") as string;
     const dbAdapter = (locals as any)?.dbAdapter;

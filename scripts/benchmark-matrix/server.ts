@@ -76,9 +76,9 @@ export async function startServer(
 }
 
 export async function runSystemSetup(
-  dbConf: any,
+  _dbConf: any,
   port: number,
-  dbName: string,
+  _dbName: string,
   overrides: NodeJS.ProcessEnv = {},
 ): Promise<boolean> {
   return new Promise((resolve) => {

@@ -239,8 +239,10 @@ export function parseOpenCartExport(
   try {
     let items: any[] = [];
     if (format === "json") {
-      items = JSON.parse(jsonOrCsv);
-      if (!Array.isArray(items)) items = items.products || items.data || [];
+      const parsed = JSON.parse(jsonOrCsv) as
+        | unknown[]
+        | { products?: unknown[]; data?: unknown[] };
+      items = Array.isArray(parsed) ? parsed : parsed.products || parsed.data || [];
     } else {
       const lines = jsonOrCsv.trim().split("\n");
       if (lines.length < 2) return null;

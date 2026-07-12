@@ -1,0 +1,381 @@
+---
+path: "docs/reference/api/content-sync.mdx"
+title: "Content Sync"
+description: "Reference for the content sync API — bidirectional content synchronization between environments with PII anonymization, channel configuration, and disabled-by-default safety."
+order: 104
+icon: "mdi:sync"
+author: "SveltyCMS Team"
+created: "2026-07-10"
+updated: "2026-07-10"
+tags:
+  - "api"
+  - "content"
+  - "sync"
+  - "channels"
+  - "pii"
+  - "multi-environment"
+---
+
+# Content Sync
+
+The Content Sync API provides bidirectional content synchronization between SveltyCMS instances via configurable channels. It supports push and pull operations with plan-first safety, optional PII anonymization for production-to-dev workflows, and a disabled-by-default design that prevents accidental data leakage.
+
+> [!IMPORTANT]
+> All content sync endpoints are **admin-gated**. GET requests require `content:read`, POST/PATCH/DELETE requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature              | HTTP Endpoint                    | Method   | Permission      |
+| :------------------- | :------------------------------- | :------- | :-------------- |
+| **List Channels**    | `/api/content-sync/channels`     | `GET`    | `content:read`  |
+| **Create Channel**   | `/api/content-sync/channels`     | `POST`   | `content:write` |
+| **Update Channel**   | `/api/content-sync/channels/:id` | `PATCH`  | `content:write` |
+| **Delete Channel**   | `/api/content-sync/channels/:id` | `DELETE` | `content:write` |
+| **Create Sync Plan** | `/api/content-sync/plan`         | `POST`   | `content:write` |
+| **Push Content**     | `/api/content-sync/push`         | `POST`   | `content:write` |
+| **Pull Content**     | `/api/content-sync/pull`         | `POST`   | `content:write` |
+| **Job Status**       | `/api/content-sync/jobs/:jobId`  | `GET`    | `content:read`  |
+
+---
+
+## 1. Disabled-by-Default Behavior
+
+Content sync channels are **disabled by default**. This design ensures that:
+
+- A fresh SveltyCMS instance has zero active sync channels — no content can be accidentally pushed or pulled
+- Each channel must be explicitly created and enabled via the API before any synchronization occurs
+- Disabling a channel pauses all sync operations without deleting the channel configuration
+
+> [!IMPORTANT]
+> There is no automatic or implicit channel creation. If you need content sync between environments, you must first create and enable a channel. This prevents data leakage during onboarding and evaluation.
+
+---
+
+## 2. Channel Management
+
+A sync channel defines the relationship between two instances — the source, the target, what content to sync, and how to handle sensitive data.
+
+### List Channels
+
+**Endpoint**: `GET /api/content-sync/channels`
+
+**Response**:
+
+```json
+{
+  "channels": [
+    {
+      "id": "chan_prod_to_staging",
+      "label": "Production → Staging",
+      "direction": "push",
+      "enabled": true,
+      "sourceUrl": "https://cms.example.com",
+      "targetUrl": "https://staging.example.com",
+      "collections": ["blog-posts", "pages", "authors"],
+      "piiAnonymize": false,
+      "createdAt": "2026-07-01T10:00:00.000Z",
+      "lastSyncAt": "2026-07-10T08:00:00.000Z"
+    },
+    {
+      "id": "chan_dev_pull",
+      "label": "Dev Pull from Staging",
+      "direction": "pull",
+      "enabled": false,
+      "sourceUrl": "https://staging.example.com",
+      "targetUrl": "https://dev.example.com",
+      "collections": ["blog-posts", "pages"],
+      "piiAnonymize": true,
+      "createdAt": "2026-07-05T14:00:00.000Z",
+      "lastSyncAt": null
+    }
+  ],
+  "totalCount": 2
+}
+```
+
+### Create Channel
+
+**Endpoint**: `POST /api/content-sync/channels`
+
+**Payload**:
+
+```json
+{
+  "label": "Production → Staging",
+  "direction": "push",
+  "sourceUrl": "https://cms.example.com",
+  "targetUrl": "https://staging.example.com",
+  "targetApiKey": "sk_target_abc123...",
+  "collections": ["blog-posts", "pages", "authors"],
+  "piiAnonymize": false,
+  "enabled": false
+}
+```
+
+| Field          | Type       | Required | Description                                         |
+| :------------- | :--------- | :------- | :-------------------------------------------------- |
+| `label`        | `string`   | ✅       | Human-readable channel name                         |
+| `direction`    | `string`   | ✅       | Sync direction: `push`, `pull`, or `bidirectional`  |
+| `sourceUrl`    | `string`   | ✅       | Source instance URL                                 |
+| `targetUrl`    | `string`   | ✅       | Target instance URL                                 |
+| `targetApiKey` | `string`   | ✅       | API key for the target instance (stored encrypted)  |
+| `collections`  | `string[]` | ✅       | Collections to sync                                 |
+| `piiAnonymize` | `boolean`  | —        | Anonymize PII fields during pull (default: `false`) |
+| `enabled`      | `boolean`  | —        | Enable the channel immediately (default: `false`)   |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "channel": {
+    "id": "chan_prod_to_staging",
+    "label": "Production → Staging",
+    "direction": "push",
+    "enabled": false,
+    "createdAt": "2026-07-10T12:00:00.000Z"
+  }
+}
+```
+
+### Update Channel
+
+**Endpoint**: `PATCH /api/content-sync/channels/:id`
+
+**Payload** (partial — only fields to update):
+
+```json
+{
+  "enabled": true,
+  "collections": ["blog-posts", "pages", "authors", "testimonials"]
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "channel": {
+    "id": "chan_prod_to_staging",
+    "enabled": true,
+    "collections": ["blog-posts", "pages", "authors", "testimonials"],
+    "updatedAt": "2026-07-10T12:05:00.000Z"
+  }
+}
+```
+
+### Delete Channel
+
+**Endpoint**: `DELETE /api/content-sync/channels/:id`
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "message": "Channel 'chan_prod_to_staging' deleted."
+}
+```
+
+> [!NOTE]
+> Deleting a channel does not affect content that has already been synced. It only removes the channel configuration and stops future syncs.
+
+---
+
+## 3. Sync Operations
+
+All sync operations follow a plan-first workflow. The plan step shows exactly what will be pushed or pulled before any data is transferred.
+
+### Create Sync Plan
+
+**Endpoint**: `POST /api/content-sync/plan`
+
+**Payload**:
+
+```json
+{
+  "channelId": "chan_prod_to_staging",
+  "direction": "push"
+}
+```
+
+| Field       | Type     | Required | Description                                         |
+| :---------- | :------- | :------- | :-------------------------------------------------- |
+| `channelId` | `string` | ✅       | Channel identifier                                  |
+| `direction` | `string` | ✅       | `push` or `pull` — must match channel configuration |
+
+**Response**:
+
+```json
+{
+  "planId": "sync_plan_d4e5f6",
+  "channelId": "chan_prod_to_staging",
+  "direction": "push",
+  "operations": [
+    {
+      "collection": "blog-posts",
+      "action": "create",
+      "count": 12,
+      "entries": [
+        { "title": "New Post 1", "_syncId": "a1b2c3d4-..." },
+        { "title": "New Post 2", "_syncId": "b2c3d4e5-..." }
+      ]
+    },
+    {
+      "collection": "blog-posts",
+      "action": "update",
+      "count": 3,
+      "entries": [{ "title": "Updated Post", "_syncId": "c3d4e5f6-..." }]
+    },
+    {
+      "collection": "pages",
+      "action": "create",
+      "count": 1,
+      "entries": [{ "title": "New Landing Page", "_syncId": "d4e5f6a7-..." }]
+    }
+  ],
+  "summary": {
+    "create": 13,
+    "update": 3,
+    "delete": 0,
+    "skip": 0
+  },
+  "requiresConfirmation": false
+}
+```
+
+### Push Content
+
+Executes a push sync from the local instance to the target.
+
+**Endpoint**: `POST /api/content-sync/push`
+
+**Payload**:
+
+```json
+{
+  "planId": "sync_plan_d4e5f6"
+}
+```
+
+| Field    | Type     | Required | Description                                                     |
+| :------- | :------- | :------- | :-------------------------------------------------------------- |
+| `planId` | `string` | ✅       | Plan identifier from the `POST /api/content-sync/plan` response |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "jobId": "sync_job_push_a1b2c3",
+  "status": "processing",
+  "message": "Push started. Track progress via GET /api/content-sync/jobs/sync_job_push_a1b2c3"
+}
+```
+
+### Pull Content
+
+Executes a pull sync from the source instance to the local instance. Supports PII anonymization when enabled on the channel.
+
+**Endpoint**: `POST /api/content-sync/pull`
+
+**Payload**:
+
+```json
+{
+  "planId": "sync_plan_e5f6a7"
+}
+```
+
+| Field    | Type     | Required | Description                                                     |
+| :------- | :------- | :------- | :-------------------------------------------------------------- |
+| `planId` | `string` | ✅       | Plan identifier from the `POST /api/content-sync/plan` response |
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "jobId": "sync_job_pull_b2c3d4",
+  "status": "processing",
+  "piiAnonymized": true,
+  "message": "Pull started with PII anonymization enabled. Track progress via GET /api/content-sync/jobs/sync_job_pull_b2c3d4"
+}
+```
+
+### Sync Job Status
+
+**Endpoint**: `GET /api/content-sync/jobs/:jobId`
+
+**Response**:
+
+```json
+{
+  "jobId": "sync_job_push_a1b2c3",
+  "status": "completed",
+  "channelId": "chan_prod_to_staging",
+  "direction": "push",
+  "results": {
+    "created": 13,
+    "updated": 3,
+    "deleted": 0,
+    "skipped": 0,
+    "failed": 0
+  },
+  "durationMs": 2800,
+  "completedAt": "2026-07-10T12:10:03.000Z"
+}
+```
+
+---
+
+## 4. PII Anonymization
+
+When `piiAnonymize: true` is set on a channel, pull operations automatically anonymize personally identifiable information before storing it locally. This is intended for **production-to-development** workflows where real user data should not exist in development environments.
+
+### Anonymized Fields
+
+| Field            | Anonymization Strategy                | Example                     |
+| :--------------- | :------------------------------------ | :-------------------------- |
+| `email`          | Replaced with `user{N}@example.local` | `user42@example.local`      |
+| `name`           | Replaced with `User {N}`              | `User 42`                   |
+| `phone`          | Replaced with `+1-555-{NNNN}`         | `+1-555-0042`               |
+| `ip`             | Replaced with `10.0.0.{N}`            | `10.0.0.42`                 |
+| `avatar` / media | Replaced with a generated placeholder | `placeholder_avatar_42.png` |
+
+> [!NOTE]
+> PII anonymization is **deterministic** — the same user record will always produce the same anonymized values within a channel. This preserves referential integrity while removing identifiable data.
+
+### Important Limitations
+
+- PII anonymization applies to **pulls only**. Push operations always transfer data as-is.
+- Custom fields that may contain PII (e.g., a `bio` field with phone numbers) are not automatically detected. Configure field-level anonymization via the channel's `anonymizeFields` option.
+- Anonymization is **one-way**. Once anonymized data is stored in a development instance, the original values cannot be recovered.
+
+---
+
+## 5. Channel Configuration Reference
+
+| Option            | Type       | Default | Description                                    |
+| :---------------- | :--------- | :------ | :--------------------------------------------- |
+| `label`           | `string`   | —       | Human-readable channel name                    |
+| `direction`       | `string`   | —       | `push`, `pull`, or `bidirectional`             |
+| `sourceUrl`       | `string`   | —       | Source instance base URL                       |
+| `targetUrl`       | `string`   | —       | Target instance base URL                       |
+| `targetApiKey`    | `string`   | —       | API key for the target instance                |
+| `collections`     | `string[]` | —       | Collection names to include in sync            |
+| `enabled`         | `boolean`  | `false` | Whether the channel is active                  |
+| `piiAnonymize`    | `boolean`  | `false` | Anonymize PII during pull operations           |
+| `anonymizeFields` | `string[]` | `[]`    | Additional fields to anonymize beyond defaults |
+| `schedule`        | `string`   | —       | Cron expression for scheduled sync (optional)  |
+
+---
+
+## Next Steps
+
+- [Content Export & Import](./content-transfer.mdx) — Transfer content between instances with NDJSON streaming.
+- [Backup & Restore](./backups.mdx) — Full-instance backup with AES-256-GCM encryption and safety gating.
+- [Data Migrations](./data-migrations.mdx) — Apply and verify schema migrations with risk scoring.

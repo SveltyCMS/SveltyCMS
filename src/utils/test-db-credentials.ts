@@ -52,6 +52,17 @@ export function getBenchmarkDbName(dbType: string): string {
   return dbType === "sqlite" ? "benchmark_shared" : getIntegrationDbName();
 }
 
+/**
+ * External UDH Postgres connector DB when CMS adapter is postgresql (bench-core matrix).
+ * Matches ci.yml `UDH_PG_DATABASE` for `matrix.db == 'postgresql'`.
+ */
+export const UDH_BENCHMARK_FIXTURE_DB = "sveltycms_udh_fixture";
+
+/** UDH fixture database for bench-core — mirrors ci.yml bench-core env. */
+export function getBenchmarkUdhPgDatabase(dbType: string): string {
+  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName();
+}
+
 /** Env block shared by integration runner invocations (local + CI parity). */
 export function getIntegrationTestEnv(dbType: string, overrides: Record<string, string> = {}) {
   const creds = getDockerDefaultDbCredentials(dbType);
@@ -69,7 +80,7 @@ export function getIntegrationTestEnv(dbType: string, overrides: Record<string, 
   };
 }
 
-/** Env block shared by bench-core CI job and ci-local benchmark step. */
+/** Env block shared by bench-core CI job and local benchmark runners. */
 export function getBenchmarkTestEnv(dbType: string, overrides: Record<string, string> = {}) {
   const creds = getDockerDefaultDbCredentials(dbType);
   return {
@@ -80,11 +91,14 @@ export function getBenchmarkTestEnv(dbType: string, overrides: Record<string, st
     DB_USER: creds.user,
     DB_PASSWORD: creds.password,
     TEST_MODE: "true",
+    BENCHMARK: "true",
     JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-32ch",
     ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-32ch",
     BENCHMARK_NO_REDIS: "1",
     BENCHMARK_RECORD: "1",
     ADMIN_PASSWORD: "Password123!",
+    PASSWORD_MIN_LENGTH: "8",
+    UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(dbType),
     ...overrides,
   };
 }

@@ -87,7 +87,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
   - **Pre-commit** (`git commit`): `gate:fast` runs format, lint, and slop scanner on **staged files only** (~2-3s)
   - **Pre-push** (`git push`): `verify:push` runs `scripts/precheck.ts` (push tier) — static analysis, format, lint, unit tests, production build, with **progress dashboard, adaptive ETA, and error remediation hints** (~1-3min). Heavy DB integration + benchmarks are CI-only; opt in with `--include-db-tasks`.
   - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (4 projects, 6 shards), benchmarks
-  - Manual: `bun run gate:fast` (pre-commit checks), `bun run verify:push` (pre-push checks), `bun run verify:full` (local CI parity — static + unit + build + DB matrix + benchmarks), `bun run ci:local` (adds Playwright E2E), `bun run scripts/precheck.ts --plan` (dry-run task inspection)
+  - Manual: `bun run gate:fast` (pre-commit checks), `bun run verify:push` (pre-push checks), `bun run scripts/precheck.ts --plan` (dry-run task inspection). DB matrix, benchmarks, and E2E are CI-only unless you opt in with `bun run scripts/precheck.ts --tier=push --include-db-tasks`.
 
 | Category          | Convention           | Examples                                                                         |
 | :---------------- | :------------------- | :------------------------------------------------------------------------------- |
@@ -268,8 +268,6 @@ When generating/modifying code:
     - **Svelte Attribute Placement (CRITICAL)**: HTML attributes (`aria-label`, `role`, `type`, etc.) MUST be on the **opening tag** of the element. Placing an attribute string between child elements causes Svelte to render it as **visible text content**, not as an HTML attribute.
       - ✅ `<button aria-label="Save" onclick={...}> <icon/> Save </button>`
       - ❌ `<button onclick={...}> <icon/> aria-label="Save" Save </button>` — renders the text "aria-label=\"Save\""
-    - **CI Gate**: Run `bun run lint:admin-theme` before committing admin route changes — blocks missing `AdminPageShell`, `class="input"`, and legacy table classes.
-      - **Reference**: `docs/contributing/style-guide-gui.mdx`, `docs/project/admin-theme-plan.mdx`
 12. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
 13. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark with recording: `BENCHMARK_RECORD=1 bun test tests/benchmarks/<test>.test.ts`
@@ -322,7 +320,7 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
 | :-------------------- | :---------------------------------------------------------- | :---------------------------------------------------- |
 | **Database**          | `docs/reference/database/`                                  | `technical-evaluation-2026.mdx`                       |
 | **Auth/Security**     | `docs/reference/security/authentication-system.mdx`         | `technical-evaluation-2026.mdx`                       |
-| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     | `docs/project/admin-theme-plan.mdx`                   |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     |                                                       |
 | **Content/Preview**   | `docs/reference/architecture/live-preview-architecture.mdx` | Integration docs                                      |
 | **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                          |
 | **API**               | `docs/reference/api/`                                       | Relevant service docs                                 |
@@ -379,7 +377,7 @@ From the 2026 roadmap, prioritize these for parity/leadership (implemented featu
 - [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
 - [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.
 - [x] **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
-- [x] **Enterprise Admin Theme Migration (Phases A–F)**: Complete Gin-inspired structural theme system — `AdminPageShell` on all 22 `(app)` routes, `AdminCard` across all config pages, 600+ `<button>` → `<Button>`, 20+ `<span class="badge">` → `<Badge>`, 0 `class="input"` in `src/`, image editor toolbars on native `<Button>`, tenant-branded login (`brandedLogin`), 3 theme presets, motion tokens, per-user theme overrides, CI-gated via `lint:admin-theme`.
+- [x] **Enterprise Admin Theme Migration (Phases A–F)**: Complete Gin-inspired structural theme system — `AdminPageShell` on all 22 `(app)` routes, `AdminCard` across all config pages, 600+ `<button>` → `<Button>`, 20+ `<span class="badge">` → `<Badge>`, 0 `class="input"` in `src/`, image editor toolbars on native `<Button>`, tenant-branded login (`brandedLogin`), 3 theme presets, motion tokens, per-user theme overrides.
 
 ## Upgrading SveltyCMS
 
@@ -662,8 +660,8 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/benchmarks/security-audit.test.ts`          | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
 | `tests/benchmarks/**/*.test.ts`                    | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
 | `tests/e2e/accessibility.spec.ts`                  | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/e2e/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/admin-theme-plan.mdx`                |
-| `tests/e2e/visual-regression.spec.ts`              | `docs/project/admin-theme-plan.mdx`, `docs/tests/accessibility-audit.mdx`                           |
+| `tests/e2e/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`                                                     |
+| `tests/e2e/visual-regression.spec.ts`              | `docs/tests/accessibility-audit.mdx`                                                                |
 | `tests/unit/security/token-secret-leakage.test.ts` | `docs/reference/security/secrets-inventory.mdx`                                                     |
 | `tests/unit/scripts/scan-secret-misuse.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                     |
 | `tests/unit/widgets/core/*.test.ts`                | `docs/tests/widget-test-coverage.mdx`                                                               |
@@ -677,7 +675,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                                                                                        |
 | **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                                                                                                    |
 | **API**         | `routes/api/`, `hooks.server.ts`                                                                                                                                                                                 |
-| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`, `lint-admin-theme.ts`                                                                                               |
+| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`                                                                                                                      |
 | **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-executive.ts`, `scripts/benchmark-matrix/` (16 files — regression-detector, reporting, runner, config) |
 | **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                                                                                       |
 

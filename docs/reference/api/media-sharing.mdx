@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/api/media-sharing.mdx"
 title: "Media Sharing Endpoint"
-description: "API reference for accessing, validating, and downloading shared media assets using a unique token."
+description: "API reference for creating, validating, and downloading shared media assets using unique tokens."
 order: 45
 icon: "mdi:share-chart-outline"
-author: "AI Agent / SveltyCMS Team"
+author: "SveltyCMS Team"
 created: "2026-05-23"
-updated: "2026-05-23"
+updated: "2026-07-10"
 tags:
   - "api"
   - "media"
@@ -14,72 +14,136 @@ tags:
   - "security"
 ---
 
-# 🌐 Media Sharing Endpoint API Reference
+# Media Sharing Endpoint API Reference
 
-This endpoint is responsible for serving media assets that have been explicitly shared via a unique, time-limited token. It acts as the secure gateway to private content.
+SveltyCMS supports time-limited, optionally password-protected share links for private media assets. Links are created by authenticated users and consumed via a public token gate.
 
-**Endpoint:** `GET /api/media/share`
+---
+
+## Endpoints Overview
+
+| Operation             | Endpoint                             | Method   | Auth                 |
+| :-------------------- | :----------------------------------- | :------- | :------------------- |
+| **Create link**       | `/api/media/share/{mediaId}`         | `POST`   | `media:write`        |
+| **Access / download** | `/api/media/share?id=&token=`        | `GET`    | Public (valid token) |
+| **Revoke link**       | `/api/media/share/{mediaId}/{token}` | `DELETE` | `media:write`        |
+| **Extend expiry**     | `/api/media/share/{mediaId}/{token}` | `PATCH`  | `media:write`        |
+
+Implementation: `handleMediaShareCreate`, `handleMediaShareDownload`, `handleMediaShareRevoke`, and `handleMediaShareExtend` in `src/routes/api/[...path]/handlers/media.ts`. Token logic lives in `src/utils/media/sharing.ts`.
+
+---
+
+## Create Share Link
+
+**Endpoint**: `POST /api/media/share/{mediaId}`
+
+**Payload**:
+
+```json
+{
+  "expiryHours": 24,
+  "password": "optional-secret"
+}
+```
+
+- `expiryHours` — `null` or omitted for non-expiring links (admin UI offers 1h, 24h, 7d, or never).
+- `password` — optional; stored as SHA-256 hash on the link record.
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "token": "…",
+    "expiresAt": "2026-07-11T12:00:00.000Z"
+  }
+}
+```
+
+**Admin UI**: The **Share** tab in `media-details-modal.svelte` calls this endpoint, then reloads the asset to display the new link in the active shares list.
+
+---
+
+## Access Shared Asset
+
+**Endpoint**: `GET /api/media/share`
 
 **Purpose**: Validates access permissions (token existence, expiry, password) and delivers the file or an appropriate error status.
 
-## 🔑 Parameters (Query Only)
+### Parameters (Query Only)
 
-| Parameter  | Type   | Required    | Description                                                                     | Notes                                                  |
-| :--------- | :----- | :---------- | :------------------------------------------------------------------------------ | :----------------------------------------------------- |
-| `id`       | String | Yes         | The unique internal ID of the media asset within SveltyCMS.                     | Must correspond to an existing asset record.           |
-| `token`    | String | Yes         | The cryptographically secure, time-limited sharing token provided by the owner. | Required for all external shares.                      |
-| `password` | String | Conditional | The password required if the shared link has password protection enabled.       | Only required if metadata indicates hashing is active. |
+| Parameter  | Type   | Required    | Description                                                       |
+| :--------- | :----- | :---------- | :---------------------------------------------------------------- |
+| `id`       | String | Yes         | The unique internal ID of the media asset within SveltyCMS.       |
+| `token`    | String | Yes         | The cryptographically secure sharing token provided by the owner. |
+| `password` | String | Conditional | Required when the link has password protection enabled.           |
 
-## ⚙️ Request Flow & Security Model
+### Request Flow & Security Model
 
 The server processes a multi-stage validation pipeline before streaming any content:
 
-1.  **Existence Check**: Verify both `id` and `token`.
-2.  **Token Validation**: Look up the shared link record associated with `token`. If not found or expired, access is denied immediately (`404` or `410`).
-3.  **Password Gate (If Active)**: If `passwordRequired` flag is set on the link metadata, the provided `password` must be hashed and compared to the stored hash. Failure results in a specific error status code (`401`).
+1. **Existence Check**: Verify both `id` and `token`.
+2. **Token Validation**: Look up the shared link record associated with `token`. If not found or expired, access is denied immediately (`404` or `410`).
+3. **Password Gate (If Active)**: If a password hash is stored on the link, the provided `password` must match. Failure returns `401`.
 
-## 📤 Success Responses
+### Success Responses
 
-### Status Code: `200 OK`
+**Status `200 OK` (metadata preview)** — JSON wrapper with filename, mimeType, size, and download URL.
 
-The request was successful, and the asset data is available. The response body typically includes metadata and initiates the download stream.
-
-**Response Body Schema (Metadata):**
-
-````json
+```json
 {
   "success": true,
   "data": {
     "filename": "example-asset.pdf",
     "mimeType": "application/pdf",
     "size": 102400,
-    "url": "/api/media/share?id=...&token=..." // The direct download URL for the client to use
+    "url": "/api/media/share?id=…&token=…"
   }
 }
-```text
+```
 
-### Status Code: `200 OK` (Direct Download)
+**Status `200 OK` (direct download)** — When validation passes, the server may stream binary data directly with appropriate `Content-Type` and `Content-Disposition` headers.
 
-If no password is required, and the link is valid, the server streams the binary data directly without a JSON wrapper.
+### Error Responses
 
-## 🛑 Error Responses
+| HTTP Status        | Description                                                                 |
+| :----------------- | :-------------------------------------------------------------------------- |
+| `400 Bad Request`  | Missing required parameters (`id`, `token`) or incorrect format.            |
+| `401 Unauthorized` | Incorrect password for a password-protected link.                           |
+| `404 Not Found`    | No asset found matching `id`, or no share link found for the given `token`. |
+| `410 Gone`         | The shared link was valid but its designated expiry date has passed.        |
 
-| HTTP Status        | Code / Message     | Description                                                                 | Action to Take                                   |
-| :----------------- | :----------------- | :-------------------------------------------------------------------------- | :----------------------------------------------- |
-| `400 Bad Request`  | Invalid Parameters | Missing required parameters (`id`, `token`) or incorrect format.            | User must check the link structure.              |
-| `401 Unauthorized` | Incorrect Password | The provided password did not match the stored hash.                        | User must re-enter the correct credentials.      |
-| `404 Not Found`    | Asset/Link Missing | No asset found matching `id`, or no share link found for the given `token`. | The asset ID or token is incorrect/non-existent. |
-| `410 Gone`         | Link Expired       | The shared link was valid but its designated expiry date has passed.        | Content owner must re-issue the link.            |
+---
 
-## 📐 Technical Notes
+## Revoke Share Link
 
-- **Server Implementation**: Handled by the `load` function in `+page.server.ts`.
-- **Security Impact**: This endpoint is highly sensitive and must always enforce strict tenant isolation checks on both the asset ID and token lookup to prevent cross-tenant data leakage.
-````
+**Endpoint**: `DELETE /api/media/share/{mediaId}/{token}`
+
+Immediately deactivates the token. The link record is removed from `metadata.sharedLinks` on the media item.
+
+**Admin UI**: Each active link in the Share tab of `media-details-modal.svelte` exposes a revoke action that calls this endpoint.
+
+---
+
+## Extend Share Link
+
+**Endpoint**: `PATCH /api/media/share/{mediaId}/{token}`
+
+**Payload**: `{ "expiryHours": 168 }` — pushes the expiry forward from the current time.
+
+---
+
+## Technical Notes
+
+- **Tenant isolation**: All share lookups are scoped by `tenantId` on the media record to prevent cross-tenant token reuse.
+- **Published-reference gate**: Share link creation does not mutate file bytes; version/delete/manipulate operations on shared assets remain subject to the [published-reference protection](../architecture/media-system.mdx#-published-reference-protection-media-integrity-gate).
+- **Related DAM UI**: Bulk download, storage analytics, and version compare are documented in [Media Reference](./media.mdx) and [Media System Architecture](../architecture/media-system.mdx).
 
 ---
 
 ## Related
 
+- [Media Reference (media.ts)](./media.mdx)
+- [Media System Architecture](../architecture/media-system.mdx)
 - [API Reference](./index.mdx)
-- [Getting Started](../../getting-started.mdx)

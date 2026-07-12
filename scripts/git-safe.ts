@@ -180,7 +180,7 @@ function installGitSafeAlias() {
   }
 
   const home = homedir();
-  const rcFiles = [".zshrc", ".bashrc", ".bash_profile"].map((f) => join(home, f));
+  const rcFiles = [".zshrc", ".bashrc", ".bash_profile"].map((f) => path.join(home, f));
   let modified = false;
 
   for (const rcPath of rcFiles) {

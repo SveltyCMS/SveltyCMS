@@ -126,7 +126,7 @@ export async function optimizeMedia(
       optimized: optimized.buffer.slice(
         optimized.byteOffset,
         optimized.byteOffset + optimized.byteLength,
-      ),
+      ) as ArrayBuffer,
       format: resolvedFormat,
       width: meta.width ?? cfg.maxWidth,
       height: meta.height ?? cfg.maxHeight,

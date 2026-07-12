@@ -8,7 +8,7 @@
  * - Works server-side with db adapter
  */
 
-import type { IDBAdapter } from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 
 // ── Internal model context (browser-only fallback) ───────────────
@@ -112,23 +112,44 @@ export function registerNavigationTools(db?: IDBAdapter): void {
 function registerHeadlessTopologyTools(db: IDBAdapter): void {
   logger.info("[WebMCP] Registering headless topology discovery tools...");
 
-  async function discoverTopology() {
+  async function discoverTopology(tenantId = "default") {
     try {
-      const collections = await db.collection.listSchemas();
-      const topology = {
-        collections: collections.map((c: any) => ({
-          id: c._id,
-          name: c.name,
-          slug: c.slug,
-          apiPath: `/api/collections/${c.slug || c._id}`,
-          adminPath: `/collections/${c.slug || c._id}`,
-          fieldCount: c.fields?.length || 0,
-          status: c.status || "published",
-        })),
-        adminRoutes: collections.map((c: any) => `/collections/${c.slug || c._id}`),
-        apiRoutes: collections.map((c: any) => `/api/collections/${c.slug || c._id}`),
+      const schemaResult = await db.collection.listSchemas();
+      const collections =
+        schemaResult &&
+        typeof schemaResult === "object" &&
+        "success" in schemaResult &&
+        schemaResult.success
+          ? ((schemaResult as { data?: unknown[] }).data ?? [])
+          : Array.isArray(schemaResult)
+            ? schemaResult
+            : [];
+      const native = (collections as any[]).map((c: any) => ({
+        id: c._id,
+        name: c.name,
+        slug: c.slug,
+        type: "native" as const,
+        apiPath: `/api/collections/${c.slug || c._id}`,
+        adminPath: `/collections/${c.slug || c._id}`,
+        fieldCount: c.fields?.length || 0,
+        status: c.status || "published",
+      }));
+
+      let virtual: any[] = [];
+      try {
+        const { extendTopology } = await import("@plugins/unified-data-hub/server/mcp-extension");
+        const extended = await extendTopology(db, tenantId as unknown as DatabaseId);
+        virtual = extended.collections ?? [];
+      } catch {
+        /* plugin not installed or disabled */
+      }
+
+      const all = [...native, ...virtual];
+      return {
+        collections: all,
+        adminRoutes: all.map((c) => c.adminPath),
+        apiRoutes: all.map((c) => c.apiPath),
       };
-      return topology;
     } catch (err: any) {
       logger.error("[WebMCP] Headless topology discovery failed", {
         error: err,
@@ -137,29 +158,56 @@ function registerHeadlessTopologyTools(db: IDBAdapter): void {
     }
   }
 
-  async function getContentGraph() {
+  async function getContentGraph(tenantId = "default") {
     try {
-      const collections = await db.collection.listSchemas();
-      const graph: Record<string, { entries: number; relations: string[] }> = {};
+      const schemaResult = await db.collection.listSchemas();
+      const collections =
+        schemaResult &&
+        typeof schemaResult === "object" &&
+        "success" in schemaResult &&
+        schemaResult.success
+          ? ((schemaResult as { data?: unknown[] }).data ?? [])
+          : Array.isArray(schemaResult)
+            ? schemaResult
+            : [];
+      const graph: Record<
+        string,
+        {
+          entries: number;
+          relations: string[];
+          type?: "native" | "virtual";
+          connectorId?: string;
+          enrichmentTargets?: string[];
+        }
+      > = {};
 
       for (const col of collections) {
         try {
           const entriesResult = await db.crud.findMany(col._id, {}, { limit: 1 });
           if (entriesResult && typeof entriesResult === "object" && "data" in entriesResult) {
             const count = Array.isArray(entriesResult.data) ? entriesResult.data.length : 0;
-            graph[col._id] = {
+            const slug = col.slug ?? String(col._id);
+            graph[slug] = {
               entries: count,
+              type: "native",
               relations: (col.fields || [])
                 .filter((f: any) => f.type === "relation" && f.relationTarget)
                 .map((f: any) => f.relationTarget),
             };
           }
         } catch {
-          graph[col._id] = { entries: 0, relations: [] };
+          const slug = col.slug ?? String(col._id);
+          graph[slug] = { entries: 0, relations: [], type: "native" };
         }
       }
 
-      return graph;
+      try {
+        const { extendContentGraph } =
+          await import("@plugins/unified-data-hub/server/mcp-extension");
+        return await extendContentGraph(db, tenantId as unknown as DatabaseId, graph);
+      } catch {
+        return graph;
+      }
     } catch (err: any) {
       logger.error("[WebMCP] Content graph discovery failed", { error: err });
       return { error: err.message };
