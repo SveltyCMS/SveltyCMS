@@ -29,6 +29,8 @@ This document is the **living roadmap** — only in-progress and planned work. C
 
 Additional integrations: advanced-search.ts (media library modal), webgpu-processor.ts (browser-side), bulk-download.ts (TAR.GZ streaming endpoint + gallery selection toolbar), storage-analytics.ts (breakdown/insights/trends endpoint + dashboard widget), version-history.ts (list + compare endpoints + media details diff UI), streaming-upload.ts (real multipart parser + upload-client routing).
 
+**Focal Point & Aspect Preview** (July 2026): Drupal/Payload-style aspect ratio preview grid with draggable focal point crosshair. Pure CSS `object-fit: cover` rendering across 7 ratio presets (16:9, 3:2, 4:3, 1:1, 2:3, 9:16, 21:9). Rule-of-thirds overlay guides. Keyboard-accessible (arrow keys + Shift). Persists to `CmsMediaMetadata.focalPoint` via `PATCH /api/media/:id`. Plugin-gated (disabled by default) — when enabled, injects into media gallery, media-upload widget, and image editor toolbar. See [Focal Point Plugin](/src/plugins/focal-point/focal-point.mdx).
+
 ## 🏗️ In Progress
 
 - 🏗️ **Phased Marketplace Migration**: Phase 1 (core widget doc naming) ✅. Phase 2 pending: custom widgets → `marketplace.sveltycms.com`. Backend API ✅ (`marketplace-service.ts`, `marketplace-client.ts`, `/api/marketplace` endpoint), but **no in-app catalog/browse UI yet** — Extensions page links externally. See [Marketplace System](../reference/architecture/marketplace.mdx).

@@ -19,8 +19,10 @@ and rule-of-thirds grid overlay.
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
 import type { MediaImage } from "@utils/media/media-models";
-import { fade, scale } from "svelte/transition";
-	import Button from '@components/ui/button.svelte';
+	import { fade, scale } from "svelte/transition";
+		import Button from '@components/ui/button.svelte';
+		import AspectPreview from '@components/media/aspect-preview.svelte';
+		import { page } from '$app/state';
 
 interface Props {
 	/** The media image to adjust focal point for */
@@ -41,8 +43,9 @@ let focalPoint = $state({
 	y: 50,
 });
 
-let containerRef: HTMLDivElement | undefined = $state();
-let isDragging = $state(false);
+	let containerRef: HTMLDivElement | undefined = $state();
+	let isDragging = $state(false);
+	const focalPointPluginEnabled = $derived(page.data?.pluginStates?.['focal-point'] === true);
 
 // Reset focal point when media changes
 $effect(() => {
@@ -164,7 +167,9 @@ const imageUrl = $derived(
 		></div>
 
 		<div
-			class="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded bg-surface-100 shadow-xl dark:bg-surface-800 mx-4"
+			class="relative flex max-h-[90vh] w-full flex-col rounded bg-surface-100 shadow-xl dark:bg-surface-800 mx-4"
+			class:max-w-lg={!focalPointPluginEnabled}
+			class:max-w-3xl={focalPointPluginEnabled}
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
@@ -223,6 +228,19 @@ const imageUrl = $derived(
 						<iconify-icon icon="mdi:crosshairs-gps" width="32" class="text-tertiary-500 dark:text-primary-500 drop-shadow-lg relative z-10"></iconify-icon>
 					</div>
 				</div>
+
+				{#if focalPointPluginEnabled}
+					<div class="mt-4 border-t border-surface-200 pt-3 dark:border-surface-600">
+						<h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+							Crop Previews
+						</h4>
+						<AspectPreview
+							imageUrl={media.url}
+							{focalPoint}
+							readonly={true}
+						/>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Footer -->

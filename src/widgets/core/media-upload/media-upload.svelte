@@ -49,9 +49,13 @@ functionality for image editing and basic file information display.
 	import { formatDateString } from '@utils/date';
 	import { modalState } from '@utils/modal.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
+	import { page } from '$app/state';
 
 	// Define reactive state
 	let isFlipped = $state(false);
+	let showAspectPreview = $state(false);
+	const focalPointPluginEnabled = $derived(page.data?.pluginStates?.['focal-point'] === true);
 
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
@@ -337,6 +341,12 @@ functionality for image editing and basic file information display.
 
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
+						{#if focalPointPluginEnabled && value && !(value instanceof File)}
+							<Button variant="outline" onclick={() => { showAspectPreview = true; }} aria-label="Aspect ratio preview" title="Aspect ratio preview" class="p-0! min-w-0">
+								<iconify-icon icon="mdi:aspect-ratio" width={20}></iconify-icon>
+							</Button>
+						{/if}
+
 						<!-- Edit -->
 						<Button variant="outline" onclick={openImageEditor} aria-label="Edit image" title="Edit image" class="p-0! min-w-0">
 							<iconify-icon icon="material-symbols:edit" width={24}></iconify-icon>
@@ -364,3 +374,11 @@ functionality for image editing and basic file information display.
 		</p>
 	{/if}
 </div>
+
+{#if focalPointPluginEnabled && showAspectPreview && value && !(value instanceof File)}
+	<AspectPreviewModal
+		media={value}
+		show={showAspectPreview}
+		onClose={() => { showAspectPreview = false; }}
+	/>
+{/if}

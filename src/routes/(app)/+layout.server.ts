@@ -32,6 +32,7 @@ import {
   reinforceTransition,
   applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
+import { pluginRegistry } from "@src/plugins/registry";
 import type { LayoutServerLoad } from "./$types";
 
 interface LayoutError {
@@ -151,6 +152,20 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
     const aiEnabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
 
+    // Plugin enablement states for client-side feature gating
+    // (non-blocking — resolves instantly from in-memory registry, fallback to metadata.enabled)
+    const pluginStates: Record<string, boolean> = {};
+    try {
+      for (const plugin of pluginRegistry.getAll()) {
+        // Only load state for plugins with UI slots (avoids loading all plugins)
+        if (!plugin.ui?.slots?.length) continue;
+        const state = await pluginRegistry.getPluginState(plugin.metadata.id, tid);
+        pluginStates[plugin.metadata.id] = state?.enabled ?? plugin.metadata.enabled;
+      }
+    } catch {
+      // Plugin state check is non-critical
+    }
+
     return {
       theme: theme ? JSON.parse(JSON.stringify(theme)) : DEFAULT_THEME,
       tenantId,
@@ -176,6 +191,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       cspNonce,
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
+      pluginStates,
       firstCollection: contentPromise.then(([_, first]) =>
         first ? JSON.parse(JSON.stringify(first)) : null,
       ),
