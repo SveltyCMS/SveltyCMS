@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as sandbox from "@utils/benchmark-sandbox";
 
 const ROOT = process.cwd();
 const PRIVATE_TS = path.join(ROOT, "config", "private.ts");
@@ -15,87 +16,83 @@ describe("benchmark-sandbox", () => {
   const envSnapshot = { ...process.env };
 
   beforeEach(() => {
-    vi.resetModules();
     process.env = { ...envSnapshot };
+    vi.restoreAllMocks();
   });
 
   afterEach(() => {
     process.env = { ...envSnapshot };
-    vi.resetModules();
+    vi.restoreAllMocks();
   });
 
-  async function loadSandbox() {
-    return import("@utils/benchmark-sandbox");
-  }
-
-  it("resolves local profile when developer private.ts exists", async () => {
+  it("resolves local profile when developer private.ts exists", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
     process.env.BENCHMARK = "true";
 
-    const sb = await loadSandbox();
-    expect(sb.resolveBenchmarkProfile()).toBe("local");
-    expect(sb.isLocalBenchmarkSandbox()).toBe(true);
+    expect(sandbox.resolveBenchmarkProfile()).toBe("local");
+    expect(sandbox.isLocalBenchmarkSandbox()).toBe(true);
   });
 
-  it("resolves ci-fresh profile when private.ts is absent", async () => {
+  it("resolves ci-fresh profile when private.ts is absent", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(false);
-
     process.env.BENCHMARK = "true";
-    const sb = await loadSandbox();
-    expect(sb.resolveBenchmarkProfile()).toBe("ci-fresh");
-    expect(sb.isCiFreshBenchmark()).toBe(true);
+
+    expect(sandbox.resolveBenchmarkProfile()).toBe("ci-fresh");
+    expect(sandbox.isCiFreshBenchmark()).toBe(true);
   });
 
-  it("redirects compiled collections path under local sandbox", async () => {
+  it("redirects compiled collections path under local sandbox", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
     process.env.BENCHMARK = "true";
 
-    const sb = await loadSandbox();
-    expect(sb.resolveCompiledCollectionsPath(null)).toBe(path.join(SANDBOX_COMPILED, "global"));
+    expect(sandbox.resolveCompiledCollectionsPath(null)).toBe(
+      path.join(SANDBOX_COMPILED, "global"),
+    );
   });
 
-  it("blocks writes to live manifest path during local benchmark", async () => {
+  it("blocks writes to live manifest path during local benchmark", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
     process.env.BENCHMARK = "true";
 
-    const sb = await loadSandbox();
     const liveManifest = path.join(ROOT, ".compiledCollections", ".compilation-manifest.json");
 
-    expect(() => sb.assertLiveDataWriteAllowed(liveManifest)).toThrow(/Blocked write to live data/);
+    expect(() => sandbox.assertLiveDataWriteAllowed(liveManifest)).toThrow(
+      /Blocked write to live data/,
+    );
     expect(() =>
-      sb.assertLiveDataWriteAllowed(path.join(SANDBOX_COMPILED, ".compilation-manifest.json")),
+      sandbox.assertLiveDataWriteAllowed(path.join(SANDBOX_COMPILED, ".compilation-manifest.json")),
     ).not.toThrow();
   });
 
-  it("honours explicit BENCHMARK_PROFILE override", async () => {
+  it("honours explicit BENCHMARK_PROFILE override", () => {
     vi.spyOn(fs, "existsSync").mockReturnValue(true);
     process.env.BENCHMARK_PROFILE = "ci-fresh";
 
-    const sb = await loadSandbox();
-    expect(sb.resolveBenchmarkProfile()).toBe("ci-fresh");
+    expect(sandbox.resolveBenchmarkProfile()).toBe("ci-fresh");
   });
 
-  it("blocks writes to config/private.ts during local benchmark", async () => {
+  it("blocks writes to config/private.ts during local benchmark", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
     process.env.BENCHMARK = "true";
 
-    const sb = await loadSandbox();
-    expect(() => sb.assertLiveDataWriteAllowed(PRIVATE_TS)).toThrow(/Blocked write to live data/);
+    expect(() => sandbox.assertLiveDataWriteAllowed(PRIVATE_TS)).toThrow(
+      /Blocked write to live data/,
+    );
   });
 
-  it("assertBenchmarkDbIsolation throws when DB_NAME matches live private.ts", async () => {
+  it("assertBenchmarkDbIsolation throws when DB_NAME matches live private.ts", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
@@ -106,21 +103,19 @@ describe("benchmark-sandbox", () => {
     process.env.BENCHMARK = "true";
     process.env.DB_NAME = "sveltycms_test";
 
-    const sb = await loadSandbox();
-    expect(() => sb.assertBenchmarkDbIsolation("sqlite")).toThrow(
+    expect(() => sandbox.assertBenchmarkDbIsolation("sqlite")).toThrow(
       /matches live config\/private\.ts/,
     );
   });
 
-  it("getBenchmarkIsolationSummary marks local config protected", async () => {
+  it("getBenchmarkIsolationSummary marks local config protected", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();
       return target === PRIVATE_TS;
     });
     process.env.BENCHMARK = "true";
 
-    const sb = await loadSandbox();
-    const summary = sb.getBenchmarkIsolationSummary("sqlite");
+    const summary = sandbox.getBenchmarkIsolationSummary("sqlite");
     expect(summary.profile).toBe("local");
     expect(summary.liveConfigProtected).toBe(true);
     expect(summary.dbName).toBe("benchmark_shared");

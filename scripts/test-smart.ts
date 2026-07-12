@@ -86,7 +86,7 @@ const SUITE_RULES: SuiteRule[] = [
   },
   {
     label: "Database Adapters",
-    gate: 1,
+    gate: 2,
     patterns: [
       "src/databases/mongo/**",
       "src/databases/sqlite/**",
