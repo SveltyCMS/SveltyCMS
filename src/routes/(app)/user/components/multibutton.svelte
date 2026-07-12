@@ -375,6 +375,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		<!-- Dropdown Toggle -->
 		<button
 			type="button"
+			data-testid="user-bulk-actions-menu"
 			onclick={(e) => {
 				e.stopPropagation();
 				if (!isDisabled) isDropdownOpen = !isDropdownOpen;

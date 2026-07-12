@@ -98,6 +98,19 @@ const SUITE_RULES: SuiteRule[] = [
     command: "bun run test:integration -- db",
   },
   {
+    label: "Content Structure Persistence",
+    gate: 1,
+    patterns: [
+      "src/content/**",
+      "src/databases/core/relational-content.ts",
+      "src/routes/(app)/config/collectionbuilder/**",
+      "src/services/sdk/namespaces/data-operations.ts",
+      "src/utils/collection-order.server.ts",
+    ],
+    command:
+      "bun test tests/integration/databases/content-nodes-contract.test.ts tests/unit/content/structure-persistence-db.test.ts tests/unit/content/sync-content-state.test.ts tests/unit/content/upsert-content-nodes.test.ts tests/unit/test-harness/real-db-markers.test.ts tests/unit/test-harness/negative-mock-guard.test.ts",
+  },
+  {
     label: "Stores & State",
     gate: 1,
     patterns: ["src/stores/**"],

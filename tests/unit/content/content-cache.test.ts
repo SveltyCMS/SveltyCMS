@@ -56,4 +56,18 @@ describe("engine.server cache helpers", () => {
     expect(cacheService.clearByPattern).toHaveBeenCalledWith("schema:", null);
     expect(cacheService.clearByPattern).toHaveBeenCalledWith("navigation:tree:", null);
   });
+
+  it("notifyContentUpdate broadcasts null tenantId instead of cross-tenant all wildcard", async () => {
+    const { notifyContentUpdate } = await import("../../../src/content/engine.server");
+    const { eventBus } = await import("../../../src/utils/event-bus");
+
+    await notifyContentUpdate(undefined);
+
+    expect(eventBus.broadcast).toHaveBeenCalledWith(
+      "content:update",
+      expect.objectContaining({ tenantId: null }),
+    );
+    const payload = (eventBus.broadcast as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1];
+    expect(payload?.tenantId).not.toBe("all");
+  });
 });

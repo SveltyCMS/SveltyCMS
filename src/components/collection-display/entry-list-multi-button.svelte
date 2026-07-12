@@ -485,6 +485,7 @@
 			<!-- Main Contextual Button -->
 			<Button
 				variant="ghost"
+				data-testid="entry-list-action-{currentAction}"
 				onclick={hasSelections ? handleMainButtonClick : undefined}
 				disabled={isProcessing}
 				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200

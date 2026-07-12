@@ -1,68 +1,45 @@
 /**
- * @file src/routes/(app)/config/collectionbuilder/collectionbuilder.remote.ts
- * @description Collection Builder Remote Functions — typed structure operations without JSON double-serialization.
+ * @file src/routes/(app)/config/collectionbuilder/collectionbuilder.server.ts
+ * @description Collection Builder server functions — permission-gated remotes via LocalCMS.
  *
- * Replaces: JSON.parse(formData.get("items")) → direct typed ContentNode[] parameter.
- * Eliminates manual FormData packaging of large schema trees.
+ * ### Features:
+ * - `executeGuiStructureSave` — unified gui-save path (upsert, manifest, SSE)
+ * - `saveContentStructure` / `deleteContentNodes` — permission-gated remotes
+ * - Preset installation with content refresh
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { error, fail } from "@sveltejs/kit";
-import { contentSystem } from "@src/content/index.server";
+import type { ContentNodeOperation } from "@src/content/types";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
-import { setCollectionOrder } from "@utils/collection-order.server";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { executeGuiStructureSave, getCollectionBuilderCms } from "./collectionbuilder-local.server";
 
-export interface ContentNode {
-  _id?: string;
-  path: string;
-  name: string;
-  nodeType: "collection" | "category" | "folder";
-  parentId?: string;
-  order?: number;
-  translations?: Record<string, unknown>[];
-  [key: string]: unknown;
-}
+/** @deprecated Use `ContentNodeOperation` from `@src/content/types` */
+export type UpsertOperation = ContentNodeOperation;
 
-export interface UpsertOperation {
-  type: "create" | "update" | "delete" | "move";
-  node: ContentNode;
-}
+export { executeGuiStructureSave, serializeStructureNodes } from "./collectionbuilder-local.server";
 
 function requirePermission(event: RequestEvent) {
   const user = getAuthenticatedUser(event.locals);
-  const { roles: tenantRoles, isAdmin } = event.locals as any;
+  const { roles: tenantRoles, isAdmin } = event.locals as App.Locals;
   if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin))
     throw error(403, "Insufficient permissions");
 }
 
-export async function saveContentStructure(event: RequestEvent, operations: UpsertOperation[]) {
+export async function saveContentStructure(
+  event: RequestEvent,
+  operations: ContentNodeOperation[],
+) {
   requirePermission(event);
-  const tenantId = (event.locals as any).tenantId;
+  const tenantId = (event.locals as App.Locals).tenantId ?? null;
 
   if (!(operations && Array.isArray(operations)))
     return fail(400, { message: "Invalid operations" });
 
   try {
-    await contentSystem.upsertContentNodes(operations as any, tenantId);
-    await contentSystem.refresh(tenantId);
-    const updated = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-
-    // Sync collection order to manifest so sidebar reflects builder changes
-    try {
-      const orderMap: Record<string, number> = {};
-      for (const node of (updated as any[]) || []) {
-        if (node.nodeType === "collection" && node._id) {
-          orderMap[String(node._id)] = node.order ?? 0;
-        }
-      }
-      await setCollectionOrder(orderMap, tenantId as string | null);
-    } catch {
-      /* non-critical */
-    }
-
-    return { success: true, contentStructure: updated };
+    return await executeGuiStructureSave(tenantId, operations);
   } catch (err) {
     logger.error("Error saving structure:", err);
     return fail(500, { message: "Failed to save structure" });
@@ -71,23 +48,14 @@ export async function saveContentStructure(event: RequestEvent, operations: Upse
 
 export async function deleteContentNodes(event: RequestEvent, ids: string[]) {
   requirePermission(event);
-  const tenantId = (event.locals as any).tenantId;
+  const tenantId = (event.locals as App.Locals).tenantId ?? null;
 
   if (!(ids && Array.isArray(ids))) return fail(400, { message: "Invalid IDs" });
 
   try {
-    const current = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-    const paths = current
-      .filter((n: any) => ids.includes(n._id?.toString()))
-      .map((n: any) => n.path);
-
-    const operations = paths.map((p: string) => ({
-      type: "delete" as const,
-      node: { path: p } as any,
-    }));
-
-    await contentSystem.upsertContentNodes(operations, tenantId);
-    await contentSystem.refresh(tenantId);
+    const cms = await getCollectionBuilderCms(tenantId);
+    const result = await cms.contentStructure.deleteByIds(ids, { tenantId });
+    if (!result.found) return fail(404, { message: "No matching nodes found" });
     return { success: true };
   } catch (err) {
     logger.error("Error deleting nodes:", err);
@@ -97,11 +65,10 @@ export async function deleteContentNodes(event: RequestEvent, ids: string[]) {
 
 export async function installPreset(event: RequestEvent, presetId: string) {
   requirePermission(event);
-  const tenantId = (event.locals as any).tenantId;
+  const tenantId = (event.locals as App.Locals).tenantId ?? null;
 
   if (!presetId || presetId === "blank") return fail(400, { message: "Invalid preset ID" });
 
-  // Use presets.ts data — single source of truth for all preset definitions
   const { PRESETS } = await import("@src/routes/setup/presets");
   const preset = PRESETS.find((p) => p.id === presetId);
 
@@ -115,7 +82,8 @@ export async function installPreset(event: RequestEvent, presetId: string) {
     await import("@src/routes/setup/preset-collections.server");
   await writePresetCollectionFiles(preset.collections, { tenantId });
 
-  await contentSystem.refresh(tenantId);
+  const cms = await getCollectionBuilderCms(tenantId);
+  await cms.content.refresh(tenantId);
 
   const created = preset.collections.map((c) => c.name);
   return {
@@ -127,12 +95,11 @@ export async function installPreset(event: RequestEvent, presetId: string) {
 
 export async function installTemplateCollections(event: RequestEvent, presetId: string) {
   requirePermission(event);
-  const tenantId = (event.locals as any).tenantId;
+  const tenantId = (event.locals as App.Locals).tenantId ?? null;
 
   if (!presetId || presetId === "blank" || presetId === "demo")
     return fail(400, { message: "Invalid preset ID" });
 
-  // Dynamically import the preset definitions
   const { PRESETS } = await import("@src/routes/setup/presets");
   const preset = PRESETS.find((p) => p.id === presetId);
 
@@ -146,8 +113,8 @@ export async function installTemplateCollections(event: RequestEvent, presetId: 
     await import("@src/routes/setup/preset-collections.server");
   await writePresetCollectionFiles(preset.collections, { tenantId });
 
-  // Trigger content system refresh to pick up the new collections
-  await contentSystem.refresh(tenantId);
+  const cms = await getCollectionBuilderCms(tenantId);
+  await cms.content.refresh(tenantId);
 
   const created = preset.collections.map((c) => c.name);
   return {

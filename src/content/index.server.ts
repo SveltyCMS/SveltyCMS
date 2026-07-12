@@ -45,6 +45,18 @@ export {
 } from "./index";
 
 export * from "./types";
+export {
+  syncContentState,
+  detectCompilationDrift,
+  detectOrganizationalDrift,
+  reconcileOrganizationalManifest,
+  ensureCompiledCollectionsFresh,
+  type SyncContentReason,
+  type SyncContentStateOptions,
+  type SyncContentStateResult,
+  type CompilationDriftReport,
+  type OrganizationalDriftReport,
+} from "./sync-content-state.server";
 
 // Lazy-loaded services (avoid loading on import)
 let contentService: any = null;
@@ -116,9 +128,10 @@ export async function ensureContentInitialized(
         }
         if (!db) throw new Error("Database not ready for content initialization");
 
-        const { refreshContent } = await import("./engine.server");
-        await refreshContent(tenantId, {
-          mode: "full",
+        const { syncContentState } = await import("./sync-content-state.server");
+        await syncContentState({
+          reason: "boot",
+          tenantId,
           adapter: db,
           skipReconciliation: opts.skipReconciliation ?? false,
         });
@@ -238,9 +251,10 @@ export const contentSystem = {
   async getContentStructureFromDatabase(
     format: "flat" | "tree" = "tree",
     tenantId?: string | null,
+    adapter?: DatabaseAdapter,
   ): Promise<any[]> {
     const svc = await getServerContentService();
-    return svc.getContentStructureFromDatabase(format, tenantId);
+    return svc.getContentStructureFromDatabase(format, tenantId, adapter);
   },
 
   async reorderContentNodes(items: any[], tenantId?: string | null): Promise<any[]> {
@@ -250,9 +264,13 @@ export const contentSystem = {
     return contentStore.getNodesForTenant(tenantId);
   },
 
-  async upsertContentNodes(operations: ContentNodeOperation[], tenantId?: string | null) {
+  async upsertContentNodes(
+    operations: ContentNodeOperation[],
+    tenantId?: string | null,
+    adapter?: DatabaseAdapter,
+  ) {
     const svc = await getServerContentService();
-    return svc.upsertContentNodes(operations, tenantId);
+    return svc.upsertContentNodes(operations, tenantId, adapter);
   },
 
   async search(query: string, options?: any) {

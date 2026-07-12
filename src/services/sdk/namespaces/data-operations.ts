@@ -377,6 +377,62 @@ export class BackupNamespace extends BaseNamespace {
  * Methods: listChannels, createChannel, updateChannel, deleteChannel,
  *          createSyncPlan, pushContent, pullContent, getJobStatus
  */
+// ---------------------------------------------------------------------------
+// Content Structure Namespace (Collection Builder organizational tree)
+// ---------------------------------------------------------------------------
+
+/**
+ * Zero-latency wrappers for GUI structure saves (DB + manifest + SSE).
+ * Used by Collection Builder remotes and form actions.
+ */
+export class ContentStructureNamespace extends BaseNamespace {
+  constructor(_dbAdapter: IDBAdapter) {
+    super(_dbAdapter);
+  }
+
+  async saveGuiStructure(
+    operations: import("@src/content/types").ContentNodeOperation[],
+    options: LocalApiOptions = {},
+  ) {
+    const { syncContentState } = await import("@src/content/index.server");
+    return syncContentState({
+      reason: "gui-save",
+      tenantId: options.tenantId ?? null,
+      adapter: this._dbAdapter,
+      operations,
+    });
+  }
+
+  async getFlatStructure(options: LocalApiOptions = {}) {
+    const { contentService } = await import("@src/content/engine.server");
+    return contentService.getContentStructureFromDatabase(
+      "flat",
+      options.tenantId ?? null,
+      this._dbAdapter,
+    );
+  }
+
+  async deleteByIds(ids: string[], options: LocalApiOptions = {}) {
+    const current = await this.getFlatStructure(options);
+    const paths = current
+      .filter((n) => ids.includes(n._id?.toString()))
+      .map((n) => n.path)
+      .filter((p): p is string => !!p);
+
+    if (paths.length === 0) {
+      return { found: false as const, paths: [] as string[] };
+    }
+
+    const operations: import("@src/content/types").ContentNodeOperation[] = paths.map((p) => ({
+      type: "delete",
+      node: { path: p },
+    }));
+
+    const result = await this.saveGuiStructure(operations, options);
+    return { found: true as const, paths, result };
+  }
+}
+
 export class ContentSyncNamespace extends BaseNamespace {
   constructor(_dbAdapter: IDBAdapter) {
     super(_dbAdapter);

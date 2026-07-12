@@ -29,6 +29,7 @@ import type {
   ImportersNamespace,
   BackupNamespace,
   ContentSyncNamespace,
+  ContentStructureNamespace,
 } from "./namespaces/data-operations";
 import type { VirtualCollectionsNamespace } from "./namespaces/virtual-collections-namespace";
 import { traceSpan } from "@utils/context";
@@ -88,6 +89,7 @@ export class LocalCMS {
   public readonly importers!: ImportersNamespace;
   public readonly backups!: BackupNamespace;
   public readonly contentSync!: ContentSyncNamespace;
+  public readonly contentStructure!: ContentStructureNamespace;
 
   /**
    * Access the underlying database adapter directly.
@@ -213,6 +215,14 @@ export class LocalCMS {
     defineLazyNamespace(this, "contentSync", async () => {
       const { ContentSyncNamespace } = await import("./namespaces/data-operations");
       return instrumentNamespace("contentSync", new ContentSyncNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "contentStructure", async () => {
+      const { ContentStructureNamespace } = await import("./namespaces/data-operations");
+      return instrumentNamespace(
+        "contentStructure",
+        new ContentStructureNamespace(this._dbAdapter),
+      );
     });
   }
 

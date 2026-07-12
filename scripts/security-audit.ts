@@ -8,9 +8,12 @@
  * Usage:
  *   bun run scripts/security-audit.ts                          # unauthenticated scan
  *   bun run scripts/security-audit.ts --auth                    # authenticated scan (seeds admin, logs in)
- *   bun run scripts/security-audit.ts --base=http://localhost:4173  # custom URL
+ *   bun run scripts/security-audit.ts --base=http://127.0.0.1:5173  # dev (TEST_MODE)
+ *   bun run audit:security:auth                                     # auto-starts dev + --auth
+ *   bun run scripts/security-audit.ts --base=http://127.0.0.1:4173  # preview (no testing API)
  *   bun run scripts/security-audit.ts --ci                     # CI mode (exit 1 on findings)
  *   bun run scripts/security-audit.ts --auth --ci              # full authenticated CI audit
+ *   bun run scripts/security-audit.ts --only=backdoor --ci     # A01 /api/testing probe only
  *
  * ### Audit Categories (OWASP 2021 mapped)
  * - A01: Broken Access Control → auth bypass, endpoint protection, GraphQL auth, CSRF
@@ -23,10 +26,18 @@
 
 const BASE = process.argv.includes("--base")
   ? process.argv[process.argv.indexOf("--base") + 1]
-  : process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173";
+  : process.env.PLAYWRIGHT_TEST_BASE_URL ||
+    (process.env.TEST_MODE === "true" ? "http://127.0.0.1:5173" : "http://127.0.0.1:4173");
 
 const IS_CI = process.argv.includes("--ci");
 const AUTH_MODE = process.argv.includes("--auth");
+
+function getOnlyFilter(): string | null {
+  const arg = process.argv.find((a) => a.startsWith("--only="));
+  return arg?.split("=")[1] ?? null;
+}
+
+const ONLY_FILTER = getOnlyFilter();
 
 const AUDITOR_UA = "SveltyCMS-Security-Audit/3.0";
 
@@ -195,6 +206,111 @@ async function teardownAuth() {
     console.log("  ✅ Test admin user removed");
   } catch {
     console.log("  ⚠️  Could not clean up test admin (non-fatal)");
+  }
+}
+
+// ── A01: TESTING API BACKDOOR CLOSURE ───────────────────────────────────
+
+async function auditTestingBackdoor() {
+  console.log("\n🚪 [A01] Testing API Backdoor Closure");
+
+  const noSecret = await probe(
+    "POST",
+    "/api/testing",
+    { "Content-Type": "application/json" },
+    JSON.stringify({ action: "seed", email: "probe@test.com", password: "Probe123!" }),
+  );
+
+  if (!noSecret) {
+    report("/api/testing", "Unreachable", "A01", "MEDIUM", "Could not probe testing endpoint");
+    return;
+  }
+
+  if (noSecret.status === 200) {
+    report(
+      "/api/testing",
+      "Backdoor open",
+      "A01",
+      "CRITICAL",
+      "POST without x-test-secret returned 200 — unauthenticated testing API",
+    );
+  } else if (noSecret.status === 401 || noSecret.status === 403) {
+    console.log(`  ✅ No secret: rejected (${noSecret.status})`);
+  } else if (noSecret.status === 404) {
+    console.log(`  ✅ No secret: stripped from build (${noSecret.status})`);
+  } else {
+    report(
+      "/api/testing",
+      "Unexpected status",
+      "A01",
+      "HIGH",
+      `No secret returned ${noSecret.status} (expected 401/403/404)`,
+    );
+  }
+
+  const wrongSecret = await probe(
+    "POST",
+    "/api/testing",
+    {
+      "Content-Type": "application/json",
+      "x-test-secret": "definitely-wrong-secret-value",
+    },
+    JSON.stringify({ action: "seed", email: "probe@test.com", password: "Probe123!" }),
+  );
+
+  if (!wrongSecret) return;
+
+  if (wrongSecret.status === 200) {
+    report(
+      "/api/testing",
+      "Weak secret",
+      "A01",
+      "CRITICAL",
+      "POST with invalid x-test-secret returned 200",
+    );
+  } else if (
+    wrongSecret.status === 401 ||
+    wrongSecret.status === 403 ||
+    wrongSecret.status === 404
+  ) {
+    console.log(`  ✅ Wrong secret: rejected (${wrongSecret.status})`);
+  } else {
+    report(
+      "/api/testing",
+      "Wrong secret",
+      "A01",
+      "HIGH",
+      `Invalid secret returned ${wrongSecret.status}`,
+    );
+  }
+
+  // Known matrix default must not work without TEST_MODE/BENCHMARK on the server
+  const knownDefault = await probe(
+    "POST",
+    "/api/testing",
+    {
+      "Content-Type": "application/json",
+      "x-test-secret": "SVELTYCMS_TEST_SECRET_2026",
+    },
+    JSON.stringify({ action: "seed", email: "probe@test.com", password: "Probe123!" }),
+  );
+
+  if (!knownDefault) return;
+
+  if (knownDefault.status === 200) {
+    report(
+      "/api/testing",
+      "Hardcoded secret",
+      "A01",
+      "CRITICAL",
+      "Default benchmark secret accepted without server TEST_MODE/BENCHMARK — production backdoor risk",
+    );
+  } else if (
+    knownDefault.status === 401 ||
+    knownDefault.status === 403 ||
+    knownDefault.status === 404
+  ) {
+    console.log(`  ✅ Hardcoded benchmark secret: rejected (${knownDefault.status})`);
   }
 }
 
@@ -839,19 +955,26 @@ async function main() {
     await setupAuth();
   }
 
-  // Run all audits
-  await auditAuth(); // A01
-  if (AUTH_MODE) await auditCSRF(); // A01 — CSRF requires auth
-  await auditXSS(); // A03
-  await auditSQLi(); // A03
-  await auditPathTraversal(); // A03
-  await auditGraphQL(); // A01 + A04
-  await auditHeaders(); // A05
-  await auditCORS(); // A05
-  await auditCookieSecurity(); // A02
-  await auditRateLimit(); // A07
-  await auditInfoLeakage(); // A05
-  await auditSecretLeakage(); // A05 — credentialed secrets in responses
+  const runBackdoor = !ONLY_FILTER || ONLY_FILTER === "backdoor";
+  const runFull = !ONLY_FILTER;
+
+  if (runBackdoor) {
+    await auditTestingBackdoor(); // A01 — /api/testing must be 401/403/404 without valid harness env
+  }
+  if (runFull) {
+    await auditAuth(); // A01
+    if (AUTH_MODE) await auditCSRF(); // A01 — CSRF requires auth
+    await auditXSS(); // A03
+    await auditSQLi(); // A03
+    await auditPathTraversal(); // A03
+    await auditGraphQL(); // A01 + A04
+    await auditHeaders(); // A05
+    await auditCORS(); // A05
+    await auditCookieSecurity(); // A02
+    await auditRateLimit(); // A07
+    await auditInfoLeakage(); // A05
+    await auditSecretLeakage(); // A05 — credentialed secrets in responses
+  }
 
   // Teardown: clean up seeded test admin
   if (AUTH_MODE) {

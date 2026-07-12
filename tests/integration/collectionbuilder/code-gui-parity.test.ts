@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { ensureFullInitialization } from "@src/databases/db";
 import { contentSystem } from "@src/content/index.server";
+import { getCollectionOrder, getStructureNodes } from "@utils/collection-order.server";
 
 beforeAll(async () => {
   await ensureFullInitialization();
@@ -44,6 +45,17 @@ describe("Code ↔ GUI Collection Parity", () => {
       const loaded = await contentSystem.getCollection(id);
       expect(loaded).toBeDefined();
     }
+  });
+
+  it("manifest collectionOrder is readable after initialization", async () => {
+    const order = await getCollectionOrder("global");
+    expect(order).toBeDefined();
+    expect(typeof order).toBe("object");
+  });
+
+  it("manifest structureNodes is an array after initialization", async () => {
+    const structureNodes = await getStructureNodes("global");
+    expect(Array.isArray(structureNodes)).toBe(true);
   });
 });
 

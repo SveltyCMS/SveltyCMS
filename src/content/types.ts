@@ -88,15 +88,33 @@ export interface ContentNode extends BaseEntity {
   description?: string;
   icon?: string;
   name: string;
-  nodeType: "category" | "collection";
+  nodeType: "category" | "collection" | "folder";
   order: number;
   position?: number;
   parentId?: DatabaseId;
   path?: string;
   slug?: string;
-  source?: "filesystem" | "database";
+  source?: "filesystem" | "database" | "builder";
   translations: Translation[];
 }
+
+/**
+ * Partial payload for GUI structure mutations (create/update/move/delete/rename).
+ * Only `path` is required for delete; create/move supply additional fields.
+ */
+export type ContentNodeInput = {
+  path: string;
+  _id?: DatabaseId | string;
+  name?: string;
+  nodeType?: ContentNode["nodeType"];
+  parentId?: DatabaseId | string;
+  order?: number;
+  source?: ContentNode["source"];
+  icon?: string;
+  description?: string;
+  translations?: Translation[];
+  [key: string]: unknown;
+};
 
 // --- Website Token ---
 // Represents an API token for headless website access.
@@ -319,7 +337,7 @@ export interface Category {
 export type ContentNodeOperationType = "create" | "delete" | "move" | "rename" | "update";
 
 export interface ContentNodeOperation {
-  node: ContentNode;
+  node: ContentNodeInput;
   type: ContentNodeOperationType;
 }
 
@@ -393,7 +411,7 @@ export interface NavigationNode {
   icon?: string;
   lastModified?: Date;
   name: string;
-  nodeType: "category" | "collection";
+  nodeType: "category" | "collection" | "folder";
   order?: number;
   parentId?: string;
   path?: string;

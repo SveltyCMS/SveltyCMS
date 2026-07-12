@@ -81,9 +81,17 @@ export function getIntegrationTestEnv(dbType: string, overrides: Record<string, 
 }
 
 /** Env block shared by bench-core CI job and local benchmark runners. */
-export function getBenchmarkTestEnv(dbType: string, overrides: Record<string, string> = {}) {
+export function getBenchmarkTestEnv(
+  dbType: string,
+  overrides: Record<string, string> = {},
+): Record<string, string> {
   const creds = getDockerDefaultDbCredentials(dbType);
-  return {
+  const { resolveBenchmarkProfile, getLocalSandboxMediaRel } =
+    require("./benchmark-sandbox") as typeof import("./benchmark-sandbox");
+
+  const profile = overrides.BENCHMARK_PROFILE ?? resolveBenchmarkProfile();
+
+  const env: Record<string, string> = {
     DB_TYPE: dbType,
     DB_HOST: "127.0.0.1",
     DB_PORT: getDefaultDbPort(dbType),
@@ -99,6 +107,14 @@ export function getBenchmarkTestEnv(dbType: string, overrides: Record<string, st
     ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",
     UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(dbType),
+    BENCHMARK_PROFILE: profile,
     ...overrides,
   };
+
+  if (profile === "local") {
+    env.BENCHMARK_LOCAL_SANDBOX = "1";
+    env.MEDIA_FOLDER = getLocalSandboxMediaRel();
+  }
+
+  return env;
 }

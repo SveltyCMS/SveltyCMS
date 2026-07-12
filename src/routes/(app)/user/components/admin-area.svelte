@@ -668,6 +668,7 @@
 </script>
 
 <AdminCard
+	data-testid="user-admin-area"
 	class="flex flex-col border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
 >
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>

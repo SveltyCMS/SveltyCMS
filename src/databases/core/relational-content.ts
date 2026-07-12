@@ -59,12 +59,15 @@ export class RelationalContentModule implements IContentAdapter {
       | string
       | undefined;
     const tenantId = options.tenantId !== undefined ? options.tenantId : (node as any).tenantId;
+    const order = (node as any).order;
+    const position = (node as any).position ?? (typeof order === "number" ? order : undefined);
     const preparedValues = (this.adapter as any).prepareValues(
       table,
       {
         ...node,
         _id: id,
         tenantId,
+        ...(position !== undefined ? { position } : {}),
       },
       id,
       now,
@@ -84,10 +87,7 @@ export class RelationalContentModule implements IContentAdapter {
       return;
     }
 
-    const conflictTarget =
-      this.adapter.type === "sqlite"
-        ? this.schema.contentNodes._id
-        : [this.schema.contentNodes._id];
+    const conflictTarget = [this.schema.contentNodes.path, this.schema.contentNodes.tenantId];
 
     await insert.onConflictDoUpdate({
       target: conflictTarget,
@@ -357,10 +357,7 @@ export class RelationalContentModule implements IContentAdapter {
           }
           await insert.onDuplicateKeyUpdate({ set: setObj });
         } else {
-          const conflictTarget =
-            this.adapter.type === "sqlite"
-              ? this.schema.contentNodes._id
-              : [this.schema.contentNodes._id];
+          const conflictTarget = [this.schema.contentNodes.path, this.schema.contentNodes.tenantId];
           const setObj: Record<string, any> = {};
           if (preparedValuesList.length > 0) {
             const sample = preparedValuesList[0];

@@ -172,7 +172,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
-      collectionOrder: getCollectionOrder(tenantId),
+      collectionOrder: await getCollectionOrder(tenantId),
       cspNonce,
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker

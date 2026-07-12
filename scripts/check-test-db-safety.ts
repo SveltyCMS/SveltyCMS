@@ -17,10 +17,26 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isConfigSourceSafeForTesting } from "../src/utils/test-db-safety.ts";
+import {
+  isConfigSourceSafeForTesting,
+  isUnsafeLiveDeveloperDbName,
+} from "../src/utils/test-db-safety.ts";
 
 const ROOT = process.cwd();
 const TEST_CONFIG_PATH = join(ROOT, "config", "private.test.ts");
+const LIVE_CONFIG_PATH = join(ROOT, "config", "private.ts");
+
+if (existsSync(LIVE_CONFIG_PATH)) {
+  const live = readFileSync(LIVE_CONFIG_PATH, "utf8");
+  const liveDb = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
+  if (isUnsafeLiveDeveloperDbName(liveDb)) {
+    console.error(
+      `❌ config/private.ts uses test DB name '${liveDb}'. ` +
+        "Live developer config must use a non-test database (e.g. sveltycms.db).",
+    );
+    process.exit(1);
+  }
+}
 
 if (!existsSync(TEST_CONFIG_PATH)) {
   // No test config exists yet — nothing to check, not an error.

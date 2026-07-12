@@ -6,7 +6,7 @@ order: 14
 icon: "📊"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-07-05"
+updated: "2026-07-12"
 tags:
   - "benchmarks"
   - "performance"
@@ -120,6 +120,49 @@ flowchart TB
 | `benchmark_mongodb.mdx`          | MongoDB                        |
 | `benchmark_mongodb_redis.mdx`    | MongoDB + Redis                |
 | `index.mdx`                      | Cross-adapter comparison index |
+
+## Local Benchmark Safety (July 2026)
+
+Local benchmarks use a sandboxed environment that protects live developer data in `config/` and `.compiledCollections/`. Two profiles govern behavior:
+
+| Profile      | When                                     | Behavior                                                                                                                   |
+| ------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **local**    | `config/private.ts` exists (dev machine) | Runtime env-only config, isolated `benchmark_shared` DB, sandbox compiled/manifest/media trees, external services disabled |
+| **ci-fresh** | No `config/private.ts` (CI runners)      | Setup wizard runs, writes `private.test.ts` under `TEST_MODE`, simulates first install                                     |
+
+### Sandbox Isolation (`src/utils/benchmark-sandbox.ts`)
+
+| Live Path                            | Sandbox Equivalent                                                    |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| `.compiledCollections/`              | `.compiledCollections/test/_local_sandbox/`                           |
+| `.compilation-manifest.json`         | `.compiledCollections/test/_local_sandbox/.compilation-manifest.json` |
+| `config/database/sveltycms.db`       | `config/database/benchmark_shared.db`                                 |
+| `mediaFolder/`                       | `config/benchmark-sandbox/media/`                                     |
+| `config/collections/*.ts` (non-test) | Bootstrap regen skipped; writes blocked (fail-closed)                 |
+
+### External Services Guard (`src/utils/benchmark-runtime.ts`)
+
+When `BENCHMARK=true` or `BENCHMARK_MODE=true`, the following are explicitly disabled:
+
+- **Redis cache** — `cache-service.ts` skips L2 connection
+- **Email/SMTP** — `email.server.ts` returns `{ benchmark_sandbox: true }`
+- **AI translation** — `ai-translation.ts` returns `null`
+- **Webhooks** — `webhook-service.ts` and `automation-service.ts` skip triggers
+- **Background jobs** — `job-queue-service.ts` disables polling
+
+### Preflight (`scripts/verify-benchmark-local.ts`)
+
+Runs automatically before `bun run benchmark` and `bun run benchmark:core`. Checks:
+
+- Build exists with full testing harness (bench mode)
+- Live `config/private.ts` does not use test DB names (`benchmark_shared`, `sveltycms_test`)
+- Prints isolation boundaries: database, compiled root, media sandbox, external services status
+
+```bash
+COMPILE_ALL_ADAPTERS=true bun run build
+bun run benchmark --db=sqlite          # preflight runs first
+bun run benchmark:core --db=sqlite     # CI parity core suite
+```
 
 ## Key Features
 

@@ -152,6 +152,11 @@ export const contentSystem = {
       const nodes = json?.data?.contentNodes;
       if (Array.isArray(nodes)) {
         contentStore.sync(nodes);
+        // Also sync the sidebar's collection store so the Collections tree
+        // reflects SSE-driven updates without requiring a page navigation
+        import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
+          setContentStructure(nodes);
+        });
       }
     } catch (err) {
       console.warn("[contentSystem] Client refresh failed:", err);

@@ -155,6 +155,8 @@ export function shortLabelToTag(shortLabel: string): string {
 /** Explicit test-file → tag map — prevents `content_*` prefix collisions. */
 const TEST_FILE_TO_TAG: Record<string, string> = {
   "content-incremental-reload": "INCREMENTAL",
+  "content-gui-save": "GUI_SAVE",
+  "content-boot-compile-drift": "BOOT_DRIFT",
   "content-scale-stress": "CONTENT_STRESS",
   "content-scan": "SCAN",
   "entry-edit-hydration": "EDIT_HYDRATE",

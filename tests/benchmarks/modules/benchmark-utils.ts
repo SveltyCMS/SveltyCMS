@@ -832,6 +832,9 @@ export async function setupBenchmarkServer() {
   process.env.BENCHMARK = "true";
   process.env.SVELTY_BENCHMARK_SUITE = "true";
 
+  const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
+  printBenchmarkIsolationBanner(dbType);
+
   const serverProcess = spawn("node", ["build/index.js"], {
     env: {
       ...process.env,
@@ -855,15 +858,20 @@ export async function setupBenchmarkServer() {
     }
   });
 
-  // Wait for server to become healthy
   const healthUrl = `http://127.0.0.1:${port}/api/system/health`;
   let healthy = false;
   for (let attempt = 0; attempt < 90; attempt++) {
     try {
-      const res = await fetch(healthUrl);
+      const res = await fetch(healthUrl, { signal: AbortSignal.timeout(2000) });
       if (res.ok) {
-        healthy = true;
-        break;
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        const status = String(data.overallStatus ?? data.status ?? "").toUpperCase();
+        const db = data.database;
+        const dbOk = db === true || db === "connected";
+        if (new Set(["READY", "WARMED", "DEGRADED"]).has(status) && dbOk) {
+          healthy = true;
+          break;
+        }
       }
     } catch {
       // Server not ready yet
@@ -877,16 +885,18 @@ export async function setupBenchmarkServer() {
     throw new Error(`Server at ${healthUrl} did not become healthy within 45s${stderrSnippet}`);
   }
 
-  // Run system setup (non-fatal — data seeding handled by /api/testing)
-  try {
-    const { execSync } = await import("child_process");
-    execSync("bun run scripts/setup-system.ts", {
-      env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL, PRESET: "demo" },
-      stdio: "pipe",
-      shell: process.platform === "win32" ? "cmd.exe" : undefined,
-    });
-  } catch {
-    // setup-system.ts may fail for non-SQLite DBs — benchmark data is seeded below
+  const { isCiFreshBenchmark } = await import("@utils/benchmark-sandbox");
+  if (isCiFreshBenchmark()) {
+    try {
+      const { execSync } = await import("child_process");
+      execSync("bun run scripts/setup-system.ts", {
+        env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL, PRESET: "demo" },
+        stdio: "pipe",
+        shell: process.platform === "win32" ? "cmd.exe" : undefined,
+      });
+    } catch {
+      // Non-fatal — benchmark data is seeded via /api/testing below
+    }
   }
 
   // Seed benchmark data in-process

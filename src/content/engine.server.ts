@@ -77,7 +77,7 @@ export async function notifyContentUpdate(
 
   eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
     version: Date.now(),
-    tenantId: tenantId || "all",
+    tenantId: tenantId || null,
     ...(options?.batchSize !== undefined ? { batchSize: options.batchSize } : {}),
   });
 }
@@ -424,6 +424,11 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
  * config/collections/ is empty. Prevents blank state after cache clears.
  */
 async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void> {
+  const { isLocalBenchmarkSandbox } = await import("@utils/benchmark-sandbox");
+  if (isLocalBenchmarkSandbox()) {
+    return;
+  }
+
   const path = await import("node:path");
   const fs = await import("node:fs/promises");
   const baseDir = path.resolve(process.cwd(), "config", "collections");
@@ -471,6 +476,8 @@ import type { Schema } from '@src/content/types';
 
 export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields || [] }, null, 2)};
 `;
+    const { assertLiveDataWriteAllowed } = await import("@utils/benchmark-sandbox");
+    assertLiveDataWriteAllowed(filePath);
     await fs.writeFile(filePath, content, "utf-8");
     logger.info(
       `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}`,
@@ -480,9 +487,10 @@ export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: 
   // Trigger compilation
   try {
     const { compile } = await import("@src/utils/compilation/compile");
+    const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
     await compile({
       userCollections: baseDir,
-      compiledCollections: path.resolve(process.cwd(), ".compiledCollections"),
+      compiledCollections: getCompiledCollectionsPath(null),
     });
   } catch (e) {
     logger.warn("[Bootstrap] Compilation after regeneration failed:", e);
@@ -525,15 +533,38 @@ export const contentService = {
       return;
     }
 
-    // 1. Fetch
-    const [dbResult, categoryNodes] = await Promise.all([
+    // 1. Fetch DB nodes, filesystem categories, and GUI manifest overrides
+    const { getCollectionOrder, getStructureNodes } =
+      await import("@utils/collection-order.server");
+    const [dbResult, categoryNodes, manifestOrder, manifestStructure] = await Promise.all([
       dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as any,
         bypassTenantCheck: true,
       }),
       generateCategoryNodesFromPaths(schemas, tenantId),
+      getCollectionOrder(tenantId ?? null),
+      getStructureNodes(tenantId ?? null),
     ]);
-    const dbNodes = dbResult.success ? dbResult.data : [];
+    const dbNodes = dbResult.success ? [...dbResult.data] : [];
+
+    // Merge GUI categories from manifest when missing in DB (e.g. after cache clear)
+    const knownIds = new Set(dbNodes.map((n) => n._id?.toString()));
+    for (const snap of manifestStructure) {
+      if (knownIds.has(snap._id)) continue;
+      dbNodes.push({
+        _id: snap._id as DatabaseId,
+        name: snap.name,
+        path: snap.path,
+        nodeType: snap.nodeType,
+        parentId: snap.parentId as DatabaseId | undefined,
+        order: snap.order ?? 999,
+        icon: snap.icon ?? "mdi:folder",
+        source: snap.source ?? "builder",
+        translations: [],
+        tenantId: tenantId as any,
+      } as unknown as ContentNode);
+      knownIds.add(snap._id);
+    }
 
     // 2. Calculate
     const { operations, prunedPaths } = this.calculateReconciledOperations(
@@ -541,6 +572,7 @@ export const contentService = {
       dbNodes,
       categoryNodes,
       tenantId,
+      manifestOrder,
     );
 
     // 3. Persist
@@ -571,6 +603,7 @@ export const contentService = {
     dbNodes: ContentNode[],
     categoryNodes: ContentNode[],
     tenantId?: string | null,
+    manifestOrder: Record<string, number> = {},
   ) {
     const operations: ContentNode[] = [];
     const processedPaths = new Set<string>();
@@ -606,16 +639,23 @@ export const contentService = {
         }
       }
 
-      const parentId = categoryIdMap.get(schemaPath.split("/").slice(0, -1).join("/")) || undefined;
+      const parentId =
+        existing?.parentId ??
+        categoryIdMap.get(schemaPath.split("/").slice(0, -1).join("/")) ??
+        undefined;
+      const schemaId = String(schema._id || existing?._id || schema.name || "unknown");
+      const manifestSort =
+        manifestOrder[schemaId] ?? manifestOrder[schemaId.toLowerCase()] ?? existing?.order ?? 999;
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
         existing.name !== String(schema.name) ||
-        existing.parentId !== parentId;
+        existing.parentId !== parentId ||
+        existing.order !== manifestSort;
 
       const node: ContentNode = {
         ...existing,
-        _id: (schema._id || existing?._id || schema.name || "unknown") as DatabaseId,
+        _id: schemaId as DatabaseId,
         path: schemaPath,
         name: String(schema.name),
         icon: schema.icon || "bi:file",
@@ -625,7 +665,7 @@ export const contentService = {
         parentId: parentId,
         createdAt: existing?.createdAt || now,
         updatedAt: hasChanged ? now : existing?.updatedAt || now,
-        order: existing?.order || 999,
+        order: manifestSort,
         translations: schema.translations || [],
         source: "filesystem",
       };
@@ -640,10 +680,11 @@ export const contentService = {
     for (const [path, dbNode] of dbMapByPath.entries()) {
       if (processedPaths.has(path)) continue;
 
-      // 🚀 SMART PRUNING: Only prune filesystem nodes that are no longer on disk.
+      // 🚀 SMART PRUNING: Only prune filesystem-backed nodes no longer on disk.
+      // Builder/API categories and organizational nodes are preserved.
       const source = dbNode.source || "filesystem";
 
-      if (source === "filesystem") {
+      if (source === "filesystem" && dbNode.nodeType !== "category") {
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.info(
             `[Reconcile] Pruning stale filesystem node: ${path} (type: ${dbNode.nodeType})`,
@@ -849,8 +890,9 @@ export const contentService = {
   async getContentStructureFromDatabase(
     format: "flat" | "tree" = "flat",
     tenantId?: string | null,
+    adapter?: IDBAdapter,
   ): Promise<any[]> {
-    const db = await (await import("@src/databases/db")).getDb();
+    const db = adapter || (await (await import("@src/databases/db")).getDb());
     if (!db) return [];
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
@@ -865,13 +907,11 @@ export const contentService = {
     if (tenantId) logger.debug("Reordering nodes for tenant", { tenantId });
   },
 
-  async upsertContentNodes(operations: any[], tenantId?: string | null) {
-    const { dbAdapter } = await import("@src/databases/db");
+  async upsertContentNodes(operations: any[], tenantId?: string | null, adapter?: IDBAdapter) {
+    const dbAdapter = adapter || (await import("@src/databases/db")).dbAdapter;
     if (!dbAdapter || operations.length === 0) return;
 
-    const upsertOps = operations.filter(
-      (op) => op.type === "create" || op.type === "update" || !op.type,
-    );
+    const upsertOps = operations.filter((op) => op.type !== "delete");
     const deleteOps = operations.filter((op) => op.type === "delete");
 
     if (upsertOps.length > 0) {
@@ -882,18 +922,34 @@ export const contentService = {
           return { path: op.node.path, id, changes: op.node };
         })
         .filter((u): u is any => u !== null);
-      if (updates.length > 0)
-        await dbAdapter.content.nodes.bulkUpdate(updates, {
+      if (updates.length > 0) {
+        const bulkResult = await dbAdapter.content.nodes.bulkUpdate(updates, {
           tenantId: tenantId as any,
         });
+        if (!bulkResult.success) {
+          throw new Error(
+            bulkResult.message ||
+              bulkResult.error?.message ||
+              "[ContentService] bulkUpdate failed for structure nodes",
+          );
+        }
+      }
     }
 
     if (deleteOps.length > 0) {
       const pathsToDelete = deleteOps.map((op) => op.node.path).filter((p): p is string => !!p);
-      if (pathsToDelete.length > 0)
-        await dbAdapter.content.nodes.deleteMany(pathsToDelete, {
+      if (pathsToDelete.length > 0) {
+        const deleteResult = await dbAdapter.content.nodes.deleteMany(pathsToDelete, {
           tenantId: tenantId as any,
         });
+        if (!deleteResult.success) {
+          throw new Error(
+            deleteResult.message ||
+              deleteResult.error?.message ||
+              "[ContentService] deleteMany failed for structure nodes",
+          );
+        }
+      }
     }
     contentStore.updateVersion();
   },

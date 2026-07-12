@@ -49,7 +49,7 @@ export interface TreeViewItem extends Record<string, any> {
 	isDraggable?: boolean;
 	isDropAllowed?: boolean;
 	name: string;
-	nodeType: "category" | "collection";
+	nodeType: "category" | "collection" | "folder";
 	order?: number;
 	parent: string | null;
 	path: string;

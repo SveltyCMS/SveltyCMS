@@ -173,9 +173,13 @@ async function handleNodeUpdate(updatedNodes: ContentNode[]) {
         const id = node._id.toString();
         const existing = nodesToSave[id];
         const keepCreate = existing?.type === "create";
+        const normalized =
+            node.nodeType === "category" && !node.source
+                ? { ...node, source: "builder" as const }
+                : node;
         nodesToSave[id] = {
             type: keepCreate ? "create" : "move",
-            node,
+            node: normalized,
         };
     });
 }
@@ -371,7 +375,7 @@ async function handleSave() {
 
         if ("success" in result && result.success && result.contentStructure) {
             toast.success("Organization updated successfully");
-            currentConfig = result.contentStructure as ContentNode[];
+            currentConfig = result.contentStructure as unknown as ContentNode[];
             setContentStructure(currentConfig);
             treeVersion++;
             skipNextSyncFromData = true;
@@ -523,6 +527,7 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
                     createdAt: new Date().toISOString() as ISODateString,
                     parentId: undefined,
                     nodeType: "category",
+                    source: "builder",
                 };
                 currentConfig = [...currentConfig, newCategory];
                 nodesToSave[newId.toString()] = { type: "create", node: newCategory };
@@ -599,6 +604,7 @@ function modalLoadPreset(): void {
 
 {#snippet saveButton(isHeader = false)}
     <Button variant="tertiary"
+        data-testid="save-structure-button"
         onclick={handleSave}
         disabled={isLoading || Object.keys(nodesToSave).length === 0}
         title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}

@@ -437,6 +437,31 @@ const BASE_TASKS: TaskSpec[] = [
         timeout: 600_000,
       }),
   },
+  {
+    name: "Benchmark Build Backdoor Check",
+    estimatedMs: 2000,
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
+        silent: true,
+        timeout: 60_000,
+      }),
+  },
+  {
+    name: "Benchmark Local Preflight",
+    estimatedMs: 3000,
+    remediation: "bun run verify:benchmark-local",
+    shouldSkip: (ctx) => {
+      const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+      return !includeDb || ctx.options.skipBenchmarks === true;
+    },
+    run: () =>
+      runCommand("bun", ["run", "scripts/verify-benchmark-local.ts"], {
+        silent: true,
+        timeout: 60_000,
+      }),
+  },
 ];
 
 // ── DB tasks ─────────────────────────────────────────────────────────────────
@@ -518,7 +543,26 @@ function runDbTask(
  * All skip logic lives within the spec so there is no external conditional.
  */
 function createDbTasks(db: IntegrationDbType): TaskSpec[] {
+  const contentNodesContractTask: TaskSpec = {
+    name: "Content Nodes Contract (sqlite)",
+    ciJob: "db-tests (sqlite)",
+    estimatedMs: 120000,
+    shouldSkip: (ctx) => {
+      const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+      return !includeDb || db !== "sqlite";
+    },
+    run: (ctx) =>
+      runCommand("bun", ["test", "tests/integration/databases/content-nodes-contract.test.ts"], {
+        env: {
+          ...getIntegrationTestEnv("sqlite"),
+          TEST_API_SECRET: ctx.testSecret,
+        },
+        timeout: 300_000,
+      }),
+  };
+
   return [
+    ...(db === "sqlite" ? [contentNodesContractTask] : []),
     {
       name: `Integration (${db})`,
       ciJob: `db-tests (${db})`,

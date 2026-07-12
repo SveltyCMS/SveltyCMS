@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-10"
+updated: "2026-07-12"
 tags:
   - "roadmap"
   - "todo"
@@ -59,7 +59,11 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 - **OAuth 2.1 for MCP**: Dynamic client registration, scoped permissions, consent dialogs, agent trace logging.
 - **Deep JSON/Object Field Filtering**: Path-based SQL/NoSQL filtering across REST, GraphQL, LocalCMS.
 - **AI Command Bar Guardrails**: Permission-aware gating, diff previews, audit logging.
-- **[TSV](https://tsv.fuz.dev/) Integration**: Waiting for upstream native Node.js libraries so we can use TSV for even faster testing.
+- **[TSV](https://tsv.fuz.dev/) Formatter Integration** _(v0.1 WASM available now; v0.2 native pending)_: Replace `oxfmt` with `tsv format` for Svelte-aware formatting. TSV is a Rust-based formatter specifically targeting Svelte + TypeScript + CSS — the identical stack to SveltyCMS. Unlike oxfmt (general JS/TS), TSV natively understands `.svelte` template syntax, `$state()` runes, and Svelte block directives.
+  - **Phase 1 (v0.1, now)**: Evaluate `@fuzdev/tsv_format_wasm` as drop-in replacement for `oxfmt`. WASM build available on npm, works in Node/Bun without setup.
+  - **Phase 2 (v0.2, pending)**: Switch to native N-API builds (`@fuzdev/tsv_format`) for zero WASM overhead — faster cold starts, smaller install size.
+  - **Phase 3 (future)**: Replace `oxlint` + `svelte-check` when TSV's planned linter and type checker ship (both depend on TypeScript 7 integration via TSV's planned Go-based TS 7 backend).
+  - **Parser integration** (Svelte's acorn → tsv parser) is possible but deferred — deep build-infra change with regression risk until v0.2+ is battle-tested.
 - **Aggressive Adoption Onboarding** _(partial)_: One-click deploy buttons (Vercel, Netlify, Railway, Fly.io), `create-sveltycms` scaffolding CLI, interactive example gallery (20+ use-cases), live playground at `try.sveltycms.com`. Completed onboarding pieces are documented in [Technical Evaluation](./technical-evaluation-2026.mdx#72-visual-intelligence--enterprise-collaboration).
 
 - **SvelteKit 3.0 Upgrade**: Breaking changes checklist tracked in [Migration Guide](../development/sveltekit-v3-migration.mdx).

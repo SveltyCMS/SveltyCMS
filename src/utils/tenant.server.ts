@@ -17,12 +17,12 @@ export function getCollectionsPath(tenantId?: string | null): string {
 
 /**
  * Resolve compiled collections output directory.
+ * Local benchmarks redirect to `.compiledCollections/test/_local_sandbox/`.
  */
 export function getCompiledCollectionsPath(tenantId?: string | null): string {
-  const base = path.join(process.cwd(), ".compiledCollections");
-  if (tenantId === undefined) return base;
-  const tenant = tenantId === null ? "global" : tenantId;
-  return path.join(base, tenant);
+  const { resolveCompiledCollectionsPath } =
+    require("./benchmark-sandbox") as typeof import("./benchmark-sandbox");
+  return resolveCompiledCollectionsPath(tenantId);
 }
 
 /**

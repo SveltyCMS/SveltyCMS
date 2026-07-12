@@ -187,17 +187,24 @@ export class ContentModule extends DatabaseModule<SQLiteAdapterCore> {
             ...update.changes,
             _id: id,
             path: update.path,
-            tenantId: _options?.tenantId || (update.changes as any).tenantId,
+            tenantId: _options?.tenantId ?? (update.changes as any).tenantId ?? "global",
+            translations: (update.changes as any).translations ?? [],
+            status: (update.changes as any).status ?? "draft",
+            source: (update.changes as any).source ?? "filesystem",
             updatedAt: now,
+            createdAt: (update.changes as any).createdAt ?? now,
           }) as any;
 
           // We use the internal DB handle from the transaction to bypass the wrap overhead per-item
           const table = schema.contentNodes;
 
-          await tx.db.insert(table).values(values).onConflictDoUpdate({
-            target: table.path,
-            set: values,
-          });
+          await tx.db
+            .insert(table)
+            .values(values)
+            .onConflictDoUpdate({
+              target: [table.path, table.tenantId],
+              set: values,
+            });
 
           // We don't select back every item to save time during bulk operations
           results.push({

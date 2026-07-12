@@ -11,7 +11,7 @@ import { query } from "$app/server";
 
 export const saveContentStructure = query(
   "unchecked",
-  async (operations: import("./collectionbuilder.server").UpsertOperation[]) => {
+  async (operations: import("@src/content/types").ContentNodeOperation[]) => {
     const { saveContentStructure: fn } = await import("./collectionbuilder.server");
     const event = (await import("$app/server")).getRequestEvent();
     return fn(event, operations);

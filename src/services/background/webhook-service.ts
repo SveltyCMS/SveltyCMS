@@ -73,6 +73,12 @@ export class WebhookService {
    * Trigger an event for a specific tenant (non-blocking)
    */
   public async trigger(event: WebhookEvent, payload: unknown, tenantId: string): Promise<void> {
+    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
+    if (isBenchmarkExternalServicesDisabled()) {
+      logger.debug(`[Webhook] Skipped trigger ${event} (benchmark mode)`);
+      return;
+    }
+
     if (!tenantId) {
       if (process.env.TEST_MODE !== "true") {
         logger.warn(`Webhook trigger called without tenantId for event: ${event}`);

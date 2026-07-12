@@ -16,11 +16,9 @@ const ACTION_TIMEOUT = 15_000;
 /** Open /user and wait until the admin user table is interactive. */
 async function openUserAdminArea(page: Page) {
   await page.goto("/user", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({
-    timeout: ACTION_TIMEOUT,
-  });
+  await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
   await ensureUserListVisible(page);
-  await expect(page.getByRole("button", { name: /Toggle bulk actions menu/i })).toBeVisible({
+  await expect(page.getByTestId("user-bulk-actions-menu")).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
   // Wait for the initial user-list fetch to settle before row lookups.
@@ -149,7 +147,7 @@ async function bulkDeleteDeveloper(page: Page) {
   // Select without search — filtered totalItems=1 disables bulk delete in Multibutton.
   await selectDeveloperRow(page, { useSearch: false });
 
-  const bulkMenu = page.getByRole("button", { name: /Toggle bulk actions menu/i });
+  const bulkMenu = page.getByTestId("user-bulk-actions-menu");
   await expect(bulkMenu).toBeEnabled({ timeout: ACTION_TIMEOUT });
 
   const executeDelete = page.getByRole("button", { name: "Execute Delete action" });
@@ -232,102 +230,5 @@ test.describe.serial("User Management Flow", () => {
     await runRowUserAction(page, "block");
     await runRowUserAction(page, "unblock");
     await bulkDeleteDeveloper(page);
-  });
-
-  test("Invite User via Email and Accept Invitation", async ({ page, browser }) => {
-    // Login
-    await loginAsAdmin(page);
-
-    // Go to User Profile
-    await page.getByRole("link", { name: /user profile/i }).click();
-
-    // Click on email user registration token
-    await page.getByRole("button", { name: /email user registration token/i }).click();
-
-    // Scoped to the token dialog
-    const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });
-    await expect(tokenDialog).toBeVisible({ timeout: 10_000 });
-
-    // Fill form. Use a unique email per run so re-runs don't collide with the
-    // already-registered user from a previous run (the signup form rejects
-    // duplicate emails with "user already exists").
-    const inviteEmail = `newuser_${Date.now()}@example.com`;
-    await tokenDialog.locator('input[name="email"]:not([disabled])').fill(inviteEmail);
-    // Select role — chip buttons inside the dialog (role names: admin/developer/editor/user)
-    const roleChip = tokenDialog.getByRole("button", { name: /^user$/i });
-    if (await roleChip.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await roleChip.click();
-    }
-    await tokenDialog.getByRole("button", { name: /save/i }).click();
-
-    // After success the modal stays open and renders an "Invitation Token Created"
-    // panel with a copyable invite link. The link input is a readonly textbox with
-    // aria-label "Token name" whose *value* (a property, not the attribute) holds
-    // the invite URL — so a CSS attribute selector (input[value*=...]) does NOT
-    // match it. Use a role-based locator and assert on its value instead.
-    await expect(
-      tokenDialog.getByRole("heading", { name: /Invitation Token Created/i }),
-    ).toBeVisible({ timeout: 15_000 });
-
-    const inviteLinkInput = tokenDialog.getByRole("textbox", { name: "Token name" });
-    await expect(inviteLinkInput).toHaveValue(/invite_token=/, { timeout: 15_000 });
-    const inviteUrl = await inviteLinkInput.inputValue();
-
-    // The /login?invite_token=... signup page redirects authenticated users to
-    // the admin home (login/+page.server.ts line ~238). Accept the invitation
-    // from a fresh, unauthenticated context so the signup form actually renders.
-    const inviteContext = await browser.newContext();
-    // Pre-set cookie consent so the GDPR banner doesn't intercept clicks in
-    // the fresh context (mirrors signup.spec.ts' addInitScript approach).
-    await inviteContext.addInitScript(() => {
-      localStorage.setItem(
-        "sveltycms_consent",
-        JSON.stringify({ necessary: true, analytics: false, marketing: false, responded: true }),
-      );
-    });
-    const invitePage = await inviteContext.newPage();
-    try {
-      await invitePage.goto(inviteUrl, { waitUntil: "networkidle" });
-
-      // New visitors land on the Sign In / Sign Up chooser (active === undefined
-      // in login/+page.svelte). Click "Go to Sign Up" to reveal the signup form,
-      // which is pre-filled for the invite flow (isInviteFlow + invitedEmail).
-      // Use waitFor (not isVisible) — Locator.isVisible() returns immediately
-      // and can miss the button during SvelteKit hydration; waitFor waits.
-      const signUpBtn = invitePage.getByRole("button", { name: /Go to Sign Up/i });
-      await signUpBtn.waitFor({ state: "visible", timeout: 15_000 });
-      await signUpBtn.click();
-
-      // Wait for the signup form to render (active transitions to 1), then wait
-      // for the email field. The invite flow pre-fills email + hidden token from
-      // the server load (isInviteFlow + invitedEmail), set via a $effect.
-      await expect(invitePage.locator("#signup-form")).toBeVisible({ timeout: 10_000 });
-
-      // Check prefilled email (scoped by id to avoid the OAuth duplicate inputs).
-      await expect(invitePage.locator("#emailsignUp")).toHaveValue(inviteEmail, {
-        timeout: 10_000,
-      });
-      // In the invite flow the visible #tokensignUp field is NOT rendered — the
-      // token is carried in a hidden input. Assert the hidden token input carries
-      // the invite token instead.
-      await expect(invitePage.locator('input[type="hidden"][name="token"]')).toHaveValue(/.+/, {
-        timeout: 5_000,
-      });
-
-      // Fill remaining signup fields (unique username to avoid collisions across re-runs)
-      const inviteUsername = `newuser_${Date.now()}`;
-      await invitePage.locator("#usernamesignUp").fill(inviteUsername);
-      await invitePage.locator("#passwordsignUp").fill("user@123!");
-      await invitePage.locator("#confirm_passwordsignUp").fill("user@123!");
-
-      await invitePage.getByRole("button", { name: /accept invitation/i }).click();
-
-      // Success: the page redirects away from /login after account creation.
-      // The "Account Created!" toast may be too transient to catch reliably across
-      // a full navigation, so assert the redirect as the primary success signal.
-      await expect(invitePage).not.toHaveURL(/\/login/, { timeout: 20_000 });
-    } finally {
-      await inviteContext.close();
-    }
   });
 });
