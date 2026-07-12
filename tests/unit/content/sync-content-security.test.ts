@@ -30,15 +30,22 @@ describe("Content sync security surface", () => {
     expect(source).toMatch(/source:\s*"builder"|source:\s*'builder'/);
   });
 
-  it("collectionbuilder.server.ts delegates saves to syncContentState (no fullReload path)", async () => {
+  it("collectionbuilder.server.ts delegates saves to executeGuiStructureSave (no fullReload path)", async () => {
     const source = await fs.readFile(
       path.resolve("src/routes/(app)/config/collectionbuilder/collectionbuilder.server.ts"),
       "utf-8",
     );
-    expect(source).toMatch(/syncContentState/);
-    expect(source).toMatch(/reason:\s*"gui-save"/);
-    expect(source).not.toMatch(/fullReload/);
+    expect(source).toMatch(/executeGuiStructureSave/);
     expect(source).toMatch(/hasCollectionBuilderPermission/);
+    expect(source).not.toMatch(/fullReload/);
+
+    // Unified gui-save path lives in the local server bridge
+    const localSource = await fs.readFile(
+      path.resolve("src/routes/(app)/config/collectionbuilder/collectionbuilder-local.server.ts"),
+      "utf-8",
+    );
+    expect(localSource).toMatch(/saveGuiStructure/);
+    expect(localSource).toMatch(/getCollectionBuilderCms/);
   });
 
   it("tenant manifest paths isolate organizational data per tenant", async () => {

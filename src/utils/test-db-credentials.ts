@@ -9,6 +9,8 @@
  * - MongoDB: no MONGO_INITDB_ROOT_* → no authentication
  */
 
+import { getLocalSandboxMediaRel, resolveBenchmarkProfile } from "./benchmark-sandbox";
+
 export interface TestDbCredentials {
   user: string;
   password: string;
@@ -86,9 +88,6 @@ export function getBenchmarkTestEnv(
   overrides: Record<string, string> = {},
 ): Record<string, string> {
   const creds = getDockerDefaultDbCredentials(dbType);
-  const { resolveBenchmarkProfile, getLocalSandboxMediaRel } =
-    require("./benchmark-sandbox") as typeof import("./benchmark-sandbox");
-
   const profile = overrides.BENCHMARK_PROFILE ?? resolveBenchmarkProfile();
 
   const env: Record<string, string> = {

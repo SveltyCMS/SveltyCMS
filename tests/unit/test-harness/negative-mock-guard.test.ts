@@ -13,6 +13,11 @@ const ISOLATED_TARGET = path.join(
 
 describe("Negative mock guard", () => {
   it("assertRealAdapter throws when mockDbAdapter is active", () => {
+    // Skip under Vitest (Bun.spawnSync requires Bun runtime)
+    if (typeof Bun === "undefined") {
+      return;
+    }
+
     const result = Bun.spawnSync({
       cmd: [process.execPath, "test", ISOLATED_TARGET],
       cwd: process.cwd(),

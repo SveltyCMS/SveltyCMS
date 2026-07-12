@@ -4,6 +4,7 @@
  */
 
 import path from "node:path";
+import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
 
 /**
  * Resolve collection directory based on tenant ID.
@@ -20,8 +21,6 @@ export function getCollectionsPath(tenantId?: string | null): string {
  * Local benchmarks redirect to `.compiledCollections/test/_local_sandbox/`.
  */
 export function getCompiledCollectionsPath(tenantId?: string | null): string {
-  const { resolveCompiledCollectionsPath } =
-    require("./benchmark-sandbox") as typeof import("./benchmark-sandbox");
   return resolveCompiledCollectionsPath(tenantId);
 }
 

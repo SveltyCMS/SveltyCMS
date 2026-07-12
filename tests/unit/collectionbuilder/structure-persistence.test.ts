@@ -78,15 +78,15 @@ describe("organizational manifest", () => {
             source: "builder",
           },
         ],
-        null,
+        undefined,
       );
 
       const raw = JSON.parse(await fs.readFile(manifestPath, "utf-8")) as Record<string, unknown>;
       expect(raw.collectionOrder).toEqual({ posts: 1, authors: 0 });
       expect(raw.structureNodes).toHaveLength(1);
 
-      expect(await getCollectionOrder(null)).toEqual({ posts: 1, authors: 0 });
-      expect(await getStructureNodes(null)).toHaveLength(1);
+      expect(await getCollectionOrder(undefined)).toEqual({ posts: 1, authors: 0 });
+      expect(await getStructureNodes(undefined)).toHaveLength(1);
     });
   });
 });
@@ -113,7 +113,7 @@ describe("setCollectionOrder merge behavior", () => {
       );
 
       const { setCollectionOrder } = await import("@utils/collection-order.server");
-      await setCollectionOrder({ posts: 3, pages: 1 }, null);
+      await setCollectionOrder({ posts: 3, pages: 1 }, undefined);
 
       const raw = JSON.parse(await fs.readFile(manifestPath, "utf-8")) as Record<string, unknown>;
       expect(raw.collectionOrder).toEqual({ posts: 3, pages: 1 });
