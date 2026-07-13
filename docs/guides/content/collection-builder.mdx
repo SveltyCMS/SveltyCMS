@@ -411,7 +411,9 @@ Field-level access control:
    - Saves both Collection Form and Widgets tabs
 
 3. **Confirmation**:
-   - Toast notification: "Collection Saved"
+   - Success toast: "Collection Saved Successfully"
+   - If schema drift is detected, a warning prompts confirmation before saving
+   - If save fails, an error toast displays the server error message
    - System compiles collection schema
    - Database tables/collections created
 

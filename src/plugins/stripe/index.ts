@@ -21,9 +21,9 @@
  * - Allowed checkout origins for headless frontends
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 
-export const stripePlugin: Plugin = {
+export const stripePlugin = definePlugin({
   metadata: {
     id: "stripe",
     name: "Stripe Payments",
@@ -154,4 +154,4 @@ export const stripePlugin: Plugin = {
     },
   },
   enabledCollections: [],
-};
+});

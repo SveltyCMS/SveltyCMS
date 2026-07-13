@@ -14,7 +14,7 @@
  */
 
 import { slotRegistry } from "@src/plugins/slot-registry";
-import type { Plugin } from "@src/plugins/types";
+import { definePlugin } from "../define-plugin";
 import { collectionHasLivePreview } from "./license-gate";
 
 const livePreviewComponent = "./live-preview.svelte";
@@ -31,7 +31,7 @@ slotRegistry.register({
     collectionHasLivePreview(context?.collection?.livePreview),
 });
 
-export const editableWebsitePlugin: Plugin = {
+export const editableWebsitePlugin = definePlugin({
   metadata: {
     id: "editable-website",
     name: "Editable Website & Live Preview",
@@ -54,4 +54,4 @@ export const editableWebsitePlugin: Plugin = {
       ],
     },
   },
-};
+});

@@ -44,10 +44,10 @@
  * - Rate-limited media downloads
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 import { migrations } from "./migrations/001_ledger_and_dlq";
 
-export const smartImporterPlugin: Plugin = {
+export const smartImporterPlugin = definePlugin({
   metadata: {
     id: "smart-importer",
     name: "Smart AI-Driven Migration Pro",
@@ -168,7 +168,7 @@ export const smartImporterPlugin: Plugin = {
     },
   },
   enabledCollections: [],
-};
+});
 
 export default smartImporterPlugin;
 

@@ -167,9 +167,10 @@ function addToStrongRefs(sessionId: string, entry: SessionCacheEntry): void {
   }
 }
 
-// Periodic cleanup
-if (typeof setInterval !== "undefined") {
-  setInterval(
+// Periodic cleanup — guarded against duplicate timers on HMR reload
+const SESSION_CLEANUP_KEY = "__svelty_session_cleanup__";
+if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_KEY]) {
+  (globalThis as any)[SESSION_CLEANUP_KEY] = setInterval(
     () => {
       const now = Date.now();
       for (const [sessionId, data] of strongRefs.entries()) {

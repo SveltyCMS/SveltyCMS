@@ -203,6 +203,9 @@ export class MongoContentMethods {
             $setOnInsert: {
               _id: generateId(),
               createdAt: new Date().toISOString() as unknown as ISODateString,
+              // Ensure tenantId is set on newly inserted documents for
+              // tenant-scoped queries to find them after upsert.
+              ...(nodeData.tenantId != null ? { tenantId: nodeData.tenantId } : {}),
             },
           },
           { returnDocument: "after", upsert: true, runValidators: true },
@@ -292,6 +295,11 @@ export class MongoContentMethods {
           createdAt: new Date().toISOString() as unknown as ISODateString,
           _id: targetId || generateId(),
         };
+        // Ensure tenantId is set on newly inserted documents so tenant-scoped
+        // queries (e.g. safeQuery filters) can find them after upsert.
+        if (tenantId != null && tenantId !== undefined) {
+          setOnInsert.tenantId = tenantId;
+        }
 
         return {
           updateOne: {

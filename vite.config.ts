@@ -1041,6 +1041,7 @@ export default defineConfig((): any => {
         "svelte-dnd-action",
         "svelte-awesome-color-picker",
         "json-render-svelte",
+        "drizzle-orm",
       ],
       external: [
         "bun:sqlite",
@@ -1240,7 +1241,19 @@ export default defineConfig((): any => {
       exclude: [
         ...builtinModules,
         ...builtinModules.map((m) => `node:${m}`),
+        // Node.js-only server packages — must match ssr.external + rollupOptions.external
+        // to prevent Vite from attempting to pre-bundle native addons, DB drivers,
+        // and other server-only ESM that will fail in the browser.
         "redis",
+        "mongoose",
+        "mongodb",
+        "postgres",
+        "mysql2",
+        "@mongodb-js/zstd",
+        "snappy",
+        "typescript",
+        "ts-node",
+        "@tailwindcss/node",
         "@src/databases/cache/cache-service",
       ],
       include: [

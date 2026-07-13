@@ -241,6 +241,9 @@ jobs:
           DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db_user }}
           DB_PASSWORD: ${{ matrix.db_password }}
+          JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -428,7 +431,7 @@ jobs:
 
       - name: Initialize and Start Preview Server
         run: |
-          mkdir -p config config/database tests/e2e/.auth logs mediaFolder
+          mkdir -p config config/database config/collections tests/e2e/.auth logs mediaFolder
 
           cat > config/private.test.ts <<EOF
           export const privateEnv = {
@@ -479,7 +482,7 @@ jobs:
           sleep 2
 
       - name: Archive E2E Environment (single artifact)
-        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/
+        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/ config/collections/
 
       - uses: actions/upload-artifact@v7
         with:
@@ -563,6 +566,7 @@ jobs:
           fi
           tar --zstd -xf e2e-env.tar.zst
           rm e2e-env.tar.zst
+          mkdir -p config/collections
 
       - name: Cache Playwright Browsers
         id: cache-playwright

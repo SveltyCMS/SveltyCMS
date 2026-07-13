@@ -150,6 +150,12 @@ async function handleCollectionSave(confirmDeletions = false) {
 		});
 
 		if (response.ok) {
+			const result = await response.json().catch(() => ({}));
+			// Handle drift detection (202 Accepted) — server requires confirmation
+			if (result.driftDetected) {
+				toast.warning("Schema drift detected. Please confirm changes before saving.");
+				return;
+			}
 			const msg = "Collection Saved Successfully";
 			toast.flash({ type: "success", message: msg });
 			if (originalName !== collection.value?.name) {
@@ -159,6 +165,10 @@ async function handleCollectionSave(confirmDeletions = false) {
 				await new Promise((r) => setTimeout(r, 800));
 				goto(`/config/collectionbuilder/edit/${originalName}`);
 			}
+		} else {
+			const result = await response.json().catch(() => ({}));
+			const errorMsg = (result as any)?.error || `Save failed (HTTP ${response.status})`;
+			toast.error(errorMsg);
 		}
 	} catch (error) {
 		logger.error("Save failed", error);

@@ -17,9 +17,9 @@
  * - Plugin (this file): Slot injection, config defaults, marketplace gating
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 
-export const focalPointPlugin: Plugin = {
+export const focalPointPlugin = definePlugin({
   metadata: {
     id: "focal-point",
     name: "Focal Point & Aspect Preview",
@@ -57,4 +57,4 @@ export const focalPointPlugin: Plugin = {
       enableKeyboardShortcuts: true,
     },
   },
-};
+});

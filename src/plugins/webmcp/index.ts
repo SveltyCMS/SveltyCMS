@@ -13,11 +13,11 @@
  * - All operations blocked without an active license
  */
 
-import type { Plugin } from "@src/plugins/types";
+import { definePlugin } from "@src/plugins/define-plugin";
 
 export { initWebMCP } from "./init";
 
-export const webmcpPlugin: Plugin = {
+export const webmcpPlugin = definePlugin({
   metadata: {
     id: "webmcp",
     name: "Headless WebMCP Server Gateway",
@@ -53,4 +53,4 @@ export const webmcpPlugin: Plugin = {
       return data;
     },
   },
-};
+});

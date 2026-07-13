@@ -46,24 +46,20 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>
     `;
 }
 
-// Use a partial User object to define the types
-const userTypeSample: Partial<User> = {
+// Use a sanitized User object to define the GraphQL type.
+// Sensitive fields (password, resetToken, failedAttempts, lockoutUntil)
+// are excluded so they never appear in GraphQL introspection or responses.
+const userTypeSample: Partial<Record<keyof User, unknown>> = {
   _id: "" as DatabaseId,
   email: "",
   tenantId: "" as DatabaseId,
-  password: "",
   role: "",
   username: "",
   avatar: "",
   lastAuthMethod: "",
   lastActiveAt: new Date().toISOString() as ISODateString,
-  expiresAt: new Date().toISOString() as ISODateString,
   isRegistered: false,
   blocked: false,
-  resetRequestedAt: new Date().toISOString() as ISODateString,
-  resetToken: "",
-  failedAttempts: 0,
-  lockoutUntil: new Date().toISOString() as ISODateString,
   is2FAEnabled: false,
   permissions: [],
 };

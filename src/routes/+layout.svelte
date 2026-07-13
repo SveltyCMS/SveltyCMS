@@ -35,11 +35,12 @@ import "@mcp-b/webmcp-polyfill";
 import DialogManager from "@src/components/system/dialog-manager.svelte";
 import ToastContainer from "@src/components/toast-container.svelte";
 // Paraglide locale bridge
-import {
-	locales as availableLocales,
-	getLocale,
-	setLocale,
-} from "@src/paraglide/runtime";
+	import {
+		locales as availableLocales,
+		getLocale,
+		setLocale,
+		getTextDirection,
+	} from "@src/paraglide/runtime";
 import CookieConsent from "@src/plugins/cookie-consent/cookie-consent.svelte";
 import { initWebMCP } from "@src/plugins/webmcp/init";
 // Global Settings
@@ -237,6 +238,13 @@ onMount(() => {
 		currentLocale = urlLocale;
 	}
 
+	// Set <html> dir + lang for RTL support on initial load
+	if (browser && document?.documentElement) {
+		const initialLocale = getLocale();
+		document.documentElement.dir = getTextDirection(initialLocale as any);
+		document.documentElement.lang = initialLocale || "en";
+	}
+
 	// Initialize dark mode
 	initializeDarkMode();
 
@@ -306,28 +314,39 @@ $effect(() => {
 // Reactive Locale Syncing
 // ============================================================================
 
-$effect(() => {
-	// Guard: Only sync after mount
-	if (!isMounted) {
-		return;
-	}
+	$effect(() => {
+		// Guard: Only sync after mount
+		if (!isMounted) {
+			return;
+		}
 
-	const desired = app.systemLanguage;
-	const current = untrack(() => currentLocale);
+		const desired = app.systemLanguage;
+		const current = untrack(() => currentLocale);
 
-	// Only update if there's an actual change
-	if (
-		desired &&
-		availableLocales.includes(desired as any) &&
-		current !== desired
-	) {
-		console.log("[RootLayout] Store changed, updating locale:", desired);
+		// Only update if there's an actual change
+		if (
+			desired &&
+			availableLocales.includes(desired as any) &&
+			current !== desired
+		) {
+			console.log("[RootLayout] Store changed, updating locale:", desired);
 
-		// Update Paraglide locale (handles routing internally)
-		setLocale(desired as any, { reload: false });
-		currentLocale = desired as any;
-	}
-});
+			// Update Paraglide locale (handles routing internally)
+			setLocale(desired as any, { reload: false });
+			currentLocale = desired as any;
+
+			// Persist to localStorage so the preference survives sessions
+			if (browser) {
+				globalThis.localStorage.setItem("systemLanguage", desired);
+			}
+
+			// Update <html> dir attribute for RTL language support
+			if (browser && document?.documentElement) {
+				document.documentElement.dir = getTextDirection(desired as any);
+				document.documentElement.lang = desired;
+			}
+		}
+	});
 
 // ============================================================================
 // Theme Auto-Refresh
