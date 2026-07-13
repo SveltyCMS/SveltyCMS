@@ -1128,6 +1128,7 @@ const cacheMock = {
   clearByPattern: mock(async () => true),
   invalidateAll: mock(async () => {}),
   invalidateByCategory: mock(async () => {}),
+  invalidateCollection: mock(async () => {}),
   reconfigure: mock(async () => true),
 };
 setGlobal("cacheService", cacheMock);
