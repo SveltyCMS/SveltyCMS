@@ -839,6 +839,8 @@ export async function setupBenchmarkServer() {
     env: {
       ...process.env,
       PORT: String(port),
+      DB_TYPE: dbType,
+      DB_NAME: dbName,
       TEST_MODE: "true",
       BENCHMARK: "true",
       TEST_API_SECRET: secret,
@@ -863,14 +865,23 @@ export async function setupBenchmarkServer() {
   for (let attempt = 0; attempt < 90; attempt++) {
     try {
       const res = await fetch(healthUrl, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) {
+      // Accept any non-5xx response during startup — server may return 202/503/533
+      if (res.status < 500) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         const status = String(data.overallStatus ?? data.status ?? "").toUpperCase();
         const db = data.database;
         const dbOk = db === true || db === "connected";
-        if (new Set(["READY", "WARMED", "DEGRADED"]).has(status) && dbOk) {
+        // Match integration test: accept SETUP, READY, WARMED, DEGRADED, etc.
+        if (
+          ["READY", "SETUP", "WARMED", "WARMING", "DEGRADED", "HEALTHY", "IDLE"].includes(status) &&
+          dbOk
+        ) {
           healthy = true;
           break;
+        }
+        // Log unexpected state for debugging
+        if (attempt === 0 || attempt % 15 === 0) {
+          console.log(`[bench-health] Attempt ${attempt + 1}: state=${status} db=${db}`);
         }
       }
     } catch {

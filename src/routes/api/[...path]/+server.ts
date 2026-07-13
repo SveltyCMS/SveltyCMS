@@ -195,6 +195,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   dashboard: "dashboard:read",
+  "openapi.json": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   database: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   logs: "system:admin",

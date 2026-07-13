@@ -83,6 +83,7 @@ function testBackdoorStripperPlugin(): Plugin {
       ) {
         if (
           norm.includes("src/routes/api/testing") ||
+          norm.includes("src/routes/api/[...path]/handlers/testing") ||
           norm.includes("src/hooks/handle-test-isolation")
         ) {
           return "\0virtual:test-noop";

@@ -17,12 +17,16 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getBenchmarkDbName } from "./test-db-credentials";
 
 export type BenchmarkProfile = "local" | "ci-fresh";
 
 const SANDBOX_COMPILED_ROOT = path.join(".compiledCollections", "test", "_local_sandbox");
 const SANDBOX_MEDIA_REL = path.join("config", "benchmark-sandbox", "media");
+
+/** Inlined from test-db-credentials to break circular dependency (benchmark-sandbox ↔ test-db-credentials). */
+function getBenchmarkSandboxDbName(dbType: string): string {
+  return dbType === "sqlite" ? "benchmark_shared" : "sveltycms_test";
+}
 
 /** True when a benchmark server/process is active. */
 export function isBenchmarkActive(): boolean {
@@ -168,7 +172,7 @@ export function getBenchmarkIsolationSummary(dbType = "sqlite"): BenchmarkIsolat
   const profile = resolveBenchmarkProfile();
   return {
     profile,
-    dbName: process.env.DB_NAME || getBenchmarkDbName(dbType),
+    dbName: process.env.DB_NAME || getBenchmarkSandboxDbName(dbType),
     compiledRoot: resolveCompiledCollectionsPath(null),
     mediaRoot: profile === "local" ? getLocalSandboxMediaRoot() : "(live media settings)",
     liveConfigProtected: profile === "local",
@@ -182,7 +186,7 @@ export function getBenchmarkIsolationSummary(dbType = "sqlite"): BenchmarkIsolat
 export function assertBenchmarkDbIsolation(dbType = "sqlite"): void {
   if (!isLocalBenchmarkSandbox()) return;
 
-  const expected = process.env.DB_NAME || getBenchmarkDbName(dbType);
+  const expected = process.env.DB_NAME || getBenchmarkSandboxDbName(dbType);
   const forbiddenLive = developerPrivateConfigExists()
     ? (() => {
         try {
@@ -197,7 +201,7 @@ export function assertBenchmarkDbIsolation(dbType = "sqlite"): void {
   if (forbiddenLive && expected === forbiddenLive) {
     throw new Error(
       `[BenchmarkSandbox] DB_NAME '${expected}' matches live config/private.ts. ` +
-        `Benchmarks must use isolated DB '${getBenchmarkDbName(dbType)}'.`,
+        `Benchmarks must use isolated DB '${getBenchmarkSandboxDbName(dbType)}'.`,
     );
   }
 }

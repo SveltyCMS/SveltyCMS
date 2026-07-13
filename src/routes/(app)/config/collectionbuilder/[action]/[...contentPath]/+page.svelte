@@ -153,6 +153,8 @@ async function handleCollectionSave(confirmDeletions = false) {
 			toast.success("Collection Saved Successfully");
 			if (originalName !== collection.value?.name) {
 				originalName = String(collection.value?.name);
+				// Let the success toast render before navigating away
+				await new Promise((r) => setTimeout(r, 600));
 				goto(`/config/collectionbuilder/edit/${originalName}`);
 			}
 		}
