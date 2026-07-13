@@ -41,12 +41,14 @@ export const webmcpPlugin: Plugin = {
   ui: {},
   hooks: {
     beforeSave: async (_context, _collection, data) => {
-      const { checkExtensionLicense } = await import("@src/utils/license-manager");
-      const status = await checkExtensionLicense("plugin", "webmcp");
-      if (!status.active) {
-        throw new Error(
-          "403 Forbidden: Active license required for WebMCP Server Gateway. Purchase at marketplace.sveltycms.com",
-        );
+      if (import.meta.env.SSR) {
+        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const status = await checkExtensionLicense("plugin", "webmcp");
+        if (!status.active) {
+          throw new Error(
+            "403 Forbidden: Active license required for WebMCP Server Gateway. Purchase at marketplace.sveltycms.com",
+          );
+        }
       }
       return data;
     },

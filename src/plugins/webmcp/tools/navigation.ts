@@ -137,9 +137,11 @@ function registerHeadlessTopologyTools(db: IDBAdapter): void {
 
       let virtual: any[] = [];
       try {
-        const { extendTopology } = await import("@plugins/unified-data-hub/server/mcp-extension");
-        const extended = await extendTopology(db, tenantId as unknown as DatabaseId);
-        virtual = extended.collections ?? [];
+        if (import.meta.env.SSR) {
+          const { extendTopology } = await import("@plugins/unified-data-hub/server/mcp-extension");
+          const extended = await extendTopology(db, tenantId as unknown as DatabaseId);
+          virtual = extended.collections ?? [];
+        }
       } catch {
         /* plugin not installed or disabled */
       }
@@ -202,9 +204,12 @@ function registerHeadlessTopologyTools(db: IDBAdapter): void {
       }
 
       try {
-        const { extendContentGraph } =
-          await import("@plugins/unified-data-hub/server/mcp-extension");
-        return await extendContentGraph(db, tenantId as unknown as DatabaseId, graph);
+        if (import.meta.env.SSR) {
+          const { extendContentGraph } =
+            await import("@plugins/unified-data-hub/server/mcp-extension");
+          return await extendContentGraph(db, tenantId as unknown as DatabaseId, graph);
+        }
+        return graph;
       } catch {
         return graph;
       }

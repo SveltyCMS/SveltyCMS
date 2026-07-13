@@ -277,9 +277,8 @@ export class MongoContentMethods {
           }
         }
 
-        // Prepare base filter: prioritize _id if available to ensure correct upsert matching
-        const targetId = id || _id;
-        const baseFilter: Record<string, unknown> = targetId ? { _id: targetId } : { path };
+        // Prepare base filter: match by path (path is unique per tenant for structural nodes)
+        const baseFilter: Record<string, unknown> = { path };
 
         // Wrap filter with safeQuery to enforce tenant context
         const secureFilter = safeQuery(baseFilter as any, tenantId, {
@@ -288,18 +287,11 @@ export class MongoContentMethods {
           bypassSafeQuery: (options as any)?.bypassSafeQuery,
         }) as MongoQueryFilter<ContentNode>;
 
-        // If we are filtering by _id, we don't need to set it on insert
+        const targetId = id || _id;
         const setOnInsert: Record<string, unknown> = {
           createdAt: new Date().toISOString() as unknown as ISODateString,
+          _id: targetId || generateId(),
         };
-
-        if (!targetId) {
-          // Only generate a new ID if we don't have one and are filtering by path
-          setOnInsert._id = generateId();
-        } else if (targetId && !secureFilter._id) {
-          // If we have an ID but safeQuery stripped it (unlikely but possible), put it back for the upsert
-          secureFilter._id = targetId as any;
-        }
 
         return {
           updateOne: {

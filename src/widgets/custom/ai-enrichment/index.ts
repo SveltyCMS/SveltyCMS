@@ -61,10 +61,12 @@ const AIEnrichmentWidget = createWidget<AIEnrichmentProps>({
 
   modifyRequest: async ({ data, type }: any) => {
     if (type === "POST" || type === "PATCH") {
-      const { checkExtensionLicense } = await import("@src/utils/license-manager");
-      const status = await checkExtensionLicense("widget", "AIEnrichment");
-      if (!status.active && !status.hasLicense) {
-        throw new Error("403 Forbidden: Premium License Required for AI Enrichment Widget");
+      if (import.meta.env.SSR) {
+        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const status = await checkExtensionLicense("widget", "AIEnrichment");
+        if (!status.active && !status.hasLicense) {
+          throw new Error("403 Forbidden: Premium License Required for AI Enrichment Widget");
+        }
       }
     }
     return data;

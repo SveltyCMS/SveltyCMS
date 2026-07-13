@@ -70,22 +70,15 @@ export function initBounceDetector(): void {
 
 async function penalizeBounce(fromPath: string, toPath: string): Promise<void> {
   try {
-    // Dynamically get tenant context and behavioral learner
-    const tenantId = await getTenantId();
-    const { penalizeTransition } = await import("@src/services/intelligence/behavioral-learner");
-    penalizeTransition(tenantId, fromPath, toPath);
+    await fetch("/api/system/penalize-bounce", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fromPath, toPath }),
+    });
   } catch {
-    // Page store or behavioral learner unavailable — skip silently
-  }
-}
-
-async function getTenantId(): Promise<string> {
-  try {
-    // Dynamic import to avoid adding $app/state to all bundles
-    const stateModule = await import("$app/state");
-    return (stateModule as any).page?.data?.tenantId || "global";
-  } catch {
-    return "global";
+    // skip silently
   }
 }
 

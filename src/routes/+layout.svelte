@@ -41,7 +41,7 @@ import {
 	setLocale,
 } from "@src/paraglide/runtime";
 import CookieConsent from "@src/plugins/cookie-consent/cookie-consent.svelte";
-import { initWebMCP } from "@src/plugins/webmcp/index";
+import { initWebMCP } from "@src/plugins/webmcp/init";
 // Global Settings
 import { initPublicEnv, publicEnv } from "@src/stores/global-settings.svelte";
 import {
