@@ -870,7 +870,8 @@ export async function setupBenchmarkServer() {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         const status = String(data.overallStatus ?? data.status ?? "").toUpperCase();
         const db = data.database;
-        const dbOk = db === true || db === "connected";
+        // SETUP/IDLE states legitimately report disconnected — only gate on db for READY+
+        const dbOk = status === "SETUP" || status === "IDLE" || db === true || db === "connected";
         // Match integration test: accept SETUP, READY, WARMED, DEGRADED, etc.
         if (
           ["READY", "SETUP", "WARMED", "WARMING", "DEGRADED", "HEALTHY", "IDLE"].includes(status) &&

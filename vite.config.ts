@@ -81,11 +81,7 @@ function testBackdoorStripperPlugin(): Plugin {
         !process.env.TEST_MODE &&
         process.env.COMPILE_ALL_ADAPTERS !== "true"
       ) {
-        if (
-          norm.includes("src/routes/api/testing") ||
-          norm.includes("src/routes/api/[...path]/handlers/testing") ||
-          norm.includes("src/hooks/handle-test-isolation")
-        ) {
+        if (norm.includes("handlers/testing") || norm.includes("src/hooks/handle-test-isolation")) {
           return "\0virtual:test-noop";
         }
       }
