@@ -357,7 +357,7 @@ export class RelationalContentModule implements IContentAdapter {
           }
           await insert.onDuplicateKeyUpdate({ set: setObj });
         } else {
-          const conflictTarget = this.schema.contentNodes._id;
+          const conflictTarget = [this.schema.contentNodes.path, this.schema.contentNodes.tenantId];
           const setObj: Record<string, any> = {};
           if (preparedValuesList.length > 0) {
             const sample = preparedValuesList[0];

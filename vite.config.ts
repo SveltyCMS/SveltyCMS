@@ -870,10 +870,6 @@ function browserShimsPlugin(): Plugin {
   };
 }
 
-/**
- * Patches vite-plus client module to inject Svelte Inspector.
- * The built-in inspector only matches `vite/dist/client/client.mjs`,
- * but vite-plus serves its client from `@voidzero-dev/vite-plus-core/dist/vite/client/client.mjs`.
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
@@ -1253,7 +1249,7 @@ export default defineConfig((): any => {
       env: { builtin: true },
     },
     fmt: {
-      ignorePatterns: [],
+      ignorePatterns: ["src/live/$types.d.ts"],
     },
   };
 });

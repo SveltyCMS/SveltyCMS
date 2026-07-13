@@ -162,10 +162,8 @@ async function ensurePhysicalModels(schemas: Schema[], dbAdapter: IDBAdapter) {
 }
 
 // Internal State
-let _isScanning = false;
 const _mtimeTree = new Map<string, number>();
 const _schemaCache = new Map<string, Schema>();
-let _isDirty = true;
 /** Track changed files for incremental reconciliation */
 const _changedFiles = new Set<string>();
 
@@ -173,7 +171,6 @@ const _changedFiles = new Set<string>();
  * Flags the content system that a file has changed.
  */
 export function markFileDirty(filePath?: string | null) {
-  _isDirty = true;
   if (filePath) {
     _mtimeTree.delete(filePath);
     _schemaCache.delete(filePath);
@@ -338,7 +335,6 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
           _mtimeTree.delete(path);
         }
       }
-      _isDirty = false;
     } finally {
       _scanPromises.delete(collectionsDir);
     }
