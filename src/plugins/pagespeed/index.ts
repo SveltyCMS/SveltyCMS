@@ -3,9 +3,9 @@
  * @description Google PageSpeed Insights integration for performance monitoring.
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 
-export const pageSpeedPlugin: Plugin = {
+export const pageSpeedPlugin = definePlugin({
   metadata: {
     id: "pagespeed",
     name: "Google PageSpeed Insights",
@@ -54,4 +54,4 @@ export const pageSpeedPlugin: Plugin = {
     },
   },
   enabledCollections: [],
-};
+});

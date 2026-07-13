@@ -1346,9 +1346,20 @@ export class CollectionsNamespace {
     for (const pattern of patterns) {
       await cacheService
         .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
-        .catch(() => {
-          logger.debug("Cache clearByPattern failed silently");
+        .catch((err) => {
+          logger.warn(`[Cache] L2 clearByPattern failed for "${pattern}": ${err?.message || err}`, {
+            tenantId,
+            collectionId: String(schema._id ?? "unknown"),
+          });
         });
+    }
+    // Fallback: explicit collection invalidation in case pattern-based clear missed keys
+    if (schema._id) {
+      await cacheService
+        .invalidateCollection(String(schema._id), (tenantId || undefined) as string | undefined)
+        .catch((err) =>
+          logger.warn(`[Cache] Collection invalidation fallback failed: ${err?.message || err}`),
+        );
     }
   }
 

@@ -92,7 +92,9 @@ class ContentStore {
         (s) =>
           (s._id as string)?.toLowerCase() === lowerId ||
           s.name?.toLowerCase() === lowerId ||
-          s.path?.toLowerCase() === lowerId,
+          s.path?.toLowerCase() === lowerId ||
+          `/collection/${s._id}`.toLowerCase() === lowerId ||
+          `/collection/${s.name}`.toLowerCase() === lowerId,
       );
     }
     return schema;
@@ -172,14 +174,26 @@ class ContentStore {
 
   sync(nodes: ContentNode[]) {
     for (const node of nodes) {
-      this.upsert(node);
+      this._upsertInternal(node);
     }
+    this.updateVersion();
   }
 
   /**
-   * Surgical update/insert for a single content node.
+   * Batch upsert — single version bump for N nodes.
+   * Use instead of calling upsert() in a loop to avoid reactive churn.
    */
-  upsert(node: ContentNode) {
+  batchUpsert(nodes: ContentNode[]) {
+    for (const node of nodes) {
+      this._upsertInternal(node);
+    }
+    this.updateVersion();
+  }
+
+  /**
+   * Internal upsert without version bump — for use by sync/batchUpsert.
+   */
+  private _upsertInternal(node: ContentNode) {
     if (!node._id) return;
     const nodeId = node._id as string;
     const tid = node.tenantId || "global";
@@ -217,6 +231,15 @@ class ContentStore {
       }
     }
 
+    // No version bump here — callers (upsert, batchUpsert, sync) handle it
+  }
+
+  /**
+   * Surgical update/insert for a single content node (with version bump).
+   * Prefer batchUpsert() for bulk operations.
+   */
+  upsert(node: ContentNode) {
+    this._upsertInternal(node);
     this.updateVersion();
   }
 

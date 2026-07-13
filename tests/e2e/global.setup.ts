@@ -100,6 +100,7 @@ export default async function globalSetup() {
   // STEP 3: Ensure required directories exist
   const requiredDirs = [
     join(process.cwd(), "config", "database"),
+    join(process.cwd(), "config", "collections"),
     join(process.cwd(), "tests", "e2e", ".auth"),
     join(process.cwd(), "logs"),
     join(process.cwd(), "mediaFolder"),

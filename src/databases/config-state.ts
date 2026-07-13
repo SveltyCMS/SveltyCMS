@@ -373,16 +373,16 @@ const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
     protocol: "mongodb",
     buildConnectionString: (c) => {
       const auth = c.user && c.user.trim() ? `${c.user}:${c.password}@` : "";
-      // authSource=admin is required for root users created via
-      // MONGO_INITDB_ROOT_USERNAME (docker-compose standard).
-      return `mongodb://${auth}${c.host}:${c.port}/${c.name}?authSource=admin`;
+      const dbName = c.name.replace(/\.db$/, "").replace(/\./g, "_");
+      return `mongodb://${auth}${c.host}:${c.port}/${dbName}?authSource=admin`;
     },
   },
   "mongodb+srv": {
     protocol: "mongodb+srv",
     buildConnectionString: (c) => {
       const auth = c.user ? `${c.user}:${c.password}@` : "";
-      return `mongodb+srv://${auth}${c.host}/${c.name}?retryWrites=true&w=majority`;
+      const dbName = c.name.replace(/\.db$/, "").replace(/\./g, "_");
+      return `mongodb+srv://${auth}${c.host}/${dbName}?retryWrites=true&w=majority`;
     },
   },
   postgresql: {

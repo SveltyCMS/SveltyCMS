@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-06-23"
+updated: "2026-07-12"
 tags:
   - "architecture"
   - "performance"
@@ -126,39 +126,110 @@ Safe sandboxed parsing of compiled collection modules with widget proxy support.
 
 ## 🔄 Data Flow & Lifecycle
 
+End-to-end pipeline from collection definitions to sidebar and Collection Builder. Two organizational paths converge on the same runtime stores.
+
 ```mermaid
-graph TD
-    subgraph Filesystem
-        SC[config/collections/*.ts]
-        CP[.compiledCollections/*.js]
-    end
-    subgraph Server["Server Tier"]
-        LD[loader.server.ts]
-        EN[engine.server.ts]
-        DB[(Database)]
-    end
-    subgraph Client["Client Tier"]
-        SSE[SSE Connection]
-        CS[content-registry.svelte.ts (Runes)]
-        UI[UI Components]
+flowchart TD
+    subgraph Source["Source of truth"]
+        TS["config/collections/**/*.ts<br/>(code-first or GUI-written)"]
     end
 
-    SC -->|Build| CP
-    CP -->|mtime + cache| EN
-    EN -->|loadSchema| LD
-    EN -->|Watcher (dev)| EN
-    EN -->|Schema diff + upsert| DB
-    EN -->|Broadcast content:update| SSE
-    SSE -->|type: content_update| CS
-    CS -->|GET /api/content-structure| EN
-    CS -->|contentStore.sync| UI
+    subgraph DevWatch["Vite dev watch"]
+        VITE["vite.config.ts · sveltyCmsPlugin<br/>watch + debounce 150ms"]
+        COMPILE["compile()<br/>src/utils/compilation/"]
+        HMR["svelty:content-update HMR<br/>invalidate app:content"]
+    end
+
+    subgraph Compiled["Compiled output"]
+        JS[".compiledCollections/**/*.js"]
+        MANIFEST[".compilation-manifest.json<br/>compile hashes · collectionOrder · structureNodes"]
+    end
+
+    subgraph Engine["Content engine (server)"]
+        SCAN["scanCompiledCollections()<br/>engine.server.ts"]
+        LOAD["loadSchema()<br/>loader.server.ts"]
+        RECON["fullReload / reconcile<br/>FS paths ↔ DB content_nodes"]
+        WATCH["startContentWatcher()<br/>dev incremental reload"]
+    end
+
+    subgraph Persist["Persistence"]
+        DB[("content_nodes table<br/>parentId · order · categories")]
+    end
+
+    subgraph UI["Client UI"]
+        STORE["contentStore + collection-store<br/>contentStructure"]
+        SIDEBAR["left-sidebar → collections.svelte<br/>tree-view.svelte"]
+        BUILDER["config/collectionbuilder<br/>tree-view-board"]
+        ORDER["page.data.collectionOrder<br/>manifest sort overrides"]
+    end
+
+    TS --> VITE
+    VITE --> COMPILE
+    VITE --> HMR
+    COMPILE --> JS
+    COMPILE --> MANIFEST
+
+    JS --> SCAN
+    JS --> WATCH
+    SCAN --> LOAD
+    LOAD --> RECON
+    WATCH --> RECON
+    RECON --> DB
+    RECON --> STORE
+    MANIFEST --> RECON
+    MANIFEST --> ORDER
+
+    HMR --> STORE
+    DB --> STORE
+    STORE --> SIDEBAR
+    STORE --> BUILDER
+    ORDER --> SIDEBAR
 ```
+
+### Path A — Code / filesystem (e.g. `config/collections/test/posts.ts`)
+
+1. Developer creates folder `config/collections/test/` and moves `posts.ts` into it.
+2. Vite detects the change → `compile()` writes `.compiledCollections/test/posts.js` and updates compile hashes in the manifest.
+3. `enrichSchemaWithMetadata()` sets schema path `/collection/test/posts`.
+4. `generateCategoryNodesFromPaths()` auto-creates a **path-derived** category node for `test` during reconciliation.
+5. `fullReload()` syncs DB + `contentStore`; dev watcher or HMR refreshes sidebar and Collection Builder.
+
+**Filesystem limits:** folder nesting defines category structure; explicit sort order is **not** encoded by the OS. Order comes from DB + optional `collectionOrder` in the manifest (set via GUI Save or sidebar drag → `POST /api/collections/reorder`).
+
+### Path B — GUI Collection Builder (virtual organization)
+
+1. User creates category `test` in the builder and drags `posts` under it, then clicks **Save**.
+2. `saveContentStructure()` persists `move` / `create` ops to `content_nodes` (no destructive `fullReload`).
+3. `setOrganizationalManifest()` writes `collectionOrder` + `structureNodes` (GUI categories with `source: "builder"`) to `.compilation-manifest.json`.
+4. `contentStore` updates in memory; `invalidate("app:content")` reloads layout data for sidebar and builder.
+
+**GUI advantages:** arbitrary category order, collection order, and parent links **without** moving `.ts` files. The schema file may stay at `config/collections/posts.ts` while the UI shows it under `test`.
+
+### Is code vs GUI fully dynamic?
+
+| Capability                 | Code / filesystem                              | GUI Collection Builder                                                                      |
+| :------------------------- | :--------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| Collection schema on disk  | **Required** — `.ts` is definition truth       | Written when saving a **new** collection; drag-reorder does **not** relocate existing files |
+| Subfolder → category       | **Automatic** from path                        | **Virtual** category in DB + `structureNodes`                                               |
+| Compiled JS mirror path    | **Yes** — `test/posts.ts` → `test/posts.js`    | Unchanged unless the `.ts` file path changes                                                |
+| Manifest compile hashes    | Updated on every compile                       | Preserved across compiles                                                                   |
+| Manifest `collectionOrder` | Applied on reconcile; optional via sidebar API | Written explicitly on Save                                                                  |
+| Manifest `structureNodes`  | GUI categories only                            | Written on Save                                                                             |
+| Sidebar + builder refresh  | Vite HMR + watcher + reconcile                 | Save + `invalidate("app:content")`                                                          |
+
+**Summary:** Both paths are **live and reactive** for UI updates. They are **not identical**:
+
+- **Filesystem** owns collection **existence** and **path-derived** folders.
+- **GUI** owns **fine-grained order** and **virtual categories** without OS constraints.
+- Dragging in the builder updates DB + manifest, **not** the on-disk folder layout. Moving files on disk updates compile output + path-derived categories, **not** GUI-only virtual folders unless reconciled from manifest.
+
+For identical behavior, keep filesystem folders aligned with GUI categories, or treat GUI layout as the display layer and files as the schema layer.
 
 ---
 
 ## 🚀 Performance Architecture
 
-The 2026 update introduced a massive architectural leap in content processing, achieving **sub-millisecond (0.04ms)** scan latencies for 1,000+ collections.
+The 2026 update introduced a massive architectural leap in content processing. Measured scan and reload latencies are documented in [Performance Benchmarks](../../project/benchmarks/index.mdx).
 
 ### 🧵 1. Worker Thread Pooling
 
@@ -178,38 +249,6 @@ Individual cache lookups are replaced by **Vectorized Batching**. The system fet
 ### 🔢 4. Fast Deterministic Hashing
 
 Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Reduces reconciliation time for unchanged schemas by ~40%.
-
----
-
-## 🚀 Performance Benchmarks
-
-| Metric                          | Baseline (v0.0.7)         | Ultra-Elite (v0.0.8) | Status              |
-| :------------------------------ | :------------------------ | :------------------- | :------------------ |
-| **Warm Scan (120 files)**       | 2.46ms                    | **0.014ms**          | 🟢 **ULTRA ELITE**  |
-| **Warm Scan (1,000 files)**     | 0.002ms                   | **0.001ms**          | 🟢 **avg -50%**     |
-| **Cold Scan (1,000 files)**     | 0.029ms                   | **0.036ms**          | ⚪ stable           |
-| **Scan (150 files, warm)**      | 0.006ms                   | **0.005ms**          | 🟢 **avg -17%**     |
-| **Incremental Reload (1 file)** | 10.996ms (full, 1k files) | **0.240ms**          | 🟢 **45.8× faster** |
-| **Batched 10-file reload**      | ~3.1ms (sequential)       | **~1.3ms**           | 🟢 **~2.4× faster** |
-
-> Reproduce: `BENCHMARK_RECORD=1 bun test tests/benchmarks/content-incremental-reload.test.ts` (1,000-file fixture, matches content-scale-stress)
-
----
-
-## 🔬 Incremental Reload Benchmark
-
-**File**: `tests/benchmarks/content-incremental-reload.test.ts`
-
-The dev watcher and SSE hot path use `fullReload(changedFile)` which skips full SCHEMA cache invalidation and full DB reconciliation:
-
-| Path                                  | SQLite (recorded 2026-06-15) |
-| :------------------------------------ | :--------------------------- |
-| **Incremental (1 file)**              | 0.240 ms                     |
-| **Full reconciliation (1,000 files)** | 10.996 ms                    |
-| **Speedup**                           | **45.8×**                    |
-| **Batch 10-file speedup**             | 2.4×                         |
-
-Fixture isolation: exactly **1,000** `.compiledCollections` files (same cardinality as `content-scale-stress`). Uses a mock adapter — measures reconcile-path delta, not DB round-trips.
 
 ---
 
@@ -240,6 +279,7 @@ Fixture isolation: exactly **1,000** `.compiledCollections` files (same cardinal
 
 ## Related Documentation
 
+- [Performance Benchmarks](../../project/benchmarks/index.mdx) — measured scan, reload, and reconciliation metrics (single source of truth)
 - [Local SDK vs HTTP API](../../development/local-vs-http-api.mdx)
 - [Server Hooks](./server-hooks.mdx)
 - [State Management & Readiness](./state-management.mdx)

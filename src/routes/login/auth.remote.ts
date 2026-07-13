@@ -429,15 +429,18 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  // Determine redirect: user's first collection if available, otherwise builder
-  let redirectPath = "/config/collectionbuilder";
-  try {
-    const { getCachedFirstCollectionPath } = await import("@utils/server/collection-utils.server");
-    const userLanguage = (user as any).locale || (user as any).language || "en";
-    const path = await getCachedFirstCollectionPath(userLanguage as any);
-    if (path) redirectPath = path;
-  } catch {
-    // Fall back to builder
+  // Determine redirect: explicit redirect param takes priority, then first collection, else builder
+  let redirectPath = (input.redirect as string) || "/config/collectionbuilder";
+  if (!input.redirect) {
+    try {
+      const { getCachedFirstCollectionPath } =
+        await import("@utils/server/collection-utils.server");
+      const userLanguage = (user as any).locale || (user as any).language || "en";
+      const path = await getCachedFirstCollectionPath(userLanguage as any);
+      if (path) redirectPath = path;
+    } catch {
+      // Fall back to builder
+    }
   }
 
   return { success: true, redirectPath };

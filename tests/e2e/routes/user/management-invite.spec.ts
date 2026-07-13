@@ -1,0 +1,68 @@
+/**
+ * @file tests/e2e/routes/user/management-invite.spec.ts
+ * @description Isolated E2E: admin invite token flow (split from management.spec.ts).
+ */
+
+import { expect, test } from "@playwright/test";
+import { loginAsAdmin } from "../../helpers/auth";
+
+test.describe("User Management — Invite Flow", () => {
+  test.setTimeout(120_000);
+
+  test("invite user via email token and accept signup", async ({ page, browser }) => {
+    await loginAsAdmin(page);
+    await page.getByTestId("nav-user-profile").click();
+    await page.getByRole("button", { name: /email user registration token/i }).click();
+
+    const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });
+    await expect(tokenDialog).toBeVisible({ timeout: 10_000 });
+
+    const inviteEmail = `newuser_${Date.now()}@example.com`;
+    await tokenDialog.locator('input[name="email"]:not([disabled])').fill(inviteEmail);
+    const roleChip = tokenDialog.getByRole("button", { name: /^user$/i });
+    if (await roleChip.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await roleChip.click();
+    }
+    await tokenDialog.getByRole("button", { name: /save/i }).click();
+
+    await expect(
+      tokenDialog.getByRole("heading", { name: /Invitation Token Created/i }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const inviteLinkInput = tokenDialog.getByRole("textbox", { name: "Token name" });
+    await expect(inviteLinkInput).toHaveValue(/invite_token=/, { timeout: 15_000 });
+    const inviteUrl = await inviteLinkInput.inputValue();
+
+    const inviteContext = await browser.newContext();
+    await inviteContext.addInitScript(() => {
+      localStorage.setItem(
+        "sveltycms_consent",
+        JSON.stringify({ necessary: true, analytics: false, marketing: false, responded: true }),
+      );
+    });
+    const invitePage = await inviteContext.newPage();
+    try {
+      await invitePage.goto(inviteUrl, { waitUntil: "domcontentloaded" });
+      const signUpBtn = invitePage.getByRole("button", { name: /Go to Sign Up/i });
+      await signUpBtn.waitFor({ state: "visible", timeout: 15_000 });
+      await signUpBtn.click();
+
+      await expect(invitePage.locator("#signup-form")).toBeVisible({ timeout: 10_000 });
+      await expect(invitePage.locator("#emailsignUp")).toHaveValue(inviteEmail, {
+        timeout: 10_000,
+      });
+      await expect(invitePage.locator('input[type="hidden"][name="token"]')).toHaveValue(/.+/, {
+        timeout: 5_000,
+      });
+
+      const inviteUsername = `newuser_${Date.now()}`;
+      await invitePage.locator("#usernamesignUp").fill(inviteUsername);
+      await invitePage.locator("#passwordsignUp").fill("user@123!");
+      await invitePage.locator("#confirm_passwordsignUp").fill("user@123!");
+      await invitePage.getByRole("button", { name: /accept invitation/i }).click();
+      await expect(invitePage).not.toHaveURL(/\/login/, { timeout: 20_000 });
+    } finally {
+      await inviteContext.close();
+    }
+  });
+});

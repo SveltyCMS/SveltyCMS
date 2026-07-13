@@ -19,7 +19,6 @@ import type { ContentNode, DatabaseId, ISODateString } from "@src/content/types"
 import { logger } from "@utils/logger";
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model, QueryFilter as MongoQueryFilter } from "mongoose";
-import type mongoose from "mongoose";
 import type {
   BaseEntity,
   DatabaseResult,
@@ -203,6 +202,9 @@ export class MongoContentMethods {
             $setOnInsert: {
               _id: generateId(),
               createdAt: new Date().toISOString() as unknown as ISODateString,
+              // Ensure tenantId is set on newly inserted documents for
+              // tenant-scoped queries to find them after upsert.
+              ...(nodeData.tenantId != null ? { tenantId: nodeData.tenantId } : {}),
             },
           },
           { returnDocument: "after", upsert: true, runValidators: true },
@@ -277,8 +279,9 @@ export class MongoContentMethods {
           }
         }
 
-        // Prepare base filter: prioritize _id if available to ensure correct upsert matching
         const targetId = id || _id;
+
+        // Prepare base filter: match by targetId (_id) if available, otherwise by path
         const baseFilter: Record<string, unknown> = targetId ? { _id: targetId } : { path };
 
         // Wrap filter with safeQuery to enforce tenant context
@@ -288,18 +291,25 @@ export class MongoContentMethods {
           bypassSafeQuery: (options as any)?.bypassSafeQuery,
         }) as MongoQueryFilter<ContentNode>;
 
-        // If we are filtering by _id, we don't need to set it on insert
         const setOnInsert: Record<string, unknown> = {
           createdAt: new Date().toISOString() as unknown as ISODateString,
         };
 
         if (!targetId) {
-          // Only generate a new ID if we don't have one and are filtering by path
           setOnInsert._id = generateId();
-        } else if (targetId && !secureFilter._id) {
-          // If we have an ID but safeQuery stripped it (unlikely but possible), put it back for the upsert
-          secureFilter._id = targetId as any;
         }
+
+        // Ensure tenantId is set on newly inserted documents so tenant-scoped
+        // queries (e.g. safeQuery filters) can find them after upsert.
+        if (tenantId != null && tenantId !== undefined) {
+          setOnInsert.tenantId = tenantId;
+        }
+
+        // Strip path only if we matched by path (otherwise we want to update the path)
+        if (!targetId) {
+          delete (normalizedChanges as any).path;
+        }
+        delete (normalizedChanges as any).tenantId;
 
         return {
           updateOne: {
@@ -307,7 +317,6 @@ export class MongoContentMethods {
             update: {
               $set: {
                 ...normalizedChanges,
-                path,
                 updatedAt: new Date().toISOString() as unknown as ISODateString,
               },
               $setOnInsert: setOnInsert,
@@ -317,9 +326,7 @@ export class MongoContentMethods {
         };
       });
       logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
-      const result = await this.nodesRepo.model.bulkWrite(
-        operations as mongoose.AnyBulkWriteOperation<ContentNode>[],
-      );
+      const result = await this.nodesRepo.model.collection.bulkWrite(operations as any);
       logger.info(
         `[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`,
       );

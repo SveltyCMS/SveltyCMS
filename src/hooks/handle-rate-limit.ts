@@ -45,7 +45,7 @@ async function getSystemMonitor() {
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const DEFAULT_WINDOW_MS = 60_000;
-const DEFAULT_MAX_REQUESTS = 100;
+const DEFAULT_MAX_REQUESTS = process.env.NODE_ENV !== "production" ? 1000 : 100;
 const MAX_TRACKED_BUCKETS = 10000;
 const CLEANUP_INTERVAL_MS = 60_000;
 

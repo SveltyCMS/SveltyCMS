@@ -21,9 +21,9 @@
  * - Allowed checkout origins for headless frontends
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 
-export const stripePlugin: Plugin = {
+export const stripePlugin = definePlugin({
   metadata: {
     id: "stripe",
     name: "Stripe Payments",
@@ -117,37 +117,41 @@ export const stripePlugin: Plugin = {
   ],
   hooks: {
     beforeSave: async (context, _collection, data) => {
-      const { checkExtensionLicense } = await import("@src/utils/license-manager");
-      const status = await checkExtensionLicense("plugin", "stripe");
+      if (import.meta.env.SSR) {
+        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const status = await checkExtensionLicense("plugin", "stripe");
 
-      // Premium features require a license
-      if (!status.active && !status.hasLicense) {
-        // Strip premium fields — keep free tier (one-time payments only)
-        delete data._stripeSubscriptionPlan;
-        delete data._stripeInvoiceSettings;
-        delete data._stripeMultiCurrency;
-        delete data._stripeCustomTheme;
-        delete data._stripeAnalytics;
-        console.warn("[stripe] Premium fields stripped due to missing license. Free tier active.");
-      }
-
-      // If a payment intent is attached, verify it succeeded (free + premium)
-      if (data._stripePaymentIntent) {
-        const { getStripe } = await import("./server/stripe");
-        const stripe = await getStripe(context.tenantId);
-        const intent = await stripe.paymentIntents.retrieve(data._stripePaymentIntent);
-        if (intent.status !== "succeeded") {
-          throw new Error(
-            `Payment not completed. Status: ${intent.status}. Please complete payment before saving.`,
+        // Premium features require a license
+        if (!status.active && !status.hasLicense) {
+          // Strip premium fields — keep free tier (one-time payments only)
+          delete data._stripeSubscriptionPlan;
+          delete data._stripeInvoiceSettings;
+          delete data._stripeMultiCurrency;
+          delete data._stripeCustomTheme;
+          delete data._stripeAnalytics;
+          console.warn(
+            "[stripe] Premium fields stripped due to missing license. Free tier active.",
           );
         }
-        // Store payment reference
-        data._stripePaymentStatus = intent.status;
-        data._stripePaymentAmount = intent.amount;
-        data._stripePaymentCurrency = intent.currency;
+
+        // If a payment intent is attached, verify it succeeded (free + premium)
+        if (data._stripePaymentIntent) {
+          const { getStripe } = await import("./server/stripe");
+          const stripe = await getStripe(context.tenantId);
+          const intent = await stripe.paymentIntents.retrieve(data._stripePaymentIntent);
+          if (intent.status !== "succeeded") {
+            throw new Error(
+              `Payment not completed. Status: ${intent.status}. Please complete payment before saving.`,
+            );
+          }
+          // Store payment reference
+          data._stripePaymentStatus = intent.status;
+          data._stripePaymentAmount = intent.amount;
+          data._stripePaymentCurrency = intent.currency;
+        }
       }
       return data;
     },
   },
   enabledCollections: [],
-};
+});

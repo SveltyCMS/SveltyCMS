@@ -104,11 +104,11 @@ export const systemTypeDefs = `
 
 	extend type Query {
 		collectionStats(collectionId: String!): CollectionStats
-		allCollectionStats: [CollectionStats!]!
-		entries(collection: String!, limit: Int!): [AnyEntry!]!
-		navigationStructure(options: NavigationOptions): [NavigationNode!]!
-		nodeChildren(nodeId: String!): [NavigationNode!]!
-		breadcrumb(path: String!): [BreadcrumbItem!]!
+		allCollectionStats: [CollectionStats!]
+		entries(collection: String!, limit: Int!): [AnyEntry!]
+		navigationStructure(options: NavigationOptions): [NavigationNode!]
+		nodeChildren(nodeId: String!): [NavigationNode!]
+		breadcrumb(path: String!): [BreadcrumbItem!]
 		contentSystemHealth: contentSystemHealth
 		contentSystemDiagnostics: contentSystemDiagnostics
 		contentSystemMetrics: contentSystemMetrics
@@ -300,7 +300,7 @@ export const systemResolvers = {
       }
       try {
         await contentSystem.refresh();
-        return { success: true, message: "Structure reconciled successfully." };
+        return { valid: true, errors: [], warnings: [] };
       } catch (error) {
         logger.error("Error in validateContentStructure:", { error });
         throw new Error("Failed to validate structure");

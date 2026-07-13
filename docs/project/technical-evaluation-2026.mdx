@@ -665,6 +665,15 @@ A focused sprint to eliminate accidental complexity in the content and media sub
 - 40 new unit tests: sharing (13), media-utils (15), slim-sniffer (12).
 - Benchmark-verified: media upload 10MB at **32.3ms** (310 MB/s), SDK processing at **2.7ms** (319 images/s).
 
+**Focal Point & Aspect Preview (July 2026)**
+
+- **Focal point metadata**: `CmsMediaMetadata.focalPoint` — percentage coordinate `{ x, y }` stored per image. Persisted via `PATCH /api/media/:id` (metadata-only, no re-encoding).
+- **Aspect ratio preview grid**: Pure CSS `object-fit: cover` rendering across 7 preset ratios (16:9, 3:2, 4:3, 1:1, 2:3, 9:16, 21:9). Zero canvas/WebGL overhead.
+- **Interactive focal point**: Drag the crosshair on any preview card — all ratios update simultaneously. Arrow keys for 1px steps, Shift+Arrow for 10px. Rule-of-thirds overlay guides.
+- **Plugin-gated architecture**: Core rendering component (`AspectPreview.svelte`) with opt-in plugin (`focal-point`) that injects into `media_gallery`, `image_editor_tool`, and media-upload widget zones. Plugin-disabled-by-default — zero focal point UI when off.
+- **Cross-location coverage**: Media gallery (Slot injection + focal-quick-modal enhancement), collection entry forms (aspect preview button on image cards), image editor toolbar (crosshairs button).
+- **Competitive parity**: Equivalent to Drupal's Focal Point module and Payload CMS's aspect-preview plugin — both implemented as optional extensions in their respective ecosystems.
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.

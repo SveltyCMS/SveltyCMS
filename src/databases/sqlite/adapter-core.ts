@@ -109,7 +109,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   protected isMissingTableError(err: any): boolean {
-    return err?.code === "SQLITE_ERROR" && err?.message?.includes("no such table");
+    const direct = err?.code === "SQLITE_ERROR" || err?.code === "ERR_SQLITE_ERROR";
+    const viaCause = err?.cause?.code === "SQLITE_ERROR" || err?.cause?.code === "ERR_SQLITE_ERROR";
+    const hasMsg =
+      err?.message?.includes("no such table") || err?.cause?.message?.includes("no such table");
+    return (direct || viaCause) && hasMsg;
   }
 
   protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {

@@ -13,17 +13,35 @@
  * - fail-fast on first test failure
  * - per-database report evaluation
  *
+ * ### Benchmark modes (config isolation)
+ * - **Local** (`config/private.ts` exists): env-only via `BENCHMARK=true` — never reads or
+ *   writes the developer's `private.ts`. Uses isolated DB (`benchmark_shared` for SQLite).
+ *   Skips setup wizard; seeds via `/api/testing` only (same as `setupBenchmarkServer`).
+ * - **CI-fresh** (no `config/private.ts`, mirrors `.github/workflows/ci.yml` bench-core):
+ *   runs `setup-system.ts` wizard (writes `private.test.ts` under `TEST_MODE`).
+ *
  * Usage:
- *   bun run scripts/benchmark-matrix/index.ts              // all databases
- *   bun run scripts/benchmark-matrix/index.ts --db=sqlite  // single database
- *   bun run scripts/benchmark-matrix/index.ts --db=sqlite,mongodb  // specific databases
+ *   COMPILE_ALL_ADAPTERS=true bun run build
+ *   bun run benchmark --db=sqlite
+ *   bun run scripts/benchmark-matrix/index.ts --db=sqlite,mongodb
  */
 
 import { spawn, execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { getDockerDefaultDbCredentials } from "../../src/utils/test-db-credentials.ts";
+import { getBenchmarkTestEnv } from "../../src/utils/test-db-credentials.ts";
+import {
+  printBenchmarkIsolationBanner,
+  resolveBenchmarkProfile,
+} from "../../src/utils/benchmark-sandbox.ts";
+import { getTestApiSecret } from "./config.ts";
+
+const CONCURRENCY_STRESS_TESTS = new Set([
+  "concurrency-max",
+  "concurrency-race",
+  "concurrency-throughput",
+]);
 
 const DBS = ["sqlite", "mariadb", "postgresql", "mongodb"];
 const filter =
@@ -267,15 +285,29 @@ function formatTime(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
-async function healthOk(url: string): Promise<boolean> {
-  try {
-    const r = await fetch(`${url}/api/system/health`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    return r.ok;
-  } catch {
-    return false;
+function isHealthReady(data: Record<string, unknown>): boolean {
+  const status = String(data.overallStatus ?? data.status ?? "").toUpperCase();
+  const db = data.database;
+  const dbOk = db === true || db === "connected";
+  const readyStates = new Set(["READY", "WARMED", "DEGRADED"]);
+  return readyStates.has(status) && dbOk;
+}
+
+async function waitForServerReady(url: string, maxAttempts = 90): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const r = await fetch(`${url}/api/system/health`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      if (!r.ok) continue;
+      const data = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (isHealthReady(data)) return true;
+    } catch {
+      // retry
+    }
+    await new Promise((r) => setTimeout(r, 500));
   }
+  return false;
 }
 
 function spawnTestProcess(
@@ -375,6 +407,35 @@ function calculateGlobalRemainingSeconds(
 async function run() {
   let totalFailed = 0;
 
+  const buildEntry = path.join(process.cwd(), "build", "index.js");
+  if (!fs.existsSync(buildEntry)) {
+    console.error("❌ build/index.js missing.");
+    console.error("   Run: COMPILE_ALL_ADAPTERS=true bun run build");
+    process.exit(1);
+  }
+
+  try {
+    const { spawnSync: sync } = await import("node:child_process");
+    const verify = sync("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
+      cwd: process.cwd(),
+      stdio: "pipe",
+      shell: process.platform === "win32",
+    });
+    if (verify.status !== 0) {
+      console.error(verify.stderr?.toString() || verify.stdout?.toString());
+      console.error(
+        "❌ Benchmark build verification failed. Run: COMPILE_ALL_ADAPTERS=true bun run build",
+      );
+      process.exit(1);
+    }
+  } catch {
+    /* verify script optional in minimal env */
+  }
+
+  const profile = resolveBenchmarkProfile();
+  process.env.BENCHMARK_PROFILE = profile;
+  process.env.BENCHMARK = "true";
+
   // Build ordered test list from smart groups
   const allGroupedNames = new Set(GROUPS.flatMap((g) => g.tests));
   const orderedTests: string[] = [];
@@ -405,89 +466,95 @@ async function run() {
     // ── Phase 1: Start server ──
     const port = 4173 + Math.floor(Math.random() * 500);
     const baseUrl = `http://127.0.0.1:${port}`;
-    const apiSecret = "SVELTYCMS_TEST_SECRET_2026";
+    const apiSecret = getTestApiSecret();
     const adminPassword = "Password123!";
 
-    process.stdout.write(`  Starting server... `);
-
-    const dbCreds = getDockerDefaultDbCredentials(db);
+    printBenchmarkIsolationBanner(db);
 
     const serverEnv = {
-      ...process.env,
-      DB_TYPE: db,
-      PORT: String(port),
-      API_BASE_URL: baseUrl,
-      TEST_MODE: "true",
-      BENCHMARK: "true",
-      NODE_ENV: "test",
-      USE_REDIS: "false",
-      LOG_LEVEL: "fatal",
-      QUIET: "true",
-      JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-32ch",
-      ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-32ch",
-      TEST_API_SECRET: apiSecret,
-      ADMIN_PASSWORD: adminPassword,
-      SVELTY_BENCHMARK_SUITE: "true",
-      BENCHMARK_RECORD: "1",
-      DB_NAME: "sveltycms_test",
-      DB_HOST: "127.0.0.1",
-      DB_USER: dbCreds.user,
-      DB_PASSWORD: dbCreds.password,
-      DB_PORT:
-        db === "mariadb" ? "3306" : db === "postgresql" ? "5432" : db === "mongodb" ? "27017" : "",
+      ...getBenchmarkTestEnv(db, {
+        PORT: String(port),
+        API_BASE_URL: baseUrl,
+        TEST_API_SECRET: apiSecret,
+        ADMIN_PASSWORD: adminPassword,
+        BENCHMARK_PROFILE: profile,
+        USE_REDIS: "false",
+        LOG_LEVEL: "fatal",
+        QUIET: "true",
+        SVELTY_BENCHMARK_SUITE: "true",
+        NODE_ENV: "test",
+      }),
     } as Record<string, string>;
 
-    const server = spawn("node", ["build/index.js"], {
-      env: serverEnv,
-      stdio: "pipe",
-      shell: process.platform === "win32",
-    });
-
-    // Collect server stderr for debugging if needed
     let serverLogs = "";
-    server.stderr.on("data", (d: Buffer) => {
-      serverLogs += d.toString();
-    });
 
-    // Wait for server to be healthy
-    let healthy = false;
-    for (let i = 0; i < 60; i++) {
-      if (await healthOk(baseUrl)) {
-        healthy = true;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 500));
-    }
+    const startServer = () => {
+      process.stdout.write(`  Starting server... `);
+      const proc = spawn("node", ["build/index.js"], {
+        env: serverEnv,
+        stdio: "pipe",
+        shell: process.platform === "win32",
+      });
+      serverLogs = "";
+      proc.stderr.on("data", (d: Buffer) => {
+        serverLogs += d.toString();
+      });
+      return proc;
+    };
 
+    let server = startServer();
+
+    let healthy = await waitForServerReady(baseUrl);
     if (!healthy) {
       console.log("FAILED");
-      console.error(`  Server at ${baseUrl} did not start in 30s`);
+      console.error(`  Server at ${baseUrl} did not reach READY+database in 45s`);
       console.error(`  Logs: ${serverLogs.slice(0, 500)}`);
       server.kill("SIGKILL");
       process.exit(1);
     }
     console.log("OK");
 
-    // ── Phase 2: System setup (best-effort) + testing API seed ──
+    const restartServerIfNeeded = async (reason: string) => {
+      if (await waitForServerReady(baseUrl, 3)) return;
+      process.stdout.write(`  Restarting server (${reason})... `);
+      server.kill("SIGKILL");
+      await new Promise((r) => setTimeout(r, 500));
+      server = startServer();
+      healthy = await waitForServerReady(baseUrl);
+      console.log(healthy ? "OK" : "FAILED");
+      if (!healthy) {
+        console.error(`  Server restart failed. Logs: ${serverLogs.slice(0, 500)}`);
+        process.exit(1);
+      }
+    };
+
+    // ── Phase 2: Setup + seed (mode-aware) ──
     process.stdout.write(`  Setting up system... `);
-    try {
-      execSync("bun run scripts/setup-system.ts", {
-        env: { ...serverEnv, API_BASE_URL: baseUrl, PRESET: "demo" },
-        stdio: "pipe",
-        shell: process.platform === "win32",
-        timeout: 120_000,
-      } as any);
-      console.log("OK");
-    } catch (e: any) {
-      // Wizard seed can fail when live config/private.ts exists — testing API seed below is authoritative.
-      console.log("SKIP");
-      const note = e.stderr?.toString().slice(0, 200) || e.message;
-      if (note) console.error(`  Setup note: ${note}`);
+    if (profile === "ci-fresh") {
+      try {
+        execSync("bun run scripts/setup-system.ts", {
+          env: { ...serverEnv, API_BASE_URL: baseUrl, PRESET: "demo" },
+          stdio: "pipe",
+          shell: process.platform === "win32",
+          timeout: 120_000,
+        } as any);
+        console.log("OK (CI-fresh wizard)");
+      } catch (e: any) {
+        console.log("FAILED");
+        const note = e.stderr?.toString().slice(0, 300) || e.message;
+        if (note) console.error(`  Setup error: ${note}`);
+        server.kill("SIGKILL");
+        process.exit(1);
+      }
+    } else {
+      console.log("SKIP (local — never touches config/private.ts)");
     }
 
-    // Seed benchmark data via testing API
     process.stdout.write(`  Seeding benchmark data... `);
     try {
+      process.env.API_BASE_URL = baseUrl;
+      process.env.TEST_API_SECRET = apiSecret;
+
       const seedRes = await fetch(`${baseUrl}/api/testing`, {
         method: "POST",
         headers: {
@@ -501,15 +568,15 @@ async function run() {
           password: adminPassword,
         }),
       });
-      if (seedRes.ok) {
-        console.log("OK");
-      } else {
+      if (!seedRes.ok) {
         const txt = await seedRes.text().catch(() => "");
-        console.log("FAILED");
-        console.error(`  Seed error (${seedRes.status}): ${txt.slice(0, 300)}`);
-        server.kill("SIGKILL");
-        process.exit(1);
+        throw new Error(`admin seed (${seedRes.status}): ${txt.slice(0, 300)}`);
       }
+
+      const { ensureStableTestData } =
+        await import("../../tests/benchmarks/modules/benchmark-utils.ts");
+      await ensureStableTestData(undefined, "global");
+      console.log("OK");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.log("FAILED");
@@ -601,6 +668,9 @@ async function run() {
           const name = getTestName(file);
 
           const testPromise = (async () => {
+            if (CONCURRENCY_STRESS_TESTS.has(name)) {
+              await restartServerIfNeeded(`before ${name}`);
+            }
             const { code, durationMs, output } = await spawnTestProcess(
               file,
               serverEnv,

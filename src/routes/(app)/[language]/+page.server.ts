@@ -16,8 +16,8 @@ import type { PageServerLoad } from "./$types";
 const _redirectCache = new Map<string, { url: string; ts: number }>();
 const REDIRECT_CACHE_TTL = 5 * 60_000;
 
-export const load: PageServerLoad = async ({ params, locals }) => {
-  getAuthenticatedUser(locals);
+export const load: PageServerLoad = async ({ params, locals, url }) => {
+  getAuthenticatedUser(locals, url.pathname + url.search);
   const { language } = params;
   const { tenantId } = locals;
 

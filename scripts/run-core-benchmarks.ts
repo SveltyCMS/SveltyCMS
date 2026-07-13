@@ -18,6 +18,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getBenchmarkTestEnv } from "../src/utils/test-db-credentials.ts";
+import { printBenchmarkIsolationBanner } from "../src/utils/benchmark-sandbox.ts";
 
 const ROOT = process.cwd();
 const VALID_DBS = ["sqlite", "mongodb", "mariadb", "postgresql"] as const;
@@ -79,16 +80,35 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
     return false;
   }
 
+  const verify = spawnSync(
+    "bun",
+    ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"],
+    {
+      cwd: ROOT,
+      stdio: "pipe",
+      shell: process.platform === "win32",
+    },
+  );
+  if (verify.status !== 0) {
+    console.error(verify.stderr?.toString() || verify.stdout?.toString());
+    console.error(
+      "❌ Benchmark build missing testing harness. Run: COMPILE_ALL_ADAPTERS=true bun run build",
+    );
+    return false;
+  }
+
   if (!assertBuildIncludesAdapter(db)) {
     return false;
   }
 
   const testSecret = ensureTestSecret();
+  process.env.BENCHMARK = "true";
   const baseEnv = getBenchmarkTestEnv(db, {
     TEST_API_SECRET: testSecret,
   });
 
   console.log(`\n📊 Core benchmarks — ${db.toUpperCase()}`);
+  printBenchmarkIsolationBanner(db);
   let failures = 0;
 
   for (const name of CI_CORE_BENCHMARK_TESTS) {

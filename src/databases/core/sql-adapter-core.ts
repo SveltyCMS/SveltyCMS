@@ -566,116 +566,123 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         (collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_"));
 
       let results;
-      if (isDynamic) {
-        const selection = this.getPhysicalSelection(table);
-        const columns = Object.keys(selection);
-        const colList = columns.map((c) => `"${c}"`).join(", ");
+      try {
+        if (isDynamic) {
+          const selection = this.getPhysicalSelection(table);
+          const columns = Object.keys(selection);
+          const colList = columns.map((c) => `"${c}"`).join(", ");
 
-        let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`"${tableName}"`)} WHERE ${where || sql`1=1`}`;
+          let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`"${tableName}"`)} WHERE ${where || sql`1=1`}`;
 
-        if (options.sort) {
-          const sortConditions: any[] = [];
-          const normalizedSorts: {
-            field: string;
-            direction: "asc" | "desc";
-          }[] = [];
-          if (Array.isArray(options.sort)) {
-            for (const item of options.sort) {
-              if (Array.isArray(item) && item.length >= 2) {
-                normalizedSorts.push({
-                  field: item[0],
-                  direction: item[1] as "asc" | "desc",
-                });
-              } else if (typeof item === "object" && item !== null) {
-                const keys = Object.keys(item);
-                if (keys.length > 0) {
+          if (options.sort) {
+            const sortConditions: any[] = [];
+            const normalizedSorts: {
+              field: string;
+              direction: "asc" | "desc";
+            }[] = [];
+            if (Array.isArray(options.sort)) {
+              for (const item of options.sort) {
+                if (Array.isArray(item) && item.length >= 2) {
                   normalizedSorts.push({
-                    field: keys[0],
-                    direction: (item as any)[keys[0]],
+                    field: item[0],
+                    direction: item[1] as "asc" | "desc",
                   });
+                } else if (typeof item === "object" && item !== null) {
+                  const keys = Object.keys(item);
+                  if (keys.length > 0) {
+                    normalizedSorts.push({
+                      field: keys[0],
+                      direction: (item as any)[keys[0]],
+                    });
+                  }
                 }
               }
+            } else if (typeof options.sort === "object") {
+              for (const field of Object.keys(options.sort)) {
+                normalizedSorts.push({
+                  field,
+                  direction: (options.sort as any)[field],
+                });
+              }
             }
-          } else if (typeof options.sort === "object") {
-            for (const field of Object.keys(options.sort)) {
-              normalizedSorts.push({
-                field,
-                direction: (options.sort as any)[field],
-              });
-            }
-          }
 
-          const self = this as any;
-          const lastRef = {
-            get table() {
-              return self._lastTable;
-            },
-            set table(v: any) {
-              self._lastTable = v;
-            },
-            get cols() {
-              return self._lastCols;
-            },
-            set cols(v: any) {
-              self._lastCols = v;
-            },
-          };
-          for (const s of normalizedSorts) {
-            let sortCol: any = helpers.getColumnHelper(
-              table,
-              s.field,
-              this._tableColumnsCache,
-              lastRef,
-              false,
-            );
-            if (!sortCol) {
-              const dataCol = helpers.getColumnHelper(
+            const self = this as any;
+            const lastRef = {
+              get table() {
+                return self._lastTable;
+              },
+              set table(v: any) {
+                self._lastTable = v;
+              },
+              get cols() {
+                return self._lastCols;
+              },
+              set cols(v: any) {
+                self._lastCols = v;
+              },
+            };
+            for (const s of normalizedSorts) {
+              let sortCol: any = helpers.getColumnHelper(
                 table,
-                "data",
+                s.field,
                 this._tableColumnsCache,
                 lastRef,
                 false,
               );
-              if (dataCol) sortCol = this.getJsonField(s.field);
+              if (!sortCol) {
+                const dataCol = helpers.getColumnHelper(
+                  table,
+                  "data",
+                  this._tableColumnsCache,
+                  lastRef,
+                  false,
+                );
+                if (dataCol) sortCol = this.getJsonField(s.field);
+              }
+              if (sortCol) {
+                sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
+              }
             }
-            if (sortCol) {
-              sortConditions.push(s.direction === "asc" ? asc(sortCol) : desc(sortCol));
+
+            if (sortConditions.length > 0) {
+              sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
             }
           }
 
-          if (sortConditions.length > 0) {
-            sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
-          }
+          if (options.limit !== undefined) sqlQuery = sql`${sqlQuery} LIMIT ${options.limit}`;
+          if (options.offset !== undefined) sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
+
+          const db = this.getDrizzleInstance(options);
+          const rawRows = await this.executeDynamicSql(db, sqlQuery);
+
+          results = rawRows.map((row: any) => {
+            const obj: any = {};
+            if (Array.isArray(row)) {
+              columns.forEach((col, idx) => {
+                if (row[idx] !== undefined) obj[col] = row[idx];
+              });
+            } else if (row && typeof row === "object") {
+              columns.forEach((col) => {
+                if (row[col] !== undefined) obj[col] = row[col];
+              });
+            }
+            return obj;
+          });
+        } else {
+          let builder: any = this.getDrizzleInstance(options)
+            .select(this.getPhysicalSelection(table))
+            .from(table)
+            .where(where);
+          builder = this.applyOrderBy(builder, table, options);
+          if (options.limit) builder = builder.limit(options.limit);
+          if (options.offset) builder = builder.offset(options.offset);
+          results = await builder;
         }
-
-        if (options.limit !== undefined) sqlQuery = sql`${sqlQuery} LIMIT ${options.limit}`;
-        if (options.offset !== undefined) sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
-
-        const db = this.getDrizzleInstance(options);
-        const rawRows = await this.executeDynamicSql(db, sqlQuery);
-
-        results = rawRows.map((row: any) => {
-          const obj: any = {};
-          if (Array.isArray(row)) {
-            columns.forEach((col, idx) => {
-              if (row[idx] !== undefined) obj[col] = row[idx];
-            });
-          } else if (row && typeof row === "object") {
-            columns.forEach((col) => {
-              if (row[col] !== undefined) obj[col] = row[col];
-            });
-          }
-          return obj;
-        });
-      } else {
-        let builder: any = this.getDrizzleInstance(options)
-          .select(this.getPhysicalSelection(table))
-          .from(table)
-          .where(where);
-        builder = this.applyOrderBy(builder, table, options);
-        if (options.limit) builder = builder.limit(options.limit);
-        if (options.offset) builder = builder.offset(options.offset);
-        results = await builder;
+      } catch (err: any) {
+        if (this.isMissingTableError(err)) {
+          return [];
+        }
+        throw err;
       }
 
       const data = utils.convertArrayDatesToISO(results as any, {

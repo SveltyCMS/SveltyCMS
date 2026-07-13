@@ -48,6 +48,16 @@ vi.mock("../../../src/utils/date", () => ({
   dateToISODateString: vi.fn(() => "2026-06-23T00:00:00.000Z" as any),
 }));
 
+vi.mock("../../../src/stores/content-registry.svelte", () => ({
+  contentStore: {
+    sync: vi.fn(),
+    clear: vi.fn(),
+    upsert: vi.fn(),
+    updateVersion: vi.fn(),
+    getNode: vi.fn(),
+  },
+}));
+
 vi.mock("../../../src/content/loader.server", () => ({
   loadSchema: vi.fn(),
   loadSchemaNative: vi.fn(),
@@ -344,19 +354,69 @@ describe("calculateReconciledOperations", () => {
 
     expect(result.operations[0].tenantId).toBe("tenant_x");
   });
+
+  it("preserves builder categories when they are absent from filesystem schemas", () => {
+    const schemas = [makeSchema({ _id: "posts", name: "Posts", path: "/collection/posts" })];
+    const dbNodes = [
+      makeDbNode({
+        _id: "cat_gui" as any,
+        name: "Marketing",
+        path: "/marketing",
+        nodeType: "category",
+        source: "builder",
+      }),
+    ];
+
+    const result = calculateReconciledOperations(schemas, dbNodes, [], null);
+
+    expect(result.prunedPaths).not.toContain("/marketing");
+    const preserved = result.operations.find((n: any) => n.path === "/marketing");
+    expect(preserved).toBeTruthy();
+    expect(preserved.source).toBe("builder");
+  });
+
+  it("applies manifestOrder to collection sort positions", () => {
+    const schemas = [
+      makeSchema({ _id: "posts", name: "Posts", path: "/collection/posts" }),
+      makeSchema({ _id: "pages", name: "Pages", path: "/collection/pages" }),
+    ];
+    const manifestOrder = { posts: 0, pages: 5 };
+
+    const result = calculateReconciledOperations(schemas, [], [], null, manifestOrder);
+
+    const posts = result.operations.find((n: any) => n._id === "posts");
+    const pages = result.operations.find((n: any) => n._id === "pages");
+    expect(posts?.order).toBe(0);
+    expect(pages?.order).toBe(5);
+  });
+
+  it("preserves database-backed nodes during filesystem prune", () => {
+    const schemas = [makeSchema({ _id: "posts", name: "Posts", path: "/collection/posts" })];
+    const dbNodes = [
+      makeDbNode({
+        _id: "api_custom" as any,
+        name: "API Custom",
+        path: "/api/custom",
+        source: "database",
+      }),
+    ];
+
+    const result = calculateReconciledOperations(schemas, dbNodes, [], null);
+
+    expect(result.prunedPaths).not.toContain("/api/custom");
+    expect(result.operations.find((n: any) => n.path === "/api/custom")).toBeTruthy();
+  });
 });
 
 // ─── Tests: contentSystemBase API surface ──────────────────────────────────
 
 describe("contentSystemBase (shared API)", () => {
-  it("exports the same methods from both index.ts and index.server.ts", async () => {
-    const { contentSystemBase: browserBase } = await import("../../../src/content/index");
-    const { contentSystem: serverSystem } = await import("../../../src/content/index.server");
+  it("exposes Collection Builder persistence helpers on the server contentSystem", async () => {
+    const { contentSystem } = await import("../../../src/content/index.server");
 
-    const baseMethods = Object.keys(browserBase);
-    for (const method of baseMethods) {
-      expect(serverSystem).toHaveProperty(method);
-    }
+    expect(typeof contentSystem.upsertContentNodes).toBe("function");
+    expect(typeof contentSystem.getContentStructureFromDatabase).toBe("function");
+    expect(typeof contentSystem.reorderContentNodes).toBe("function");
   });
 
   it("exposes collection accessors", async () => {

@@ -26,6 +26,15 @@ export async function writePrivateConfig(
   const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
+  const { isLocalBenchmarkSandbox, assertLiveDataWriteAllowed } =
+    await import("@utils/benchmark-sandbox");
+  if (isLocalBenchmarkSandbox()) {
+    throw new Error(
+      "[BenchmarkSandbox] Cannot write private config during local benchmark — live config/private.ts must remain untouched.",
+    );
+  }
+  assertLiveDataWriteAllowed(privateConfigPath);
+
   // Generate bootstrap security keys
   const jwtSecret = generateSecureToken(32);
   const encryptionKey = generateSecureToken(32);

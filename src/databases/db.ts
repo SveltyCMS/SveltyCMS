@@ -224,7 +224,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       if (
         process.env.TEST_MODE === "true" ||
         process.env.VITEST === "true" ||
-        typeof Bun !== "undefined"
+        process.env.BUN_TEST === "true"
       ) {
         const testEngine = process.env.DATABASE_ENGINE || process.env.DB_TYPE || "sqlite";
         logger.info(`[Boot] Test mode detected. Forcing engine: ${testEngine}`);

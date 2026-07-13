@@ -4,7 +4,7 @@ title: Compilation Pipeline
 description: Detailed architecture of the SveltyCMS compilation system, explaining how TypeScript collections are transformed into runtime-ready JavaScript with UUID syncing and robust validation.
 author: "SveltyCMS Team"
 created: "2025-12-29"
-updated: "2026-03-27"
+updated: "2026-07-12"
 tags:
   - "architecture"
   - "compilation"
@@ -115,6 +115,35 @@ await compile({
 ```
 
 The output of this pipeline is monitored by the **Content Engine (`src/content/engine.server.ts`)**, which reconciles the compiled JavaScript modules into the live system state.
+
+## Manifest (`.compilation-manifest.json`)
+
+The manifest is a **dual-purpose** file in `.compiledCollections/`:
+
+| Key                         | Written by                                        | Purpose                                                       |
+| :-------------------------- | :------------------------------------------------ | :------------------------------------------------------------ |
+| `{absolutePath}.js` entries | `compile()`                                       | Source hash cache — skip unchanged files                      |
+| `collectionOrder`           | GUI Save, sidebar `POST /api/collections/reorder` | `{ [collectionId]: number }` sort overrides                   |
+| `structureNodes`            | GUI Save (`setOrganizationalManifest`)            | Builder categories (`source: "builder"`) for restart recovery |
+
+`compile()` **preserves** `collectionOrder` and `structureNodes` when recompiling — only compile-hash entries are updated.
+
+Path normalization uses absolute paths under `.compiledCollections/` so orphan cleanup never deletes freshly compiled output (see `tests/unit/compilation/compile-manifest.test.ts`).
+
+### Example: filesystem folder `test/`
+
+```
+config/collections/test/posts.ts
+        ↓ compile()
+.compiledCollections/test/posts.js   ← manifest hash entry
+.compiledCollections/.compilation-manifest.json
+        ↓ reconcile
+content_nodes: collection posts, category test (path-derived)
+        ↓
+Sidebar + Collection Builder (via contentStructure store)
+```
+
+`collectionOrder` is **not** auto-generated from folder names — set it via GUI Save or sidebar reorder if you need explicit ordering beyond DB defaults.
 
 ## Related Documentation
 

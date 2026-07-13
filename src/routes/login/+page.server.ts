@@ -175,8 +175,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     resetForm: {},
     signUpForm: {},
     demoMode,
+    redirectTo: "",
     loginBranding: defaultBranding,
-  } as const;
+  };
 
   try {
     const systemState = getSystemState();
@@ -235,8 +236,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     if (!locals) locals = {} as App.Locals;
 
+    // If already authenticated, redirect to the intended destination or default
     if (locals.user) {
-      throw redirect(302, "/config/collectionbuilder");
+      const returnTo = url.searchParams.get("redirect") || "/config/collectionbuilder";
+      throw redirect(302, returnTo);
     }
 
     if (limiter.cookieLimiter?.preflight) {
@@ -438,6 +441,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       firstCollectionPath: "/config/collectionbuilder",
       pkgVersion,
       loginBranding,
+      redirectTo: url.searchParams.get("redirect") || "",
       // Returning user: handle-authentication sets locals.returningUser when a session cookie was
       // present but invalid/expired (then deletes the dead cookie). Fall back to raw cookie presence
       // for any path that bypasses that branch. A valid session is already redirected away by hooks,

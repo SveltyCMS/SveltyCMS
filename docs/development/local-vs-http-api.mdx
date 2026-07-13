@@ -123,6 +123,12 @@ await cms.system.settings.getAll();
 await cms.system.getHealth();
 await cms.widgets.list();
 
+// Collection Builder organizational tree (gui-save, manifest, SSE)
+await cms.contentStructure.saveGuiStructure(
+  [{ type: "move", node: { path: "/collection/posts", parentId: "cat-1" } }],
+  { tenantId },
+);
+
 // Direct adapter access (escape hatch)
 const raw = await cms.db.crud.findMany("posts", {}, { tenantId });
 ```

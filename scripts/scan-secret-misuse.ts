@@ -68,6 +68,21 @@ const EXPOSURE_PATTERNS: { pattern: RegExp; name: string }[] = [
   { pattern: /['"`]sck_[A-Za-z0-9_-]{40,}['"`]/, name: "hardcoded API key (sck_)" },
 ];
 
+/** Paths allowed to reference the default local benchmark test secret. */
+const BENCHMARK_SECRET_ALLOWLIST = [
+  "scripts/benchmark-matrix/",
+  "scripts/setup-system.ts",
+  "scripts/run-integration-tests.ts",
+  "scripts/run-security-audit-auth.ts",
+  "scripts/scan-secret-misuse.ts",
+  "tests/benchmarks/",
+  "tests/e2e/",
+  "scripts/security-audit.ts",
+  "tests/unit/",
+];
+
+const HARDCODED_BENCHMARK_SECRET = /SVELTYCMS_TEST_SECRET_2026/;
+
 interface Finding {
   file: string;
   line: number;
@@ -120,6 +135,21 @@ async function scanFile(filePath: string, fileIndex: number, total: number): Pro
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
         addFinding(relPath, i + 1, `Potential ${name}`);
+      }
+    }
+  }
+
+  if (
+    HARDCODED_BENCHMARK_SECRET.test(content) &&
+    !BENCHMARK_SECRET_ALLOWLIST.some((p) => relPath.replace(/\\/g, "/").includes(p))
+  ) {
+    for (let i = 0; i < lines.length; i++) {
+      if (HARDCODED_BENCHMARK_SECRET.test(lines[i])) {
+        addFinding(
+          relPath,
+          i + 1,
+          "Hardcoded SVELTYCMS_TEST_SECRET_2026 outside benchmark allowlist",
+        );
       }
     }
   }

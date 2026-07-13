@@ -33,6 +33,17 @@ export async function handleSystemRoutes(
           hot.map((c) => c.id),
         );
       }
+      if (action === "penalize-bounce" && event.request.method === "POST") {
+        const body = await event.request.json().catch(() => ({}));
+        const { fromPath, toPath } = body;
+        if (fromPath && toPath) {
+          const { penalizeTransition } =
+            await import("@src/services/intelligence/behavioral-learner");
+          penalizeTransition(tenantId ?? "global", fromPath, toPath);
+          return successResponse(event, { success: true });
+        }
+        return successResponse(event, { success: false, error: "Missing paths" }, 400);
+      }
       return handleSystemMgmtRoutes(event, cms, tenantId, segments);
     }
     case "settings":

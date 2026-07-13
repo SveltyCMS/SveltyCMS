@@ -4,6 +4,7 @@
  */
 
 import path from "node:path";
+import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
 
 /**
  * Resolve collection directory based on tenant ID.
@@ -17,12 +18,10 @@ export function getCollectionsPath(tenantId?: string | null): string {
 
 /**
  * Resolve compiled collections output directory.
+ * Local benchmarks redirect to `.compiledCollections/test/_local_sandbox/`.
  */
 export function getCompiledCollectionsPath(tenantId?: string | null): string {
-  const base = path.join(process.cwd(), ".compiledCollections");
-  if (tenantId === undefined) return base;
-  const tenant = tenantId === null ? "global" : tenantId;
-  return path.join(base, tenant);
+  return resolveCompiledCollectionsPath(tenantId);
 }
 
 /**

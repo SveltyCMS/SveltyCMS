@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2026-01-31"
-updated: "2026-03-27"
+updated: "2026-07-12"
 tags:
   - "architecture"
   - "collection-builder"
@@ -27,51 +27,34 @@ The Collection Builder operates on a **Canonical Flat List** architecture. Inste
 The following diagram illustrates the reconciliation flow:
 
 ```mermaid
-graph TD
-    subgraph Filesystem ["Filesystem (Config Truth)"]
-        FS_Collections["/config/collections/**/*.ts"]
-        FS_Compiler["Vite Compiler"]
+flowchart LR
+    subgraph CodePath["Path A — Filesystem"]
+        F1["config/collections/test/posts.ts"]
+        F2["compile()"]
+        F3[".compiledCollections/test/posts.js"]
+        F1 --> F2 --> F3
     end
 
-    subgraph Server_Layer ["Server Layer (ContentSystem)"]
-        CM_Loader["Schema Loader"]
-        CM_Reconcile["Reconciliation Logic"]
-        CM_Validation["Path & Integrity Validation"]
+    subgraph GuiPath["Path B — GUI Save"]
+        G1["Drag posts → test category"]
+        G2["saveContentStructure()"]
+        G3["DB + manifest"]
+        G1 --> G2 --> G3
     end
 
-    subgraph Database ["Database (State Persistence)"]
-        DB_Nodes["system_content_structure"]
-        DB_IDs["Stable _ids"]
+    subgraph Shared["Shared runtime"]
+        R1["content_nodes"]
+        M1[".compilation-manifest.json"]
+        S1["contentStructure store"]
+        U1["Sidebar + Builder trees"]
     end
 
-    subgraph Client_UI ["Client UI (Collection Builder)"]
-        UI_Store["collection-store (Flat List)"]
-        UI_Tree["buildTree() (Reactive Hierarchy)"]
-        UI_Drag["Drag & Drop Operations"]
-    end
-
-    FS_Collections --> FS_Compiler
-    FS_Compiler --> CM_Loader
-    CM_Loader --> CM_Reconcile
-
-    DB_Nodes <--> CM_Reconcile
-
-    CM_Reconcile -- "1. Sync Structure" --> DB_Nodes
-    CM_Reconcile -- "2. Reject Invalid Paths" --> CM_Validation
-
-    DB_Nodes --> UI_Store
-    UI_Store --> UI_Tree
-    UI_Drag -- "Update parentId/order" --> CM_Reconcile
-
-    subgraph Integrity_Layer ["Integrity & Safety"]
-        Migration_Engine["MigrationEngine"]
-        Drift_Detection["Drift Detection"]
-        Tree_Validation["Tree Validator"]
-    end
-
-    CM_Reconcile --> Tree_Validation
-    FS_Compiler --> Drift_Detection
-    Drift_Detection --> Migration_Engine
+    F3 --> R1
+    G3 --> R1
+    G3 --> M1
+    F2 --> M1
+    M1 --> R1
+    R1 --> S1 --> U1
 ```
 
 ## Key Components
@@ -84,7 +67,12 @@ The `config/collections` directory is the primary source of truth for **Collecti
 - If a file is deleted from disk, the corresponding collection is marked for deletion (or becomes a "ghost" if not cleaned up).
 
 > [!NOTE]
-> **Categories (Folders)** are strictly structural metadata nodes (`nodeType: 'category'`). Unlike collections, categories do not correspond to files on disk. They exist exclusively within the database to organize the collections hierarchically.
+> **Categories** come from two sources:
+>
+> 1. **Path-derived** (`source: "filesystem"`) — auto-created when collections live in subfolders, e.g. `config/collections/test/posts.ts` → category `test`.
+> 2. **Builder-created** (`source: "builder"`) — virtual folders created in the GUI. Persisted in `content_nodes` and backed up in `.compilation-manifest.json` under `structureNodes`.
+>
+> GUI drag-and-drop updates **organization** (parentId, order) in DB + manifest. It does **not** move `.ts` files on disk unless you save a new collection path or move files manually.
 
 ### 2. ContentSystem (The Reconciliation Engine)
 
@@ -94,9 +82,24 @@ Located at `src/content/index.ts`, this singleton is responsible for bridging th
 
 - **Startup Sync**: On boot, it scans `compiledCollections` and compares them against the `system_content_structure` table/collection in the active database adapter.
 - **Defensive Import**: It actively filters out "garbage" nodes from the database (e.g., nodes where `path` is a UUID instead of a valid file path) to prevent database corruption from looping back into the application state.
-- **ID Persistence**: It ensures that while the _structure_ comes from disk, the `_id` and relationship data (`parentId`, `order`) are preserved from the database.
+- **ID Persistence**: While collection _definitions_ come from disk, `_id`, `parentId`, and `order` are preserved from the database and manifest (`collectionOrder`, `structureNodes`).
+- **Save without destructive refresh**: `executeGuiStructureSave()` (via `saveContentStructure` remote or legacy `?/saveConfig` action) upserts `move` / `rename` / `create` / `delete` operations, syncs `contentStore`, writes the manifest, and broadcasts SSE — it does **not** call `fullReload()`.
+- **Boot manifest watchdog**: On `syncContentState({ reason: "boot" })`, `reconcileOrganizationalManifest()` compares `.compilation-manifest.json` (`collectionOrder`, `structureNodes`) against the DB flat structure and re-aligns the manifest when drift is detected (e.g. after manual DB edits).
+- **Cross-tab sync**: Server-side saves call `notifyContentUpdate()`; the browser `contentSystem.refresh()` handler syncs both `contentStore` and `collectionStore.contentStructure` so the sidebar updates without navigation.
 
-### 3. Integrity & Safety Layer (New)
+### 3. Organizational vs Filesystem Boundaries
+
+| Operation                     | DB + manifest                              | Filesystem (`config/collections/`) |
+| :---------------------------- | :----------------------------------------- | :--------------------------------- |
+| Drag collection into category | `parentId`, `order` updated                | **Unchanged** — org-only           |
+| Create virtual category       | New `content_nodes` row + `structureNodes` | No folder created                  |
+| Delete builder category       | Removed from DB + manifest                 | N/A                                |
+| Save new collection schema    | Reconcile creates/updates DB node          | `.ts` file written by editor       |
+
+> [!NOTE]
+> GUI drag-and-drop is **organizational only**. To change where a collection lives on disk, edit or move the `.ts` file under `config/collections/` (or use the collection editor save path). The compile pipeline and boot drift detection (`detectCompilationDrift`) handle filesystem ↔ compiled output separately from organizational manifest drift (`detectOrganizationalDrift`).
+
+### 4. Integrity & Safety Layer
 
 Located in `src/utils/schema/` and `src/services/MigrationEngine.ts`, this layer guards against data corruption:
 
@@ -104,7 +107,7 @@ Located in `src/utils/schema/` and `src/services/MigrationEngine.ts`, this layer
 - **Drift Detection**: Compares the _Code Definition_ (Target) vs _Database Schema_ (Current) to detect potentially destructive changes (e.g., removing a field, changing a widget type).
 - **Migration Engine**: Orchestrates necessary DB updates **agnostically** via the `IDBAdapter` interface, ensuring compatibility across different database backends.
 
-### 3. Database (State & Metadata)
+### 5. Database (State & Metadata)
 
 The active database adapter stores the _metadata_ that cannot live in static files, specifically:
 
@@ -112,9 +115,9 @@ The active database adapter stores the _metadata_ that cannot live in static fil
 - **`parentId`**: Which category or folder the collection currently resides in.
 - **`order`**: The sort order within that parent.
 
-### 4. Client UI (The View)
+### 6. Client UI (The View)
 
-The Collection Builder UI (`src/components/Collections.svelte`) uses a **Reactive Tree Construction** pattern.
+The Collection Builder board (`tree-view-board.svelte`) and admin sidebar (`collections.svelte` → `tree-view.svelte`) both consume the same `contentStructure` store. The sidebar additionally applies `page.data.collectionOrder` from the manifest for user-defined sort overrides.
 
 - **Input**: A flat array of `ContentNode` objects from the API.
 - **Process**: A lightweight `buildTree` function groups nodes by `parentId`.

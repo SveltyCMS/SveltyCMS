@@ -109,7 +109,7 @@ export class CollectionService {
 
     const collectionTableName = `collection_${collection._id}`;
     const finalFilter: Record<string, unknown> = { ...filter };
-    if (getPrivateSettingSync("MULTI_TENANT")) {
+    if (getPrivateSettingSync("MULTI_TENANT") && tenantId != null) {
       finalFilter.tenantId = tenantId;
     }
 

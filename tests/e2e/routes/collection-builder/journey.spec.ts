@@ -17,7 +17,7 @@ test.describe("Master Behavioral Journey", () => {
 
     // 2. Create a New Collection via editor
     const collectionName = `JourneyProj_${Date.now()}`;
-    await page.goto("/config/collectionbuilder/new");
+    await page.goto("/config/collectionbuilder/new", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("collection-name-input")).toBeVisible({
       timeout: 10_000,
     });

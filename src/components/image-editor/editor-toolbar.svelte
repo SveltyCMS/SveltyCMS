@@ -8,6 +8,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import Slot from '@src/components/system/slot.svelte';
 
 	let {
 		onsave,
@@ -60,6 +61,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 <header class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-[--editor-chrome-bg] border-b border-[--editor-chrome-border]" role="toolbar" aria-label="Image editor">
 	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-[--editor-control-h]">
 		<div class="flex gap-1.5 items-center justify-self-start">
+			<Slot name="image_editor_tool" inline />
 			<button
 					type="button"
 					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"

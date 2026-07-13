@@ -23,6 +23,13 @@ if (isBenchmark) {
   (globalThis as any).__SVELTY_QUIET__ = true;
 }
 
+import { argvIncludesRealDbTest } from "../helpers/real-db-test-markers";
+
+/** DB roundtrip tests need the real adapter stack — disable global mocks when detected on CLI. */
+if (argvIncludesRealDbTest()) {
+  process.env.BUN_TEST_MOCKS = "false";
+}
+
 const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
 
 const setGlobal = (name: string, value: any) => {
@@ -1121,6 +1128,7 @@ const cacheMock = {
   clearByPattern: mock(async () => true),
   invalidateAll: mock(async () => {}),
   invalidateByCategory: mock(async () => {}),
+  invalidateCollection: mock(async () => {}),
   reconfigure: mock(async () => true),
 };
 setGlobal("cacheService", cacheMock);

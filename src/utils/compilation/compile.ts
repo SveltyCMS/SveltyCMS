@@ -17,6 +17,47 @@ import {
   widgetTransformer,
 } from "./transformers.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types";
+
+/** Reserved manifest keys for organizational metadata (see collection-order.server.ts). */
+const MANIFEST_ORDER_KEY = "collectionOrder";
+const MANIFEST_STRUCTURE_KEY = "structureNodes";
+
+interface LoadedManifest {
+  collectionOrder?: Record<string, number>;
+  structureNodes?: unknown[];
+  entries: Map<string, ManifestEntry>;
+}
+
+/** Normalize manifest/output paths so relative and absolute keys never diverge. */
+function normalizeCompiledJsPath(compiledDir: string, jsPath: string): string {
+  const resolvedDir = path.resolve(compiledDir);
+
+  if (path.isAbsolute(jsPath)) {
+    return path.normalize(jsPath);
+  }
+
+  const normalized = jsPath.replace(/\\/g, "/");
+  const compiledDirName = path.basename(resolvedDir);
+  const relativeInsideCompiled = normalized.replace(new RegExp(`^\\.?/?${compiledDirName}/`), "");
+
+  if (relativeInsideCompiled !== normalized) {
+    return path.resolve(resolvedDir, relativeInsideCompiled.replace(/\//g, path.sep));
+  }
+
+  return path.resolve(resolvedDir, jsPath);
+}
+
+function isManifestEntry(value: unknown): value is ManifestEntry {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "sourcePath" in value &&
+    "sourceHash" in value &&
+    typeof (value as ManifestEntry).sourcePath === "string" &&
+    typeof (value as ManifestEntry).sourceHash === "string"
+  );
+}
+
 const defaultLogger: Logger = {
   info: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m ${msg}`),
   success: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m \x1b[32m${msg}\x1b[0m`),
@@ -37,9 +78,12 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
   }
 
   const { getCollectionsPath, getCompiledCollectionsPath } = await import("../tenant.server");
-  const userCollections = options.userCollections || getCollectionsPath(options.tenantId);
-  const compiledCollections =
-    options.compiledCollections || getCompiledCollectionsPath(options.tenantId);
+  const userCollections = path.resolve(
+    options.userCollections || getCollectionsPath(options.tenantId),
+  );
+  const compiledCollections = path.resolve(
+    options.compiledCollections || getCompiledCollectionsPath(options.tenantId),
+  );
 
   // Adaptive concurrency: 75% of cores, min 4
   const concurrencyLimit = options.concurrency || Math.max(4, Math.floor(os.cpus().length * 0.75));
@@ -59,7 +103,11 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     await fs.mkdir(compiledCollections, { recursive: true });
 
     // 2. Load compilation manifest for high-speed change detection
-    const manifest = await loadManifest(compiledCollections);
+    const {
+      entries: manifest,
+      collectionOrder,
+      structureNodes,
+    } = await loadManifest(compiledCollections);
     let sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
     // Outside benchmark runtime, never compile test/ fixtures into the live tree
@@ -97,15 +145,31 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
         const sourcePath = path.join(userCollections, relativePath);
         const relativeDir = path.dirname(relativePath);
         const fileNameWithoutExt = path.basename(relativePath, path.extname(relativePath));
-        const targetPath = path.join(compiledCollections, relativeDir, `${fileNameWithoutExt}.js`);
+        const targetPath = path.resolve(
+          compiledCollections,
+          relativeDir,
+          `${fileNameWithoutExt}.js`,
+        );
 
         try {
           const content = await fs.readFile(sourcePath, "utf8");
           const sourceHash = await xxhash64(content);
 
-          // High-speed skip check: Hash + Tenant consistency
+          // High-speed skip check: Hash + Tenant consistency + output file present
           const existing = manifest.get(targetPath);
-          if (existing?.sourceHash === sourceHash && existing?.tenantId === options.tenantId) {
+          let outputExists = false;
+          try {
+            await fs.access(targetPath);
+            outputExists = true;
+          } catch {
+            outputExists = false;
+          }
+
+          if (
+            outputExists &&
+            existing?.sourceHash === sourceHash &&
+            existing?.tenantId === options.tenantId
+          ) {
             result.skipped++;
             processedJsPaths.add(targetPath);
             continue;
@@ -175,8 +239,8 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
       }
     }
 
-    // 6. Save manifest for next run
-    await saveManifest(compiledCollections, manifest);
+    // 6. Save manifest for next run (preserve collectionOrder metadata)
+    await saveManifest(compiledCollections, manifest, collectionOrder, structureNodes);
 
     result.duration = Date.now() - startTime;
     logger.success?.(
@@ -194,22 +258,78 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
  * Loads the compilation manifest from the output directory.
  * Provides O(1) change detection lookup.
  */
-async function loadManifest(dir: string): Promise<Map<string, ManifestEntry>> {
+async function loadManifest(dir: string): Promise<LoadedManifest> {
   const manifestPath = path.join(dir, ".compilation-manifest.json");
+  const resolvedDir = path.resolve(dir);
   try {
-    const data = await fs.readFile(manifestPath, "utf8");
-    return new Map(Object.entries(JSON.parse(data)));
+    const data = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>;
+    const collectionOrder =
+      data[MANIFEST_ORDER_KEY] &&
+      typeof data[MANIFEST_ORDER_KEY] === "object" &&
+      !Array.isArray(data[MANIFEST_ORDER_KEY])
+        ? (data[MANIFEST_ORDER_KEY] as Record<string, number>)
+        : undefined;
+    const structureNodes = Array.isArray(data[MANIFEST_STRUCTURE_KEY])
+      ? data[MANIFEST_STRUCTURE_KEY]
+      : undefined;
+
+    const entries = new Map<string, ManifestEntry>();
+    for (const [key, value] of Object.entries(data)) {
+      if (key === MANIFEST_ORDER_KEY || key === MANIFEST_STRUCTURE_KEY) continue;
+      if (!isManifestEntry(value)) continue;
+      entries.set(normalizeCompiledJsPath(resolvedDir, key), value);
+    }
+    return { entries, collectionOrder, structureNodes };
   } catch {
-    return new Map();
+    return { entries: new Map() };
   }
 }
 
 /**
  * Persists the compilation manifest to disk.
  */
-async function saveManifest(dir: string, manifest: Map<string, ManifestEntry>) {
+async function saveManifest(
+  dir: string,
+  manifest: Map<string, ManifestEntry>,
+  collectionOrder?: Record<string, number>,
+  structureNodes?: unknown[],
+) {
   const manifestPath = path.join(dir, ".compilation-manifest.json");
-  await fs.writeFile(manifestPath, JSON.stringify(Object.fromEntries(manifest), null, 2));
+  const payload: Record<string, unknown> = Object.fromEntries(manifest);
+
+  if (collectionOrder && Object.keys(collectionOrder).length > 0) {
+    payload[MANIFEST_ORDER_KEY] = collectionOrder;
+  } else if (structureNodes === undefined) {
+    try {
+      const existing = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+      if (existing[MANIFEST_ORDER_KEY]) payload[MANIFEST_ORDER_KEY] = existing[MANIFEST_ORDER_KEY];
+    } catch {
+      /* no prior manifest */
+    }
+  }
+
+  if (structureNodes?.length) {
+    payload[MANIFEST_STRUCTURE_KEY] = structureNodes;
+  } else if (structureNodes === undefined) {
+    try {
+      const existing = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+      if (existing[MANIFEST_STRUCTURE_KEY]) {
+        payload[MANIFEST_STRUCTURE_KEY] = existing[MANIFEST_STRUCTURE_KEY];
+      }
+    } catch {
+      /* no prior manifest */
+    }
+  }
+
+  const { assertLiveDataWriteAllowed } = await import("../benchmark-sandbox");
+  assertLiveDataWriteAllowed(manifestPath);
+  await fs.writeFile(manifestPath, JSON.stringify(payload, null, 2));
 }
 
 async function getTypescriptAndJavascriptFiles(dir: string): Promise<string[]> {

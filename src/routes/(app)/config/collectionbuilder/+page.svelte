@@ -57,7 +57,6 @@ import { useContent } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import Button from "@components/ui/button.svelte";
-import StickyActions from "@components/ui/sticky-actions.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@components/system/slot.svelte";
 import AdminCard from "@components/admin-card.svelte";
@@ -173,9 +172,13 @@ async function handleNodeUpdate(updatedNodes: ContentNode[]) {
         const id = node._id.toString();
         const existing = nodesToSave[id];
         const keepCreate = existing?.type === "create";
+        const normalized =
+            node.nodeType === "category" && !node.source
+                ? { ...node, source: "builder" as const }
+                : node;
         nodesToSave[id] = {
             type: keepCreate ? "create" : "move",
-            node,
+            node: normalized,
         };
     });
 }
@@ -370,8 +373,14 @@ async function handleSave() {
         const result = await saveContentStructure(items as any);
 
         if ("success" in result && result.success && result.contentStructure) {
-            toast.success("Organization updated successfully");
-            currentConfig = result.contentStructure as ContentNode[];
+            const types = new Set(items.map((i: any) => i.type));
+            const msg =
+                types.size === 1 && types.has("create") ? "Category created successfully" :
+                types.size === 1 && types.has("rename") ? "Category renamed successfully" :
+                types.size === 1 && types.has("move") ? "Order updated successfully" :
+                "Organization updated successfully";
+            toast.success(msg);
+            currentConfig = result.contentStructure as unknown as ContentNode[];
             setContentStructure(currentConfig);
             treeVersion++;
             skipNextSyncFromData = true;
@@ -523,6 +532,7 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
                     createdAt: new Date().toISOString() as ISODateString,
                     parentId: undefined,
                     nodeType: "category",
+                    source: "builder",
                 };
                 currentConfig = [...currentConfig, newCategory];
                 nodesToSave[newId.toString()] = { type: "create", node: newCategory };
@@ -599,6 +609,7 @@ function modalLoadPreset(): void {
 
 {#snippet saveButton(isHeader = false)}
     <Button variant="tertiary"
+        data-testid="save-structure-button"
         onclick={handleSave}
         disabled={isLoading || Object.keys(nodesToSave).length === 0}
         title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
@@ -615,11 +626,9 @@ function modalLoadPreset(): void {
 
 <AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
     {#snippet actions()}
-        <StickyActions>
-            {#if currentConfig.length > 0}
-                {@render saveButton(false)}
-            {/if}
-        </StickyActions>
+        {#if currentConfig.length > 0}
+            {@render saveButton(true)}
+        {/if}
     {/snippet}
 
     {#if currentConfig.length > 0}

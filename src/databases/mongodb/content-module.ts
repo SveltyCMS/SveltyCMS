@@ -134,7 +134,7 @@ export class MongoContentModule
     bulkUpdate: async (updates: any[], options?: any) => {
       const validUpdates = updates
         .filter((u) => u.path)
-        .map((u) => ({ path: u.path as string, changes: u.changes }));
+        .map((u) => ({ path: u.path as string, id: u.id, changes: u.changes }));
       return (await this._getContent()).bulkUpdateNodes(validUpdates, options);
     },
     reorder: async (updates: Array<{ path: string; newOrder: number }>) => {

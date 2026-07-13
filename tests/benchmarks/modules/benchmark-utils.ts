@@ -832,10 +832,15 @@ export async function setupBenchmarkServer() {
   process.env.BENCHMARK = "true";
   process.env.SVELTY_BENCHMARK_SUITE = "true";
 
+  const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
+  printBenchmarkIsolationBanner(dbType);
+
   const serverProcess = spawn("node", ["build/index.js"], {
     env: {
       ...process.env,
       PORT: String(port),
+      DB_TYPE: dbType,
+      DB_NAME: dbName,
       TEST_MODE: "true",
       BENCHMARK: "true",
       TEST_API_SECRET: secret,
@@ -855,15 +860,30 @@ export async function setupBenchmarkServer() {
     }
   });
 
-  // Wait for server to become healthy
   const healthUrl = `http://127.0.0.1:${port}/api/system/health`;
   let healthy = false;
   for (let attempt = 0; attempt < 90; attempt++) {
     try {
-      const res = await fetch(healthUrl);
-      if (res.ok) {
-        healthy = true;
-        break;
+      const res = await fetch(healthUrl, { signal: AbortSignal.timeout(2000) });
+      // Accept any non-5xx response during startup — server may return 202/503/533
+      if (res.status < 500) {
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        const status = String(data.overallStatus ?? data.status ?? "").toUpperCase();
+        const db = data.database;
+        // SETUP/IDLE states legitimately report disconnected — only gate on db for READY+
+        const dbOk = status === "SETUP" || status === "IDLE" || db === true || db === "connected";
+        // Match integration test: accept SETUP, READY, WARMED, DEGRADED, etc.
+        if (
+          ["READY", "SETUP", "WARMED", "WARMING", "DEGRADED", "HEALTHY", "IDLE"].includes(status) &&
+          dbOk
+        ) {
+          healthy = true;
+          break;
+        }
+        // Log unexpected state for debugging
+        if (attempt === 0 || attempt % 15 === 0) {
+          console.log(`[bench-health] Attempt ${attempt + 1}: state=${status} db=${db}`);
+        }
       }
     } catch {
       // Server not ready yet
@@ -877,16 +897,18 @@ export async function setupBenchmarkServer() {
     throw new Error(`Server at ${healthUrl} did not become healthy within 45s${stderrSnippet}`);
   }
 
-  // Run system setup (non-fatal — data seeding handled by /api/testing)
-  try {
-    const { execSync } = await import("child_process");
-    execSync("bun run scripts/setup-system.ts", {
-      env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL, PRESET: "demo" },
-      stdio: "pipe",
-      shell: process.platform === "win32" ? "cmd.exe" : undefined,
-    });
-  } catch {
-    // setup-system.ts may fail for non-SQLite DBs — benchmark data is seeded below
+  const { isCiFreshBenchmark } = await import("@utils/benchmark-sandbox");
+  if (isCiFreshBenchmark()) {
+    try {
+      const { execSync } = await import("child_process");
+      execSync("bun run scripts/setup-system.ts", {
+        env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL, PRESET: "demo" },
+        stdio: "pipe",
+        shell: process.platform === "win32" ? "cmd.exe" : undefined,
+      });
+    } catch {
+      // Non-fatal — benchmark data is seeded via /api/testing below
+    }
   }
 
   // Seed benchmark data in-process

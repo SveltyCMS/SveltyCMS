@@ -52,7 +52,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
       /^\/[a-z]{2,5}(?:-[a-zA-Z]+)?\//.test(pathname) || pathname.includes("/content");
     const isApi = pathname.startsWith("/api") && !pathname.includes("/system/");
 
-    if (locals.user && (isContentRoute || isApi)) {
+    if (locals.user && (isContentRoute || isApi || pathname === "/")) {
       await initPromise;
     }
   }

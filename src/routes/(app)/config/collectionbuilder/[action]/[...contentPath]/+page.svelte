@@ -150,11 +150,28 @@ async function handleCollectionSave(confirmDeletions = false) {
 		});
 
 		if (response.ok) {
-			toast.success("Collection Saved Successfully");
+			const result = await response.json().catch(() => ({}));
+			// Handle drift detection (202 Accepted) — server requires confirmation
+			if (result.driftDetected) {
+				toast.warning("Schema drift detected. Please confirm changes before saving.");
+				return;
+			}
+			const msg = "Collection Saved Successfully";
+			// Show inline toast for same-page visibility AND persist via flash
+			// for cross-navigation survival (E2E tests need inline visibility)
+			toast.success(msg);
+			toast.flash({ type: "success", message: msg });
 			if (originalName !== collection.value?.name) {
 				originalName = String(collection.value?.name);
+				// Let flash message persist to sessionStorage, then navigate.
+				// toast.flash survives navigation — restored by checkFlash() after goto().
+				await new Promise((r) => setTimeout(r, 800));
 				goto(`/config/collectionbuilder/edit/${originalName}`);
 			}
+		} else {
+			const result = await response.json().catch(() => ({}));
+			const errorMsg = (result as any)?.error || `Save failed (HTTP ${response.status})`;
+			toast.error(errorMsg);
 		}
 	} catch (error) {
 		logger.error("Save failed", error);

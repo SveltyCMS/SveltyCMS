@@ -167,9 +167,10 @@ function addToStrongRefs(sessionId: string, entry: SessionCacheEntry): void {
   }
 }
 
-// Periodic cleanup
-if (typeof setInterval !== "undefined") {
-  setInterval(
+// Periodic cleanup — guarded against duplicate timers on HMR reload
+const SESSION_CLEANUP_KEY = "__svelty_session_cleanup__";
+if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_KEY]) {
+  (globalThis as any)[SESSION_CLEANUP_KEY] = setInterval(
     () => {
       const now = Date.now();
       for (const [sessionId, data] of strongRefs.entries()) {
@@ -472,7 +473,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = turboCtx.tenantId || locals.tenantId;
+      (locals as any).tenantId = turboCtx.tenantId ?? locals.tenantId;
       (locals as any).__turboAuth = true;
       return await resolve(event);
     }

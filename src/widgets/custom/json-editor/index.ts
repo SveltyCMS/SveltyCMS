@@ -49,10 +49,12 @@ const JsonEditorWidget = createWidget<JsonEditorProps>({
 
   modifyRequest: async ({ data, type }: any) => {
     if (type === "POST" || type === "PATCH") {
-      const { checkExtensionLicense } = await import("@src/utils/license-manager");
-      const status = await checkExtensionLicense("widget", "json-editor");
-      if (!status.active && !status.hasLicense) {
-        throw new Error("403 Forbidden: Premium License Required for JSON Editor Widget");
+      if (import.meta.env.SSR) {
+        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const status = await checkExtensionLicense("widget", "json-editor");
+        if (!status.active && !status.hasLicense) {
+          throw new Error("403 Forbidden: Premium License Required for JSON Editor Widget");
+        }
       }
     }
     return data;

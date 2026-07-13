@@ -13,11 +13,10 @@ export async function fetchAndRedirectToFirstCollection(language: Locale): Promi
     logger.debug(`Fetching first collection path for language: ${language}`);
 
     const firstCollection = contentSystem.collections.getSmartFirst();
-    if (firstCollection?.path) {
-      // Ensure the collection path has a leading slash
-      const collectionPath = firstCollection.path.startsWith("/")
-        ? firstCollection.path
-        : `/${firstCollection.path}`;
+    if (firstCollection) {
+      // Ensure the collection path — fall back to /collection/{id} if no path set
+      const pathValue = firstCollection.path || `/collection/${firstCollection._id}`;
+      const collectionPath = pathValue.startsWith("/") ? pathValue : `/${pathValue}`;
       const redirectUrl = `/${language}${collectionPath}`;
       logger.info(
         `Redirecting to first collection: ${firstCollection.name} at path: ${redirectUrl}`,

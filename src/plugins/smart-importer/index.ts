@@ -44,10 +44,10 @@
  * - Rate-limited media downloads
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 import { migrations } from "./migrations/001_ledger_and_dlq";
 
-export const smartImporterPlugin: Plugin = {
+export const smartImporterPlugin = definePlugin({
   metadata: {
     id: "smart-importer",
     name: "Smart AI-Driven Migration Pro",
@@ -149,24 +149,26 @@ export const smartImporterPlugin: Plugin = {
   migrations,
   hooks: {
     beforeSave: async (_context, _collection, data) => {
-      // Pro-tier platforms require a license
-      if (data._importerUseProPlatform || data._importerUseProFeatures) {
-        const { checkExtensionLicense } = await import("@src/utils/license-manager");
-        const status = await checkExtensionLicense("plugin", "smart-importer");
-        if (!status.active && !status.hasLicense) {
-          // Strip pro fields but allow free import to continue
-          delete data._importerUseProPlatform;
-          delete data._importerUseProFeatures;
-          console.warn(
-            "[smart-importer] Pro features stripped — license required. Free tier active.",
-          );
+      if (import.meta.env.SSR) {
+        // Pro-tier platforms require a license
+        if (data._importerUseProPlatform || data._importerUseProFeatures) {
+          const { checkExtensionLicense } = await import("@src/utils/license-manager");
+          const status = await checkExtensionLicense("plugin", "smart-importer");
+          if (!status.active && !status.hasLicense) {
+            // Strip pro fields but allow free import to continue
+            delete data._importerUseProPlatform;
+            delete data._importerUseProFeatures;
+            console.warn(
+              "[smart-importer] Pro features stripped — license required. Free tier active.",
+            );
+          }
         }
       }
       return data;
     },
   },
   enabledCollections: [],
-};
+});
 
 export default smartImporterPlugin;
 

@@ -44,7 +44,7 @@ Features:
 		</p>
 	</section>
 
-	<footer class="flex justify-center">
+	<footer class="flex justify-center pb-6">
 		<Button variant="tertiary" onclick={handleGetStarted}>
 			{welcome_modal_cta()}
 			<iconify-icon icon="mdi:arrow-right" width="20" class="ms-2"></iconify-icon>
