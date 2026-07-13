@@ -150,11 +150,13 @@ async function handleCollectionSave(confirmDeletions = false) {
 		});
 
 		if (response.ok) {
-			toast.success("Collection Saved Successfully");
+			const msg = "Collection Saved Successfully";
+			toast.flash({ type: "success", message: msg });
 			if (originalName !== collection.value?.name) {
 				originalName = String(collection.value?.name);
-				// Let the success toast render before navigating away
-				await new Promise((r) => setTimeout(r, 600));
+				// Let flash message persist to sessionStorage, then navigate.
+				// toast.flash survives navigation — restored by checkFlash() after goto().
+				await new Promise((r) => setTimeout(r, 800));
 				goto(`/config/collectionbuilder/edit/${originalName}`);
 			}
 		}

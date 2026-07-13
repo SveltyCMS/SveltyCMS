@@ -80,8 +80,14 @@ async function developerRow(page: Page, options: DeveloperRowOptions = { useSear
 
     const row = page.locator("tbody tr").filter({ hasText: DEVELOPER_EMAIL });
     try {
-      await expect(row).toHaveCount(1, { timeout: ACTION_TIMEOUT });
-      return row;
+      // Accept 1+ rows (seedTestUsers + prepareTestUser may create duplicates).
+      // Use first() so row actions (block/unblock/delete) target a stable element.
+      await expect(row.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+      const count = await row.count();
+      if (count !== 1) {
+        console.log(`[developerRow] Found ${count} rows for ${DEVELOPER_EMAIL} — using first`);
+      }
+      return row.first();
     } catch (error) {
       if (attempt === 0) {
         await prepareTestUser(page, "developer");
