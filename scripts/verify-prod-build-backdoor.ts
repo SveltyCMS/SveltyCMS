@@ -23,8 +23,11 @@ const CHUNKS_DIR = join(ROOT, "build", "server", "chunks");
 
 const FULL_HANDLER_MARKERS = [
   "Unauthorized: Testing endpoints are disabled",
-  "handleTestingRoutes",
   "MASTER TESTING HANDLER",
+  // "handleTestingRoutes" intentionally excluded — it appears as a string
+  // literal in NAMESPACE_CONFIG (fn: "handleTestingRoutes") in +server.ts,
+  // not just in the handler implementation. The two markers above are
+  // unique to the handler file and confirm the full handler is bundled.
 ];
 
 const STUB_MARKERS = ['new Response("Not Found", { status: 404 })', "virtual:test-noop"];

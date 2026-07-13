@@ -134,7 +134,8 @@ async function main(): Promise<void> {
     exitCode = run("bun", [
       "run",
       "scripts/security-audit.ts",
-      `--base=${BASE}`,
+      "--base",
+      BASE,
       "--only=backdoor",
       "--ci",
     ]);
