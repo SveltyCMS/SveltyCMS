@@ -294,6 +294,7 @@ export class MongoContentMethods {
         const setOnInsert: Record<string, unknown> = {
           createdAt: new Date().toISOString() as unknown as ISODateString,
           _id: targetId || generateId(),
+          path, // ensure path is set on newly inserted documents
         };
         // Ensure tenantId is set on newly inserted documents so tenant-scoped
         // queries (e.g. safeQuery filters) can find them after upsert.
@@ -301,13 +302,19 @@ export class MongoContentMethods {
           setOnInsert.tenantId = tenantId;
         }
 
+        // Strip path and tenantId from $set to avoid MongoDB unique-index
+        // conflict when updating a document whose path/tenantId is part of
+        // the { tenantId, path } compound unique index. These fields are
+        // matched via filter on update and set via $setOnInsert on insert.
+        delete (normalizedChanges as any).path;
+        delete (normalizedChanges as any).tenantId;
+
         return {
           updateOne: {
             filter: secureFilter,
             update: {
               $set: {
                 ...normalizedChanges,
-                path,
                 updatedAt: new Date().toISOString() as unknown as ISODateString,
               },
               $setOnInsert: setOnInsert,

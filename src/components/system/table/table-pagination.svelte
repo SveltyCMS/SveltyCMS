@@ -87,7 +87,7 @@
 		</Button>
 
 		<span
-			class="flex min-w-[3rem] items-center justify-center border-x border-surface-200 px-2 font-mono text-xs font-semibold tabular-nums text-surface-800 dark:border-surface-800 dark:text-surface-100"
+			class="flex min-w-12 items-center justify-center border-x border-surface-200 px-2 font-mono text-xs font-semibold tabular-nums text-surface-800 dark:border-surface-800 dark:text-surface-100"
 			aria-hidden="true"
 		>
 			{currentPage}/{computedPagesCount}
