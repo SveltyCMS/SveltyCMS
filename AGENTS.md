@@ -300,6 +300,10 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
       - **`vi.mock` module-scope leakage** → `vi.mock` calls in one test file pollute subsequent files. When adding a `vi.mock`, add a matching one in affected test files to restore the real module.
       - **`response.clone()`** → When recreating a Response with modified headers, clone the body first to avoid `ReadableStream already used` errors from upstream hooks.
       - **Dead code in middleware** → Check for duplicate handler sections in the pipeline that became unreachable after refactoring.
+      - **`cacheService` mock gaps** → When adding a new public method to the real `CacheService` class (e.g., `invalidateCollection`), add a matching mock entry to `tests/unit/setup.ts` `cacheMock`. Tests that exercise mutation paths (create/update/delete) will call it and fail with `is not a function`.
+      - **MongoDB `$setOnInsert` missing `tenantId`** → `bulkUpdateNodes` in `src/databases/mongodb/content-methods.ts` constructs `$setOnInsert` without `tenantId`. Documents created via upsert land without tenant isolation, causing `safeQuery` tenant-scoped lookups to miss them. Always include `tenantId` in `$setOnInsert` when `options.tenantId` is present.
+      - **CI `db-tests` missing `TEST_API_SECRET`** → The `db-tests` job in `.github/workflows/ci.yml` passes env vars to `run-integration-tests.ts`, which calls `loadHardenedConfig()`. Without `TEST_API_SECRET` in CI, it throws `"CRITICAL: TEST_API_SECRET is missing in CI environment"` at startup. Always add `TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}` alongside `JWT_SECRET_KEY` and `ENCRYPTION_KEY`.
+      - **`config/collections/` directory missing in e2e-prep** → The collection builder save action calls `fs.writeFileSync(collectionPath, content)` which throws if the parent directory doesn't exist (Node.js `writeFileSync` does NOT auto-create parents). The e2e-prep job must `mkdir -p config/collections` and include it in the E2E environment archive.
 
 ### Mandatory Documentation Updates
 
