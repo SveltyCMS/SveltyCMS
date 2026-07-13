@@ -449,6 +449,30 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
+    name: "Deploy Build Backdoor Probe",
+    estimatedMs: 35000,
+    ciJob: "07-deploy-backdoor",
+    remediation:
+      "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () => {
+      // Rebuild without COMPILE_ALL_ADAPTERS to verify the deploy build strips the testing backdoor.
+      // The main build task above uses COMPILE_ALL_ADAPTERS=true — this one explicitly does not.
+      const buildOk =
+        runCommand("bun", ["run", "build"], {
+          silent: true,
+          timeout: 300_000,
+        }) !== false;
+      if (!buildOk) return false;
+      return (
+        runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=deploy"], {
+          silent: true,
+          timeout: 60_000,
+        }) !== false
+      );
+    },
+  },
+  {
     name: "Benchmark Local Preflight",
     estimatedMs: 3000,
     remediation: "bun run verify:benchmark-local",
