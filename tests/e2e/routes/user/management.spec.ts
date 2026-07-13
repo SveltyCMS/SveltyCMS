@@ -205,7 +205,7 @@ test.describe.serial("User Management Flow", () => {
     await loginAsAdmin(page);
 
     // Go to User Profile
-    await page.getByRole("link", { name: /user profile/i }).click();
+    await page.getByTestId("nav-user-profile").click();
 
     // ✅ READ operation - assert user profile visible
     await expect(page.locator("h1")).toContainText(/user profile/i);

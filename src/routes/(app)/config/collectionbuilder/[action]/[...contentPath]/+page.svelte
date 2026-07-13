@@ -157,6 +157,9 @@ async function handleCollectionSave(confirmDeletions = false) {
 				return;
 			}
 			const msg = "Collection Saved Successfully";
+			// Show inline toast for same-page visibility AND persist via flash
+			// for cross-navigation survival (E2E tests need inline visibility)
+			toast.success(msg);
 			toast.flash({ type: "success", message: msg });
 			if (originalName !== collection.value?.name) {
 				originalName = String(collection.value?.name);

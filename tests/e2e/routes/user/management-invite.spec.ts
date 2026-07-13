@@ -11,7 +11,7 @@ test.describe("User Management — Invite Flow", () => {
 
   test("invite user via email token and accept signup", async ({ page, browser }) => {
     await loginAsAdmin(page);
-    await page.getByRole("link", { name: /user profile/i }).click();
+    await page.getByTestId("nav-user-profile").click();
     await page.getByRole("button", { name: /email user registration token/i }).click();
 
     const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });

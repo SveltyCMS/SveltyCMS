@@ -432,6 +432,7 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 					<a
 						href="/user"
 						data-sveltekit-preload-data="hover"
+						data-testid="nav-user-profile"
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
