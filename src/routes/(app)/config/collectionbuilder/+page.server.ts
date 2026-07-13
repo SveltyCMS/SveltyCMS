@@ -116,17 +116,21 @@ export const load: PageServerLoad = async ({ locals }) => {
     });
 
     // Return user data with proper admin status and the content structure
-    const { _id, ...rest } = user;
+    const userId = user._id?.toString();
 
-    if (!_id) {
+    if (!userId) {
       logger.error("[CollectionBuilder] user._id is missing!", { user });
     }
 
     return {
       user: {
-        id: _id?.toString() || "missing-user-id",
-        ...rest,
-        isAdmin, // Add the properly calculated admin status
+        id: userId || "missing-user-id",
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        avatar: user.avatar,
+        locale: user.locale,
+        isAdmin,
       },
       contentStructure: serializedStructure,
     };

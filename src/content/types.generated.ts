@@ -7,9 +7,22 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = string & {};
+export type ContentTypes = "pages" | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
+  pages: CollectionEntry & {
+    title: string;
+    slug: string;
+    pageType: "static" | "template";
+    template: "homepage" | "default" | "search" | "product-detail";
+    heroHeading: string;
+    heroSubheading: string;
+    body: string;
+    ctaText: string;
+    ctaHref: string;
+    content: string;
+    seo: string;
+  };
 }
 /* AUTOGEN_END: ContentTypes */

@@ -198,13 +198,10 @@ export class ContentModule extends DatabaseModule<SQLiteAdapterCore> {
           // We use the internal DB handle from the transaction to bypass the wrap overhead per-item
           const table = schema.contentNodes;
 
-          await tx.db
-            .insert(table)
-            .values(values)
-            .onConflictDoUpdate({
-              target: [table.path, table.tenantId],
-              set: values,
-            });
+          await tx.db.insert(table).values(values).onConflictDoUpdate({
+            target: table._id,
+            set: values,
+          });
 
           // We don't select back every item to save time during bulk operations
           results.push({

@@ -188,18 +188,18 @@ export function flushChangedFiles(): string[] {
   return files;
 }
 
-let _scanPromise: Promise<Schema[]> | null = null;
+const _scanPromises = new Map<string, Promise<Schema[]>>();
 
 /**
  * Scans the .compiledCollections directory for compiled schema files.
  */
-export async function scanCompiledCollections(): Promise<Schema[]> {
-  if (_isScanning || _scanPromise) return _scanPromise || Array.from(_schemaCache.values());
-  if (!_isDirty && _schemaCache.size > 0) return Array.from(_schemaCache.values());
+export async function scanCompiledCollections(targetDir?: string): Promise<Schema[]> {
+  const collectionsDir = targetDir || path.resolve(process.cwd(), ".compiledCollections");
 
-  _scanPromise = (async () => {
-    _isScanning = true;
-    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+  let promise = _scanPromises.get(collectionsDir);
+  if (promise) return promise;
+
+  promise = (async () => {
     if (!existsSync(collectionsDir)) {
       await fsPromises.mkdir(collectionsDir, { recursive: true });
     }
@@ -218,7 +218,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
         await Promise.all(
           entries.map(async (entry) => {
             const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) return walk(fullPath);
+            if (entry.isDirectory()) return; // DO NOT walk subdirectories to prevent tenant leakage
             if (!entry.isFile() || !entry.name.endsWith(".js")) return;
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
             const stats = await fsPromises.stat(fullPath);
@@ -239,9 +239,10 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
         logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
       }
 
-      if (scanList.length === 0 && _schemaCache.size === fileList.length) {
-        _isDirty = false;
-        return Array.from(_schemaCache.values());
+      if (scanList.length === 0) {
+        return fileList
+          .map((f) => _schemaCache.get(f.fullPath))
+          .filter((s): s is Schema => s !== undefined);
       }
 
       const cacheKeys = scanList.map((f) => `schema:${f.fullPath}`);
@@ -293,6 +294,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
             return;
           }
 
+          // Always enrich before cache checks — ensures path is set regardless of hit/miss
+          enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
+
           // Validate schema structure before caching
           if (!validateSchemaFields(schema)) {
             logger.error("[Scanner] Skipping invalid schema, triggering recompilation", {
@@ -319,7 +323,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
             await setSchemaCacheEntry(cacheKey, { ...cached, mtime: file.mtime }, schema);
             _schemaCache.set(file.fullPath, schema);
           } else {
-            enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
             await setSchemaCacheEntry(cacheKey, { mtime: file.mtime, hash, schema }, schema);
             _schemaCache.set(file.fullPath, schema);
           }
@@ -328,21 +331,24 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
       );
 
       const currentPaths = new Set(fileList.map((f) => f.fullPath));
+      // Only delete orphaned files that belong to the current collectionsDir!
       for (const path of _schemaCache.keys()) {
-        if (!currentPaths.has(path)) {
+        if (path.startsWith(collectionsDir) && !currentPaths.has(path)) {
           _schemaCache.delete(path);
           _mtimeTree.delete(path);
         }
       }
       _isDirty = false;
     } finally {
-      _isScanning = false;
-      _scanPromise = null;
+      _scanPromises.delete(collectionsDir);
     }
-    return Array.from(_schemaCache.values());
+    return fileList
+      .map((f) => _schemaCache.get(f.fullPath))
+      .filter((s): s is Schema => s !== undefined);
   })();
 
-  return _scanPromise;
+  _scanPromises.set(collectionsDir, promise);
+  return promise;
 }
 
 /**
@@ -350,7 +356,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
   markFileDirty();
-  const fileSchemas = await scanCompiledCollections();
+  const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
+  const targetDir = getCompiledCollectionsPath(tenantId);
+  const fileSchemas = await scanCompiledCollections(targetDir);
   let dbSchemas: Schema[] = [];
 
   if (db?.collection?.listSchemas) {
@@ -372,7 +380,7 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
     await bootstrapCollectionFilesFromDb(dbSchemas);
     // Re-scan to pick up the newly generated files
     markFileDirty();
-    const regenerated = await scanCompiledCollections();
+    const regenerated = await scanCompiledCollections(targetDir);
     for (const s of regenerated) {
       if (s._id) schemaMap.set(s._id.toLowerCase(), s);
     }
@@ -526,7 +534,9 @@ export const contentService = {
       return;
     }
 
-    const schemas = await scanCompiledCollections();
+    const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
+    const targetDir = getCompiledCollectionsPath(tenantId);
+    const schemas = await scanCompiledCollections(targetDir);
 
     if (skipReconciliation) {
       await this.fastSyncStore(schemas, tenantId);
@@ -778,14 +788,15 @@ export const contentService = {
       return null;
     }
 
+    // Always enrich before cache checks — ensures path is set regardless of hit/miss
+    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+    enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
+
     const hash = generateSchemaHash(schema);
     if (cached && cached.hash === hash) {
       await setSchemaCacheEntry(cacheKey, { ...cached, mtime: stats.mtimeMs }, schema);
       return null;
     }
-
-    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
-    enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
     await setSchemaCacheEntry(cacheKey, { mtime: stats.mtimeMs, hash, schema }, schema);
 

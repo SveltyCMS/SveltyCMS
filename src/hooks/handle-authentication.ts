@@ -473,7 +473,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = turboCtx.tenantId || locals.tenantId;
+      (locals as any).tenantId = turboCtx.tenantId ?? locals.tenantId;
       (locals as any).__turboAuth = true;
       return await resolve(event);
     }

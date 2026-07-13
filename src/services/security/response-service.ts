@@ -4,7 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { building } from "$app/environment";
+import { building, dev } from "$app/environment";
 import { metricsService } from "../observability/metrics-service";
 import { AuthGuardService } from "./auth-guard";
 import { securityStore } from "./state-store";
@@ -377,6 +377,7 @@ export class SecurityResponseService {
     const isTest =
       process.env.TEST_MODE === "true" ||
       process.env.VITE_TEST_MODE === "true" ||
+      dev ||
       (globalThis as any).process?.env?.TEST_MODE === "true";
 
     if ((building || isTest) && !forceSecurity) {

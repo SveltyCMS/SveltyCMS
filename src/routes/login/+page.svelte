@@ -367,6 +367,7 @@ function handleSignUpPointerEnter() {
 		onPointerEnter={handleSignInPointerEnter}
 		onBack={resetToInitialState}
 		firstCollectionPath={data.firstCollectionPath || ''}
+		redirectTo={(data as any).redirectTo || ''}
 		branding={loginBranding}
 	/>
 

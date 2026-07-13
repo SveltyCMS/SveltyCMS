@@ -782,11 +782,11 @@
 			<div class="max-h-[calc(100vh-120px)] overflow-x-auto overflow-y-auto">
 				<table class="table w-full table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead
-						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
+						class="text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
 					>
 						{#if filterShow}
-							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
-								<th>
+							<tr class="border-b border-surface-200/50 dark:border-surface-700/50">
+								<th class="border-e border-surface-200/50 dark:border-surface-700/50">
 									{#if Object.keys(filters).length > 0}
 										<Button variant="ghost" type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="p-0! min-w-0 preset-outline">
 											<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
@@ -795,7 +795,7 @@
 								</th>
 
 								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-									<th>
+									<th class="border-e border-surface-200/50 dark:border-surface-700/50">
 										<div class="flex items-center justify-between">
 											<FloatingInput
 												type="text"
@@ -811,10 +811,10 @@
 						{/if}
 
 						<tr
-							class="divide-x divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+							class="border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
 						>
 							<TableIcons
-								cellClass="w-10 text-center"
+								cellClass="w-10 text-center border-e border-surface-300 dark:border-surface-50"
 								checked={selectAll}
 								onCheck={(checked: boolean) => {
 									selectAll = checked;
@@ -826,7 +826,7 @@
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 								<th
-									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
+									class="border-e border-surface-300 dark:border-surface-50 cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,
@@ -855,7 +855,7 @@
 							{const isConsumed = isToken(row) && row.consumed}
 							{const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired || isConsumed
+								class="{isExpired || isConsumed
 									? 'bg-surface-50 opacity-60 dark:bg-surface-900/20'
 									: ''} {isExpired ? 'bg-error-50 dark:bg-error-900/10' : ''} {showUsertoken
 									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
@@ -868,13 +868,14 @@
 								}}
 							>
 								<TableIcons
+									cellClass="border-e border-surface-200/50 dark:border-surface-50"
 									checked={selectedMap[index] ?? false}
 									onCheck={(checked: boolean) => {
 										selectedMap[index] = checked;
 									}}
 								/>
 								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-									<td class="text-center">
+									<td class="border-e border-surface-200/50 dark:border-surface-50 text-center">
 										{#if header.key === 'blocked'}
 											{#if showUserList}
 												<Button variant="outline"

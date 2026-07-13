@@ -92,7 +92,9 @@ class ContentStore {
         (s) =>
           (s._id as string)?.toLowerCase() === lowerId ||
           s.name?.toLowerCase() === lowerId ||
-          s.path?.toLowerCase() === lowerId,
+          s.path?.toLowerCase() === lowerId ||
+          `/collection/${s._id}`.toLowerCase() === lowerId ||
+          `/collection/${s.name}`.toLowerCase() === lowerId,
       );
     }
     return schema;

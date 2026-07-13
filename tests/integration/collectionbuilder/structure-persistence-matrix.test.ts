@@ -13,7 +13,7 @@ import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { syncContentState } from "@src/content/index.server";
 import { getCollectionOrder, getStructureNodes } from "@utils/collection-order.server";
 
-const TENANT = "global";
+const TENANT = null;
 const runId = Date.now().toString(36);
 const categoryId = `matrix-cat-${runId}`;
 const categoryPath = `/matrix-category-${runId}`;

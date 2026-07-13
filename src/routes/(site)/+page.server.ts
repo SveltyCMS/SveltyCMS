@@ -72,7 +72,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
   });
 
   if (!page) {
-    return { page: null, localized: null, editable: parentData.isPreview };
+    throw redirect(302, "/login");
   }
 
   if (page.status && page.status !== "publish" && !parentData.isDraft) {

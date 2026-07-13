@@ -72,20 +72,22 @@ import { fade } from 'svelte/transition';
 
 // Props
 const {
-	active = $bindable(undefined),
-	onClick = () => {},
-	onPointerEnter: onPointerEnterProp = () => {},
-	onBack = () => {},
-	firstCollectionPath = "",
-	branding = undefined,
-}: {
-	active?: number;
-	onClick?: () => void;
-	onPointerEnter?: (e: PointerEvent) => void;
-	onBack?: () => void;
-	firstCollectionPath?: string;
-	branding?: LoginBranding;
-} = $props();
+		active = $bindable(undefined),
+		onClick = () => {},
+		onPointerEnter: onPointerEnterProp = () => {},
+		onBack = () => {},
+		firstCollectionPath = "",
+		redirectTo = "",
+		branding = undefined,
+	}: {
+		active?: number;
+		onClick?: () => void;
+		onPointerEnter?: (e: PointerEvent) => void;
+		onBack?: () => void;
+		firstCollectionPath?: string;
+		redirectTo?: string;
+		branding?: LoginBranding;
+	} = $props();
 
 const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCMS");
 const brandedLogin = $derived(branding?.brandedLogin ?? false);
@@ -201,11 +203,12 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 
 	try {
 		const { signIn: remoteSignIn } = await import("../auth.remote");
-		const result = (await remoteSignIn({
-			email: loginForm.data.email,
-			password: loginForm.data.password,
-			isToken: loginForm.data.isToken
-		})) as any;
+			const result = (await remoteSignIn({
+				email: loginForm.data.email,
+				password: loginForm.data.password,
+				isToken: loginForm.data.isToken,
+				redirect: redirectTo || undefined,
+			})) as any;
 
 		isSubmitting = false;
 
@@ -225,19 +228,19 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 		}
 
 		if (result.success && result.redirectPath) {
-			console.log('[SignIn Client] redirectPath:', result.redirectPath);
-			isAuthenticating = true;
-			sessionStorage.setItem(
-				"flashMessage",
-				JSON.stringify({
-					type: "success",
-					title: "Welcome Back!",
-					description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
-					duration: 4000,
-				})
-			);
-			window.location.href = result.redirectPath;
-			return;
+				console.log('[SignIn Client] redirectPath:', result.redirectPath);
+				isAuthenticating = true;
+				sessionStorage.setItem(
+					"flashMessage",
+					JSON.stringify({
+						type: "success",
+						title: "Welcome Back!",
+						description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
+						duration: 4000,
+					})
+				);
+				await goto(result.redirectPath, { invalidateAll: true });
+				return;
 		}
 
 		isAuthenticating = false;
@@ -480,9 +483,9 @@ async function submitTwoFA() {
 		const result = (await verify2FA({ userId: twoFAUserId, code: twoFACode })) as any;
 		isVerifying2FA = false;
 		if (result.success && result.redirectPath) {
-			toast.success({ title: "Verification Successful", description: "Redirecting…" });
-			window.location.href = result.redirectPath;
-			return;
+				toast.success({ title: "Verification Successful", description: "Redirecting…" });
+				await goto(result.redirectPath, { invalidateAll: true });
+				return;
 		}
 		toast.error({ description: result.message || twofa_error_invalid_code() });
 		twoFACode = "";

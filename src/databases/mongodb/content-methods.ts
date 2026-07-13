@@ -19,7 +19,6 @@ import type { ContentNode, DatabaseId, ISODateString } from "@src/content/types"
 import { logger } from "@utils/logger";
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model, QueryFilter as MongoQueryFilter } from "mongoose";
-import type mongoose from "mongoose";
 import type {
   BaseEntity,
   DatabaseResult,
@@ -280,8 +279,10 @@ export class MongoContentMethods {
           }
         }
 
-        // Prepare base filter: match by path (path is unique per tenant for structural nodes)
-        const baseFilter: Record<string, unknown> = { path };
+        const targetId = id || _id;
+
+        // Prepare base filter: match by targetId (_id) if available, otherwise by path
+        const baseFilter: Record<string, unknown> = targetId ? { _id: targetId } : { path };
 
         // Wrap filter with safeQuery to enforce tenant context
         const secureFilter = safeQuery(baseFilter as any, tenantId, {
@@ -290,23 +291,24 @@ export class MongoContentMethods {
           bypassSafeQuery: (options as any)?.bypassSafeQuery,
         }) as MongoQueryFilter<ContentNode>;
 
-        const targetId = id || _id;
         const setOnInsert: Record<string, unknown> = {
           createdAt: new Date().toISOString() as unknown as ISODateString,
-          _id: targetId || generateId(),
-          path, // ensure path is set on newly inserted documents
         };
+
+        if (!targetId) {
+          setOnInsert._id = generateId();
+        }
+
         // Ensure tenantId is set on newly inserted documents so tenant-scoped
         // queries (e.g. safeQuery filters) can find them after upsert.
         if (tenantId != null && tenantId !== undefined) {
           setOnInsert.tenantId = tenantId;
         }
 
-        // Strip path and tenantId from $set to avoid MongoDB unique-index
-        // conflict when updating a document whose path/tenantId is part of
-        // the { tenantId, path } compound unique index. These fields are
-        // matched via filter on update and set via $setOnInsert on insert.
-        delete (normalizedChanges as any).path;
+        // Strip path only if we matched by path (otherwise we want to update the path)
+        if (!targetId) {
+          delete (normalizedChanges as any).path;
+        }
         delete (normalizedChanges as any).tenantId;
 
         return {
@@ -324,9 +326,7 @@ export class MongoContentMethods {
         };
       });
       logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
-      const result = await this.nodesRepo.model.bulkWrite(
-        operations as mongoose.AnyBulkWriteOperation<ContentNode>[],
-      );
+      const result = await this.nodesRepo.model.collection.bulkWrite(operations as any);
       logger.info(
         `[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`,
       );

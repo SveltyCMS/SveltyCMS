@@ -448,6 +448,7 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- CSRF Protection ---
   if (
+    !isPublic &&
     !(locals as any).__testBypass &&
     (globalThis as any).process?.env?.TEST_MODE !== "true" &&
     !(user as any)?.isApiKey &&

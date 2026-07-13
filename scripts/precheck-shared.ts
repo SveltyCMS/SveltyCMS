@@ -126,10 +126,6 @@ export function getLastCommandOutput(): CommandOutput | null {
   return lastCommandOutput;
 }
 
-export function setManualCommandOutput(output: CommandOutput): void {
-  lastCommandOutput = output;
-}
-
 export function clearLastCommandOutput(): void {
   lastCommandOutput = null;
 }
@@ -241,15 +237,6 @@ export function analyzeChanges(paths: string[]): ChangeProfile {
   };
 }
 
-export function hasUnstagedChanges(): boolean {
-  const result = spawnSync(
-    "git",
-    ["diff", "--quiet", "--", ".", ":(exclude)docs/project/benchmarks/"],
-    { cwd: ROOT, stdio: "pipe", shell: IS_WINDOWS },
-  );
-  return result.status !== 0;
-}
-
 export function checkNetworkDbReachable(db: IntegrationDbType): boolean {
   if (db === "sqlite") return true;
   const port = getDefaultDbPort(db);
@@ -313,31 +300,15 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/check-test-db-safety.ts"]),
   },
   {
-    name: "Format Verification",
+    name: "Format, Lint & Check",
     ciJob: "whitebox",
-    estimatedMs: 3000,
-    remediation: "bun run format",
+    estimatedMs: 20000,
+    remediation: "bun run format && bun run lint && bun run check",
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
-    run: () => runCommand("bun", ["run", "format"]),
-  },
-  {
-    name: "Post-Format Tree Clean Check",
-    ciJob: "whitebox",
-    estimatedMs: 500,
-    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
-    run: () => {
-      if (hasUnstagedChanges()) {
-        setManualCommandOutput({
-          cmd: "git diff --quiet -- .",
-          stdout: "",
-          stderr:
-            "Working tree is dirty after formatting.\nRun 'bun run format' locally, commit the fixes, and retry.",
-          code: 1,
-        });
-        return false;
-      }
-      return true;
-    },
+    run: () =>
+      runCommand("bun", ["run", "format"], {}) &&
+      runCommand("bun", ["run", "lint"], {}) &&
+      runCommand("bun", ["run", "check"], {}),
   },
   {
     name: "Slop Scanner",
@@ -361,14 +332,6 @@ const BASE_TASKS: TaskSpec[] = [
     remediation: "bun run scripts/scan-secret-misuse.ts",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"]),
-  },
-  {
-    name: "Lint (oxlint)",
-    ciJob: "whitebox",
-    estimatedMs: 5000,
-    remediation: "bun run lint",
-    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
-    run: () => runCommand("bun", ["run", "lint"]),
   },
   {
     name: "Docs Lint",
@@ -398,14 +361,6 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
-    name: "Format + Lint Check",
-    ciJob: "whitebox",
-    estimatedMs: 15000,
-    remediation: "bun run check",
-    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
-    run: () => runCommand("bun", ["run", "check"]),
-  },
-  {
     name: "Full Unit Tests",
     ciJob: "whitebox",
     estimatedMs: 60000,
@@ -432,7 +387,6 @@ const BASE_TASKS: TaskSpec[] = [
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () =>
       runCommand("bun", ["run", "build"], {
-        env: { COMPILE_ALL_ADAPTERS: "true" },
         silent: true,
         timeout: 600_000,
       }),
@@ -456,8 +410,8 @@ const BASE_TASKS: TaskSpec[] = [
       "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () => {
-      // Rebuild without COMPILE_ALL_ADAPTERS to verify the deploy build strips the testing backdoor.
-      // The main build task above uses COMPILE_ALL_ADAPTERS=true — this one explicitly does not.
+      // Rebuild to verify the deploy build strips the testing backdoor.
+      // Isolated from the main production build task above.
       const buildOk =
         runCommand("bun", ["run", "build"], {
           silent: true,

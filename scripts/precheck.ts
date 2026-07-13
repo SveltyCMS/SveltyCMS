@@ -395,7 +395,7 @@ export async function runPrecheck(
           }
 
           // If it was formatting and is now passing, offer to amend the commit
-          if (success && task.name === "Format Verification") {
+          if (success && task.name === "Format, Lint & Check") {
             const commitAnswer = prompt(
               `   Would you like to automatically amend these formatting fixes into your current commit? [Y/n] `,
             );

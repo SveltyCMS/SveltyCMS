@@ -255,10 +255,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
         isAdminUser ||
         AuthGuardService.checkPermissions(user, "manage", "user", undefined, activeRoles);
       if (isPublic && !isApi) throw redirect(302, "/");
-    } else if (!locals.isFirstUser) {
-      logger.info(
-        `[Authz] No user, isFirstUser=${locals.isFirstUser}, path=${pathname}, redirecting to /login`,
-      );
+    } else {
+      logger.info(`[Authz] No user, path=${pathname}, redirecting to /login`);
       if (isApi) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
       throw redirect(302, "/login");
     }
