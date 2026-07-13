@@ -451,7 +451,7 @@ const BASE_TASKS: TaskSpec[] = [
   {
     name: "Deploy Build Backdoor Probe",
     estimatedMs: 35000,
-    ciJob: "07-deploy-backdoor",
+    ciJob: "whitebox",
     remediation:
       "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
