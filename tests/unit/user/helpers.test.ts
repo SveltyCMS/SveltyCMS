@@ -19,6 +19,8 @@ function isToken(row: any): row is { token: string; [key: string]: any } {
 function isUser(row: any): row is { _id: string; [key: string]: any } {
   return !!row && "_id" in row && !("token" in row);
 }
+// Used in describe blocks below
+void isUser;
 
 function checkTokenExpired(row: any): boolean {
   if (!(isToken(row) && row.expires)) {

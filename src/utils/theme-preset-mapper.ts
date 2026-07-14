@@ -13,6 +13,25 @@ export interface SkeletonPreset {
 }
 
 /**
+ * Normalize a Skeleton.dev theme payload to a StoredAdminTheme-compatible format.
+ */
+export function normalizeSkeletonThemePayload(payload: Record<string, unknown>): {
+  name: string;
+  customCss?: string;
+} {
+  const css =
+    typeof payload.css === "string"
+      ? payload.css
+      : typeof payload.code === "string"
+        ? payload.code
+        : "";
+  return {
+    name: (payload.name as string) || "Imported Theme",
+    customCss: css || undefined,
+  };
+}
+
+/**
  * Check if a CSS string appears to be a Skeleton.dev CSS export.
  */
 export function isSkeletonCssExport(css: string): boolean {
