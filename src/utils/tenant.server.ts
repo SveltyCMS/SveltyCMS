@@ -11,9 +11,9 @@ import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
  */
 export function getCollectionsPath(tenantId?: string | null): string {
   const base = path.join(process.cwd(), "config");
-  if (tenantId === undefined) return path.join(base, "collections");
-  const tenant = tenantId === null ? "global" : tenantId;
-  return path.join(base, tenant, "collections");
+  // null (super-tenant) and undefined (no tenant) both use root collections dir
+  if (tenantId === undefined || tenantId === null) return path.join(base, "collections");
+  return path.join(base, tenantId, "collections");
 }
 
 /**

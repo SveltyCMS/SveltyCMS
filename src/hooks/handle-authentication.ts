@@ -533,9 +533,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
       cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
-      logger.info(
-        `[Auth] Session cookie found: ${sessionId.slice(0, 12)}..., path=${event.url.pathname}`,
-      );
+      logger.info(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
       metricsService.incrementAuthValidations();
       if (!auth) {
         logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
@@ -543,6 +541,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       }
 
       const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
+      logger.info(
+        `[Auth] getUserFromSession: ${user ? "FOUND " + user.email : "NULL"} path=${event.url.pathname}`,
+      );
       logger.info(
         `[Auth] getUserFromSession result: ${user ? user.email + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
       );
@@ -587,6 +588,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         (locals as any).returningUser = true;
         cookies.delete(cookieName, { path: "/" });
       }
+    } else {
+      logger.info(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
     }
 
     // 3. API Token Authentication (Bearer) - Hardened for 2026 Retro-compatibility

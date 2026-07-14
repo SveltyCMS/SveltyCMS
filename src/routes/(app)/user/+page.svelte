@@ -16,10 +16,9 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-		import Avatar from "@components/ui/avatar.svelte";
-		import Badge from '@components/ui/badge.svelte';
-		import Checkbox from '@components/ui/checkbox.svelte';
-	import Input from '@components/ui/input.svelte';
+	import Avatar from "@components/ui/avatar.svelte";
+	import Badge from '@components/ui/badge.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
@@ -27,7 +26,6 @@
 	import {
 		button_delete,
 		email,
-		form_password,
 		role,
 		usermodalconfirmbody,
 		usermodalconfirmtitle,
@@ -75,9 +73,6 @@
 		permissions: []
 	});
 
-	// Define password as state
-	let password = $state('hash-password');
-
 	// Function to open 2FA modal
 	function open2FAModal(): void {
 		modalState.trigger(ModalTwoFactorAuth, { user }, async (r: any) => {
@@ -110,6 +105,7 @@
 	    };
 
 		try {
+			// Try PUT first; fall back to POST if it fails
 			const res = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
@@ -119,10 +115,24 @@
 			if (res.ok) {
 				toast.success('Preferences updated');
 				await invalidateAll();
-			} else {
-				toast.error('Failed to update preferences');
+				return;
 			}
-		} catch {
+
+			// PUT failed — try POST as fallback (some adapters prefer POST for deep merge)
+			const res2 = await fetch('/api/user/update-user-attributes', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ user_id: 'self', newUserData })
+			});
+
+			if (res2.ok) {
+				toast.success('Preferences updated');
+				await invalidateAll();
+			} else {
+				const errBody = await res2.text().catch(() => 'unknown');
+				toast.error('Failed to update preferences: ' + errBody.slice(0, 120));
+			}
+		} catch (err) {
 			toast.error('Error updating preferences');
 		}
 	}
@@ -206,235 +216,274 @@
 <AdminPageShell title={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config">
 <div in:fade={{ duration: 300 }}>
 	<h2 class="sr-only">Profile Information</h2>
-	<div class="wrapper mb-2">
-		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
-			<!-- Avatar with user info -->
-			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
-				<div class="relative group">
-					<Avatar src={normalizeAvatarUrl(user.avatar)} initials="AV" size="size-32" class="rounded-full border border-white shadow-lg dark:border-surface-800" />
 
-					<!-- Edit button - icon overlay -->
-					<Button variant="ghost"
-						onclick={modalEditAvatar}
-						title={userpage_editavatar()}
-					 class="p-0! min-w-0 absolute bottom-0 inset-e-0 rounded-full gradient-tertiary dark:gradient-primary">
-						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
-					</Button>
-				</div>
-				<!-- User ID -->
-				<Badge preset="tonal" color="secondary" class="mt-1 w-full max-w-xs text-white">
-					{userpage_user_id()}<span class="ms-2 font-bold">{user?._id || 'N/A'}</span>
-				</Badge>
-				<!-- Role -->
-				<Badge preset="tonal" color="tertiary" class="w-full max-w-xs text-white">{role()}:<span class="ms-2 font-bold">{user?.role || 'N/A'}</span></Badge>
-				<!-- Tenant ID -->
-				{#if isMultiTenant && user?.tenantId}
-					<Badge preset="tonal" color="warning" class="w-full max-w-xs text-white">Tenant ID:<span class="ms-2">{user?.tenantId || 'N/A'}</span></Badge>
-				{/if}
-				<!-- Authentication Methods -->
-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
-					<div class="space-y-3">
-						<div class="flex items-center gap-2 mb-2">
-							<iconify-icon icon="mdi:shield-lock-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
-							<span class="text-sm font-semibold">Authentication</span>
-						</div>
-						
-						{#if is2FAEnabledGlobal}
-							<div class="flex items-center justify-between gap-3">
-								<div class="flex items-center gap-2">
-									<iconify-icon icon="mdi:two-factor-authentication" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
-									<span class="text-sm">Two-Factor Auth</span>
-								</div>
-								<Button variant="ghost" size="sm" onclick={open2FAModal} class="p-1 h-auto min-h-0 text-xs {user?.is2FAEnabled ? 'text-success-500' : 'text-surface-500'}">
-									{user?.is2FAEnabled ? 'Enabled' : 'Setup'}
-								</Button>
-							</div>
-						{/if}
+	<!-- ── 3-Column Profile Layout (Linear/GitHub-style) ── -->
+	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
 
-						<div class="flex items-center justify-between gap-3">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:fingerprint" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
-								<span class="text-sm">Passkeys</span>
-							</div>
-							<Checkbox
-								checked={(serverUser?.preferences as any)?.auth?.passkeyEnabled ?? false}
-								onchange={async (enabled) => updateRtcPreference('passkeyEnabled' as any, enabled)}
-								label="Toggle Passkey"
-								size="sm"
+		<!-- ═══ COLUMN 1: Identity ═══ -->
+			<section in:fly={{ y: 20, delay: 50, duration: 300 }}>
+				<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-5 shadow-sm">
+					<div class="flex items-center gap-4 mb-4 pb-3 border-b border-surface-200 dark:border-surface-700">
+						<div class="relative group shrink-0">
+							<Avatar
+								src={normalizeAvatarUrl(user.avatar)}
+								initials={user.username?.slice(0, 2).toUpperCase() || 'AV'}
+								size="size-12"
+								class="rounded-full border-2 border-surface-200 dark:border-surface-600"
 							/>
+							<button
+								onclick={modalEditAvatar}
+								aria-label={userpage_editavatar()}
+								class="absolute -bottom-0.5 -right-0.5 p-1 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+							>
+								<iconify-icon icon="mdi:pencil" width={12}></iconify-icon>
+							</button>
 						</div>
-
-						<div class="flex items-center justify-between gap-3">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:magic-staff" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
-								<span class="text-sm">Magic Link</span>
-							</div>
-							<Checkbox
-								checked={(serverUser?.preferences as any)?.auth?.magicLinkEnabled ?? false}
-								onchange={async (enabled) => updateRtcPreference('magicLinkEnabled' as any, enabled)}
-								label="Toggle Magic Link"
-								size="sm"
-							/>
-						</div>
-						
-						<div class="flex items-center justify-between gap-3">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:account-group-outline" class="text-surface-600 dark:text-surface-300" width={18}></iconify-icon>
-								<span class="text-sm">OAuth Login</span>
-							</div>
-							<Checkbox
-								checked={(serverUser?.preferences as any)?.auth?.oauthEnabled ?? false}
-								onchange={async (enabled) => updateRtcPreference('oauthEnabled' as any, enabled)}
-								label="Toggle OAuth"
-								size="sm"
-							/>
+						<div>
+							<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">{user.username || 'User'}</h3>
+							<p class="text-xs text-surface-500 dark:text-surface-400">{user.role || '—'}</p>
 						</div>
 					</div>
-				</AdminCard>
 
-				<!-- Workspace Appearance -->
-				<AdminCard class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm">
-									<div class="space-y-2">
-						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
-							<span class="text-sm font-semibold">Workspace Appearance</span>
+					<div class="space-y-0 divide-y divide-surface-100 dark:divide-surface-800">
+						<div class="flex items-center justify-between py-2.5">
+							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">{username()}</span>
+							<span class="text-sm font-medium text-surface-900 dark:text-surface-100 text-end">{user.username || '—'}</span>
 						</div>
-						<p class="text-xs text-surface-500 dark:text-surface-400">
-							Personal density, layout regions, card style, and accessibility overrides.
-						</p>
-						{#if serverUser?.preferences?.theme?.density || serverUser?.preferences?.theme?.variant || serverUser?.preferences?.theme?.layoutState}
-							<p class="text-xs text-tertiary-600 dark:text-primary-400">
-								Active:
-								{serverUser.preferences.theme.density || 'theme default'}
-								· {serverUser.preferences.theme.variant || 'theme default'}
-								{#if serverUser.preferences.theme.layoutState}
-									· {Object.keys(serverUser.preferences.theme.layoutState).length} layout override{Object.keys(serverUser.preferences.theme.layoutState).length === 1 ? '' : 's'}
-								{/if}
-							</p>
-						{/if}
-						<Button variant="outline" size="sm" href="/config/appearance" class="w-full">
-							Open Appearance Settings
-						</Button>
-					</div>
-				</AdminCard>
-
-				<!-- Collaboration Settings -->
-				<AdminCard
-									class="w-full max-w-xs border border-surface-500 bg-white dark:bg-surface-800 p-4 shadow-sm"
-				>
-					<div in:fly={{ y: 10, delay: 300, duration: 300 }} class="space-y-3">
-						<div class="flex items-center justify-between gap-3">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
-								<span class="text-sm">Real-time Collaboration</span>
-							</div>
-							<Checkbox
-								checked={serverUser?.preferences?.rtc?.enabled ?? true}
-								onchange={async (enabled) => updateRtcPreference('enabled', enabled)}
-								label="Toggle real-time collaboration"
-								size="sm"
-							/>
+						<div class="flex items-center justify-between py-2.5">
+							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">Email Address</span>
+							<span class="text-sm font-medium text-surface-900 dark:text-surface-100 text-end">{user.email || '—'}</span>
 						</div>
-						<div class="flex items-center justify-between gap-3">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="material-symbols:volume-up-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
-								<span class="text-sm">Sound Notifications</span>
-							</div>
-							<Checkbox
-								checked={serverUser?.preferences?.rtc?.sound ?? true}
-								onchange={async (sound) => updateRtcPreference('sound', sound)}
-								label="Toggle sound notifications"
-								size="sm"
-							/>
+						<div class="flex items-center justify-between py-2.5">
+							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">{role()}</span>
+							<span class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize text-end">{user.role || '—'}</span>
+						</div>
+						<div class="flex items-center justify-between py-2.5">
+							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">{userpage_user_id()}</span>
+							<span class="text-xs font-mono text-surface-600 dark:text-surface-400 text-end truncate max-w-[180px]">{user._id || 'N/A'}</span>
 						</div>
 					</div>
-				</AdminCard>
 
-				<!-- Permissions List -->
-				{#each user.permissions as permission (permission)}
-					<Badge preset="tonal" color="primary" class="mt-1 w-full max-w-xs text-white">{permission}</Badge>
-				{/each}
-			</div>
-
-			<!-- User fields -->
-			{#if user}
-				<form class="space-y-4">
-					<Input
-						value={user.username}
-						name="username"
-						type="text"
-						autocomplete="username"
-						disabled
-						label={username()}
-						aria-label={username()}
-					/>
-
-					<Input
-						value={user.email}
-						name="email"
-						type="email"
-						autocomplete="email"
-						disabled
-						label={email()}
-						aria-label={email()}
-					/>
-
-					<Input
-						bind:value={password}
-						name="password"
-						type="password"
-						autocomplete="current-password"
-						disabled
-						label={form_password()}
-						aria-label={form_password()}
-					/>
-
-
-					<div class="mt-3 flex flex-col items-center justify-center gap-1.5">
-						<!-- Edit Modal Button -->
-						<Button
-							variant="outline"
-							size="sm"
-							leadingIcon="bi:pencil-fill"
-							onclick={modalUserForm}
-							aria-label={userpage_edit_usersetting()}
-							class="gradient-tertiary w-full max-w-xs text-white"
-						>
+					<div class="mt-4 pt-3 border-t border-surface-200 dark:border-surface-700 flex gap-2">
+						<Button variant="ghost" size="sm" leadingIcon="bi:pencil-fill" onclick={modalUserForm} class="flex-1 text-xs">
 							{userpage_edit_usersetting()}
 						</Button>
-
-						<!-- GDPR Compact Tile -->
-						<Button
-							variant="outline"
-							size="sm"
-							leadingIcon="mdi:shield-account"
-							trailingIcon="mdi:chevron-right"
-							onclick={modalPrivacyData}
-							class="gradient-tertiary w-full max-w-xs justify-between text-white"
-						>
-							<span class="text-xs font-bold">Privacy & Data (GDPR)</span>
-						</Button>
-
-						<!-- Delete Modal Button -->
 						{#if isFirstUser}
-							<Button
-								variant="outline"
-								size="sm"
-								leadingIcon="bi:trash3-fill"
-								onclick={modalConfirm}
-								aria-label={button_delete()}
-								class="gradient-error w-full max-w-xs text-white"
-							>
+							<Button variant="ghost" size="sm" leadingIcon="bi:trash3-fill" onclick={modalConfirm} class="flex-1 text-xs preset-ghost-error-500">
 								{button_delete()}
 							</Button>
 						{/if}
 					</div>
-				</form>
-			{/if}
-		</div>
+				</AdminCard>
+			</section>
+
+		<!-- ═══ COLUMN 2: Security ═══ -->
+		<section in:fly={{ y: 20, delay: 100, duration: 300 }}>
+			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm h-full">
+				<div class="flex justify-center items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<iconify-icon icon="mdi:shield-lock-outline" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
+					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Security</h3>
+				</div>
+
+				<div class="space-y-4">
+					<!-- Password -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:key-variant" class="text-surface-500" width={18} height={18}></iconify-icon>
+								<div>
+									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Password</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Change your account password</p>
+								</div>
+							</div>
+							<Button variant="ghost" size="sm" onclick={modalUserForm} class="text-xs">
+								Change
+							</Button>
+						</div>
+					</div>
+
+					<!-- Two-Factor Auth -->
+					{#if is2FAEnabledGlobal}
+						<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<iconify-icon icon="mdi:two-factor-authentication" class="text-surface-500" width={18} height={18}></iconify-icon>
+									<div>
+										<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Two-Factor Auth</p>
+										<p class="text-xs {user?.is2FAEnabled ? 'text-success-500' : 'text-surface-500 dark:text-surface-400'}">
+											{user?.is2FAEnabled ? 'Enabled' : 'Not configured'}
+										</p>
+									</div>
+								</div>
+								<Button variant="ghost" size="sm" onclick={open2FAModal} class="text-xs {user?.is2FAEnabled ? 'text-success-500' : ''}">
+									{user?.is2FAEnabled ? 'Manage' : 'Setup'}
+								</Button>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Passkeys -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+						<div class="flex items-center justify-between">
+							<button
+								onclick={() => updateRtcPreference('passkeyEnabled' as any, !optAuth.passkeyEnabled)}
+																	class="flex items-center gap-2 flex-1 text-start"
+																	aria-label="Toggle Passkeys"
+							>
+								<iconify-icon
+									icon="mdi:fingerprint"
+									class={optAuth.passkeyEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500'}
+									width={18} height={18}
+								></iconify-icon>
+								<div>
+									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Passkeys</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Passwordless biometric login</p>
+								</div>
+							</button>
+						</div>
+					</div>
+
+					<!-- Magic Link -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+						<div class="flex items-center justify-between">
+							<button
+								onclick={() => updateRtcPreference('magicLinkEnabled' as any, !optAuth.magicLinkEnabled)}
+								class="flex items-center gap-2 flex-1 text-start"
+								aria-label="Toggle Magic Link"
+							>
+								<iconify-icon
+									icon="mdi:magic-staff"
+									class={optAuth.magicLinkEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500'}
+									width={18} height={18}
+								></iconify-icon>
+								<div>
+									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Magic Link</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Passwordless email login</p>
+								</div>
+							</button>
+						</div>
+					</div>
+
+					<!-- OAuth -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+						<div class="flex items-center justify-between">
+							<button
+								onclick={() => updateRtcPreference('oauthEnabled' as any, !optAuth.oauthEnabled)}
+								class="flex items-center gap-2 flex-1 text-start"
+								aria-label="Toggle OAuth Login"
+							>
+								<iconify-icon
+									icon="mdi:account-group-outline"
+									class={optAuth.oauthEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500'}
+									width={18} height={18}
+								></iconify-icon>
+								<div>
+									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">OAuth Login</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Sign in with Google, GitHub</p>
+								</div>
+							</button>
+						</div>
+					</div>
+
+					<!-- Permissions -->
+					{#if user.permissions.length > 0}
+						<div>
+							<div class="flex items-center gap-2 mb-2">
+								<iconify-icon icon="mdi:shield-check" class="text-surface-500" width={18} height={18}></iconify-icon>
+								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Permissions</p>
+							</div>
+							<div class="flex flex-wrap gap-1">
+								{#each user.permissions as permission (permission)}
+									<Badge preset="tonal" color="primary" size="sm">{permission}</Badge>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+			</AdminCard>
+		</section>
+
+		<!-- ═══ COLUMN 3: Preferences ═══ -->
+		<section in:fly={{ y: 20, delay: 150, duration: 300 }}>
+			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm h-full">
+				<div class="flex justify-center items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<iconify-icon icon="mdi:tune-variant" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
+					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Preferences</h3>
+				</div>
+
+				<div class="space-y-4">
+					<!-- Workspace Appearance -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+						<div class="flex justify-center items-center gap-2 mb-2">
+							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18} height={18}></iconify-icon>
+							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Workspace Appearance</p>
+						</div>
+						<p class="text-xs text-surface-500 dark:text-surface-400 mb-2">
+							Density, layout regions, card style, and accessibility.
+						</p>
+						{#if serverUser?.preferences?.theme?.density || serverUser?.preferences?.theme?.variant}
+							<div class="flex flex-wrap gap-1 mb-2">
+								{#if serverUser?.preferences?.theme?.density}
+									<Badge preset="tonal" color="secondary" size="sm">{serverUser.preferences.theme.density}</Badge>
+								{/if}
+								{#if serverUser?.preferences?.theme?.variant}
+									<Badge preset="tonal" color="secondary" size="sm">{serverUser.preferences.theme.variant}</Badge>
+								{/if}
+							</div>
+						{/if}
+						<Button variant="outline" size="sm" href="/config/appearance" class="w-full text-xs text-surface-500 dark:text-white" data-preload="hover">
+							<iconify-icon icon="mdi:open-in-new" width={14} class="me-1"></iconify-icon>
+							Open Appearance Settings
+						</Button>
+					</div>
+
+					<!-- Collaboration -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+						<div class="flex justify-center items-center gap-2 mb-3">
+							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18} height={18}></iconify-icon>
+							<p class="text-sm  font-medium text-surface-900 dark:text-surface-100">Collaboration</p>
+						</div>
+						<div class="space-y-3">
+							<div class="flex items-center justify-between">
+								<span class="text-sm text-surface-700 dark:text-surface-300">Real-time editing</span>
+								<Checkbox
+									checked={serverUser?.preferences?.rtc?.enabled ?? true}
+									onchange={async (enabled) => updateRtcPreference('enabled', enabled)}
+									size="sm"
+								/>
+							</div>
+							<div class="flex items-center justify-between">
+								<span class="text-sm text-surface-700 dark:text-surface-300">Sound notifications</span>
+								<Checkbox
+									checked={serverUser?.preferences?.rtc?.sound ?? true}
+									onchange={async (sound) => updateRtcPreference('sound', sound)}
+									size="sm"
+								/>
+							</div>
+						</div>
+					</div>
+
+					<!-- Privacy & Data -->
+					<div>
+						<button
+							onclick={modalPrivacyData}
+							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-start"
+							aria-label="Privacy & Data settings"
+						>
+							<iconify-icon icon="mdi:shield-account" class="text-surface-500" width={18} height={18}></iconify-icon>
+							<div class="flex-1">
+								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Privacy & Data</p>
+								<p class="text-xs text-surface-500 dark:text-surface-400">View, export, or delete your data</p>
+							</div>
+							<iconify-icon icon="mdi:chevron-right" class="text-surface-400" width={16}></iconify-icon>
+						</button>
+					</div>
+				</div>
+			</AdminCard>
+		</section>
 	</div>
 
-	<!-- Admin area -->
+	<!-- ═══ Admin Area (full-width, below profile) ═══ -->
 	  <PermissionGuard
 	    {...({
 	      config: {
@@ -447,7 +496,7 @@
 	      silent: true
 	    } as any)}
 	>
-		<div class="wrapper2" in:fly={{ y: 20, delay: 200, duration: 300 }}>
+		<div in:fly={{ y: 20, delay: 200, duration: 300 }}>
 			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
 		</div>
 	</PermissionGuard>

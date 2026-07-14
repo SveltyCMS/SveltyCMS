@@ -50,7 +50,7 @@ import { contentStructure } from '@src/stores/collection-store.svelte';
 import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
 import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { systemLanguage } from '@src/stores/store.svelte';
+	import { app, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
@@ -122,7 +122,12 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
 	const showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
 
-	let languageTag = $state<Locale>('en' as Locale);
+	let languageTag = $state<Locale>(getLocale() as Locale);
+
+	// Keep languageTag in sync when the Paraglide locale changes externally
+	$effect(() => {
+		languageTag = getLocale() as Locale;
+	});
 
 	const filteredLanguages = $derived(
 		availableLanguages
@@ -171,6 +176,7 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
+		app.systemLanguage = lang;
 		systemLanguage.set(lang as Locale);
 		languageTag = lang as Locale;
 		searchQuery = '';
@@ -464,7 +470,7 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
  			<!-- Language Selector -->
  			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
- 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
+  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }} role={null} tabindex={null}>
  					<div class="language-selector relative">
  						<Dropdown position="right-start" class="w-56">
  							{#snippet trigger()}

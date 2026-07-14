@@ -82,9 +82,9 @@ export function getLocalSandboxMediaRoot(): string {
 
 function liveCompiledCollectionsPath(tenantId?: string | null): string {
   const base = path.join(process.cwd(), ".compiledCollections");
-  if (tenantId === undefined) return base;
-  const tenant = tenantId === null ? "global" : tenantId;
-  return path.join(base, tenant);
+  // null (super-tenant) and undefined (no tenant) both use root compiled dir
+  if (tenantId === undefined || tenantId === null) return base;
+  return path.join(base, tenantId);
 }
 
 /**

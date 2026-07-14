@@ -203,15 +203,13 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 
 	try {
 		const { signIn: remoteSignIn } = await import("../auth.remote");
-			const result = (await remoteSignIn({
-				email: loginForm.data.email,
-				password: loginForm.data.password,
-				isToken: loginForm.data.isToken,
-				redirect: redirectTo || undefined,
-			})) as any;
-
-		isSubmitting = false;
-
+		const result = (await remoteSignIn({
+			email: loginForm.data.email,
+			password: loginForm.data.password,
+			isToken: loginForm.data.isToken,
+			redirect: redirectTo || undefined,
+		})) as any;
+		
 		if (result.requires2FA) {
 			requires2FA = true;
 			twoFAUserId = result.userId || "";
@@ -226,34 +224,32 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			});
 			return;
 		}
-
+		
 		if (result.success && result.redirectPath) {
-				console.log('[SignIn Client] redirectPath:', result.redirectPath);
-				isAuthenticating = true;
-				sessionStorage.setItem(
-					"flashMessage",
-					JSON.stringify({
-						type: "success",
-						title: "Welcome Back!",
-						description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
-						duration: 4000,
-					})
-				);
-				await goto(result.redirectPath, { invalidateAll: true });
-				return;
+			console.log('[SignIn Client] redirectPath:', result.redirectPath);
+			sessionStorage.setItem(
+				"flashMessage",
+				JSON.stringify({
+					type: "success",
+					title: "Welcome Back!",
+					description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
+					duration: 4000,
+				})
+			);
+			await goto(result.redirectPath, { invalidateAll: true });
+			return;
 		}
-
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
+		
 		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
 		wiggle(loginFormElement);
 	} catch (error: any) {
-		isSubmitting = false;
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
 		const errorMessage = error?.message || "An unexpected error occurred";
 		toast.error({ title: "Sign In Failed", description: errorMessage });
 		wiggle(loginFormElement);
+	} finally {
+		isSubmitting = false;
+		isAuthenticating = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
 	}
 }
 

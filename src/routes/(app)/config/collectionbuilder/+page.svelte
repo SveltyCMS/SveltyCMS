@@ -467,6 +467,7 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
             body: existingCategory
                 ? "Modify Category Details"
                 : "Enter Unique Name and an Icon for your new category",
+            size: "lg",
         },
         async (
             response:
@@ -656,7 +657,7 @@ function modalLoadPreset(): void {
             href={newCollectionHref}
             data-preload="hover"
             onclick={setupNewCollection}
-            variant="primary"
+            variant="error"
             rounded={true}
             size="lg"
             class="group w-52 justify-center"

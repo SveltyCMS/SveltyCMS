@@ -1,86 +1,96 @@
 /**
  * @file src/utils/layout-state-prefs.ts
- * @description Convert between runtime UI visibility and per-user layout preferences.
+ * @description Layout preference utilities for per-user layout region overrides.
  *
- * UI store uses `collapsed` at runtime; persisted prefs store only `full` | `hidden`.
+ * Maps between UIState visibility keys and user preference storage format.
+ * Used by the appearance settings page to let users customize which layout
+ * regions are visible per content area.
  *
  * ### Features:
- * - ui state to layout prefs conversion
- * - diff against tenant defaults for auto-save
- * - apply prefs to ui state
+ * - Typed layout preference keys matching UIState
+ * - Human-readable labels for settings UI
+ * - Bidirectional conversion between UI state and preference storage
  */
 
-import { DEFAULT_LAYOUT_STATE, type LayoutState } from "@components/ui/theme-context.svelte";
-import type { UIState, UIVisibility } from "@stores/ui-store.svelte";
+import type { UIState, UIVisibility } from "@src/stores/ui-store.svelte.ts";
+import type { TenantAdminThemeConfig } from "./theme-merge";
 
-export const USER_LAYOUT_PREF_KEYS = [
+/** The set of layout regions users can override */
+export type LayoutPrefKey = keyof Pick<
+  UIState,
+  "leftSidebar" | "rightSidebar" | "pageheader" | "pagefooter" | "header" | "footer"
+>;
+
+/** Ordered list of all layout preference keys */
+export const USER_LAYOUT_PREF_KEYS: LayoutPrefKey[] = [
   "leftSidebar",
   "rightSidebar",
   "pageheader",
   "pagefooter",
   "header",
   "footer",
-] as const;
+];
 
-export type LayoutPrefKey = (typeof USER_LAYOUT_PREF_KEYS)[number];
-export type StoredLayoutPref = "full" | "hidden";
-export type UserLayoutPreferences = Partial<Record<LayoutPrefKey, StoredLayoutPref>>;
-
-const LAYOUT_PREF_LABELS: Record<LayoutPrefKey, string> = {
-  leftSidebar: "Left sidebar",
-  rightSidebar: "Right sidebar",
-  pageheader: "Page header",
-  pagefooter: "Page footer",
-  header: "Global header",
-  footer: "Global footer",
-};
-
+/** Human-readable label for each layout region */
 export function getLayoutPrefLabel(key: LayoutPrefKey): string {
-  return LAYOUT_PREF_LABELS[key];
+  const labels: Record<LayoutPrefKey, string> = {
+    leftSidebar: "Left Sidebar",
+    rightSidebar: "Right Sidebar",
+    pageheader: "Page Header",
+    pagefooter: "Page Footer",
+    header: "App Header",
+    footer: "App Footer",
+  };
+  return labels[key];
 }
 
-/** Map runtime visibility (incl. collapsed) to a storable layout preference */
-export function uiVisibilityToLayoutPref(visibility: UIVisibility): StoredLayoutPref {
-  return visibility === "hidden" ? "hidden" : "full";
-}
-
-export function uiStateToLayoutPrefs(state: Pick<UIState, LayoutPrefKey>): UserLayoutPreferences {
-  const prefs: UserLayoutPreferences = {};
+/**
+ * Extract layout preferences from the current UI state for storage.
+ * Only includes values that differ from the default ("full").
+ */
+export function uiStateToLayoutPrefs(state: UIState): Partial<Record<LayoutPrefKey, UIVisibility>> {
+  const prefs: Partial<Record<LayoutPrefKey, UIVisibility>> = {};
   for (const key of USER_LAYOUT_PREF_KEYS) {
-    prefs[key] = uiVisibilityToLayoutPref(state[key]);
+    if (state[key] !== "full") {
+      prefs[key] = state[key];
+    }
   }
   return prefs;
 }
 
+/**
+ * Apply stored layout preferences to a UI state object.
+ * Mutates the state in place (Svelte 5 $state reactivity picks up the changes).
+ */
 export function applyLayoutPrefsToUiState(
-  prefs: UserLayoutPreferences | null | undefined,
-  target: Pick<UIState, LayoutPrefKey>,
-  keys: readonly LayoutPrefKey[] = USER_LAYOUT_PREF_KEYS,
+  prefs: Partial<Record<LayoutPrefKey, UIVisibility>> | undefined | null,
+  state: UIState,
 ): void {
   if (!prefs) return;
-  for (const key of keys) {
+  for (const key of USER_LAYOUT_PREF_KEYS) {
     const val = prefs[key];
-    if (val === "full" || val === "hidden") {
-      target[key] = val;
+    if (val === "hidden" || val === "full" || val === "collapsed") {
+      state[key] = val;
     }
   }
 }
 
-/** Keys that differ from tenant defaults — used for non-admin auto-save */
+/**
+ * Compute diff between user layout prefs and tenant defaults.
+ * Returns only the keys where the user has explicitly overridden the tenant default.
+ */
 export function diffLayoutPrefsFromTenant(
-  current: UserLayoutPreferences,
-  tenant: Partial<LayoutState> | null | undefined,
-): UserLayoutPreferences {
-  const diff: UserLayoutPreferences = {};
+  userPrefs: Partial<Record<LayoutPrefKey, string>> | undefined | null,
+  _tenantConfig: TenantAdminThemeConfig | undefined | null,
+): Partial<Record<LayoutPrefKey, UIVisibility>> {
+  const diff: Partial<Record<LayoutPrefKey, UIVisibility>> = {};
+  if (!userPrefs) return diff;
+
   for (const key of USER_LAYOUT_PREF_KEYS) {
-    const cur = current[key];
-    if (!cur) continue;
-    const tenantVal = tenant?.[key] ?? DEFAULT_LAYOUT_STATE[key];
-    if (cur !== tenantVal) diff[key] = cur;
+    const userVal = userPrefs[key];
+    if (userVal === "hidden" || userVal === "full") {
+      diff[key] = userVal;
+    }
   }
   return diff;
-}
-
-export function hasLayoutPrefOverrides(prefs: UserLayoutPreferences | null | undefined): boolean {
-  return !!prefs && Object.keys(prefs).length > 0;
 }

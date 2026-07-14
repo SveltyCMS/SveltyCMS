@@ -156,7 +156,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     // Save should succeed
     await page.getByTestId("save-collection-button").first().click();
     await expect(page.getByText(/collection saved/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
   });
 

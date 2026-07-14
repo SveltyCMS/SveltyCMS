@@ -53,6 +53,14 @@ export interface MergedAdminTheme {
   layoutState: Partial<LayoutState>;
 }
 
+/** Check if a specific preference is locked by admin settings */
+export function isPreferenceLocked(
+  locked: AdminLockedSettings | undefined | null,
+  key: keyof AdminLockedSettings,
+): boolean {
+  return locked?.[key] === true;
+}
+
 export interface LoginBranding {
   siteName: string;
   brandedLogin: boolean;
@@ -141,11 +149,4 @@ export function resolveLoginBranding(
     logoUrl: brandedLogin ? tenantAssets?.logoUrl || undefined : undefined,
     accentColor: brandedLogin ? tenantAssets?.accentColor || undefined : undefined,
   };
-}
-
-export function isPreferenceLocked(
-  locked: AdminLockedSettings | undefined,
-  key: keyof AdminLockedSettings,
-): boolean {
-  return locked?.[key] === true;
 }

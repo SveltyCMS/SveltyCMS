@@ -53,6 +53,11 @@ export interface User extends BaseEntity {
       highContrast?: boolean;
       layoutState?: Record<string, "full" | "hidden">;
     };
+    auth?: {
+      passkeyEnabled?: boolean;
+      magicLinkEnabled?: boolean;
+      oauthEnabled?: boolean;
+    };
   };
   resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
   resetToken?: string; // Token for resetting the user's password

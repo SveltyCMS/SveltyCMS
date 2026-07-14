@@ -83,7 +83,8 @@ export const load: PageServerLoad = async (event) => {
       isAdmin, // Pass isAdmin to client for PermissionGuard
     };
   } catch (err) {
-    // Log error with an error code and more details
+    // 🚀 RE-THROW REDIRECTS: SvelteKit uses throw redirect() as control flow (e.g. /login)
+    if (err instanceof Error && "status" in err) throw err;
     logger.error("Error during load function (ErrorCode: USER_LOAD_500):", err);
     return {
       user: null,

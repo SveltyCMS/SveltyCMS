@@ -315,6 +315,14 @@ export async function syncContentState(
         throw new Error("[ContentSync] gui-save requires at least one operation");
       }
       result.contentStructure = await applyGuiStructureSave(operations, tenantId, adapter);
+
+      const { userCollections, compiledCollections } = resolvePathRoots(tenantId);
+      result.compiled = await compile({
+        userCollections,
+        compiledCollections,
+        tenantId,
+      });
+
       return result;
     }
 

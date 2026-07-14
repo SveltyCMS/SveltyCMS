@@ -46,7 +46,7 @@ import {
 	publicEnv,
 } from "@src/stores/global-settings.svelte";
 // Stores
-import { systemLanguage } from "@src/stores/store.svelte.ts";
+import { app, systemLanguage } from "@src/stores/store.svelte";
 import { getLanguageName } from "@utils/language-utils";
 // SvelteKit
 // Components
@@ -131,15 +131,17 @@ const availableLanguages = $derived(
 );
 
 const filteredLanguages = $derived(
-	availableLanguages.filter(
-		(lang: string) =>
-			getLanguageName(lang, systemLanguage.value)
-				.toLowerCase()
-				.includes(searchQuery.toLowerCase()) ||
-			getLanguageName(lang, "en")
-				.toLowerCase()
-				.includes(searchQuery.toLowerCase()),
-	),
+	availableLanguages
+		.filter((lang) => lang !== currentLanguage)
+		.filter(
+			(lang: string) =>
+				getLanguageName(lang, systemLanguage.value)
+					.toLowerCase()
+					.includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, "en")
+					.toLowerCase()
+					.includes(searchQuery.toLowerCase()),
+		),
 );
 
 // Ensure a valid language is always used
@@ -154,6 +156,7 @@ function handleLanguageSelection(lang: string) {
 	clearTimeout(debounceTimeout);
 	debounceTimeout = setTimeout(() => {
 		// Set cookie via store (bridge to ParaglideJS)
+		app.systemLanguage = lang;
 		systemLanguage.set(lang as (typeof systemLanguage)["value"]);
 		isDropdownOpen = false;
 		searchQuery = "";
@@ -440,7 +443,7 @@ function handleSignUpPointerEnter() {
 				{/snippet}
 				<!-- Header to inform user about System Language context -->
 				<div
-					class="px-3 py-1.5 text-[10px] font-bold text-white/40 uppercase tracking-widest text-center border-b border-white/10 mb-2"
+					class="px-3 py-1.5 text-[10px] font-bold text-white uppercase tracking-widest text-center border-b border-white/10 mb-2"
 				>
 					{applayout_systemlanguage()}
 				</div>
@@ -457,44 +460,40 @@ function handleSignUpPointerEnter() {
 						/>
 					</div>
 
-					<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
+					<div class="max-h-64 divide-y divide-white/10 overflow-y-auto">
 						{#each filteredLanguages as lang (lang)}
-							{const selected = lang === currentLanguage}
 							<Button
 								variant="ghost"
 								onclick={() => handleLanguageSelection(lang)}
 								aria-label={getLanguageName(lang)}
-								class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
+								class="w-full px-3 py-2 text-start rounded-md cursor-pointer hover:bg-white/10 text-white transition-colors"
 							>
-								<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
-									{getLanguageName(lang)}
-									{#if selected}
-										<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									{/if}
-								</span>
-								<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
+								<div class="flex w-full items-center justify-between">
+									<span class="text-sm font-medium text-white/90">
+										{getLanguageName(lang)}
+									</span>
+									<span class="text-xs font-bold text-primary-500">{lang.toUpperCase()}</span>
+								</div>
 							</Button>
 						{/each}
 					</div>
 				{:else}
 					<div class="flex flex-col gap-1">
-						{#each availableLanguages as lang (lang)}
-								{const selected = lang === currentLanguage}
-								<Button
-									variant="ghost"
-									onclick={() => handleLanguageSelection(lang)}
-									aria-label={getLanguageName(lang)}
-									class="flex w-full items-center justify-between px-3 py-2 text-start rounded-sm cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors {selected ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500' : ''}"
-								>
-									<span class="flex items-center gap-2 text-sm font-medium text-surface-900 dark:text-surface-200">
+						{#each availableLanguages.filter((l) => l !== currentLanguage) as lang (lang)}
+							<Button
+								variant="ghost"
+								onclick={() => handleLanguageSelection(lang)}
+								aria-label={getLanguageName(lang)}
+								class="w-full px-3 py-2 text-start rounded-md cursor-pointer hover:bg-white/10 text-white transition-colors"
+							>
+								<div class="flex w-full items-center justify-between">
+									<span class="text-sm font-medium text-white/90">
 										{getLanguageName(lang)}
-										{#if selected}
-											<iconify-icon icon="mdi:check" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										{/if}
 									</span>
-									<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
-								</Button>
-							{/each}
+									<span class="text-xs font-bold text-primary-500">{lang.toUpperCase()}</span>
+								</div>
+							</Button>
+						{/each}
 					</div>
 				{/if}
 			</Dropdown>
