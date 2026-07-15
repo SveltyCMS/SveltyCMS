@@ -1,0 +1,114 @@
+---
+path: "docs/tests/api-unit-helpers.mdx"
+title: "API Unit Test Helpers"
+description: "Shared createMockRequestEvent + invokeApi for dispatcher unit tests — thin, not a parallel HTTP client."
+order: 6
+icon: "mdi:code-braces"
+author: "SveltyCMS Team"
+created: "2026-07-15"
+updated: "2026-07-15"
+tags:
+  - "testing"
+  - "api"
+  - "vitest"
+  - "unit"
+---
+
+# API Unit Test Helpers
+
+SveltyCMS unit tests that exercise the catch-all API dispatcher should use the **shared** helpers in `tests/unit/utils/mock-event.ts` instead of inventing a new `createMockEvent` per file.
+
+> [!NOTE]
+> An experimental full `createApiTester` client was prototyped and **removed**. Measured unit→unit timings were ~parity with ad-hoc mocks; first-case cost is dominated by transforming `api/[...path]/+server`, not by the event wrapper. A heavier client did not buy enough speed or fidelity to justify the surface area. Prefer these thin helpers + black-box HTTP for real integration.
+
+---
+
+## What to use
+
+| Helper                             | File                             | Role                                      |
+| ---------------------------------- | -------------------------------- | ----------------------------------------- |
+| `createMockRequestEvent(opts)`     | `tests/unit/utils/mock-event.ts` | Build a consistent `RequestEvent`         |
+| `callApiDispatcher(method, event)` | same                             | Call production GET/POST/… from `+server` |
+| `invokeApi(method, opts)`          | same                             | One-liner: build event + dispatch         |
+| Fixtures                           | `@tests/harness`                 | `USERS`, `ROLES`, `PRIMARY_TENANT`        |
+
+### Options that matter for security tests
+
+```ts
+import { invokeApi } from "../utils/mock-event";
+
+// Unauthenticated
+await invokeApi("POST", { path: "ai/chat", body: { … }, user: null, tenantId: "t1" });
+
+// Missing tenant (multi-tenant)
+await invokeApi("POST", { path: "ai/chat", body: { … }, user: admin, tenantId: null });
+
+// Happy path
+await invokeApi("GET", { path: "user", user: admin, tenantId: "t1", roles, dbAdapter });
+```
+
+- **`user: null`** — unauthenticated (do not omit; omit defaults to an admin-like user).
+- **`tenantId: null`** — explicit missing tenant (uses `"tenantId" in options`, not `??`).
+- **`bypass`** — default `true` sets `locals.__testBypass` for unit dispatcher tests.
+
+---
+
+## Reference suites
+
+- `tests/unit/api/user.test.ts` — `invokeApi`
+- `tests/unit/api/ai-security.test.ts` — auth / tenant edges
+- `tests/unit/api/collections.test.ts` — shared `createMockRequestEvent`
+- `tests/unit/api/auth-2fa.test.ts` — thin wrapper over shared event factory
+- `tests/unit/api/media-security-critical.test.ts` — `formData` + `callApiDispatcher`
+- `tests/unit/api/token.test.ts` — shared event factory
+- `tests/unit/api/dispatcher-security-matrix.test.ts` — fail-closed RBAC, multi-tenant, hot namespaces
+- `tests/unit/api/namespace-ownership.test.ts` — every catch-all namespace has a test owner
+- `tests/unit/api/graphql-security.test.ts` — depth/aliases + dispatcher 401 gate
+- `tests/unit/graphql/multi-tenancy-isolation.test.ts` — resolver tenant isolation
+
+### Migrating remaining `tests/unit/api/*`
+
+Do **opportunistically** when touching a file:
+
+1. Replace local `createMockEvent` with `createMockRequestEvent` / `invokeApi`
+2. Prefer real `apiHandler` when asserting HTTP status codes
+3. Keep file-specific `vi.mock` for db/services
+4. Update `NAMESPACE_OWNERS` only when adding a **new** API namespace
+
+---
+
+## Security matrix (unit)
+
+`dispatcher-security-matrix.test.ts` exercises the **real** catch-all `+server` (apiHandler not unwrapped):
+
+| Case                                                      | Expected      |
+| --------------------------------------------------------- | ------------- |
+| Unknown namespace (admin)                                 | 404           |
+| SCIM as non-admin (`bypass: false`)                       | 403           |
+| Unauthenticated collections                               | 401           |
+| Multi-tenant collections without `tenantId`               | 4xx (not 200) |
+| Editor without `collections:write`                        | 403 on POST   |
+| Editor with `collections:write` (role `_id`/`name` match) | not 401/403   |
+| Editor media DELETE / settings POST without perms         | 403           |
+
+> Role matching: `hasPermissionWithRoles` matches `role._id === user.role` or display name `"Editor"` for `user.role === "editor"`.
+
+## When to use which layer
+
+| Goal                            | Tool                                       |
+| ------------------------------- | ------------------------------------------ |
+| Dispatcher / handler unit logic | `invokeApi` + mocks                        |
+| Full hooks + cookies + multi-DB | Black-box [API testing](./api-testing.mdx) |
+| Browser UX                      | Playwright E2E                             |
+
+---
+
+## Related
+
+- [API Testing (black-box)](./api-testing.mdx)
+- [Testing Strategy](./testing-strategy.mdx)
+- [API Test Coverage](./api-test-coverage.mdx)
+
+---
+
+_Last Updated: 2026-07-15_

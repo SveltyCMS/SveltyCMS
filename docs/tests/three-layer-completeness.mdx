@@ -1,0 +1,276 @@
+---
+path: "docs/tests/three-layer-completeness.mdx"
+title: "Three-Layer Completeness (100% Goal)"
+description: "How SveltyCMS defines and tracks 100% testing across white-box unit, black-box integration, and Playwright E2E."
+order: 3
+icon: "mdi:layers-triple"
+author: "SveltyCMS Team"
+created: "2026-07-15"
+updated: "2026-07-15"
+tags:
+  - "testing"
+  - "strategy"
+  - "coverage"
+  - "unit"
+  - "integration"
+  - "e2e"
+---
+
+# Three-Layer Completeness — 100% Testing Goal
+
+**North star:** Every critical behavior is proven by the **right** layer(s): white-box unit, black-box integration, and Playwright E2E — all three in CI.
+
+> [!IMPORTANT]
+> **“100% testing” does not mean 100% line coverage of `src/`.**  
+> It means **100% of the defined critical inventory** has an automated proof at the correct layer, with zero silent gaps. Line coverage is a supporting metric, not the definition of done.
+
+---
+
+## The three layers (non-negotiable roles)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  E2E (Playwright)                                           │
+│  User journeys, browser UX, a11y smoke, visual shells       │
+├─────────────────────────────────────────────────────────────┤
+│  Integration (black-box HTTP + real DB matrix)              │
+│  Full hooks, cookies, RBAC, multi-DB parity, API contracts  │
+├─────────────────────────────────────────────────────────────┤
+│  Unit (Vitest white-box)                                    │
+│  Domain logic, widgets, hooks, dispatcher edges, utils      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| Layer                         | Tooling                                                          | Proves                                                        | Does **not** replace                |
+| ----------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- |
+| **1 — White-box unit**        | Vitest (`bun run test:unit`)                                     | Pure logic, fail-closed dispatcher, widgets, permissions math | Real cookies, multi-DB, browser     |
+| **2 — Black-box integration** | HTTP + preview (`test:integration` / `run-integration-tests.ts`) | Full middleware chain, auth sessions, adapter parity          | Click paths, layout a11y            |
+| **3 — E2E Playwright**        | Playwright (`test:e2e`)                                          | Real user journeys, shell UX, smoke product paths             | Exhaustive API matrix, all adapters |
+
+**Rule of placement**
+
+| If the risk is…                              | Prefer layer |
+| -------------------------------------------- | ------------ |
+| Wrong formula / permission ID / Valibot rule | Unit         |
+| Wrong status/cookie/tenant under real server | Integration  |
+| User cannot complete a product path          | E2E          |
+
+Do **not** push API matrices into Playwright. Do **not** claim E2E coverage from unit mocks.
+
+---
+
+## What “100%” means per layer
+
+### Layer 1 — Unit (white-box)
+
+| Inventory               | 100% means                                                                                                |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| Core widgets            | Every core widget has unit tests (see [widget-test-coverage](./widget-test-coverage.mdx))                 |
+| Auth/permission helpers | Lockout, password strength, `hasPermissionWithRoles`, fail-closed maps                                    |
+| Hooks security          | Defense-in-depth suite green ([security-testing](./security-testing.mdx))                                 |
+| API dispatcher edges    | Authn 401, authz 403, unknown namespace 404, multi-tenant 4xx (`dispatcher-security-matrix`, `invokeApi`) |
+| Utils/domain modules    | New public utils ship with unit tests in the same PR                                                      |
+
+**Supporting metric:** `bun run test:unit -- --coverage` (v8) — track thresholds on `src/databases/auth`, `src/hooks`, `src/utils`, `src/widgets` first; not all of `src/`.
+
+### Layer 2 — Integration (black-box)
+
+| Inventory          | 100% means                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| **DB matrix**      | Same contract suite green on SQLite, MongoDB, MariaDB, PostgreSQL                                       |
+| Auth & users       | Login, 2FA, lockout, tokens, user CRUD/batch HTTP                                                       |
+| Content & media    | Collections CRUD, media upload/delete, search                                                           |
+| System             | Settings, health, permissions, theme, cache                                                             |
+| Security negatives | Rate limit, XSS/SQLi probes, setup gating after complete                                                |
+| API namespaces     | Every production namespace in `NAMESPACE_CONFIG` has ≥1 happy + ≥1 fail path in unit **or** integration |
+
+**Definition of done for multi-DB:** no “SQLite-only green + known skew” left untracked — either fixed or filed with owner.
+
+### Layer 3 — E2E (Playwright)
+
+| Inventory          | 100% means                                             |
+| ------------------ | ------------------------------------------------------ |
+| Setup              | Wizard completes on CI DB path                         |
+| Auth               | Login + session + logout smoke                         |
+| Collection builder | Create schema smoke + one entry path (stable test ids) |
+| Config shell       | Major config hubs load (not every toggle)              |
+| RBAC UI            | Admin vs restricted affordance where UI enforces it    |
+| A11y smoke         | Login/keyboard focus smoke green                       |
+| Visual             | Stable admin shells only (not volatile builder canvas) |
+
+**Definition of done for E2E:** every **P0 product journey** in the matrix has a non-flaky CI project — not every button in the admin.
+
+See [e2e-coverage-matrix](./e2e-coverage-matrix.mdx) for route-level gaps.
+
+---
+
+## Completeness scorecard (how we track “100%”)
+
+Use three scores; all three must hit target for “complete.”
+
+| Score                     | Formula                                           | Target                |
+| ------------------------- | ------------------------------------------------- | --------------------- |
+| **Unit inventory**        | Critical unit modules with suite / inventory size | **100%**              |
+| **Integration inventory** | Contract domains green × 4 DBs / (domains × 4)    | **100%** on CI matrix |
+| **E2E P0 journeys**       | P0 journeys green in CI / P0 list                 | **100%**              |
+
+### P0 E2E journeys (must stay green)
+
+1. Setup wizard completes (CI)
+2. Admin login → authenticated shell
+3. Collection builder: open + new draft (+ save when stable)
+4. Create/list entry on a collection (or smoke equivalent)
+5. Logout / unauthenticated redirect
+6. Permission denial UI or navigation for non-admin (where applicable)
+7. A11y smoke on login
+
+### P0 API / integration domains (must stay green on all DBs)
+
+1. Auth login/session
+2. User CRUD + batch
+3. Collections content CRUD
+4. Media write/delete permissions
+5. Setup gating (post-complete blocked)
+6. Fail-closed unknown / forbidden routes
+7. Multi-tenant isolation when MT enabled
+
+---
+
+## How the three layers work together (example)
+
+**“Editor cannot publish but can create draft”**
+
+| Layer       | Test                                                               |
+| ----------- | ------------------------------------------------------------------ |
+| Unit        | Permission helper + dispatcher `collections:write` vs publish flag |
+| Integration | Cookie as editor → POST entry 201, publish action 403              |
+| E2E         | Editor UI hides/disables Publish; admin sees it                    |
+
+Missing any one layer leaves a gap (logic-only, HTTP-only, or UI-only).
+
+---
+
+## Current baseline (order of magnitude)
+
+| Layer       | Scale (approx.)              | Health signal                                            |
+| ----------- | ---------------------------- | -------------------------------------------------------- |
+| Unit        | ~2,100+ tests / ~240 files   | Local full unit ~13s green                               |
+| Integration | ~50 spec files, multi-domain | SQLite strong; multi-DB skew tracked                     |
+| E2E         | ~40 specs, multi-project CI  | Flakes on builder; smoke + journey hardening in progress |
+
+**Gap themes**
+
+1. Multi-DB parity not yet “all green without asterisks” (Phase B)
+2. E2E matrix has known ❌ rows (setup presets, some config edges) — Phase C; see E2E matrix
+3. Namespace **owners** are now gated in unit (Phase D); some owners still unit-only until HTTP cases land
+
+---
+
+## Operating rules toward 100%
+
+1. **PR rule:** Touching behavior in inventory requires the matching layer test(s) in the same PR.
+2. **No layer shopping:** Don’t skip integration because unit is green.
+3. **Flake = red:** Flaky E2E counts as incomplete until hardened or replaced with a better layer.
+4. **Fixtures:** `@tests/harness` only for tenants/users/roles.
+5. **API unit helpers:** `invokeApi` / `createMockRequestEvent` — no second HTTP client for unit.
+6. **Local loop:**
+   - Unit: `bun run test:unit`
+   - Integration: `bun run scripts/run-integration-tests.ts --db=sqlite --no-build`
+   - E2E: project-scoped Playwright (not full matrix every commit)
+
+---
+
+## Commands (completeness suite)
+
+```bash
+# Layer 1 — white-box
+bun run test:unit
+
+# Optional supporting coverage (auth/hooks/utils focus over time)
+bun run test:unit -- --coverage
+
+# Layer 2 — black-box (day-to-day)
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+
+# Layer 2 — matrix (pre-merge for adapter/auth work)
+bun run scripts/run-integration-tests.ts --db=postgresql
+bun run scripts/run-integration-tests.ts --db=mariadb
+bun run scripts/run-integration-tests.ts --db=mongodb
+
+# Layer 3 — E2E (CI projects / smoke)
+bun x playwright test --project=chromium
+bun x playwright test --project=builder
+bun x playwright test --project=wizard
+
+# All three (local / CI parity)
+bun run test:all
+```
+
+---
+
+## Roadmap to 100% (ordered — dependency-checked)
+
+Order is intentional: **unit edges + ownership first**, then **HTTP multi-DB truth**, then **browser P0**, then **CI reporting**.
+
+| Phase | Focus                   | Exit criteria                                                            | Status (2026-07)                              |
+| ----- | ----------------------- | ------------------------------------------------------------------------ | --------------------------------------------- |
+| **A** | Unit inventory locked   | Widgets + hooks security + dispatcher matrix green; API helpers standard | **In progress**                               |
+| **B** | Integration multi-DB P0 | P0 domains green on 4 DBs; batch/bulk HTTP covered                       | **In progress** (SQLite strong)               |
+| **C** | E2E P0 journeys         | 7 P0 journeys non-flaky in CI; builder test ids                          | **In progress**                               |
+| **D** | Namespace ownership     | Every `NAMESPACE_CONFIG` key has unit/integration owner                  | **Gate live** (`namespace-ownership.test.ts`) |
+| **E** | Scorecard in CI         | Inventory % (owners, P0 journeys), not vanity line %                     | **Backlog**                                   |
+
+### Why this order
+
+1. **A before B** — Unit fail-closed/RBAC catches wiring bugs before multi-DB CI burn.
+2. **B before C** — Browser journeys assume auth/API contracts; multi-DB is not a Playwright problem.
+3. **D with A** — Ownership inventory **fails the build** when a namespace is added without tests (`API_NAMESPACE_KEYS` + `NAMESPACE_OWNERS`).
+4. **E last** — Metrics without A–D definitions become vanity dashboards.
+5. **Never** put bulk API matrices in E2E; never treat unit alone as multi-DB proof.
+
+### Backlog mapping
+
+| Item                                               | Phase     | Improved by                                                                             |
+| -------------------------------------------------- | --------- | --------------------------------------------------------------------------------------- |
+| Multi-DB auth/permission green matrix              | **B**     | Run P0 checklist per adapter; track skew as bugs; `contract.test.ts` PermissionContract |
+| GraphQL isolation                                  | **A + B** | Unit resolvers + dispatcher 401; integration `graphql.test.ts`                          |
+| Migrate remaining `tests/unit/api/*` → `invokeApi` | **A**     | Opportunistic; ownership gate does not require full migration                           |
+
+### Multi-DB P0 checklist (per adapter)
+
+```bash
+bun run scripts/run-integration-tests.ts --db=sqlite --suite=api
+bun run scripts/run-integration-tests.ts --db=postgresql --suite=api
+bun run scripts/run-integration-tests.ts --db=mariadb --suite=api
+bun run scripts/run-integration-tests.ts --db=mongodb --suite=api
+```
+
+1. Login + session cookie
+2. User batch block/unblock/delete
+3. Collections auth negatives
+4. Media permission negatives
+5. Setup complete → setup API blocked
+6. Fail-closed unknown/forbidden
+7. GraphQL unauthenticated → 401
+
+### Namespace ownership (Phase D)
+
+```bash
+bun run test:unit -- tests/unit/api/namespace-ownership.test.ts
+```
+
+---
+
+## Related
+
+- [Testing Strategy](./testing-strategy.mdx)
+- [Black-Box Testing](./black-box-testing.mdx)
+- [API Testing](./api-testing.mdx)
+- [API Unit Helpers](./api-unit-helpers.mdx)
+- [E2E Coverage Matrix](./e2e-coverage-matrix.mdx)
+- [Test Status](./test-status.mdx)
+- [Security Testing](./security-testing.mdx)
+
+---
+
+_Last Updated: 2026-07-15_

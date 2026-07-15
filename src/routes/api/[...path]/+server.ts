@@ -648,3 +648,12 @@ export const PUT = apiHandler(_handler);
 export const PATCH = apiHandler(_handler);
 export const DELETE = apiHandler(_handler);
 export const OPTIONS = apiHandler(_handler);
+
+/**
+ * Frozen list of catch-all API namespaces (for ownership / completeness tests).
+ * Underscore prefix required by SvelteKit (+server only allows HTTP handlers
+ * or `_`-prefixed private exports).
+ * When you add a namespace to NAMESPACE_CONFIG, unit ownership inventory will fail
+ * until a test owner is declared in tests/unit/api/namespace-ownership.test.ts.
+ */
+export const _API_NAMESPACE_KEYS: readonly string[] = Object.freeze(Object.keys(NAMESPACE_CONFIG));

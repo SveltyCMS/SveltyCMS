@@ -195,6 +195,16 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 
 > All 25 tests pass together in sequence. Mock pollution from `vi.mock` in CRUD guard tests is mitigated by ordering (00- prefix) and `afterEach` global state cleanup.
 
+**E2E Multi-Tenancy Isolation Tests (2026-07-15)** — `tests/e2e/multi-tenancy/isolation.spec.ts` (5 tests):
+
+| Test                           | What it verifies                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| Cross-tenant collection access | Tenant A's collections are invisible to Tenant B via SDK queries             |
+| Cross-tenant file access       | Tenant B receives 403 when accessing Tenant A's file URLs                    |
+| Cross-tenant content isolation | Content entries tagged with Tenant A's ID don't appear in Tenant B's queries |
+| Global resource sharing        | Resources with `tenantId: null` are readable by all tenants                  |
+| Schema scope verification      | `tenantId` field on each record correctly reflects its owning tenant         |
+
 `tests/unit/collectionbuilder/` — organizational persistence:
 
 | Test file                      | Tests | Covers                                                                     |

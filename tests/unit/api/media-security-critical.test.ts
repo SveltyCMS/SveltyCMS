@@ -1,21 +1,20 @@
 /**
  * @file tests/unit/api/media-security-critical.test.ts
  * @description Unit tests for critical media security vulnerabilities.
+ *
+ * Uses shared createMockRequestEvent + callApiDispatcher.
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type { RequestEvent } from "@sveltejs/kit";
-
-// Import raw dispatcher handler
-import { POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
+import { createMockRequestEvent, callApiDispatcher } from "../utils/mock-event";
 
 describe("Media Security Critical Unit Tests", () => {
-  const createMockEvent = (
-    method: string,
-    path: string,
-    formDataEntries: any = {},
-    user: any = { _id: "u1" },
-  ) => {
+  it("should process media save correctly", async () => {
+    const formDataEntries: Record<string, any> = {
+      processType: "save",
+      files: [new File(["test content"], "test.jpg", { type: "image/jpeg" })],
+    };
+
     const formData = {
       get: (key: string) => formDataEntries[key],
       getAll: (key: string) => formDataEntries[key] || [],
@@ -54,41 +53,26 @@ describe("Media Security Critical Unit Tests", () => {
       },
     };
 
-    return {
-      url: new URL(`http://localhost/api/${path}`),
-      params: { path },
-      request: {
-        method,
-        formData: vi.fn().mockResolvedValue(formData),
-        headers: new Headers({ "content-type": "multipart/form-data" }),
-      },
-      locals: {
-        __testBypass: true,
-        user: { ...user, role: "admin", isAdmin: true },
-        tenantId: "t1",
-        roles: [
-          {
-            _id: "admin",
-            name: "Administrator",
-            isAdmin: true,
-            permissions: [],
-          },
-        ],
-        dbAdapter: adapter,
-      },
-      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
-    } as unknown as RequestEvent;
-  };
+    const event = createMockRequestEvent({
+      method: "POST",
+      path: "media/process",
+      formData,
+      user: { _id: "u1", role: "admin", isAdmin: true },
+      tenantId: "t1",
+      roles: [
+        {
+          _id: "admin",
+          name: "Administrator",
+          isAdmin: true,
+          permissions: [],
+        },
+      ],
+      dbAdapter: adapter,
+      headers: { "content-type": "multipart/form-data" },
+    });
 
-  it("should process media save correctly", async () => {
-    const mockFormData = {
-      processType: "save",
-      files: [new File(["test content"], "test.jpg", { type: "image/jpeg" })],
-    };
-
-    const event = createMockEvent("POST", "media/process", mockFormData);
-    const response = await dispatcherPOST(event);
-    const result = await response!.json();
+    const response = await callApiDispatcher("POST", event);
+    const result = await response.json();
 
     if (!result.success) {
       console.error("Critical test failed. Result:", JSON.stringify(result, null, 2));

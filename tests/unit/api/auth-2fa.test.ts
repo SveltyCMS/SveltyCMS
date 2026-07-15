@@ -121,11 +121,11 @@ const POST_DISABLE = (event: any) => dispatcher(event);
 const GET_BACKUP_CODES = (event: any) => dispatcher(event);
 const POST_BACKUP_CODES = (event: any) => dispatcher(event);
 
-// Helper to create mock event
+// Thin wrapper around shared createMockRequestEvent
 const createMockEvent = (
   body: any = {},
   user: any = null,
-  tenantId: string | undefined = "t1",
+  tenantId: string | null | undefined = "t1",
   action: string = "verify",
   options: {
     headers?: Record<string, string>;
@@ -136,19 +136,16 @@ const createMockEvent = (
   const method =
     options.method ||
     (action === "backup-codes" && Object.keys(body).length === 0 ? "GET" : "POST");
-  return {
-    ...createMockRequestEvent({
-      method,
-      url: `http://localhost/api/auth/2fa/${action}`,
-      body,
-      user,
-      tenantId,
-      dbAdapter: mockDbAdapter,
-      headers: options.headers,
-      cookies: options.cookies,
-    }),
-    params: { path: `auth/2fa/${action}` },
-  };
+  return createMockRequestEvent({
+    method,
+    path: `auth/2fa/${action}`,
+    body,
+    user,
+    tenantId: tenantId === undefined ? "t1" : tenantId,
+    dbAdapter: mockDbAdapter,
+    headers: options.headers,
+    cookies: options.cookies,
+  });
 };
 
 describe("2FA API Unit Tests", () => {

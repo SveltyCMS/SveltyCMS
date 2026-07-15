@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-03"
+updated: "2026-07-15"
 tags:
   - "testing"
   - "documentation"
@@ -21,9 +21,10 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** July 7, 2026
+**Last Updated:** July 15, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
-**Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E
+**Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E  
+**Primary Goal:** [100% three-layer completeness](./three-layer-completeness.mdx) (critical inventory, not vanity line %)  
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
 
 > [!IMPORTANT]
@@ -32,6 +33,7 @@ tags:
 ## Quick Links
 
 - [Testing Overview & Strategy](./testing-strategy.mdx) 🚀
+- **[Three-Layer Completeness (100% Goal)](./three-layer-completeness.mdx)** 🎯
 - [Contract Tests](./testing-strategy.mdx#1-contract-tests-universal-adapter-verification) 🔗
 - [Smart Orchestrator](./testing-strategy.mdx#smart-test-orchestrator) 🧠
 - [Master Performance Leaderboard](../project/benchmarks/index.mdx) 🏆
@@ -45,6 +47,7 @@ tags:
 - **[Benchmark Collection Isolation](./benchmark-isolation.mdx)** 🛡️
 - [Test Status Report](./test-status.mdx)
 - [API Coverage Report](./api-testing.mdx)
+- [API Unit Helpers](./api-unit-helpers.mdx) (shared `invokeApi` / mock events)
 - [Widget Coverage](./widget-test-coverage.mdx)
 
 ### Route-Specific E2E Specs
