@@ -93,22 +93,29 @@ export function beginMediaDrag(
   // Fallback for environments that only expose text/plain during dragover
   dataTransfer.setData("text/plain", unique.join(","));
 
+  // Optional multi-item drag ghost (best-effort; never fail the drag in tests/SSR)
   if (
     unique.length > 1 &&
     typeof document !== "undefined" &&
     typeof document.createElement === "function" &&
-    document.body
+    document.body &&
+    typeof dataTransfer.setDragImage === "function"
   ) {
-    const ghost = document.createElement("div");
-    ghost.textContent = `${unique.length} items`;
-    ghost.style.cssText =
-      "position:absolute;top:-9999px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,0.8);color:#fff;font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;";
-    document.body.appendChild(ghost);
-    dataTransfer.setDragImage(ghost, 24, 16);
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(() => ghost.remove());
-    } else {
-      ghost.remove();
+    try {
+      const ghost = document.createElement("div");
+      ghost.textContent = `${unique.length} items`;
+      ghost.style.cssText =
+        "position:absolute;top:-9999px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,0.8);color:#fff;font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;";
+      document.body.appendChild(ghost);
+      dataTransfer.setDragImage(ghost, 24, 16);
+      // setDragImage snapshots the node; remove synchronously (avoids rAF leaks in test runners)
+      if (typeof ghost.remove === "function") {
+        ghost.remove();
+      } else {
+        ghost.parentNode?.removeChild(ghost);
+      }
+    } catch {
+      // ignore — visual only
     }
   }
 
