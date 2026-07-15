@@ -586,6 +586,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {#each USER_LAYOUT_PREF_KEYS as key (key)}
           <Select
+            id={`layout-pref-${key}`}
             bind:value={myLayoutPrefs[key]}
             label={getLayoutPrefLabel(key)}
             disabled={layoutLocked}
