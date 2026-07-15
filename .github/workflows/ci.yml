@@ -169,6 +169,9 @@ jobs:
           COMPILE_ALL_ADAPTERS: "true"
       - name: Verify benchmark build includes testing harness
         run: bun run scripts/verify-prod-build-backdoor.ts --mode=bench
+      - name: Compute build artifact checksum
+        run: |
+          find build/ .svelte-kit/output/ -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1 > build-checksum.txt
       - uses: actions/upload-artifact@v7
         with:
           name: build-output
@@ -176,6 +179,7 @@ jobs:
           path: |
             build/
             .svelte-kit/output/
+            build-checksum.txt
           retention-days: 1
 
   # ------------------------------------------------
@@ -220,6 +224,18 @@ jobs:
           restore-build: "true"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
+
+      - name: Verify build artifact checksum
+        run: |
+          COMPUTED=$(find build/ .svelte-kit/output/ -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+          EXPECTED=$(cat build-checksum.txt)
+          if [ "$COMPUTED" != "$EXPECTED" ]; then
+            echo "❌ Build artifact checksum mismatch!"
+            echo "  Computed: $COMPUTED"
+            echo "  Expected: $EXPECTED"
+            exit 1
+          fi
+          echo "✅ Build artifact checksum verified"
 
       - name: Start Database (Docker Compose)
         if: matrix.db != 'sqlite'

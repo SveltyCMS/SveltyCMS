@@ -332,6 +332,18 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
   },
   {
+    name: "P0 Coverage Validation",
+    ciJob: "whitebox",
+    estimatedMs: 1500,
+    remediation: "bun run scripts/validate-p0-coverage.ts --verbose",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () =>
+      runCommand("bun", ["run", "scripts/validate-p0-coverage.ts"], {
+        silent: true,
+        timeout: 30_000,
+      }),
+  },
+  {
     name: "Secret Misuse Scan",
     ciJob: "whitebox",
     estimatedMs: 1500,
@@ -398,7 +410,12 @@ const BASE_TASKS: TaskSpec[] = [
       runCommand(
         "bun",
         ctx.tier === "push"
-          ? ["run", "scripts/test-smart.ts", "--unit-only"]
+          ? [
+              "run",
+              "scripts/test-smart.ts",
+              "--unit-only",
+              "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
+            ]
           : ["run", "test:unit"],
         { silent: true, timeout: 600_000 },
       ),

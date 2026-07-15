@@ -15,6 +15,7 @@ import {
   readFileSync,
   mkdirSync,
   writeFileSync,
+  appendFileSync,
 } from "node:fs";
 import { isAbsolute, join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -813,6 +814,33 @@ async function main() {
   for (const result of results) {
     const status = result.success ? "✅" : "❌";
     console.log(` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
+  }
+
+  // CI summary generation
+  const shouldWriteCiSummary =
+    process.env.CI === "true" || process.env.GITHUB_STEP_SUMMARY !== undefined;
+
+  if (shouldWriteCiSummary) {
+    const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+    if (summaryPath) {
+      const failed = results.length - passed;
+      let markdown = `## Integration Test Results (DB: ${dbType})\n\n`;
+      markdown += `| Test File | Status | Duration |\n`;
+      markdown += `|-----------|--------|----------|\n`;
+      for (const result of results) {
+        const status = result.success ? "✅" : "❌";
+        markdown += `| ${result.file} | ${status} | ${(result.time / 1000).toFixed(1)}s |\n`;
+      }
+      markdown += `\n**Passed: ${passed}/${results.length}** | **Failed: ${failed}**\n`;
+      appendFileSync(summaryPath, markdown, "utf8");
+    }
+
+    const outputPath = process.env.GITHUB_OUTPUT;
+    if (outputPath) {
+      const failed = results.length - passed;
+      const json = JSON.stringify({ passed, failed, total: results.length, db: dbType });
+      appendFileSync(outputPath, `integration_results=${json}\n`, "utf8");
+    }
   }
 
   await teardown();
