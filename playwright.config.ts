@@ -48,6 +48,9 @@ export default defineConfig({
   testMatch: "**/*.{test,spec,spect}.ts",
   // 🧹 Consolidate all artifacts under tests/ — no more root-level test-results/
   outputDir: "./tests/test-results",
+  // Default 30s is too tight for CI: login/seed retries + SPA navigation often
+  // surface as "locator.click: Test timeout of 30000ms exceeded".
+  timeout: 90_000,
   expect: {
     timeout: 10 * 1000,
     toHaveScreenshot: {
@@ -126,7 +129,15 @@ export default defineConfig({
         "**/routes/login/signup.spec.ts",
         "**/routes/login/oauth.spec.ts",
       ],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: !!process.env.CI,
+        // Prefer session from auth-setup when present (skips per-test UI login).
+        // Specs that need a clean slate opt out with test.use({ storageState: { cookies: [], origins: [] } }).
+        ...(existsSync(join(authDir, "admin.json"))
+          ? { storageState: join(authDir, "admin.json") }
+          : {}),
+      },
       dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },
   ],

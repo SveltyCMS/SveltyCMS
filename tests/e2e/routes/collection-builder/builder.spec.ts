@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import {
   addInputField,
   openNewCollectionEditor,
@@ -12,9 +12,12 @@ import {
 } from "../../helpers/collection-builder-flow";
 
 test.describe("Collection Builder with Modern Widgets", () => {
+  // UI login + widget init regularly exceeds Playwright's 30s default under CI load.
+  test.describe.configure({ timeout: 120_000 });
+
   test.beforeEach(async ({ page }) => {
-    test.setTimeout(60_000);
-    await loginAsAdmin(page);
+    // API session cookie — avoids flaky /login UI clicks that hit test timeout.
+    await ensureAuthenticated(page);
   });
 
   test("should navigate to collection builder", async ({ page }) => {
@@ -81,7 +84,6 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should configure widget-specific properties", async ({ page }) => {
-    test.setTimeout(90_000);
     // Uses sidebar quick-add-input testid + widget-field-* inspector testids.
     // Older CI logs that cite getByRole(/Input/) or add-field-button are pre-fix SHAs.
     const fixture = uniqueCollectionFixture("WidgetCfg");

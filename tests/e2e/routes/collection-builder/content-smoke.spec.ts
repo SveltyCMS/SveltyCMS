@@ -5,15 +5,19 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin, logout } from "../../helpers/auth";
+import { logout } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import {
   openNewCollectionEditor,
   uniqueCollectionFixture,
 } from "../../helpers/collection-builder-flow";
 
 test.describe("Content Smoke", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test("admin can open collection builder and start a new collection draft", async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 
     await page.goto("/config/collectionbuilder", {
@@ -51,7 +55,7 @@ test.describe("Content Smoke", () => {
   });
 
   test("admin smoke: open new editor via shared helper then logout", async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
     await openNewCollectionEditor(page);
     await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 10_000 });
     await logout(page).catch(async () => {

@@ -4,14 +4,14 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Collection Builder — Federation Enrichment Picker", () => {
   test.setTimeout(120_000);
 
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
   });
 
   test("configures federationEnrichments on Settings tab and persists after save", async ({

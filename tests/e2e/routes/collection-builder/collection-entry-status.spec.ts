@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import { createEntryWithNames, openCollectionEntries } from "../../helpers/collection-builder-flow";
 
 const COLLECTION_SLUG = "names";
@@ -13,7 +13,7 @@ test.describe("Collection Entries — Status Transitions", () => {
   test.setTimeout(120_000);
 
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
   });
 
   test("creates an entry and toggles publish/unpublish", async ({ page }) => {
