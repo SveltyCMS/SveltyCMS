@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-12"
+updated: "2026-07-15"
 tags:
   - "roadmap"
   - "todo"
@@ -26,6 +26,61 @@ This document is the **living roadmap** — only in-progress and planned work. C
 ### ✅ Recently Completed (July 2026)
 
 - **Multi-Tenancy Hardening**: Full isolation across all layers — PostgreSQL RLS, signed media URLs, per-tenant rate limiting, tenant analytics dashboard, tenant-scoped API keys, per-tenant DB connection pools, and E2E isolation test suite. See [Technical Evaluation §7.2](./technical-evaluation-2026.mdx#72-visual-intelligence--enterprise-collaboration).
+- **Unified Smart Table Platform (P0–P1)**: CMS-native headless tables — no TanStack as collection-list core. `createSmartTable` (server/client), shared shell/pagination/chrome, layout prefs + column resize, secure `createSmartFilter` + FLAC `collection-filter-engine`, SWR list loads + list metrics, entry-list saved views / status facets / `?debug=table`. Adapters on media, users, tokens, tenants. See [Smart Table](../reference/components/smart-table.mdx), [Collection Filtering](../reference/architecture/collection-filtering.mdx), [entry-list](../reference/components/entry-list.mdx).
+
+---
+
+## 📊 CMS Tables & List Platform (Smart Table)
+
+**Shipped foundation** (July 2026): one stack for admin lists — headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives. Collections stay **server-secure** (URL + SSR + FLAC); design-system / small tables may use **client** mode.
+
+**Non-goals (deliberate):** TanStack Table as the collection engine; client-side filtering of multi-tenant collection pages; forcing Smart Table onto every mini matrix (permissions grid, media detail widgets, migration field maps).
+
+### Next (high leverage — foundations ready)
+
+| Enhancement                             | Surfaces                                         | Notes                                                                                                                               |
+| --------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Saved views everywhere**              | Users (`admin-area`), website-tokens, then media | Reuse `SmartTableSavedViewsMenu` + `smart-table-saved-views`; per-surface `scope` + snapshot/apply adapters (URL/API shape differs) |
+| **Column resize + layout prefs parity** | Media, users, tokens                             | Entry-list already uses `layoutKey: entry-list:{collectionId}`; wire drag handles + density/order persistence on other adapters     |
+| **Status / domain facets**              | Any list with a stable enum                      | Pattern from `getStatusFacets` + `SmartTableStatusFacets`; e.g. user role/active, token status, media type — **server counts only** |
+| **List metrics on all server lists**    | Users, tokens, media APIs                        | `recordListQuery` + optional SSR `listMetrics` + `?debug=table` badge; keep marketing claims measurable                             |
+| **Filter engine reuse**                 | Non-collection admin lists                       | Port `compileSecureFilters` / portable IR where fields are allowlisted (users, tokens); avoid ad-hoc `WHERE` strings                |
+
+### Planned product UX
+
+- **Bulk field-edit UI** _(entry-list)_: Beyond status lifecycle (publish/draft/delete/clone) — multi-select → shared field patch with Valibot, FLAC, partial-failure reporting, audit trail. Separate from list chrome; needs bulk update API design.
+- **Pinned / sticky columns (full UX)**: Controller already has `pin` order + `pinCellClass`; ship column-manager pin toggles and sticky offsets for select + actions columns on wide collection schemas.
+- **Column DnD order → Smart Table layout**: Entry-list DnD still dual-writes local pagination settings; unify order with `layout-prefs` / saved views so one source of truth.
+- **Multi-column sort (server)**: Secondary sort keys in URL + filter engine IR (`sort=field:desc,field2:asc`); useful for editorial triage and report-like collections.
+- **Advanced filter operators UI**: Engine already has `in`, `isNull`, day-bound dates, ranges — expose operator pickers (contains / equals / empty / between / in-list) in `SmartFilterRow` without breaking simple mode.
+- **Export filtered selection**: CSV/JSON export of **current secure filter + selection**, via server stream (LocalCMS/REST), not DOM scrape; respect FLAC + tenantId.
+- **Keyboard grid navigation (ATAG)**: Arrow-key cell/row focus, Space toggle select, `/` focus search, `?` shortcuts help — align with WCAG 2.2 AA / ATAG 2.0 admin goals.
+- **Responsive list → card mode**: Below `sm`, optional card stack sharing the same row actions/selection as the table (no second data path).
+- **Shared empty/loading/error chrome**: Finish migrating leftover bare tables to `SmartTableShell` empty/loading snippets for consistent copy and a11y live regions.
+- **Team / cloud saved views** _(enterprise)_: Promote localStorage views to optional per-user or per-tenant server storage + shareable links (`?view=`), with RBAC on who can publish a default view.
+
+### Performance & observability
+
+- **Virtualization tuning**: Threshold/buffer per surface; sticky thead + virtual body without double scroll (entry-list pattern: `manageScroll={false}`).
+- **Predictive preload + hot collections**: Already wired for entry hover; extend “warm next page” when pagination intent is high (behavioral learning).
+- **Benchmark matrix hooks**: List p50/p95 from `list-query-metrics` into docs/benchmark trend notes for collection list loads (SQLite / Postgres / Mongo).
+- **Negative cache / empty-page policy**: Document and harden SWR behavior for empty filter results so facets + list stay consistent under concurrent writes.
+
+### Security & multi-tenant (must keep)
+
+- Every new filter facet stays **server-compiled** (schema whitelist + FLAC + tenant scope).
+- No “load full collection then filter in browser” for multi-tenant data.
+- Export and bulk edit must re-check permissions **per field** and log via existing audit chain where applicable.
+
+### Explicitly deferred / not adopting
+
+| Item                                       | Why                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------- |
+| **TanStack Table as collection core**      | SSR + multi-tenant security + tree-shake; use TanStack-style **column meta** only |
+| **Mini matrices on Smart Table**           | Permissions matrix, media detail tables, migration maps stay purpose-built        |
+| **Client-only saved views as sole source** | Fine for layout; server-backed views later for teams                              |
+
+**Docs:** [Smart Table](../reference/components/smart-table.mdx) · [Collection Filtering](../reference/architecture/collection-filtering.mdx) · [entry-list](../reference/components/entry-list.mdx) · [Cache System](../reference/architecture/cache-system.mdx)
 
 ---
 
