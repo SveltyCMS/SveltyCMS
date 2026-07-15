@@ -53,6 +53,7 @@ const SUITE_RULES: SuiteRule[] = [
       "src/databases/auth/**",
       "src/hooks/handle-authentication.ts",
       "src/routes/(app)/login/**",
+      "src/routes/api/[...path]/handlers/auth.ts",
     ],
     command:
       "bun test tests/unit/hooks/authentication.test.ts tests/unit/hooks/defense-in-depth.test.ts tests/unit/auth-lockout.test.ts",
@@ -65,6 +66,7 @@ const SUITE_RULES: SuiteRule[] = [
       "src/routes/api/[...path]/+server.ts",
       "src/services/permissions/**",
       "src/databases/auth/roles/**",
+      "src/routes/api/[...path]/handlers/*.ts",
     ],
     command:
       "bun test tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts",

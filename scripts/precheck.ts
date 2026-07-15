@@ -61,6 +61,7 @@ function parseArgs(): PrecheckOptions & { plan?: boolean } {
     skipBenchmarks: argv.includes("--skip-benchmarks"),
     singleDb,
     includeDbTasks: argv.includes("--include-db-tasks"),
+    includeSqliteOnPush: argv.includes("--include-sqlite"),
     plan: argv.includes("--plan") || argv.includes("--explain"),
   };
 }

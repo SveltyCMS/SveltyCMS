@@ -80,6 +80,12 @@ export interface PrecheckOptions {
    * Default: false for "push" (keeps pre-push fast), true for "full".
    */
   includeDbTasks?: boolean;
+  /**
+   * Push tier only — run SQLite integration tests (zero infra cost).
+   * Default: false for "push" (keeps pre-push fast), automatically
+   * enabled when includeDbTasks is set.
+   */
+  includeSqliteOnPush?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -549,16 +555,26 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
     estimatedMs: 120000,
     shouldSkip: (ctx) => {
       const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
-      return !includeDb || db !== "sqlite";
+      const includeSqlite =
+        includeDb || (ctx.tier === "push" && ctx.options.includeSqliteOnPush === true);
+      return !includeSqlite || db !== "sqlite";
     },
     run: (ctx) =>
-      runCommand("bun", ["test", "tests/integration/databases/content-nodes-contract.test.ts"], {
-        env: {
-          ...getIntegrationTestEnv("sqlite"),
-          TEST_API_SECRET: ctx.testSecret,
+      runCommand(
+        "bun",
+        [
+          "test",
+          "tests/integration/databases/content-nodes-contract.test.ts",
+          "tests/integration/databases/contract.test.ts",
+        ],
+        {
+          env: {
+            ...getIntegrationTestEnv("sqlite"),
+            TEST_API_SECRET: ctx.testSecret,
+          },
+          timeout: 300_000,
         },
-        timeout: 300_000,
-      }),
+      ),
   };
 
   return [
