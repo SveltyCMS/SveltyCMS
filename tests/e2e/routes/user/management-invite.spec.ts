@@ -15,29 +15,47 @@ test.describe("User Management — Invite Flow", () => {
     await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
 
-    // Admin area token actions (may need scroll on short viewports)
-    const emailTokenBtn = page.getByRole("button", { name: /email user registration token/i });
-    await emailTokenBtn.scrollIntoViewIfNeeded().catch(() => {});
-    await emailTokenBtn.click({ timeout: 20_000 });
+    // Admin area is below the profile cards — wait for it before interacting
+    const adminArea = page.getByTestId("user-admin-area");
+    await expect(adminArea).toBeVisible({ timeout: 20_000 });
+    await adminArea.scrollIntoViewIfNeeded();
 
-    const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });
-    await expect(tokenDialog).toBeVisible({ timeout: 10_000 });
+    const emailTokenBtn = page.getByTestId("email-registration-token-btn");
+    await expect(emailTokenBtn).toBeVisible({ timeout: 15_000 });
+    await emailTokenBtn.click();
+
+    // Modal title is "Edit Token Data" (multibuttontoken_modaltitle)
+    const tokenDialog = page.getByRole("dialog").filter({ hasText: /token/i }).first();
+    await expect(tokenDialog).toBeVisible({ timeout: 15_000 });
 
     const inviteEmail = `newuser_${Date.now()}@example.com`;
-    await tokenDialog.locator('input[name="email"]:not([disabled])').fill(inviteEmail);
+    const emailInput = tokenDialog.locator('input[name="email"]:not([disabled])');
+    await expect(emailInput).toBeVisible({ timeout: 10_000 });
+    await emailInput.fill(inviteEmail);
+
+    // Prefer "user" role chip when present; default form role is admin which still works for signup
     const roleChip = tokenDialog.getByRole("button", { name: /^user$/i });
     if (await roleChip.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await roleChip.click();
     }
+
     await tokenDialog.getByRole("button", { name: /save/i }).click();
 
     await expect(
       tokenDialog.getByRole("heading", { name: /Invitation Token Created/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({
+      timeout: 20_000,
+    });
 
-    const inviteLinkInput = tokenDialog.getByRole("textbox", { name: "Token name" });
-    await expect(inviteLinkInput).toHaveValue(/invite_token=/, { timeout: 15_000 });
-    const inviteUrl = await inviteLinkInput.inputValue();
+    const inviteLinkInput = tokenDialog.getByRole("textbox", {
+      name: /token name|invitation link/i,
+    });
+    // Fallback: readonly invitation link field
+    const inviteInput = (await inviteLinkInput.count())
+      ? inviteLinkInput
+      : tokenDialog.locator("input[readonly]").first();
+    await expect(inviteInput).toHaveValue(/invite_token=/, { timeout: 15_000 });
+    const inviteUrl = await inviteInput.inputValue();
 
     const inviteContext = await browser.newContext();
     await inviteContext.addInitScript(() => {

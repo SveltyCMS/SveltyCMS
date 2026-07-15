@@ -706,8 +706,15 @@
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<Button variant="outline" type="button" onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary w-full text-white sm:max-w-xs">
-			<iconify-icon icon="material-symbols:mail" width={24}></iconify-icon>
+		<Button
+			variant="outline"
+			type="button"
+			onclick={modalTokenUser}
+			aria-label={adminarea_emailtoken()}
+			data-testid="email-registration-token-btn"
+			class="gradient-primary w-full text-white sm:max-w-xs"
+		>
+			<iconify-icon icon="material-symbols:mail" width={24} aria-hidden="true"></iconify-icon>
 			<span class="whitespace-normal wrap-break-word">{adminarea_emailtoken()}</span>
 		</Button>
 
