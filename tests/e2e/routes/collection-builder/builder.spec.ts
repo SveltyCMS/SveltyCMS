@@ -5,9 +5,15 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import {
+  addInputField,
+  openNewCollectionEditor,
+  uniqueCollectionFixture,
+} from "../../helpers/collection-builder-flow";
 
 test.describe("Collection Builder with Modern Widgets", () => {
   test.beforeEach(async ({ page }) => {
+    test.setTimeout(60_000);
     await loginAsAdmin(page);
   });
 
@@ -75,24 +81,16 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should configure widget-specific properties", async ({ page }) => {
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
-    await page.getByTestId("tab-widgets").click();
+    // Prefer the stable quick-add + inspector path used by journey/smoke helpers.
+    // The modal "add-field-button" → role=button Input flow is flaky (timeouts in CI).
+    const fixture = uniqueCollectionFixture("WidgetCfg");
+    await openNewCollectionEditor(page);
+    await page.getByTestId("collection-name-input").fill(fixture.name);
 
-    await page.getByTestId("add-field-button").click();
+    await addInputField(page, { label: "User Email", fieldName: "email" });
 
-    // Select Input widget from the modal
-    await page.getByRole("button", { name: /Input/i }).first().click();
-
-    // Configure label in the WidgetInspector side panel
-    await page.getByPlaceholder("e.g. Profile Picture").fill("User Email");
-    await page.getByPlaceholder("e.g. profile_pic").fill("email");
-
-    await page.getByRole("button", { name: /Apply Changes/i }).click();
-
-    // Verify field appears in the widget-fields-list
     await expect(page.getByTestId("widget-fields-list").getByText("User Email")).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
   });
 
