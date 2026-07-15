@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:domain"
 author: "SveltyCMS Team"
 created: "2025-11-30"
-updated: "2026-03-27"
+updated: "2026-07-15"
 tags:
   - "architecture"
   - "multi-tenancy"
@@ -17,6 +17,60 @@ tags:
 # Multi-Tenancy Architecture
 
 SveltyCMS supports a robust multi-tenancy architecture allowing a single instance to serve multiple isolated tenants with flexible resource sharing capabilities.
+
+```mermaid
+graph TB
+    subgraph System["SveltyCMS Instance"]
+        direction TB
+
+        subgraph Global["Global Layer (tenantId: null)"]
+            GR[Global Roles]
+            GC[Global Collections]
+            GS[System Settings]
+            GT[Content Templates]
+        end
+
+        subgraph TenantA["Tenant A — acme.com"]
+            TA_R[Tenant Roles]
+            TA_C[Tenant Collections]
+            TA_U[Users]
+            TA_M[Media Files]
+        end
+
+        subgraph TenantB["Tenant B — client.io"]
+            TB_R[Tenant Roles]
+            TB_C[Tenant Collections]
+            TB_U[Users]
+            TB_M[Media Files]
+        end
+
+        subgraph TenantN["Tenant N — ..."]
+            TN_R[⋯]
+            TN_C[⋯]
+        end
+
+        Auth[Authentication Hook] -->|resolves tenantId| TenantA
+        Auth -->|resolves tenantId| TenantB
+        Auth -->|resolves tenantId| TenantN
+
+        GC -.->|shared read| TenantA
+        GC -.->|shared read| TenantB
+        GR -.->|shared| TenantA
+        GR -.->|shared| TenantB
+        GS -.->|applies to all| TenantA
+        GS -.->|applies to all| TenantB
+    end
+
+    Admin[Global Administrator<br/>tenantId: null] -->|manages all| System
+    UserA[Tenant A User] -->|scoped to| TenantA
+    UserB[Tenant B User] -->|scoped to| TenantB
+
+    style Global fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style TenantA fill:#e3f2fd,stroke:#1565c0
+    style TenantB fill:#fff3e0,stroke:#e65100
+    style TenantN fill:#f5f5f5,stroke:#9e9e9e
+    style Auth fill:#f3e5f5,stroke:#7b1fa2
+```
 
 ## Core Concepts
 
@@ -69,6 +123,37 @@ The system maintains a concept of a **Global Administrator** (the first user cre
 - Can manage all aspects of the system across all tenants.
 
 ### Data Isolation Strategies
+
+```mermaid
+graph LR
+    subgraph Strategies["Data Isolation Strategies"]
+        direction TB
+
+        subgraph Full["Tenant-Specific (Full Isolation)"]
+            T1["Resource { tenantId: 'tenant-a' }"]
+            T2["Resource { tenantId: 'tenant-b' }"]
+            T1 -.->|invisible to| T2
+            T2 -.->|invisible to| T1
+        end
+
+        subgraph Shared["Global (Shared Across Tenants)"]
+            G1["Resource { tenantId: null }"]
+            G2["Resource { tenantId: undefined }"]
+        end
+    end
+
+    TenantA[Tenant A] -->|reads/writes| T1
+    TenantA -->|reads only| G1
+    TenantA -->|reads only| G2
+    TenantB[Tenant B] -->|reads/writes| T2
+    TenantB -->|reads only| G1
+    TenantB -->|reads only| G2
+
+    style Full fill:#fce4ec,stroke:#c62828
+    style Shared fill:#e8f5e9,stroke:#2e7d32
+    style TenantA fill:#e3f2fd,stroke:#1565c0
+    style TenantB fill:#fff3e0,stroke:#e65100
+```
 
 SveltyCMS supports two primary data isolation strategies that can be mixed and matched based on your requirements:
 
@@ -312,27 +397,64 @@ sequenceDiagram
 
 ### Directory Structure
 
-Multi-tenant mode uses a tenant-based directory structure for better organization:
+```mermaid
+graph TB
+    subgraph FS["Filesystem Layout"]
+        direction TB
 
-````text
-config/
-  {tenantId}/           # Tenant-specific resources
-    collections/
-      Products.ts
-      Orders.ts
-  global/               # Shared resources
-    collections/
-      Categories.ts
-      Tags.ts
+        CFG["config/"]
+        COMP[".compiledCollections/"]
+        MEDIA["mediaFolder/"]
+        PRIV["private.ts<br/>MULTI_TENANT: true"]
 
-.compiledCollections/
-  {tenantId}/           # Compiled tenant collections
-    Products.js
-    Orders.js
-  global/               # Compiled global collections
-    Categories.js
-    Tags.js
-```text
+        subgraph TenantDir["config/{tenantId}/"]
+            TC["collections/
+            └── Products.ts
+            └── Orders.ts"]
+        end
+
+        subgraph GlobalDir["config/global/"]
+            GC["collections/
+            └── Categories.ts
+            └── Tags.ts"]
+        end
+
+        subgraph CompiledTenant[".compiledCollections/{tenantId}/"]
+            CTC["Products.js
+            Orders.js"]
+        end
+
+        subgraph CompiledGlobal[".compiledCollections/global/"]
+            CGC["Categories.js
+            Tags.js"]
+        end
+
+        subgraph MediaTenant["mediaFolder/{tenantId}/"]
+            MT["{hash}/original/file.jpg"]
+        end
+
+        subgraph MediaGlobal["mediaFolder/global/"]
+            MG["{hash}/original/file.jpg"]
+        end
+
+        CFG --> TenantDir
+        CFG --> GlobalDir
+        CFG --> PRIV
+        COMP --> CompiledTenant
+        COMP --> CompiledGlobal
+        MEDIA --> MediaTenant
+        MEDIA --> MediaGlobal
+    end
+
+    style FS fill:#f3e5f5,stroke:#7b1fa2
+    style TenantDir fill:#e3f2fd,stroke:#1565c0
+    style GlobalDir fill:#e8f5e9,stroke:#2e7d32
+    style MediaTenant fill:#fff3e0,stroke:#e65100
+    style MediaGlobal fill:#f1f8e9,stroke:#558b2f
+    style PRIV fill:#ffebee,stroke:#c62828
+```
+
+Multi-tenant mode uses a tenant-based directory structure for better organization. The `config/private.ts` file is the bootstrap source for the `MULTI_TENANT` flag.
 
 **Benefits:**
 
@@ -344,11 +466,384 @@ config/
 **Legacy Support:**
 
 - Single-tenant mode uses `config/collections/` (backward compatible)
-- Existing installations can migrate by moving files to `config/global/collections/`
+- When multi-tenancy is enabled, collections are **automatically migrated** from `config/collections/` → `config/{tenantId}/collections/` via `migrateToMultiTenant()`
+- When multi-tenancy is disabled, collections can be migrated back via `migrateToSingleTenant()`
+- Compilation engine uses **smart path resolution**: if the tenant path has no `.ts` files, it falls back to flat `config/collections/` automatically
+
+### Auto-Migration on Toggle
+
+When `MULTI_TENANT` changes in `config/private.ts`, the `collections-migration.server.ts` module handles the transition:
+
+**Single → Multi:**
+
+```
+config/collections/pages.ts  ──[migrateToMultiTenant("primary")]──►  config/primary/collections/pages.ts
+```
+
+**Multi → Single:**
+
+```
+config/primary/collections/pages.ts  ──[migrateToSingleTenant("primary")]──►  config/collections/pages.ts
+```
+
+During compilation, the engine detects empty tenant directories and falls back gracefully:
+
+```typescript
+// compile.ts — smart path resolution
+const entries = await fs.readdir(tenantCollections);
+if (!hasTsFiles) {
+  const flatDir = getCollectionsPath(undefined);
+  if (flatDirHasFiles) {
+    // Fall back — not yet migrated
+    userCollections = flatDir;
+  }
+}
+```
 
 ### Configuration
 
-Multi-tenancy is enabled via the `MULTI_TENANT` private setting in `config/private.ts`.
+Multi-tenancy is enabled via the `MULTI_TENANT` private setting in `config/private.ts` or the database settings.
+
+### `isMultiTenantEnabled()` — Unified Detection
+
+All runtime code uses `isMultiTenantEnabled()` from `src/utils/tenant.ts` instead of reading `config/private.ts` directly:
+
+```typescript
+// Unified checker — two sources, one answer
+export function isMultiTenantEnabled(): boolean {
+  // 1. Check DB setting (runtime override — set via System Settings, no restart)
+  const dbVal = getPublicSettingSync("MULTI_TENANT");
+  if (dbVal !== undefined) return !!dbVal;
+  // 2. Fall back to file config (bootstrap default)
+  return getPrivateSettingSync("MULTI_TENANT") === true;
+}
+```
+
+This means:
+
+- **Fresh install**: File is the only source (DB not seeded yet) → file wins
+- **Runtime toggle**: DB setting overrides file → immediate, no restart
+- **Migration UI**: Updates both → immediate effect + persists across restarts
+
+### CRUD Tenant Guard
+
+```mermaid
+graph LR
+    APP[Plugin / Widget / Extension] -->|createTenantGuardedCrud| GUARD[CRUD Tenant Guard]
+    GUARD -->|mode: inject| CHECK{isMultiTenant?}
+    CHECK -->|No| PASS[Pass through unchanged]
+    CHECK -->|Yes| HAS_ID{has tenantId?}
+    HAS_ID -->|Yes| PASS
+    HAS_ID -->|No| INJECT[Inject tenantId: "global"
+                         + log warning]
+    INJECT --> DB[(Database)]
+    PASS --> DB
+
+    subgraph GuardModes["Guard Modes"]
+        INJECT_MODE["inject — add tenantId if missing<br/>(default, safe)"]
+        REJECT_MODE["reject — throw if tenantId missing<br/>(strict)"]
+        BYPASS_MODE["bypass — skip all checks<br/>(system operations)"]
+    end
+
+    style APP fill:#e3f2fd,stroke:#1565c0
+    style GUARD fill:#f3e5f5,stroke:#7b1fa2
+    style INJECT fill:#fff3e0,stroke:#e65100
+    style DB fill:#e8f5e9,stroke:#2e7d32
+    style GuardModes fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5
+```
+
+All database operations pass through `crud-tenant-guard.ts`, a transparent proxy that auto-injects `tenantId` into every query:
+
+```typescript
+// Wired once at boot in db.ts
+adapter.crud = createTenantGuardedCrud(adapter.crud, "inject");
+```
+
+| Operation                              | Guard behavior                                                 |
+| -------------------------------------- | -------------------------------------------------------------- |
+| **Read** (find, findMany, etc.)        | Injects `tenantId` into query `options` — `WHERE tenantId = ?` |
+| **Write** (insert, update, upsert)     | Injects `tenantId` into **both** data AND options              |
+| **Delete**                             | Injects `tenantId` into query options                          |
+| **Bypass** (`bypassTenantCheck: true`) | Skips enforcement — for system-level ops                       |
+
+This protects all plugins, custom widgets, and extensions **automatically** — no code changes needed.
+
+### Media Storage Isolation
+
+Media files are stored with tenant-scoped paths:
+
+```
+Before: mediaFolder/global/{hash}/original/file.jpg
+After:  mediaFolder/{tenantId}/{hash}/original/file.jpg  (multi-tenant)
+        mediaFolder/global/{hash}/original/file.jpg       (single-tenant)
+```
+
+The `buildOriginalRelPath(hash, filename, tenantId)` function accepts optional `tenantId` — when provided, files are isolated per tenant. The file server (`/files/[...path]`) resolves URLs from the path structure.
+
+### Dashboard & Plugin Safety
+
+| Layer                 | Protection                                                                   |
+| --------------------- | ---------------------------------------------------------------------------- |
+| **Widgets**           | UI-only — render data from the server, never query the DB directly           |
+| **Dashboards**        | Read from tenant-filtered API endpoints — `locals.tenantId` in every request |
+| **Plugin hooks**      | `beforeSave`, `afterSave` receive `context.tenantId`                         |
+| **Plugin migrations** | `ensureCollection()` accepts `{ tenantId }` in options                       |
+
+Dashboard API endpoints use `locals.tenantId` for all database queries. Widgets are inherently safe because they're just UI — they receive data from the server, never query the DB directly.
+
+### Migration UI
+
+```mermaid
+graph TB
+    START([Check Structure]) --> DETECT[detectFullStructure]
+    DETECT -->|flat files in wrong dir| NEEDS[needsMigration: true]
+    DETECT -->|all correctly placed| CLEAN[needsMigration: false]
+
+    NEEDS --> SHOW[Show "Migrate Now" button]
+    SHOW --> MIGRATE([User clicks Migrate])
+
+    MIGRATE --> DECIDE{direction?}
+    DECIDE -->|flat → tenant| TOMULTI[runFullMigration<br/>direction: to-multi]
+    DECIDE -->|tenant → flat| TOSINGLE[runFullMigration<br/>direction: to-single]
+
+    subgraph Migration["Migration Steps"]
+        TOMULTI --> COL1[migrateToMultiTenant]
+        TOMULTI --> MED1[migrateMediaToTenant]
+        COL1 --> PRIV1[updatePrivateConfigMode
+                      MULTI_TENANT: true]
+        MED1 --> PRIV1
+
+        TOSINGLE --> COL2[migrateToSingleTenant]
+        TOSINGLE --> MED2[migrateMediaToGlobal]
+        COL2 --> PRIV2[updatePrivateConfigMode
+                      MULTI_TENANT: false]
+        MED2 --> PRIV2
+    end
+
+    PRIV1 --> RECOMP[Recompile with new tenant context]
+    PRIV2 --> RECOMP
+    RECOMP --> DONE{{✅ Migration Complete
+                     Restart recommended}}
+
+    style START fill:#e3f2fd,stroke:#1565c0
+    style SHOW fill:#fff3e0,stroke:#e65100
+    style MIGRATE fill:#fce4ec,stroke:#c62828
+    style Migration fill:#f3e5f5,stroke:#7b1fa2,stroke-dasharray: 5
+    style DONE fill:#e8f5e9,stroke:#2e7d32
+```
+
+The System Settings page (`/config/system-settings`) includes a **Multi-Tenancy Migration** panel:
+
+1. **Check Structure** — runs `detectFullStructure()` to detect files in wrong directories
+2. **Migrate Now** — button appears when migration is needed
+3. Runs `runFullMigration()` which orchestrates:
+   - Collection files move
+   - Media files move + DB path updates
+   - `config/private.ts` toggle via `updatePrivateConfigMode()`
+   - Recompilation with new tenant context
+
+Results are displayed inline: _"Migration complete: 3 collection(s) moved, 147 media file(s) moved, recompiled"_
+
+### Compilation Engine Fallback
+
+The compiler (`compile.ts`) handles non-migrated structures gracefully:
+
+```typescript
+// Smart fallback in compile()
+if (tenantPathHasNoTsFiles && flatPathHasTsFiles) {
+  logger.warn(`⚠️ Tenant path empty, falling back to flat config/collections/`);
+  logger.warn(`⚠️ Run migration to move collections`);
+  userCollections = flatPath; // ← Graceful fallback
+}
+```
+
+### Hash-Based Stable IDs
+
+When a collection file is renamed, the compiler preserves its identity:
+
+```typescript
+// compile.ts — hash match detection
+const hashMatch = findExistingHash(manifest, sourceHash);
+if (hashMatch && hashMatch.path !== currentPath) {
+  // File was renamed — reuse original _id
+  stableId = hashMatch.originalId;
+}
+```
+
+This ensures DB records stay linked across renames — no orphaned content.
+
+### PostgreSQL Row-Level Security (RLS)
+
+SveltyCMS supports database-level tenant isolation via PostgreSQL Row-Level Security. This provides defense-in-depth below the application layer — even if the CRUD guard proxy is bypassed (e.g., a direct query in a migration script), RLS guarantees tenant isolation at the storage level.
+
+```mermaid
+graph TB
+    subgraph App["Application Layer"]
+        CRUD[CRUD Guard Proxy<br/>auto-inject tenantId]
+        API[API Handlers]
+    end
+
+    subgraph DB["PostgreSQL Layer"]
+        RLS["RLS Policy<br/>tenant_id = current_setting('app.tenant_id')"]
+        ROWS["Row-level filter applied<br/>automatically to every query"]
+    end
+
+    API --> CRUD
+    CRUD -->|tenantId filter| DB
+    DB -->|"CREATE POLICY tenant_isolation<br/>FOR ALL USING (...)"| RLS
+    RLS -->|invisible filter| ROWS
+
+    style App fill:#e3f2fd,stroke:#1565c0
+    style DB fill:#e8f5e9,stroke:#2e7d32
+    style RLS fill:#fff3e0,stroke:#e65100
+```
+
+**Three methods** were added to the PostgreSQL adapter (`src/databases/postgresql/adapter-core.ts`):
+
+| Method                                      | When called              | Purpose                                                                           |
+| ------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
+| `setTenantContext(tenantId)`                | Per-request (after auth) | Sets `SET SESSION app.tenant_id = ?` so all subsequent queries are scoped         |
+| `enforceTenantPolicy(collection, tenantId)` | Setup/migration          | Runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and creates the isolation policy |
+| `getTenantContext()`                        | Diagnostics              | Returns the current session's `app.tenant_id` setting                             |
+
+**How the flow works:**
+
+1. **Setup time** — When a collection is provisioned, `enforceTenantPolicy()` is called once:
+   ```sql
+   ALTER TABLE collection_posts ENABLE ROW LEVEL SECURITY;
+   CREATE POLICY tenant_isolation ON collection_posts
+     FOR ALL USING (tenant_id = current_setting('app.tenant_id')::text);
+   ```
+2. **Per-request** — After tenant resolution, `setTenantContext(tenantId)` sets the session variable:
+   ```sql
+   SET SESSION app.tenant_id = 'tenant-123';
+   ```
+3. **Automatic enforcement** — PostgreSQL applies the RLS policy to every subsequent query. Rows where `tenant_id` doesn't match the session value are silently filtered — no application code changes needed.
+
+> **Note**: RLS is PostgreSQL-specific. MariaDB uses `WHERE` clause injection via the CRUD guard. MongoDB uses partial filter expressions. The `IDBAdapter` interface defines `enforceTenantPolicy?()` and `getTenantContext?()` as optional methods — adapters that don't support RLS simply don't implement them.
+
+### Signed Media URLs
+
+Media files can be served with time-limited HMAC-SHA256 signed URLs, preventing indefinite access to file links even if a URL is shared or leaked.
+
+```typescript
+// Generate a signed URL valid for 1 hour
+const url = generateSignedMediaUrl(
+  "tenant-abc/hash123/original/photo.jpg",
+  "tenant-abc",
+  3600000, // 1 hour TTL
+);
+// Result: /files/tenant-abc/hash123/original/photo.jpg?sig=abc...&exp=1700000000
+```
+
+**Implementation** (`src/utils/media/signed-urls.ts`):
+
+| Function                                              | Description                                                                                                                                                                                                                   |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generateSignedMediaUrl(filePath, tenantId?, ttlMs?)` | Signs `filePath \| tenantId \| expiration` with HMAC-SHA256. Returns `/files/path?sig=<64-char-hex>&exp=<timestamp>`. Returns empty string (fail-closed) if `MEDIA_SIGNED_URL_SECRET` is not configured. Default TTL: 1 hour. |
+| `validateSignedMediaUrl(url, filePath, tenantId?)`    | Extracts `sig` and `exp` from query params, checks expiration, recomputes signature, and compares using `crypto.timingSafeEqual`. Returns `{ valid: true }` or `{ valid: false, reason }`.                                    |
+
+**Enforcement** (`src/routes/files/[...path]/+server.ts`):
+
+- **Opt-in**: Only enforced when `MEDIA_SIGNED_URL_ENABLED` is `true` (set via System Settings)
+- **Global files exempt**: Files under `mediaFolder/global/` remain public (no signature required)
+- **Fail-closed**: Returns `403 SIGNATURE_REQUIRED` on validation failure
+- **Lazy-loaded**: The validation module is dynamically imported only when the feature is enabled — zero overhead when disabled
+
+**To enable:**
+
+1. Set `MEDIA_SIGNED_URL_SECRET` (private setting) — a long random string (e.g., `openssl rand -hex 32`)
+2. Set `MEDIA_SIGNED_URL_ENABLED` to `true` in System Settings
+3. All non-global file requests now require valid `?sig=` and `?exp=` query params
+
+### Tenant Analytics Dashboard
+
+A dashboard widget available to all tenant admins showing their own tenant's usage stats:
+
+| Metric                | Source                                             |
+| --------------------- | -------------------------------------------------- |
+| Collections count     | `db.crud.listCollections(tenantId)`                |
+| Active users          | `cms.auth.listUsers()` pagination scoped by tenant |
+| Media files & storage | `db.crud.count("media")` + file size aggregation   |
+| Content entries       | `db.crud.count()` across all tenant collections    |
+| 24h request activity  | Filtered audit log entries                         |
+
+**Widget** (`src/routes/(app)/dashboard/widgets/tenant-analytics-widget.svelte`):
+
+- Auto-discovered via `import.meta.glob("./widgets/*.svelte")` — no registration needed
+- Compact mode (1 row): shows key stats inline
+- Rich mode (2+ rows): 6-card grid with storage quota bar and activity counter
+- 60-second auto-refresh via `BaseWidget`
+- All data scoped to the request's `locals.tenantId`
+
+**API endpoint**: `GET /api/dashboard/tenant-analytics` — scoped by authenticated user's tenant context.
+
+### Tenant-Scoped API Keys
+
+API tokens can be created with a specific tenant scope, limiting their access to a single tenant's data:
+
+| Scope                        | Behavior                                              |
+| ---------------------------- | ----------------------------------------------------- |
+| **Current Tenant** (default) | Token authenticates with the creator's tenant context |
+| **Global (all tenants)**     | Token has no tenant restriction (admin only)          |
+
+**UI** (`src/routes/(app)/config/access-management/website-tokens.svelte`):
+
+- **Tenant Scope** dropdown in the token creation form: "Current Tenant" / "Global (all tenants)"
+- **Scope column** in the token table: shows "Current Tenant" or a "Global" badge
+- Passing `tenantId: null` in the token creation request creates a global-scoped token
+
+**Backend**: The `WebsiteTokensNamespace.create()` already supports `tenantId?: DatabaseId | null`. The token auth cache (`credential-auth-cache.ts`) already uses `tenantId` for scoped lookups. No schema changes needed.
+
+### Per-Tenant Database Connection Pooling
+
+Enterprise deployments can configure dedicated PostgreSQL connection pools per tenant, providing connection-level isolation beyond RLS:
+
+| Method                                   | Description                                                                                                                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getTenantPool(tenantId)`                | Returns existing pool or creates one from `DATABASE_URL` with `application_name=tenant_{id}`. Pool size configurable via `TENANT_DB_POOL_SIZE` env var (default: 10). |
+| `setTenantPool(tenantId, connectionUrl)` | Registers a dedicated database URL for a tenant — true database-level isolation.                                                                                      |
+| `closeTenantPool(tenantId)`              | Closes and removes a tenant's dedicated pool.                                                                                                                         |
+| `closeAllTenantPools()`                  | Cleanup during `disconnect()`.                                                                                                                                        |
+
+**How it works:**
+
+1. When `setTenantContext(tenantId)` is called per-request, it stores the active tenant ID
+2. The `getSql()` method checks if that tenant has a dedicated pool in `_tenantPools`
+3. If yes → routes all queries to the tenant's private pool (no shared pool contention, separate connection limit)
+4. If no → falls back to the shared pool with RLS (current behavior)
+5. Dedicated pools appear as `application_name = tenant_tenant-abc` in `pg_stat_activity` for monitoring
+
+This is optional — most deployments use the shared pool with RLS. Dedicated pools are for enterprise customers needing separate connection limits and per-tenant DB load monitoring.
+
+### Per-Tenant Rate Limiting
+
+The rate limiter (`src/hooks/handle-rate-limit.ts`) uses a two-tier token bucket system to ensure fair resource distribution across tenants:
+
+| Tier                  | Scope                    | Purpose                                           |
+| --------------------- | ------------------------ | ------------------------------------------------- |
+| **Per-IP bucket**     | Single IP address        | Prevents a single client from flooding the server |
+| **Per-tenant bucket** | All traffic for a tenant | Prevents one noisy tenant from starving others    |
+
+A tenant's budget is isolated — Tenant A exhausting its rate limit has zero impact on Tenant B's available requests.
+
+**Configuration:**
+
+| Setting                       | Default  | Description                     |
+| ----------------------------- | -------- | ------------------------------- |
+| `DEFAULT_MAX_REQUESTS`        | 100/15s  | Per-IP limit (existing)         |
+| `DEFAULT_TENANT_MAX_REQUESTS` | 1000/15s | Per-tenant limit (10x IP limit) |
+
+**Response Headers:**
+
+| Header                         | Example  | Description                                                                             |
+| ------------------------------ | -------- | --------------------------------------------------------------------------------------- |
+| `X-RateLimit-Remaining`        | `42`     | Per-IP remaining requests                                                               |
+| `X-RateLimit-Tenant-Remaining` | `950`    | Per-tenant remaining requests                                                           |
+| `X-RateLimit-Scope`            | `tenant` | Present only when a tenant-level limit was exceeded (distinguishes from IP-level block) |
+| `Retry-After`                  | `15`     | Seconds until the window resets                                                         |
+
+The adaptive cost multiplier from `SystemMonitor` (0.8x idle → 2.0x critical) applies to both tiers equally, ensuring system-wide pressure protection.
 
 ## Best Practices
 
@@ -374,7 +869,7 @@ Use tenant-specific resources when:
 
 Most applications benefit from a hybrid approach:
 
-```
+````
 // Example: E-commerce Platform
 {
   // Global Resources
@@ -398,25 +893,27 @@ When switching from single-tenant to multi-tenant mode:
 
 2. **Automatic `tenantId` Assignment**: All existing resources receive the primary `tenantId`:
 
-   ```
-   // Collections
-   db.collections.updateMany(
-     { tenantId: { $exists: false } },
-     { $set: { tenantId: "primary-tenant-id" } },
-   );
-
-   // Roles
-   db.roles.updateMany(
-     { tenantId: { $exists: false } },
-     { $set: { tenantId: "primary-tenant-id" } },
-   );
-
-   // Users
-   db.users.updateMany(
-     { tenantId: { $exists: false } },
-     { $set: { tenantId: "primary-tenant-id" } },
-   );
 ````
+
+// Collections
+db.collections.updateMany(
+{ tenantId: { $exists: false } },
+{ $set: { tenantId: "primary-tenant-id" } },
+);
+
+// Roles
+db.roles.updateMany(
+{ tenantId: { $exists: false } },
+{ $set: { tenantId: "primary-tenant-id" } },
+);
+
+// Users
+db.users.updateMany(
+{ tenantId: { $exists: false } },
+{ $set: { tenantId: "primary-tenant-id" } },
+);
+
+`````
 
 3. **100% Separation**: After migration, all resources are fully isolated to the primary tenant by default
 
@@ -486,7 +983,7 @@ When enabling multi-tenancy:
 
    ```
    db.collection.createIndex({ tenantId: 1, createdAt: -1 });
-````
+`````
 
 2. **Caching**: Use tenant-aware cache keys
 

@@ -72,20 +72,22 @@ import { fade } from 'svelte/transition';
 
 // Props
 const {
-	active = $bindable(undefined),
-	onClick = () => {},
-	onPointerEnter: onPointerEnterProp = () => {},
-	onBack = () => {},
-	firstCollectionPath = "",
-	branding = undefined,
-}: {
-	active?: number;
-	onClick?: () => void;
-	onPointerEnter?: (e: PointerEvent) => void;
-	onBack?: () => void;
-	firstCollectionPath?: string;
-	branding?: LoginBranding;
-} = $props();
+		active = $bindable(undefined),
+		onClick = () => {},
+		onPointerEnter: onPointerEnterProp = () => {},
+		onBack = () => {},
+		firstCollectionPath = "",
+		redirectTo = "",
+		branding = undefined,
+	}: {
+		active?: number;
+		onClick?: () => void;
+		onPointerEnter?: (e: PointerEvent) => void;
+		onBack?: () => void;
+		firstCollectionPath?: string;
+		redirectTo?: string;
+		branding?: LoginBranding;
+	} = $props();
 
 const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCMS");
 const brandedLogin = $derived(branding?.brandedLogin ?? false);
@@ -204,11 +206,10 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 		const result = (await remoteSignIn({
 			email: loginForm.data.email,
 			password: loginForm.data.password,
-			isToken: loginForm.data.isToken
+			isToken: loginForm.data.isToken,
+			redirect: redirectTo || undefined,
 		})) as any;
-
-		isSubmitting = false;
-
+		
 		if (result.requires2FA) {
 			requires2FA = true;
 			twoFAUserId = result.userId || "";
@@ -223,10 +224,9 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			});
 			return;
 		}
-
+		
 		if (result.success && result.redirectPath) {
 			console.log('[SignIn Client] redirectPath:', result.redirectPath);
-			isAuthenticating = true;
 			sessionStorage.setItem(
 				"flashMessage",
 				JSON.stringify({
@@ -236,21 +236,20 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 					duration: 4000,
 				})
 			);
-			window.location.href = result.redirectPath;
+			await goto(result.redirectPath, { invalidateAll: true });
 			return;
 		}
-
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
+		
 		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
 		wiggle(loginFormElement);
 	} catch (error: any) {
-		isSubmitting = false;
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
 		const errorMessage = error?.message || "An unexpected error occurred";
 		toast.error({ title: "Sign In Failed", description: errorMessage });
 		wiggle(loginFormElement);
+	} finally {
+		isSubmitting = false;
+		isAuthenticating = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
 	}
 }
 
@@ -480,9 +479,9 @@ async function submitTwoFA() {
 		const result = (await verify2FA({ userId: twoFAUserId, code: twoFACode })) as any;
 		isVerifying2FA = false;
 		if (result.success && result.redirectPath) {
-			toast.success({ title: "Verification Successful", description: "Redirecting…" });
-			window.location.href = result.redirectPath;
-			return;
+				toast.success({ title: "Verification Successful", description: "Redirecting…" });
+				await goto(result.redirectPath, { invalidateAll: true });
+				return;
 		}
 		toast.error({ description: result.message || twofa_error_invalid_code() });
 		twoFACode = "";

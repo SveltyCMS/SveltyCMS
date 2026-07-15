@@ -535,7 +535,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			type="search"
 			bind:value={search}
 			placeholder="Search collections..."
-			inputClass="pe-11 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
+			inputClass="pe-11 bg-surface-800/50 border-surface-700 text-white placeholder:text-surface-400 focus-visible:ring-primary-500 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
 			aria-label="Search collections"
 		/>
 

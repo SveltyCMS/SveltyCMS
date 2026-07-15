@@ -1,61 +1,45 @@
-import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
-
 /**
- * @file tests/e2e/master-behavioral-journey.spec.ts
+ * @file tests/e2e/routes/collection-builder/journey.spec.ts
  * @description TQA Pillar 1: Comprehensive behavioral journey test.
  * Simulates the full lifecycle: Builder -> Schema -> Entry -> API.
+ * Uses shared collection-builder-flow helpers for stable selectors.
  */
+
+import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "../../helpers/auth";
+import {
+  addInputField,
+  openNewCollectionEditor,
+  saveCollectionSchema,
+  uniqueCollectionFixture,
+} from "../../helpers/collection-builder-flow";
 
 test.describe("Master Behavioral Journey", () => {
   test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page }) => {
     // 1. Authentication
-    // Note: login redirects to the first existing collection (e.g. /en/Names),
-    // not /config/collectionbuilder, so we only assert the login succeeded.
     await loginAsAdmin(page);
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 
-    // 2. Create a New Collection via editor
-    const collectionName = `JourneyProj_${Date.now()}`;
-    await page.goto("/config/collectionbuilder/new");
-    await expect(page.getByTestId("collection-name-input")).toBeVisible({
-      timeout: 10_000,
-    });
-    await page.getByTestId("collection-name-input").fill(collectionName);
+    // 2–4. New collection + field + save (shared helpers / test ids)
+    const fixture = uniqueCollectionFixture("JourneyProj");
+    await openNewCollectionEditor(page);
+    await page.getByTestId("collection-name-input").fill(fixture.name);
+    await addInputField(page, { label: "New Input", fieldName: "new_input" });
+    await saveCollectionSchema(page);
 
-    // 3. Configure Collection Fields (GUI) — switch to the Widgets & Fields tab
-    await page.getByTestId("tab-widgets").click();
-    await page.getByTestId("quick-add-input").click();
-    // The widget generates a field with label "New Input"
-    await expect(page.getByText(/New Input/i)).toBeVisible({
-      timeout: 10_000,
-    });
+    // 5. Create an Entry in the New Collection
+    // Public URL is /en/collection/<slug> (slug = name lowercased).
+    const collectionSlug = fixture.slug;
+    await page.goto(`/en/collection/${collectionSlug}`, { waitUntil: "domcontentloaded" });
 
-    // 4. Save & Compile Schema
-    await page.getByTestId("save-collection-button").first().click();
-    await expect(page.getByText(/collection saved/i)).toBeVisible({
-      timeout: 15_000,
-    });
+    // Create button: prefer test id, force-click role fallback (pointer-events on inner Button)
+    const createByTestId = page.getByTestId("entry-list-action-create");
+    if (await createByTestId.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await createByTestId.click();
+    } else {
+      await page.getByRole("button", { name: /^create$/i }).click({ force: true });
+    }
 
-    // 6. Create an Entry in the New Collection
-    // Navigate to the newly created collection page.
-    // The collection content route is /[language]/[...collection], and the
-    // builder stores collections with canonical path "/collection/<slug>"
-    // (slug = name lowercased, spaces→underscores). So the public URL is
-    // /en/collection/<slug> — NOT /en/<name> (that resolves to collection
-    // path "/<name>" which doesn't exist → 404 → builder).
-    const collectionSlug = collectionName.toLowerCase().replace(/ /g, "_");
-    await page.goto(`/en/collection/${collectionSlug}`);
-    // The entry-list multi-button's create action is labeled "Create"
-    // (paraglide: entrylist_multibutton_create), not "Create New".
-    // The accessible name lives on an inner <Button> that has
-    // `pointer-events-none`; the click handler is on the wrapping div, so
-    // Playwright's actionability check flags the wrapper as intercepting.
-    // Use force to dispatch the click, which bubbles to the wrapper handler.
-    await page.getByRole("button", { name: /^create$/i }).click({ force: true });
-
-    // Fill the dynamically generated text field (Input widget → label "New Input").
-    // Use the textbox role to avoid matching the "Insert token into New Input" button.
     await page.getByRole("textbox", { name: "New Input" }).fill("The TQA Project");
     await page.getByRole("button", { name: /save/i }).first().click();
     // After save we land back on the collection list. The list truncates the

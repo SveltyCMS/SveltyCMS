@@ -73,6 +73,12 @@ export class AITranslationService {
       tenantId?: DatabaseId | null;
     } = {},
   ): Promise<string | null> {
+    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
+    if (isBenchmarkExternalServicesDisabled()) {
+      logger.debug("[AITranslation] Skipped translate (benchmark mode)");
+      return null;
+    }
+
     if (!text || !text.trim()) {
       return null;
     }

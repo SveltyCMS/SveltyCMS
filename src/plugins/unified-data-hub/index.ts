@@ -19,10 +19,10 @@
  * - Draft-by-Default: WebMCP tools remain read-only (no agent writes)
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 export { unifiedDataHubHeadlessContracts } from "./headless-contracts";
 
-export const unifiedDataHubPlugin: Plugin = {
+export const unifiedDataHubPlugin = definePlugin({
   metadata: {
     id: "unified-data-hub",
     name: "Unified Data Hub",
@@ -104,6 +104,6 @@ export const unifiedDataHubPlugin: Plugin = {
     "plugin_unified-data-hub_virtual_schemas",
     "plugin_unified-data-hub_federation_audit",
   ],
-};
+});
 
 export default unifiedDataHubPlugin;

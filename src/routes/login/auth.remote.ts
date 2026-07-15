@@ -19,6 +19,7 @@ import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.ser
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
@@ -429,15 +430,18 @@ async function signInInternal(event: RequestEvent, input: any) {
       logger.debug("Telemetry background check failed silently");
     });
 
-  // Determine redirect: user's first collection if available, otherwise builder
-  let redirectPath = "/config/collectionbuilder";
-  try {
-    const { getCachedFirstCollectionPath } = await import("@utils/server/collection-utils.server");
-    const userLanguage = (user as any).locale || (user as any).language || "en";
-    const path = await getCachedFirstCollectionPath(userLanguage as any);
-    if (path) redirectPath = path;
-  } catch {
-    // Fall back to builder
+  // Determine redirect: explicit redirect param takes priority, then first collection, else builder
+  let redirectPath = (input.redirect as string) || "/config/collectionbuilder";
+  if (!input.redirect) {
+    try {
+      const { getCachedFirstCollectionPath } =
+        await import("@utils/server/collection-utils.server");
+      const userLanguage = (user as any).locale || (user as any).language || "en";
+      const path = await getCachedFirstCollectionPath(userLanguage as any);
+      if (path) redirectPath = path;
+    } catch {
+      // Fall back to builder
+    }
   }
 
   return { success: true, redirectPath };
@@ -469,7 +473,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
   if (!result.success) return { success: false, errors: flatten(result.issues).nested };
   const { email: e, username: u, password: p, token: t } = result.output;
 
-  const mt = getPrivateSettingSync("MULTI_TENANT");
+  const mt = isMultiTenantEnabled();
   const dm = getPrivateSettingSync("DEMO");
   const open = !!(mt && dm);
   let role = "user",

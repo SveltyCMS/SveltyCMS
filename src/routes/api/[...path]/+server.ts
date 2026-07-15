@@ -195,6 +195,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   dashboard: "dashboard:read",
+  "openapi.json": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   database: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   logs: "system:admin",
@@ -446,6 +448,7 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- CSRF Protection ---
   if (
+    !isPublic &&
     !(locals as any).__testBypass &&
     (globalThis as any).process?.env?.TEST_MODE !== "true" &&
     !(user as any)?.isApiKey &&
@@ -645,3 +648,12 @@ export const PUT = apiHandler(_handler);
 export const PATCH = apiHandler(_handler);
 export const DELETE = apiHandler(_handler);
 export const OPTIONS = apiHandler(_handler);
+
+/**
+ * Frozen list of catch-all API namespaces (for ownership / completeness tests).
+ * Underscore prefix required by SvelteKit (+server only allows HTTP handlers
+ * or `_`-prefixed private exports).
+ * When you add a namespace to NAMESPACE_CONFIG, unit ownership inventory will fail
+ * until a test owner is declared in tests/unit/api/namespace-ownership.test.ts.
+ */
+export const _API_NAMESPACE_KEYS: readonly string[] = Object.freeze(Object.keys(NAMESPACE_CONFIG));

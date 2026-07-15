@@ -110,6 +110,23 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
 }
 ```
 
+### Focal Point & Aspect Preview
+
+SveltyCMS supports **focal point** metadata on images — a percentage coordinate (`{ x, y }` from 0–100) marking the most important visual area. This is used by frontend rendering (CSS `object-position`) or server-side cropping tools to ensure the subject remains visible regardless of container aspect ratio.
+
+**Update focal point** (lightweight, metadata-only):
+
+```
+PATCH /api/media/{id}
+Content-Type: application/json
+
+{ "metadata": { "focalPoint": { "x": 35, "y": 60 } } }
+```
+
+**Aspect Ratio Preview** — A companion UI (available via the Focal Point plugin) shows how an image crops to 16:9, 1:1, 4:3, and other ratios with the focal point as the visual anchor. See the [Focal Point Plugin](/src/plugins/focal-point/focal-point.mdx) documentation.
+
+**Data model**: `CmsMediaMetadata.focalPoint?: { x: number; y: number }` — stored in `media_files.metadata`, returned in all media GET responses.
+
 ---
 
 ## 3. The Mechanics

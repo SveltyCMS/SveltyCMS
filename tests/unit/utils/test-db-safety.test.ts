@@ -13,6 +13,7 @@ import {
   extractDbNameFromConfigSource,
   isConfigSourceSafeForTesting,
   isIsolatedTestDbName,
+  isUnsafeLiveDeveloperDbName,
 } from "@src/utils/test-db-safety";
 
 describe("isIsolatedTestDbName", () => {
@@ -60,6 +61,18 @@ describe("extractDbNameFromConfigSource", () => {
     expect(extractDbNameFromConfigSource("export const privateEnv = { DB_TYPE: 'sqlite' };")).toBe(
       "",
     );
+  });
+});
+
+describe("isUnsafeLiveDeveloperDbName", () => {
+  it("rejects benchmark and integration test DB names in live config", () => {
+    expect(isUnsafeLiveDeveloperDbName("benchmark_shared")).toBe(true);
+    expect(isUnsafeLiveDeveloperDbName("sveltycms_test")).toBe(true);
+  });
+
+  it("allows production-like DB names in live config", () => {
+    expect(isUnsafeLiveDeveloperDbName("sveltycms")).toBe(false);
+    expect(isUnsafeLiveDeveloperDbName("sveltycms.db")).toBe(false);
   });
 });
 

@@ -9,7 +9,7 @@ import type { User } from "@src/databases/auth/types";
 import { cacheService } from "@src/databases/cache/cache-service";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { modifyRequest } from "@utils/modify-request";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
@@ -109,7 +109,7 @@ export class CollectionService {
 
     const collectionTableName = `collection_${collection._id}`;
     const finalFilter: Record<string, unknown> = { ...filter };
-    if (getPrivateSettingSync("MULTI_TENANT")) {
+    if (isMultiTenantEnabled() && tenantId != null) {
       finalFilter.tenantId = tenantId;
     }
 

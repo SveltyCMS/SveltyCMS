@@ -180,6 +180,13 @@ export class CacheService {
   }
 
   async initializeL2(config: any) {
+    // 🛡️ Benchmark sandbox: never connect to live Redis
+    const { isBenchmarkRedisDisabled } = await import("@utils/benchmark-runtime");
+    if (isBenchmarkRedisDisabled()) {
+      await this.cleanup();
+      return;
+    }
+
     if (!config?.USE_REDIS) {
       await this.cleanup();
       return;

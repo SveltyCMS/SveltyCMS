@@ -40,4 +40,28 @@ describe("normalizeSseEventPayload", () => {
 
     expect(result?.type).toBe("content_update");
   });
+
+  it("delivers tenant-scoped events only to matching subscribers", () => {
+    const match = normalizeSseEventPayload(
+      { event: "content:update", data: { version: 2, tenantId: "global" } },
+      "global",
+    );
+    const mismatch = normalizeSseEventPayload(
+      { event: "content:update", data: { version: 2, tenantId: "global" } },
+      "tenant-other",
+    );
+
+    expect(match?.type).toBe("content_update");
+    expect(mismatch).toBeNull();
+  });
+
+  it("does not treat null tenantId as cross-tenant wildcard", () => {
+    const forTenantB = normalizeSseEventPayload(
+      { event: "content:update", data: { version: 3, tenantId: null } },
+      "tenant-b",
+    );
+
+    expect(forTenantB?.tenantId).toBeNull();
+    expect(forTenantB?.type).toBe("content_update");
+  });
 });

@@ -50,7 +50,7 @@ import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
-import { getTenantIdFromHostname } from "@utils/tenant";
+import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
 import { invalidateTurboAuthContext } from "./handle-turbo-get";
@@ -63,8 +63,7 @@ let rotationRateLimiter: RateLimiter | null = null;
 
 function getCachedSettings() {
   if (multiTenantCached === null) {
-    const val = getPrivateSettingSync("MULTI_TENANT");
-    multiTenantCached = String(val) === "true" || val === true;
+    multiTenantCached = isMultiTenantEnabled();
   }
   if (demoModeCached === null) {
     const val = getPrivateSettingSync("DEMO");
@@ -167,9 +166,10 @@ function addToStrongRefs(sessionId: string, entry: SessionCacheEntry): void {
   }
 }
 
-// Periodic cleanup
-if (typeof setInterval !== "undefined") {
-  setInterval(
+// Periodic cleanup — guarded against duplicate timers on HMR reload
+const SESSION_CLEANUP_KEY = "__svelty_session_cleanup__";
+if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_KEY]) {
+  (globalThis as any)[SESSION_CLEANUP_KEY] = setInterval(
     () => {
       const now = Date.now();
       for (const [sessionId, data] of strongRefs.entries()) {
@@ -472,7 +472,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = turboCtx.tenantId || locals.tenantId;
+      (locals as any).tenantId = turboCtx.tenantId ?? locals.tenantId;
       (locals as any).__turboAuth = true;
       return await resolve(event);
     }
@@ -532,9 +532,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
       cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
-      logger.info(
-        `[Auth] Session cookie found: ${sessionId.slice(0, 12)}..., path=${event.url.pathname}`,
-      );
+      logger.info(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
       metricsService.incrementAuthValidations();
       if (!auth) {
         logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
@@ -542,6 +540,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       }
 
       const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
+      logger.info(
+        `[Auth] getUserFromSession: ${user ? "FOUND " + user.email : "NULL"} path=${event.url.pathname}`,
+      );
       logger.info(
         `[Auth] getUserFromSession result: ${user ? user.email + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
       );
@@ -586,6 +587,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         (locals as any).returningUser = true;
         cookies.delete(cookieName, { path: "/" });
       }
+    } else {
+      logger.info(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
     }
 
     // 3. API Token Authentication (Bearer) - Hardened for 2026 Retro-compatibility

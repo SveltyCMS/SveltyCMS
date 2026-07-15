@@ -381,6 +381,12 @@ export class AutomationService {
     config: WebhookOperationConfig,
     payload: AutomationEventPayload,
   ): Promise<void> {
+    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
+    if (isBenchmarkExternalServicesDisabled()) {
+      logger.debug(`[Automation] Skipped webhook to ${config.url} (benchmark mode)`);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10s timeout
 
@@ -425,6 +431,12 @@ export class AutomationService {
     config: EmailOperationConfig,
     _payload: AutomationEventPayload,
   ): Promise<void> {
+    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
+    if (isBenchmarkExternalServicesDisabled()) {
+      logger.debug(`[Automation] Skipped email to ${config.to} (benchmark mode)`);
+      return;
+    }
+
     // Use the core email server utility
     try {
       const { sendMail } = await import("@utils/email.server");

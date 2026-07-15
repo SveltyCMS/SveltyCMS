@@ -116,17 +116,21 @@ export const load: PageServerLoad = async ({ locals }) => {
     });
 
     // Return user data with proper admin status and the content structure
-    const { _id, ...rest } = user;
+    const userId = user._id?.toString();
 
-    if (!_id) {
+    if (!userId) {
       logger.error("[CollectionBuilder] user._id is missing!", { user });
     }
 
     return {
       user: {
-        id: _id?.toString() || "missing-user-id",
-        ...rest,
-        isAdmin, // Add the properly calculated admin status
+        id: userId || "missing-user-id",
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        avatar: user.avatar,
+        locale: user.locale,
+        isAdmin,
       },
       contentStructure: serializedStructure,
     };
@@ -186,7 +190,6 @@ export const actions: Actions = {
   },
 
   saveConfig: async ({ request, locals }) => {
-    // 🛡️ SECURITY FIX: Use centralized permission check
     requireCollectionBuilderPermission(locals);
 
     const formData = await request.formData();
@@ -197,18 +200,8 @@ export const actions: Actions = {
     }
 
     try {
-      await contentSystem.upsertContentNodes(items, locals.tenantId);
-      const updatedStructure = await contentSystem.getContentStructureFromDatabase(
-        "flat",
-        locals.tenantId,
-      );
-      const serializedStructure = updatedStructure.map((node: any) => ({
-        ...node,
-        _id: node._id.toString(),
-        ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
-      }));
-
-      return { success: true, contentStructure: serializedStructure };
+      const { executeGuiStructureSave } = await import("./collectionbuilder.server");
+      return await executeGuiStructureSave(locals.tenantId ?? null, items);
     } catch (err) {
       logger.error("Error saving config:", err);
       return fail(500, { message: "Failed to save configuration" });

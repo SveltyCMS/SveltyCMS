@@ -154,7 +154,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-    "CREATE UNIQUE INDEX IF NOT EXISTS content_nodes_path_unique ON content_nodes (path)",
+    "DROP INDEX IF EXISTS content_nodes_path_unique",
+    'CREATE UNIQUE INDEX IF NOT EXISTS content_nodes_path_tenant_unique ON content_nodes (path, "tenantId")',
     `CREATE INDEX IF NOT EXISTS content_nodes_parent_idx ON content_nodes ("parentId")`,
     `CREATE INDEX IF NOT EXISTS content_nodes_nodeType_idx ON content_nodes ("nodeType")`,
     "CREATE INDEX IF NOT EXISTS content_nodes_status_idx ON content_nodes (status)",

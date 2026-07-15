@@ -61,9 +61,11 @@ describe("layout-state-prefs", () => {
 
   it("diffs only keys that diverge from tenant defaults", () => {
     const current = uiStateToLayoutPrefs(baseUiState({ leftSidebar: "hidden" }));
-    expect(diffLayoutPrefsFromTenant(current, { leftSidebar: "full" })).toEqual({
+    expect(diffLayoutPrefsFromTenant(current, { layoutState: { leftSidebar: "full" } })).toEqual({
       leftSidebar: "hidden",
     });
-    expect(diffLayoutPrefsFromTenant(current, { leftSidebar: "hidden" })).toEqual({});
+    expect(diffLayoutPrefsFromTenant(current, { layoutState: { leftSidebar: "hidden" } })).toEqual(
+      {},
+    );
   });
 });

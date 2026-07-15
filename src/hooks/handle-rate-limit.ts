@@ -8,6 +8,8 @@
  *
  * ### Features:
  * - Per-IP + per-tenant-hostname sliding window rate limiting
+ * - **Two-tier token buckets**: per-IP (fine-grained) + per-tenant (aggregate)
+ * - Per-tenant limit defaults to 10x the per-IP limit, preventing noisy-tenant starvation
  * - Sync client-key hashing (no async wasm on mutation hot path)
  * - Adaptive cost multiplier from SystemMonitor (0.8x idle → 2.0x critical)
  * - Mutation rejection when heap > 90%
@@ -25,8 +27,7 @@ import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { renderRateLimitPage } from "@utils/rate-limit-page";
 import { getRequestFlags } from "@utils/hook-utils";
-import { getTenantIdFromHostname } from "@utils/tenant";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 
 // Module-level cache — avoids per-request dynamic import on mutation hot path
@@ -45,7 +46,8 @@ async function getSystemMonitor() {
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const DEFAULT_WINDOW_MS = 60_000;
-const DEFAULT_MAX_REQUESTS = 100;
+const DEFAULT_MAX_REQUESTS = process.env.NODE_ENV !== "production" ? 1000 : 100;
+const DEFAULT_TENANT_MAX_REQUESTS = DEFAULT_MAX_REQUESTS * 10;
 const MAX_TRACKED_BUCKETS = 10000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
@@ -69,18 +71,9 @@ interface RateLimitEntry {
 // ─── State ────────────────────────────────────────────────────────────────
 
 const _buckets = new Map<string, RateLimitEntry>();
+const _tenantBuckets = new Map<string, RateLimitEntry>();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-
-let multiTenantCached: boolean | null = null;
-
-function isMultiTenantEnabled(): boolean {
-  if (multiTenantCached === null) {
-    const val = getPrivateSettingSync("MULTI_TENANT");
-    multiTenantCached = String(val) === "true" || val === true;
-  }
-  return multiTenantCached;
-}
 
 /** Fast sync hash for rate-limit bucket keys (not cryptographic). */
 function hashClientKeySync(input: string): string {
@@ -100,6 +93,15 @@ function getClientKey(event: Parameters<Handle>[0]["event"]): string {
   const rawIp = forwarded?.split(",")[0]?.trim() || event.getClientAddress();
   const tenant = getTenantIdFromHostname(event.url.hostname, isMultiTenantEnabled()) || "global";
   return hashClientKeySync(`${rawIp || "unknown"}:${tenant}`);
+}
+
+/**
+ * Derive the tenant key for per-tenant rate limit bucketing.
+ * When multi-tenancy is disabled, returns "global" so there is effectively
+ * no per-tenant separation (single shared aggregate bucket).
+ */
+function getTenantKey(event: Parameters<Handle>[0]["event"]): string {
+  return getTenantIdFromHostname(event.url.hostname, isMultiTenantEnabled()) || "global";
 }
 
 function withSecurityHeaders(response: Response, event: Parameters<Handle>[0]["event"]): Response {
@@ -123,6 +125,11 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[LIMITER_CLEANUP_K
     for (const [key, entry] of _buckets) {
       if (now - entry.windowStart > DEFAULT_WINDOW_MS * 2) {
         _buckets.delete(key);
+      }
+    }
+    for (const [key, entry] of _tenantBuckets) {
+      if (now - entry.windowStart > DEFAULT_WINDOW_MS * 2) {
+        _tenantBuckets.delete(key);
       }
     }
   }, CLEANUP_INTERVAL_MS);
@@ -240,11 +247,65 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     );
   }
 
+  // ─── Per-Tenant Bucket Check ──────────────────────────────────────────
+  // Also enforce a per-tenant aggregate limit, independent of individual IP limits.
+  // This prevents one noisy tenant from starving other tenants even when each
+  // individual IP stays under the per-IP limit.
+
+  const tenantKey = getTenantKey(event);
+  let tenantBucket = _tenantBuckets.get(tenantKey);
+  if (!tenantBucket || now - tenantBucket.windowStart > DEFAULT_WINDOW_MS) {
+    tenantBucket = { count: 0, windowStart: now };
+    _tenantBuckets.set(tenantKey, tenantBucket);
+  }
+
+  // Apply the same adaptive cost to the tenant-level bucket
+  tenantBucket.count += cost;
+
+  const tenantRemaining = Math.max(0, DEFAULT_TENANT_MAX_REQUESTS - tenantBucket.count);
+  const tenantResetTime = Math.ceil((tenantBucket.windowStart + DEFAULT_WINDOW_MS - now) / 1000);
+
+  // Tenant-level limit exceeded
+  if (tenantBucket.count > DEFAULT_TENANT_MAX_REQUESTS) {
+    logger.warn(
+      `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantBucket.count}/${DEFAULT_TENANT_MAX_REQUESTS}, ${multiplier}x multiplier)`,
+      { pathname, method, tenant: tenantKey },
+    );
+    return withSecurityHeaders(
+      new Response(
+        renderRateLimitPage({
+          retryAfter: `${tenantResetTime} second${tenantResetTime === 1 ? "" : "s"}`,
+          retryAfterSeconds: tenantResetTime,
+          pathname,
+          reason: "Too Many Requests — tenant limit reached",
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Retry-After": String(tenantResetTime),
+            "X-RateLimit-Limit": String(DEFAULT_TENANT_MAX_REQUESTS),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(tenantResetTime),
+            "X-RateLimit-Scope": "tenant",
+          },
+        },
+      ),
+      event,
+    );
+  }
+
   // Start cleanup timer on first request
   // Bounded map eviction: prevent OOM under distributed attacks
   if (_buckets.size >= MAX_TRACKED_BUCKETS) {
     const oldestKey = _buckets.keys().next().value;
     if (oldestKey) _buckets.delete(oldestKey);
+  }
+
+  // Bounded eviction for tenant buckets (far fewer entries, but guard against runaway growth)
+  if (_tenantBuckets.size >= MAX_TRACKED_BUCKETS) {
+    const oldestKey = _tenantBuckets.keys().next().value;
+    if (oldestKey) _tenantBuckets.delete(oldestKey);
   }
 
   const response = await resolve(event);
@@ -253,6 +314,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   response.headers.set("X-RateLimit-Limit", String(DEFAULT_MAX_REQUESTS));
   response.headers.set("X-RateLimit-Remaining", String(remaining));
   response.headers.set("X-RateLimit-Reset", String(resetTime));
+  response.headers.set("X-RateLimit-Tenant-Remaining", String(tenantRemaining));
 
   return response;
 };
@@ -262,4 +324,5 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
  */
 export function resetRateLimitBuckets(): void {
   _buckets.clear();
+  _tenantBuckets.clear();
 }

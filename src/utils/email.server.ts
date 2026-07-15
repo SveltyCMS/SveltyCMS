@@ -115,6 +115,16 @@ export async function sendMail({
   props = {},
   languageTag = "en",
 }: SendMailOptions) {
+  const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
+  if (isBenchmarkExternalServicesDisabled()) {
+    logger.debug("[Email] Skipped send (benchmark mode)", { recipientEmail, subject });
+    return {
+      success: true,
+      message: "Skipped in benchmark mode.",
+      benchmark_sandbox: true,
+    };
+  }
+
   if (!(recipientEmail && subject && templateName)) {
     throw new AppError("Missing required fields: recipientEmail, subject, or templateName.", 400);
   }

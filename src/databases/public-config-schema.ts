@@ -106,6 +106,9 @@ export const publicConfigSchema = object({
 
   // --- Maps ---
   GOOGLE_MAPS_API_KEY: optional(pipe(string(), minLength(1))),
+
+  // --- Signed Media URLs ---
+  MEDIA_SIGNED_URL_ENABLED: optional(boolean()),
 });
 
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;

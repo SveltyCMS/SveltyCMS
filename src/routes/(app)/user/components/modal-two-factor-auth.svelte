@@ -28,6 +28,7 @@ This component provides a user interface for managing 2FA settings:
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import type { User } from '@src/databases/auth/types';
+	import { page } from '$app/state';
 	// ParaglideJS
 	import {
 		button_cancel,
@@ -123,7 +124,7 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/setup', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' }
 			});
 
 			const result = await response.json();
@@ -162,7 +163,7 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/verify', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
 				body: JSON.stringify({ code: verificationCode })
 			});
 
@@ -208,7 +209,7 @@ This component provides a user interface for managing 2FA settings:
 				try {
 					const response = await fetch('/api/auth/2fa/disable', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
+						headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
 						body: JSON.stringify({ code })
 					});
 
@@ -241,7 +242,7 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/backup-codes', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' }
 			});
 
 			const result = await response.json();

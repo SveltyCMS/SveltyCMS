@@ -81,10 +81,7 @@ function testBackdoorStripperPlugin(): Plugin {
         !process.env.TEST_MODE &&
         process.env.COMPILE_ALL_ADAPTERS !== "true"
       ) {
-        if (
-          norm.includes("src/routes/api/testing") ||
-          norm.includes("src/hooks/handle-test-isolation")
-        ) {
+        if (norm.includes("handlers/testing") || norm.includes("src/hooks/handle-test-isolation")) {
           return "\0virtual:test-noop";
         }
       }
@@ -564,13 +561,15 @@ function sveltyCmsPlugin(): Plugin {
       compileTimeout = setTimeout(async () => {
         log.info("Collection change detected. Recompiling...");
         try {
+          // On move/rename (add+unlink in quick succession), always do a full compile
+          // to ensure orphan cleanup runs correctly. The event param is unreliable
+          // because unlink and add fire within the same debounce window.
+          const isLikelyMove = event === "unlink" && file.endsWith(".ts");
           const { compile } = await import("./src/utils/compilation/compile");
           await compile({
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,
-            targetFile: file,
-            // On file deletion, skip targetFile so orphan cleanup runs
-            ...(event === "unlink" ? { targetFile: undefined } : {}),
+            targetFile: isLikelyMove ? undefined : file,
           });
           log.success(`Re-compilation successful for ${path.basename(file)}!`);
 
@@ -873,31 +872,6 @@ function browserShimsPlugin(): Plugin {
   };
 }
 
-/**
- * Patches vite-plus client module to inject Svelte Inspector.
- * The built-in inspector only matches `vite/dist/client/client.mjs`,
- * but vite-plus serves its client from `@voidzero-dev/vite-plus-core/dist/vite/client/client.mjs`.
- * This plugin uses a broad match to catch all vite-plus client variants.
- */
-function vitePlusInspectorPatchPlugin(): Plugin {
-  return {
-    name: "vite-plus-inspector-patch",
-    apply: "serve",
-    enforce: "post",
-    transform(code, id) {
-      // Match both vite-plus re-export and the actual core client module
-      if (
-        (id.includes("vite-plus") || id.includes("vite-plus-core")) &&
-        id.includes("client.mjs")
-      ) {
-        return {
-          code: `${code}\nimport('virtual:svelte-inspector-path:load-inspector.js')`,
-        };
-      }
-    },
-  };
-}
-
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
@@ -1003,7 +977,6 @@ export default defineConfig((): any => {
               },
             },
       }),
-      vitePlusInspectorPatchPlugin(),
 
       realtime({ typedImports: !isBuild }),
       sveltyCmsPlugin(),
@@ -1044,6 +1017,7 @@ export default defineConfig((): any => {
         "svelte-dnd-action",
         "svelte-awesome-color-picker",
         "json-render-svelte",
+        "drizzle-orm",
       ],
       external: [
         "bun:sqlite",
@@ -1243,7 +1217,19 @@ export default defineConfig((): any => {
       exclude: [
         ...builtinModules,
         ...builtinModules.map((m) => `node:${m}`),
+        // Node.js-only server packages — must match ssr.external + rollupOptions.external
+        // to prevent Vite from attempting to pre-bundle native addons, DB drivers,
+        // and other server-only ESM that will fail in the browser.
         "redis",
+        "mongoose",
+        "mongodb",
+        "postgres",
+        "mysql2",
+        "@mongodb-js/zstd",
+        "snappy",
+        "typescript",
+        "ts-node",
+        "@tailwindcss/node",
         "@src/databases/cache/cache-service",
       ],
       include: [
@@ -1265,7 +1251,7 @@ export default defineConfig((): any => {
       env: { builtin: true },
     },
     fmt: {
-      ignorePatterns: [],
+      ignorePatterns: ["src/live/$types.d.ts"],
     },
   };
 });

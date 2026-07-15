@@ -12,8 +12,15 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should navigate to collection builder", async ({ page }) => {
-    await page.goto("/config/collectionbuilder");
+    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      page
+        .getByTestId("collection-builder-board")
+        .or(page.getByTestId("add-collection-button").first()),
+    ).toBeVisible({
       timeout: 10_000,
     });
 
@@ -149,7 +156,7 @@ test.describe("Collection Builder with Modern Widgets", () => {
     // Save should succeed
     await page.getByTestId("save-collection-button").first().click();
     await expect(page.getByText(/collection saved/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
   });
 

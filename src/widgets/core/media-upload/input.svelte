@@ -31,6 +31,7 @@
 	import { page } from '$app/state';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
+	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
 	import 'iconify-icon';
 
 	const tenantId = $derived(page.data?.tenantId);
@@ -88,6 +89,8 @@
 
 	let selectedFiles = $state<MediaFile[]>([]);
 	let showMediaLibrary = $state(false);
+	let aspectPreviewFile = $state<MediaFile | null>(null);
+	const focalPointPluginEnabled = $derived(page.data?.pluginStates?.['focal-point'] === true);
 	const dndItems = $derived(
 		selectedFiles.map((file) => ({
 			...file,
@@ -292,6 +295,17 @@
 							</div>
 						{/if}
 					</div>
+					{#if focalPointPluginEnabled && file.type?.startsWith('image/')}
+						<button
+							type="button"
+							onclick={(e) => { e.stopPropagation(); aspectPreviewFile = file; }}
+							class="absolute inset-e-1 top-7 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+							aria-label={`Preview aspect ratios for ${file.name}`}
+							title="Aspect Ratio Preview"
+						>
+							<iconify-icon icon="mdi:aspect-ratio" width="12"></iconify-icon>
+						</button>
+					{/if}
 					<button
 						type="button"
 						onclick={() => removeFile(file._id)}
@@ -321,18 +335,31 @@
 	{/if}
 </div>
 
-{#if showMediaLibrary}
-	<Portal>
-		<div class="fixed inset-0 z-99999 bg-black/70 p-4 backdrop-blur-sm">
-			<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
-				<MediaLibraryModal
-					standalone={true}
-					allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
-					folder={((field as { folder?: string }).folder ?? (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')) as string}
-					onConfirm={handleMediaSelection}
-					onClose={closeMediaLibrary}
-				/>
+	{#if showMediaLibrary}
+		<Portal>
+			<div class="fixed inset-0 z-99999 bg-black/70 p-4 backdrop-blur-sm">
+				<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
+					<MediaLibraryModal
+						standalone={true}
+						allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
+						folder={((field as { folder?: string }).folder ?? (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')) as string}
+						onConfirm={handleMediaSelection}
+						onClose={closeMediaLibrary}
+					/>
+				</div>
 			</div>
-		</div>
-	</Portal>
-{/if}
+		</Portal>
+	{/if}
+
+	{#if focalPointPluginEnabled && aspectPreviewFile}
+		<AspectPreviewModal
+			media={{
+				_id: aspectPreviewFile._id,
+				url: aspectPreviewFile.url,
+				thumbnails: { md: { url: aspectPreviewFile.thumbnailUrl } },
+				filename: aspectPreviewFile.name,
+			}}
+			show={aspectPreviewFile !== null}
+			onClose={() => { aspectPreviewFile = null; }}
+		/>
+	{/if}

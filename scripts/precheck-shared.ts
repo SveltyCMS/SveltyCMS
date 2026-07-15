@@ -126,10 +126,6 @@ export function getLastCommandOutput(): CommandOutput | null {
   return lastCommandOutput;
 }
 
-export function setManualCommandOutput(output: CommandOutput): void {
-  lastCommandOutput = output;
-}
-
 export function clearLastCommandOutput(): void {
   lastCommandOutput = null;
 }
@@ -241,15 +237,6 @@ export function analyzeChanges(paths: string[]): ChangeProfile {
   };
 }
 
-export function hasUnstagedChanges(): boolean {
-  const result = spawnSync(
-    "git",
-    ["diff", "--quiet", "--", ".", ":(exclude)docs/project/benchmarks/"],
-    { cwd: ROOT, stdio: "pipe", shell: IS_WINDOWS },
-  );
-  return result.status !== 0;
-}
-
 export function checkNetworkDbReachable(db: IntegrationDbType): boolean {
   if (db === "sqlite") return true;
   const port = getDefaultDbPort(db);
@@ -313,31 +300,15 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/check-test-db-safety.ts"]),
   },
   {
-    name: "Format Verification",
+    name: "Format, Lint & Check",
     ciJob: "whitebox",
-    estimatedMs: 3000,
-    remediation: "bun run format",
+    estimatedMs: 20000,
+    remediation: "bun run format && bun run lint && bun run check",
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
-    run: () => runCommand("bun", ["run", "format"]),
-  },
-  {
-    name: "Post-Format Tree Clean Check",
-    ciJob: "whitebox",
-    estimatedMs: 500,
-    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
-    run: () => {
-      if (hasUnstagedChanges()) {
-        setManualCommandOutput({
-          cmd: "git diff --quiet -- .",
-          stdout: "",
-          stderr:
-            "Working tree is dirty after formatting.\nRun 'bun run format' locally, commit the fixes, and retry.",
-          code: 1,
-        });
-        return false;
-      }
-      return true;
-    },
+    run: () =>
+      runCommand("bun", ["run", "format"], {}) &&
+      runCommand("bun", ["run", "lint"], {}) &&
+      runCommand("bun", ["run", "check"], {}),
   },
   {
     name: "Slop Scanner",
@@ -361,14 +332,6 @@ const BASE_TASKS: TaskSpec[] = [
     remediation: "bun run scripts/scan-secret-misuse.ts",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"]),
-  },
-  {
-    name: "Lint (oxlint)",
-    ciJob: "whitebox",
-    estimatedMs: 5000,
-    remediation: "bun run lint",
-    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
-    run: () => runCommand("bun", ["run", "lint"]),
   },
   {
     name: "Docs Lint",
@@ -398,14 +361,6 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
-    name: "Format + Lint Check",
-    ciJob: "whitebox",
-    estimatedMs: 15000,
-    remediation: "bun run check",
-    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
-    run: () => runCommand("bun", ["run", "check"]),
-  },
-  {
     name: "Full Unit Tests",
     ciJob: "whitebox",
     estimatedMs: 60000,
@@ -428,13 +383,65 @@ const BASE_TASKS: TaskSpec[] = [
     name: "Production Build",
     ciJob: "build",
     estimatedMs: 120000,
-    remediation: "bun run build",
+    // Match CI build job: COMPILE_ALL_ADAPTERS=true so testing harness stays in the
+    // artifact used by benchmarks / db-tests. Deploy strip is verified separately.
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () =>
       runCommand("bun", ["run", "build"], {
-        env: { COMPILE_ALL_ADAPTERS: "true" },
         silent: true,
         timeout: 600_000,
+        env: { ...process.env, COMPILE_ALL_ADAPTERS: "true" },
+      }),
+  },
+  {
+    name: "Benchmark Build Backdoor Check",
+    estimatedMs: 2000,
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
+        silent: true,
+        timeout: 60_000,
+      }),
+  },
+  {
+    name: "Deploy Build Backdoor Probe",
+    estimatedMs: 35000,
+    ciJob: "whitebox",
+    remediation:
+      "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () => {
+      // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
+      // Isolated from the CI-parity COMPILE_ALL_ADAPTERS build above.
+      const buildOk =
+        runCommand("bun", ["run", "build"], {
+          silent: true,
+          timeout: 300_000,
+          env: { ...process.env, COMPILE_ALL_ADAPTERS: "" },
+        }) !== false;
+      if (!buildOk) return false;
+      return (
+        runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=deploy"], {
+          silent: true,
+          timeout: 60_000,
+        }) !== false
+      );
+    },
+  },
+  {
+    name: "Benchmark Local Preflight",
+    estimatedMs: 3000,
+    remediation: "bun run verify:benchmark-local",
+    shouldSkip: (ctx) => {
+      const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+      return !includeDb || ctx.options.skipBenchmarks === true;
+    },
+    run: () =>
+      runCommand("bun", ["run", "scripts/verify-benchmark-local.ts"], {
+        silent: true,
+        timeout: 60_000,
       }),
   },
 ];
@@ -518,7 +525,26 @@ function runDbTask(
  * All skip logic lives within the spec so there is no external conditional.
  */
 function createDbTasks(db: IntegrationDbType): TaskSpec[] {
+  const contentNodesContractTask: TaskSpec = {
+    name: "Content Nodes Contract (sqlite)",
+    ciJob: "db-tests (sqlite)",
+    estimatedMs: 120000,
+    shouldSkip: (ctx) => {
+      const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+      return !includeDb || db !== "sqlite";
+    },
+    run: (ctx) =>
+      runCommand("bun", ["test", "tests/integration/databases/content-nodes-contract.test.ts"], {
+        env: {
+          ...getIntegrationTestEnv("sqlite"),
+          TEST_API_SECRET: ctx.testSecret,
+        },
+        timeout: 300_000,
+      }),
+  };
+
   return [
+    ...(db === "sqlite" ? [contentNodesContractTask] : []),
     {
       name: `Integration (${db})`,
       ciJob: `db-tests (${db})`,

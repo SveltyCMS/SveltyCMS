@@ -4,7 +4,7 @@ title: Compilation Pipeline
 description: Detailed architecture of the SveltyCMS compilation system, explaining how TypeScript collections are transformed into runtime-ready JavaScript with UUID syncing and robust validation.
 author: "SveltyCMS Team"
 created: "2025-12-29"
-updated: "2026-03-27"
+updated: "2026-07-15"
 tags:
   - "architecture"
   - "compilation"
@@ -32,7 +32,16 @@ The system is modularized into three core components located in `src/utils/compi
 
 ## Key Features
 
-### 1. Persistent UUID Synchronization
+### 1. Single-Pass Composite Transformer
+
+Instead of running 5 separate AST traversals (one per transformer), the compiler now uses a **single-pass composite transformer** (`createCompositeTransformer`):
+
+- **Before**: `widgetTransformer` → `aliasResolverTransformer` → `schemaTransformer` → `commonjsToEsModuleTransformer` → `addJsExtensionTransformer` (5 traversals)
+- **After**: `createCompositeTransformer` (1 traversal, ~5x faster)
+
+All transformation logic (alias resolution, widget proxy removal, .js extension injection, \_\_filename→ESM conversion, schema \_id/tenantId injection, widget UUID injection) is inlined into one visitor switch with shared state.
+
+### 2. Persistent UUID Synchronization
 
 The compiler ensures that your content schemas maintain stable IDs, even when you rename files or change content.
 
@@ -52,8 +61,27 @@ Instead of regex-based replacement, we use the TypeScript Compiler API to perfor
 
 ### 3. Concurrency & Performance
 
-- **Parallel Processing**: Uses a worker-queue pattern to compile multiple files simultaneously, respecting a concurrency limit (default: 5) to prevent resource exhaustion.
-- **Intelligent Caching**: Skips recompilation if the source file's content hash matches the existing compiled file.
+- **O(1) Dequeue**: Uses an index cursor instead of `Array.shift()` for O(1) job dispatching.
+- **Parallel Processing**: Adaptive concurrency set to 75% of CPU cores (minimum 4) using a shared index cursor across workers.
+- **Intelligent Caching**: Skips recompilation if the source file's content hash matches the existing compiled file with the same tenant context.
+- **Early Exit**: Returns immediately when no source files are found (with orphan cleanup still performed).
+
+### 4. Smart Path Resolution (Tenant-Aware)
+
+When compiling with a `tenantId`, the compiler first checks the tenant-scoped path (`config/{tenantId}/collections/`). If no `.ts` files exist there, it falls back to the flat `config/collections/` directory. This enables:
+
+- **Fresh multi-tenant installs**: Writes directly to `config/{tenantId}/collections/`
+- **Non-migrated single-tenant sites**: Falls back gracefully
+- **Migration safety**: No broken compilations during the transition
+
+### 5. Automatic Orphan & Empty Directory Cleanup
+
+After full builds, the compiler:
+
+1. **Removes orphaned files** — compiled outputs whose source has been deleted
+2. **Removes empty directories** — stale mirrored directories from renamed/deleted source folders (e.g., renaming `subfolder/` → `subfolder1/`)
+
+The manifest keys use absolute paths with compiled-dir prefix stripping so orphan cleanup never deletes freshly compiled output.
 
 ## Integration
 
@@ -61,20 +89,22 @@ The compilation pipeline is integrated into both the development server and the 
 
 ### Vite Plugin (`vite.config.ts`)
 
-In development mode, the `cmsWatcherPlugin` invokes the compiler on file changes:
+In development mode, the `sveltyCmsPlugin()` invokes the compiler on file changes:
 
 ```typescript
-// vite.config.ts leverage the shared compile utility
+// vite.config.ts — handleHmr inside sveltyCmsPlugin
 import { compile } from "./src/utils/compilation/compile";
 
-// ... inside watcher
+// On file change:
+const isLikelyMove = event === "unlink" && file.endsWith(".ts");
 await compile({
   userCollections: paths.userCollections,
   compiledCollections: paths.compiledCollections,
-  targetFile: file, // Incremental compilation
-  logger: log, // Injects the Vite logger
+  targetFile: isLikelyMove ? undefined : file, // Full compile on move
 });
 ```
+
+When a file is moved/renamed (detected by `unlink` + `.ts`), the compiler runs a **full build** with orphan cleanup to ensure the old compiled file is removed and the new one is created.
 
 ### Server-Side Route (`+page.server.ts`)
 
@@ -115,6 +145,35 @@ await compile({
 ```
 
 The output of this pipeline is monitored by the **Content Engine (`src/content/engine.server.ts`)**, which reconciles the compiled JavaScript modules into the live system state.
+
+## Manifest (`.compilation-manifest.json`)
+
+The manifest is a **dual-purpose** file in `.compiledCollections/`:
+
+| Key                         | Written by                                        | Purpose                                                       |
+| :-------------------------- | :------------------------------------------------ | :------------------------------------------------------------ |
+| `{absolutePath}.js` entries | `compile()`                                       | Source hash cache — skip unchanged files                      |
+| `collectionOrder`           | GUI Save, sidebar `POST /api/collections/reorder` | `{ [collectionId]: number }` sort overrides                   |
+| `structureNodes`            | GUI Save (`setOrganizationalManifest`)            | Builder categories (`source: "builder"`) for restart recovery |
+
+`compile()` **preserves** `collectionOrder` and `structureNodes` when recompiling — only compile-hash entries are updated.
+
+Path normalization uses absolute paths under `.compiledCollections/` so orphan cleanup never deletes freshly compiled output (see `tests/unit/compilation/compile-manifest.test.ts`).
+
+### Example: filesystem folder `test/`
+
+```
+config/collections/test/posts.ts
+        ↓ compile()
+.compiledCollections/test/posts.js   ← manifest hash entry
+.compiledCollections/.compilation-manifest.json
+        ↓ reconcile
+content_nodes: collection posts, category test (path-derived)
+        ↓
+Sidebar + Collection Builder (via contentStructure store)
+```
+
+`collectionOrder` is **not** auto-generated from folder names — set it via GUI Save or sidebar reorder if you need explicit ordering beyond DB defaults.
 
 ## Related Documentation
 

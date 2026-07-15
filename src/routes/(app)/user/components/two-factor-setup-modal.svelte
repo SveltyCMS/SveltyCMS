@@ -272,7 +272,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				type="submit"
 				form="twofa-form"
 				disabled={verificationCode.length !== 6 || isVerifying}
-			 class="dark: {parent?.buttonPositive ?? ''}">
+			class={parent?.buttonPositive ?? ''}>
 				{#if isVerifying}
 					<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
 					{twofa_verifying()}
@@ -284,7 +284,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		{:else}
 			<!-- Complete Footer -->
 			<Button variant="outline" type="button" onclick={cancelSetup}>{button_cancel()}</Button>
-			<Button variant="success" type="button" onclick={completeSetup} class="{parent?.buttonPositive ?? ''}">
+			<Button variant="success" type="button" onclick={completeSetup} class={parent?.buttonPositive ?? ''}>">
 				<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>
 				{button_complete()}
 			</Button>

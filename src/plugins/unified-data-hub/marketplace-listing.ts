@@ -14,10 +14,10 @@ export const unifiedDataHubMarketplaceListing: MarketplaceItem = {
   description:
     "Governed multi-source data federation — connect Postgres and REST APIs as virtual collections with LocalCMS performance, WebMCP tools, and entry editor enrichment previews.",
   type: "plugin",
-  category: "data-platform",
   version: "2.0.0",
   author: "SveltyCMS",
   source: "local",
+  installed: false,
   installable: false,
   homepageUrl: "https://marketplace.sveltycms.com/packages/unified-data-hub",
   previewUrl: "https://docs.sveltycms.com/src/plugins/unified-data-hub/unified-data-hub.mdx",

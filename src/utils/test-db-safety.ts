@@ -21,6 +21,15 @@
  *
  * @param dbName - The database name to check. null/undefined/empty = unsafe.
  */
+/** DB names that must never appear in live `config/private.ts` (developer machine). */
+export const LIVE_DEVELOPER_FORBIDDEN_DB_NAMES = new Set(["benchmark_shared", "sveltycms_test"]);
+
+/** True when a live developer config points at an isolated test/benchmark database. */
+export function isUnsafeLiveDeveloperDbName(dbName: string | null | undefined): boolean {
+  if (!dbName) return false;
+  return LIVE_DEVELOPER_FORBIDDEN_DB_NAMES.has(dbName);
+}
+
 export function isIsolatedTestDbName(dbName: string | null | undefined): boolean {
   if (!dbName) return false;
   const lower = dbName.toLowerCase();

@@ -47,6 +47,7 @@ export const PUBLIC_ROUTES = [
   "/api/preview",
   "/api/media/share",
   "/share",
+  "/api/system/penalize-bounce",
 ];
 
 // ──────────────────────────────────────────────────────────────

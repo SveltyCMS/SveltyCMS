@@ -15,6 +15,7 @@ import { apiHandler } from "@utils/api-handler";
 import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { isMultiTenantEnabled } from "@utils/tenant";
 
 // Pre-compute headers once (shared across all responses)
 const _baseHeaders = {
@@ -48,7 +49,7 @@ function getMediaPaths() {
   return { folder: _mediaFolder!, base: _mediaBase! };
 }
 
-export const GET = apiHandler(async ({ params, request }) => {
+export const GET = apiHandler(async ({ params, request, locals }) => {
   let filePath = params.path?.trim();
   if (!filePath) {
     throw new AppError("File path is required", 400, "MISSING_PATH");
@@ -109,6 +110,38 @@ export const GET = apiHandler(async ({ params, request }) => {
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     logger.warn("Directory traversal attempt blocked", { requested: filePath });
     throw new AppError("Access denied", 403, "ACCESS_DENIED");
+  }
+
+  // 🛡️ Tenant access control — extract tenant from file path
+  // Path format: {tenantId}/{hash}/original/file.jpg or global/{hash}/original/file.jpg
+  const pathTenant = filePath.split("/")[0];
+  if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
+    const userTenantId = (locals as any)?.tenantId;
+    if (userTenantId && userTenantId !== pathTenant && userTenantId !== "global") {
+      logger.warn("Cross-tenant file access blocked", {
+        requested: filePath,
+        userTenant: userTenantId,
+        fileTenant: pathTenant,
+      });
+      throw new AppError("Access denied: tenant mismatch", 403, "TENANT_MISMATCH");
+    }
+  }
+
+  // 🛡️ Signed URL enforcement (opt-in via MEDIA_SIGNED_URL_ENABLED)
+  // Global files remain public; tenant-scoped files require a valid signature
+  const signedUrlEnabled = getPublicSettingSync("MEDIA_SIGNED_URL_ENABLED");
+  if (signedUrlEnabled && pathTenant !== "global") {
+    const { validateSignedMediaUrl } = await import("@src/utils/media/signed-urls");
+    const requestUrl = new URL(request.url);
+    const userTenantId = (locals as any)?.tenantId;
+    const validation = validateSignedMediaUrl(requestUrl, filePath, userTenantId);
+    if (!validation.valid) {
+      logger.warn("Signed URL validation failed", {
+        requested: filePath,
+        reason: validation.reason,
+      });
+      throw new AppError("Signed URL required or invalid", 403, "SIGNATURE_REQUIRED");
+    }
   }
 
   let stats;

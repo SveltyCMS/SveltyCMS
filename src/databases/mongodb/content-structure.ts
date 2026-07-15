@@ -90,6 +90,7 @@ export const contentStructureSchema = new Schema<ContentStructureDocument>(
     collectionDef: { type: Schema.Types.Mixed }, // Use 'collectionDef' instead of 'collection' to avoid Mongoose reserved key warning
     tenantId: { type: String, index: true }, // Add tenantId for multi-tenancy support
     isDeleted: { type: Boolean, default: false },
+    source: { type: String, default: "filesystem" },
   },
   {
     timestamps: true,

@@ -8,9 +8,9 @@
  * - Search engine indexing pings
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 
-export const sitemapPlugin: Plugin = {
+export const sitemapPlugin = definePlugin({
   metadata: {
     id: "sitemap",
     name: "Agnostic Headless Sitemap Manager",
@@ -31,4 +31,4 @@ export const sitemapPlugin: Plugin = {
       autoInjectToRobotsTxt: true,
     },
   },
-};
+});

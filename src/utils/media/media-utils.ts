@@ -128,11 +128,16 @@ export function resolveMediaRelPath(item: {
 }
 
 /** Build the relative storage path for an uploaded original file. */
-export function buildOriginalRelPath(hash: string, filename: string): string {
+export function buildOriginalRelPath(
+  hash: string,
+  filename: string,
+  tenantId?: string | null,
+): string {
   const dot = filename.lastIndexOf(".");
   const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
   const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
-  return `global/${hash}/original/${baseName}-${hash}.${ext}`;
+  const tenant = tenantId && tenantId !== "global" ? tenantId : "global";
+  return `${tenant}/${hash}/original/${baseName}-${hash}.${ext}`;
 }
 
 /** Resolve a browser-ready `/files/...` URL from stored media metadata. */

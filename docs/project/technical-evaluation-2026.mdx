@@ -665,6 +665,15 @@ A focused sprint to eliminate accidental complexity in the content and media sub
 - 40 new unit tests: sharing (13), media-utils (15), slim-sniffer (12).
 - Benchmark-verified: media upload 10MB at **32.3ms** (310 MB/s), SDK processing at **2.7ms** (319 images/s).
 
+**Focal Point & Aspect Preview (July 2026)**
+
+- **Focal point metadata**: `CmsMediaMetadata.focalPoint` — percentage coordinate `{ x, y }` stored per image. Persisted via `PATCH /api/media/:id` (metadata-only, no re-encoding).
+- **Aspect ratio preview grid**: Pure CSS `object-fit: cover` rendering across 7 preset ratios (16:9, 3:2, 4:3, 1:1, 2:3, 9:16, 21:9). Zero canvas/WebGL overhead.
+- **Interactive focal point**: Drag the crosshair on any preview card — all ratios update simultaneously. Arrow keys for 1px steps, Shift+Arrow for 10px. Rule-of-thirds overlay guides.
+- **Plugin-gated architecture**: Core rendering component (`AspectPreview.svelte`) with opt-in plugin (`focal-point`) that injects into `media_gallery`, `image_editor_tool`, and media-upload widget zones. Plugin-disabled-by-default — zero focal point UI when off.
+- **Cross-location coverage**: Media gallery (Slot injection + focal-quick-modal enhancement), collection entry forms (aspect preview button on image cards), image editor toolbar (crosshairs button).
+- **Competitive parity**: Equivalent to Drupal's Focal Point module and Payload CMS's aspect-preview plugin — both implemented as optional extensions in their respective ecosystems.
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.
@@ -836,7 +845,15 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **Active Visual Workflow Engine (FSM)**: Production-ready Node-based editor with strict RBAC transition guards, secure crypto IDs, and true `tenantId` isolation across all workflow logic.
 
 - **Enterprise Smart Diff View**: Hardened `diff-utils` implementation performing recursive zero-latency change analysis, protected against circular DOSt vulnerabilities and optimized with Svelte 5 `$derived` metrics.
-- **Multi-Tenant Isolation 2.0**: Mathematical data separation via Universal Tenant Context.
+- **Multi-Tenant Hardening (July 2026)**: Production-hardened isolation across all layers:
+  - **PostgreSQL Row-Level Security**: Database-level `enforceTenantPolicy()` with `CREATE POLICY tenant_isolation` and per-request `SET SESSION app.tenant_id`. Defense-in-depth below the application layer.
+  - **Signed Media URLs**: HMAC-SHA256 time-limited file access with `crypto.timingSafeEqual` validation. Opt-in via `MEDIA_SIGNED_URL_ENABLED`.
+  - **Per-Tenant Rate Limiting**: Two-tier token bucket system (per-IP + per-tenant) with independent budgets, preventing noisy tenants from starving neighbors.
+  - **Tenant Analytics Dashboard**: Per-tenant usage widget showing storage, users, collections, entries, and 24h activity — scoped by `locals.tenantId`.
+  - **Tenant-Scoped API Keys**: Token management UI with tenant scope selector (Current Tenant / Global). Backend already supports `tenantId` in auth cache lookups.
+  - **Per-Tenant Database Connection Pooling**: Optional dedicated postgres.js pools per tenant with configurable `TENANT_DB_POOL_SIZE`. Visible as `application_name = tenant_{id}` in `pg_stat_activity`.
+  - **E2E Isolation Tests**: 5 Playwright tests verifying cross-tenant collection, file, content, global resource, and schema boundaries at the HTTP level.
+  - **19/19 architectural features** covered across CRUD guard, RLS, signed URLs, rate limits, GraphQL, file serving, media, plugins, SSE, batch ops, migration, and E2E testing.
 - **Durable Jobs & Webhooks**: Redis-backed job queue (`svelty_jobs`) and DLQ-aware webhook engine.
 - **Asynchronous Background Imports**: Off-thread processing for large datasets with concurrency control.
 - **Real-Time Collaboration**: CRDT-based concurrent editing (Yjs) over standard HTTP.

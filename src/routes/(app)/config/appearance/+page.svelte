@@ -29,7 +29,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   import Textarea from "@components/ui/textarea.svelte";
   import Toggle from "@components/ui/toggle.svelte";
   import { fade, fly } from "svelte/transition";
-  import { toast } from "@src/stores/toast.svelte";
+  import { toast } from "@src/stores/toast.svelte.ts";
   import type { StoredAdminTheme, ThemeSummary } from "@src/services/core/admin-theme-service";
   import type { MarketplaceItem } from "@src/services/core/marketplace-service";
   import {
@@ -39,8 +39,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   } from "@utils/theme-merge";
   import { getThemeContext } from "@components/ui/theme-context.svelte";
   import type { AdminTheme } from "@components/ui/theme-context.svelte";
-  import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
-  import { ui } from "@src/stores/ui-store.svelte";
+  import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte.ts";
+    import { ui } from "@src/stores/ui-store.svelte.ts";
   import {
     USER_LAYOUT_PREF_KEYS,
     applyLayoutPrefsToUiState,

@@ -9,9 +9,21 @@
 export function normalizeAvatarUrl(url: string | null | undefined): string {
   const DEFAULT_AVATAR = "/Default_User.svg";
   if (!url) return DEFAULT_AVATAR;
-  if (url.startsWith("data:") || /^https?:\/\//i.test(url)) return url;
-  if (/^\/?Default_User\.svg$/i.test(url)) return DEFAULT_AVATAR;
-  const normalized = url.replace(/^https?:\/\/[^/]+/i, "").replace(/^\/+/, "/");
-  if (normalized.startsWith("/files/")) return normalized;
-  return normalized.startsWith("/") ? normalized : "/files/" + normalized;
+  if (url.startsWith("data:")) return url;
+  // Strip protocol and host from absolute URLs
+  let path = url.replace(/^https?:\/\/[^/]+/i, "");
+  // Handle Default_User.svg variants
+  if (/^\/?Default_User\.svg$/i.test(path)) return DEFAULT_AVATAR;
+  // Normalize leading slashes (multiple → single)
+  path = path.replace(/^\/+/, "/") || "/";
+  // If it already starts with /files/ or is just root, return as-is
+  if (path.startsWith("/files/") || path === "/") return path;
+  // If it starts with a slash, it's an absolute path — return as-is
+  if (path.startsWith("/")) return path;
+  // Handle paths starting with "files/" (prepend just /)
+  if (path.startsWith("files/")) return "/" + path;
+  // Handle mediaFolder (treat as absolute path)
+  if (path.startsWith("mediaFolder")) return "/" + path;
+  // Otherwise, prepend /files/
+  return "/files/" + path;
 }

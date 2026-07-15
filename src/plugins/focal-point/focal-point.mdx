@@ -1,0 +1,210 @@
+---
+path: "src/plugins/focal-point/focal-point.mdx"
+title: "Focal Point & Aspect Preview Plugin"
+description: "Visual aspect ratio preview with draggable focal point — see how images crop to 16:9, 1:1, 4:3, and more. Modeled after Drupal Focal Point and Payload CMS Aspect Preview."
+order: 12
+icon: "mdi:crosshairs-gps"
+author: "SveltyCMS Team"
+created: "2026-07-12"
+updated: "2026-07-12"
+tags:
+  - plugins
+  - media
+  - focal-point
+  - aspect-preview
+  - image-cropping
+---
+
+# Focal Point & Aspect Preview Plugin
+
+The **Focal Point & Aspect Preview** plugin brings enterprise-grade image cropping previews to SveltyCMS. Inspired by [Drupal's Focal Point module](https://www.drupal.org/project/focal_point) and [Payload CMS's aspect-preview plugin](https://github.com/s-kolbusz/payload-plugin-aspect-preview), it shows editors exactly how images will crop to different aspect ratios — with a draggable focal point that updates all previews simultaneously.
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│  CORE COMPONENT (src/components/media/)              │
+│  aspect-preview.svelte        ← Pure CSS rendering   │
+│  aspect-preview-modal.svelte  ← Save-to-server modal │
+├──────────────────────────────────────────────────────┤
+│  PLUGIN (src/plugins/focal-point/)                   │
+│  index.ts                     ← Slot registration    │
+│  components/focal-point-toolbar.svelte ← UI launcher │
+└──────────────────────────────────────────────────────┘
+```
+
+The plugin injects into the `media_gallery` and `image_editor_tool` Slot zones, providing a search-and-preview panel in the media gallery, and a toolbar button in the image editor.
+
+---
+
+## Features
+
+- **7 Default Aspect Ratios**: 16:9 (hero), 3:2 (photo), 4:3 (card), 1:1 (thumbnail), 2:3 (portrait), 9:16 (story), 21:9 (ultrawide)
+- **Live Dragging**: Drag the focal point crosshair on any preview card — all ratios update simultaneously
+- **Keyboard Navigation**: Arrow keys (1% steps), Shift+Arrow (10% steps)
+- **Rule-of-Thirds Overlay**: Subtle grid guides for composition-aware focal point placement
+- **Persistent Storage**: Focal point saved to `CmsMediaMetadata.focalPoint` via `PATCH /api/media/:id`
+- **Zero Dependencies**: Pure CSS `object-fit: cover` + `object-position` — no canvas, no WebGL
+
+---
+
+## Installation & Enabling
+
+The plugin is auto-discovered from `src/plugins/focal-point/`. To enable it:
+
+1. Set `enabled: true` in the plugin metadata, OR
+2. Toggle via the admin UI under **Extensions** → **Plugins**
+3. The plugin appears in the **Media Gallery** page as a "Focal Point Preview" panel
+
+---
+
+## Usage
+
+### From the Media Gallery
+
+1. Navigate to **Media Gallery** in the admin sidebar
+2. Locate the **Focal Point Preview** panel (injected via Slot)
+3. Search for an image by filename
+4. Click a search result to open the **Aspect Ratio Preview** modal
+5. Drag the focal point crosshair on any preview card
+6. Use arrow keys for fine-tuning (Shift for 10px steps)
+7. Click **Save Focal Point** or press `Ctrl+S` / `Cmd+S`
+
+### From Collection Entry Forms
+
+The core `media-upload` widget also includes an aspect preview button (⧅ icon) on each image card. This is available regardless of whether the plugin is enabled.
+
+### From the Image Editor
+
+1. Open any image in the **Image Editor**
+2. Click the **crosshairs** button (⦿) in the editor toolbar
+3. The Aspect Ratio Preview modal opens for the current image
+4. Adjust the focal point while seeing how it affects all crop ratios
+
+---
+
+## Configuration
+
+| Setting                   | Type       | Default                                          | Description                             |
+| ------------------------- | ---------- | ------------------------------------------------ | --------------------------------------- |
+| `defaultRatios`           | `string[]` | `["16:9","3:2","4:3","1:1","2:3","9:16","21:9"]` | Aspect ratios shown in the preview grid |
+| `showRuleOfThirds`        | `boolean`  | `true`                                           | Show rule-of-thirds overlay guides      |
+| `enableKeyboardShortcuts` | `boolean`  | `true`                                           | Enable arrow key focal point adjustment |
+
+### Custom Ratio Format
+
+Ratios are specified as `"width:height"` strings:
+
+```typescript
+defaultRatios: ["16:9", "1:1", "4:3", "2.35:1"];
+```
+
+Leave the array empty to use the core defaults.
+
+---
+
+## Developer Reference
+
+### Slot Injection
+
+The plugin registers two slots:
+
+| Zone                | Component                        | Purpose                                |
+| ------------------- | -------------------------------- | -------------------------------------- |
+| `media_gallery`     | `focal-point-toolbar.svelte`     | Search + launch panel in media gallery |
+| `image_editor_tool` | `focal-point-editor-tool.svelte` | Toolbar button in image editor         |
+
+```typescript
+ui: {
+  slots: [
+    {
+      id: "focal-point-media-gallery",
+      zone: "media_gallery",
+      position: 10,
+      component: () => import("./components/focal-point-toolbar.svelte"),
+      permissions: ["media:write"],
+    },
+    {
+      id: "focal-point-editor-tool",
+      zone: "image_editor_tool",
+      position: 5,
+      component: () => import("./components/focal-point-editor-tool.svelte"),
+      permissions: ["media:write"],
+    },
+  ],
+},
+```
+
+### Core Component API
+
+The `AspectPreview` component (located in `src/components/media/aspect-preview.svelte`) can be used standalone:
+
+```svelte
+<script>
+  import AspectPreview from '@components/media/aspect-preview.svelte';
+</script>
+
+<AspectPreview
+  imageUrl="/files/uploads/hero.jpg"
+  focalPoint={{ x: 35, y: 60 }}
+  ratios={[
+    { label: '16:9', width: 16, height: 9 },
+    { label: '1:1', width: 1, height: 1 },
+  ]}
+  interactive={true}
+  onFocalChange={(fp) => console.log('New focal point:', fp)}
+/>
+```
+
+### Focal Point Data Model
+
+Focal points are stored in the core `CmsMediaMetadata`:
+
+```typescript
+interface CmsMediaMetadata {
+  focalPoint?: { x: number; y: number }; // 0–100 percentages
+  // ... other metadata fields
+}
+```
+
+Saved via `PATCH /api/media/:id` with body `{ metadata: { focalPoint: { x: 50, y: 50 } } }`.
+
+---
+
+## FAQ
+
+### Does this modify my images?
+
+No. The focal point is metadata only — a percentage coordinate stored in the database. Actual cropping is applied by your frontend at render time, typically via CSS `object-position` or server-side image processing.
+
+### How does the frontend use the focal point?
+
+Your frontend reads the `focalPoint` from the media metadata and passes it to your image component:
+
+```css
+img {
+  object-fit: cover;
+  object-position: 50% 35%; /* X% Y% from focalPoint */
+}
+```
+
+Or for server-side cropping libraries (sharp, jimp, imagemagick), use the focal point to calculate crop coordinates.
+
+### Can I add custom aspect ratios?
+
+Yes. Update the `defaultRatios` config in the plugin definition, or pass a custom `ratios` array directly to the `<AspectPreview>` component.
+
+### Is this compatible with the Image Editor?
+
+Yes. The image editor modal (`ImageEditorModal`) already passes the focal point to its editing canvas. The Aspect Preview plugin complements it by providing a quick visual check before/after editing.
+
+---
+
+## Related
+
+- [Widget Architecture](/docs/development/widgets/architecture.mdx)
+- [Plugin Architecture](/docs/development/plugins/architecture.mdx)
+- [Media Models](/docs/reference/api/media-api.mdx)
+- [Image Editor](/docs/reference/components/image-editor.mdx)

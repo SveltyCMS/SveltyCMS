@@ -1,5 +1,4 @@
 /**
- * @file src/routes/api/[...path]/handlers/auth.ts
  * @description Enterprise authentication, user management, 2FA, SAML SSO, and permissions handlers.
  *
  * Responsibilities:
@@ -26,6 +25,7 @@ import { getAllPermissions } from "@src/databases/auth/permissions";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
 import { generateSecureToken } from "@utils/native-utils";
@@ -539,7 +539,7 @@ export async function handle2FARoutes(
       if (event.request.method !== "POST") throw notAllowed();
       const { code, userId } = await event.request.json().catch(() => ({}));
       if (!userId) throw new AppError("User ID required", 400);
-      if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+      if (isMultiTenantEnabled() && !tenantId) {
         throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
       }
       const result = await twoFactorService.verify2FA(user._id, code, tenantId);

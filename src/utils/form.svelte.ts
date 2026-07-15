@@ -88,10 +88,15 @@ export class Form<T extends Record<string, unknown>> {
     }
 
     try {
+      const { headers: customHeaders, ...restOptions } = options;
+      const mergedHeaders = {
+        "Content-Type": "application/json",
+        ...(customHeaders as Record<string, string>),
+      };
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        ...options,
+        headers: mergedHeaders,
+        ...restOptions,
         body: JSON.stringify(this.data),
       });
 

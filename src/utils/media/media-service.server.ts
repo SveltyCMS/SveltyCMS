@@ -148,8 +148,9 @@ export class MediaService {
     hash: string,
     filename: string,
     data: Buffer | ReadableStream | import("node:stream").Readable,
+    tenantId?: string | null,
   ): Promise<string> {
-    const relPath = buildOriginalRelPath(hash, filename);
+    const relPath = buildOriginalRelPath(hash, filename, tenantId);
     if (await fileExists(relPath)) {
       return relPath;
     }
@@ -204,7 +205,7 @@ export class MediaService {
         }
 
         const hash = await hashFileContent(buffer);
-        const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer);
+        const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
 
         // Extract image dimensions + generate derivatives for image files
         let imageMetadata: Record<string, unknown> = {};
@@ -219,7 +220,13 @@ export class MediaService {
             const dotIdx = file.name.lastIndexOf(".");
             const baseName = dotIdx > 0 ? file.name.slice(0, dotIdx) : file.name;
             const ext = dotIdx > 0 ? file.name.slice(dotIdx + 1).toLowerCase() : "jpg";
-            imageThumbnails = await saveResizedImages(buffer, hash, baseName, ext, "global");
+            imageThumbnails = await saveResizedImages(
+              buffer,
+              hash,
+              baseName,
+              ext,
+              tenantId || "global",
+            );
           } catch (e) {
             logger.warn("[Media] Derivative generation skipped", e);
           }
@@ -291,7 +298,7 @@ export class MediaService {
         // OR we upload to a temp name and then rename.
         // For Performance Tweaks, let's assume we want to avoid double-upload.
         const hash = await hashPromise;
-        const relPath = await this.ensureOriginalOnDisk(hash, file.name, s2);
+        const relPath = await this.ensureOriginalOnDisk(hash, file.name, s2, tenantId);
 
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {

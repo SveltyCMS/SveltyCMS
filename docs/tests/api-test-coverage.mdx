@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:file-document"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-20"
+updated: "2026-07-15"
 tags:
   - "documentation"
 ---
@@ -19,19 +19,24 @@ API testing in SveltyCMS covers the REST and GraphQL endpoints, ensuring correct
 
 ### Test Locations
 
-| Category              | Test File(s)                                                               |
-| --------------------- | -------------------------------------------------------------------------- |
-| API Dispatcher        | `tests/unit/api-request-handler/`, `tests/unit/hooks/api-requests.test.ts` |
-| Media Security        | `tests/unit/api/media-security.test.ts`                                    |
-| Hook Defense-in-Depth | `tests/unit/hooks/defense-in-depth.test.ts`                                |
-| Setup API Routes      | `tests/unit/hooks/setup.test.ts`                                           |
-| E2E API Coverage      | `tests/e2e/routes/config/`, `tests/e2e/routes/system/`                     |
+| Category              | Test File(s)                                                                    |
+| --------------------- | ------------------------------------------------------------------------------- |
+| API Dispatcher        | `tests/unit/api-request-handler/`, `tests/unit/hooks/api-requests.test.ts`      |
+| API unit helpers      | `tests/unit/utils/mock-event.ts` (`invokeApi`) — [docs](./api-unit-helpers.mdx) |
+| Media Security        | `tests/unit/api/media-security.test.ts`                                         |
+| Unit API suites       | `tests/unit/api/*.test.ts` (prefer `invokeApi` over per-file mock events)       |
+| Hook Defense-in-Depth | `tests/unit/hooks/defense-in-depth.test.ts`                                     |
+| Setup API Routes      | `tests/unit/hooks/setup.test.ts`                                                |
+| Black-box HTTP API    | `tests/integration/api/*.test.ts`                                               |
+| E2E API Coverage      | `tests/e2e/routes/config/`, `tests/e2e/routes/system/`                          |
 
 > **Note**: API test coverage documentation is actively being expanded. See the [Test Status Overview](./test-status.mdx) for the latest counts, and the [Hook Test Coverage](./hook-test-coverage.mdx) and [E2E Coverage Matrix](./e2e-coverage-matrix.mdx) for route-level detail.
 
 ### Related
 
 - [Test Documentation](./index.mdx)
+- [API Unit Helpers](./api-unit-helpers.mdx)
+- [API Testing (black-box)](./api-testing.mdx)
 - [Security Testing](./security-testing.mdx)
 - [Architecture Overview](../reference/architecture/index.mdx)
 

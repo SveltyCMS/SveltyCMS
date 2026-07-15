@@ -22,8 +22,8 @@
 
 	let { document, editable = false, onDocumentChange }: Props = $props();
 
-	let session = $state(createSiteSveditSession(document));
-	let lastExternalDoc = $state(JSON.stringify(document));
+	let session = $state(createSiteSveditSession({} as any));
+	let lastExternalDoc = $state("");
 	let lastEmittedDoc = $state("");
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 

@@ -21,17 +21,25 @@ function getModelContext() {
 }
 
 async function hubExtension(_db: IDBAdapter) {
-  const {
-    enrichVirtualCollectionForAgent,
-    listVirtualCollectionsForAgent,
-    queryVirtualCollectionForAgent,
-    isHubEnabled,
-  } = await import("@plugins/unified-data-hub/server/mcp-extension");
+  if (import.meta.env.SSR) {
+    const {
+      enrichVirtualCollectionForAgent,
+      listVirtualCollectionsForAgent,
+      queryVirtualCollectionForAgent,
+      isHubEnabled,
+    } = await import("@plugins/unified-data-hub/server/mcp-extension");
+    return {
+      enrichVirtualCollectionForAgent,
+      listVirtualCollectionsForAgent,
+      queryVirtualCollectionForAgent,
+      isHubEnabled,
+    };
+  }
   return {
-    enrichVirtualCollectionForAgent,
-    listVirtualCollectionsForAgent,
-    queryVirtualCollectionForAgent,
-    isHubEnabled,
+    enrichVirtualCollectionForAgent: async () => ({ success: false, data: [] }),
+    listVirtualCollectionsForAgent: async () => ({ success: false, data: [] }),
+    queryVirtualCollectionForAgent: async () => ({ success: false, data: [] }),
+    isHubEnabled: () => false,
   };
 }
 

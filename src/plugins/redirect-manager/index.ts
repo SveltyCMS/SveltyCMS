@@ -9,9 +9,9 @@
  * - Multi-tenant support
  */
 
-import type { Plugin } from "../types";
+import { definePlugin } from "../define-plugin";
 
-export const redirectManagerPlugin: Plugin = {
+export const redirectManagerPlugin = definePlugin({
   metadata: {
     id: "redirect-manager",
     name: "Headless Redirect Router",
@@ -45,4 +45,4 @@ export const redirectManagerPlugin: Plugin = {
       failClosedOnCacheMiss: true,
     },
   },
-};
+});

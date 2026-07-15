@@ -1,0 +1,210 @@
+---
+path: "docs/guides/content/migration-and-import.mdx"
+title: "Migration, Import & Data Operations"
+description: "Complete guide to moving content into, out of, and between SveltyCMS instances — from external platform migration to backups, export/import, and environment sync."
+order: 5
+icon: "mdi:truck-fast"
+author: "SveltyCMS Team"
+created: "2026-07-12"
+updated: "2026-07-12"
+tags:
+  - "migration"
+  - "import"
+  - "export"
+  - "backup"
+  - "sync"
+  - "wordpress"
+  - "drupal"
+  - "data-operations"
+---
+
+# Migration, Import & Data Operations
+
+SveltyCMS provides six operational domains for moving content in, out, and between instances. Whether you're migrating from WordPress, exporting content for a staging environment, or backing up before an upgrade — everything follows a **plan-first, preview-before-run** safety model.
+
+> [!TIP]
+> **Plan-first means you always see what will happen before it happens.** Every operation — import, export, backup restore, config promotion — generates a preview plan showing affected resources, conflicts, and risk scores. Nothing is applied until you review and confirm.
+
+---
+
+## Quick Guide: What Do You Need?
+
+| You want to…                                   | Use                  | Where                             |
+| ---------------------------------------------- | -------------------- | --------------------------------- |
+| Migrate from WordPress, Drupal, or another CMS | **Smart Importer**   | Admin → Config → Migration tile   |
+| Export content to a file                       | **Content Export**   | Admin → Data Management → Export  |
+| Import a content package                       | **Content Import**   | Admin → Data Management → Import  |
+| Back up your entire instance                   | **Backup**           | Admin → Data Management → Backups |
+| Restore from a backup                          | **Restore**          | Admin → Data Management → Backups |
+| Move config from dev to production             | **Config Promotion** | Admin → Operations → Config       |
+| Sync content between environments              | **Content Sync**     | Admin → Operations → Sync         |
+| Transform schema or data across versions       | **Data Migrations**  | Admin → Operations → Migrations   |
+
+---
+
+## 1. Migrating from Another CMS
+
+SveltyCMS includes the **Smart AI-Driven Migration Pro** plugin — a visual migration wizard that auto-detects your source format and maps fields to SveltyCMS collections.
+
+### Supported Source Platforms (40+)
+
+| Format                     | Auto-Detection | What's Imported                                                |
+| -------------------------- | -------------- | -------------------------------------------------------------- |
+| **WordPress** (WXR/XML)    | ✅             | Posts, pages, categories, tags, media, ACF fields, CMB2 fields |
+| **Drupal** (JSON export)   | ✅             | Nodes, taxonomy, users, files, paragraphs                      |
+| **Strapi** (JSON export)   | ✅             | Collection types, single types, components, media              |
+| **Directus** (JSON export) | ✅             | Collections, fields, relations, files                          |
+| **SveltyCMS** (package)    | ✅             | Full content packages with identity matching                   |
+| **CSV**                    | ✅             | Flat data with column-to-field mapping                         |
+| **JSON**                   | ✅             | Nested or flat JSON with heuristic structure detection         |
+
+### Migration Workflow
+
+1. **Enable the plugin** — Go to Admin → Config. The Migration tile appears when the Smart Importer plugin is installed.
+2. **Upload your export file** — Drag and drop your WordPress WXR, Drupal JSON, or CSV file.
+3. **Auto-detection runs** — SveltyCMS identifies the source format, extracts content types, and suggests field mappings.
+4. **Review the mapping** — Adjust field mappings in the visual transformation tree. You can remap, skip, or transform any field.
+5. **Preview the import** — See exactly which entries will be created, updated, or skipped before running.
+6. **Run the import** — Content streams in via SSE with real-time progress. Failed rows go to a dead-letter queue for manual review.
+
+> [!NOTE]
+> The Smart Importer is a marketplace plugin. See the [plugin documentation](/src/plugins/smart-importer/smart-importer.mdx) for installation and platform-specific guides (WordPress, Drupal).
+
+---
+
+## 2. Exporting & Importing Content
+
+The **Content Transfer** system exports and imports editorial content as portable `.svelty-package` files with NDJSON streaming.
+
+### Export Content
+
+1. Go to **Admin → Data Management → Export**.
+2. Select the collections to export (or export everything).
+3. Choose format: **JSON** (small datasets) or **Package** (large datasets with media).
+4. Review the export plan — shows entry counts per collection.
+5. Download the `.svelty-package` file.
+
+### Import Content
+
+1. Go to **Admin → Data Management → Import**.
+2. Upload a `.svelty-package` file.
+3. Review the import plan — shows creates, updates, skips, and conflicts.
+4. Choose a **duplicate strategy**:
+   - **Skip** — Don't import entries that already exist
+   - **Update** — Overwrite existing entries with imported data
+   - **Create copy** — Import as new entries with deduplicated slugs
+   - **Fail** — Stop if any duplicate is found
+5. Apply the import. Media references and relations are automatically remapped.
+
+> **API reference**: [Content Export & Import](/docs/reference/api/content-transfer) — full endpoint documentation with NDJSON streaming, identity matching, and duplicate resolution.
+
+---
+
+## 3. Backup & Restore
+
+The **Backup system** creates full-instance snapshots with AES-256-GCM encryption and SHA-256 integrity verification.
+
+### Create a Backup
+
+1. Go to **Admin → Data Management → Backups**.
+2. Click **Create Backup**.
+3. Optionally set an encryption password (AES-256-GCM) for sensitive data.
+4. The backup captures: collections, entries, media, settings, roles, permissions, themes, widgets, and automations.
+5. Backups are stored as `.svelty-backup` directories with a manifest and checksums.
+
+### Restore from Backup
+
+1. Go to **Admin → Data Management → Backups**.
+2. Select a backup from the list.
+3. Click **Restore Plan** — previews what will be restored, what's missing, and any conflicts.
+4. Review the plan. The system enters **maintenance mode** during restore to prevent data corruption.
+5. Confirm and execute the restore.
+
+> [!CAUTION]
+> Restore replaces the current instance state. Always create a fresh backup before restoring. Restore requires admin permission and a maintenance lock.
+
+> **API reference**: [Backup & Restore](/docs/reference/api/backups) — full endpoint documentation with encryption, validation, and tenant isolation.
+
+---
+
+## 4. Configuration Promotion
+
+Move CMS configuration (collections, roles, permissions, settings, widgets, themes, webhooks, automations) between environments — typically **dev → staging → production**.
+
+### Workflow
+
+1. Go to **Admin → Operations → Config**.
+2. **Export** the source environment's configuration.
+3. **Check drift** — the system compares checksums to detect what's different between environments.
+4. **Review the plan** — see which resources will be created, updated, or deleted.
+5. **Apply** the plan. All changes are audit-logged with deterministic checksums.
+
+> [!IMPORTANT]
+> Configuration promotion moves **structure** (schemas, settings, roles), not content. Use Content Transfer for editorial content.
+
+> **API reference**: [Configuration Promotion](/docs/reference/api/configuration-promotion) — full endpoint documentation with resource types, drift detection, and audit logging.
+
+---
+
+## 5. Content Sync (Cross-Environment)
+
+Synchronize editorial content between environments via configurable **channels** — e.g., pull production content to staging for testing, or push curated content to production.
+
+### Setup
+
+1. Go to **Admin → Operations → Sync**.
+2. Create a channel: define source instance URL, target instance URL, and which collections to sync.
+3. Choose direction: **push** (send to target) or **pull** (fetch from source).
+
+### Safety Features
+
+- **Disabled by default** — Content sync must be explicitly enabled per channel.
+- **Plan-first** — Always preview what will be synced before executing.
+- **PII anonymization** — When pulling from production to dev, personally identifiable information is automatically anonymized.
+- **Conflict review** — Sync stops and shows conflicts before any data is written.
+
+> **API reference**: [Content Sync](/docs/reference/api/content-sync) — full endpoint documentation with channel management, PII anonymization, and conflict resolution.
+
+---
+
+## 6. Data Migrations (Schema & Content)
+
+Apply versioned, idempotent transformations to your schema and content — useful when upgrading SveltyCMS versions or evolving your data model.
+
+### Workflow
+
+1. Go to **Admin → Operations → Migrations**.
+2. View migration history — all applied and pending migrations with their `planHash`.
+3. **Plan** a migration — the system risk-scores it as **safe**, **warning**, or **destructive**.
+4. **Apply** — each migration runs exactly once (idempotent via `planHash` deduplication).
+5. **Verify** — confirm the migration produced the expected result.
+
+### Safety Features
+
+- **Cross-adapter locking** — Prevents concurrent migration runs across all database adapters.
+- **Risk scoring** — Destructive migrations (column drops, data deletion) are flagged.
+- **Checksummed ledger** — Every applied migration is recorded with its `planHash` for audit.
+
+> **API reference**: [Data Migrations](/docs/reference/api/data-migrations) — full endpoint documentation with risk scoring, locking, and verification.
+
+---
+
+## Design Principles
+
+All six data operation domains follow the same safety rules:
+
+- **Plan-first** — Nothing is applied without a preview.
+- **Identity by ID, not name** — Resources are matched by `_id` or deterministic checksums, never by display labels or filenames.
+- **No content in config** — Configuration promotion moves structure. Content transfer moves editorial data. They never mix.
+- **Default-safe merge** — Import and sync default to non-destructive strategies (skip, not overwrite).
+- **Secrets excluded** — Users, sessions, tokens, secrets, audit logs, and job state are never included in exports or sync by default.
+- **Database-agnostic** — No operation depends on a specific adapter's internal table names or query syntax.
+
+---
+
+## Related
+
+- [Smart Importer Plugin](/src/plugins/smart-importer/smart-importer.mdx) — Platform-specific migration guides
+- [Data Operations Architecture](/docs/reference/architecture/data-operations) — Full technical architecture
+- [API Reference](/docs/reference/api/index.mdx) — Complete endpoint documentation for all six domains
+- [Data Operations Status](/docs/reference/architecture/data-operations-status) — Implementation status with service line counts and test coverage

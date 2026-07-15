@@ -10,8 +10,6 @@ export interface CompileOptions {
   concurrency?: number;
   /** Logger interface for build process feedback */
   logger?: Logger;
-  /** Optional system collections directory (if different from default) */
-  systemCollections?: string;
   /** Optional specific file to compile (relative to userCollections) */
   targetFile?: string;
   /** Tenant ID for multi-tenant mode (undefined/null = global resource) */
@@ -34,13 +32,6 @@ export interface ManifestEntry {
   tenantId?: string | null;
 }
 
-export interface ExistingFileData {
-  hash: string | null;
-  jsPath: string;
-  tenantId?: string | null;
-  uuid: string | null;
-}
-
 export interface CompilationResult {
   duration: number;
   errors: Array<{ file: string; error: Error }>;
@@ -58,6 +49,11 @@ export interface CompilationResult {
     }>;
   }>;
   skipped: number;
+}
+
+export interface CompileWarning {
+  file: string;
+  message: string;
 }
 
 export class CompilationError extends Error {

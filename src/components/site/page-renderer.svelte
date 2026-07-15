@@ -45,7 +45,7 @@
   const blocks = $derived(parseContent(page.content));
   const sveditDocument = $derived(parseSveditContent(page.content));
   const hasHero = $derived(!!(page.heroHeading || page.heroSubheading || page.ctaText));
-  const sanitizedBody = $derived(page.body ? sanitizeHtml(page.body) : "");
+  const sanitizedBody = $derived(page.body ? sanitizeHtml(typeof page.body === "string" ? page.body : "") : "");
   const sanitizedBlockHtml = (raw: string | undefined) => sanitizeHtml(raw || "");
 
   function handleSveditChange(document: SveditDocument) {
@@ -62,8 +62,9 @@
 {:else}
 <article class="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
   {#if hasHero}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <section
-      class="mb-12 rounded-2xl bg-gradient-to-br from-primary-500/10 via-surface-50 to-tertiary-500/10 p-8 dark:from-primary-500/20 dark:via-surface-900 dark:to-tertiary-500/10"
+      class="mb-12 rounded-2xl bg-linear-to-br from-primary-500/10 via-surface-50 to-tertiary-500/10 p-8 dark:from-primary-500/20 dark:via-surface-900 dark:to-tertiary-500/10"
       data-svelty-field="heroHeading"
       onclick={() => handleFieldClick("heroHeading")}
       onkeydown={(e) => e.key === "Enter" && handleFieldClick("heroHeading")}
@@ -79,6 +80,7 @@
         </h1>
       {/if}
       {#if page.heroSubheading}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
         <p
           class="mt-4 text-lg text-surface-600 dark:text-surface-300"
           data-svelty-field="heroSubheading"
@@ -109,6 +111,7 @@
   {/if}
 
   {#if page.title && !page.heroHeading}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <h1
       class="mb-6 text-3xl font-bold text-surface-900 dark:text-surface-50"
       data-svelty-field="title"
@@ -122,6 +125,7 @@
   {/if}
 
   {#if page.body}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div
       class="prose prose-surface mb-10 max-w-none dark:prose-invert"
       data-svelty-field="body"

@@ -9,7 +9,7 @@
   import type { SitePage } from "@src/services/site/types";
 
   let { data } = $props();
-  let page = $state<SitePage>(data.localized);
+  let page = $state<SitePage>({} as SitePage);
   let editable = $derived(data.editable);
 
   $effect(() => {

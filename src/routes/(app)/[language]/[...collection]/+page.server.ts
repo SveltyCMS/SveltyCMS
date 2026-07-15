@@ -50,7 +50,8 @@ import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-  const user = getAuthenticatedUser(locals);
+  const returnUrl = `${url.pathname}${url.search}`;
+  const user = getAuthenticatedUser(locals, returnUrl);
   const typedUser = user as User;
   const { tenantId } = locals;
   const { language, collection } = params;

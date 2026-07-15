@@ -1,0 +1,91 @@
+---
+path: "docs/reference/architecture/data-operations-status.mdx"
+title: "Data Operations — Implementation Status"
+description: "Status page for the SveltyCMS data operations system: configuration promotion, content packages, data migrations, external importers, backups, and content sync."
+order: 2
+icon: "mdi:source-branch-sync"
+author: "SveltyCMS Team"
+created: "2026-07-10"
+updated: "2026-07-10"
+tags:
+  - "data-operations"
+  - "status"
+  - "config"
+  - "export"
+  - "import"
+---
+
+# Data Operations — Implementation Status
+
+All six operational domains are implemented. This page links to the canonical documentation.
+
+## Canonical Documentation
+
+| Domain                  | API Reference                                                              | Architecture                                                                 |
+| :---------------------- | :------------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| Configuration Promotion | [Configuration Promotion API](/docs/reference/api/configuration-promotion) | [Data Operations Architecture](/docs/reference/architecture/data-operations) |
+| Content Packages        | [Content Transfer (export/import)](/docs/reference/api/content-transfer)   | [Data Operations Architecture](/docs/reference/architecture/data-operations) |
+| Data Migrations         | [Migration API](/docs/reference/api/data-migrations)                       | [Data Operations Architecture](/docs/reference/architecture/data-operations) |
+| External Importers      | [Importers API](/docs/reference/api/importers)                             | [Data Operations Architecture](/docs/reference/architecture/data-operations) |
+| Backups & Restore       | [Backups API](/docs/reference/api/backups)                                 | [Data Operations Architecture](/docs/reference/architecture/data-operations) |
+| Content Sync            | [Content Sync API](/docs/reference/api/content-sync)                       | [Data Operations Architecture](/docs/reference/architecture/data-operations) |
+
+## Services
+
+| Service                         | Location                                       | Lines |
+| :------------------------------ | :--------------------------------------------- | :---- |
+| `ConfigurationPromotionService` | `src/services/core/config-service.ts`          | 1,066 |
+| `ContentPackageService`         | `src/services/core/content-package-service.ts` | 1,133 |
+| `DataMigrationService`          | `src/services/core/migration-engine.ts`        | 984   |
+| `BackupService`                 | `src/services/core/backup-service.ts`          | 1,770 |
+| `ContentSyncService`            | `src/services/core/content-sync-service.ts`    | 785   |
+
+## API Namespaces
+
+| Namespace               | Handler                        | Routes                                              |
+| :---------------------- | :----------------------------- | :-------------------------------------------------- |
+| `/api/config/*`         | `handlers/config.ts`           | resources, status, export, plan, apply, history     |
+| `/api/content-export/*` | `handlers/content-transfer.ts` | validate, plan, run, jobs, download                 |
+| `/api/content-import/*` | `handlers/content-transfer.ts` | validate, plan, apply, jobs                         |
+| `/api/migrations/*`     | `handlers/migrations.ts`       | status, history, plan, apply, verify                |
+| `/api/importers/*`      | `handlers/importers.ts`        | sources (full routes via smart-importer plugin)     |
+| `/api/backups/*`        | `handlers/backups.ts`          | list, create, validate, restore-plan, restore, jobs |
+| `/api/content-sync/*`   | `handlers/content-sync.ts`     | channels CRUD, plan, push, pull, jobs               |
+
+## Tests
+
+| File                                            | Tests  |
+| :---------------------------------------------- | :----- |
+| `tests/unit/services/config-service.test.ts`    | 20     |
+| `tests/unit/api/config-permissions.test.ts`     | 24     |
+| `tests/unit/services/operation-plan.test.ts`    | 26     |
+| `tests/unit/services/identity-matching.test.ts` | 19     |
+| `tests/integration/api/config-sync.test.ts`     | 3      |
+| **Total**                                       | **92** |
+
+See [Test Status Report](/docs/tests/test-status) for the full test coverage dashboard.
+
+## Benchmarks
+
+- [Config Promotion](/docs/project/benchmarks/) — `tests/benchmarks/config-promotion.test.ts` (297 lines)
+- [Content Packages](/docs/project/benchmarks/) — `tests/benchmarks/content-package.test.ts` (464 lines)
+
+## Design Principles (from original plan)
+
+These rules are enforced in all data operation services:
+
+- Do not keep expanding generic `/api/import` and `/api/export`.
+- Do not use "sync" as a catch-all label.
+- Do not move content as part of configuration promotion.
+- Do not use filenames, display labels, or case-insensitive names as identity.
+- Do not delete target resources in default merge mode.
+- Do not export users, sessions, tokens, secrets, audit logs, or job state by default.
+- Do not make data operations depend on one database adapter's internal table names.
+- Do not add heavy runtime dependencies for basic serialization, diffing, or checksums.
+
+## Related
+
+- [Data Operations Architecture](/docs/reference/architecture/data-operations) — Full architecture overview with lifecycle, safety modes, and identity matching
+- [Configuration Promotion API](/docs/reference/api/configuration-promotion) — Complete API reference for `/api/config/*`
+- [Test Status Report](/docs/tests/test-status) — Current test coverage and gaps
+- [Roadmap 2026](/docs/project/roadmap-2026) — Broader project roadmap

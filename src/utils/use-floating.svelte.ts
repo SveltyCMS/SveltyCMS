@@ -28,6 +28,8 @@
  * ```
  */
 
+import { untrack } from "svelte";
+
 type Placement =
   | "top"
   | "top-start"
@@ -54,10 +56,8 @@ interface FloatingOptions {
 }
 
 // Detect CSS Anchor Positioning support (Baseline 2026: Chrome 143+, Firefox 147+)
-const SUPPORTS_ANCHOR =
-  typeof CSS !== "undefined" &&
-  typeof CSS.supports === "function" &&
-  CSS.supports("anchor-name: --floating-ref");
+// Disabled to ensure robust arrow positioning and avoid visual glitches in layouts
+const SUPPORTS_ANCHOR = false;
 
 const OPPOSITE_SIDE: Record<string, string> = {
   top: "bottom",
@@ -299,7 +299,9 @@ export function useFloating(options: FloatingOptions) {
       if (!positionCalculated) positionCalculated = true;
     }
 
-    updatePosition();
+    untrack(() => {
+      updatePosition();
+    });
 
     // Auto-update on scroll, resize, and element size changes
     const onUpdate = () => updatePosition();

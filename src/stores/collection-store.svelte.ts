@@ -57,19 +57,6 @@ class CollectionState {
   contentStructure = $state<ContentNode[]>([]);
   selectedEntries = $state<string[]>([]);
 
-  // Stepper state for Studio Mode Sidebar Integration
-  stepper = $state({
-    activeStep: 1,
-    completedSteps: new Set<number>(),
-    steps: [
-      { label: "General Setup", description: "Collection basics" },
-      {
-        label: "Field Configuration",
-        description: "Add and configure widgets",
-      },
-    ],
-  });
-
   // --- Derived Properties ---
 
   get total() {

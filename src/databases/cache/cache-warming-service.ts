@@ -129,32 +129,42 @@ export class CacheWarmingService {
         `🧠 [PredictiveCache] Pre-warming cache from Behavioral Learner for tenant "${tenantId}"`,
       );
 
-      // 1. Warm hot collections
-      await Promise.all(
+      // 1. Warm hot collections (per-collection error isolation — missing tables must not cascade)
+      await Promise.allSettled(
         hotCollections.map(async ({ id }) => {
           if (db?.crud?.find) {
-            await cacheService.getOrSetSWR(
-              `collection:${id}:list`,
-              () => db.crud.find(id, {}, { limit: 20, skipMeta: true }),
-              300_000, // 5 min TTL
-              1_800_000, // 30 min stale SWR window
-              tenantId,
-            );
+            try {
+              await cacheService.getOrSetSWR(
+                `collection:${id}:list`,
+                () => db.crud.find(id, {}, { limit: 20, skipMeta: true }),
+                300_000, // 5 min TTL
+                1_800_000, // 30 min stale SWR window
+                tenantId,
+              );
+            } catch {
+              logger.trace(
+                `[PredictiveCache] Skipping collection "${id}" — table may not exist yet`,
+              );
+            }
           }
         }),
       );
 
-      // 2. Warm hot entries
-      await Promise.all(
+      // 2. Warm hot entries (per-entry error isolation)
+      await Promise.allSettled(
         hotEntries.map(async ({ collectionId, entryId }) => {
           if (db?.crud?.findOne) {
-            await cacheService.getOrSetSWR(
-              `entry:${collectionId}:${entryId}`,
-              () => db.crud.findOne({ _id: entryId }, { tenantId }),
-              300_000,
-              1_800_000,
-              tenantId,
-            );
+            try {
+              await cacheService.getOrSetSWR(
+                `entry:${collectionId}:${entryId}`,
+                () => db.crud.findOne({ _id: entryId }, { tenantId }),
+                300_000,
+                1_800_000,
+                tenantId,
+              );
+            } catch {
+              logger.trace(`[PredictiveCache] Skipping entry "${entryId}" in "${collectionId}"`);
+            }
           }
         }),
       );

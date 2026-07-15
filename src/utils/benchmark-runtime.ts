@@ -7,8 +7,24 @@
  *
  * ### Features:
  * - benchmark runtime env detection
+ * - external service disable guards (Redis, SMTP, AI, webhooks)
  * - benchmark artifact filename matching
  */
+
+/** True when outbound external services must not be contacted (benchmark matrix / soak). */
+export function isBenchmarkExternalServicesDisabled(): boolean {
+  return (
+    process.env.BENCHMARK === "true" ||
+    process.env.SVELTY_BENCHMARK_SUITE === "true" ||
+    process.env.BENCHMARK_MODE === "true" ||
+    process.env.BENCHMARK_MODE === "1"
+  );
+}
+
+/** True when Redis L2 cache must not connect (benchmark env or explicit opt-out). */
+export function isBenchmarkRedisDisabled(): boolean {
+  return isBenchmarkExternalServicesDisabled() || process.env.BENCHMARK_NO_REDIS === "1";
+}
 
 /** True when benchmark/test collections should be loaded (matrix, CI, soak tests). */
 export function isBenchmarkRuntime(): boolean {

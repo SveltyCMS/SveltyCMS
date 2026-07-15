@@ -14,6 +14,7 @@ import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
 import type { ISODateString, DatabaseId } from "@src/content/types";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import {
   getPrivateSettingSync,
   getPublicSetting,
@@ -175,8 +176,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     resetForm: {},
     signUpForm: {},
     demoMode,
+    redirectTo: "",
     loginBranding: defaultBranding,
-  } as const;
+  };
 
   try {
     const systemState = getSystemState();
@@ -200,7 +202,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     // Re-read multi-tenancy and demo mode from settings cache (now guaranteed loaded)
     demoMode = !!getPrivateSettingSync("DEMO");
-    multiTenant = !!getPrivateSettingSync("MULTI_TENANT");
+    multiTenant = isMultiTenantEnabled();
     isOpenSignup = multiTenant && demoMode;
 
     const dbHealth = await checkDatabaseHealth();
@@ -235,8 +237,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     if (!locals) locals = {} as App.Locals;
 
+    // If already authenticated, redirect to the intended destination or default
     if (locals.user) {
-      throw redirect(302, "/config/collectionbuilder");
+      const returnTo = url.searchParams.get("redirect") || "/config/collectionbuilder";
+      throw redirect(302, returnTo);
     }
 
     if (limiter.cookieLimiter?.preflight) {
@@ -438,6 +442,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       firstCollectionPath: "/config/collectionbuilder",
       pkgVersion,
       loginBranding,
+      redirectTo: url.searchParams.get("redirect") || "",
       // Returning user: handle-authentication sets locals.returningUser when a session cookie was
       // present but invalid/expired (then deletes the dead cookie). Fall back to raw cookie presence
       // for any path that bypasses that branch. A valid session is already redirected away by hooks,

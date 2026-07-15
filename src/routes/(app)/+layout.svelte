@@ -216,7 +216,7 @@ $effect(() => {
 					newUserData: { preferences: { theme: { layoutState: diff } } },
 				}),
 			});
-			userThemePrefs.apply({ layoutState: diff });
+			userThemePrefs.apply({ layoutState: diff as unknown as Record<string, "full" | "hidden"> });
 		} catch {
 			/* silent — layout state save is best-effort */
 		}

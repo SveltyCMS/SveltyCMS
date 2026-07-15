@@ -9,7 +9,7 @@ import {
   isSkeletonPreset,
   isSkeletonCssExport,
   mapPresetToAdminTheme,
-  mapSkeletonPropertiesToCss,
+  mapThemePropertiesToCss,
   parseSkeletonCssBlock,
   normalizeSkeletonThemePayload,
   expandShorthandPaletteProperties,
@@ -39,7 +39,7 @@ describe("skeleton-preset-mapper", () => {
   });
 
   it("maps properties to scoped admin CSS", () => {
-    const css = mapSkeletonPropertiesToCss(sampleProperties);
+    const css = mapThemePropertiesToCss(sampleProperties);
     expect(css).toContain(".admin-theme-container, [data-admin-theme]");
     expect(css).toContain("--color-primary-500: oklch(0.57 0.21 258.29deg);");
     expect(css).toContain("--color-tertiary-500: oklch(0.55 0.2 300deg);");
@@ -49,7 +49,7 @@ describe("skeleton-preset-mapper", () => {
   });
 
   it("blocks unsafe CSS values", () => {
-    const css = mapSkeletonPropertiesToCss({
+    const css = mapThemePropertiesToCss({
       "--color-primary-500": "url('http://evil.com/x.png')",
       "--color-error-500": "oklch(0.5 0.2 20deg)",
     });

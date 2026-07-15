@@ -18,7 +18,7 @@ export interface TreeViewItem extends Record<string, any> {
   name: string;
   // children is NOT part of the flat item structure for TreeView
   // element references are handled by TreeView via path/id
-  nodeType: "category" | "collection";
+  nodeType: "category" | "collection" | "folder";
   order?: number;
   parent: string | null;
   path: string;

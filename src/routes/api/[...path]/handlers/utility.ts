@@ -140,13 +140,11 @@ export async function handleUtilityRoutes(
 
       if (request.method === "GET") {
         const type = url.searchParams.get("type") as
-          | import("@src/services/core/marketplace-service").MarketplaceItemType
+          | import("@src/services/core/marketplace-service").MarketplaceItem["type"]
           | null;
         const result = await service.list({
           type: type ?? undefined,
           search: url.searchParams.get("search") || undefined,
-          category: url.searchParams.get("category") || undefined,
-          tenantId,
         });
         return successResponse(event, result);
       }
@@ -159,7 +157,7 @@ export async function handleUtilityRoutes(
         const itemId = typeof body?.itemId === "string" ? body.itemId : "";
         if (!itemId) throw new AppError("itemId is required", 400);
 
-        const installed = await service.installTheme(itemId, tenantId);
+        const installed = await service.installTheme(itemId);
         return successResponse(event, installed);
       }
     }

@@ -13,11 +13,11 @@
  * - All operations blocked without an active license
  */
 
-import type { Plugin } from "@src/plugins/types";
+import { definePlugin } from "@src/plugins/define-plugin";
 
 export { initWebMCP } from "./init";
 
-export const webmcpPlugin: Plugin = {
+export const webmcpPlugin = definePlugin({
   metadata: {
     id: "webmcp",
     name: "Headless WebMCP Server Gateway",
@@ -41,14 +41,16 @@ export const webmcpPlugin: Plugin = {
   ui: {},
   hooks: {
     beforeSave: async (_context, _collection, data) => {
-      const { checkExtensionLicense } = await import("@src/utils/license-manager");
-      const status = await checkExtensionLicense("plugin", "webmcp");
-      if (!status.active) {
-        throw new Error(
-          "403 Forbidden: Active license required for WebMCP Server Gateway. Purchase at marketplace.sveltycms.com",
-        );
+      if (import.meta.env.SSR) {
+        const { checkExtensionLicense } = await import("@src/utils/license-manager");
+        const status = await checkExtensionLicense("plugin", "webmcp");
+        if (!status.active) {
+          throw new Error(
+            "403 Forbidden: Active license required for WebMCP Server Gateway. Purchase at marketplace.sveltycms.com",
+          );
+        }
       }
       return data;
     },
   },
-};
+});

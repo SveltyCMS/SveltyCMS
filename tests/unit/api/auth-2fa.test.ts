@@ -74,6 +74,11 @@ vi.mock("@src/databases/auth/two-factor-auth", () => {
   };
 });
 
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(undefined),
@@ -116,11 +121,11 @@ const POST_DISABLE = (event: any) => dispatcher(event);
 const GET_BACKUP_CODES = (event: any) => dispatcher(event);
 const POST_BACKUP_CODES = (event: any) => dispatcher(event);
 
-// Helper to create mock event
+// Thin wrapper around shared createMockRequestEvent
 const createMockEvent = (
   body: any = {},
   user: any = null,
-  tenantId: string | undefined = "t1",
+  tenantId: string | null | undefined = "t1",
   action: string = "verify",
   options: {
     headers?: Record<string, string>;
@@ -131,24 +136,21 @@ const createMockEvent = (
   const method =
     options.method ||
     (action === "backup-codes" && Object.keys(body).length === 0 ? "GET" : "POST");
-  return {
-    ...createMockRequestEvent({
-      method,
-      url: `http://localhost/api/auth/2fa/${action}`,
-      body,
-      user,
-      tenantId,
-      dbAdapter: mockDbAdapter,
-      headers: options.headers,
-      cookies: options.cookies,
-    }),
-    params: { path: `auth/2fa/${action}` },
-  };
+  return createMockRequestEvent({
+    method,
+    path: `auth/2fa/${action}`,
+    body,
+    user,
+    tenantId: tenantId === undefined ? "t1" : tenantId,
+    dbAdapter: mockDbAdapter,
+    headers: options.headers,
+    cookies: options.cookies,
+  });
 };
 
 describe("2FA API Unit Tests", () => {
   let mockTwoFactorService: any;
-  let mockGetPrivateSettingSync: any;
+  let mockIsMultiTenantEnabled: any;
   let mockVerifyPassword: any;
 
   beforeEach(async () => {
@@ -157,9 +159,9 @@ describe("2FA API Unit Tests", () => {
     const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     mockTwoFactorService = getDefaultTwoFactorAuthService({} as any);
 
-    const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
-    mockGetPrivateSettingSync = getPrivateSettingSync;
-    mockGetPrivateSettingSync.mockReturnValue(false);
+    const { isMultiTenantEnabled } = await import("@utils/tenant");
+    mockIsMultiTenantEnabled = isMultiTenantEnabled;
+    mockIsMultiTenantEnabled.mockReturnValue(false);
 
     const { verifyPassword } = await import("@src/databases/auth");
     mockVerifyPassword = verifyPassword;
@@ -231,7 +233,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should throw TENANT_REQUIRED in multi-tenant mode without tenant context", async () => {
-      mockGetPrivateSettingSync.mockReturnValue(true);
+      mockIsMultiTenantEnabled.mockReturnValue(true);
 
       const event = createMockEvent(
         { userId: "user-1", code: "123456" },
@@ -251,7 +253,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should use locals.tenantId in multi-tenant mode", async () => {
-      mockGetPrivateSettingSync.mockReturnValue(true);
+      mockIsMultiTenantEnabled.mockReturnValue(true);
       mockTwoFactorService.verify2FA.mockResolvedValue({ success: true });
 
       const event = createMockEvent(

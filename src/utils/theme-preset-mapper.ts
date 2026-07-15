@@ -1,312 +1,187 @@
 /**
  * @file src/utils/theme-preset-mapper.ts
- * @description Maps Skeleton.dev theme generator exports to SveltyCMS admin runtime CSS.
+ * @description Maps Skeleton.dev CSS preset exports and other theme formats to StoredAdminTheme.
  *
- * Skeleton presets use the same Tailwind v4 `--color-{palette}-{shade}` tokens as SveltyCMS.
- * This module scopes imported values under `.admin-theme-container` and `[data-admin-theme]`
- * so admin utilities (`bg-primary-500`, `text-tertiary-500`, etc.) update without editing `app.css`.
- *
- * ### Features:
- * - JSON `properties` map parsing (full `--color-*` tokens or shorthand palettes)
- * - shorthand palette expansion (`primary: "#0f766e"` → 50–950 shade scale via `color-mix`)
- * - optional Skeleton CSS string extraction
- * - palette alias mapping (`accent` → `tertiary`)
- * - safe value filtering (colors, lengths, fonts)
- * - admin radius token bridging
+ * Used by admin-theme-service when importing presets from the marketplace or local files.
  */
 
-/** Skeleton palette names that differ from SveltyCMS naming */
-const PALETTE_ALIASES: Record<string, string> = {
-  accent: "tertiary",
+// Property name remapping: Skeleton.dev → SveltyCMS admin theme
+const PROPERTY_REMAP: Record<string, string> = {
+  "--color-accent-500": "--color-tertiary-500",
+  "--radius-base": "--admin-radius-button",
+  "--radius-container": "--admin-radius-card",
 };
 
-/** Shorthand palette keys in `/src/themes/*.json` (e.g. `"primary": "#0f766e"`) */
-export const SHORTHAND_PALETTES = new Set([
-  "primary",
-  "secondary",
-  "tertiary",
-  "accent",
-  "success",
-  "warning",
-  "error",
-  "surface",
-]);
-
-const SHADE_STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const;
-
-/** Base color % when mixing lighter shades from a 500 anchor */
-const LIGHTER_BASE_PERCENT: Partial<Record<(typeof SHADE_STEPS)[number], number>> = {
-  50: 8,
-  100: 16,
-  200: 30,
-  300: 46,
-  400: 68,
+// Shorthand color key → CSS custom property prefix
+const SHORTHAND_COLOR_TO_PREFIX: Record<string, string> = {
+  primary: "--color-primary",
+  secondary: "--color-secondary",
+  tertiary: "--color-tertiary",
+  success: "--color-success",
+  warning: "--color-warning",
+  error: "--color-error",
+  surface: "--color-surface",
 };
 
-/** Base color % when mixing darker shades from a 500 anchor */
-const DARKER_BASE_PERCENT: Partial<Record<(typeof SHADE_STEPS)[number], number>> = {
-  600: 88,
-  700: 74,
-  800: 58,
-  900: 42,
-  950: 28,
-};
-
-/** Base color % when mixing darker surface shades from a 50 anchor */
-const SURFACE_DARKER_BASE_PERCENT: Partial<Record<(typeof SHADE_STEPS)[number], number>> = {
-  100: 96,
-  200: 90,
-  300: 82,
-  400: 72,
-  500: 60,
-  600: 48,
-  700: 36,
-  800: 24,
-  900: 14,
-  950: 8,
-};
-
-/** Property prefixes allowed into generated admin CSS */
-const ALLOWED_PROPERTY_PREFIXES = [
-  "--color-",
-  "--radius-",
-  "--spacing",
-  "--text-scaling",
-  "--base-font-",
-  "--heading-font-",
-  "--anchor-font-",
-  "--body-background-color",
-  "--default-border-width",
-  "--default-divide-width",
-  "--default-ring-width",
-] as const;
-
-const ADMIN_SCOPE_SELECTOR = ".admin-theme-container, [data-admin-theme]";
-
-export interface SkeletonMappedTheme {
-  name: string;
-  customCss: string;
-  presetSource: "imported";
+export interface SkeletonPreset {
+  name?: string;
+  css?: string;
+  code?: string;
+  properties?: Record<string, string>;
+  colors?: Record<string, string>;
+  presetSource?: string;
 }
 
-/** Detect Skeleton theme generator JSON (`{ name, properties: { ... } }`) */
-export function isSkeletonPreset(preset: Record<string, unknown>): boolean {
-  return (
-    "properties" in preset &&
-    preset.properties !== null &&
-    typeof preset.properties === "object" &&
-    !Array.isArray(preset.properties)
-  );
-}
+// --- Property CSS mapping ---
 
-/** Detect pasted Skeleton CSS export (`[data-theme='...'] { ... }`) */
-export function isSkeletonCssExport(value: string): boolean {
-  return /\[data-theme\s*=/.test(value) || /--color-primary-\d{2,3}\s*:/.test(value);
-}
-
-function remapPropertyName(key: string): string | null {
-  const accentMatch = key.match(/^--color-accent(-|$)/);
-  if (accentMatch) {
-    return key.replace(/^--color-accent/, "--color-tertiary");
+/**
+ * Maps theme properties to scoped admin CSS.
+ * Handles property name remapping and blocks unsafe values.
+ */
+export function mapThemePropertiesToCss(properties: Record<string, string>): string {
+  let css = ".admin-theme-container, [data-admin-theme] {\n";
+  for (let [prop, value] of Object.entries(properties)) {
+    // Block unsafe values (url, expression, etc.)
+    if (/url\s*\(/i.test(value) || /expression\s*\(/i.test(value) || /javascript\s*:/i.test(value))
+      continue;
+    // Apply Skeleton → SveltyCMS property name remapping
+    prop = PROPERTY_REMAP[prop] || prop;
+    css += `  ${prop}: ${value};\n`;
   }
+  css += "}";
+  return css;
+}
 
-  for (const [from, to] of Object.entries(PALETTE_ALIASES)) {
-    const aliasMatch = key.match(new RegExp(`^--color-${from}(-|$)`));
-    if (aliasMatch) {
-      return key.replace(new RegExp(`^--color-${from}`), `--color-${to}`);
+// Alias for backward compatibility during migration
+export const mapSkeletonPropertiesToCss = mapThemePropertiesToCss;
+
+/**
+ * Expands shorthand palette properties to full shade scales.
+ * e.g. `{ primary: "#0f766e" }` → `{ "--color-primary-500": "#0f766e", "--color-primary-50": "color-mix(...)" }`
+ */
+export function expandShorthandPaletteProperties(
+  palette: Record<string, string>,
+): Record<string, string> {
+  const expanded: Record<string, string> = {};
+  for (const [key, value] of Object.entries(palette)) {
+    const prefix = SHORTHAND_COLOR_TO_PREFIX[key];
+    if (!prefix) continue;
+    if (key === "surface") {
+      expanded[`${prefix}-50`] = value;
+      expanded[`${prefix}-500`] = `color-mix(in srgb, ${value}, black)`;
+    } else {
+      expanded[`${prefix}-500`] = value;
+      expanded[`${prefix}-50`] = `color-mix(in srgb, ${value}, white)`;
+      expanded[`${prefix}-950`] = `color-mix(in srgb, ${value}, black)`;
     }
   }
-
-  for (const prefix of ALLOWED_PROPERTY_PREFIXES) {
-    if (key.startsWith(prefix)) return key;
-  }
-
-  return null;
+  return expanded;
 }
 
-function isSafeCssValue(value: string): boolean {
-  const v = value.trim();
-  if (!v) return false;
-  if (/url\s*\(/i.test(v)) return false;
-  if (/javascript\s*:/i.test(v)) return false;
-  if (/expression\s*\(/i.test(v)) return false;
-  if (/@import/i.test(v)) return false;
-  if (/<[^>]+>/.test(v)) return false;
-  return true;
-}
-
-/** Extract `--property: value;` pairs from Skeleton CSS export text */
-export function parseSkeletonCssBlock(css: string): Record<string, string> {
+/**
+ * Parses a Skeleton.dev CSS block export into a properties object.
+ * Extracts only CSS custom properties (-- prefixed) from the block.
+ */
+export function parseSkeletonCssBlock(block: string): Record<string, string> {
   const props: Record<string, string> = {};
-  const declRe = /(--[\w-]+)\s*:\s*([^;]+);/g;
-  let match: RegExpExecArray | null;
-  while ((match = declRe.exec(css)) !== null) {
-    props[match[1]] = match[2].trim();
+  const lines = block.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("--")) continue;
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = trimmed.slice(0, colonIdx).trim();
+    const value = trimmed
+      .slice(colonIdx + 1)
+      .trim()
+      .replace(/;$/, "");
+    if (key && value) {
+      props[key] = value;
+    }
   }
   return props;
 }
 
-function isLightColor(value: string): boolean {
-  const hex = value.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-  if (hex) {
-    const normalized =
-      hex[1].length === 3
-        ? hex[1]
-            .split("")
-            .map((c) => c + c)
-            .join("")
-        : hex[1];
-    const r = parseInt(normalized.slice(0, 2), 16) / 255;
-    const g = parseInt(normalized.slice(2, 4), 16) / 255;
-    const b = parseInt(normalized.slice(4, 6), 16) / 255;
-    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return luminance > 0.85;
+// --- Detection ---
+
+/**
+ * Check if a CSS string appears to be a Skeleton.dev CSS export.
+ */
+export function isSkeletonCssExport(css: string): boolean {
+  return css.includes("skeleton") || css.includes("sk-theme") || css.includes("[data-theme=");
+}
+
+/**
+ * Check if a parsed preset object is a Skeleton.dev preset.
+ */
+export function isSkeletonPreset(preset: Record<string, unknown>): boolean {
+  return (
+    typeof preset.name === "string" &&
+    (typeof preset.css === "string" || typeof preset.code === "string" || !!preset.properties)
+  );
+}
+
+// --- Preset to Admin Theme mapping ---
+
+/**
+ * Converts a properties object (shorthand or longhand) to CSS.
+ * Handles detection of format automatically.
+ */
+function propertiesToCss(properties: Record<string, string>): string {
+  const hasLonghand = Object.keys(properties).some((k) => k.startsWith("--"));
+  if (hasLonghand) {
+    return mapThemePropertiesToCss(properties);
   }
-
-  const oklch = value.match(/oklch\(\s*([\d.]+)/i);
-  if (oklch) return parseFloat(oklch[1]) > 0.85;
-
-  return false;
+  const expanded = expandShorthandPaletteProperties(properties);
+  return mapThemePropertiesToCss(expanded);
 }
 
-function mixWithWhite(color: string, basePercent: number): string {
-  return `color-mix(in oklch, ${color} ${basePercent}%, white)`;
-}
+/**
+ * Map a Skeleton.dev preset (or similar) to a StoredAdminTheme-compatible partial object.
+ */
+export function mapPresetToAdminTheme(preset: SkeletonPreset): {
+  name: string;
+  customCss?: string;
+  presetSource?: string;
+} {
+  let customCss: string | undefined;
 
-function mixWithBlack(color: string, basePercent: number): string {
-  return `color-mix(in oklch, ${color} ${basePercent}%, black)`;
-}
-
-function resolvePaletteName(key: string): string | null {
-  if (SHORTHAND_PALETTES.has(key)) {
-    return PALETTE_ALIASES[key] ?? key;
+  if (preset.css) {
+    customCss = preset.css;
+  } else if (preset.code) {
+    customCss = preset.code;
+  } else if (preset.properties && Object.keys(preset.properties).length > 0) {
+    customCss = propertiesToCss(preset.properties);
   }
-  return null;
-}
-
-/** Expand shorthand palette entries to full `--color-{palette}-{shade}` maps */
-export function expandShorthandPaletteProperties(
-  properties: Record<string, unknown>,
-): Record<string, string> {
-  const expanded: Record<string, string> = {};
-
-  for (const [key, rawValue] of Object.entries(properties)) {
-    if (typeof rawValue !== "string" || !isSafeCssValue(rawValue)) continue;
-
-    if (key.startsWith("--")) {
-      expanded[key] = rawValue;
-      continue;
-    }
-
-    const palette = resolvePaletteName(key);
-    if (!palette) continue;
-
-    const anchor: 50 | 500 = palette === "surface" && isLightColor(rawValue) ? 50 : 500;
-
-    for (const shade of SHADE_STEPS) {
-      const token = `--color-${palette}-${shade}`;
-      if (shade === anchor) {
-        expanded[token] = rawValue;
-        continue;
-      }
-
-      if (anchor === 500) {
-        const lighter = LIGHTER_BASE_PERCENT[shade];
-        if (lighter !== undefined) {
-          expanded[token] = mixWithWhite(rawValue, lighter);
-          continue;
-        }
-        const darker = DARKER_BASE_PERCENT[shade];
-        if (darker !== undefined) {
-          expanded[token] = mixWithBlack(rawValue, darker);
-        }
-        continue;
-      }
-
-      if (shade < 50) continue;
-      const darker = SURFACE_DARKER_BASE_PERCENT[shade];
-      if (darker !== undefined) {
-        expanded[token] = mixWithBlack(rawValue, darker);
-      }
-    }
-  }
-
-  return expanded;
-}
-
-function collectProperties(preset: Record<string, unknown>): Record<string, unknown> {
-  let raw: Record<string, unknown> = {};
-
-  if (isSkeletonPreset(preset)) {
-    raw = preset.properties as Record<string, unknown>;
-  } else if (typeof preset.css === "string" && isSkeletonCssExport(preset.css)) {
-    raw = parseSkeletonCssBlock(preset.css);
-  } else if (typeof preset.code === "string" && isSkeletonCssExport(preset.code)) {
-    raw = parseSkeletonCssBlock(preset.code);
-  }
-
-  return expandShorthandPaletteProperties(raw);
-}
-
-/** Build scoped admin CSS from Skeleton property map */
-export function mapSkeletonPropertiesToCss(properties: Record<string, unknown>): string {
-  const declarations: string[] = [];
-  const adminAliases: string[] = [];
-
-  for (const [rawKey, rawValue] of Object.entries(properties)) {
-    if (typeof rawValue !== "string") continue;
-
-    const key = remapPropertyName(rawKey);
-    if (!key || !isSafeCssValue(rawValue)) continue;
-
-    declarations.push(`  ${key}: ${rawValue};`);
-
-    if (key === "--radius-base") {
-      adminAliases.push(`  --admin-radius-base: ${rawValue};`);
-      adminAliases.push(`  --admin-radius-button: ${rawValue};`);
-    }
-    if (key === "--radius-container") {
-      adminAliases.push(`  --admin-radius-card: ${rawValue};`);
-      adminAliases.push(`  --admin-radius-input: ${rawValue};`);
-    }
-  }
-
-  if (declarations.length === 0) return "";
-
-  const lines = [...declarations, ...adminAliases];
-  return `${ADMIN_SCOPE_SELECTOR} {\n${lines.join("\n")}\n}`;
-}
-
-/** Map a preset object to SveltyCMS admin theme fields */
-export function mapPresetToAdminTheme(preset: Record<string, unknown>): SkeletonMappedTheme {
-  const name =
-    typeof preset.name === "string" && preset.name.trim() ? preset.name.trim() : "Imported Theme";
-
-  const properties = collectProperties(preset);
-  const customCss = mapSkeletonPropertiesToCss(properties);
 
   return {
-    name,
+    name: preset.name || "Imported Preset",
     customCss,
-    presetSource: "imported",
+    presetSource: preset.presetSource || "imported",
   };
 }
 
-/** Normalize theme file / import payload when it is a Skeleton export */
-export function normalizeSkeletonThemePayload(
-  preset: Record<string, unknown>,
-): Partial<SkeletonMappedTheme> | null {
-  if (!isSkeletonPreset(preset) && !isSkeletonCssField(preset)) return null;
-  const mapped = mapPresetToAdminTheme(preset);
+/**
+ * Normalize a Skeleton.dev theme payload to a StoredAdminTheme-compatible format.
+ */
+export function normalizeSkeletonThemePayload(payload: Record<string, unknown>): {
+  name: string;
+  customCss?: string;
+  presetSource?: string;
+} {
+  let customCss: string | undefined;
+
+  if (typeof payload.css === "string" && payload.css) {
+    customCss = payload.css;
+  } else if (typeof payload.code === "string" && payload.code) {
+    customCss = payload.code;
+  } else if (payload.properties && typeof payload.properties === "object") {
+    customCss = propertiesToCss(payload.properties as Record<string, string>);
+  }
+
   return {
-    name: mapped.name,
-    customCss: mapped.customCss || undefined,
-    presetSource: mapped.presetSource,
+    name: (payload.name as string) || "Imported Theme",
+    customCss,
+    presetSource: (payload.presetSource as string) || "imported",
   };
-}
-
-function isSkeletonCssField(preset: Record<string, unknown>): boolean {
-  if (typeof preset.css === "string" && isSkeletonCssExport(preset.css)) return true;
-  if (typeof preset.code === "string" && isSkeletonCssExport(preset.code)) return true;
-  return false;
 }

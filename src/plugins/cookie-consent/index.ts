@@ -9,9 +9,9 @@
  * - Allowed origins for cross-origin headless frontends
  */
 
-import type { Plugin } from "@src/plugins/types";
+import { definePlugin } from "../define-plugin";
 
-export const cookieConsentPlugin: Plugin = {
+export const cookieConsentPlugin = definePlugin({
   metadata: {
     id: "cookie-consent",
     name: "Cookie Consent Manager",
@@ -36,4 +36,4 @@ export const cookieConsentPlugin: Plugin = {
       geoIpFiltering: false,
     },
   },
-};
+});

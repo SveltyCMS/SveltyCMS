@@ -18,6 +18,7 @@ import type {
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
@@ -165,7 +166,7 @@ export class Auth {
         throw error(400, "Email and password (or OAuth/SAML provider context) are required");
       }
 
-      if (getPrivateSettingSync("MULTI_TENANT") && !tenantId && userData.role !== "admin") {
+      if (isMultiTenantEnabled() && !tenantId && userData.role !== "admin") {
         throw error(400, "Tenant ID is required in multi-tenant mode");
       }
 

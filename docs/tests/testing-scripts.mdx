@@ -6,7 +6,7 @@ order: 15
 icon: "🔧"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-07-04"
+updated: "2026-07-12"
 tags:
   - "testing"
   - "scripts"
@@ -235,38 +235,92 @@ bun run lint:benchmark-mdx
 
 ---
 
-### `scripts/security-audit.ts` — CVE Scanner
+### `scripts/security-audit.ts` — HTTP Security Probe
 
-**Purpose**: Runs `bun audit --severity=high` and blocks on high-severity CVEs. Integrated into CI to prevent vulnerable dependencies from merging.
+**Purpose**: Probes live API endpoints for OWASP-mapped vulnerabilities (auth bypass, CSRF, headers, injection). Optional `--auth` mode seeds a test admin via `/api/testing` (requires `TEST_MODE=true`).
 
 **Invocation**:
 
 ```bash
-bun run audit:security
+bun run audit:security                              # unauthenticated (preview/default base URL)
+bun run audit:security -- --auth --base=http://127.0.0.1:5173  # manual dev + auth
+bun run audit:security:auth                         # orchestrator: starts dev (TEST_MODE) + --auth
+bun run audit:security:auth -- --ci                 # exit 1 on findings (CI gate)
 ```
 
-**Used by**: CI `audit` job. Blocks PRs on high-severity CVEs.
+**Used by**: Local security verification; CI `audit` job runs `bun audit` for CVEs separately.
+
+### `scripts/run-security-audit-auth.ts` — Authenticated Audit Orchestrator
+
+**Purpose**: Starts `bun run dev` with `TEST_MODE=true`, waits for health, runs `security-audit.ts --auth`, then stops the dev server. Required because production preview builds do not expose `/api/testing`.
 
 **Remediation**: Upgrade the vulnerable dependency to a patched version. Run `bun update <package>` for the affected package. If no fix is available, assess risk and document the exception.
 
 ---
 
+### `scripts/verify-benchmark-local.ts` — Local Benchmark Preflight
+
+**Purpose**: Blocks local benchmarks when live `config/private.ts` uses test DB names. Prints isolation boundaries (database, compiled root, media sandbox, external services) before benchmarks run.
+
+**Invocation**:
+
+```bash
+bun run verify:benchmark-local     # manual preflight
+```
+
+**Used by**: `bun run benchmark` and `bun run benchmark:core` (runs automatically before benchmarks).
+
+**Failure policy**: Fails if `config/private.ts` has `DB_NAME` set to `benchmark_shared` or `sveltycms_test`. Change `DB_NAME` to a non-test database (e.g., `sveltycms.db`).
+
+---
+
+### `scripts/verify-prod-build-backdoor.ts` — Build Backdoor Verification
+
+**Purpose**: Scans `build/server/chunks/*.js` to confirm the `/api/testing` handler is present (bench builds) or stripped (deploy builds).
+
+**Invocation**:
+
+```bash
+bun run verify:prod-backdoor       # deploy mode — fail if testing handler present
+bun run verify:bench-build         # bench mode — fail if testing handler stripped
+```
+
+**Used by**: `audit:security:prod` (deploy check), `verify:benchmark-local` preflight (bench check), CI task `07-deploy-backdoor`.
+
+---
+
+### `scripts/probe-deploy-testing-api.ts` — Deploy Backdoor Probe (A01)
+
+**Purpose**: Full end-to-end probe: builds deploy-safe artifact (no `COMPILE_ALL_ADAPTERS`), scans chunks for backdoor, starts preview server, live-probes `/api/testing` with no-secret / wrong-secret / hardcoded-secret — all must return 401/404.
+
+**Invocation**:
+
+```bash
+bun run audit:security:backdoor            # full probe
+bun run audit:security:backdoor -- --skip-build  # reuse existing build/
+```
+
+**Used by**: CI task `07-deploy-backdoor` (runs on every PR). Local verification before releases.
+
+**Remediation**: If the probe fails, the testing handler leaked into a deploy build. Run `bun run build` without `COMPILE_ALL_ADAPTERS` and verify `testBackdoorStripperPlugin` in `vite.config.ts` is active.
+
 ## Quick Reference Table
 
-| Script                     | Git Hook   | CI Job       | Command                                   |
-| :------------------------- | :--------- | :----------- | :---------------------------------------- |
-| `test-smart.ts`            | —          | —            | `bun run scripts/test-smart.ts`           |
-| `precheck.ts`              | pre-push   | —            | `bun run verify:push`                     |
-| `quality-gate.ts`          | pre-push   | —            | `bun run gate`                            |
-| `precheck-shared.ts`       | —          | — (library)  | (imported by others)                      |
-| `run-core-benchmarks.ts`   | pre-push   | `bench-core` | `bun run scripts/run-core-benchmarks.ts`  |
-| `run-all-benchmarks.ts`    | —          | —            | `bun run scripts/run-all-benchmarks.ts`   |
-| `run-integration-tests.ts` | pre-push   | `db-tests`   | `bun run test:integration`                |
-| `check-test-db-safety.ts`  | pre-commit | —            | `bun run scripts/check-test-db-safety.ts` |
-| `slop-scanner.ts`          | pre-commit | `lint`       | `bun run slop`                            |
-| `validate-imports.ts`      | pre-push   | —            | `bun run scripts/validate-imports.ts`     |
-| `lint-benchmark-mdx.ts`    | pre-push   | `lint`       | `bun run lint:benchmark-mdx`              |
-| `security-audit.ts`        | —          | `audit`      | `bun run audit:security`                  |
+| Script                       | Git Hook   | CI Job       | Command                                   |
+| :--------------------------- | :--------- | :----------- | :---------------------------------------- |
+| `test-smart.ts`              | —          | —            | `bun run scripts/test-smart.ts`           |
+| `precheck.ts`                | pre-push   | —            | `bun run verify:push`                     |
+| `quality-gate.ts`            | pre-push   | —            | `bun run gate`                            |
+| `precheck-shared.ts`         | —          | — (library)  | (imported by others)                      |
+| `run-core-benchmarks.ts`     | pre-push   | `bench-core` | `bun run scripts/run-core-benchmarks.ts`  |
+| `run-all-benchmarks.ts`      | —          | —            | `bun run scripts/run-all-benchmarks.ts`   |
+| `run-integration-tests.ts`   | pre-push   | `db-tests`   | `bun run test:integration`                |
+| `check-test-db-safety.ts`    | pre-commit | —            | `bun run scripts/check-test-db-safety.ts` |
+| `slop-scanner.ts`            | pre-commit | `lint`       | `bun run slop`                            |
+| `validate-imports.ts`        | pre-push   | —            | `bun run scripts/validate-imports.ts`     |
+| `lint-benchmark-mdx.ts`      | pre-push   | `lint`       | `bun run lint:benchmark-mdx`              |
+| `security-audit.ts`          | —          | `audit`      | `bun run audit:security`                  |
+| `run-security-audit-auth.ts` | —          | —            | `bun run audit:security:auth`             |
 
 ## Git Hook Flow
 

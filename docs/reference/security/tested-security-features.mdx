@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-06-14"
+updated: "2026-07-12"
 tags:
   - security
   - testing
@@ -168,6 +168,9 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 - ✅ **No static test API keys** — Test secrets are generated at runtime via CSPRNG and never hardcoded.
 - ✅ **No mocked permissions** — RBAC tested with real role checks; the bypass only skips middleware when cryptographically verified in test environments.
 - ✅ **No shortcuts** — Encryption tested with real key derivation; auth paths excluded from turbo bypass, always using real credentials.
+- ✅ **CI-enforced backdoor closure** — Every PR runs a deploy build (`bun run build` without `COMPILE_ALL_ADAPTERS`) and verifies the testing handler is stripped via `verify-prod-build-backdoor.ts --mode=deploy` (CI task `07-deploy-backdoor`). A live probe then confirms `/api/testing` returns 401/404 with no secret, wrong secret, and hardcoded secret.
+- ✅ **Benchmark build gating** — Bench builds (`COMPILE_ALL_ADAPTERS=true`) are verified to include the testing handler via `verify:bench-build`. The `security-audit.ts` script includes a dedicated `--only=backdoor` mode for OWASP A01 testing.
+- ✅ **No backdoor in production** — Normal `bun run build` strips `/api/testing` to a static 404 via `testBackdoorStripperPlugin` in `vite.config.ts`. The `secret-misuse` CI task (`06-secret-misuse`) scans all source files for hardcoded secrets on every PR.
 
 ---
 
