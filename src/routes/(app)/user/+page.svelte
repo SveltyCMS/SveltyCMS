@@ -415,7 +415,7 @@
 				</div>
 
 				<div class="space-y-4">
-					<!-- Workspace Appearance -->
+					<!-- Workspace Appearance — native <a> so href + data-testid are always on the DOM node -->
 					<div
 						class="pb-4 border-b border-surface-100 dark:border-surface-800"
 						data-testid="workspace-appearance-section"
@@ -437,17 +437,16 @@
 								{/if}
 							</div>
 						{/if}
-						<Button
-							variant="outline"
-							size="sm"
+						<a
 							href="/config/appearance"
-							class="w-full text-xs"
 							data-testid="open-appearance-settings-btn"
 							aria-label="Open Appearance Settings"
+							data-sveltekit-preload-data="hover"
+							class="btn preset-outlined-surface-500 relative inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--admin-radius-button,0.25rem)] px-3 text-xs font-bold tracking-tight transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300"
 						>
 							<iconify-icon icon="mdi:open-in-new" width={14} class="me-1" aria-hidden="true"></iconify-icon>
 							Open Appearance Settings
-						</Button>
+						</a>
 					</div>
 
 					<!-- Collaboration -->
