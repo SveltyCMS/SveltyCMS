@@ -45,6 +45,8 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     'aria-pressed'?: boolean | 'true' | 'false';
     labelledBy?: string;
     describedBy?: string;
+    // Events — declare explicitly so they are not lost when rest is spread
+    onclick?: (e: MouseEvent) => void;
     // Snippets
     children?: import('svelte').Snippet;
     [key: string]: any;
@@ -69,6 +71,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     'aria-pressed': ariaPressed,
     labelledBy,
     describedBy,
+    onclick,
     children,
     ...rest
   }: Props = $props();
@@ -202,6 +205,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   this={element}
   {...elementProps}
   {...rest}
+  onclick={onclick}
   aria-label={ariaLabel || undefined}
   aria-pressed={ariaPressedAttr}
   aria-labelledby={labelledBy}

@@ -38,10 +38,11 @@ test.describe("Media Gallery", () => {
   });
 
   test("loads with toolbar, content area and default grid view", async ({ page }) => {
+    const content = page.getByTestId("media-gallery-content");
     await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible();
-    await expect(page.getByTestId("media-gallery-content")).toBeVisible();
+    await expect(content).toBeVisible();
+    await expect(content).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
-    // Stable testid — do not rely on aria-label / role name for toggle buttons
     await expect(page.getByTestId("media-view-grid")).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -64,28 +65,27 @@ test.describe("Media Gallery", () => {
   });
 
   test("can switch between grid and table views", async ({ page }) => {
-    // Prefer stable testids (role+name can fail if Button prop forwarding or re-render drops aria-label)
+    // Assertions use data-view + testids — never role/name (Button a11y forwarding flaked in CI)
+    const content = page.getByTestId("media-gallery-content");
     const gridBtn = page.getByTestId("media-view-grid");
     const tableBtn = page.getByTestId("media-view-table");
 
     await expect(gridBtn).toBeVisible({ timeout: 15_000 });
     await expect(tableBtn).toBeVisible();
-
-    // Default is grid
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(content).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Switch to table — use programmatic click to avoid icon/overlay intercept flakes
-    await tableBtn.evaluate((btn) => (btn as HTMLButtonElement).click());
-    await expect(tableBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
-    // Table shell is always mounted (empty state still uses media-table wrapper)
+    // Native button — Playwright click is enough; evaluate as belt-and-suspenders
+    await tableBtn.click({ force: true });
+    await expect(content).toHaveAttribute("data-view", "table", { timeout: 10_000 });
     await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
+    await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
 
-    // Switch back to grid
-    await gridBtn.evaluate((btn) => (btn as HTMLButtonElement).click());
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
+    await gridBtn.click({ force: true });
+    await expect(content).toHaveAttribute("data-view", "grid", { timeout: 10_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
   });
 
   test("can upload an image and verify it appears", async ({ page }) => {

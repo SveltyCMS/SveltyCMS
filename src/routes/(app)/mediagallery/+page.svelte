@@ -734,12 +734,15 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					<span class="hidden sm:inline">{searchCriteria ? 'Filtered' : 'Filter'}</span>
 				</Button>
 
+				<!--
+					Native <button> toggles (not Button component): guarantees aria-label,
+					aria-pressed, data-testid and onclick stay on the DOM node for E2E/a11y.
+				-->
 				<div class="flex h-10 items-center gap-0.5" role="group" aria-label="View mode">
-					<Button
-						variant="ghost"
-						size="sm"
+					<button
+						type="button"
 						onclick={() => (view = 'grid')}
-						class="h-10 w-10 min-w-0 p-0! {view === 'grid'
+						class="btn relative inline-flex h-10 w-10 min-w-0 items-center justify-center p-0! text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'grid'
 							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Grid view"
@@ -747,12 +750,11 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						data-testid="media-view-grid"
 					>
 						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
+					</button>
+					<button
+						type="button"
 						onclick={() => (view = 'table')}
-						class="h-10 w-10 min-w-0 p-0! {view === 'table'
+						class="btn relative inline-flex h-10 w-10 min-w-0 items-center justify-center p-0! text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
 							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Table view"
@@ -760,7 +762,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						data-testid="media-view-table"
 					>
 						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"></iconify-icon>
-					</Button>
+					</button>
 				</div>
 
 				{#if view === 'grid'}
@@ -875,8 +877,12 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 		{/if}
 
-		<!-- Content -->
-		<div class="relative flex min-h-0 flex-1 flex-col" data-testid="media-gallery-content">
+		<!-- Content — data-view is the canonical E2E signal for grid/table mode -->
+		<div
+			class="relative flex min-h-0 flex-1 flex-col"
+			data-testid="media-gallery-content"
+			data-view={view}
+		>
 			{#if view === 'grid'}
 				<MediaGrid
 					filteredFiles={filteredFiles}
