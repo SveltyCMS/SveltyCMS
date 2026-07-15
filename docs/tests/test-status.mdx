@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-12"
+updated: "2026-07-15"
 tags:
   - "testing"
   - "status"
@@ -24,11 +24,11 @@ tags:
 | --------------------------- | ------------------------------------------------------- |
 | Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh) |
 | Server starts/stops per run | 2 (mode switches only)                                  |
-| Pass rate                   | 36/36 (all pass on SQLite)                              |
+| Pass rate                   | 61/61 (all pass on SQLite; +25 from multi-DB contract)  |
 
 **Note**: Integration test pass rate varies by database adapter. SQLite passes the majority; MariaDB/Mongo/Postgres expose auth/permission differences tracked as separate bugs. The test config safety guard (`scripts/check-test-db-safety.ts`) prevents the most common failure mode: running tests against a non-isolated (production) database.
 
-**Coverage**: 50 spec files across 6 domains
+**Coverage**: 51 spec files across 6 domains (+1 multi-DB contract)
 
 | Domain              | Files  | What's Tested                                                                                                              |
 | ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
@@ -50,6 +50,8 @@ tags:
 - **Shared classifier** (`src/utils/test-db-safety.ts`) used by server, integration runner, and git hooks → single source of truth for isolated DB name validation
 - **Secret synchronization** — integration runner writes `TEST_API_SECRET` to `tests/e2e/.auth/test-secret.txt` before server start → eliminates 401 mismatch
 - **`SKIP_COLLECTION_COMPILE`** flag prevents @src alias resolution failures during integration test builds on Windows
+- **Multi-DB contract test** (`contract.test.ts`) — 25 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters
+- **CI scorecard** — per-DB markdown table + JSON summary written to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; each adapter run emits pass/fail/failures for every spec
 
 These measures ensure zero cross-test contamination and deterministic test results.
 
@@ -97,10 +99,10 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 
 | Metric                                 | Value                                                                                                                                                           |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Total tests                            | **2,147** (243 files, 2,147 passing, 4 skipped)                                                                                                                 |
+| Total tests                            | **2,189** (250 files, 2,189 passing, 4 skipped)                                                                                                                 |
 | Pass rate                              | 100%                                                                                                                                                            |
-| Test files                             | 245 (243 passing, 2 skipped)                                                                                                                                    |
-| Security-specific                      | 114 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit, SVG sanitization)                                                          |
+| Test files                             | 250 (248 passing, 2 skipped)                                                                                                                                    |
+| Security-specific                      | 123 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit, SVG sanitization, namespace-ownership)                                     |
 | **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                                                                                                      |
 | Collection builder                     | **39** (utils 10, compilation 11, structure-persistence 3, save-content-structure 2, delete-content-nodes 2, code-gui parity 8 integration, structure-matrix 2) |
 | Content-specific                       | **57** (reconciliation 23, upsert 4, sync-state 11, sync-security 4, compile-manifest 4, content-refresh-sidebar 1, API surface)                                |
@@ -124,12 +126,12 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 
 `tests/unit/services/` + `tests/unit/api/` — Data operations and configuration promotion unit tests:
 
-| Test file                  | Tests | Covers                                                                                                                                                      |
-| -------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| config-service.test.ts     | 20    | getStatus (sync/drift), performExport (manifest.json + 8 resource types), performImport (upsert/delete all types), checksum stability, tenant isolation     |
-| config-permissions.test.ts | 24    | config:read/write/apply permission gating, admin fast-path, non-admin fail-closed (403), deprecated config_sync alias mapping, unmapped namespace rejection |
-| operation-plan.test.ts     | 26    | add/merge/mirror/replace safety modes, risk level classification, blockedReasons from unmet requirements, requiresConfirmation for destructive operations   |
-| identity-matching.test.ts  | 19    | syncId priority, external ID fallback, natural key resolution, name-matching rejection, filename-as-identity exclusion, ambiguous key fail-closed           |
+| Test file                  | Tests | Covers                                                                                                                                                                                            |
+| -------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| config-service.test.ts     | 20    | getStatus (sync/drift), performExport (manifest.json + 8 resource types), performImport (upsert/delete all types), checksum stability, tenant isolation, `content_nodes` tenant-scoped upsert fix |
+| config-permissions.test.ts | 24    | config:read/write/apply permission gating, admin fast-path, non-admin fail-closed (403), deprecated config_sync alias mapping, unmapped namespace rejection                                       |
+| operation-plan.test.ts     | 26    | add/merge/mirror/replace safety modes, risk level classification, blockedReasons from unmet requirements, requiresConfirmation for destructive operations                                         |
+| identity-matching.test.ts  | 19    | syncId priority, external ID fallback, natural key resolution, name-matching rejection, filename-as-identity exclusion, ambiguous key fail-closed                                                 |
 
 > **Why**: Configuration promotion, content packages, data migrations, external importers, backups, and content sync are six separate operational domains — but had **zero** unit test coverage. The `config-service.ts` only handled collections; it now covers 8 resource types (collections, roles, permissions, settings, widgets, themes, webhooks, automations). These 89 tests validate safety modes, identity matching, permission fail-closed behavior, and checksum determinism before any production data is moved.
 
@@ -302,6 +304,12 @@ BENCHMARK_RECORD=1 bun test tests/benchmarks/content-boot-compile-drift.test.ts
 | -------------------------- | ----- | ---------------------------------------------------------------------------------- |
 | route-access-audit.test.ts | 7     | Bootstrap route isolation, production backdoor closure (4 cases), env-gated bypass |
 
+`tests/unit/hooks/namespace-ownership.test.ts` — 6 namespace ownership depth tests:
+
+| Test file                   | Tests | Covers                                                                                       |
+| --------------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| namespace-ownership.test.ts | 6     | Namespace depth checks (verifies test files actually contain tests), multi-DB contract gates |
+
 `src/utils/test-bypass.server.ts` — Centralized test bypass gate with `timingSafeEqual`:
 
 - Only active when `TEST_MODE`, `PLAYWRIGHT`, or `BENCHMARK` env flags are explicitly set
@@ -449,33 +457,36 @@ BENCHMARK_RECORD=1 bun test tests/benchmarks/content-boot-compile-drift.test.ts
 
 ## 4. CI Pipeline Gates
 
-| Gate              | Runtime         | What it catches                                                                   |
-| ----------------- | --------------- | --------------------------------------------------------------------------------- |
-| Bootstrap         | ~30s            | Dep install, codegen                                                              |
-| Lint + Type Check | ~40s            | oxlint, svelte-check, tsc                                                         |
-| Unit Tests        | ~17s            | 1,934 Vitest specs (217 files)                                                    |
-| Build             | ~30s            | Production build integrity                                                        |
-| Integration (×4)  | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL — 50 spec files incl. full contract coverage |
-| Benchmarks (×64)  | ~10h full suite | 64 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR       |
-| E2E Wizard        | ~30s            | Setup wizard flow                                                                 |
-| E2E Auth          | ~20s            | Login + session creation                                                          |
-| E2E App (×20)     | ~15s each       | Full admin surface (signup through media gallery)                                 |
+| Gate                      | Runtime         | What it catches                                                                                            |
+| ------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------- |
+| Bootstrap                 | ~30s            | Dep install, codegen                                                                                       |
+| Lint + Type Check         | ~40s            | oxlint, svelte-check, tsc                                                                                  |
+| Unit Tests                | ~17s            | 2,189 Vitest specs (250 files)                                                                             |
+| Security Regression Tests | ~5s             | 123 tests — defense-in-depth, auth, authorization, builder RBAC, namespace-ownership                       |
+| Build                     | ~30s            | Production build integrity                                                                                 |
+| Integration (×4)          | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL — 51 spec files incl. full contract coverage + multi-DB contract test |
+| Benchmarks (×64)          | ~10h full suite | 64 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR                                |
+| E2E Wizard                | ~30s            | Setup wizard flow                                                                                          |
+| E2E Auth                  | ~20s            | Login + session creation                                                                                   |
+| E2E App (×20)             | ~15s each       | Full admin surface (signup through media gallery)                                                          |
 
 ### Local Quality Gates (pre-commit / pre-push)
 
 Manifest: `scripts/precheck-shared.ts` · Orchestrator: `scripts/precheck.ts`
 
-| Gate                      | Tier                               | Runtime       | What it catches                                                   |
-| :------------------------ | :--------------------------------- | :------------ | :---------------------------------------------------------------- |
-| Test Config Safety        | pre-commit + pre-push              | <100ms        | Unsafe `config/private.test.ts` (non-isolated `DB_NAME`)          |
-| Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/` |
-| Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`        |
-| Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                  |
-| Full Unit Tests           | pre-push (**always**)              | ~17s          | All 1,934 Vitest specs (217 files)                                |
-| Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity                            |
-| Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL — 50 spec files              |
-| Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`) — with sanitizer   |
-| Playwright E2E            | CI / `ci:local` only               | ~15–30 min    | Browser validation across 17+ projects                            |
+| Gate                      | Tier                               | Runtime       | What it catches                                                                        |
+| :------------------------ | :--------------------------------- | :------------ | :------------------------------------------------------------------------------------- |
+| Test Config Safety        | pre-commit + pre-push              | <100ms        | Unsafe `config/private.test.ts` (non-isolated `DB_NAME`)                               |
+| Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/`                      |
+| Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`                             |
+| Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                                       |
+| Full Unit Tests           | pre-push (**always**)              | ~17s          | All 2,189 Vitest specs (250 files)                                                     |
+| Security Regression Tests | pre-commit + pre-push              | ~250ms        | 123 tests from hooks + permissions suites (deduplicated via `--exclude` between tiers) |
+| P0 Coverage Validation    | pre-push (when code changed)       | ~1.5s         | Validates all 14 P0 items have passing tests via `validate-p0-coverage.ts`             |
+| Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity + SHA256 checksum verification                  |
+| Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL — 51 spec files incl. multi-DB contract test      |
+| Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`) — with sanitizer                        |
+| Playwright E2E            | CI / `ci:local` only               | ~15–30 min    | Browser validation across 17+ projects                                                 |
 
 Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier), `bun run ci:local` (+ E2E).
 
@@ -519,36 +530,47 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 | ✅ **Cache poisoning detection** (resolved)                  | Now covered by `cache-integrity.test.ts` (6 tests: HMAC signing, tamper detection)                                                                                             | —         |
 | ✅ **Audit log chain verification** (resolved)               | Now covered by `audit-chain-verification.test.ts` (7 tests: SHA-256 chaining, breakage, replay detection)                                                                      | —         |
 | ✅ **Performance improvements** (resolved)                   | 8/9 implemented: adaptive TTL, Redis batching, Bloom bitmask, regex cache, tenant tags, pool pre-warm, schema registration, ETag helper                                        | —         |
+| ✅ **Multi-DB contract tests** (resolved)                    | Now covered by `contract.test.ts` (25 tests, 6 gates: Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions)                                         | —         |
+| ✅ **Namespace ownership depth** (resolved)                  | Now covered by namespace-ownership.test.ts (6 tests: verifies test files actually contain tests, not just file existence; contract gates)                                      | —         |
+| ✅ **Security tests surfaced in CI** (resolved)              | Now a standalone Security Regression Tests task (123 tests) running in pre-commit AND pre-push via `precheck-shared.ts`, deduplicated across tiers with `--exclude`            | —         |
+| ✅ **CI scorecard** (resolved)                               | Per-DB markdown table + JSON summary emitted to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; visible in every CI run's annotations                                     | —         |
+| ✅ **P0 journey tracking** (resolved)                        | Now covered by `p0-manifest.ts` (14 P0 items across 20 test files) + `validate-p0-coverage.ts` automated validation in pre-push (`~1.5s`)                                      | —         |
+| ✅ **Build artifact integrity verification** (resolved)      | SHA256 checksum generated on build artifact upload and verified on download in `ci.yml`; mismatch fails the job with checksum diff logged                                      | —         |
+| ✅ **`bun:test` imports** (resolved)                         | All 43 affected files migrated from `bun:test` to `vitest` imports; `bun-preload.ts` shim retained for `bun test` compatibility                                                | —         |
 | ✅ **Website Starter test coverage** (resolved)              | Unit: Svedit helpers, homepage seed, preview utils, license gate, protocol (12 tests). Integration: website preset files. E2E: `site-starter.spec.ts` (3 tests)                | —         |
 
 ## 6. Recommended Next Actions
 
 ### ✅ Completed
 
-1. ✅ **BackupService** — 1,770-line service with full disaster recovery pipeline: backup create (NDJSON + manifest + SHA-256 checksums), validate (integrity + compatibility), restore-plan (dry-run), restore (maintenance-lock-gated with confirmed gate), AES-256-GCM encryption, job queue integration, tenant isolation
-2. ✅ **Backup handler wired** — 168-line handler with all 6 endpoints fully functional (list, create, validate, restore-plan, restore, jobs)
-3. ✅ **Config promotion benchmarks** — config-promotion.test.ts (297 lines): export/plan/apply throughput at 10/50/100 collections, memory footprint per tier
-4. ✅ **Content package benchmarks** — content-package.test.ts (464 lines): NDJSON export/import at 100/1k/10k entries, relation remapping depth, duplicate strategy resolution, manifest checksum timing
-5. ✅ **ContentPackageService** — 1,133-line service with export/import pipeline: NDJSON streaming, duplicate strategies (skip/update/create-copy/fail), relation remapping, media reference maps, manifest validation, background job support, tenant isolation
-6. ✅ **MigrationEngine extended** — 984-line service with migration ledger, idempotent apply (planHash dedup), cross-adapter locking, postcondition verification, risk scoring (safe/warning/destructive), rollback support, status/history queries
-7. ✅ **Content transfer handler wired** — 315-line handler replacing all 501 stubs with real ContentPackageService integration for all 9 endpoints
-8. ✅ **Migration handler wired** — 172-line handler with real MigrationEngine integration: status, history, plan, apply, verify
-9. ✅ **Data operations architecture** — 6-domain API namespace separation (config, content-export, content-import, migrations, importers, backups, content-sync) with fail-closed permission mappings; 6 new handler files; deprecated alias backward compatibility
-10. ✅ **ConfigService extended to 8 resource types** — collections, roles, permissions, settings, widgets, themes, webhooks, automations (was collections-only); 1,066-line service with manifest.json export and secret key filtering
-11. ✅ **Config promotion API** — GET /api/config/status with real drift detection; POST /api/config/export|plan|apply with safety modes; GET /api/config/resources
-12. ✅ **89 new data operations unit tests** — config-service (20), config-permissions (24), operation-plan (26), identity-matching (19)
-13. ✅ **Fixed broken sync UI** — removed non-existent ImportExportManager import; wired real configService.getStatus() into GET /api/config_sync
-14. ✅ **Fixed config-sync integration test** — bun:test → vitest imports; response shape validation; POST import action test
-15. ✅ **Data operations documentation** — configuration-promotion.mdx (362 lines), data-operations.mdx (352 lines); updated utility.mdx deprecation notice
-16. ✅ **Collection Builder Tabs UX** — 3-tab editor (Basic Setup → Widgets & Fields → Settings & Permissions) replaces linear stepper; keyboard-navigable, ARIA-compliant
-17. ✅ **Code ↔ GUI Parity** — AST-based TypeScript generation from visual editor; both paths produce identical output
-18. ✅ **Diagnostic warnings fixed** — 15 unused imports/variables cleaned across 6 integration test files + result-validator.ts
-19. ✅ **Auth E2E resilience** — auth.setup.ts now has multi-layer fallback for session establishment
-20. ✅ **Permission components hardened** — Fixed derived→state bug in permissions-setting.svelte; 41 unit tests covering presets, bulk, undo/redo, debounce
-21. ✅ **Collection permissions tab** — Reactive hydration from store, 300ms debounced auto-save, unsaved-changes aria-live indicator
-22. ✅ **Website Starter test suite** — seedWebsiteStarterBlueprint testing API, 12 unit tests, website preset integration, site-starter.spec.ts E2E smoke
-
-### Ongoing
+1. ✅ **Multi-DB contract test** — 25 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters; single `contract.test.ts` file
+2. ✅ **CI scorecard** — per-DB markdown table + JSON summary written to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; each adapter run emits pass/fail/failures for every spec
+3. ✅ **P0 tracking** — 14 P0 items across 20 test files with automated validation via `validate-p0-coverage.ts` in pre-push (`~1.5s`); manifest in `p0-manifest.ts`
+4. ✅ **Namespace ownership depth checks** — `namespace-ownership.test.ts` (6 tests) verifies test files actually contain tests, not just file existence; validates multi-DB contract gates
+5. ✅ **Security regression tests** — 123 tests (defense-in-depth, auth, authorization, builder RBAC, namespace-ownership) running in pre-commit AND pre-push; deduplicated across tiers via `--exclude` flag
+6. ✅ **Build artifact integrity** — SHA256 checksum generated on upload and verified on download in `ci.yml`; checksum mismatch fails the job with diff logged
+7. ✅ **BackupService** — 1,770-line service with full disaster recovery pipeline: backup create (NDJSON + manifest + SHA-256 checksums), validate (integrity + compatibility), restore-plan (dry-run), restore (maintenance-lock-gated with confirmed gate), AES-256-GCM encryption, job queue integration, tenant isolation
+8. ✅ **Backup handler wired** — 168-line handler with all 6 endpoints fully functional (list, create, validate, restore-plan, restore, jobs)
+9. ✅ **Config promotion benchmarks** — config-promotion.test.ts (297 lines): export/plan/apply throughput at 10/50/100 collections, memory footprint per tier
+10. ✅ **Content package benchmarks** — content-package.test.ts (464 lines): NDJSON export/import at 100/1k/10k entries, relation remapping depth, duplicate strategy resolution, manifest checksum timing
+11. ✅ **ContentPackageService** — 1,133-line service with export/import pipeline: NDJSON streaming, duplicate strategies (skip/update/create-copy/fail), relation remapping, media reference maps, manifest validation, background job support, tenant isolation
+12. ✅ **MigrationEngine extended** — 984-line service with migration ledger, idempotent apply (planHash dedup), cross-adapter locking, postcondition verification, risk scoring (safe/warning/destructive), rollback support, status/history queries
+13. ✅ **Content transfer handler wired** — 315-line handler replacing all 501 stubs with real ContentPackageService integration for all 9 endpoints
+14. ✅ **Migration handler wired** — 172-line handler with real MigrationEngine integration: status, history, plan, apply, verify
+15. ✅ **Data operations architecture** — 6-domain API namespace separation (config, content-export, content-import, migrations, importers, backups, content-sync) with fail-closed permission mappings; 6 new handler files; deprecated alias backward compatibility
+16. ✅ **ConfigService extended to 8 resource types** — collections, roles, permissions, settings, widgets, themes, webhooks, automations (was collections-only); 1,066-line service with manifest.json export and secret key filtering
+17. ✅ **Config promotion API** — GET /api/config/status with real drift detection; POST /api/config/export|plan|apply with safety modes; GET /api/config/resources
+18. ✅ **89 new data operations unit tests** — config-service (20), config-permissions (24), operation-plan (26), identity-matching (19)
+19. ✅ **Fixed broken sync UI** — removed non-existent ImportExportManager import; wired real configService.getStatus() into GET /api/config_sync
+20. ✅ **Fixed config-sync integration test** — bun:test → vitest imports; response shape validation; POST import action test
+21. ✅ **Data operations documentation** — configuration-promotion.mdx (362 lines), data-operations.mdx (352 lines); updated utility.mdx deprecation notice
+22. ✅ **Collection Builder Tabs UX** — 3-tab editor (Basic Setup → Widgets & Fields → Settings & Permissions) replaces linear stepper; keyboard-navigable, ARIA-compliant
+23. ✅ **Code ↔ GUI Parity** — AST-based TypeScript generation from visual editor; both paths produce identical output
+24. ✅ **Diagnostic warnings fixed** — 15 unused imports/variables cleaned across 6 integration test files + result-validator.ts
+25. ✅ **Auth E2E resilience** — auth.setup.ts now has multi-layer fallback for session establishment
+26. ✅ **Permission components hardened** — Fixed derived→state bug in permissions-setting.svelte; 41 unit tests covering presets, bulk, undo/redo, debounce
+27. ✅ **Collection permissions tab** — Reactive hydration from store, 300ms debounced auto-save, unsaved-changes aria-live indicator
+28. ✅ **Website Starter test suite** — seedWebsiteStarterBlueprint testing API, 12 unit tests, website preset integration, site-starter.spec.ts E2E smoke
 
 ### Ongoing
 
