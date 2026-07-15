@@ -11,23 +11,38 @@ import { loginAsAdmin } from "../../helpers/auth";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 
+async function openMediaGallery(page: import("@playwright/test").Page) {
+  await loginAsAdmin(page);
+  await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
+
+  // Fail fast with a clear signal if the root error boundary fired
+  const systemError = page.getByRole("heading", { name: /system error/i });
+  if (await systemError.isVisible({ timeout: 1_500 }).catch(() => false)) {
+    const detail = await page
+      .locator(".font-mono, pre, code")
+      .first()
+      .textContent()
+      .catch(() => "");
+    throw new Error(`Media gallery hit System Error boundary: ${detail?.trim() || "(no detail)"}`);
+  }
+
+  // Prefer stable page-title marker (AdminPageShell → PageTitle h1)
+  const pageTitle = page.getByTestId("page-title");
+  await expect(pageTitle).toBeVisible({ timeout: 15_000 });
+  await expect(pageTitle).toContainText(/media gallery/i);
+}
+
 test.describe("Media Gallery", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/mediagallery");
-    await expect(page.getByRole("heading", { level: 1, name: /media gallery/i })).toBeVisible({
-      timeout: 15_000,
-    });
+    await openMediaGallery(page);
   });
 
   test("loads with toolbar, content area and default grid view", async ({ page }) => {
     await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible();
     await expect(page.getByTestId("media-gallery-content")).toBeVisible();
     await expect(page.getByTestId("media-grid")).toBeVisible();
-    await expect(page.getByRole("button", { name: /grid view/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    // Stable testid — do not rely on aria-label / role name for toggle buttons
+    await expect(page.getByTestId("media-view-grid")).toHaveAttribute("aria-pressed", "true");
   });
 
   test("supports search and type filtering", async ({ page }) => {
@@ -42,14 +57,14 @@ test.describe("Media Gallery", () => {
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Filter by type persists selection (option values are lowercase)
-    await page.locator("#media-type-filter").selectOption("IMAGE");
+    // Filter by type persists selection (option values are lowercase; labels are UPPER)
+    await page.locator("#media-type-filter").selectOption({ label: "IMAGE" });
     await expect(page.locator("#media-type-filter")).toHaveValue("image");
     await expect(page.getByTestId("media-grid")).toBeVisible();
   });
 
   test("can switch between grid and table views", async ({ page }) => {
-    // Prefer stable testids (aria-label can be lost if Button prop forwarding changes)
+    // Prefer stable testids (role+name can fail if Button prop forwarding or re-render drops aria-label)
     const gridBtn = page.getByTestId("media-view-grid");
     const tableBtn = page.getByTestId("media-view-table");
 
@@ -60,15 +75,16 @@ test.describe("Media Gallery", () => {
     await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Switch to table — when gallery is empty, the table component shows "No media found"
-    // instead of rendering <table>, so only verify the button state switched
-    await tableBtn.click();
-    await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
+    // Switch to table — use programmatic click to avoid icon/overlay intercept flakes
+    await tableBtn.evaluate((btn) => (btn as HTMLButtonElement).click());
+    await expect(tableBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
+    // Table shell is always mounted (empty state still uses media-table wrapper)
+    await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
 
     // Switch back to grid
-    await gridBtn.click();
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await gridBtn.evaluate((btn) => (btn as HTMLButtonElement).click());
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
   });
 

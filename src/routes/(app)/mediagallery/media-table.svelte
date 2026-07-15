@@ -176,7 +176,7 @@ function onUpdateRowsPerPage(rows: number) {
 }
 </script>
 
-<div class="h-full min-h-0 w-full p-2 sm:p-3">
+<div class="h-full min-h-0 w-full p-2 sm:p-3" data-testid="media-table">
 	<SmartTableShell
 		empty={filteredFiles.length === 0}
 		emptyTitle="No media found"

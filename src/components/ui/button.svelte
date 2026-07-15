@@ -17,7 +17,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 - `rounded` (boolean): Full rounded pill shape.
 - `shape` ('round' | 'angle'): Advanced corner-shape option (default: 'round').
 - `color` (string): Custom CSS color override.
-- `aria-label` / `labelledBy` / `describedBy`: ARIA attributes.
+- `aria-label` / `aria-pressed` / `labelledBy` / `describedBy`: ARIA attributes (`aria-pressed` normalized to `"true"`/`"false"`).
 - `children` (Snippet): Button content.
 -->
 
@@ -42,6 +42,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     class?: string;
     // A11y
     'aria-label'?: string;
+    'aria-pressed'?: boolean | 'true' | 'false';
     labelledBy?: string;
     describedBy?: string;
     // Snippets
@@ -65,11 +66,21 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     replaceTextOnLoading = false,
     class: className,
     'aria-label': ariaLabel,
+    'aria-pressed': ariaPressed,
     labelledBy,
     describedBy,
     children,
     ...rest
   }: Props = $props();
+
+  /** Normalize toggle pressed state so DOM always has a string attribute for E2E/a11y */
+  const ariaPressedAttr = $derived(
+    ariaPressed === undefined || ariaPressed === null
+      ? undefined
+      : ariaPressed === true || ariaPressed === 'true'
+        ? 'true'
+        : 'false'
+  );
 
   const element = $derived(href ? 'a' : 'button');
 
@@ -192,6 +203,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   {...elementProps}
   {...rest}
   aria-label={ariaLabel || undefined}
+  aria-pressed={ariaPressedAttr}
   aria-labelledby={labelledBy}
   aria-describedby={describedBy}
   class={cn(

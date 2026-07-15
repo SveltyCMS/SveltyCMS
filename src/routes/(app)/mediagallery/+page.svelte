@@ -743,7 +743,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Grid view"
-						aria-pressed={view === 'grid'}
+						aria-pressed={view === 'grid' ? 'true' : 'false'}
 						data-testid="media-view-grid"
 					>
 						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
@@ -756,7 +756,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Table view"
-						aria-pressed={view === 'table'}
+						aria-pressed={view === 'table' ? 'true' : 'false'}
 						data-testid="media-view-table"
 					>
 						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"></iconify-icon>
