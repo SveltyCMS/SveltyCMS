@@ -175,14 +175,21 @@ export async function addInputField(
   }
 
   await expect(labelInput).toBeVisible({ timeout: 15_000 });
+  // clear + type so Svelte bind:value picks up changes under Playwright
+  await labelInput.click();
+  await labelInput.fill("");
   await labelInput.fill(options.label);
-  await page.getByTestId("widget-field-name").fill(options.fieldName);
+  const nameInput = page.getByTestId("widget-field-name");
+  await nameInput.click();
+  await nameInput.fill("");
+  await nameInput.fill(options.fieldName);
   await stableClick(page.getByTestId("widget-field-apply"), 10_000);
 
   await expect(labelInput)
     .toBeHidden({ timeout: 10_000 })
     .catch(() => undefined);
-  await expect(fieldList.getByText(options.label)).toBeVisible({
+  // Label is the stable post-apply signal (db name may still be auto-generated)
+  await expect(fieldList.getByText(options.label, { exact: true })).toBeVisible({
     timeout: 15_000,
   });
 }
