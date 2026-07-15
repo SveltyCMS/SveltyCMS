@@ -85,7 +85,11 @@ async function createUniqueUser(
   // Create user as admin
   const createResp = await safeFetch(`${API_BASE_URL}/api/user/create-user`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: adminCookie,
+      Origin: API_BASE_URL,
+    },
     body: JSON.stringify({
       email,
       password,
@@ -95,10 +99,17 @@ async function createUniqueUser(
     }),
   });
 
+  const userData = await createResp.json().catch(() => ({}) as any);
+  if (!createResp.ok) {
+    throw new Error(
+      `create-user failed HTTP ${createResp.status}: ${JSON.stringify(userData).slice(0, 300)}`,
+    );
+  }
+
   // Login to get the cookie for the new user
   const loginResp = await safeFetch(`${API_BASE_URL}/api/user/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: API_BASE_URL },
     skipTestSecret: true,
     body: JSON.stringify({ email, password }),
   });
@@ -109,11 +120,25 @@ async function createUniqueUser(
     .map((c) => c.trim().split(";")[0])
     .join("; ");
 
-  // Get the user ID from the response
-  const userData = await createResp.json();
-  const userId = userData?.data?._id || userData?.data?.id || userData?._id || "";
+  // Get the user ID from nested response shapes used across adapters
+  const userId =
+    userData?.data?._id ||
+    userData?.data?.id ||
+    userData?.data?.user?._id ||
+    userData?.data?.user?.id ||
+    userData?.user?._id ||
+    userData?.user?.id ||
+    userData?._id ||
+    userData?.id ||
+    "";
 
-  return { userId, email, password, cookie: sessionCookie };
+  if (!userId) {
+    throw new Error(
+      `create-user succeeded but no user id in body: ${JSON.stringify(userData).slice(0, 300)}`,
+    );
+  }
+
+  return { userId: String(userId), email, password, cookie: sessionCookie };
 }
 
 // ─── Main Test Suite ─────────────────────────────────────────────────────────

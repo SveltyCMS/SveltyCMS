@@ -463,7 +463,11 @@ export async function handleSessionsRoutes(
 
   if (event.request.method === "GET") {
     // List all active sessions for the current user
-    const result = await cms.auth.getActiveSessions(user._id, { tenantId });
+    const userId = user._id || user.id;
+    if (!userId) {
+      throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    }
+    const result = await cms.auth.getActiveSessions(userId, { tenantId });
     if (!result.success) {
       throw new AppError(result.message || "Failed to retrieve sessions", 500);
     }
@@ -471,7 +475,7 @@ export async function handleSessionsRoutes(
     const currentSessionId = event.locals.session_id;
     const sessions = (result.data || []).map((s: any) => ({
       ...s,
-      isCurrent: s._id === currentSessionId,
+      isCurrent: s._id === currentSessionId || s.id === currentSessionId,
     }));
     return successResponse(event, { sessions });
   }
@@ -665,9 +669,20 @@ export async function handleUserSpecificRoutes(
   // Batch operations
   if (method === "batch" && request.method === "POST") {
     const body = await request.json();
-    const ids = body.ids || body.userIds;
+    const rawIds = body.ids || body.userIds;
+    const ids = (Array.isArray(rawIds) ? rawIds : []).map(String).filter(Boolean);
+    if (!body.action) {
+      throw new AppError("Batch action is required", 400, "INVALID_BATCH_ACTION");
+    }
+    if (ids.length === 0 && body.action !== "invalid_action") {
+      // Empty id list is a client error for mutating batch ops
+      throw new AppError("userIds must be a non-empty array", 400, "INVALID_BATCH_IDS");
+    }
     const result = await cms.auth.batchAction(ids, body.action, { tenantId });
-    return successResponse(event, result);
+    if (!result.success) {
+      throw new AppError(result.message || "Batch action failed", 400, "BATCH_FAILED");
+    }
+    return successResponse(event, result.data ?? result);
   }
 
   // Single user operations
