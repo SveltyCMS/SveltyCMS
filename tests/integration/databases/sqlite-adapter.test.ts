@@ -5,7 +5,7 @@
  * Performs full CRUD round-trips against a file-based SQLite database.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { unlinkSync } from "node:fs";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 

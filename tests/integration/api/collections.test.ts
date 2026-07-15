@@ -4,7 +4,7 @@
  * Refactored to use Cookie authentication and ensure test data exists.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { unlink } from "node:fs/promises";
 import { write } from "bun";
 import { getCollectionDisplayPath, getCollectionFilePath } from "../../../src/utils/tenant.server";

@@ -10,7 +10,7 @@
  * - POST /api/auth/2fa/backup-codes - Generate backup codes
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import {
   cleanupTestDatabase,

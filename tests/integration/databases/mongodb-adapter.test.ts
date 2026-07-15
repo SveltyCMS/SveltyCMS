@@ -8,7 +8,7 @@
  * and the NoSQL-specific behaviors of the QueryBuilder.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // 🟢 Apply the v8 shim before any MongoDB/Bson imports
 // This must happen before any dynamic import of MongoDBAdapter below.

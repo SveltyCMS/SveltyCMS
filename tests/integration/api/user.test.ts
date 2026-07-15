@@ -4,7 +4,7 @@
  * Uses shared helpers for authentication and environment setup.
  */
 
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import {
   initializeTestEnvironment,

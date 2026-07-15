@@ -7,7 +7,7 @@
  * preload (bunfig.toml preloads tests/unit/bun-preload.ts for all tests).
  */
 
-import { beforeEach, describe, expect, test, beforeAll } from "bun:test";
+import { beforeEach, describe, expect, test, beforeAll } from "vitest";
 
 const TEST_TENANT = "cache-test-tenant";
 

@@ -3,7 +3,7 @@
  * @description Black-box integration tests for the dynamic OpenAPI specification.
  */
 
-import { describe, it, expect, beforeAll } from "bun:test";
+import { describe, it, expect, beforeAll } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
 

@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import path from "node:path";
 
 test("DX Toolchain Performance (Sync + Format + Lint)", async () => {

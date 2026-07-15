@@ -30,7 +30,7 @@ mock.module("@src/widgets/scanner", () => {
   };
 });
 
-import { test, mock } from "bun:test";
+import { test, mock } from "vitest";
 import {
   runBenchmark,
   exportResult,

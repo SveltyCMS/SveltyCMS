@@ -8,7 +8,7 @@
  * to ensure the DB is properly seeded before tests run.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
