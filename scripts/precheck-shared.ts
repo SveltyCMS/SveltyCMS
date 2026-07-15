@@ -383,12 +383,15 @@ const BASE_TASKS: TaskSpec[] = [
     name: "Production Build",
     ciJob: "build",
     estimatedMs: 120000,
-    remediation: "bun run build",
+    // Match CI build job: COMPILE_ALL_ADAPTERS=true so testing harness stays in the
+    // artifact used by benchmarks / db-tests. Deploy strip is verified separately.
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () =>
       runCommand("bun", ["run", "build"], {
         silent: true,
         timeout: 600_000,
+        env: { ...process.env, COMPILE_ALL_ADAPTERS: "true" },
       }),
   },
   {
@@ -410,12 +413,13 @@ const BASE_TASKS: TaskSpec[] = [
       "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () => {
-      // Rebuild to verify the deploy build strips the testing backdoor.
-      // Isolated from the main production build task above.
+      // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
+      // Isolated from the CI-parity COMPILE_ALL_ADAPTERS build above.
       const buildOk =
         runCommand("bun", ["run", "build"], {
           silent: true,
           timeout: 300_000,
+          env: { ...process.env, COMPILE_ALL_ADAPTERS: "" },
         }) !== false;
       if (!buildOk) return false;
       return (
