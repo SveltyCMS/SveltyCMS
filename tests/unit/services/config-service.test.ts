@@ -165,6 +165,18 @@ function makeEntity(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Wrap a collection entity into a content_node structure with collectionDef. */
+function toContentNode(entity: Record<string, unknown>) {
+  return {
+    _id: entity._id,
+    name: entity.name,
+    nodeType: "collection",
+    collectionDef: entity,
+    tenantId: "global",
+    path: `/collection/${((entity.name as string) || "").toLowerCase()}`,
+  };
+}
+
 function makeConfigEntity(uuid: string, overrides: Partial<{ name: string; type: string }> = {}) {
   return {
     uuid,
@@ -193,7 +205,7 @@ describe("ConfigService", () => {
 
     // findMany defaults — used for collections, system_settings, webhooks, automations
     mockFindMany.mockImplementation(async (collection: string) => {
-      if (collection === "collections") return { success: true, data: [] };
+      if (collection === "content_nodes") return { success: true, data: [] };
       if (collection === "system_settings") return { success: true, data: [] };
       if (collection === "webhooks") return { success: true, data: [] };
       if (collection === "automations") return { success: true, data: [] };
@@ -213,7 +225,8 @@ describe("ConfigService", () => {
       const sameEntity = makeEntity({ _id: "col-1", name: "blog" });
       mockGetCollections.mockResolvedValue([sameEntity]);
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [sameEntity] };
+        if (collection === "content_nodes")
+          return { success: true, data: [toContentNode(sameEntity)] };
         return { success: true, data: [] };
       });
 
@@ -241,7 +254,8 @@ describe("ConfigService", () => {
       const activeEntity = makeEntity({ _id: "col-1", name: "blog-v1" });
       mockGetCollections.mockResolvedValue([sourceEntity]);
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [activeEntity] };
+        if (collection === "content_nodes")
+          return { success: true, data: [toContentNode(activeEntity)] };
         return { success: true, data: [] };
       });
 
@@ -255,7 +269,8 @@ describe("ConfigService", () => {
       const activeOnly = makeEntity({ _id: "stale-col", name: "stale" });
       mockGetCollections.mockResolvedValue([]);
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [activeOnly] };
+        if (collection === "content_nodes")
+          return { success: true, data: [toContentNode(activeOnly)] };
         return { success: true, data: [] };
       });
 
@@ -286,7 +301,7 @@ describe("ConfigService", () => {
       const act = makeEntity({ _id: "a", name: "same-name", extra: "v2" });
       mockGetCollections.mockResolvedValue([src]);
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [act] };
+        if (collection === "content_nodes") return { success: true, data: [toContentNode(act)] };
         return { success: true, data: [] };
       });
 
@@ -299,7 +314,7 @@ describe("ConfigService", () => {
       const act = makeEntity({ _id: "orphan", name: "orphan" });
       mockGetCollections.mockResolvedValue([]);
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [act] };
+        if (collection === "content_nodes") return { success: true, data: [toContentNode(act)] };
         return { success: true, data: [] };
       });
 
@@ -347,7 +362,7 @@ describe("ConfigService", () => {
     it("writes manifest.json and resource-type JSON files", async () => {
       const entity = makeEntity({ _id: "col-1", name: "blog" });
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [entity] };
+        if (collection === "content_nodes") return { success: true, data: [toContentNode(entity)] };
         return { success: true, data: [] };
       });
 
@@ -374,7 +389,7 @@ describe("ConfigService", () => {
     it("exports collections data when present", async () => {
       const entity = makeEntity({ _id: "col-1", name: "blog" });
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [entity] };
+        if (collection === "content_nodes") return { success: true, data: [toContentNode(entity)] };
         return { success: true, data: [] };
       });
 
@@ -394,7 +409,8 @@ describe("ConfigService", () => {
       const e1 = makeEntity({ _id: "a", name: "keep" });
       const e2 = makeEntity({ _id: "b", name: "skip" });
       mockFindMany.mockImplementation(async (collection: string) => {
-        if (collection === "collections") return { success: true, data: [e1, e2] };
+        if (collection === "content_nodes")
+          return { success: true, data: [toContentNode(e1), toContentNode(e2)] };
         return { success: true, data: [] };
       });
 
