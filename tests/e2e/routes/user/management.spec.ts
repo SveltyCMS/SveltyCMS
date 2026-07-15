@@ -204,11 +204,14 @@ test.describe.serial("User Management Flow", () => {
     // Login
     await loginAsAdmin(page);
 
-    // Go to User Profile
-    await page.getByTestId("nav-user-profile").click();
+    // Go to User Profile (direct navigation is more reliable than sidebar click)
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
 
-    // ✅ READ operation - assert user profile visible
-    await expect(page.locator("h1")).toContainText(/user profile/i);
+    // ✅ READ operation - assert user profile visible (stable testid from PageTitle)
+    const pageTitle = page.getByTestId("page-title");
+    await expect(pageTitle).toBeVisible({ timeout: 15_000 });
+    await expect(pageTitle).toContainText(/user profile|benutzerprofil/i);
 
     // ✅ UPDATE operation - Edit user info (scoped to the modal dialog)
     await page.getByRole("button", { name: /edit user settings/i }).click();

@@ -166,41 +166,43 @@
 			</Button>
 		{/if}
 		<div class="flex flex-col ms-2 min-w-0">
-			<h1
-				class="transition-max-width h1 relative flex items-center gap-1 font-bold"
-				style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.5rem, 3vw + 1rem, 2.25rem)'};"
-				aria-live="polite"
-				data-cms-field="pageTitle"
-				data-cms-type="text"
-			>
-				{#if icon}
-					<iconify-icon
-						{icon}
-						width={compact ? '22' : iconSize}
-						class={`me-1 shrink-0 ${iconColor} sm:mr-2`}
-						aria-hidden="true"
-					></iconify-icon>
-				{/if}
+			<div class="flex min-w-0 items-center gap-1">
+				<h1
+					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 font-bold"
+					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.5rem, 3vw + 1rem, 2.25rem)'};"
+					aria-live="polite"
+					data-cms-field="pageTitle"
+					data-cms-type="text"
+					data-testid="page-title"
+				>
+					{#if icon}
+						<iconify-icon
+							{icon}
+							width={compact ? '22' : iconSize}
+							class={`me-1 shrink-0 ${iconColor} sm:mr-2`}
+							aria-hidden="true"
+						></iconify-icon>
+					{/if}
 
-				<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
-					{#each titleParts as part, i (i)}
-						<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
-					{/each}
-				</span>
+					<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
+						{#each titleParts as part, i (i)}
+							<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}>{part}</span>
+						{/each}
+					</span>
+				</h1>
 
+				<!-- Favorites control lives outside h1 so heading accessible name stays clean for E2E/a11y -->
 				<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
 					<button
 						type="button"
 						onclick={toggleFavorite}
 						aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-						class="ms-1.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500' : 'text-surface-400 opacity-60 hover:opacity-100 dark:text-surface-500'}"
+						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500' : 'text-surface-400 opacity-60 hover:opacity-100 dark:text-surface-500'}"
 					>
 						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
 					</button>
 				</SystemTooltip>
-
-				<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
-			</h1>
+			</div>
 			{#if description}
 				<span class="mt-0.5 text-xs font-medium text-surface-500 dark:text-surface-400 {compact ? '' : 'opacity-50'}">{description}</span>
 			{/if}

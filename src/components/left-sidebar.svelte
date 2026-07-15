@@ -477,8 +477,15 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
-						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
+					<Button
+						variant="ghost"
+						onclick={signOut}
+						type="button"
+						aria-label="Sign Out"
+						data-testid="sign-out-button"
+						class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0"
+					>
+						<iconify-icon icon="uil:signout" width="32" class="" aria-hidden="true"></iconify-icon>
 					</Button>
 				</SystemTooltip>
 			</div>

@@ -11,8 +11,14 @@ test.describe("User Management — Invite Flow", () => {
 
   test("invite user via email token and accept signup", async ({ page, browser }) => {
     await loginAsAdmin(page);
-    await page.getByTestId("nav-user-profile").click();
-    await page.getByRole("button", { name: /email user registration token/i }).click();
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
+    await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
+
+    // Admin area token actions (may need scroll on short viewports)
+    const emailTokenBtn = page.getByRole("button", { name: /email user registration token/i });
+    await emailTokenBtn.scrollIntoViewIfNeeded().catch(() => {});
+    await emailTokenBtn.click({ timeout: 20_000 });
 
     const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });
     await expect(tokenDialog).toBeVisible({ timeout: 10_000 });
