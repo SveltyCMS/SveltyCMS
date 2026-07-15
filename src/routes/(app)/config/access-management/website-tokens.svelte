@@ -29,6 +29,7 @@ import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
 import { dndzone } from "svelte-dnd-action";
 	import AdminCard from '@components/admin-card.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -55,6 +56,7 @@ let selectedPermissions: string[] = $state([]);
 let expirationOption = $state("90d");
 let customExpirationDate = $state("");
 let permissionSearchTerm = $state("");
+let tenantScope = $state("current");
 
 let showSecretMap: Record<string, boolean> = $state({});
 let selectedTokens = $state(new Set<string>());
@@ -72,21 +74,27 @@ let rowsPerPage = $state(10);
 let totalItems = $state(0);
 const pagesCount = $derived(Math.ceil(totalItems / rowsPerPage) || 1);
 
-const tableHeaders = [
-	{ label: "Name", key: "name" },
-	{ label: "Token", key: "token" },
-	{ label: "Expiration", key: "expiresAt" },
-	{ label: "Created At", key: "createdAt" },
-	{ label: "Created By", key: "createdBy" },
-];
+	const tableHeaders = [
+		{ label: "Name", key: "name" },
+		{ label: "Token", key: "token" },
+		{ label: "Scope", key: "tenantId" },
+		{ label: "Expiration", key: "expiresAt" },
+		{ label: "Created At", key: "createdAt" },
+		{ label: "Created By", key: "createdBy" },
+	];
 
-const expirationOptions = [
-	{ value: '30d', label: '30 Days' },
-	{ value: '90d', label: '90 Days' },
-	{ value: '1y', label: '1 Year' },
-	{ value: 'never', label: 'Never (Use with caution)' },
-	{ value: 'custom', label: 'Custom Date' },
-];
+	const expirationOptions = [
+		{ value: '30d', label: '30 Days' },
+		{ value: '90d', label: '90 Days' },
+		{ value: '1y', label: '1 Year' },
+		{ value: 'never', label: 'Never (Use with caution)' },
+		{ value: 'custom', label: 'Custom Date' },
+	];
+
+	const tenantScopeOptions = [
+		{ value: 'current', label: 'Current Tenant' },
+		{ value: 'global', label: 'Global (all tenants)' },
+	];
 
 let displayTableHeaders = $state(
 	tableHeaders.map((h) => ({ ...h, visible: true, id: `header-${h.key}` })),
@@ -259,6 +267,7 @@ async function generateToken() {
 				name: currentNewTokenName,
 				permissions: selectedPermissions,
 				expiresAt: getExpirationDate(),
+				tenantId: tenantScope === 'global' ? null : undefined,
 			}),
 		});
 
@@ -268,6 +277,7 @@ async function generateToken() {
 			newTokenName = "";
 			selectedPermissions = [];
 			expirationOption = "90d";
+			tenantScope = "current";
 		} else if (response.status === 409) {
 			toast.error("A token with this name already exists");
 		} else {
@@ -380,6 +390,11 @@ $effect(() => {
 				/>
 
 				<div class="flex flex-col gap-2">
+					<Select
+						label="Tenant Scope"
+						bind:value={tenantScope}
+						options={tenantScopeOptions}
+					/>
 					<Select
 						label="Expiration"
 						bind:value={expirationOption}
@@ -591,6 +606,12 @@ $effect(() => {
 												</span>
 											{:else}
 												<span class="opacity-50">Never</span>
+											{/if}
+										{:else if header.key === 'tenantId'}
+											{#if token.tenantId}
+												<span class="text-xs">Current Tenant</span>
+											{:else}
+												<Badge variant="secondary" class="text-xs">Global</Badge>
 											{/if}
 										{:else if header.key === 'createdBy'}
 											{userMap.get(token.createdBy as DatabaseId) || token.createdBy}

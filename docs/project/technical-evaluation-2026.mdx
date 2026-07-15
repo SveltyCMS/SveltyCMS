@@ -845,7 +845,15 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **Active Visual Workflow Engine (FSM)**: Production-ready Node-based editor with strict RBAC transition guards, secure crypto IDs, and true `tenantId` isolation across all workflow logic.
 
 - **Enterprise Smart Diff View**: Hardened `diff-utils` implementation performing recursive zero-latency change analysis, protected against circular DOSt vulnerabilities and optimized with Svelte 5 `$derived` metrics.
-- **Multi-Tenant Isolation 2.0**: Mathematical data separation via Universal Tenant Context.
+- **Multi-Tenant Hardening (July 2026)**: Production-hardened isolation across all layers:
+  - **PostgreSQL Row-Level Security**: Database-level `enforceTenantPolicy()` with `CREATE POLICY tenant_isolation` and per-request `SET SESSION app.tenant_id`. Defense-in-depth below the application layer.
+  - **Signed Media URLs**: HMAC-SHA256 time-limited file access with `crypto.timingSafeEqual` validation. Opt-in via `MEDIA_SIGNED_URL_ENABLED`.
+  - **Per-Tenant Rate Limiting**: Two-tier token bucket system (per-IP + per-tenant) with independent budgets, preventing noisy tenants from starving neighbors.
+  - **Tenant Analytics Dashboard**: Per-tenant usage widget showing storage, users, collections, entries, and 24h activity — scoped by `locals.tenantId`.
+  - **Tenant-Scoped API Keys**: Token management UI with tenant scope selector (Current Tenant / Global). Backend already supports `tenantId` in auth cache lookups.
+  - **Per-Tenant Database Connection Pooling**: Optional dedicated postgres.js pools per tenant with configurable `TENANT_DB_POOL_SIZE`. Visible as `application_name = tenant_{id}` in `pg_stat_activity`.
+  - **E2E Isolation Tests**: 5 Playwright tests verifying cross-tenant collection, file, content, global resource, and schema boundaries at the HTTP level.
+  - **19/19 architectural features** covered across CRUD guard, RLS, signed URLs, rate limits, GraphQL, file serving, media, plugins, SSE, batch ops, migration, and E2E testing.
 - **Durable Jobs & Webhooks**: Redis-backed job queue (`svelty_jobs`) and DLQ-aware webhook engine.
 - **Asynchronous Background Imports**: Off-thread processing for large datasets with concurrency control.
 - **Real-Time Collaboration**: CRDT-based concurrent editing (Yjs) over standard HTTP.

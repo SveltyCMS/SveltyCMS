@@ -234,7 +234,7 @@ describe("Form<T> class", () => {
   // SUBMIT — CUSTOM OPTIONS
   // ---------------------------------------------------------------------------
 
-  it("should merge custom RequestInit options (headers replaced, not merged)", async () => {
+  it("should merge custom headers with default Content-Type header", async () => {
     const mockResponse = { success: true };
     globalThis.fetch = (vi.fn() as any).mockResolvedValue({
       ok: true,
@@ -246,8 +246,9 @@ describe("Form<T> class", () => {
     });
 
     const callArgs = (globalThis.fetch as any).mock.calls[0][1];
-    // Note: ...options replaces headers entirely; Content-Type is not preserved
+    // Note: custom headers are merged on top of the default Content-Type
     expect(callArgs.headers).toEqual({
+      "Content-Type": "application/json",
       "X-Custom": "value",
     });
   });

@@ -348,40 +348,15 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
 
 ## Roadmap (Missing Features)
 
-From the 2026 roadmap, prioritize these for parity/leadership (implemented features marked [x]; harden for production):
+See [Roadmap 2026](docs/project/roadmap-2026.mdx) for in-progress and planned work.
+See [Technical Evaluation 2026](docs/project/technical-evaluation-2026.mdx) for completed achievements.
 
-- [x] **PostgreSQL Support**: Full adapter implementation with Drizzle ORM migrations and native tenant management.
-- [x] **SQLite Support**: Lightweight adapter via Bun native driver for edge and local deployments.
-- [x] **SCIM 2.0 (v1.1)**: Native endpoints (/scim/v2/Users, Groups, Bulk); support filters (eq, co), PATCH ops; integration ready for Okta/Azure.
-- [x] **SAML 2.0 / Enterprise SSO**: Lightweight integration via @node-saml/node-saml (zero DB dependencies) for enterprise identity providers (Okta, Azure).
-- [x] **Edge Computing & Multi-Region**: Native support for edge-optimized data fetching and multi-region replication.
-- [x] **BuzzForm Visual Builder (v1.5)**: Production-ready drag-and-drop form/collection builder with real-time preview.
-- [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), hardened directory traversal, and **published-reference gating** (409 Conflict on mutation of assets used by published content, with batched pre-check across all collection schemas).
-- [x] **OpenAPI 3.1.0**: Dynamic specification export for automated SDK generation and documentation.
-- [x] **99.9% Self-Healing Cache**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
-- [x] **High-Performance Local API**: Zero-latency server-side CRUD bridge with full widget logic parity. **Achieved <0.05ms average latency for core operations.**
-- [x] **Enterprise Performance Auditing**: 20+ standardized benchmarks with high-fidelity ASCII telemetry. **Includes 1,000-collection stress audits.**
-- [x] **4-Layer Defense-in-Depth Security**: Cookie prefix hardening, setup completion gating, handler-level admin verification, media permission checks, centralized permission guards, timing-safe test secret comparison (`crypto.subtle.timingSafeEqual`), per-IP rate limiter wired into middleware pipeline (adaptive cost 0.8x–2.0x), API CSP tightened (`style-src 'unsafe-inline'` removed), silent honeypot tarpit (empty `200 OK`, no JSON leak). **849 unit tests, 51 new security tests, 0 regressions.**
-- [x] **Hardened Relation Token Engine**: Resolved field property access bugs and implemented high-performance Bearer token validation with multi-tenant isolation.
-- [x] **Sub-Millisecond Content Scanner**: Implemented Persistent Mtime Tree (Dirty Bits), Batch Cache Retrieval (`getMany`), and Worker Thread Pooling.
-- [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
-- [x] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
-- [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.
-- [x] **Native Svelte 5 Component Library**: 37 native UI components replacing all third-party dependencies with Tailwind v4 theming.
-- [x] **Automated Upgrade CLI**: Integrated `scripts/upgrade.ts` for safe, automated core updates.
-- [x] **Enterprise SEO Suite**: High-performance multi-tenant Redirect Manager and Dynamic Sitemap.xml with i18n/hreflang support.
-- [x] **Negative Caching Engine**: Implemented Bloom-filter style missing-key cache achieving a verified **2392x speedup** for repeated misses.
-- [x] **Zero-Tax SDK Dispatcher**: Refactored `LocalCMS` with Hot-Swap self-overwriting getters, achieving **0% middleware overhead**.
-- [x] **Universal Accessibility Auditing**: Implemented automated Axe-Core E2E test suites, RTL directionality layout mirroring audits, build-time Widget Accessibility Static Analysis Validator, and documented State-Bound Focus Restoration.
-- [x] **Adaptive Job Scheduler**: Background job runner executing scheduled publishing, status transitions with exponential retries and audit integration.
-- [x] **Per-Field Content Localization**: Record<Locale, string> field storage with inline locale switchers and one-click AI translation.
-- [x] **Crypto-Chained Audit Logs**: SHA-256 hash chain across audit entries with chain verification and per-content viewer.
-- [x] **CI Audit Blocking**: `bun audit --severity=high` now blocks PRs on high-severity CVEs (removed `|| true` fallback).
-- [x] **Zero-Dependency Full-Text Search**: DB-native FTS (PostgreSQL tsvector, MariaDB FULLTEXT, SQLite FTS5, MongoDB $text) — zero npm dependencies.
-- [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
-- [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.
-- [x] **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
-- [x] **Enterprise Admin Theme Migration (Phases A–F)**: Complete Gin-inspired structural theme system — `AdminPageShell` on all 22 `(app)` routes, `AdminCard` across all config pages, 600+ `<button>` → `<Button>`, 20+ `<span class="badge">` → `<Badge>`, 0 `class="input"` in `src/`, image editor toolbars on native `<Button>`, tenant-branded login (`brandedLogin`), 3 theme presets, motion tokens, per-user theme overrides.
+Key areas to prioritize:
+
+- Features marked as "Planned" in the roadmap
+- Marketplace Phase 2 (in-app catalog/browse UI)
+- Published DB adapters as separate npm packages
+- Enterprise infrastructure scaling (Docker, Terraform)
 
 ## Upgrading SveltyCMS
 

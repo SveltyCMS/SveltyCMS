@@ -13,6 +13,7 @@
  * - optimized single-statement atomic increment
  * - PgBouncer compatibility (DATABASE_PREPARE flag)
  * - read replica support
+ * - per-tenant connection pooling for enterprise isolation
  */
 
 import { logger } from "@src/utils/logger";
@@ -60,6 +61,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   private _readDb: PostgresJsDatabase<typeof schema> | null = null;
   private replicaSqls = new Map<string, ReturnType<typeof postgres>>();
   private allReplicaSqls: ReturnType<typeof postgres>[] = [];
+
+  // --------------------------------------------------------------------------
+  // Per-Tenant Connection Pools
+  // --------------------------------------------------------------------------
+
+  /** Map of tenant ID to dedicated postgres.js connection pool */
+  private _tenantPools = new Map<string, ReturnType<typeof postgres>>();
+  /** The tenant ID for the current request context, set by setTenantContext() */
+  private _currentTenantId: string | null = null;
+
   protected _transactionModule?: import("./transaction-module").TransactionModule;
 
   // --------------------------------------------------------------------------
@@ -136,6 +147,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
   public getSql(mode: "read" | "write" = "write"): ReturnType<typeof postgres> {
     if (!this.sql) throw new Error("Database not connected");
+
+    // If a per-tenant dedicated pool is active, use it for full
+    // connection-level isolation instead of the shared pool.
+    if (this._currentTenantId && this._tenantPools.has(this._currentTenantId)) {
+      return this._tenantPools.get(this._currentTenantId)!;
+    }
 
     if (mode === "write" || this.allReplicaSqls.length === 0) {
       return this.sql;
@@ -334,6 +351,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   async disconnect(): Promise<DatabaseResult<void>> {
+    // Clean up any per-tenant dedicated pools
+    await this.closeAllTenantPools();
+
     if (this.sql) {
       await this.sql.end();
       this.sql = null;
@@ -740,6 +760,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @throws {Error} if the database is not connected
    */
   public async setTenantContext(tenantId: string | null): Promise<void> {
+    this._currentTenantId = tenantId;
     const value = tenantId ?? "global";
     if (!this.sql) {
       throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
@@ -811,5 +832,114 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       "GET_TENANT_CONTEXT_FAILED",
       "Failed to retrieve tenant context from PostgreSQL session",
     );
+  }
+
+  // --------------------------------------------------------------------------
+  // Per-Tenant Connection Pool Management
+  // --------------------------------------------------------------------------
+
+  /**
+   * Returns a dedicated postgres.js pool for the given tenant.
+   * Creates one from the base DATABASE_URL if it doesn't exist yet.
+   * The pool is tagged with `application_name=tenant_{tenantId}` for
+   * easy identification in pg_stat_activity.
+   *
+   * @param tenantId - The tenant ID to get a pool for
+   * @returns A postgres.js connection pool dedicated to this tenant
+   * @throws {Error} if DATABASE_URL is not configured
+   */
+  public getTenantPool(tenantId: string): ReturnType<typeof postgres> {
+    const existing = this._tenantPools.get(tenantId);
+    if (existing) return existing;
+
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error(
+        "[PostgreSQLAdapter] DATABASE_URL is not configured — cannot create tenant pool",
+      );
+    }
+
+    const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
+    const pool = postgres(baseUrl, {
+      max: poolSize,
+      transform: { undefined: null },
+      connection: {
+        application_name: `tenant_${tenantId}`,
+      },
+    });
+
+    this._tenantPools.set(tenantId, pool);
+    logger.debug(`Created dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
+    return pool;
+  }
+
+  /**
+   * Registers a dedicated database URL for a specific tenant.
+   * This allows enterprise customers to configure true database-level
+   * isolation per tenant (separate host/database).
+   *
+   * If a pool already exists for this tenant, it is closed and replaced.
+   *
+   * @param tenantId - The tenant ID to assign a dedicated URL for
+   * @param connectionUrl - Full PostgreSQL connection URL for this tenant
+   */
+  public setTenantPool(tenantId: string, connectionUrl: string): void {
+    // Close existing pool if present
+    const existing = this._tenantPools.get(tenantId);
+    if (existing) {
+      existing.end().catch(() => {
+        logger.debug(`Failed to close existing pool for tenant "${tenantId}"`);
+      });
+    }
+
+    const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
+    const pool = postgres(connectionUrl, {
+      max: poolSize,
+      transform: { undefined: null },
+      connection: {
+        application_name: `tenant_${tenantId}`,
+      },
+    });
+
+    this._tenantPools.set(tenantId, pool);
+    logger.info(`Configured dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
+  }
+
+  /**
+   * Closes and removes the dedicated connection pool for a tenant.
+   * After calling this, the tenant will fall back to the shared pool.
+   *
+   * @param tenantId - The tenant ID whose pool should be closed
+   */
+  public async closeTenantPool(tenantId: string): Promise<void> {
+    const pool = this._tenantPools.get(tenantId);
+    if (pool) {
+      await pool.end();
+      this._tenantPools.delete(tenantId);
+      logger.info(`Closed dedicated connection pool for tenant "${tenantId}"`);
+    }
+  }
+
+  /**
+   * Closes and removes ALL per-tenant dedicated connection pools.
+   * Should be called during shutdown to release all database connections.
+   */
+  public async closeAllTenantPools(): Promise<void> {
+    if (this._tenantPools.size === 0) return;
+
+    const entries = Array.from(this._tenantPools.entries());
+    this._tenantPools.clear();
+    this._currentTenantId = null;
+
+    await Promise.all(
+      entries.map(([tenantId, pool]) =>
+        pool
+          .end()
+          .catch((err: unknown) =>
+            logger.warn(`Failed to close pool for tenant "${tenantId}":`, err),
+          ),
+      ),
+    );
+    logger.info("Closed all per-tenant connection pools");
   }
 }

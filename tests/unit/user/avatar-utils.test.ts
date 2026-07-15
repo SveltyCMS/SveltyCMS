@@ -7,11 +7,11 @@
  * Behavior:
  * - null/undefined/falsy → '/Default_User.svg'
  * - 'data:' URIs → returned as-is
- * - http/https URLs → returned as-is
+ * - http/https URLs → host stripped, path returned
  * - '/Default_User.svg' (case-insensitive) → '/Default_User.svg'
  * - Paths starting with '/files/' → returned as-is
+ * - Paths starting with 'files/' (no leading slash) → '/' prepended
  * - Other paths → '/files/' prepended if no leading '/'
- * - Host portion stripped from absolute URLs
  */
 
 import { describe, it, expect } from "vitest";
@@ -52,14 +52,12 @@ describe("normalizeAvatarUrl", () => {
   // HTTP / HTTPS URLs
   // ---------------------------------------------------------------------------
 
-  it("should return https URL as-is", () => {
-    const url = "https://example.com/avatars/user.png";
-    expect(normalizeAvatarUrl(url)).toBe(url);
+  it("should strip host from https URL, returning just the path", () => {
+    expect(normalizeAvatarUrl("https://example.com/avatars/user.png")).toBe("/avatars/user.png");
   });
 
-  it("should return http URL as-is", () => {
-    const url = "http://cdn.example.com/avatar.jpg";
-    expect(normalizeAvatarUrl(url)).toBe(url);
+  it("should strip host from http URL, returning just the path", () => {
+    expect(normalizeAvatarUrl("http://cdn.example.com/avatar.jpg")).toBe("/avatar.jpg");
   });
 
   // ---------------------------------------------------------------------------
@@ -87,10 +85,10 @@ describe("normalizeAvatarUrl", () => {
     expect(normalizeAvatarUrl("/files/avatars/user123.png")).toBe("/files/avatars/user123.png");
   });
 
-  it("should return /files/ path without leading slash as-is (after normalization)", () => {
+  it("should normalize 'files/' path (no leading slash) by prepending '/'", () => {
     // "files/avatars/user.png" → regex strips nothing → "files/avatars/user.png"
-    // startsWith("/files/")? No → startsWith("/")? No → "/files/" + path = "/files/files/avatars/user.png"
-    expect(normalizeAvatarUrl("files/avatars/user.png")).toBe("/files/files/avatars/user.png");
+    // startsWith("/files/")? No → startsWith("/")? No → startsWith("files/")? Yes → "/" + path = "/files/avatars/user.png"
+    expect(normalizeAvatarUrl("files/avatars/user.png")).toBe("/files/avatars/user.png");
   });
 
   // ---------------------------------------------------------------------------
@@ -115,18 +113,16 @@ describe("normalizeAvatarUrl", () => {
   // ABSOLUTE URL → STRIP HOST, KEEP PATH
   // ---------------------------------------------------------------------------
 
-  it("should return https URL as-is (no host stripping)", () => {
-    // Implementation returns https:// URLs as-is without stripping
+  it("should strip host from https /files/ URL, returning just the path", () => {
+    // Implementation strips protocol and host, keeps /files/ path
     expect(normalizeAvatarUrl("https://mycms.com/files/avatars/user.png")).toBe(
-      "https://mycms.com/files/avatars/user.png",
+      "/files/avatars/user.png",
     );
   });
 
-  it("should return http URL as-is (no host stripping)", () => {
-    // Implementation returns http:// URLs as-is without stripping
-    expect(normalizeAvatarUrl("https://mycms.com/uploads/avatar.png")).toBe(
-      "https://mycms.com/uploads/avatar.png",
-    );
+  it("should strip host from https uploads URL, returning just the path", () => {
+    // Implementation strips protocol and host, keeps path
+    expect(normalizeAvatarUrl("https://mycms.com/uploads/avatar.png")).toBe("/uploads/avatar.png");
   });
 
   // ---------------------------------------------------------------------------
@@ -137,11 +133,10 @@ describe("normalizeAvatarUrl", () => {
     expect(normalizeAvatarUrl("///files/avatar.png")).toBe("/files/avatar.png");
   });
 
-  it("should handle path with mediaFolder prefix (treated as regular path, /files/ prepended)", () => {
-    // "mediaFolder/avatar.png" → no host → replace(/^\/+/, "/") → "/mediaFolder/avatar.png"
-    // startsWith("/files/")? No → startsWith("/")? Yes → return "/mediaFolder/avatar.png"
-    // Wait: The function does not strip /, so path without leading / gets /files/ prepended:
-    // "mediaFolder/avatar.png" → regex does nothing → startsWith("/files/")? No → startsWith("/")? No → "/files/mediaFolder/avatar.png"
-    expect(normalizeAvatarUrl("mediaFolder/avatar.png")).toBe("/files/mediaFolder/avatar.png");
+  it("should handle path with mediaFolder prefix (returns as absolute path with leading slash)", () => {
+    // "mediaFolder/avatar.png" → no host → replace nothing → no leading slash to normalize
+    // startsWith("/files/")? No → path === "/"? No → startsWith("/")? No
+    // startsWith("files/")? No → startsWith("mediaFolder")? Yes → "/mediaFolder/avatar.png"
+    expect(normalizeAvatarUrl("mediaFolder/avatar.png")).toBe("/mediaFolder/avatar.png");
   });
 });

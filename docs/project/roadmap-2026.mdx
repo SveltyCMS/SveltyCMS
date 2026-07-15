@@ -23,6 +23,12 @@ This document is the **living roadmap** — only in-progress and planned work. C
 > [!NOTE]
 > Completed items are documented in the [Technical Evaluation](./technical-evaluation-2026.mdx). This roadmap tracks only in-progress and planned work.
 
+### ✅ Recently Completed (July 2026)
+
+- **Multi-Tenancy Hardening**: Full isolation across all layers — PostgreSQL RLS, signed media URLs, per-tenant rate limiting, tenant analytics dashboard, tenant-scoped API keys, per-tenant DB connection pools, and E2E isolation test suite. See [Technical Evaluation §7.2](./technical-evaluation-2026.mdx#72-visual-intelligence--enterprise-collaboration).
+
+---
+
 ## 🗄️ Media DAM (Digital Asset Management)
 
 **Wired & Tested**: sharing.ts (secure links), slim-sniffer.server.ts (binary MIME fallback), media-utils.ts (65-type MIME DB), media-processing.server.ts (Sharp hash/metadata/thumbnails), cloud-storage.ts (SSRF-protected S3/R2), media-service.server.ts (upload + dedup + versions).

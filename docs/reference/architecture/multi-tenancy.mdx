@@ -672,6 +672,179 @@ if (hashMatch && hashMatch.path !== currentPath) {
 
 This ensures DB records stay linked across renames — no orphaned content.
 
+### PostgreSQL Row-Level Security (RLS)
+
+SveltyCMS supports database-level tenant isolation via PostgreSQL Row-Level Security. This provides defense-in-depth below the application layer — even if the CRUD guard proxy is bypassed (e.g., a direct query in a migration script), RLS guarantees tenant isolation at the storage level.
+
+```mermaid
+graph TB
+    subgraph App["Application Layer"]
+        CRUD[CRUD Guard Proxy<br/>auto-inject tenantId]
+        API[API Handlers]
+    end
+
+    subgraph DB["PostgreSQL Layer"]
+        RLS["RLS Policy<br/>tenant_id = current_setting('app.tenant_id')"]
+        ROWS["Row-level filter applied<br/>automatically to every query"]
+    end
+
+    API --> CRUD
+    CRUD -->|tenantId filter| DB
+    DB -->|"CREATE POLICY tenant_isolation<br/>FOR ALL USING (...)"| RLS
+    RLS -->|invisible filter| ROWS
+
+    style App fill:#e3f2fd,stroke:#1565c0
+    style DB fill:#e8f5e9,stroke:#2e7d32
+    style RLS fill:#fff3e0,stroke:#e65100
+```
+
+**Three methods** were added to the PostgreSQL adapter (`src/databases/postgresql/adapter-core.ts`):
+
+| Method                                      | When called              | Purpose                                                                           |
+| ------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
+| `setTenantContext(tenantId)`                | Per-request (after auth) | Sets `SET SESSION app.tenant_id = ?` so all subsequent queries are scoped         |
+| `enforceTenantPolicy(collection, tenantId)` | Setup/migration          | Runs `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and creates the isolation policy |
+| `getTenantContext()`                        | Diagnostics              | Returns the current session's `app.tenant_id` setting                             |
+
+**How the flow works:**
+
+1. **Setup time** — When a collection is provisioned, `enforceTenantPolicy()` is called once:
+   ```sql
+   ALTER TABLE collection_posts ENABLE ROW LEVEL SECURITY;
+   CREATE POLICY tenant_isolation ON collection_posts
+     FOR ALL USING (tenant_id = current_setting('app.tenant_id')::text);
+   ```
+2. **Per-request** — After tenant resolution, `setTenantContext(tenantId)` sets the session variable:
+   ```sql
+   SET SESSION app.tenant_id = 'tenant-123';
+   ```
+3. **Automatic enforcement** — PostgreSQL applies the RLS policy to every subsequent query. Rows where `tenant_id` doesn't match the session value are silently filtered — no application code changes needed.
+
+> **Note**: RLS is PostgreSQL-specific. MariaDB uses `WHERE` clause injection via the CRUD guard. MongoDB uses partial filter expressions. The `IDBAdapter` interface defines `enforceTenantPolicy?()` and `getTenantContext?()` as optional methods — adapters that don't support RLS simply don't implement them.
+
+### Signed Media URLs
+
+Media files can be served with time-limited HMAC-SHA256 signed URLs, preventing indefinite access to file links even if a URL is shared or leaked.
+
+```typescript
+// Generate a signed URL valid for 1 hour
+const url = generateSignedMediaUrl(
+  "tenant-abc/hash123/original/photo.jpg",
+  "tenant-abc",
+  3600000, // 1 hour TTL
+);
+// Result: /files/tenant-abc/hash123/original/photo.jpg?sig=abc...&exp=1700000000
+```
+
+**Implementation** (`src/utils/media/signed-urls.ts`):
+
+| Function                                              | Description                                                                                                                                                                                                                   |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generateSignedMediaUrl(filePath, tenantId?, ttlMs?)` | Signs `filePath \| tenantId \| expiration` with HMAC-SHA256. Returns `/files/path?sig=<64-char-hex>&exp=<timestamp>`. Returns empty string (fail-closed) if `MEDIA_SIGNED_URL_SECRET` is not configured. Default TTL: 1 hour. |
+| `validateSignedMediaUrl(url, filePath, tenantId?)`    | Extracts `sig` and `exp` from query params, checks expiration, recomputes signature, and compares using `crypto.timingSafeEqual`. Returns `{ valid: true }` or `{ valid: false, reason }`.                                    |
+
+**Enforcement** (`src/routes/files/[...path]/+server.ts`):
+
+- **Opt-in**: Only enforced when `MEDIA_SIGNED_URL_ENABLED` is `true` (set via System Settings)
+- **Global files exempt**: Files under `mediaFolder/global/` remain public (no signature required)
+- **Fail-closed**: Returns `403 SIGNATURE_REQUIRED` on validation failure
+- **Lazy-loaded**: The validation module is dynamically imported only when the feature is enabled — zero overhead when disabled
+
+**To enable:**
+
+1. Set `MEDIA_SIGNED_URL_SECRET` (private setting) — a long random string (e.g., `openssl rand -hex 32`)
+2. Set `MEDIA_SIGNED_URL_ENABLED` to `true` in System Settings
+3. All non-global file requests now require valid `?sig=` and `?exp=` query params
+
+### Tenant Analytics Dashboard
+
+A dashboard widget available to all tenant admins showing their own tenant's usage stats:
+
+| Metric                | Source                                             |
+| --------------------- | -------------------------------------------------- |
+| Collections count     | `db.crud.listCollections(tenantId)`                |
+| Active users          | `cms.auth.listUsers()` pagination scoped by tenant |
+| Media files & storage | `db.crud.count("media")` + file size aggregation   |
+| Content entries       | `db.crud.count()` across all tenant collections    |
+| 24h request activity  | Filtered audit log entries                         |
+
+**Widget** (`src/routes/(app)/dashboard/widgets/tenant-analytics-widget.svelte`):
+
+- Auto-discovered via `import.meta.glob("./widgets/*.svelte")` — no registration needed
+- Compact mode (1 row): shows key stats inline
+- Rich mode (2+ rows): 6-card grid with storage quota bar and activity counter
+- 60-second auto-refresh via `BaseWidget`
+- All data scoped to the request's `locals.tenantId`
+
+**API endpoint**: `GET /api/dashboard/tenant-analytics` — scoped by authenticated user's tenant context.
+
+### Tenant-Scoped API Keys
+
+API tokens can be created with a specific tenant scope, limiting their access to a single tenant's data:
+
+| Scope                        | Behavior                                              |
+| ---------------------------- | ----------------------------------------------------- |
+| **Current Tenant** (default) | Token authenticates with the creator's tenant context |
+| **Global (all tenants)**     | Token has no tenant restriction (admin only)          |
+
+**UI** (`src/routes/(app)/config/access-management/website-tokens.svelte`):
+
+- **Tenant Scope** dropdown in the token creation form: "Current Tenant" / "Global (all tenants)"
+- **Scope column** in the token table: shows "Current Tenant" or a "Global" badge
+- Passing `tenantId: null` in the token creation request creates a global-scoped token
+
+**Backend**: The `WebsiteTokensNamespace.create()` already supports `tenantId?: DatabaseId | null`. The token auth cache (`credential-auth-cache.ts`) already uses `tenantId` for scoped lookups. No schema changes needed.
+
+### Per-Tenant Database Connection Pooling
+
+Enterprise deployments can configure dedicated PostgreSQL connection pools per tenant, providing connection-level isolation beyond RLS:
+
+| Method                                   | Description                                                                                                                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getTenantPool(tenantId)`                | Returns existing pool or creates one from `DATABASE_URL` with `application_name=tenant_{id}`. Pool size configurable via `TENANT_DB_POOL_SIZE` env var (default: 10). |
+| `setTenantPool(tenantId, connectionUrl)` | Registers a dedicated database URL for a tenant — true database-level isolation.                                                                                      |
+| `closeTenantPool(tenantId)`              | Closes and removes a tenant's dedicated pool.                                                                                                                         |
+| `closeAllTenantPools()`                  | Cleanup during `disconnect()`.                                                                                                                                        |
+
+**How it works:**
+
+1. When `setTenantContext(tenantId)` is called per-request, it stores the active tenant ID
+2. The `getSql()` method checks if that tenant has a dedicated pool in `_tenantPools`
+3. If yes → routes all queries to the tenant's private pool (no shared pool contention, separate connection limit)
+4. If no → falls back to the shared pool with RLS (current behavior)
+5. Dedicated pools appear as `application_name = tenant_tenant-abc` in `pg_stat_activity` for monitoring
+
+This is optional — most deployments use the shared pool with RLS. Dedicated pools are for enterprise customers needing separate connection limits and per-tenant DB load monitoring.
+
+### Per-Tenant Rate Limiting
+
+The rate limiter (`src/hooks/handle-rate-limit.ts`) uses a two-tier token bucket system to ensure fair resource distribution across tenants:
+
+| Tier                  | Scope                    | Purpose                                           |
+| --------------------- | ------------------------ | ------------------------------------------------- |
+| **Per-IP bucket**     | Single IP address        | Prevents a single client from flooding the server |
+| **Per-tenant bucket** | All traffic for a tenant | Prevents one noisy tenant from starving others    |
+
+A tenant's budget is isolated — Tenant A exhausting its rate limit has zero impact on Tenant B's available requests.
+
+**Configuration:**
+
+| Setting                       | Default  | Description                     |
+| ----------------------------- | -------- | ------------------------------- |
+| `DEFAULT_MAX_REQUESTS`        | 100/15s  | Per-IP limit (existing)         |
+| `DEFAULT_TENANT_MAX_REQUESTS` | 1000/15s | Per-tenant limit (10x IP limit) |
+
+**Response Headers:**
+
+| Header                         | Example  | Description                                                                             |
+| ------------------------------ | -------- | --------------------------------------------------------------------------------------- |
+| `X-RateLimit-Remaining`        | `42`     | Per-IP remaining requests                                                               |
+| `X-RateLimit-Tenant-Remaining` | `950`    | Per-tenant remaining requests                                                           |
+| `X-RateLimit-Scope`            | `tenant` | Present only when a tenant-level limit was exceeded (distinguishes from IP-level block) |
+| `Retry-After`                  | `15`     | Seconds until the window resets                                                         |
+
+The adaptive cost multiplier from `SystemMonitor` (0.8x idle → 2.0x critical) applies to both tiers equally, ensuring system-wide pressure protection.
+
 ## Best Practices
 
 ### When to Use Global Resources
