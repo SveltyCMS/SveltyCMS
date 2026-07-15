@@ -6,6 +6,8 @@
  *
  * isUser(row): returns true if row has _id AND (username OR role) AND NOT token
  *   Actually per source: !!row && '_id' in row && !('token' in row)
+ *   Wait — the task says "has _id and (username or role)" but source code says
+ *   "!!row && '_id' in row && !('token' in row)" — will test actual behavior.
  *
  * isToken(row): returns true if row has token property (string)
  *   Per source: !!row && 'token' in row && typeof row.token === 'string'
@@ -16,7 +18,7 @@ import { describe, it, expect } from "vitest";
 // Replicate the inline functions from admin-area.svelte for unit testing.
 // These are NOT exported — tests mirror the exact implementation.
 function isToken(row: any): row is { token: string; [key: string]: any } {
-  return !!row && typeof row === "object" && "token" in row && typeof row.token === "string";
+  return !!row && "token" in row && typeof row.token === "string";
 }
 
 function isUser(row: any): row is { _id: string; [key: string]: any } {

@@ -208,8 +208,8 @@ describe("editUserSchema", () => {
     }
   });
 
-  it("should accept when only password is set (not confirmPassword) — cross-field check is skipped", () => {
-    // The check only fires when both are present and password.length > 0
+  it("should reject when only password is set (not confirmPassword) — cross-field validation requires both", () => {
+    // The schema requires confirmPassword when password is provided
     const result = safeParse(editUserSchema, {
       user_id: "u1",
       username: "testuser",
@@ -217,7 +217,7 @@ describe("editUserSchema", () => {
       password: "secret",
       // confirmPassword not provided
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   // ---------------------------------------------------------------------------

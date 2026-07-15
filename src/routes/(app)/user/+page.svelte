@@ -25,6 +25,7 @@
 	// ParaglideJS
 	import {
 		button_delete,
+		email,
 		role,
 		usermodalconfirmbody,
 		usermodalconfirmtitle,
@@ -72,13 +73,6 @@
 		permissions: []
 	});
 
-	// Authentication preferences derived from server user
-	const optAuth = $derived({
-		passkeyEnabled: serverUser?.preferences?.auth?.passkeyEnabled ?? false,
-		magicLinkEnabled: serverUser?.preferences?.auth?.magicLinkEnabled ?? false,
-		oauthEnabled: serverUser?.preferences?.auth?.oauthEnabled ?? false
-	});
-
 	// Function to open 2FA modal
 	function open2FAModal(): void {
 		modalState.trigger(ModalTwoFactorAuth, { user }, async (r: any) => {
@@ -111,7 +105,6 @@
 	    };
 
 		try {
-			// Try PUT first; fall back to POST if it fails
 			const res = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
@@ -121,24 +114,10 @@
 			if (res.ok) {
 				toast.success('Preferences updated');
 				await invalidateAll();
-				return;
-			}
-
-			// PUT failed — try POST as fallback (some adapters prefer POST for deep merge)
-			const res2 = await fetch('/api/user/update-user-attributes', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ user_id: 'self', newUserData })
-			});
-
-			if (res2.ok) {
-				toast.success('Preferences updated');
-				await invalidateAll();
 			} else {
-				const errBody = await res2.text().catch(() => 'unknown');
-				toast.error('Failed to update preferences: ' + errBody.slice(0, 120));
+				toast.error('Failed to update preferences');
 			}
-		} catch (err) {
+		} catch {
 			toast.error('Error updating preferences');
 		}
 	}
@@ -227,66 +206,91 @@
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
 
 		<!-- ═══ COLUMN 1: Identity ═══ -->
-			<section in:fly={{ y: 20, delay: 50, duration: 300 }}>
-				<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-5 shadow-sm">
-					<div class="flex items-center gap-4 mb-4 pb-3 border-b border-surface-200 dark:border-surface-700">
-						<div class="relative group shrink-0">
-							<Avatar
-								src={normalizeAvatarUrl(user.avatar)}
-								initials={user.username?.slice(0, 2).toUpperCase() || 'AV'}
-								size="size-12"
-								class="rounded-full border-2 border-surface-200 dark:border-surface-600"
-							/>
-							<button
-								onclick={modalEditAvatar}
-								aria-label={userpage_editavatar()}
-								class="absolute -bottom-0.5 -right-0.5 p-1 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
-							>
-								<iconify-icon icon="mdi:pencil" width={12}></iconify-icon>
-							</button>
-						</div>
+		<section in:fly={{ y: 20, delay: 50, duration: 300 }}>
+			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm">
+				<!-- Section header -->
+				<div class="flex items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<iconify-icon icon="mdi:account-circle" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
+					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Identity</h3>
+				</div>
+
+				<!-- Avatar (centered, with edit overlay) -->
+				<div class="flex flex-col items-center mb-5">
+					<div class="relative group mb-3">
+						<Avatar
+							src={normalizeAvatarUrl(user.avatar)}
+							initials="AV"
+							size="size-24"
+							class="rounded-full border-2 border-surface-200 dark:border-surface-600 shadow-md"
+						/>
+						<!-- Edit overlay -->
+						<button
+							onclick={modalEditAvatar}
+							title={userpage_editavatar()}
+							class="absolute bottom-0 right-0 p-1.5 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+						>
+							<iconify-icon icon="mdi:camera-plus" width={16}></iconify-icon>
+						</button>
+					</div>
+					<span class="text-sm font-medium text-surface-600 dark:text-surface-300">Click avatar to change</span>
+				</div>
+
+				<!-- Identity fields (read-only display) -->
+				<div class="space-y-3">
+					<div>
+						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{username()}</span>
+						<p class="text-sm font-medium text-surface-900 dark:text-surface-100">{user.username || '—'}</p>
+					</div>
+					<div>
+						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{email()}</span>
+						<p class="text-sm font-medium text-surface-900 dark:text-surface-100">{user.email || '—'}</p>
+					</div>
+					<div>
+						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{role()}</span>
+						<p class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize">{user.role || '—'}</p>
+					</div>
+					<div>
+						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{userpage_user_id()}</span>
+						<p class="text-xs font-mono text-surface-600 dark:text-surface-400 truncate">{user._id || 'N/A'}</p>
+					</div>
+					{#if isMultiTenant && user?.tenantId}
 						<div>
-							<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">{user.username || 'User'}</h3>
-							<p class="text-xs text-surface-500 dark:text-surface-400">{user.role || '—'}</p>
+							<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">Tenant ID</span>
+							<p class="text-xs font-mono text-surface-600 dark:text-surface-400 truncate">{user.tenantId}</p>
 						</div>
-					</div>
+					{/if}
+				</div>
 
-					<div class="space-y-0 divide-y divide-surface-100 dark:divide-surface-800">
-						<div class="flex items-center justify-between py-2.5">
-							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">{username()}</span>
-							<span class="text-sm font-medium text-surface-900 dark:text-surface-100 text-end">{user.username || '—'}</span>
-						</div>
-						<div class="flex items-center justify-between py-2.5">
-							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">Email Address</span>
-							<span class="text-sm font-medium text-surface-900 dark:text-surface-100 text-end">{user.email || '—'}</span>
-						</div>
-						<div class="flex items-center justify-between py-2.5">
-							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">{role()}</span>
-							<span class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize text-end">{user.role || '—'}</span>
-						</div>
-						<div class="flex items-center justify-between py-2.5">
-							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">{userpage_user_id()}</span>
-							<span class="text-xs font-mono text-surface-600 dark:text-surface-400 text-end truncate max-w-[180px]">{user._id || 'N/A'}</span>
-						</div>
-					</div>
-
-					<div class="mt-4 pt-3 border-t border-surface-200 dark:border-surface-700 flex gap-2">
-						<Button variant="ghost" size="sm" leadingIcon="bi:pencil-fill" onclick={modalUserForm} class="flex-1 text-xs">
-							{userpage_edit_usersetting()}
+				<!-- Identity actions -->
+				<div class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-700 space-y-2">
+					<Button
+						variant="outline"
+						size="sm"
+						leadingIcon="bi:pencil-fill"
+						onclick={modalUserForm}
+						class="w-full justify-start"
+					>
+						{userpage_edit_usersetting()}
+					</Button>
+					{#if isFirstUser}
+						<Button
+							variant="outline"
+							size="sm"
+							leadingIcon="bi:trash3-fill"
+							onclick={modalConfirm}
+							class="w-full justify-start preset-ghost-error-500"
+						>
+							{button_delete()}
 						</Button>
-						{#if isFirstUser}
-							<Button variant="ghost" size="sm" leadingIcon="bi:trash3-fill" onclick={modalConfirm} class="flex-1 text-xs preset-ghost-error-500">
-								{button_delete()}
-							</Button>
-						{/if}
-					</div>
-				</AdminCard>
-			</section>
+					{/if}
+				</div>
+			</AdminCard>
+		</section>
 
 		<!-- ═══ COLUMN 2: Security ═══ -->
 		<section in:fly={{ y: 20, delay: 100, duration: 300 }}>
 			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm h-full">
-				<div class="flex justify-center items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+				<div class="flex items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
 					<iconify-icon icon="mdi:shield-lock-outline" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Security</h3>
 				</div>
@@ -296,7 +300,7 @@
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:key-variant" class="text-surface-500" width={18} height={18}></iconify-icon>
+								<iconify-icon icon="mdi:key-variant" class="text-surface-500" width={18}></iconify-icon>
 								<div>
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Password</p>
 									<p class="text-xs text-surface-500 dark:text-surface-400">Change your account password</p>
@@ -313,7 +317,7 @@
 						<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
 							<div class="flex items-center justify-between">
 								<div class="flex items-center gap-2">
-									<iconify-icon icon="mdi:two-factor-authentication" class="text-surface-500" width={18} height={18}></iconify-icon>
+									<iconify-icon icon="mdi:two-factor-authentication" class="text-surface-500" width={18}></iconify-icon>
 									<div>
 										<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Two-Factor Auth</p>
 										<p class="text-xs {user?.is2FAEnabled ? 'text-success-500' : 'text-surface-500 dark:text-surface-400'}">
@@ -331,63 +335,54 @@
 					<!-- Passkeys -->
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
 						<div class="flex items-center justify-between">
-							<button
-								onclick={() => updateRtcPreference('passkeyEnabled' as any, !optAuth.passkeyEnabled)}
-																	class="flex items-center gap-2 flex-1 text-start"
-																	aria-label="Toggle Passkeys"
-							>
-								<iconify-icon
-									icon="mdi:fingerprint"
-									class={optAuth.passkeyEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500'}
-									width={18} height={18}
-								></iconify-icon>
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:fingerprint" class="text-surface-500" width={18}></iconify-icon>
 								<div>
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Passkeys</p>
 									<p class="text-xs text-surface-500 dark:text-surface-400">Passwordless biometric login</p>
 								</div>
-							</button>
+							</div>
+							<Checkbox
+								checked={(serverUser?.preferences as any)?.auth?.passkeyEnabled ?? false}
+								onchange={async (enabled) => updateRtcPreference('passkeyEnabled' as any, enabled)}
+								size="sm"
+							/>
 						</div>
 					</div>
 
 					<!-- Magic Link -->
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
 						<div class="flex items-center justify-between">
-							<button
-								onclick={() => updateRtcPreference('magicLinkEnabled' as any, !optAuth.magicLinkEnabled)}
-								class="flex items-center gap-2 flex-1 text-start"
-								aria-label="Toggle Magic Link"
-							>
-								<iconify-icon
-									icon="mdi:magic-staff"
-									class={optAuth.magicLinkEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500'}
-									width={18} height={18}
-								></iconify-icon>
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:magic-staff" class="text-surface-500" width={18}></iconify-icon>
 								<div>
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Magic Link</p>
 									<p class="text-xs text-surface-500 dark:text-surface-400">Passwordless email login</p>
 								</div>
-							</button>
+							</div>
+							<Checkbox
+								checked={(serverUser?.preferences as any)?.auth?.magicLinkEnabled ?? false}
+								onchange={async (enabled) => updateRtcPreference('magicLinkEnabled' as any, enabled)}
+								size="sm"
+							/>
 						</div>
 					</div>
 
 					<!-- OAuth -->
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
 						<div class="flex items-center justify-between">
-							<button
-								onclick={() => updateRtcPreference('oauthEnabled' as any, !optAuth.oauthEnabled)}
-								class="flex items-center gap-2 flex-1 text-start"
-								aria-label="Toggle OAuth Login"
-							>
-								<iconify-icon
-									icon="mdi:account-group-outline"
-									class={optAuth.oauthEnabled ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500'}
-									width={18} height={18}
-								></iconify-icon>
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:account-group-outline" class="text-surface-500" width={18}></iconify-icon>
 								<div>
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">OAuth Login</p>
 									<p class="text-xs text-surface-500 dark:text-surface-400">Sign in with Google, GitHub</p>
 								</div>
-							</button>
+							</div>
+							<Checkbox
+								checked={(serverUser?.preferences as any)?.auth?.oauthEnabled ?? false}
+								onchange={async (enabled) => updateRtcPreference('oauthEnabled' as any, enabled)}
+								size="sm"
+							/>
 						</div>
 					</div>
 
@@ -395,7 +390,7 @@
 					{#if user.permissions.length > 0}
 						<div>
 							<div class="flex items-center gap-2 mb-2">
-								<iconify-icon icon="mdi:shield-check" class="text-surface-500" width={18} height={18}></iconify-icon>
+								<iconify-icon icon="mdi:shield-check" class="text-surface-500" width={18}></iconify-icon>
 								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Permissions</p>
 							</div>
 							<div class="flex flex-wrap gap-1">
@@ -412,16 +407,16 @@
 		<!-- ═══ COLUMN 3: Preferences ═══ -->
 		<section in:fly={{ y: 20, delay: 150, duration: 300 }}>
 			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm h-full">
-				<div class="flex justify-center items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
-					<iconify-icon icon="mdi:tune-variant" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
+				<div class="flex items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<iconify-icon icon="mdi:tune-variant" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Preferences</h3>
 				</div>
 
 				<div class="space-y-4">
 					<!-- Workspace Appearance -->
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
-						<div class="flex justify-center items-center gap-2 mb-2">
-							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18} height={18}></iconify-icon>
+						<div class="flex items-center gap-2 mb-2">
+							<iconify-icon icon="mdi:palette-outline" class="text-surface-500" width={18}></iconify-icon>
 							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Workspace Appearance</p>
 						</div>
 						<p class="text-xs text-surface-500 dark:text-surface-400 mb-2">
@@ -437,7 +432,7 @@
 								{/if}
 							</div>
 						{/if}
-						<Button variant="outline" size="sm" href="/config/appearance" class="w-full text-xs text-surface-500 dark:text-white" data-preload="hover">
+						<Button variant="outline" size="sm" href="/config/appearance" class="w-full text-xs">
 							<iconify-icon icon="mdi:open-in-new" width={14} class="me-1"></iconify-icon>
 							Open Appearance Settings
 						</Button>
@@ -445,9 +440,9 @@
 
 					<!-- Collaboration -->
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
-						<div class="flex justify-center items-center gap-2 mb-3">
-							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18} height={18}></iconify-icon>
-							<p class="text-sm  font-medium text-surface-900 dark:text-surface-100">Collaboration</p>
+						<div class="flex items-center gap-2 mb-3">
+							<iconify-icon icon="mdi:forum" class="text-surface-500" width={18}></iconify-icon>
+							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Collaboration</p>
 						</div>
 						<div class="space-y-3">
 							<div class="flex items-center justify-between">
@@ -473,10 +468,9 @@
 					<div>
 						<button
 							onclick={modalPrivacyData}
-							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-start"
-							aria-label="Privacy & Data settings"
+							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-left"
 						>
-							<iconify-icon icon="mdi:shield-account" class="text-surface-500" width={18} height={18}></iconify-icon>
+							<iconify-icon icon="mdi:shield-account" class="text-surface-500" width={18}></iconify-icon>
 							<div class="flex-1">
 								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Privacy & Data</p>
 								<p class="text-xs text-surface-500 dark:text-surface-400">View, export, or delete your data</p>
@@ -490,17 +484,17 @@
 	</div>
 
 	<!-- ═══ Admin Area (full-width, below profile) ═══ -->
-	  <PermissionGuard
-	    {...({
-	      config: {
-	        name: 'Admin Area Access',
-	        contextId: 'config/adminArea',
-	        action: 'manage',
-	        contextType: 'system',
-	        description: 'Allows access to admin area for user management'
-	      },
-	      silent: true
-	    } as any)}
+	<PermissionGuard
+		{...({
+			config: {
+				name: 'Admin Area Access',
+				contextId: 'config/adminArea',
+				action: 'manage',
+				contextType: 'system',
+				description: 'Allows access to admin area for user management'
+			},
+			silent: true
+		} as any)}
 	>
 		<div in:fly={{ y: 20, delay: 200, duration: 300 }}>
 			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
