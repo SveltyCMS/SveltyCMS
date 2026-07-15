@@ -47,7 +47,7 @@ bun run gate:fast
 # Catches handler routing issues, permission gaps, and auth bypasses
 # that lint cannot detect. 123 tests, ~847ms.
 echo "🔒 Running security regression tests..."
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts 2>&1 || {
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts 2>&1 || {
     echo "❌ Security regression tests FAILED. Fix before committing."
     echo "   Run manually: bun test tests/unit/hooks/"
     exit 1

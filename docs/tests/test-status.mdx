@@ -24,11 +24,11 @@ tags:
 | --------------------------- | ------------------------------------------------------- |
 | Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh) |
 | Server starts/stops per run | 2 (mode switches only)                                  |
-| Pass rate                   | 61/61 (all pass on SQLite; +25 from multi-DB contract)  |
+| Pass rate                   | 61/61 (all pass on SQLite; +26 from multi-DB contract)  |
 
 **Note**: Integration test pass rate varies by database adapter. SQLite passes the majority; MariaDB/Mongo/Postgres expose auth/permission differences tracked as separate bugs. The test config safety guard (`scripts/check-test-db-safety.ts`) prevents the most common failure mode: running tests against a non-isolated (production) database.
 
-**Coverage**: 51 spec files across 6 domains (+1 multi-DB contract)
+**Coverage**: 54 spec files across 6 domains (+1 multi-DB contract)
 
 | Domain              | Files  | What's Tested                                                                                                              |
 | ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
@@ -99,10 +99,10 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 
 | Metric                                 | Value                                                                                                                                                           |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Total tests                            | **2,189** (250 files, 2,189 passing, 4 skipped)                                                                                                                 |
+| Total tests                            | **2,194** (251 files, 2,194 passing, 4 skipped)                                                                                                                 |
 | Pass rate                              | 100%                                                                                                                                                            |
-| Test files                             | 250 (248 passing, 2 skipped)                                                                                                                                    |
-| Security-specific                      | 123 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit, SVG sanitization, namespace-ownership)                                     |
+| Test files                             | 251 (249 passing, 2 skipped)                                                                                                                                    |
+| Security-specific                      | 130 (defense-in-depth, auth, RBAC, namespace-ownership, cache-integrity, audit-chain, route-access-audit, SVG sanitization)                                     |
 | **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                                                                                                      |
 | Collection builder                     | **39** (utils 10, compilation 11, structure-persistence 3, save-content-structure 2, delete-content-nodes 2, code-gui parity 8 integration, structure-matrix 2) |
 | Content-specific                       | **57** (reconciliation 23, upsert 4, sync-state 11, sync-security 4, compile-manifest 4, content-refresh-sidebar 1, API surface)                                |
@@ -457,36 +457,36 @@ BENCHMARK_RECORD=1 bun test tests/benchmarks/content-boot-compile-drift.test.ts
 
 ## 4. CI Pipeline Gates
 
-| Gate                      | Runtime         | What it catches                                                                                            |
-| ------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------- |
-| Bootstrap                 | ~30s            | Dep install, codegen                                                                                       |
-| Lint + Type Check         | ~40s            | oxlint, svelte-check, tsc                                                                                  |
-| Unit Tests                | ~17s            | 2,189 Vitest specs (250 files)                                                                             |
-| Security Regression Tests | ~5s             | 123 tests — defense-in-depth, auth, authorization, builder RBAC, namespace-ownership                       |
-| Build                     | ~30s            | Production build integrity                                                                                 |
-| Integration (×4)          | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL — 51 spec files incl. full contract coverage + multi-DB contract test |
-| Benchmarks (×64)          | ~10h full suite | 64 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR                                |
-| E2E Wizard                | ~30s            | Setup wizard flow                                                                                          |
-| E2E Auth                  | ~20s            | Login + session creation                                                                                   |
-| E2E App (×20)             | ~15s each       | Full admin surface (signup through media gallery)                                                          |
+| Gate                      | Runtime         | What it catches                                                                                                            |
+| ------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Bootstrap                 | ~30s            | Dep install, codegen                                                                                                       |
+| Lint + Type Check         | ~40s            | oxlint, svelte-check, tsc                                                                                                  |
+| Unit Tests                | ~17s            | 2,194 Vitest specs (251 files)                                                                                             |
+| Security Regression Tests | ~5s             | 130 tests — defense-in-depth, auth, authorization, RBAC, builder RBAC, namespace-ownership, setup gating, security headers |
+| Build                     | ~30s            | Production build integrity                                                                                                 |
+| Integration (×4)          | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL — 54 spec files incl. full contract coverage + multi-DB contract test                 |
+| Benchmarks (×64)          | ~10h full suite | 64 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR                                                |
+| E2E Wizard                | ~30s            | Setup wizard flow                                                                                                          |
+| E2E Auth                  | ~20s            | Login + session creation                                                                                                   |
+| E2E App (×20)             | ~15s each       | Full admin surface (signup through media gallery)                                                                          |
 
 ### Local Quality Gates (pre-commit / pre-push)
 
 Manifest: `scripts/precheck-shared.ts` · Orchestrator: `scripts/precheck.ts`
 
-| Gate                      | Tier                               | Runtime       | What it catches                                                                        |
-| :------------------------ | :--------------------------------- | :------------ | :------------------------------------------------------------------------------------- |
-| Test Config Safety        | pre-commit + pre-push              | <100ms        | Unsafe `config/private.test.ts` (non-isolated `DB_NAME`)                               |
-| Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/`                      |
-| Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`                             |
-| Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                                       |
-| Full Unit Tests           | pre-push (**always**)              | ~17s          | All 2,189 Vitest specs (250 files)                                                     |
-| Security Regression Tests | pre-commit + pre-push              | ~250ms        | 123 tests from hooks + permissions suites (deduplicated via `--exclude` between tiers) |
-| P0 Coverage Validation    | pre-push (when code changed)       | ~1.5s         | Validates all 14 P0 items have passing tests via `validate-p0-coverage.ts`             |
-| Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity + SHA256 checksum verification                  |
-| Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL — 51 spec files incl. multi-DB contract test      |
-| Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`) — with sanitizer                        |
-| Playwright E2E            | CI / `ci:local` only               | ~15–30 min    | Browser validation across 17+ projects                                                 |
+| Gate                      | Tier                               | Runtime       | What it catches                                                                               |
+| :------------------------ | :--------------------------------- | :------------ | :-------------------------------------------------------------------------------------------- |
+| Test Config Safety        | pre-commit + pre-push              | <100ms        | Unsafe `config/private.test.ts` (non-isolated `DB_NAME`)                                      |
+| Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/`                             |
+| Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`                                    |
+| Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                                              |
+| Full Unit Tests           | pre-push (**always**)              | ~17s          | All 2,194 Vitest specs (251 files)                                                            |
+| Security Regression Tests | pre-commit + pre-push              | ~250ms        | 130 tests from hooks + permissions + RBAC suites (deduplicated via `--exclude` between tiers) |
+| P0 Coverage Validation    | pre-push (when code changed)       | ~1.5s         | Validates all 14 P0 items have passing tests via `validate-p0-coverage.ts`                    |
+| Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity + SHA256 checksum verification                         |
+| Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL — 54 spec files incl. multi-DB contract test             |
+| Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`) — with sanitizer                               |
+| Playwright E2E            | CI / `ci:local` only               | ~15–30 min    | Browser validation across 17+ projects                                                        |
 
 Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier), `bun run ci:local` (+ E2E).
 
@@ -543,7 +543,7 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 
 ### ✅ Completed
 
-1. ✅ **Multi-DB contract test** — 25 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters; single `contract.test.ts` file
+1. ✅ **Multi-DB contract test** — 26 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters; single `contract.test.ts` file
 2. ✅ **CI scorecard** — per-DB markdown table + JSON summary written to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; each adapter run emits pass/fail/failures for every spec
 3. ✅ **P0 tracking** — 14 P0 items across 20 test files with automated validation via `validate-p0-coverage.ts` in pre-push (`~1.5s`); manifest in `p0-manifest.ts`
 4. ✅ **Namespace ownership depth checks** — `namespace-ownership.test.ts` (6 tests) verifies test files actually contain tests, not just file existence; validates multi-DB contract gates

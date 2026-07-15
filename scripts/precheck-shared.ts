@@ -356,7 +356,7 @@ const BASE_TASKS: TaskSpec[] = [
     ciJob: "whitebox",
     estimatedMs: 1000,
     remediation:
-      "bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
+      "bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () =>
       runCommand("bun", [
@@ -364,7 +364,7 @@ const BASE_TASKS: TaskSpec[] = [
         "tests/unit/hooks/defense-in-depth.test.ts",
         "tests/unit/hooks/authentication.test.ts",
         "tests/unit/hooks/authorization.test.ts",
-        "tests/unit/role-permission-access.test.ts",
+        "tests/unit/auth/role-permission-access.test.ts",
         "tests/unit/hooks/setup.test.ts",
         "tests/unit/hooks/security-headers.test.ts",
       ]),
@@ -414,7 +414,7 @@ const BASE_TASKS: TaskSpec[] = [
               "run",
               "scripts/test-smart.ts",
               "--unit-only",
-              "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
+              "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
             ]
           : ["run", "test:unit"],
         { silent: true, timeout: 600_000 },

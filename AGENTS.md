@@ -277,7 +277,7 @@ When generating/modifying code:
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
 14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
     `bash
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts
 `
     This validates all 4 security layers (Middleware → Dispatcher → Handler → Page Action) in under 1 second.
     n15. **Predictive Preloading (Anchor-First)**: - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading. - **Strategy Selection**: - Table rows / collection entries → `data-preload="smart"` (physics cone + behavioral priority) - Dashboard widget links → `data-preload="predict"` (cursor trajectory prediction) - Sidebar / config nav → `data-preload="hover"` (150ms intent detection) - Media gallery thumbnails → `data-preload="viewport"` (IntersectionObserver) - **Implementation**: `src/utils/predictive-preload.ts` — MutationObserver-based, initialized once in `+layout.svelte`. - **goto() escape hatch**: Only use `goto()` for non-navigation URL updates (filters, sorting, pagination). - **Reference**: `docs/reference/architecture/hover-preloading.mdx`
@@ -632,7 +632,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
 | `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
 | `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/role-permission-access.test.ts`        | `docs/tests/rbac-testing.mdx`                                                                       |
+| `tests/unit/auth/role-permission-access.test.ts`   | `docs/tests/rbac-testing.mdx`                                                                       |
 | `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
 | `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
 | `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |
