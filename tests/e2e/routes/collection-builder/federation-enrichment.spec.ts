@@ -6,6 +6,10 @@
 import { expect, test } from "@playwright/test";
 import { ensureAuthenticated } from "../../helpers/test-auth";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
+import {
+  openNewCollectionEditor,
+  quickAddInputWidget,
+} from "../../helpers/collection-builder-flow";
 
 test.describe("Collection Builder — Federation Enrichment Picker", () => {
   test.setTimeout(120_000);
@@ -29,13 +33,11 @@ test.describe("Collection Builder — Federation Enrichment Picker", () => {
 
     const collectionName = `FedEnrich${Date.now()}`;
 
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
+    await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill(collectionName);
 
-    await page.getByTestId("tab-widgets").click();
-    await expect(page.getByTestId("quick-add-input")).toBeVisible({ timeout: 20_000 });
-    await page.getByTestId("quick-add-input").click();
+    // Dialog-safe: never click sidebar Input while "Add New Field" is open
+    await quickAddInputWidget(page);
 
     const fieldRow = page.getByTestId("widget-fields-list").getByTestId("widget-field-row").first();
     await expect(fieldRow.getByText(/New Input/i)).toBeVisible({ timeout: 15_000 });

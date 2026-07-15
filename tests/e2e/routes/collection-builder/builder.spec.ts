@@ -8,6 +8,7 @@ import { ensureAuthenticated } from "../../helpers/test-auth";
 import {
   addInputField,
   openNewCollectionEditor,
+  quickAddInputWidget,
   uniqueCollectionFixture,
 } from "../../helpers/collection-builder-flow";
 
@@ -55,16 +56,14 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should create a collection with modern widgets", async ({ page }) => {
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
-
+    await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill("Test Article");
     await page.locator("#description").fill("Test collection for articles");
 
-    await page.getByTestId("tab-widgets").click();
-    await page.getByTestId("quick-add-input").click();
-
-    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
+    await quickAddInputWidget(page);
+    await expect(page.getByTestId("widget-fields-list").getByText(/New Input/i)).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("should filter widgets by search when search input is present", async ({ page }) => {
@@ -84,10 +83,8 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should configure widget-specific properties", async ({ page }) => {
-    // Path: quick-add-input (sidebar) → widget-field-* inspector.
-    // Must NOT use page.getByRole('button', /Input/) while "Add New Field" dialog can open —
-    // that targets the sidebar tile *behind* the dialog (pointer-events intercept).
-    // Logs still showing that locator are on SHAs before 8a737e615 / 9fa8ebc0e.
+    // quickAddInputWidget: if "Add New Field" is open, picks Input *inside* the dialog;
+    // never page.getByRole('button', /Input/) (sidebar behind dialog → intercepts pointer events).
     const fixture = uniqueCollectionFixture("WidgetCfg");
     await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill(fixture.name);
@@ -153,11 +150,12 @@ test.describe("Collection Builder with Modern Widgets", () => {
       timeout: 5_000,
     });
 
-    // Fill required info and add a field
+    // Fill required info and add a field (dialog-safe helper)
     await nameInput.fill("Valid Collection");
-    await page.getByTestId("tab-widgets").click();
-    await page.getByTestId("quick-add-input").click();
-    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
+    await quickAddInputWidget(page);
+    await expect(page.getByTestId("widget-fields-list").getByText(/New Input/i)).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Save should succeed
     await page.getByTestId("save-collection-button").first().click();
@@ -179,13 +177,19 @@ test.describe("Collection Builder with Modern Widgets", () => {
     if (hasExisting) {
       await existingCollection.click();
     } else {
-      await page.getByTestId("add-collection-button").first().click();
+      await openNewCollectionEditor(page);
       await page.getByTestId("collection-name-input").fill("Reorder Test");
-      await page.getByTestId("tab-widgets").click();
 
       for (let i = 0; i < 3; i++) {
-        await page.getByTestId("quick-add-input").click();
-        await expect(page.getByText(/New Input/i).nth(i)).toBeVisible({ timeout: 10_000 });
+        await quickAddInputWidget(page);
+        await expect(
+          page
+            .getByTestId("widget-fields-list")
+            .getByText(/New Input/i)
+            .nth(i),
+        ).toBeVisible({
+          timeout: 10_000,
+        });
       }
     }
 

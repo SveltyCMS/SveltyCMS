@@ -1,6 +1,10 @@
 /**
  * @file tests/e2e/helpers/collection-builder-flow.ts
  * @description Shared Playwright helpers for Collection Builder E2E flows.
+ *
+ * Critical rule: never click the sidebar Input tile while the "Add New Field"
+ * dialog is open — Playwright resolves that tile first and fails with:
+ *   dialog … aria-label="Add New Field" … intercepts pointer events
  */
 
 import { expect, type Locator, type Page } from "@playwright/test";
@@ -16,7 +20,7 @@ export function uniqueCollectionFixture(prefix = "E2E_Col"): CollectionFixture {
   return { name, slug: name.toLowerCase().replace(/ /g, "_") };
 }
 
-/** Click after the control is visible/enabled; force as last resort (overlays). */
+/** Click after visible; force only as last resort. */
 async function stableClick(locator: Locator, timeout = 15_000): Promise<void> {
   await expect(locator).toBeVisible({ timeout });
   await locator.scrollIntoViewIfNeeded().catch(() => undefined);
@@ -27,39 +31,113 @@ async function stableClick(locator: Locator, timeout = 15_000): Promise<void> {
   }
 }
 
+function addNewFieldDialog(page: Page): Locator {
+  return page.getByRole("dialog", { name: /add new field/i });
+}
+
+/** True when the native Add New Field modal is open. */
+async function isAddNewFieldOpen(page: Page): Promise<boolean> {
+  return addNewFieldDialog(page)
+    .isVisible({ timeout: 400 })
+    .catch(() => false);
+}
+
 /**
- * Close open modal dialogs that intercept pointer events (e.g. "Add New Field").
- * CI failures often show: dialog intercepts pointer events while clicking sidebar tiles.
+ * Close any open `<dialog>` (especially "Add New Field") that steals clicks.
  */
-async function dismissOpenDialogs(page: Page): Promise<void> {
-  const dialog = page.locator("dialog[open]");
-  if (
-    !(await dialog
-      .first()
-      .isVisible({ timeout: 500 })
-      .catch(() => false))
-  ) {
+export async function dismissOpenDialogs(page: Page): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const openDialog = page.locator("dialog[open]").first();
+    if (!(await openDialog.isVisible({ timeout: 300 }).catch(() => false))) {
+      return;
+    }
+
+    const closeBtn = openDialog
+      .getByRole("button", { name: /close modal|close|cancel|dismiss/i })
+      .first();
+    if (await closeBtn.isVisible({ timeout: 300 }).catch(() => false)) {
+      await closeBtn.click({ force: true }).catch(() => undefined);
+    } else {
+      // Backdrop / Escape — DialogManager syncs modalState on close
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await openDialog
+        .evaluate((el) => {
+          const d = el as HTMLDialogElement;
+          if (typeof d.close === "function") d.close();
+          else el.removeAttribute("open");
+        })
+        .catch(() => undefined);
+    }
+
+    await page.waitForTimeout(150);
+  }
+}
+
+/**
+ * Pick the Input widget into the collection canvas.
+ *
+ * Priority:
+ * 1. If "Add New Field" is already open → select Input *inside that dialog*
+ * 2. Else sidebar `quick-add-input` (no modal)
+ * 3. Else open "Add Widget" and select Input inside the dialog
+ */
+export async function quickAddInputWidget(page: Page): Promise<void> {
+  const widgetsTab = page.getByTestId("tab-widgets");
+  if (await widgetsTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    // Only click if not already selected
+    const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
+    if (selected !== "true") {
+      await stableClick(widgetsTab, 15_000);
+    }
+  }
+
+  // Path 1: dialog already open — NEVER click the sidebar Input behind it
+  if (await isAddNewFieldOpen(page)) {
+    await selectInputFromAddFieldDialog(page);
     return;
   }
 
-  // Prefer explicit close control inside the open dialog
-  const closeBtn = dialog
-    .first()
-    .getByRole("button", { name: /close|cancel|dismiss/i })
-    .first();
-  if (await closeBtn.isVisible({ timeout: 500 }).catch(() => false)) {
-    await closeBtn.click({ force: true }).catch(() => undefined);
-  } else {
-    await page.keyboard.press("Escape").catch(() => undefined);
+  // Path 2: sidebar quick-add (preferred)
+  const quickAdd = page.getByTestId("quick-add-input");
+  if (await quickAdd.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    // Guard: if a dialog opened between checks, switch strategy
+    if (await isAddNewFieldOpen(page)) {
+      await selectInputFromAddFieldDialog(page);
+      return;
+    }
+    await stableClick(quickAdd, 15_000);
+    return;
   }
 
-  await expect(dialog.first())
-    .toBeHidden({ timeout: 5_000 })
+  // Path 3: "Add Widget" button → modal
+  const addFieldBtn = page.getByTestId("add-field-button");
+  await expect(addFieldBtn).toBeVisible({ timeout: 10_000 });
+  await stableClick(addFieldBtn, 10_000);
+  await selectInputFromAddFieldDialog(page);
+}
+
+/**
+ * Click Input only inside the "Add New Field" dialog (never page-level /Input/).
+ */
+async function selectInputFromAddFieldDialog(page: Page): Promise<void> {
+  const dialog = addNewFieldDialog(page);
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+  const pick = dialog
+    .getByTestId("select-widget-input")
+    .or(dialog.getByRole("button", { name: /select input widget|^input$/i }));
+
+  await stableClick(pick.first(), 10_000);
+
+  // Modal should close after selection (then field editor may open)
+  await expect(dialog)
+    .toBeHidden({ timeout: 10_000 })
     .catch(() => undefined);
 }
 
 export async function openNewCollectionEditor(page: Page): Promise<void> {
   await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+  await dismissOpenDialogs(page);
   const addBtn = page.getByTestId("add-collection-button").first();
   await stableClick(addBtn, 20_000);
   await page.waitForURL(/\/config\/collectionbuilder\/new/, { timeout: 20_000 });
@@ -68,45 +146,18 @@ export async function openNewCollectionEditor(page: Page): Promise<void> {
 }
 
 /**
- * Add an Input field via the sidebar quick-add tile (preferred), with a modal fallback.
- *
- * Never use page-level getByRole('button', /Input/) while "Add New Field" may be open —
- * that resolves the sidebar tile behind the dialog and fails with "intercepts pointer events".
+ * Add an Input field and set label + db name via the inspector modal.
  */
 export async function addInputField(
   page: Page,
   options: { label: string; fieldName: string; index?: number },
 ): Promise<void> {
   const index = options.index ?? 0;
-
-  const widgetsTab = page.getByTestId("tab-widgets");
-  await stableClick(widgetsTab, 15_000);
-
-  // Clear any leftover modal from a prior action / parallel flakiness
-  await dismissOpenDialogs(page);
-
   const fieldList = page.getByTestId("widget-fields-list");
-  const quickAdd = page.getByTestId("quick-add-input");
-  const addFieldBtn = page.getByTestId("add-field-button");
 
-  // Preferred: sidebar tile (no modal)
-  if (await quickAdd.isVisible({ timeout: 20_000 }).catch(() => false)) {
-    await stableClick(quickAdd, 15_000);
-  } else if (await addFieldBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    // Fallback: "Add Widget" → select Input inside the dialog only
-    await stableClick(addFieldBtn, 10_000);
-    const dialog = page.getByRole("dialog", { name: /add new field/i });
-    await expect(dialog).toBeVisible({ timeout: 10_000 });
-    const pick = dialog
-      .getByTestId("select-widget-input")
-      .or(dialog.getByRole("button", { name: /^input$/i }));
-    await stableClick(pick.first(), 10_000);
-    // Selecting from modal opens the field editor immediately for new fields
-  } else {
-    throw new Error("Neither quick-add-input nor add-field-button is visible on the Widgets tab");
-  }
+  await quickAddInputWidget(page);
 
-  // If field was added via sidebar, open its row editor; modal path may already show the form
+  // Sidebar path leaves a "New Input" row; modal path may already open the editor
   const labelInput = page.getByTestId("widget-field-label");
   const editorOpen = await labelInput.isVisible({ timeout: 3_000 }).catch(() => false);
 
