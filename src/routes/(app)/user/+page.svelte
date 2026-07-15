@@ -25,7 +25,6 @@
 	// ParaglideJS
 	import {
 		button_delete,
-		email,
 		role,
 		usermodalconfirmbody,
 		usermodalconfirmtitle,
@@ -71,6 +70,13 @@
 		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 		isAdmin: serverUser?.isAdmin ?? false, // Add isAdmin property
 		permissions: []
+	});
+
+	// Authentication preferences derived from server user
+	const optAuth = $derived({
+		passkeyEnabled: serverUser?.preferences?.auth?.passkeyEnabled ?? false,
+		magicLinkEnabled: serverUser?.preferences?.auth?.magicLinkEnabled ?? false,
+		oauthEnabled: serverUser?.preferences?.auth?.oauthEnabled ?? false
 	});
 
 	// Function to open 2FA modal

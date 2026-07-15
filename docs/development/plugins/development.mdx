@@ -325,7 +325,7 @@ All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`) w
 
 > **Dynamic Scaling**: Migrations receive relaxed limits (500 queries, 30s timeout) to handle complex schema provisioning. Hooks retain strict limits to keep runtime operations fast.
 
-## Per-Tenant Plugin State
+### Per-Tenant Plugin State
 
 Plugins can be enabled/disabled per tenant:
 
@@ -336,6 +336,76 @@ await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId);
 // Check state
 const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
 ```
+
+### Multi-Tenant Safety (Required)
+
+Every plugin that reads or writes data **must** pass `tenantId` through all database operations. The system enforces this at the adapter level, but plugins should still explicitly scope their queries:
+
+```typescript
+// ✅ Correct: Tenant-scoped queries
+hooks: {
+  beforeSave: async (context, collection, data) => {
+    data.tenantId = context.tenantId; // Always inject tenant context
+    return data;
+  },
+}
+
+// ❌ Wrong: Missing tenantId — data will be invisible in multi-tenant mode
+hooks: {
+  beforeSave: async (context, collection, data) => {
+    return data; // No tenantId — orphaned across tenants
+  },
+}
+```
+
+**Database operations** should always include `tenantId`:
+
+```typescript
+// ✅ Correct
+await context.dbAdapter.crud.insert("plugin_my-plugin_logs", {
+  action: "save",
+  collection,
+  entryId: result._id,
+  tenantId: context.tenantId, // ← Required
+  timestamp: new Date(),
+});
+
+// ❌ Wrong — cross-tenant leak
+await context.dbAdapter.crud.insert("plugin_my-plugin_logs", {
+  action: "save",
+  collection,
+  entryId: result._id,
+  // No tenantId!
+});
+```
+
+**Plugin migrations** must also pass tenant context when creating data:
+
+```typescript
+migrations: [
+  {
+    id: "001_create_results",
+    pluginId: "my-plugin",
+    version: 1,
+    description: "Create results collection with tenant isolation",
+    up: async (dbAdapter, context) => {
+      await dbAdapter.schema.ensureCollection(
+        "plugin_my-plugin_results",
+        {
+          fields: [
+            { label: "Score", name: "score", type: "number" },
+            { label: "Tenant", name: "tenantId", type: "string" }, // ← Include tenant field
+          ],
+          status: "publish",
+        },
+        { tenantId: context?.tenantId },
+      );
+    },
+  },
+];
+```
+
+> **Why this matters**: When `MULTI_TENANT` is enabled, all DB queries automatically filter by `tenantId`. Data written without a `tenantId` becomes invisible — it's stored but never returned by any query. This is functionally equivalent to data loss.
 
 ## Conditional Config Tiles
 

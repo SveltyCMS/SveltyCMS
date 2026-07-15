@@ -16,11 +16,11 @@ import { describe, it, expect } from "vitest";
 // Replicate the inline functions from admin-area.svelte for unit testing.
 // These are NOT exported — tests mirror the exact implementation.
 function isToken(row: any): row is { token: string; [key: string]: any } {
-  return !!row && "token" in row && typeof row.token === "string";
+  return !!row && typeof row === "object" && "token" in row && typeof row.token === "string";
 }
 
 function isUser(row: any): row is { _id: string; [key: string]: any } {
-  return !!row && "_id" in row && !("token" in row);
+  return !!row && typeof row === "object" && "_id" in row && !("token" in row);
 }
 
 describe("Type guards", () => {

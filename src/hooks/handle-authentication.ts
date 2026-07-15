@@ -50,7 +50,7 @@ import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
-import { getTenantIdFromHostname } from "@utils/tenant";
+import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
 import { invalidateTurboAuthContext } from "./handle-turbo-get";
@@ -63,8 +63,7 @@ let rotationRateLimiter: RateLimiter | null = null;
 
 function getCachedSettings() {
   if (multiTenantCached === null) {
-    const val = getPrivateSettingSync("MULTI_TENANT");
-    multiTenantCached = String(val) === "true" || val === true;
+    multiTenantCached = isMultiTenantEnabled();
   }
   if (demoModeCached === null) {
     const val = getPrivateSettingSync("DEMO");

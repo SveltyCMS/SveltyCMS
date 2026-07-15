@@ -20,7 +20,7 @@ import { auth } from "@src/databases/db";
 import { error, type Handle, redirect, type RequestEvent } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
 import { getRoleBitset } from "@src/databases/auth/permissions";
@@ -50,7 +50,7 @@ async function getDefaultRoles() {
 }
 
 function getCachedMultiTenant() {
-  if (multiTenantCached === null) multiTenantCached = !!getPrivateSettingSync("MULTI_TENANT");
+  if (multiTenantCached === null) multiTenantCached = isMultiTenantEnabled();
   return multiTenantCached;
 }
 

@@ -130,13 +130,6 @@
 </div>
 
 <style>
-	.selected {
-		display: flex;
-		gap: 5px;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-	}
 	.wrapper {
 		position: relative;
 		z-index: 10;
@@ -154,19 +147,5 @@
 		background: #fff;
 		border-radius: 5px;
 		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-	}
-	.arrow::after {
-		display: inline-block;
-		padding: 3px;
-		margin-left: auto;
-		content: '';
-		border: solid #6b6b6b;
-		border-width: 0 2px 2px 0;
-		transform: rotate(45deg);
-		transition: transform 0.2s ease-in-out;
-	}
-
-	.arrow_up::after {
-		transform: rotate(-135deg);
 	}
 </style>

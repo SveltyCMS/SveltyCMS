@@ -58,6 +58,49 @@ beforeNavigate(({ cancel }) => {
 let isRepairing = $state(false);
 let repairResult = $state<{ success: boolean; message?: string; error?: string } | null>(null);
 
+// Multi-Tenancy Migration State
+let migrationResult = $state<{ success: boolean; message?: string; error?: string; details?: any } | null>(null);
+let structureInfo = $state<{ isMultiTenant?: boolean; needsMigration?: boolean; pendingAction?: 'to-multi' | 'to-single' | null; warnings?: string[] } | null>(null);
+let isMigrating = $state(false);
+
+async function checkStructure() {
+  isMigrating = true;
+  try {
+    const { detectTenantStructure } = await import('./admin.remote');
+    const result = await detectTenantStructure({});
+    if (result.success) {
+      structureInfo = result;
+    } else {
+      structureInfo = { warnings: [result.error || 'Check failed'] };
+    }
+  } catch (e: unknown) {
+    structureInfo = { warnings: [e instanceof Error ? e.message : 'Check failed'] };
+  } finally {
+    isMigrating = false;
+  }
+}
+
+async function runMigration() {
+  isMigrating = true;
+  migrationResult = null;
+  try {
+    const { runTenantMigration } = await import('./admin.remote');
+    const direction = structureInfo?.needsMigration
+      ? structureInfo.pendingAction === 'to-single' ? 'to-single' : 'to-multi'
+      : 'to-multi';
+    const result = await runTenantMigration({ direction, tenantId: 'primary' });
+    if (result.success) {
+      migrationResult = { success: true, message: result.message, details: result.details };
+    } else {
+      migrationResult = { success: false, error: result.error || 'Migration failed' };
+    }
+  } catch (e: unknown) {
+    migrationResult = { success: false, error: e instanceof Error ? e.message : 'Migration failed' };
+  } finally {
+    isMigrating = false;
+  }
+}
+
 // Derived selection from URL
 	const selectedGroupId = $derived(page.url.searchParams.get("group"));
 
@@ -265,5 +308,56 @@ $effect(() => {
 		</AdminCard>
 	</AdminCard>
 
+	<!-- Multi-Tenancy Migration -->
+	<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+		<h2 class="h2 mb-4 font-bold text-tertiary-600 dark:text-primary-500">Multi-Tenancy Migration</h2>
+		<p class="text-surface-600 dark:text-surface-300 text-sm mb-4">
+			Migrate collections and media files between flat and tenant-namespaced structures.
+			Check the current state, then migrate if needed.
+		</p>
 
-</AdminPageShell>
+		{#if migrationResult}
+			<div class="mb-4 p-4 rounded preset-filled-{migrationResult.success ? 'success' : 'error'}-500">
+				<p class="font-semibold">{migrationResult.success ? '\u2705' : '\u274c'} {migrationResult.message || migrationResult.error}</p>
+				{#if migrationResult.details}
+					<ul class="mt-2 text-sm opacity-90 list-disc list-inside">
+						<li>Collections moved: {migrationResult.details.collectionsMoved}</li>
+						<li>Media files moved: {migrationResult.details.mediaFilesMoved}</li>
+						<li>DB records updated: {migrationResult.details.mediaRecordsUpdated}</li>
+						{#if migrationResult.details.warnings.length > 0}
+							<li>Warnings: {migrationResult.details.warnings.join(', ')}</li>
+						{/if}
+					</ul>
+				{/if}
+			</div>
+		{/if}
+
+		{#if structureInfo}
+			<div class="mb-4 text-sm">
+				<p>Mode: <strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong></p>
+				{#if structureInfo.warnings && structureInfo.warnings.length > 0}
+					<div class="mt-2 p-3 rounded bg-warning-500/10 text-warning-700 dark:text-warning-300">
+						{#each structureInfo.warnings as w}
+							<p class="text-xs">\u26a0\ufe0f {w}</p>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<div class="flex flex-wrap gap-3">
+			<Button variant="tertiary" type="button" disabled={isMigrating} onclick={checkStructure}>
+				<iconify-icon icon="mdi:refresh" width="16" class={isMigrating ? 'animate-spin' : ''}></iconify-icon>
+				<span>Check Structure</span>
+			</Button>
+
+			{#if structureInfo?.needsMigration}
+				<Button variant="warning" type="button" disabled={isMigrating} onclick={runMigration}>
+					<iconify-icon icon="mdi:swap-horizontal-bold" width="16" class={isMigrating ? 'animate-spin' : ''}></iconify-icon>
+					<span>{isMigrating ? 'Migrating...' : 'Migrate Now'}</span>
+				</Button>
+			{/if}
+		</div>
+	</AdminCard>
+
+		</AdminPageShell>

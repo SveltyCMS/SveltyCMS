@@ -277,7 +277,47 @@ export async function completeSetup(
   // Step 0 seedDatabase() always runs with preset "blank" — collections are applied here only.
   if (system.preset && system.preset !== "blank") {
     const { seedPresetCollections } = await import("./seed");
-    await seedPresetCollections(dbAdapter, system.preset, null, undefined, {
+
+    // In multi-tenant mode, resolve the primary tenant ID so collection files
+    // are written to config/{tenant}/collections/ instead of flat config/collections/
+    let effectiveTenantId: string | null = null;
+    if (system.multiTenant && dbAdapter?.system?.tenants) {
+      const primaryTenantId = system.siteName
+        ? system.siteName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+        : globalThis.crypto.randomUUID();
+
+      // Create the primary tenant if it doesn't exist
+      try {
+        const existing = await dbAdapter.system.tenants.getById(primaryTenantId);
+        if (!existing.success || !existing.data) {
+          await dbAdapter.system.tenants.create({
+            _id: primaryTenantId,
+            name: system.siteName || "Primary",
+            status: "active",
+            plan: "enterprise",
+            quota: {
+              maxUsers: 99999,
+              maxStorageBytes: 999999999999,
+              maxCollections: 9999,
+              maxApiRequestsPerMonth: 999999,
+            },
+            usage: {
+              usersCount: 1,
+              storageBytes: 0,
+              collectionsCount: 0,
+              apiRequestsMonth: 0,
+              lastUpdated: new Date(),
+            },
+          });
+          logger.info(`[Setup] Created primary tenant: ${primaryTenantId}`);
+        }
+        effectiveTenantId = primaryTenantId;
+      } catch (e) {
+        logger.warn("[Setup] Failed to create primary tenant, falling back to flat config:", e);
+      }
+    }
+
+    await seedPresetCollections(dbAdapter, system.preset, effectiveTenantId, undefined, {
       replaceAll: true,
     });
     try {

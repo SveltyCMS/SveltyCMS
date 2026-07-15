@@ -178,7 +178,10 @@ export const editUserSchema = pipe(
   }),
   forward(
     check((input) => {
-      if (input.password && input.password.length > 0) {
+      const hasPassword = input.password && input.password.length > 0;
+      const hasConfirmPassword = input.confirmPassword && input.confirmPassword.length > 0;
+
+      if (hasPassword && hasConfirmPassword) {
         return input.password === input.confirmPassword;
       }
       return true;

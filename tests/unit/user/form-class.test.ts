@@ -162,7 +162,7 @@ describe("Form<T> class", () => {
   it("should return validation errors without calling fetch", async () => {
     form.data.name = "ab"; // invalid
     const fetchSpy = vi.fn();
-    globalThis.fetch = fetchSpy;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
     const result = await form.submit("/api/user/update");
 
@@ -211,7 +211,9 @@ describe("Form<T> class", () => {
   // ---------------------------------------------------------------------------
 
   it("should handle network error (fetch throws)", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network failure"));
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error("Network failure")) as unknown as typeof fetch;
 
     const result = await form.submit("/api/user/update");
 
@@ -222,7 +224,7 @@ describe("Form<T> class", () => {
   });
 
   it("should handle non-Error throw with fallback message", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue("string error");
+    globalThis.fetch = vi.fn().mockRejectedValue("string error") as unknown as typeof fetch;
 
     const result = await form.submit("/api/user/update");
 

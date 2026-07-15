@@ -561,13 +561,15 @@ function sveltyCmsPlugin(): Plugin {
       compileTimeout = setTimeout(async () => {
         log.info("Collection change detected. Recompiling...");
         try {
+          // On move/rename (add+unlink in quick succession), always do a full compile
+          // to ensure orphan cleanup runs correctly. The event param is unreliable
+          // because unlink and add fire within the same debounce window.
+          const isLikelyMove = event === "unlink" && file.endsWith(".ts");
           const { compile } = await import("./src/utils/compilation/compile");
           await compile({
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,
-            targetFile: file,
-            // On file deletion, skip targetFile so orphan cleanup runs
-            ...(event === "unlink" ? { targetFile: undefined } : {}),
+            targetFile: isLikelyMove ? undefined : file,
           });
           log.success(`Re-compilation successful for ${path.basename(file)}!`);
 

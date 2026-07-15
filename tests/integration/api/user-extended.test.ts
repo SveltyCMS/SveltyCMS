@@ -507,3 +507,6 @@ describe("User API Extended Integration", () => {
     });
   });
 });
+
+// Reference to suppress unused-function warning
+void _createUniqueUser;

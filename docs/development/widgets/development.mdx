@@ -57,6 +57,28 @@ describe("MyWidget", () => {
 });
 ```
 
+## 🔒 Multi-Tenant Safety
+
+Widgets are **UI components** — they render data provided by the server and never query the database directly. However, **widget definitions** (`index.ts`) that include server-side hooks or validation must be tenant-aware:
+
+```typescript
+// ✅ Correct: Widget definition accepts tenant context
+const MyWidget = createWidget({
+  Name: "MyWidget",
+  // Server-side validation receives tenant context
+  modifyRequest: async ({ data, type, tenantId }) => {
+    // tenantId is automatically injected by the widget system
+    return data;
+  },
+});
+```
+
+**Key rules for widget developers:**
+
+- Never access `fetch()` or API routes directly from a widget input/display component
+- Always use the provided `value` and `update` props — they maintain tenant context
+- If your widget definition has a `modifyRequest` hook, always pass `tenantId` through
+
 ---
 
 ## Related

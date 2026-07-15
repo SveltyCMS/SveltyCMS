@@ -52,7 +52,10 @@ function getRemainingTime(expiresDate: Date | string | null): string {
     return remainingHours > 0 ? `${diffDays}d ${remainingHours}h` : `${diffDays}d`;
   }
   if (diffHours > 0) {
-    const remainingMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const remainingMinutes = Math.round((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (remainingMinutes === 60) {
+      return `${diffHours + 1}h`;
+    }
     return remainingMinutes > 0 ? `${diffHours}h ${remainingMinutes}m` : `${diffHours}h`;
   }
   return `${diffMinutes}m`;
@@ -63,7 +66,12 @@ function formatDate(value: unknown): string {
     return "-";
   }
   try {
-    const d = value instanceof Date ? value : new Date(String(value));
+    const d =
+      value instanceof Date
+        ? value
+        : typeof value === "number"
+          ? new Date(value)
+          : new Date(String(value));
     if (Number.isNaN(d.getTime())) {
       return "-";
     }

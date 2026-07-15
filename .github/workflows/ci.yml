@@ -105,7 +105,7 @@ jobs:
             name: ✅ Quality Gate (check)
             run: bun run check
           - task: 04-unit
-            name: ⚡ Unit Tests (206 files)
+            name: ⚡ Unit Tests
             run: bun run test:unit
           - task: 05-cve-audit
             name: 🔒 CVE Dependency Audit

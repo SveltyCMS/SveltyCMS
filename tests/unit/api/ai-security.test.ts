@@ -17,9 +17,15 @@ vi.mock("@src/services/core/ai-service", () => ({
   },
 }));
 
+// Mock tenant utils
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(true),
+  getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
 // Mock settings service
 vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
+  getPrivateSettingSync: vi.fn().mockReturnValue(true),
   getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
   getUntypedSetting: vi.fn().mockResolvedValue(undefined),
 }));

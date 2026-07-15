@@ -12,6 +12,45 @@
 import { logger } from "./logger.ts";
 import { AppError } from "./error-handling.ts";
 
+// Memoized multi-tenant check with 5-second TTL
+// Reads from config/private.ts only — bootstrap mode, not a runtime toggle
+let _multiTenantCached: boolean | null = null;
+let _multiTenantCachedAt = 0;
+
+/**
+ * Multi-tenant mode detection via config/private.ts.
+ * Uses globalThis.require (set up by hooks.server.ts) to avoid ESM
+ * path alias resolution issues at module init time.
+ */
+export function isMultiTenantEnabled(): boolean {
+  const now = Date.now();
+  if (_multiTenantCached !== null && now - _multiTenantCachedAt < 5000) {
+    return _multiTenantCached;
+  }
+
+  try {
+    const req = (globalThis as any).require;
+    if (req) {
+      const { getPrivateSettingSync } = req("@src/services/core/settings-service");
+      _multiTenantCached = getPrivateSettingSync("MULTI_TENANT") === true;
+    } else {
+      _multiTenantCached = false;
+    }
+  } catch {
+    _multiTenantCached = false;
+  }
+  _multiTenantCachedAt = now;
+  return _multiTenantCached;
+}
+
+/**
+ * Reset the cached multi-tenant state. Used in tests to force re-evaluation.
+ */
+export function resetMultiTenantCache(): void {
+  _multiTenantCached = null;
+  _multiTenantCachedAt = 0;
+}
+
 /**
  * Validate tenant ID for security (alphanumeric only).
  */

@@ -50,9 +50,6 @@
   "bin": {
     "create-sveltycms": "./scripts/create-app.ts"
   },
-  "workspaces": [
-    "packages/*"
-  ],
   "files": [
     "scripts/create-app.ts",
     "README.md",
@@ -120,13 +117,10 @@
     "repair:drizzle": "node -e \"try{require('fs').accessSync('node_modules/drizzle-orm/sql/index.js');process.exit(0)}catch(e){process.exit(1)}\" || (npm remove drizzle-orm 2>/dev/null; npm install drizzle-orm)",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
     "translate": "npx @inlang/cli machine translate --project ./project.inlang",
-    "upgrade": "npx tsx scripts/upgrade.ts",
-    "-- PACKAGES -------------------------------------": "",
-    "packages:build": "bun run scripts/build-packages.ts",
-    "packages:check": "bun run packages:build -- --check"
+    "upgrade": "npx tsx scripts/upgrade.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1086.0",
+    "@aws-sdk/client-s3": "^3.1087.0",
     "@better-svelte-email/components": "^2.1.1",
     "@better-svelte-email/preview": "^2.1.1",
     "@better-svelte-email/server": "^2.1.1",
@@ -136,7 +130,7 @@
     "@mcp-b/webmcp-polyfill": "^4.0.0",
     "@node-saml/node-saml": "^5.1.0",
     "@opentelemetry/api": "^1.9.1",
-    "@smithy/node-http-handler": "^4.9.5",
+    "@smithy/node-http-handler": "^4.9.6",
     "@sveltejs/kit": "^2.69.3",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/node": "^4.3.2",
@@ -161,7 +155,7 @@
     "@tiptap/extension-youtube": "^3.27.4",
     "@tiptap/pm": "^3.27.4",
     "@tiptap/starter-kit": "^3.27.4",
-    "@tiptap/y-tiptap": "^3.0.6",
+    "@tiptap/y-tiptap": "^3.0.7",
     "argon2": "^0.44.0",
     "cloudinary": "^2.10.0",
     "dompurify": "^3.4.12",
@@ -198,7 +192,7 @@
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.67.0",
     "uqr": "^0.1.3",
     "valibot": "^1.4.2",
-    "ws": "^8.21.0",
+    "ws": "^8.21.1",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.31"
   },
@@ -231,7 +225,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.8",
     "mysql2": "^3.16.1",
-    "oxfmt": "^0.58.0",
+    "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
     "playwright": "^1.61.1",
     "postgres": "^3.4.8",
@@ -247,7 +241,7 @@
   },
   "optionalDependencies": {
     "mongoose": "^9.7.4",
-    "mysql2": "^3.22.6",
+    "mysql2": "^3.23.0",
     "postgres": "^3.4.9"
   },
   "overrides": {

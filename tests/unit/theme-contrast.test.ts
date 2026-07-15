@@ -31,7 +31,7 @@ describe("theme-contrast", () => {
       "surface-900": "#ffff00",
     });
     expect(warnings.length).toBeGreaterThan(0);
-    expect(warnings.some((w) => w.pair.includes("Primary accent"))).toBe(true);
+    expect(warnings.some((w) => w.pair?.includes("Primary accent"))).toBe(true);
   });
 
   it("passes audit for default shorthand palette", () => {

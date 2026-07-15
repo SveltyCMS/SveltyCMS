@@ -97,9 +97,9 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 
 | Metric                                 | Value                                                                                                                                                           |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Total tests                            | **1,934** (216 files, 1,934 passing, 3 skipped)                                                                                                                 |
+| Total tests                            | **2,147** (243 files, 2,147 passing, 4 skipped)                                                                                                                 |
 | Pass rate                              | 100%                                                                                                                                                            |
-| Test files                             | 217 (216 passing, 1 skipped)                                                                                                                                    |
+| Test files                             | 245 (243 passing, 2 skipped)                                                                                                                                    |
 | Security-specific                      | 114 (defense-in-depth, auth, RBAC, cache-integrity, audit-chain, route-access-audit, SVG sanitization)                                                          |
 | **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                                                                                                      |
 | Collection builder                     | **39** (utils 10, compilation 11, structure-persistence 3, save-content-structure 2, delete-content-nodes 2, code-gui parity 8 integration, structure-matrix 2) |
@@ -184,6 +184,16 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 | Test file                | Tests | Covers                                                                                                                |
 | ------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------- |
 | compile-manifest.test.ts | 4     | Path normalization, orphan prevention, recompile on missing output, `collectionOrder` + `structureNodes` preservation |
+
+| **Multi-Tenancy Tests (2026-07-15)** — `tests/unit/multi-tenancy/` (25 tests, all passing):
+
+| Test file                       | Tests | Covers                                                                                                                                                     |
+| ------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `00-tenant-utils.test.ts`       | 6     | `isMultiTenantEnabled()` truthy/falsy/error handling, `isValidTenantId()` path traversal check, `detectFullStructure()` shape validation                   |
+| `crud-tenant-guard.test.ts`     | 14    | Read auto-inject (find/findMany/findOne), write auto-inject (insert/insertMany/update/updateMany), bypass mode, reject mode, multi-tenant disabled (P0/P1) |
+| `collections-migration.test.ts` | 5     | File move to tenant dir, skip existing, non-.ts ignore, `runFullMigration()` shape & orchestration                                                         |
+
+> All 25 tests pass together in sequence. Mock pollution from `vi.mock` in CRUD guard tests is mitigated by ordering (00- prefix) and `afterEach` global state cleanup.
 
 `tests/unit/collectionbuilder/` — organizational persistence:
 
@@ -478,7 +488,7 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 | **Plugin/extension E2E (deep)**                              | Stripe, cookie-consent untested; editable-website has smoke E2E only (no full iframe bidirectional sync)                                                                       | 🟢 Low    |
 | **Site starter Svedit inline edit E2E**                      | Guest homepage + Live Preview tab covered; click-to-edit in iframe not browser-tested                                                                                          | 🟢 Low    |
 | **Mobile viewport**                                          | All tests run Desktop Chrome only                                                                                                                                              | 🟢 Low    |
-| **Multi-tenant E2E**                                         | No cross-tenant isolation test at browser level                                                                                                                                | 🟢 Low    |
+| **Multi-tenant E2E**                                         | Unit tests exist for CRUD guard, tenant utils, and migration (26 tests). No browser-level cross-tenant isolation test yet                                                      | 🟡 Medium |
 | **Data operations integration**                              | Config promotion has unit + integration tests; content export/import, backup/restore, migration apply/verify, and content sync have no integration test coverage               | 🟡 Medium |
 | **Data operations benchmarks**                               | Zero benchmarks for config promotion throughput, content package streaming, backup create/restore timing, or importer format comparison; only `migration-scale.test.ts` exists | 🟡 Medium |
 | **Data operations E2E**                                      | No browser-level tests for configuration promotion page, content transfer page, backup management, or migration workflow                                                       | 🟡 Medium |
@@ -532,16 +542,20 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 
 ### Ongoing
 
-1. **Data operations E2E tests** — configuration promotion page, content transfer page, backup management, migration workflow
-2. **Harden builder selectors** — add data-testid to collection builder critical paths
-3. **Image editor save E2E** — save via /api/media/manipulate after crop
-4. **Visual regression baseline** — run Playwright visual regression in CI
-5. **Dashboard drag-reorder E2E** — keyboard/grid reorder regression test
-6. **Enable benchmark gate on PR** — add run-benchmarks label auto-detection
-7. **Cache L2 (Redis) integration tests** — Redis read-through, pub/sub invalidation, stampede protection
-8. **Cross-adapter concurrency contract** — race-condition tests across all 4 adapters
-9. **PostgreSQL clean baseline** — restart Docker + fresh DB for fair comparison
-10. **MongoDB COUNT index** — add status field index and re-benchmark
-11. **Code → GUI import** — parse existing .ts collection file and populate visual editor
-12. **Field validator visual editor** — visual Valibot schema builder per widget field
-13. **Widget Factory integration** — visual widget creation tool; marketplace browse/install
+1. **Multi-tenant E2E isolation tests** — browser-level cross-tenant access check
+2. **CRUD tenant guard mock cleanup** — fix Vitest module leakage across test files
+3. **File server tenant access control** — verify `locals.tenantId` in `/files/[...path]` route
+4. **Multi-tenant benchmark** — CRUD guard throughput overhead under load (sub-µs target)
+5. **Data operations E2E tests** — configuration promotion page, content transfer page, backup management, migration workflow
+6. **Harden builder selectors** — add data-testid to collection builder critical paths
+7. **Image editor save E2E** — save via /api/media/manipulate after crop
+8. **Visual regression baseline** — run Playwright visual regression in CI
+9. **Dashboard drag-reorder E2E** — keyboard/grid reorder regression test
+10. **Enable benchmark gate on PR** — add run-benchmarks label auto-detection
+11. **Cache L2 (Redis) integration tests** — Redis read-through, pub/sub invalidation, stampede protection
+12. **Cross-adapter concurrency contract** — race-condition tests across all 4 adapters
+13. **PostgreSQL clean baseline** — restart Docker + fresh DB for fair comparison
+14. **MongoDB COUNT index** — add status field index and re-benchmark
+15. **Code → GUI import** — parse existing .ts collection file and populate visual editor
+16. **Field validator visual editor** — visual Valibot schema builder per widget field
+17. **Widget Factory integration** — visual widget creation tool; marketplace browse/install

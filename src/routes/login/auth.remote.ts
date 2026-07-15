@@ -19,6 +19,7 @@ import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.ser
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
@@ -472,7 +473,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
   if (!result.success) return { success: false, errors: flatten(result.issues).nested };
   const { email: e, username: u, password: p, token: t } = result.output;
 
-  const mt = getPrivateSettingSync("MULTI_TENANT");
+  const mt = isMultiTenantEnabled();
   const dm = getPrivateSettingSync("DEMO");
   const open = !!(mt && dm);
   let role = "user",

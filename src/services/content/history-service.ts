@@ -7,7 +7,7 @@
 import { contentSystem } from "@src/content/index.server";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { pubSub } from "../background/pub-sub";
 import { logger } from "@utils/logger";
 
@@ -76,7 +76,7 @@ export class HistoryService {
     }
 
     // --- MULTI-TENANCY SECURITY CHECK ---
-    if (getPrivateSettingSync("MULTI_TENANT")) {
+    if (isMultiTenantEnabled()) {
       const collectionName = `collection_${schema._id}`;
       const entryResult = await dbAdapter.crud.findMany(collectionName, {
         _id: entryId,

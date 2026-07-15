@@ -69,15 +69,17 @@ The import system validates the scope of incoming settings. It dynamically looks
 
 ## 5. Summary of Boundaries
 
-| Boundary           | Mechanism                       | Enforcement Point |
-| :----------------- | :------------------------------ | :---------------- |
-| **Data**           | Explicit `tenantId` filters     | Database Adapters |
-| **Batch**          | Mixed-tenant rejection guard    | `batch-module.ts` |
-| **Schema**         | Isolated Yoga Instances         | GraphQL Handler   |
-| **Real-Time**      | Payload Filtering               | SSE Controller    |
-| **Secrets**        | AES-256-GCM Encryption          | Export Utility    |
-| **UI/Prefs**       | Compound `tenantId:userId` keys | Preferences API   |
-| **Infrastructure** | Super-Admin Restrictons         | RBAC Middleware   |
+| Boundary           | Mechanism                                | Enforcement Point             |
+| :----------------- | :--------------------------------------- | :---------------------------- |
+| **Data**           | Explicit `tenantId` filters              | Database Adapters             |
+| **CRUD Guard**     | Auto-inject + warn on missing `tenantId` | `crud-tenant-guard.ts`        |
+| **File Server**    | Tenant-scoped path ACL                   | `/files/[...path]/+server.ts` |
+| **Batch**          | Mixed-tenant rejection guard             | `batch-module.ts`             |
+| **Schema**         | Isolated Yoga Instances                  | GraphQL Handler               |
+| **Real-Time**      | Payload Filtering                        | SSE Controller                |
+| **Secrets**        | AES-256-GCM Encryption                   | Export Utility                |
+| **UI/Prefs**       | Compound `tenantId:userId` keys          | Preferences API               |
+| **Infrastructure** | Super-Admin Restrictons                  | RBAC Middleware               |
 
 This architecture ensures that SveltyCMS remains secure, compliant, and performant even when hosting thousands of isolated customers on a single installation.
 

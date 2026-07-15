@@ -101,6 +101,11 @@ vi.mock("@src/content/index.server", () => ({
   },
 }));
 
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(false),
@@ -144,7 +149,7 @@ import { createMockRequestEvent } from "../utils/mock-event";
 
 describe("Collections API Unit Tests", () => {
   let mockContentSystem: any;
-  let mockGetPrivateSettingSync: any;
+  let mockIsMultiTenantEnabled: any;
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -162,8 +167,8 @@ describe("Collections API Unit Tests", () => {
       .mockResolvedValue({ success: true, data: { _id: "updated-id" } });
     (mockDbAdapter as any).crud.delete = vi.fn().mockResolvedValue({ success: true });
 
-    const settingsModule = await import("@src/services/core/settings-service");
-    mockGetPrivateSettingSync = settingsModule.getPrivateSettingSync;
+    const tenantModule = await import("@utils/tenant");
+    mockIsMultiTenantEnabled = tenantModule.isMultiTenantEnabled;
   });
 
   const createMockEvent = (
@@ -213,7 +218,7 @@ describe("Collections API Unit Tests", () => {
     });
 
     it("should throw TENANT_MISSING in multi-tenant mode without tenantId", async () => {
-      mockGetPrivateSettingSync.mockReturnValue(true);
+      mockIsMultiTenantEnabled.mockReturnValue(true);
       const event = createMockEvent("GET", "collections", {}, { _id: "u1" }, null);
       await expect(GET_LIST(event)).rejects.toThrow("Tenant ID required");
     });

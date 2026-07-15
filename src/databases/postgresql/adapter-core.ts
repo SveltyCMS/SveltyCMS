@@ -725,4 +725,91 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       { isWrite: true },
     );
   }
+
+  // --------------------------------------------------------------------------
+  // Row-Level Security (RLS) & Multi-Tenancy
+  // --------------------------------------------------------------------------
+
+  /**
+   * Sets the tenant context for the current PostgreSQL session.
+   * This must be called at the START of each request after tenant resolution.
+   * PostgreSQL RLS policies will then automatically filter all queries
+   * against the `app.tenant_id` session variable without application-level changes.
+   *
+   * @param tenantId - The tenant ID to set, or null to use the "global" context
+   * @throws {Error} if the database is not connected
+   */
+  public async setTenantContext(tenantId: string | null): Promise<void> {
+    const value = tenantId ?? "global";
+    if (!this.sql) {
+      throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
+    }
+    // Use postgres.js tagged template for proper value escaping
+    await this.sql`SET SESSION app.tenant_id = ${value}`;
+  }
+
+  /**
+   * Creates or replaces a PostgreSQL Row-Level Security policy on a collection table.
+   * Enables RLS on the table and creates a policy that filters rows by `tenant_id`
+   * using the session-level `app.tenant_id` setting.
+   *
+   * This should be called from the migration/setup process, not on every query.
+   * Once the policy is in place and `setTenantContext()` is called per-request,
+   * PostgreSQL automatically enforces tenant isolation on every query.
+   *
+   * @param collection - The collection name (e.g., "posts")
+   * @param _tenantId - Reserved for future use; the policy uses session context
+   * @returns DatabaseResult indicating success or failure
+   */
+  public async enforceTenantPolicy(
+    collection: string,
+    _tenantId: string,
+  ): Promise<DatabaseResult<void>> {
+    return this.wrap(
+      async () => {
+        const normalizedName = collection.replace(/-/g, "");
+        const table = this.getTable(normalizedName);
+        if (!table) {
+          throw new Error(`Table for collection "${collection}" could not be resolved`);
+        }
+        const physicalName = getTableName(table as any);
+
+        // Enable RLS on the table (idempotent)
+        await this.raw.execute(`ALTER TABLE "${physicalName}" ENABLE ROW LEVEL SECURITY`);
+
+        // Create or replace the tenant isolation policy
+        // The USING clause compares the table's tenant_id column with the
+        // session variable set by setTenantContext() at the start of each request.
+        await this.raw.execute(
+          `CREATE POLICY tenant_isolation ON "${physicalName}" FOR ALL USING (tenant_id = current_setting('app.tenant_id')::text)`,
+        );
+      },
+      "ENFORCE_TENANT_POLICY_FAILED",
+      `Failed to enforce tenant policy for collection "${collection}"`,
+      { isWrite: true },
+    );
+  }
+
+  /**
+   * Returns the current tenant context from the PostgreSQL session.
+   * Reads the `app.tenant_id` session setting via `current_setting()`.
+   *
+   * @returns DatabaseResult containing the current tenant ID as a string,
+   *          or `null` if the setting was never configured
+   */
+  public async getTenantContext(): Promise<DatabaseResult<any>> {
+    return this.wrap(
+      async () => {
+        if (!this.sql) {
+          throw new Error("[PostgreSQLAdapter] Database not connected");
+        }
+        const result = await this.sql.unsafe(
+          `SELECT current_setting('app.tenant_id', true) AS tenant_id`,
+        );
+        return result?.[0]?.tenant_id ?? null;
+      },
+      "GET_TENANT_CONTEXT_FAILED",
+      "Failed to retrieve tenant context from PostgreSQL session",
+    );
+  }
 }

@@ -74,6 +74,11 @@ vi.mock("@src/databases/auth/two-factor-auth", () => {
   };
 });
 
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(undefined),
@@ -148,7 +153,7 @@ const createMockEvent = (
 
 describe("2FA API Unit Tests", () => {
   let mockTwoFactorService: any;
-  let mockGetPrivateSettingSync: any;
+  let mockIsMultiTenantEnabled: any;
   let mockVerifyPassword: any;
 
   beforeEach(async () => {
@@ -157,9 +162,9 @@ describe("2FA API Unit Tests", () => {
     const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     mockTwoFactorService = getDefaultTwoFactorAuthService({} as any);
 
-    const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
-    mockGetPrivateSettingSync = getPrivateSettingSync;
-    mockGetPrivateSettingSync.mockReturnValue(false);
+    const { isMultiTenantEnabled } = await import("@utils/tenant");
+    mockIsMultiTenantEnabled = isMultiTenantEnabled;
+    mockIsMultiTenantEnabled.mockReturnValue(false);
 
     const { verifyPassword } = await import("@src/databases/auth");
     mockVerifyPassword = verifyPassword;
@@ -231,7 +236,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should throw TENANT_REQUIRED in multi-tenant mode without tenant context", async () => {
-      mockGetPrivateSettingSync.mockReturnValue(true);
+      mockIsMultiTenantEnabled.mockReturnValue(true);
 
       const event = createMockEvent(
         { userId: "user-1", code: "123456" },
@@ -251,7 +256,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should use locals.tenantId in multi-tenant mode", async () => {
-      mockGetPrivateSettingSync.mockReturnValue(true);
+      mockIsMultiTenantEnabled.mockReturnValue(true);
       mockTwoFactorService.verify2FA.mockResolvedValue({ success: true });
 
       const event = createMockEvent(

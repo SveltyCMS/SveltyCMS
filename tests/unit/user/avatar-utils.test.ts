@@ -52,14 +52,12 @@ describe("normalizeAvatarUrl", () => {
   // HTTP / HTTPS URLs
   // ---------------------------------------------------------------------------
 
-  it("should return https URL as-is", () => {
-    const url = "https://example.com/avatars/user.png";
-    expect(normalizeAvatarUrl(url)).toBe(url);
+  it("should strip host from https URL and return local path", () => {
+    expect(normalizeAvatarUrl("https://example.com/avatars/user.png")).toBe("/avatars/user.png");
   });
 
-  it("should return http URL as-is", () => {
-    const url = "http://cdn.example.com/avatar.jpg";
-    expect(normalizeAvatarUrl(url)).toBe(url);
+  it("should strip host from http URL and return local path", () => {
+    expect(normalizeAvatarUrl("http://cdn.example.com/avatar.jpg")).toBe("/avatar.jpg");
   });
 
   // ---------------------------------------------------------------------------

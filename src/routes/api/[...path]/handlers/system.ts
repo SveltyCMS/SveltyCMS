@@ -10,7 +10,7 @@ import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "./base";
 import { webhookService } from "@src/services/background/webhook-service";
 import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { cacheService } from "@src/databases/cache/cache-service";
 
 export async function handleSystemRoutes(
@@ -507,7 +507,7 @@ export async function handleAiRoutes(
   segments: string[],
 ) {
   const { request, locals } = event;
-  if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+  if (isMultiTenantEnabled() && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   const action = segments[1];
@@ -667,7 +667,7 @@ export async function handleAutomationRoutes(
       `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
     );
   }
-  if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+  if (isMultiTenantEnabled() && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   const id = segments[1]; // Corrected index: namespace is [0], id is [1]
@@ -1099,7 +1099,7 @@ export async function handleExportRoutes(
   _segments: string[],
 ) {
   const { request } = event;
-  if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+  if (isMultiTenantEnabled() && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   if (request.method === "POST") {
@@ -1124,7 +1124,7 @@ export async function handleImportRoutes(
   segments: string[],
 ) {
   const { request } = event;
-  if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+  if (isMultiTenantEnabled() && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   const action = segments[1];

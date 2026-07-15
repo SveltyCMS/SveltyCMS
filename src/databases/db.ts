@@ -260,6 +260,17 @@ export async function ensureFullInitialization(): Promise<any | null> {
       if (!adapter) throw new Error("Failed to load database adapter");
       logger.info(`[Boot] Adapter loaded. Connecting...`);
 
+      // 🛡️ Wrap CRUD with tenant guard to auto-inject tenantId
+      // This protects all plugins, widgets, and extensions from
+      // accidentally writing unscoped data when MULTI_TENANT is enabled.
+      try {
+        const { createTenantGuardedCrud } = await import("./crud-tenant-guard");
+        const originalCrud = adapter.crud;
+        (adapter as any).crud = createTenantGuardedCrud(originalCrud, "inject");
+      } catch (e) {
+        logger.warn(`[Boot] Tenant guard not applied (non-fatal): ${e}`);
+      }
+
       const { connectDatabaseWithResilience } = await getResilienceIntegration();
       const connectionResult = await connectDatabaseWithResilience(
         adapter,

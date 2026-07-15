@@ -26,7 +26,7 @@ import type { FieldInstance, Schema } from "@src/content/types";
 // Types
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 // Token Engine
 import { replaceTokens } from "@src/services/token/engine";
 import type { TokenContext } from "@src/services/token/types";
@@ -473,13 +473,13 @@ export async function collectionsResolvers(
         throw new Error("Authentication required");
       }
 
-      if (getPrivateSettingSync("MULTI_TENANT") && ctx.tenantId !== tenantId) {
+      if (isMultiTenantEnabled() && ctx.tenantId !== tenantId) {
         logger.error(`Resolver tenantId mismatch. Expected ${tenantId}, got ${ctx.tenantId}`);
         throw new Error("Internal server error: Tenant context mismatch.");
       }
 
       // Check user tenant isolation
-      if (getPrivateSettingSync("MULTI_TENANT") && !ctx.bypassTenantIsolation) {
+      if (isMultiTenantEnabled() && !ctx.bypassTenantIsolation) {
         const userTenantId = ctx.user.tenantId;
         const isGlobalAdmin = !userTenantId || userTenantId === "global";
         if (!isGlobalAdmin && userTenantId !== ctx.tenantId) {

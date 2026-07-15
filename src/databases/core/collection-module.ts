@@ -127,8 +127,8 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
         const filter: Record<string, any> = { nodeType: "collection" };
         let isMultiTenant = false;
         try {
-          const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
-          isMultiTenant = getPrivateSettingSync("MULTI_TENANT") === true;
+          const { isMultiTenantEnabled } = await import("@utils/tenant");
+          isMultiTenant = isMultiTenantEnabled();
         } catch {
           isMultiTenant = process.env.MULTI_TENANT === "true";
         }

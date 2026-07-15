@@ -9,7 +9,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { xxhash64 } from "hash-wasm";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
@@ -307,7 +307,7 @@ export class CollectionsNamespace {
   ) {
     const { tenantId, includeFields = false, includeStats = false } = options;
 
-    if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+    if (isMultiTenantEnabled() && !tenantId) {
       throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
     }
 

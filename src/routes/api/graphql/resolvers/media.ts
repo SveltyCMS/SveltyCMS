@@ -5,7 +5,7 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { logger } from "@utils/logger";
 
 // Registers media schemas dynamically.
@@ -88,7 +88,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
     try {
       // Build filter for multi-tenant and media type
       const filter: Record<string, unknown> = {};
-      if (getPrivateSettingSync("MULTI_TENANT") && context.tenantId) {
+      if (isMultiTenantEnabled() && context.tenantId) {
         filter.tenantId = context.tenantId;
       }
 

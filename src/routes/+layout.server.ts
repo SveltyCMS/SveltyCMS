@@ -17,7 +17,8 @@
 
 import type { NavigationNode } from "@src/content";
 import type { Locale } from "@src/paraglide/runtime";
-import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
+import { loadSettingsCache } from "@src/services/core/settings-service";
 import { dev } from "$app/environment";
 import { version } from "../../package.json";
 import type { LayoutServerLoad } from "./$types";
@@ -80,7 +81,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   const defaultContentLanguage = publicSettings.DEFAULT_CONTENT_LANGUAGE;
 
   // Private settings only accessible server-side
-  const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
+  const isMultiTenant = isMultiTenantEnabled();
 
   const systemLanguage = (cookies.get("systemLanguage") as Locale) ?? baseLocale;
   const contentLanguage = (cookies.get("contentLanguage") as Locale) ?? defaultContentLanguage;

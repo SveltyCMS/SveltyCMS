@@ -45,15 +45,21 @@ export function getLayoutPrefLabel(key: LayoutPrefKey): string {
 }
 
 /**
+ * Converts UI visibility state to a layout preference value.
+ * "collapsed" is not a valid persistence state, so it maps to "full".
+ */
+export function uiVisibilityToLayoutPref(visibility: UIVisibility): UIVisibility {
+  return visibility === "collapsed" ? "full" : visibility;
+}
+
+/**
  * Extract layout preferences from the current UI state for storage.
  * Only includes values that differ from the default ("full").
  */
 export function uiStateToLayoutPrefs(state: UIState): Partial<Record<LayoutPrefKey, UIVisibility>> {
   const prefs: Partial<Record<LayoutPrefKey, UIVisibility>> = {};
   for (const key of USER_LAYOUT_PREF_KEYS) {
-    if (state[key] !== "full") {
-      prefs[key] = state[key];
-    }
+    prefs[key] = uiVisibilityToLayoutPref(state[key]);
   }
   return prefs;
 }
@@ -86,10 +92,13 @@ export function diffLayoutPrefsFromTenant(
   const diff: Partial<Record<LayoutPrefKey, UIVisibility>> = {};
   if (!userPrefs) return diff;
 
+  const tenantDefaults = _tenantConfig?.layoutState ?? {};
+
   for (const key of USER_LAYOUT_PREF_KEYS) {
     const userVal = userPrefs[key];
-    if (userVal === "hidden" || userVal === "full") {
-      diff[key] = userVal;
+    const tenantVal = tenantDefaults[key];
+    if (tenantVal !== undefined && userVal !== tenantVal) {
+      diff[key] = userVal as UIVisibility;
     }
   }
   return diff;
