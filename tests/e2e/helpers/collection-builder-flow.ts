@@ -18,27 +18,57 @@ export function uniqueCollectionFixture(prefix = "E2E_Col"): CollectionFixture {
 
 export async function openNewCollectionEditor(page: Page): Promise<void> {
   await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
-  await page.getByTestId("add-collection-button").first().click();
-  await page.waitForURL(/\/config\/collectionbuilder\/new/, { timeout: 15_000 });
-  await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 10_000 });
+  const addBtn = page.getByTestId("add-collection-button").first();
+  await expect(addBtn).toBeVisible({ timeout: 20_000 });
+  await addBtn.click();
+  await page.waitForURL(/\/config\/collectionbuilder\/new/, { timeout: 20_000 });
+  await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 10_000 });
 }
 
+/**
+ * Add an Input widget via the sidebar quick-add tile, open its editor, and set label/name.
+ * Relies on stable data-testid attributes (quick-add-input, widget-field-*).
+ */
 export async function addInputField(
   page: Page,
   options: { label: string; fieldName: string; index?: number },
 ): Promise<void> {
   const index = options.index ?? 0;
-  await page.getByTestId("tab-widgets").click();
-  await page.getByTestId("quick-add-input").click();
-  await expect(page.getByText(/New Input/i).nth(index)).toBeVisible({ timeout: 10_000 });
-  await page
-    .getByTestId("widget-fields-list")
-    .getByText(/New Input/i)
-    .nth(index)
-    .click();
-  await page.getByPlaceholder("e.g. Profile Picture").fill(options.label);
-  await page.getByPlaceholder("e.g. profile_pic").fill(options.fieldName);
-  await page.getByRole("button", { name: /Apply Changes/i }).click();
+
+  const widgetsTab = page.getByTestId("tab-widgets");
+  await expect(widgetsTab).toBeVisible({ timeout: 15_000 });
+  await widgetsTab.click();
+
+  // Wait for widget sidebar (core widgets load asynchronously)
+  const quickAdd = page.getByTestId("quick-add-input");
+  await expect(quickAdd).toBeVisible({ timeout: 20_000 });
+  await quickAdd.click();
+
+  const fieldList = page.getByTestId("widget-fields-list");
+  const fieldRow = fieldList.getByTestId("widget-field-row").nth(index);
+  await expect(fieldRow).toBeVisible({ timeout: 15_000 });
+  await expect(fieldRow.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
+
+  // Open editor via dedicated control (pencil or field-info button)
+  const openBtn = fieldRow.getByTestId("widget-field-open");
+  if (await openBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await openBtn.click();
+  } else {
+    await fieldRow.getByTestId("widget-field-edit").click();
+  }
+
+  const labelInput = page.getByTestId("widget-field-label");
+  const nameInput = page.getByTestId("widget-field-name");
+  await expect(labelInput).toBeVisible({ timeout: 15_000 });
+  await labelInput.fill(options.label);
+  await nameInput.fill(options.fieldName);
+
+  await page.getByTestId("widget-field-apply").click();
+
+  await expect(fieldList.getByText(options.label)).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 export async function saveCollectionSchema(page: Page): Promise<void> {

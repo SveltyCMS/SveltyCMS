@@ -219,6 +219,7 @@
             label="Field Label"
             bind:value={local.label}
             placeholder="e.g. Profile Picture"
+            data-testid="widget-field-label"
             oninput={() => {
               if (!local.db_fieldName) {
                 local.db_fieldName = labelToDbName(local.label);
@@ -236,7 +237,8 @@
           <Input
             label="Database Field Name"
             bind:value={local.db_fieldName}
-            placeholder="e.g. profile_picture"
+            placeholder="e.g. profile_pic"
+            data-testid="widget-field-name"
           />
 
           <Input
@@ -256,8 +258,7 @@
               <p class="text-sm font-semibold text-surface-800 dark:text-surface-200">Required</p>
               <p class="text-xs text-surface-500 dark:text-surface-400">Must be filled to save content</p>
             </div>
-            <input
-              type="checkbox"
+            <input type="checkbox" aria-label="Required field"
               bind:checked={local.required}
               class="h-5 w-5 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
             />
@@ -309,7 +310,7 @@
             <h4 class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400">Visibility</h4>
             <button
               type="button"
-              class="flex w-full items-center justify-between rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 px-4 py-3 text-left hover:border-primary-500/50 transition-colors"
+              class="flex w-full items-center justify-between rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 px-4 py-3 text-start hover:border-primary-500/50 transition-colors"
               onclick={() => updatePerms({ visibility: localPerms.visibility === "public" ? "private" : "public" })}
             >
               <span class="font-semibold text-surface-800 dark:text-surface-200">
@@ -331,8 +332,7 @@
           <!-- Require auth -->
           <div class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/30 p-4">
             <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3">
-              <input
-                type="checkbox"
+              <input type="checkbox" aria-label="Require authentication"
                 class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
                 checked={localPerms.requiredAuth}
                 onchange={(e) => updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
@@ -369,21 +369,17 @@
                       {role.name ?? role._id}
                     </span>
                     <div class="flex justify-center">
-                      <input
-                        type="checkbox"
+                      <input type="checkbox" aria-label={`View permission for ${role.name ?? role._id}`}
                         checked={localPerms.readRoles.includes(role._id)}
                         onchange={() => toggleRoleView(role._id)}
                         class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-                        aria-label="View permission for {role.name}"
                       />
                     </div>
                     <div class="flex justify-center">
-                      <input
-                        type="checkbox"
+                      <input type="checkbox" aria-label={`Edit permission for ${role.name ?? role._id}`}
                         checked={localPerms.writeRoles.includes(role._id)}
                         onchange={() => toggleRoleEdit(role._id)}
                         class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-                        aria-label="Edit permission for {role.name}"
                       />
                     </div>
                   </div>
@@ -407,11 +403,11 @@
       <div class="flex gap-2">
         <Button variant="error" type="button" onclick={handleDelete}>
           <iconify-icon icon="mdi:trash-can-outline" width="18"></iconify-icon>
-          <span class="hidden sm:inline ml-1">{button_delete()}</span>
+          <span class="hidden sm:inline ms-1">{button_delete()}</span>
         </Button>
         <Button variant="tertiary" type="button" onclick={handleDuplicate}>
           <iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-          <span class="hidden sm:inline ml-1">Duplicate</span>
+          <span class="hidden sm:inline ms-1">Duplicate</span>
         </Button>
       </div>
 
@@ -419,9 +415,15 @@
         <Button variant="outline" type="button" onclick={handleCancel}>
           {button_cancel()}
         </Button>
-        <Button variant="tertiary" type="button" onclick={handleSave}>
+        <Button
+          variant="tertiary"
+          type="button"
+          onclick={handleSave}
+          data-testid="widget-field-apply"
+          aria-label="Apply field changes"
+        >
           <iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-          <span class="ml-1">{button_save()}</span>
+          <span class="ms-1">{button_save()}</span>
         </Button>
       </div>
     </div>

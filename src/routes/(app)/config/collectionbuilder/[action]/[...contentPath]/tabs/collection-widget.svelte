@@ -302,7 +302,7 @@ const marketplaceWidgets = $derived(
 
 <div class="flex h-full gap-0">
 	<!-- ═══ LEFT COLUMN: Widget Canvas / Drag-and-drop List ═══ -->
-	<div class="flex-1 min-w-0 flex flex-col border-r border-surface-200 dark:border-surface-700">
+	<div class="flex-1 min-w-0 flex flex-col border-e border-surface-200 dark:border-surface-700">
 
 		<!-- Quick Add Bar -->
 		<div class="shrink-0 p-4 border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900">
@@ -334,7 +334,12 @@ const marketplaceWidgets = $derived(
 				data-testid="widget-fields-list"
 			>
 				{#each items as item (item._dragId)}
-					<div animate:flip={{ duration: flipDurationMs }} class="group relative">
+					<div
+						animate:flip={{ duration: flipDurationMs }}
+						class="group relative"
+						data-testid="widget-field-row"
+						data-field-name={item.db_fieldName || ""}
+					>
 						<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
 							<!-- Drag Handle -->
 							<div class="cursor-grab text-surface-300 active:cursor-grabbing group-hover:text-primary-500 transition-colors">
@@ -346,8 +351,14 @@ const marketplaceWidgets = $derived(
 								<iconify-icon icon={item.icon || (item.widget as any)?.key ? (availableWidgets[(item.widget as any)?.key] as any)?.Icon || 'mdi:widgets' : 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
 							</div>
 
-							<!-- Field Info -->
-							<div class="flex-1 min-w-0 pe-4">
+							<!-- Field Info — click opens editor (stable E2E path) -->
+							<button
+								type="button"
+								class="flex-1 min-w-0 pe-4 text-start cursor-pointer bg-transparent border-0 p-0"
+								onclick={() => editField(item)}
+								data-testid="widget-field-open"
+								aria-label={`Edit field ${item.label || "Unnamed Field"}`}
+							>
 								<div class="flex items-center gap-2 mb-0.5">
 									<span class="font-bold truncate text-sm sm:text-base">{item.label || 'Unnamed Field'}</span>
 									<span class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
@@ -364,11 +375,18 @@ const marketplaceWidgets = $derived(
 										</span>
 									{/if}
 								</div>
-							</div>
+							</button>
 
 							<!-- Actions -->
 							<div class="flex gap-1.5 items-center">
-								<Button variant="ghost" size="sm" onclick={() => editField(item)} title="Edit">
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => editField(item)}
+									title="Edit"
+									data-testid="widget-field-edit"
+									aria-label="Edit field"
+								>
 									<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
 								</Button>
 								<Button variant="ghost" size="sm" onclick={() => duplicateField(item)} title="Duplicate">
@@ -394,7 +412,7 @@ const marketplaceWidgets = $derived(
 	</div>
 
 	<!-- ═══ RIGHT COLUMN: Widget Sidebar ═══ -->
-	<div class="w-72 lg:w-80 shrink-0 flex flex-col bg-surface-50/50 dark:bg-surface-900/50 border-l border-surface-200 dark:border-surface-700">
+	<div class="w-72 lg:w-80 shrink-0 flex flex-col bg-surface-50/50 dark:bg-surface-900/50 border-s border-surface-200 dark:border-surface-700">
 
 		<!-- Sidebar Header & Search -->
 		<div class="shrink-0 p-4 border-b border-surface-200 dark:border-surface-700">
@@ -420,7 +438,10 @@ const marketplaceWidgets = $derived(
 					<div class="grid grid-cols-2 gap-2">
 						{#each coreWidgets as w (w.key)}
 							<button
+								type="button"
 								onclick={() => addSidebarWidget(w.key)}
+								data-testid={`quick-add-${w.key.toLowerCase()}`}
+								aria-label={`Add ${w.label} widget`}
 								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-start"
 							>
 								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-surface-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
@@ -445,7 +466,10 @@ const marketplaceWidgets = $derived(
 					<div class="grid grid-cols-2 gap-2">
 						{#each customWidgets as w (w.key)}
 							<button
+								type="button"
 								onclick={() => addSidebarWidget(w.key)}
+								data-testid={`quick-add-${w.key.toLowerCase()}`}
+								aria-label={`Add ${w.label} widget`}
 								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-start"
 							>
 								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-surface-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
@@ -470,7 +494,10 @@ const marketplaceWidgets = $derived(
 					<div class="grid grid-cols-2 gap-2">
 						{#each marketplaceWidgets as w (w.key)}
 							<button
+								type="button"
 								onclick={() => addSidebarWidget(w.key)}
+								data-testid={`quick-add-${w.key.toLowerCase()}`}
+								aria-label={`Add ${w.label} widget`}
 								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-warning-500 hover:bg-warning-50 dark:hover:bg-warning-900/20 text-start"
 							>
 								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-warning-500 group-hover:bg-warning-500 group-hover:text-white transition-colors">

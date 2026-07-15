@@ -81,8 +81,9 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should configure widget-specific properties", async ({ page }) => {
-    // Prefer the stable quick-add + inspector path used by journey/smoke helpers.
-    // The modal "add-field-button" → role=button Input flow is flaky (timeouts in CI).
+    test.setTimeout(90_000);
+    // Uses sidebar quick-add-input testid + widget-field-* inspector testids.
+    // Older CI logs that cite getByRole(/Input/) or add-field-button are pre-fix SHAs.
     const fixture = uniqueCollectionFixture("WidgetCfg");
     await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill(fixture.name);
@@ -91,6 +92,10 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
     await expect(page.getByTestId("widget-fields-list").getByText("User Email")).toBeVisible({
       timeout: 15_000,
+    });
+    // Field name is shown in the row as a code snippet after apply
+    await expect(page.getByTestId("widget-fields-list").getByText("email")).toBeVisible({
+      timeout: 5_000,
     });
   });
 

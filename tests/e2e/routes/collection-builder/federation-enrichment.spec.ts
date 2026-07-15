@@ -34,18 +34,17 @@ test.describe("Collection Builder — Federation Enrichment Picker", () => {
     await page.getByTestId("collection-name-input").fill(collectionName);
 
     await page.getByTestId("tab-widgets").click();
+    await expect(page.getByTestId("quick-add-input")).toBeVisible({ timeout: 20_000 });
     await page.getByTestId("quick-add-input").click();
-    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
 
-    const fieldRow = page
-      .getByTestId("widget-fields-list")
-      .getByText(/New Input/i)
-      .first();
-    await fieldRow.click();
+    const fieldRow = page.getByTestId("widget-fields-list").getByTestId("widget-field-row").first();
+    await expect(fieldRow.getByText(/New Input/i)).toBeVisible({ timeout: 15_000 });
+    await fieldRow.getByTestId("widget-field-open").click();
 
-    await page.getByPlaceholder("e.g. Profile Picture").fill("Author");
-    await page.getByPlaceholder("e.g. profile_pic").fill("authorId");
-    await page.getByRole("button", { name: /Apply Changes/i }).click();
+    await expect(page.getByTestId("widget-field-label")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("widget-field-label").fill("Author");
+    await page.getByTestId("widget-field-name").fill("authorId");
+    await page.getByTestId("widget-field-apply").click();
 
     await page.getByTestId("tab-permissions").click();
     const picker = page.getByTestId("federation-enrichment-picker");
