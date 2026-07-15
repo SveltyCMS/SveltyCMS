@@ -71,7 +71,7 @@ function setPage(page: number) {
                     onchange?.();
                     onUpdateRowsPerPage?.(rowsPerPage);
                 }}
-                class="bg-surface-100 dark:bg-surface-800 border-none rounded py-1 px-2 text-xs font-bold focus:ring-1 focus:ring-primary-500 cursor-pointer"
+                class="bg-surface-100 dark:bg-surface-800 border-none rounded py-1 px-2 text-xs font-bold focus:ring-1 focus:ring-primary-500"
             >
                 {#each rowsPerPageOptions as option (option)}
                     <option value={option}>{option}</option>

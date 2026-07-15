@@ -293,9 +293,9 @@ This component provides a user interface for managing 2FA settings:
 			{#if isLoading && !setupData}
 				<!-- Loading state -->
 				<div class="flex flex-col items-center justify-center gap-4 py-8">
-					<iconify-icon icon="svg-spinners:ring-resize" width={24}></iconify-icon>
-					<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
-				</div>
+									<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
+									<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
+								</div>
 			{:else if setupData}
 				<!-- QR Code Setup -->
 				<div class="space-y-4">
@@ -400,7 +400,7 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Verify button when setting up -->
 			<Button variant="tertiary" onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="dark:">
 				{#if isLoading}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_verifying()}
 				{:else}
 					<iconify-icon icon="mdi:check-circle" width={20} class="me-2"></iconify-icon>
@@ -411,17 +411,17 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Management buttons when 2FA is enabled -->
 			<Button variant="surface" onclick={generateBackupCodes} disabled={isLoading} class="-secondary-500">
 				{#if isLoading}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_generating_codes()}
 				{:else}
 					<iconify-icon icon="mdi:key-variant" width={24}></iconify-icon>
 					{twofa_generate_backup_codes()}
 				{/if}
 			</Button>
-
+	
 			<Button variant="error" onclick={disable2FA} disabled={isLoading}>
 				{#if isLoading}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_disabling()}
 				{:else}
 					<iconify-icon icon="mdi:shield-remove" width={24}></iconify-icon>

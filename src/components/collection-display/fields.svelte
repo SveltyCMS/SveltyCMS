@@ -672,11 +672,11 @@ import { tick } from "svelte";
                             disabled={isTranslating}
                             aria-label="AI translate {field.label || fieldName} from {sourceLocale.toUpperCase()} to {currentFieldLocale.toUpperCase()}"
                           >
-                            {#if isTranslating}
-                              <iconify-icon icon="svg-spinners:3-dots-scale" width="14" aria-hidden="true"></iconify-icon>
-                            {:else}
-                              <iconify-icon icon="mdi:auto-fix" width="14" aria-hidden="true"></iconify-icon>
-                            {/if}
+                          			  {#if isTranslating}
+                          			    <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                          			  {:else}
+                          			    <iconify-icon icon="mdi:auto-fix" width="14" aria-hidden="true"></iconify-icon>
+                          			  {/if}
                           </Button>
                         {/if}
                       </div>

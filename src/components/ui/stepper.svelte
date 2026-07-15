@@ -57,7 +57,7 @@ function isClickable(index: number) {
 				type="button"
 				class="w-full flex {orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded transition-all
 					{i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}
-					{isClickable(i) ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}"
+					{isClickable(i) ? '' : 'cursor-not-allowed opacity-50'}
 				onclick={() => isClickable(i) && onStepClick(i)}
 				disabled={!isClickable(i)}
 				aria-current={i === currentStep ? 'step' : undefined}

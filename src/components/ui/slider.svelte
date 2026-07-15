@@ -65,7 +65,7 @@ function handleInput(e: Event) {
 		value={value}
 		aria-labelledby={ariaLabelledby}
 		oninput={handleInput}
-		class="h-2 w-full cursor-pointer appearance-none rounded bg-surface-200 dark:bg-surface-700 accent-primary-500 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+		class="h-2 w-full appearance-none rounded bg-surface-200 dark:bg-surface-700 accent-primary-500 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-50"
 		style="--progress: {percentage}%"
 	/>
 </div>

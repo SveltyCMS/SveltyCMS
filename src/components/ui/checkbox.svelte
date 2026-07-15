@@ -144,8 +144,7 @@ keyboard navigation, and motion-respecting transitions.
 		class={cn(
 			'inline-flex items-start select-none',
 			sizeTokens.gap,
-			disabled && 'opacity-50 cursor-not-allowed',
-			!disabled && 'cursor-pointer'
+			disabled && 'opacity-50 cursor-not-allowed'
 		)}
 		role="group"
 	>

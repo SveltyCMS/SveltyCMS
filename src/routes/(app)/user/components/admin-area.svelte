@@ -922,7 +922,7 @@
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<SystemTooltip title="Copy User ID to clipboard">
 													<Button
-														variant="tertiary"
+														variant="ghost"
 														type="button"
 														aria-label="Copy User ID"
 														onclick={(event: MouseEvent) => {
@@ -948,7 +948,7 @@
 												<span class="max-w-50 truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<SystemTooltip title="Copy Token to clipboard">
 													<Button
-														variant="tertiary"
+														variant="ghost"
 														type="button"
 														aria-label="Copy Token"
 														onclick={(event: MouseEvent) => {

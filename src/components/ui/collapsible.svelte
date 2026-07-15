@@ -71,7 +71,7 @@ function toggle() {
 		aria-controls={contentId}
 		onclick={toggle}
 		onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}
-		class={cn('cursor-pointer select-none', disabled && 'opacity-50 cursor-not-allowed')}
+		class={cn('select-none', disabled && 'opacity-50 cursor-not-allowed')}
 	>
 		{@render trigger()}
 	</div>

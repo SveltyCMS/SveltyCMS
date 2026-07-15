@@ -9,7 +9,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 ### Props
 - `open` (boolean): Bindable open state.
 - `title` (string): Header title (used if no header snippet). Also sets `aria-label`.
-- `size` ('sm' | 'md' | 'lg' | 'xl' | 'fullscreen'): Modal width.
+- `size` ('sm' | 'md' | 'lg' | 'xl' | '2xl' | 'editor' | 'fullscreen'): Modal width.
 - `color` ('surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'): Theme.
 - `header` / `footer` / `children` (Snippet): Content slots.
 - `closeOnEsc` (boolean): Allow Escape to close (default: true).
@@ -37,7 +37,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	interface Props {
 		open?: boolean;
 		title?: string;
-		size?: 'sm' | 'md' | 'lg' | 'xl' | 'editor' | 'fullscreen';
+		size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'editor' | 'fullscreen';
 		color?: 'surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error';
 		class?: string;
 		dialogClass?: string;
@@ -93,6 +93,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		md: 'max-w-lg',
 		lg: 'max-w-2xl',
 		xl: 'max-w-4xl',
+	'2xl': 'max-w-7xl',
 		editor:
 			'w-[min(96vw,82rem)] min-w-[min(96vw,82rem)] max-w-[min(96vw,82rem)] h-[min(90dvh,52rem)] min-h-[min(90dvh,52rem)] max-h-[90dvh] max-md:w-full max-md:min-w-full max-md:max-w-none max-md:h-full max-md:min-h-full max-md:max-h-none m-auto max-md:m-0 shrink-0 max-md:shrink max-md:grow grow-0 max-md:grow overflow-hidden rounded-none border-0',
 		fullscreen: 'h-[100dvh] max-h-[100dvh] w-full max-w-none rounded-none border-0 m-0',
