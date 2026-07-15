@@ -49,8 +49,12 @@ test.describe("Media Gallery", () => {
   });
 
   test("can switch between grid and table views", async ({ page }) => {
-    const gridBtn = page.getByRole("button", { name: /grid view/i });
-    const tableBtn = page.getByRole("button", { name: /table view/i });
+    // Prefer stable testids (aria-label can be lost if Button prop forwarding changes)
+    const gridBtn = page.getByTestId("media-view-grid");
+    const tableBtn = page.getByTestId("media-view-table");
+
+    await expect(gridBtn).toBeVisible({ timeout: 15_000 });
+    await expect(tableBtn).toBeVisible();
 
     // Default is grid
     await expect(gridBtn).toHaveAttribute("aria-pressed", "true");

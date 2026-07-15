@@ -112,11 +112,11 @@ describe("Dispatcher security matrix (real +server)", () => {
   });
 
   describe("Fail-closed namespaces", () => {
-    it("returns 404 for unknown API namespace (admin)", async () => {
+    it("returns 403 for unknown API namespace (admin, fail-closed)", async () => {
       await expectApi(
         "GET",
         { path: "this-namespace-does-not-exist", user: admin, tenantId: "t1", bypass: true },
-        404,
+        403,
       );
     });
 

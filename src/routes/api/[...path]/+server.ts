@@ -500,7 +500,10 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   if (!NAMESPACE_CONFIG[namespace]) {
-    throw new AppError(`API Namespace "/api/${namespace}" not found`, 404, "NAMESPACE_NOT_FOUND");
+    // Fail-closed: unknown namespaces are Forbidden (not 404).
+    // Admin fast-path must not bypass this — avoids advertising valid vs invalid routes.
+    // Integration contract: tests/integration/databases/contract.test.ts Gate 5.
+    throw new AppError(`API Namespace "/api/${namespace}" not found`, 403, "NAMESPACE_FORBIDDEN");
   }
 
   // 🚀 Kick off hot-handler preload on first API request (non-blocking).

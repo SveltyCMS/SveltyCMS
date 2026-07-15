@@ -132,12 +132,14 @@ describe("Auth Contract", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Gate 2 — Collection CRUD Contract
+// Gate 2 — Collection / Config Contract
 // ---------------------------------------------------------------------------
+// Config promotion is plan-first: POST /api/config/plan → POST /api/config/apply
+// with the returned planId. Collections listing must stay healthy regardless of
+// whether the environment has pre-seeded content schemas.
 
-describe("Collection CRUD Contract", () => {
+describe("Collection / Config Contract", () => {
   let adminCookie: string;
-  const testCollectionName = `contract_test_${DB_TYPE}_${Date.now()}`;
 
   beforeAll(async () => {
     await cleanupTestDatabase();
@@ -148,64 +150,47 @@ describe("Collection CRUD Contract", () => {
     await cleanupTestDatabase();
   });
 
-  it("should create a collection via config-sync", async () => {
-    const collectionDef = {
-      name: testCollectionName,
-      description: "Contract test collection",
-      fields: [
-        { name: "title", type: "string", required: true },
-        { name: "status", type: "string" },
-      ],
-    };
-
-    const res = await safeFetch(`${API_BASE}/api/config/plan`, {
+  it("should plan and apply configuration promotion with planId", async () => {
+    const planRes = await safeFetch(`${API_BASE}/api/config/plan`, {
       method: "POST",
       headers: headers({ Cookie: adminCookie }),
-      body: JSON.stringify({ collections: [collectionDef] }),
+      body: JSON.stringify({ mode: "merge" }),
     });
 
-    // The config/plan endpoint should accept the definition
-    // (status 200 or 202 depending on implementation)
-    expect([200, 201, 202]).toContain(res.status);
+    expect([200, 201, 202]).toContain(planRes.status);
+    const planBody = await planRes.json();
+    const plan = planBody?.data ?? planBody;
+    expect(plan?.planId).toBeTruthy();
 
-    // Apply the plan
     const applyRes = await safeFetch(`${API_BASE}/api/config/apply`, {
       method: "POST",
       headers: headers({ Cookie: adminCookie }),
-      body: JSON.stringify({ collections: [collectionDef] }),
+      body: JSON.stringify({ planId: plan.planId, mode: plan.mode ?? "merge" }),
     });
     expect([200, 201, 202]).toContain(applyRes.status);
+    const applyBody = await applyRes.json().catch(() => null);
+    expect(applyBody?.success !== false).toBe(true);
   });
 
-  it("should list the created collection", async () => {
+  it("should reject config apply without planId", async () => {
+    const applyRes = await safeFetch(`${API_BASE}/api/config/apply`, {
+      method: "POST",
+      headers: headers({ Cookie: adminCookie }),
+      body: JSON.stringify({ mode: "merge" }),
+    });
+    expect(applyRes.status).toBe(400);
+  });
+
+  it("should list collections without server error", async () => {
     const res = await safeFetch(`${API_BASE}/api/collections`, {
       headers: headers({ Cookie: adminCookie }),
     });
     expect(res.status).toBe(200);
 
     const data = await res.json();
-    const collections = data?.data || data || [];
-    const found = collections.find(
-      (c: any) => c.name === testCollectionName || c._id === testCollectionName,
-    );
-    expect(found).toBeDefined();
-  });
-
-  it("should return collection details when queried by name", async () => {
-    const res = await safeFetch(`${API_BASE}/api/collections/${testCollectionName}`, {
-      headers: headers({ Cookie: adminCookie }),
-    });
-
-    // May be 200 (found) or 404 (listing endpoint uses a different key).
-    // The contract validates the system doesn't crash or return 5xx.
-    if (res.status === 200) {
-      const data = await res.json();
-      const detail = data?.data || data;
-      expect(detail.name || detail._id).toBeTruthy();
-    } else {
-      // 404 is acceptable if the listing uses a different identifier
-      expect(res.status).toBe(404);
-    }
+    // Accept either a bare array or { data: [...] } wrapper
+    const collections = Array.isArray(data) ? data : (data?.data ?? data?.collections ?? []);
+    expect(Array.isArray(collections)).toBe(true);
   });
 });
 
@@ -439,7 +424,8 @@ describe("Fail-Closed Contract", () => {
       const body = await res.json().catch(() => null);
       expect(body).not.toBeNull();
       // Must include either error, message, or success:false
-      const hasErrorStructure = body.error || body.message || body.success === false;
+      // (message may be a non-empty string — use truthiness, not strict === true)
+      const hasErrorStructure = !!(body.error || body.message || body.success === false);
       expect(hasErrorStructure).toBe(true);
     }
   });

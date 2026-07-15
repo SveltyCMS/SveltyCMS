@@ -744,8 +744,9 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Grid view"
 						aria-pressed={view === 'grid'}
+						data-testid="media-view-grid"
 					>
-						<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
+						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
 					</Button>
 					<Button
 						variant="ghost"
@@ -756,8 +757,9 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Table view"
 						aria-pressed={view === 'table'}
+						data-testid="media-view-table"
 					>
-						<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
+						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"></iconify-icon>
 					</Button>
 				</div>
 
