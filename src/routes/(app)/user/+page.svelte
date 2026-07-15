@@ -416,7 +416,10 @@
 
 				<div class="space-y-4">
 					<!-- Workspace Appearance -->
-					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
+					<div
+						class="pb-4 border-b border-surface-100 dark:border-surface-800"
+						data-testid="workspace-appearance-section"
+					>
 						<div class="flex items-center gap-2 mb-2">
 							<iconify-icon icon="mdi:palette-outline" class="text-surface-500" width={18}></iconify-icon>
 							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Workspace Appearance</p>
@@ -434,8 +437,15 @@
 								{/if}
 							</div>
 						{/if}
-						<Button variant="outline" size="sm" href="/config/appearance" class="w-full text-xs">
-							<iconify-icon icon="mdi:open-in-new" width={14} class="me-1"></iconify-icon>
+						<Button
+							variant="outline"
+							size="sm"
+							href="/config/appearance"
+							class="w-full text-xs"
+							data-testid="open-appearance-settings-btn"
+							aria-label="Open Appearance Settings"
+						>
+							<iconify-icon icon="mdi:open-in-new" width={14} class="me-1" aria-hidden="true"></iconify-icon>
 							Open Appearance Settings
 						</Button>
 					</div>

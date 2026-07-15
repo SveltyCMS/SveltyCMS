@@ -40,14 +40,36 @@ test.describe.serial("User Profile Management", () => {
   });
 
   test("Workspace Appearance link navigates to appearance settings", async ({ page }) => {
-    await page.goto("/user");
-    await expect(page.getByText("Workspace Appearance")).toBeVisible({
-      timeout: 10_000,
-    });
-    await page.getByRole("button", { name: "Open Appearance Settings" }).click();
-    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 10_000 });
-    await expect(page.getByText("My Overrides")).toBeVisible({
-      timeout: 10_000,
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
+
+    // Fail fast if the root error boundary fired (same class of flake as account-smoke)
+    const systemError = page.getByRole("heading", { name: /system error/i });
+    if (await systemError.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      const detail = await page
+        .locator(".font-mono, pre, code")
+        .first()
+        .textContent()
+        .catch(() => "");
+      throw new Error(`User profile hit System Error boundary: ${detail?.trim() || "(no detail)"}`);
+    }
+
+    // Wait for profile shell, then Preferences column (may sit below fold on narrow CI viewports)
+    await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
+    const appearance = page.getByTestId("workspace-appearance-section");
+    await appearance.scrollIntoViewIfNeeded();
+    await expect(appearance).toBeVisible({ timeout: 15_000 });
+    await expect(appearance).toContainText(/workspace appearance/i);
+
+    // Button component with href renders as <a role="button"> — use stable testid
+    const openBtn = page.getByTestId("open-appearance-settings-btn");
+    await openBtn.scrollIntoViewIfNeeded();
+    await expect(openBtn).toBeVisible({ timeout: 10_000 });
+    await openBtn.click();
+
+    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 3, name: /my overrides/i })).toBeVisible({
+      timeout: 15_000,
     });
   });
 
