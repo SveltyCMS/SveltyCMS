@@ -17,6 +17,7 @@ import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Button from '@components/ui/button.svelte';
 
 interface Props {
 	filteredFiles?: (MediaBase | MediaImage)[];
@@ -143,7 +144,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 					<div class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						Name
 					</div>
-					<div class="w-9 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
+					<div class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						<span class="sr-only">Actions</span>
 					</div>
 				</div>
@@ -191,14 +192,33 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							</div>
 						</div>
 
-						<div class="shrink-0" role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
-							<MediaTableRowMenu
-								{file}
-								onDetails={() => onOpenFileDetails(file)}
-								onEdit={() => onEditImage(file as MediaImage)}
-								onTags={() => openTagEditor(file as MediaImage)}
-								onDelete={() => ondeleteImage(file)}
-							/>
+						<div
+							class="flex shrink-0 items-center gap-1"
+							role="cell"
+							tabindex="-1"
+							onclick={(e) => e.stopPropagation()}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
+						>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onclick={() => onEditImage(file as MediaImage)}
+								aria-label="Edit {file.filename}"
+								class="h-7! w-7! min-w-0! px-0! hover:text-primary-500 dark:hover:text-primary-400"
+							>
+								<iconify-icon icon="mdi:pencil" width="15"></iconify-icon>
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onclick={() => ondeleteImage(file)}
+								aria-label="Delete {file.filename}"
+								class="h-7! w-7! min-w-0! px-0! hover:text-error-500 dark:hover:text-error-400"
+							>
+								<iconify-icon icon="mdi:trash-can-outline" width="15"></iconify-icon>
+							</Button>
 						</div>
 					</div>
 				{/each}

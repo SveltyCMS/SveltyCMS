@@ -56,6 +56,7 @@ Features:
   	let taggingFile = $state<MediaImage | null>(null);
   	let fileUploadInput = $state<HTMLInputElement>();
   	let failedImages = $state(new SvelteSet<string>());
+	let touchActiveId = $state<string | null>(null);
 
   const BATCH_SIZE = 60;
   let visibleCount = $state(BATCH_SIZE);
@@ -192,6 +193,7 @@ Features:
   tabindex="-1"
   aria-label="Media asset grid"
   data-testid="media-grid"
+  ontouchstart={() => { touchActiveId = null; }}
 >
   {#if filteredFiles.length === 0}
     <div
@@ -240,6 +242,7 @@ Features:
         tabindex="-1"
         aria-selected={isSelected}
         in:fade={{ duration: 180 }}
+        ontouchstart={(e) => { e.stopPropagation(); touchActiveId = fileId; }}
       >
         {#if isSelected}
           <div class="absolute inset-y-0 inset-s-0 z-10 w-0.5 bg-primary-500" aria-hidden="true"></div>
@@ -266,10 +269,11 @@ Features:
         <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg">
           <Button
             type="button"
-            class="relative h-full w-full text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+            variant="ghost"
             onclick={() => handleItemClick(file)}
             onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
             aria-label="Preview {file.filename}"
+            class="relative h-full! w-full! rounded-none! px-0! text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
           >
             {#if file.type === "image" && !failedImages.has(fileId)}
               <div
@@ -309,7 +313,7 @@ Features:
 
 
             <div
-              class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+              class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId === fileId ? 'opacity-100' : 'opacity-0'}"
             >
               <p class="truncate text-[11px] font-medium leading-tight text-white" title={file.filename}>
                 {file.filename}
@@ -319,7 +323,7 @@ Features:
 
 
           <div
-            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId === fileId ? 'opacity-100' : 'opacity-0'}"
             data-testid="media-grid-actions"
           >
             <MediaGridActionTooltip

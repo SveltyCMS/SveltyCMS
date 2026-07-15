@@ -71,7 +71,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				aria-pressed={isComparing}
 				aria-label="Toggle compare mode"
 			>
-				<iconify-icon icon="mdi:history" width="18" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:compare-horizontal" width="18" aria-hidden="true"></iconify-icon>
 			</button>
 		</div>
 
