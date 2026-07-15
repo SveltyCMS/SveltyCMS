@@ -334,6 +334,24 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"]),
   },
   {
+    name: "Security Regression Tests",
+    ciJob: "whitebox",
+    estimatedMs: 1000,
+    remediation:
+      "bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () =>
+      runCommand("bun", [
+        "test",
+        "tests/unit/hooks/defense-in-depth.test.ts",
+        "tests/unit/hooks/authentication.test.ts",
+        "tests/unit/hooks/authorization.test.ts",
+        "tests/unit/role-permission-access.test.ts",
+        "tests/unit/hooks/setup.test.ts",
+        "tests/unit/hooks/security-headers.test.ts",
+      ]),
+  },
+  {
     name: "Docs Lint",
     // Always runs — no corresponding CI job (local-only validation)
     estimatedMs: 2000,
