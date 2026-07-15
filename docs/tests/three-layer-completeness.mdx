@@ -57,6 +57,60 @@ tags:
 
 Do **not** push API matrices into Playwright. Do **not** claim E2E coverage from unit mocks.
 
+### Thin helpers fit (unit only)
+
+Shared code: `tests/unit/utils/mock-event.ts` + `rbac-matrix.ts` (see [API Unit Helpers](./api-unit-helpers.mdx)).
+
+| Pattern                                    | Helper                          | Layer       |
+| ------------------------------------------ | ------------------------------- | ----------- |
+| Build event + dispatch                     | `invokeApi` / `expectApi`       | Unit        |
+| RBAC table (role × method × path → status) | `runRbacMatrix`                 | Unit        |
+| GraphQL auth gate                          | `invokeGraphql`                 | Unit        |
+| Multipart media                            | `mockFormData` + `invokeApi`    | Unit        |
+| Namespace completeness                     | `namespace-ownership.test.ts`   | Unit        |
+| Real cookies / multi-DB                    | `safeFetch` + integration suite | Integration |
+| Product journey                            | Playwright + test ids           | E2E         |
+
+---
+
+## Recipes (copy patterns)
+
+### RBAC (unit → integration → E2E)
+
+```ts
+// Unit — dispatcher authz only
+await runRbacMatrix([
+  {
+    name: "editor denied",
+    method: "POST",
+    path: "collections/posts",
+    user: editor,
+    roles: editorNoPerms,
+    expectedStatus: 403,
+  },
+]);
+// Integration — real session cookie as editor → same path returns 403
+// E2E — editor UI does not show admin-only actions
+```
+
+### Collections (unit → integration → E2E)
+
+```ts
+// Unit — missing tenant / unauth edges with mocks
+await expectApi("GET", { path: "collections", user: admin, tenantId: null }, [400, 403]);
+// Integration — full CRUD + publish filters on each DB
+// E2E — open builder, save schema, create entry (collection-builder-flow helpers)
+```
+
+### GraphQL
+
+```ts
+// Unit
+await invokeGraphql("{ __typename }", {}, { user: null, bypass: false }); // 401
+// Integration — tests/integration/api/graphql.test.ts
+// E2E — do not re-test GraphQL in the browser
+```
+
 ---
 
 ## What “100%” means per layer

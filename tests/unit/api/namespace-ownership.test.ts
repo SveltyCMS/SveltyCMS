@@ -9,7 +9,11 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { _API_NAMESPACE_KEYS as API_NAMESPACE_KEYS } from "@src/routes/api/[...path]/+server";
+
+const ROOT = process.cwd();
 
 /**
  * Map: namespace → test file paths that cover it (unit and/or integration).
@@ -131,5 +135,20 @@ describe("API namespace ownership inventory (completeness Phase D)", () => {
     const live = new Set(API_NAMESPACE_KEYS);
     const stale = Object.keys(NAMESPACE_OWNERS).filter((k) => !live.has(k));
     expect(stale, `Remove stale NAMESPACE_OWNERS keys: ${stale.join(", ")}`).toEqual([]);
+  });
+
+  it("every declared owner path exists on disk", () => {
+    const missingFiles: string[] = [];
+    for (const [ns, owners] of Object.entries(NAMESPACE_OWNERS)) {
+      for (const rel of owners) {
+        if (!existsSync(join(ROOT, rel))) {
+          missingFiles.push(`${ns} → ${rel}`);
+        }
+      }
+    }
+    expect(
+      missingFiles,
+      `Owner paths missing (fix NAMESPACE_OWNERS):\n${missingFiles.join("\n")}`,
+    ).toEqual([]);
   });
 });

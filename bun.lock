@@ -74,7 +74,7 @@
         "tailwindcss": "^4.3.2",
         "tsx": "^4.23.1",
         "typescript": "^6.0.3",
-        "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.67.0",
+        "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.69.0",
         "uqr": "^0.1.3",
         "valibot": "^1.4.2",
         "ws": "^8.21.1",
@@ -127,30 +127,6 @@
         "mysql2": "^3.23.0",
         "postgres": "^3.4.9",
       },
-    },
-    "packages/core": {
-      "name": "@sveltycms/core",
-      "version": "0.0.7",
-      "peerDependencies": {
-        "typescript": ">=5.0.0",
-        "valibot": "^1.4.0",
-      },
-      "optionalPeers": [
-        "typescript",
-      ],
-    },
-    "packages/widgets": {
-      "name": "@sveltycms/widgets",
-      "version": "0.0.7",
-      "peerDependencies": {
-        "@sveltycms/core": "*",
-        "svelte": "^5.0.0",
-        "typescript": ">=5.0.0",
-        "valibot": "^1.4.0",
-      },
-      "optionalPeers": [
-        "typescript",
-      ],
     },
   },
   "overrides": {
@@ -707,10 +683,6 @@
     "@sveltejs/vite-plugin-svelte": ["@sveltejs/vite-plugin-svelte@7.2.0", "", { "dependencies": { "deepmerge": "^4.3.1", "magic-string": "^0.30.21", "obug": "^2.1.0", "vitefu": "^1.1.2" }, "peerDependencies": { "svelte": "^5.46.4", "vite": "^8.0.0-beta.7 || ^8.0.0" } }, "sha512-1SpkuMSRLfugrVX+IrKfE1RUegzo8AQzKQ6qQPfVzbcWi5IhuTPaKb5ZrLpucleFznkc4/RTeSPoRnGWFxX+EQ=="],
 
     "@sveltejs/vite-plugin-svelte-inspector": ["@sveltejs/vite-plugin-svelte-inspector@5.0.2", "", { "dependencies": { "obug": "^2.1.0" }, "peerDependencies": { "@sveltejs/vite-plugin-svelte": "^6.0.0-next.0", "svelte": "^5.0.0", "vite": "^6.3.0 || ^7.0.0" } }, "sha512-TZzRTcEtZffICSAoZGkPSl6Etsj2torOVrx6Uw0KpXxrec9Gg6jFWQ60Q3+LmNGfZSxHRCZL7vXVZIWmuV50Ig=="],
-
-    "@sveltycms/core": ["@sveltycms/core@workspace:packages/core"],
-
-    "@sveltycms/widgets": ["@sveltycms/widgets@workspace:packages/widgets"],
 
     "@tailwindcss/forms": ["@tailwindcss/forms@0.5.11", "", { "dependencies": { "mini-svg-data-uri": "^1.2.3" }, "peerDependencies": { "tailwindcss": ">=3.0.0 || >= 3.0.0-alpha.1 || >= 4.0.0-alpha.20 || >= 4.0.0-beta.1" } }, "sha512-h9wegbZDPurxG22xZSoWtdzc41/OlNEUQERNqI/0fOwa2aVlWGu7C35E/x6LDyD3lgtztFSSjKZyuVM0hxhbgA=="],
 
@@ -1680,7 +1652,7 @@
 
     "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
-    "uWebSockets.js": ["uWebSockets.js@github:uNetworking/uWebSockets.js#e0f56eb", {}, "uNetworking-uWebSockets.js-e0f56eb", "sha512-yavEkGZoIuDFwnZCBEGF6Vo4dJxmIphYTtyITQ86riShfJh2B4b3H+Uy3Cc6Im/vXUKIhZARkNsXlLpyzbQleA=="],
+    "uWebSockets.js": ["uWebSockets.js@github:uNetworking/uWebSockets.js#dddd8ff", {}, "uNetworking-uWebSockets.js-dddd8ff", "sha512-fDaDQQEj+Jn8LsDXGGE629Nna1MGnRS8j9kxsaqtPHBMq3pBDIbKs2sGxk1QMWpQ78+o4F9jV/tuBZZqfanBWQ=="],
 
     "undici": ["undici@7.28.0", "", {}, "sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA=="],
 
