@@ -227,7 +227,7 @@
 						<button
 							onclick={modalEditAvatar}
 							title={userpage_editavatar()}
-							class="absolute bottom-0 right-0 p-1.5 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+							class="absolute bottom-0 inset-e-0 p-1.5 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
 						>
 							<iconify-icon icon="mdi:camera-plus" width={16}></iconify-icon>
 						</button>
@@ -268,6 +268,8 @@
 						size="sm"
 						leadingIcon="bi:pencil-fill"
 						onclick={modalUserForm}
+						aria-label="Edit User Settings"
+						data-testid="edit-user-settings-btn"
 						class="w-full justify-start"
 					>
 						{userpage_edit_usersetting()}
@@ -468,7 +470,7 @@
 					<div>
 						<button
 							onclick={modalPrivacyData}
-							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-left"
+							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-start"
 						>
 							<iconify-icon icon="mdi:shield-account" class="text-surface-500" width={18}></iconify-icon>
 							<div class="flex-1">
