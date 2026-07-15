@@ -6,13 +6,14 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-07-10"
+updated: "2026-07-15"
 tags:
   - "architecture"
   - "media"
   - "dam"
   - "svelte5"
   - "ai-tagging"
+  - "virtual-folders"
 ---
 
 # Media System Architecture & Guide
@@ -29,6 +30,11 @@ The system follows a strict 4-layer architecture to ensure storage and framework
 graph TB
     subgraph "Client Layer (Svelte 5 Runes)"
         UI[Media Gallery UI]
+        GRID[media-grid.svelte]
+        TABLE[media-table.svelte]
+        FOLDERS[media-folders.svelte]
+        CRUMB[Breadcrumb drop targets]
+        DND[media-dnd.ts]
         MODAL[media-details-modal.svelte]
         UW[local-upload.svelte]
         UPLOAD[upload-client.ts]
@@ -44,6 +50,8 @@ graph TB
         API3[GET /api/media/analytics]
         API4[GET /api/media/bulk-download]
         API5[GET /api/media/version/compare]
+        API6[POST /api/media/move]
+        API7[system-virtual-folder]
     end
 
     subgraph "Media Engine (src/utils/media/)"
@@ -57,6 +65,7 @@ graph TB
         BULK[bulk-download.ts]
         STREAM[streaming-upload.ts]
         VERSIONS[version-history.ts]
+        DNDUTIL[media-dnd.ts helpers]
     end
 
     subgraph "Infrastructure"
@@ -65,6 +74,15 @@ graph TB
         STORE[Storage: Local/S3/R2]
     end
 
+    UI --> GRID
+    UI --> TABLE
+    UI --> CRUMB
+    GRID --> DND
+    TABLE --> DND
+    FOLDERS --> DND
+    CRUMB --> DND
+    DND --> API6
+    FOLDERS --> API7
     UI --> VGRID
     VGRID --> API1
     UI --> MODAL
@@ -79,6 +97,7 @@ graph TB
     WGPU --> UW
     EDITOR --> MS
     API2 --> MS
+    API6 --> DB
     API3 --> ANALYTICS
     API4 --> BULK
     API5 --> VERSIONS
@@ -161,12 +180,75 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 ---
 
+## 📁 Virtual Folders & Drag-and-Drop Moves
+
+Assets live in **virtual folders**: a logical `folderId` on each media row, not a physical directory tree. Folder definitions are stored as system virtual folders (`/api/system-virtual-folder`). Moving media updates metadata only — blobs and share URLs stay put.
+
+### Data model
+
+| Field on media | Meaning                                             |
+| :------------- | :-------------------------------------------------- |
+| `folderId`     | Virtual folder ID, or `null` / unset for media root |
+| `path` / `url` | Storage-relative / public URL (unchanged by moves)  |
+
+### Move pipeline
+
+```mermaid
+sequenceDiagram
+    participant Grid as media-grid / media-table
+    participant Target as Sidebar folder OR breadcrumb
+    participant DND as media-dnd.ts
+    participant API as POST /api/media/move
+    participant DB as media.files.move
+
+    Grid->>Grid: beginMediaDrag(ids) multi-select aware
+    Grid->>Target: drop application/x-sveltycms-media-ids
+    Target->>DND: moveMediaToFolder(ids, targetFolderId)
+    DND->>API: JSON fileIds + targetFolderId
+    API->>DB: UPDATE folderId (tenant-scoped)
+    DB-->>API: movedCount
+    DND-->>Grid: mediaMoved event → optimistic UI + invalidateAll
+```
+
+### Equivalent drop targets
+
+On desktop, **sidebar** and **breadcrumb** are first-class peers — same payload, same API, same result:
+
+| Drop surface                | Component / location                  | Targets available                     |
+| :-------------------------- | :------------------------------------ | :------------------------------------ |
+| Sidebar virtual folder tree | `media-folders.svelte` (left sidebar) | Full tree + Media Root                |
+| Gallery path breadcrumbs    | `mediagallery/+page.svelte`           | Ancestor crumbs (incl. Media Gallery) |
+
+| Drag source          | Notes                                                                           |
+| :------------------- | :------------------------------------------------------------------------------ |
+| `media-grid.svelte`  | Thumbnail cards; multi-select moves the whole set when dragged item is selected |
+| `media-table.svelte` | Desktop table + mobile list rows; same multi-select rules                       |
+
+**Mobile**: limited room for the sidebar — users drag (or select + tap) onto **breadcrumb parents**. Desktop users may use either surface interchangeably.
+
+**Shared client module**: `src/utils/media/media-dnd.ts`
+
+- MIME: `application/x-sveltycms-media-ids`
+- `resolveMediaDragIds` — Windows Explorer–style selection expansion
+- `beginMediaDrag` / `endMediaDrag` — DataTransfer + multi-item ghost
+- `moveMediaToFolder` — `POST /api/media/move` + `mediaMoved` document event
+
+**Server**: `handleMediaMove` → `MediaNamespace.move` → `dbAdapter.media.files.move`.
+
+### Left sidebar context
+
+On `/mediagallery`, the left sidebar shows virtual folders and a back-to-collections control (not dual Collections + Media section headers). On collection routes, only the collections tree is shown. See `left-sidebar.svelte`.
+
+---
+
 ## 🗂️ DAM Admin UI Integration
 
 The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third-party asset browser required.
 
 | Feature                   | UI Surface                                               | API / Utility                                           |
 | :------------------------ | :------------------------------------------------------- | :------------------------------------------------------ |
+| **Virtual folder move**   | Grid/table drag → sidebar folders or breadcrumb parents  | `POST /api/media/move` via `media-dnd.ts`               |
+| **Folder tree CRUD**      | Sidebar `media-folders.svelte` + gallery “New Folder”    | `/api/system-virtual-folder`                            |
 | **Bulk archive download** | Selection toolbar in `mediagallery/+page.svelte`         | `GET /api/media/bulk-download?id=…` → TAR.GZ            |
 | **Storage analytics**     | Dashboard widget `media-storage-analytics-widget.svelte` | `GET /api/media/analytics` (60s poll)                   |
 | **Version diff**          | Versions tab in `media-details-modal.svelte`             | `GET /api/media/version/{id}/compare?from=&to=`         |
@@ -214,12 +296,14 @@ For comprehensive performance details regarding media hashing, metadata extracti
 
 ## 📚 API Reference
 
-For detailed developer endpoints (upload, transform, job polling, focal points), read the comprehensive [**Media Reference**](../api/media.mdx).
+For detailed developer endpoints (upload, transform, **move**, job polling, focal points), read the comprehensive [**Media Reference**](../api/media.mdx).
 
 ---
 
 ## Related
 
 - [Architecture Overview](./index.mdx)
+- [Media Reference (API)](../api/media.mdx) — `POST /api/media/move`, folders, DAM endpoints
+- [Media Sharing Endpoint](../api/media-sharing.mdx) — share links survive virtual folder moves
 - [Security Overview](../security/index.mdx)
 - [State Management](./state-management.mdx)

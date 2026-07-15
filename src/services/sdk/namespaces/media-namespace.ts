@@ -277,6 +277,42 @@ export class MediaNamespace {
     }
   }
 
+  /**
+   * Move one or more media assets into a virtual folder (or root when targetFolderId is null/undefined).
+   * Updates folderId only — physical storage paths are unchanged.
+   */
+  async move(
+    fileIds: string[],
+    targetFolderId?: string | null,
+    options: TenantOptions = {},
+  ): Promise<DatabaseResult<{ movedCount: number }>> {
+    try {
+      const ids = [...new Set((fileIds ?? []).filter(Boolean))];
+      if (ids.length === 0) throw new AppError("At least one media ID is required", 400);
+
+      const { tenantId } = options;
+      // Root destination: null clears folderId (virtual root)
+      const result = await this._dbAdapter.media.files.move(
+        ids as DatabaseId[],
+        (targetFolderId || null) as DatabaseId,
+        tenantId as DatabaseId,
+      );
+
+      if (result.success) {
+        this.invalidateCache(tenantId);
+        if (targetFolderId) this.invalidateCache(tenantId, undefined, targetFolderId);
+      }
+
+      return result;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
+    }
+  }
+
   async manipulate(
     id: string,
     manipulations: any,

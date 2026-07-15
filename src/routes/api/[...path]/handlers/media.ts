@@ -183,6 +183,7 @@ async function handlePostRoutes(
   if (method === "bulk-download") return handleMediaBulkDownload(event, cms, tenantId);
   if (method === "share") return handleMediaShareCreate(event, cms, tenantId, user, segments);
   if (method === "stream") return handleMediaStreamUpload(event, cms, tenantId, user);
+  if (method === "move") return handleMediaMove(event, cms, tenantId, user);
   if (method === "version") {
     if (segments[3] === "restore")
       return handleMediaVersionRestore(event, cms, tenantId, user, segments);
@@ -240,6 +241,67 @@ export async function handleMediaList(
       prefix: url.searchParams.get("prefix") || undefined,
     }),
   );
+}
+
+/**
+ * Move media assets into a virtual folder (or media root).
+ * POST /api/media/move
+ * Body: { fileIds: string[], targetFolderId?: string | null }
+ *
+ * Virtual move only — updates folderId; does not relocate storage blobs.
+ */
+export async function handleMediaMove(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media move", 403, "FORBIDDEN");
+  }
+
+  let body: { fileIds?: unknown; targetFolderId?: unknown };
+  try {
+    body = await event.request.json();
+  } catch {
+    throw new AppError("Invalid JSON body", 400);
+  }
+
+  const rawIds = body?.fileIds;
+  if (!Array.isArray(rawIds) || rawIds.length === 0) {
+    throw new AppError("fileIds must be a non-empty array", 400);
+  }
+
+  const fileIds = [
+    ...new Set(rawIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)),
+  ];
+  if (fileIds.length === 0) {
+    throw new AppError("fileIds must contain valid media IDs", 400);
+  }
+
+  // null / undefined / "" / "root" / "global" → media root (folderId = null)
+  const rawTarget = body?.targetFolderId;
+  let targetFolderId: string | null = null;
+  if (typeof rawTarget === "string" && rawTarget.trim()) {
+    const t = rawTarget.trim();
+    if (t !== "root" && t !== "global") {
+      targetFolderId = t;
+    }
+  }
+
+  const result = await cms.media.move(fileIds, targetFolderId, { tenantId });
+  if (!result.success) {
+    throw (
+      result.error ||
+      new AppError(result.message || "Failed to move media", 500, "MEDIA_MOVE_FAILED")
+    );
+  }
+
+  return successResponse(event, {
+    movedCount: result.data?.movedCount ?? fileIds.length,
+    fileIds,
+    targetFolderId,
+  });
 }
 
 export async function handleMediaReferences(

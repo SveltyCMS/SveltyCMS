@@ -1,11 +1,13 @@
 <!--
-@file src/routes/(app)/mediagallery/MediaGrid.svelte
+@file src/routes/(app)/mediagallery/media-grid.svelte
 @component
 **Grid view component for the media gallery**
-Features:
+
+### Features:
 - Keyboard navigation (Enter/Space to select)
 - Multi-select integration
 - High-contrast focus states
+- Drag media (or multi-selection) onto sidebar virtual folders
 -->
 
 <script lang="ts">
@@ -14,6 +16,11 @@ Features:
   import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
   import MediaGridActionTooltip from "./media-grid-action-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
+  import {
+    beginMediaDrag,
+    endMediaDrag,
+    resolveMediaDragIds,
+  } from "@utils/media/media-dnd";
   import { formatBytes } from "@utils/utils";
   import { SvelteSet } from "svelte/reactivity";
   import { fade, scale } from "svelte/transition";
@@ -41,6 +48,9 @@ Features:
     onUpdateImage = () => {},
     onOpenFileDetails = () => {},
   }: Props = $props();
+
+  /** Active drag count for card opacity feedback */
+  let draggingIds = $state(new SvelteSet<string>());
 
   const minColWidthCss = $derived(
     gridSize === "tiny"
@@ -115,6 +125,32 @@ Features:
     } else {
       selectedFiles.add(fileId);
     }
+  }
+
+  function resolveFileId(file: MediaBase | MediaImage): string {
+    return file._id?.toString() || file.filename;
+  }
+
+  function handleDragStart(e: DragEvent, file: MediaBase | MediaImage) {
+    const target = e.target as HTMLElement | null;
+    // Don't start a media drag from interactive chrome (checkbox, action buttons)
+    if (target?.closest("[data-no-drag]")) {
+      e.preventDefault();
+      return;
+    }
+
+    const ids = resolveMediaDragIds(resolveFileId(file), selectedFiles);
+    const written = beginMediaDrag(e.dataTransfer, ids);
+    if (!written.length) {
+      e.preventDefault();
+      return;
+    }
+    draggingIds = new SvelteSet(written);
+  }
+
+  function handleDragEnd() {
+    draggingIds = new SvelteSet();
+    endMediaDrag();
   }
 
   function handleItemClick(file: MediaBase | MediaImage) {
@@ -232,13 +268,20 @@ Features:
     {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
+      {const isDragging = draggingIds.has(fileId)}
 
       <div
-        class="group relative flex h-full flex-col focus-within:outline-none
-          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
+        class="group relative flex h-full flex-col focus-within:outline-none cursor-grab active:cursor-grabbing
+          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}
+          {isDragging ? 'opacity-50' : ''}"
         role="gridcell"
         tabindex="-1"
         aria-selected={isSelected}
+        aria-grabbed={isDragging}
+        draggable="true"
+        ondragstart={(e) => handleDragStart(e, file)}
+        ondragend={handleDragEnd}
+        title="Drag to a folder in the sidebar to move"
         in:fade={{ duration: 180 }}
       >
         {#if isSelected}
@@ -248,6 +291,7 @@ Features:
         {#if isSelectionMode || isSelected}
           <div
             class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
+            data-no-drag
             in:scale={{ duration: 180 }}
             role="presentation"
             onclick={(e) => e.stopPropagation()}
@@ -264,12 +308,17 @@ Features:
         {/if}
 
         <div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg">
-          <Button
-            type="button"
-            class="relative h-full w-full text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+          <!--
+            Use a div (not <button>) so HTML5 drag can start from the thumbnail.
+            Native buttons cancel dragstart in Chromium when nested under a draggable parent.
+          -->
+          <div
+            role="button"
+            tabindex="0"
+            class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
             onclick={() => handleItemClick(file)}
             onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
-            aria-label="Preview {file.filename}"
+            aria-label="Preview {file.filename}. Drag to move into a folder."
           >
             {#if file.type === "image" && !failedImages.has(fileId)}
               <div
@@ -282,6 +331,7 @@ Features:
                     alt=""
                     class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
                     aria-hidden="true"
+                    draggable="false"
                     crossorigin="anonymous"
                   />
                 {/if}
@@ -289,11 +339,12 @@ Features:
                 <img
                   src={file.url}
                   alt=""
-                  class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02]"
+                  class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
                   style:object-position={file.metadata?.focalPoint
                     ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
                     : "center"}
                   loading="lazy"
+                  draggable="false"
                   crossorigin="anonymous"
                   onerror={() => failedImages.add(fileId)}
                   onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
@@ -317,11 +368,12 @@ Features:
                 {file.filename}
               </p>
             </div>
-          </Button>
+          </div>
 
 
           <div
             class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            data-no-drag
             data-testid="media-grid-actions"
           >
             <MediaGridActionTooltip

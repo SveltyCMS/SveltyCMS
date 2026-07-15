@@ -7,6 +7,7 @@
 - Unified chrome tokens (matches entry-list / admin tables)
 - `createSmartTable` client mode for local page + column sort
 - Keyboard-accessible rows + multi-select (parent-owned set)
+- Drag multi-select to sidebar folders or breadcrumbs (same payload as grid)
 - Responsive mobile list + desktop table
 - Graceful image fallbacks
 -->
@@ -26,6 +27,11 @@ import SmartTableShell from "@components/ui/smart-table/smart-table-shell.svelte
 import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
 import MediaTableRowMenu from "./media-table-row-menu.svelte";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
+import {
+	beginMediaDrag,
+	endMediaDrag,
+	resolveMediaDragIds,
+} from "@utils/media/media-dnd";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
 import Checkbox from "@components/ui/checkbox.svelte";
@@ -125,6 +131,27 @@ function toggleSelection(file: MediaBase | MediaImage) {
 	}
 }
 
+function resolveFileId(file: MediaBase | MediaImage): string {
+	return file._id?.toString() || file.filename;
+}
+
+function handleDragStart(e: DragEvent, file: MediaBase | MediaImage) {
+	const target = e.target as HTMLElement | null;
+	if (target?.closest("[data-no-drag]")) {
+		e.preventDefault();
+		return;
+	}
+	const ids = resolveMediaDragIds(resolveFileId(file), selectedFiles);
+	const written = beginMediaDrag(e.dataTransfer, ids);
+	if (!written.length) {
+		e.preventDefault();
+	}
+}
+
+function handleDragEnd() {
+	endMediaDrag();
+}
+
 function handleRowClick(file: MediaBase | MediaImage) {
 	if (!isSelectionMode) {
 		onOpenFileDetails(file);
@@ -193,15 +220,19 @@ function onUpdateRowsPerPage(rows: number) {
 					{@const isSelected = selectedFiles.has(fileId)}
 
 					<div
-						class="flex cursor-pointer items-center gap-3 border-b border-s-2 border-s-transparent border-surface-200 px-2 py-3 dark:border-surface-800/80
+						class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-200 px-2 py-3 active:cursor-grabbing dark:border-surface-800/80
 							{isSelected ? `border-s-primary-500 ${SMART_TABLE_ROW_SELECTED}` : SMART_TABLE_ROW_HOVER}"
 						role="row"
 						tabindex="0"
 						aria-selected={isSelected}
+						draggable="true"
+						title="Drag to a folder or breadcrumb to move"
+						ondragstart={(e) => handleDragStart(e, file)}
+						ondragend={handleDragEnd}
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 					>
-						<div class="shrink-0" role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
+						<div class="shrink-0" data-no-drag role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
 							<Checkbox
 								class="w-auto"
 								checked={isSelected}
@@ -215,7 +246,7 @@ function onUpdateRowsPerPage(rows: number) {
 						<div class="shrink-0" role="cell">
 							<div class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded">
 								{#if file.type === 'image' && !failedImages.has(fileId)}
-									<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
+									<img src={file.url} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
 								{:else if file.type === 'image'}
 									<iconify-icon icon="mdi:image-off-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 								{:else}
@@ -231,7 +262,7 @@ function onUpdateRowsPerPage(rows: number) {
 							</div>
 						</div>
 
-						<div class="shrink-0" role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
+						<div class="shrink-0" data-no-drag role="cell" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
 							<MediaTableRowMenu
 								{file}
 								onDetails={() => onOpenFileDetails(file)}
@@ -303,15 +334,20 @@ function onUpdateRowsPerPage(rows: number) {
 						{@const isSelected = selectedFiles.has(fileId)}
 
 						<tr
-							class="group cursor-pointer border-b border-surface-200 align-middle dark:border-surface-800/80
+							class="group cursor-grab border-b border-surface-200 align-middle active:cursor-grabbing dark:border-surface-800/80
 								{isSelected ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
 							onclick={() => handleRowClick(file)}
 							onkeydown={(e) => handleKeyDown(e, file)}
 							tabindex="0"
 							aria-selected={isSelected}
+							draggable="true"
+							title="Drag to a folder or breadcrumb to move"
+							ondragstart={(e) => handleDragStart(e, file)}
+							ondragend={handleDragEnd}
 						>
 							<td
 								class="media-table-select {SMART_TABLE_TD} {pinCellClass('start')} w-9 shrink-0 border-s-2! {isSelected ? 'border-s-primary-500!' : 'border-s-transparent!'}"
+								data-no-drag
 								onclick={(e) => e.stopPropagation()}
 							>
 								<div class="flex justify-center">
@@ -328,7 +364,7 @@ function onUpdateRowsPerPage(rows: number) {
 							<td class="media-table-preview {SMART_TABLE_TD} w-16 shrink-0">
 								<div class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12">
 									{#if file.type === 'image' && !failedImages.has(fileId)}
-										<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
+										<img src={file.url} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
 									{:else if file.type === 'image'}
 										<iconify-icon icon="mdi:image-off-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 									{:else}
@@ -346,7 +382,7 @@ function onUpdateRowsPerPage(rows: number) {
 							<td class="media-table-type {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! md:table-cell">
 								<span class="font-mono text-[10px] uppercase text-surface-500 dark:text-surface-400">{typeLabel(file)}</span>
 							</td>
-							<td class="media-table-actions {SMART_TABLE_TD} {pinCellClass('end')} w-11 shrink-0" onclick={(e) => e.stopPropagation()}>
+							<td class="media-table-actions {SMART_TABLE_TD} {pinCellClass('end')} w-11 shrink-0" data-no-drag onclick={(e) => e.stopPropagation()}>
 								<MediaTableRowMenu
 									{file}
 									onDetails={() => onOpenFileDetails(file)}

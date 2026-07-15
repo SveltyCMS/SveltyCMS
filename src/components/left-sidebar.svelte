@@ -2,27 +2,27 @@
 @file src/components/left-sidebar.svelte
 
 @component
-**LeftSidebar component displaying collection fields, publish options and translation status.**
+**LeftSidebar — context-aware primary navigation**
+
+Route-driven sidebar content (no dual collapsible section headers):
+- Default / collections → collection tree only
+- Media gallery → virtual folders + back to collections
+- System settings → SettingsMenu
 
 @example
 <LeftSidebar />
 
-#### Props
-- `mode` {object} - The current mode object from the mode store
-- `collection` {object} - The current collection object from the collection store
-
-#### Features
-- Displays collection fields
-- Displays publish options
-- Displays translation status
-- Optimized event handlers
+### Features:
+- Context-switched collections tree vs media folders
+- Pinned items (when any)
+- User / theme / language / sign-out footer
 -->
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-			import Input from '@components/ui/input.svelte';
-			// Native UI Components
-			import Dropdown from "@components/ui/dropdown.svelte";
+	import Input from '@components/ui/input.svelte';
+	// Native UI Components
+	import Dropdown from "@components/ui/dropdown.svelte";
 	import Collections from '@src/components/collections.svelte';
 	import SettingsMenu from '@src/components/settings-menu.svelte';
 	import MediaFolders from '@src/components/media-folders.svelte';
@@ -34,7 +34,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
-	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
+	import type { ContentNode } from '@src/content/types';
 	// Paraglide Messages
 	import {
 		applayout_signout,
@@ -44,21 +44,19 @@
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	// Stores
-import { contentStructure } from '@src/stores/collection-store.svelte';
-import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
-import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
+	import { contentStructure } from '@src/stores/collection-store.svelte';
+	import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
-		import Avatar from '@components/ui/avatar.svelte';
-	// Removed axios import
+	import Avatar from '@components/ui/avatar.svelte';
 	import { browser } from '$app/environment';
-	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import { scale } from 'svelte/transition';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
@@ -77,25 +75,12 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	const currentPath = $derived(page.url.pathname);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
 	let searchQuery = $state('');
-	// Removed isDropdownOpen and dropdownRef as Menu handles this
 
-	// Collapsible Sidebar Sections State
+	// Route context: exclusive modes — never show both trees at once
+	const isMediaGalleryRoute = $derived(currentPath.includes('/mediagallery'));
+
+	// Collapsible: pinned section only
 	let isPinnedOpen = $state(true);
-	let isCollectionsOpen = $state(true);
-	let isMediaOpen = $state(false);
-
-	$effect(() => {
-		// Context-aware sidebar: sections are route-specific to match user intent.
-		// - /mediagallery             → Media only
-		// - default (collections)     → Collections only
-		if (currentPath.includes('/mediagallery')) {
-			isMediaOpen = true;
-			isCollectionsOpen = false;
-		} else {
-			isCollectionsOpen = true;
-			isMediaOpen = false;
-		}
-	});
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -173,7 +158,6 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
 
-
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
 		app.systemLanguage = lang;
@@ -181,8 +165,6 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 		languageTag = lang as Locale;
 		searchQuery = '';
 	}
-
-	// Unused settings helper removed
 
 	function toggleSidebar(): void {
 		const newState: SidebarState = ui.state.leftSidebar === 'full' ? 'collapsed' : 'full';
@@ -230,21 +212,17 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 		}
 	}
 
-	function handleCollectionsClick(): void {
-		isCollectionsOpen = !isCollectionsOpen;
-		if (isCollectionsOpen) {
-			isMediaOpen = false;
-		}
+	/** Leave media gallery and restore collections navigation */
+	function handleBackToCollections(): void {
 		if (collections.length === 0) {
 			goto('/config/collectionbuilder');
 		} else {
 			goto(firstCollectionPath);
 		}
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'collapsed');
+		}
 	}
-
-	$effect(() => {
-		if (firstCollectionPath === undefined) return;
-	});
 </script>
 
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
@@ -357,71 +335,39 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
 			{/if}
 
-			<!-- 2. Collections -->
-			<div class="space-y-1">
-				{#if !currentPath.includes('/collection/')}
-					<Button variant="secondary"
-						type="button"
-						onclick={handleCollectionsClick}
-						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-					 aria-label="Toggle collections">
-						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}Collections{/if}
-						</span>
-						{#if isSidebarFull}
-							<iconify-icon
-								icon="bi:chevron-down"
-								width="12"
-								class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
-							></iconify-icon>
-						{/if}
-					</Button>
-				{/if}
-				{#if isCollectionsOpen && showCollectionsHere}
-					<div class="w-full ps-0 pe-1 text-start">
-						<Collections />
-					</div>
-				{/if}
-			</div>
-			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
+			{#if isMediaGalleryRoute}
+				<!-- Media gallery: back to collections + virtual folder tree -->
+				<div class="space-y-2" data-testid="sidebar-media-context">
+					<SystemTooltip
+						title="Back to Collections"
+						positioning={{ placement: 'right' }}
+						triggerClass="w-full"
+					>
+						<Button
+							variant="ghost"
+							type="button"
+							onclick={handleBackToCollections}
+							aria-label="Back to Collections"
+							class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-100 {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
+						>
+							<iconify-icon icon="bi:arrow-left" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}
+								<span class="truncate">Collections</span>
+							{/if}
+						</Button>
+					</SystemTooltip>
 
-			<!-- 3. Media Gallery -->
-			<div class="space-y-1">
-				<Button variant={currentPath.includes('/mediagallery') ? 'secondary' : 'ghost'}
-					type="button"
-					onclick={() => {
-						isMediaOpen = !isMediaOpen;
-						if (isMediaOpen) {
-							isCollectionsOpen = false;
-						}
-						if (!currentPath.includes('/mediagallery')) {
-							goto('/mediagallery');
-							if (isMobile()) {
-								toggleUIElement('leftSidebar', 'collapsed');
-							}
-						}
-					}}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-				>
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}Media Gallery{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
-				{#if isMediaOpen}
-					<div class="px-1 space-y-2">
+					<div class="px-1 space-y-2" role="region" aria-label="Media folders">
 						<MediaFolders />
 					</div>
-				{/if}
-			</div>
+				</div>
+			{:else if showCollectionsHere}
+				<!-- Default: collection tree only — no redundant section header button -->
+				<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
+					<Collections />
+				</div>
+			{/if}
 		{/if}
 	</div>
 
