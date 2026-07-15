@@ -176,7 +176,7 @@
     "ollama": "^0.6.3",
     "rate-limiter-flexible": "^11.2.0",
     "redis": "^6.1.0",
-    "rolldown": "^1.1.5",
+    "rolldown": "^1.2.0",
     "sharp": "^0.35.3",
     "shiki": "^4.3.1",
     "stripe": "^22.3.1",

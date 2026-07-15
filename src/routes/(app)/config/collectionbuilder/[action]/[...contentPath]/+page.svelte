@@ -244,7 +244,7 @@ $effect(() => {
 					</div>
 				{:else if activeTab === 'permissions'}
 					<div class="animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">
-						<CollectionPermissions roles={data.roles || []} />
+						<CollectionPermissions roles={data.roles as any || []} />
 					</div>
 				{/if}
 			</div>

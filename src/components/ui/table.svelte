@@ -220,7 +220,7 @@ function onVirtualScroll() {
                                 {@render rowSnippet({ row, index })}
                             {:else}
                                 <tr class={cn('group transition-all duration-200 hover:bg-tertiary-500  dark:hover:bg-tertiary-500 dark:bg-primary-500',
-                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick')}
+                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick)}
                                     onclick={() => onrowclick?.(row)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter') onrowclick?.(row);
@@ -303,7 +303,7 @@ function onVirtualScroll() {
                                 {@render rowSnippet({ row, index })}
                             {:else}
                                 <tr class={cn('group transition-all duration-200 hover:bg-tertiary-500 dark:bg-primary-500 dark:hover:bg-tertiary-500 ',
-                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick')}
+                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick)}
                                     onclick={() => onrowclick?.(row)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter') onrowclick?.(row);
