@@ -431,6 +431,10 @@ describe("User API Extended Integration", () => {
   // ─── SUITE 4: SESSION MANAGEMENT ────────────────────────────────────────
 
   describe("GET /api/user/sessions", () => {
+    beforeAll(async () => {
+      adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+    });
+
     it("should list active sessions for authenticated user", async () => {
       const response = await safeFetch(`${API_BASE_URL}/api/user/sessions`, {
         method: "GET",
