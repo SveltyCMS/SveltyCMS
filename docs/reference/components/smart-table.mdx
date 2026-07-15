@@ -19,6 +19,42 @@ tags:
 
 **Goal**: one table stack for backend CMS surfaces (`entry-list`, media, users) and frontend design-system tables (`ui/table`) — less duplication, more flexibility, performance, features, and security.
 
+## P0 building blocks (implemented)
+
+| Piece               | Location                                        | Role                                                                 |
+| ------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| **Controller**      | `createSmartTable`                              | Selection, sort, page, density, virtual, **pin order**, layout prefs |
+| **Shell**           | `smart-table-shell.svelte`                      | Toolbar slot, empty/loading, scroll body, CMS pagination             |
+| **Empty / loading** | `smart-table-empty` / `smart-table-loading`     | Shared WCAG states                                                   |
+| **Chrome**          | `chrome.ts`                                     | Class tokens + `pinCellClass` / `alignCellClass`                     |
+| **Layout prefs**    | `layout-prefs.ts`                               | localStorage density / order / visibility (`layoutKey`)              |
+| **Column meta**     | `SmartTableColumn.pin`, `.align`, `.meta`       | TanStack-style defs without TanStack dependency                      |
+| **Column resize**   | `setColumnWidth` + `column-resize-handle`       | Drag widths, persisted with `layoutKey`                              |
+| **Saved views**     | `@utils/smart-table-saved-views` + menu UI      | Named filter/sort/layout presets (localStorage)                      |
+| **Status facets**   | `smart-table-status-facets` + `getStatusFacets` | Server status counts as filter chips                                 |
+| **List metrics**    | `@utils/list-query-metrics` + metrics badge     | Latency + cache hit; UI via `?debug=table` (SSR snapshot)            |
+
+### Entry-list UX (P1 wired)
+
+| Control           | Where                             | Behavior                                                                 |
+| ----------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| **Views menu**    | Toolbar (desktop + mobile expand) | Save/apply/delete named views (filters, search, sort, pageSize, layout)  |
+| **Status facets** | Above table                       | Chip filters → `?filter_status=` via `createSmartFilter` (server FLAC)   |
+| **Metrics badge** | Toolbar when `?debug=table`       | p50/p95/hit% from SSR `listMetrics` (server ring buffer)                 |
+| **Column resize** | Header drag handles               | `setColumnWidth` + per-collection `layoutKey: entry-list:{collectionId}` |
+
+```svelte
+<SmartTableShell
+  empty={rows.length === 0}
+  emptyTitle="No results"
+  {currentPage} {rowsPerPage} {pagesCount} {totalItems}
+  onUpdatePage={(p) => table.setPage(p)}
+  onUpdateRowsPerPage={(n) => table.setPageSize(n)}
+>
+  <table class={SMART_TABLE}>…</table>
+</SmartTableShell>
+```
+
 ## Architecture
 
 ```mermaid
@@ -30,6 +66,7 @@ flowchart TB
   end
 
   subgraph UI["Presentation"]
+    Shell[smart-table-shell]
     UItable[ui/table.svelte]
     Pag[ui/table/pagination]
     Toolbar[system/table-filter + ui/table/filter]
@@ -106,12 +143,34 @@ See [Collection Filtering Platform](../architecture/collection-filtering.mdx).
 
 ## Migration guide
 
-| Consumer                     | Action                                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **New tables**               | `createSmartTable` + `ui/table` or custom shell                                                            |
-| **entry-list**               | Uses `createSmartTable` (server) + `createSmartFilter` + shared pagination                                 |
-| **media / users**            | Import pagination from ui (already via system wrapper); adopt `createSmartTable` when touching those files |
-| **Legacy `TableController`** | Deprecated; re-exported for compatibility                                                                  |
+| Consumer                     | Action                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| **New tables**               | `createSmartTable` + shared chrome tokens                                   |
+| **entry-list**               | `createSmartTable` (server) + `createSmartFilter` + chrome                  |
+| **media-table**              | `createSmartTable` (client) + chrome + column sort                          |
+| **admin-area**               | `createSmartTable` (server) + `onQueryChange` → `/api/user` \| `/api/token` |
+| **website-tokens**           | `createSmartTable` (server) + `onQueryChange` → `/api/website-tokens`       |
+| **tenants admin**            | Shared chrome (SSR list)                                                    |
+| **Legacy `TableController`** | Deprecated; re-exported for compatibility                                   |
+
+**Other `<table>` UIs (not full smart-table yet):** permissions matrix, media details mini-tables, migration wizard field map, accessibility help, `ui/table.svelte` design shell.
+
+### Shared visual chrome
+
+```ts
+import {
+  createSmartTable,
+  SMART_TABLE,
+  SMART_TABLE_THEAD,
+  SMART_TABLE_TH,
+  SMART_TABLE_TD,
+  SMART_TABLE_SCROLL,
+  SMART_TABLE_PAGINATION_BAR,
+  SMART_TABLE_TOOLBAR,
+  SMART_TABLE_ROW_SELECTED,
+  SMART_TABLE_ROW_HOVER,
+} from "@components/ui/smart-table";
+```
 
 ### Import map
 
@@ -119,7 +178,6 @@ See [Collection Filtering Platform](../architecture/collection-filtering.mdx).
 // Preferred
 import { createSmartTable } from "@components/ui/smart-table";
 import Pagination from "@components/ui/table/pagination.svelte";
-import Table from "@components/ui/table.svelte";
 
 // CMS-stable aliases (still valid)
 import TablePagination from "@components/system/table/table-pagination.svelte"; // → ui pagination cms

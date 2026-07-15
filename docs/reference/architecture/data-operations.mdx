@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database-sync"
 author: "SveltyCMS Team"
 created: "2026-07-10"
-updated: "2026-07-10"
+updated: "2026-07-15"
 tags:
   - "architecture"
   - "data-operations"
@@ -194,6 +194,43 @@ interface DataOperationAuditEntry {
 | **Error counters**     | Per-domain failure tracking               |
 | **Chain verification** | `GET /api/config/history` with hash check |
 | **Completion events**  | SSE broadcast on operation finish         |
+
+---
+
+## 🔗 Service / Handler Patterns (Content Lists)
+
+Data operations that **mutate entries** (content packages, importers, content sync, migrations)
+must stay consistent with how the CMS **reads** list data:
+
+| Layer                                                  | Responsibility                                                                                                                                   |
+| :----------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Handler** (`content-transfer.ts`, `importers.ts`, …) | Validate → plan → apply; permission-gated namespaces                                                                                             |
+| **Service** (`CollectionService`, domain services)     | Shared load/mutate logic; no raw DB outside adapters                                                                                             |
+| **Cache**                                              | After apply, `cacheService.invalidateCollection(collectionId)` clears all `collection:{id}:query:*` list variants (filtered pages, search, sort) |
+| **Admin UI**                                           | `entry-list` + `createSmartFilter` re-fetch via URL params → SSR loader → SWR                                                                    |
+
+```mermaid
+sequenceDiagram
+    participant Ops as Data Ops Handler
+    participant Svc as Domain Service
+    participant DB as DB Adapter
+    participant Cache as cacheService
+    participant List as CollectionService / entry-list
+
+    Ops->>Svc: apply(plan)
+    Svc->>DB: bulk write entries
+    Svc->>Cache: invalidateCollection(id)
+    Note over Cache: clearByPattern collection:{id}:
+    List->>Cache: getOrSetSWR(query key)
+    Cache-->>List: miss → rebuild from DB
+```
+
+> [!TIP]
+> Do **not** invalidate only a single page key. Filtered lists use `query:{hash}` fragments;
+> prefix invalidation is required so editors never see stale rows after import/sync.
+> See [Cache System — Collection List Queries](./cache-system.mdx#collection-list-queries-entry-list--collectionservice).
+
+**Related**: [Collection Filtering Platform](./collection-filtering.mdx) · [Content query params](../api/content.mdx#2b-collection-list-query-params-ssr--entry-list) · [entry-list](../components/entry-list.mdx)
 
 ---
 

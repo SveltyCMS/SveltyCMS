@@ -1,18 +1,19 @@
 ---
 path: "docs/reference/api/content.mdx"
 title: "Content, Search & Events (content.ts)"
-description: "Reference for global content operations — versioning, structure management, global search, real-time events, and GraphQL."
+description: "Reference for global content operations — versioning, structure management, global search, query-param filtering, real-time events, and GraphQL."
 order: 12
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-06-15"
+updated: "2026-07-15"
 tags:
   - "api"
   - "content"
   - "search"
   - "events"
   - "graphql"
+  - "filtering"
 ---
 
 # Content, Search & Events Reference (`content.ts`)
@@ -64,6 +65,60 @@ Search across multiple collections simultaneously using the unified search engin
 
 ---
 
+## 2b. Collection List Query Params (SSR + entry-list)
+
+Per-collection **view mode** lists are driven by URL query parameters on the admin collection route
+(`/(app)/[language]/[...collection]`). The page loader parses params, **whitelists field names
+against the collection schema**, then loads via `CollectionService` (L1/L2 SWR).
+
+| Param                | Purpose                                                                | Client source                          |
+| -------------------- | ---------------------------------------------------------------------- | -------------------------------------- |
+| `search`             | In-collection full-text search (searchable schema fields + system ids) | `TableFilter` / `globalSearchValue`    |
+| `page` / `pageSize`  | Pagination                                                             | `TablePagination`                      |
+| `sort` / `order`     | Sort field + `asc` \| `desc`                                           | Header click                           |
+| `filter_{fieldName}` | Per-column filter value                                                | `createSmartFilter` / `SmartFilterRow` |
+| `edit`               | Entry id for edit-mode load (full multilingual row)                    | Mode / URL                             |
+
+### Parsing & security
+
+```typescript
+// +page.server.ts
+import { parseCollectionListQuery } from "@utils/collection-query-filters";
+
+const listQuery = parseCollectionListQuery(url.searchParams, currentCollection);
+// listQuery.filter  → only schema-allowed keys (whitelist)
+// listQuery.queryHash → stable hash for cache keys
+
+await collectionService.getCollectionData({
+  collection: currentCollection,
+  page: listQuery.page,
+  pageSize: listQuery.pageSize,
+  sort: listQuery.sort,
+  filter: listQuery.filter, // { field: { contains: "value" } }
+  search: listQuery.search,
+  // ...
+});
+```
+
+| Rule                               | Detail                                                                                                                             |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Never trust client field names** | `whitelistFilterParams` drops unknown keys before the DB layer                                                                     |
+| **Operator shape**                 | Adapter-agnostic `{ contains: string }` today; range ops can extend without changing URL prefixes                                  |
+| **Tenant isolation**               | `CollectionService` injects `tenantId` into the final filter when multi-tenant is enabled                                          |
+| **Cache**                          | Keys include `query:{hash}` so each filter/search combination is a distinct L1/L2 entry; mutations call `invalidateCollection(id)` |
+
+### Global search vs column filters
+
+| Mode                                 | Scope               | Param                | Backend                                        |
+| ------------------------------------ | ------------------- | -------------------- | ---------------------------------------------- |
+| **Global search** (cross-collection) | Many collections    | `GET /api/search?q=` | Unified search engine                          |
+| **In-collection search**             | One collection list | `?search=`           | QueryBuilder `.search()` on schema fields      |
+| **Column filters**                   | One field           | `?filter_{name}=`    | QueryBuilder `.where({ field: { contains } })` |
+
+**UI**: [entry-list](../components/entry-list.mdx) · **Platform**: [collection-filtering](../architecture/collection-filtering.mdx) · **Cache**: [cache-system](../architecture/cache-system.mdx)
+
+---
+
 ## 3. Real-Time Events (SSE)
 
 SveltyCMS broadcasts structural content changes using **Server-Sent Events (SSE)**. Authenticated admin sessions connect to receive normalized update payloads; the CMS admin UI uses this to refresh the content tree without a full page reload.
@@ -92,7 +147,7 @@ Tenant-scoped subscribers only receive events where `tenantId` matches their con
 
 The built-in admin client (`content-sse.svelte.ts`) listens for `type: "content_update"` and calls `contentSystem.refresh()`, which fetches the latest structure from `GET /api/content-structure?action=getStructure` and syncs the reactive store.
 
-````javascript
+```javascript
 const events = new EventSource("/api/content/events", { withCredentials: true });
 events.onmessage = (e) => {
   const data = JSON.parse(e.data);
@@ -101,7 +156,7 @@ events.onmessage = (e) => {
     console.log(`Content tree changed (v${data.version})`);
   }
 };
-```text
+```
 
 ---
 
@@ -118,6 +173,8 @@ For comprehensive details on schema definitions, mutations, queries, and subscri
 ## Related Documents
 
 - [Collections Reference (collections.ts)](./collections.mdx)
+- [entry-list / createSmartFilter](../components/entry-list.mdx)
+- [Cache System (L1/L2, SWR, prefix invalidation)](../architecture/cache-system.mdx)
+- [Data Operations](../architecture/data-operations.mdx) — content import/sync must invalidate collection caches
 - [Media Management (media.ts)](./media.mdx)
 - [System Reference (system.ts)](./system.mdx)
-````

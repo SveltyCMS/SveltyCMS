@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-06-27"
+updated: "2026-07-15"
 tags:
   - "cache"
   - "redis"
@@ -135,6 +135,43 @@ const result = await cacheService.getOrSetSWR(
 );
 ```
 
+### Collection List Queries (entry-list / CollectionService)
+
+Editorial list views are cached through `CollectionService.getCollectionData()` using **getOrSetSWR**, not raw `get`/`set`.
+
+| Concern                 | Implementation                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Key shape**           | `collection:{id}:query:{hash}:page:{n}:size:{s}:lang:{l}:tenant:{t}:user:{u}:edit:{e}`                                          |
+| **Query hash**          | `hashQueryPayload({ filter, search, sort })` — stable key order via `stableSerialize` (`src/utils/collection-query-filters.ts`) |
+| **Fresh / stale**       | TTL **60s** / stale window **300s** (SWR)                                                                                       |
+| **Category**            | `CacheCategory.COLLECTION`                                                                                                      |
+| **Tags**                | `collection`, `collection:{id}`                                                                                                 |
+| **Prefix invalidation** | `cacheService.invalidateCollection(id)` → `clearByPattern("collection:{id}:")` (O(1) prefix bucket)                             |
+| **Negative Bloom**      | **Not** applied to empty list pages — empty result sets are valid editorial states                                              |
+| **URL filters**         | `filter_{field}` + `search` parsed by `parseCollectionListQuery` (schema whitelist before DB)                                   |
+
+```typescript
+// CollectionService (simplified)
+const queryHash = hashQueryPayload({ filter, search, sort });
+const cacheKey = buildCollectionQueryCacheKey({ collectionId, page, pageSize, queryHash, language, tenantId, userId });
+
+return cacheService.getOrSetSWR(
+  cacheKey,
+  () => loadFromDb(...),
+  60_000,   // fresh
+  300_000,  // stale-while-revalidate
+  tenantId,
+  CacheCategory.COLLECTION,
+  ["collection", `collection:${collectionId}`],
+);
+```
+
+> [!IMPORTANT]
+> After content mutations (create/update/delete/status/import/sync), always invalidate with the **collection id prefix** so every filtered page, sort, and search variant is cleared:
+> `await cacheService.invalidateCollection(collectionId)`.
+
+**Related**: [Collection Filtering Platform](./collection-filtering.mdx) · [entry-list](../components/entry-list.mdx) · [Content API filters](../api/content.mdx) · [Data Operations](./data-operations.mdx)
+
 ## Cache Categories
 
 | Category | TTL        | Use Case                                        |
@@ -168,4 +205,4 @@ const result = await cacheService.getOrSetSWR(
 
 ---
 
-**Last Updated**: 2026-06-22 (bearer credential auth cache: hash-keyed SESSION entries, tag invalidation, Bloom negative misses)
+**Last Updated**: 2026-07-15 (collection list SWR keys with filter hash; entry-list / createSmartFilter alignment)
