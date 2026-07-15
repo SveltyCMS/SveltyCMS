@@ -15,13 +15,9 @@
  * Uses the shared test helpers from tests/integration/helpers/.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
-import {
-  initializeTestEnvironment,
-  prepareAuthenticatedContext,
-  testFixtures,
-} from "../helpers/test-setup";
+import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -148,7 +144,6 @@ describe("User API Extended Integration", () => {
   let createdUserIds: string[] = [];
 
   beforeAll(async () => {
-    await initializeTestEnvironment();
     adminCookie = await prepareAuthenticatedContext();
   });
 

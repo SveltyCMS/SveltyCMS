@@ -28,6 +28,7 @@ import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
+import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -239,15 +240,17 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
   let userResult;
   try {
     userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
-    console.log(
-      `[BypassDebug] getUserByEmail results for email=${requestedEmail}, tenantId=${tenantId}:`,
-      JSON.stringify(userResult),
-    );
+    logger.info(`[BypassDebug] getUserByEmail results`, {
+      email: requestedEmail,
+      tenantId,
+      result: userResult,
+    });
   } catch (e: unknown) {
-    console.error(
-      `[BypassDebug] Error in getUserByEmail during test login for email=${requestedEmail}, tenantId=${tenantId}:`,
-      e,
-    );
+    logger.error(`[BypassDebug] Error in getUserByEmail during test login`, {
+      email: requestedEmail,
+      tenantId,
+      error: e,
+    });
   }
 
   if (userResult?.success && userResult.data?._id) {
@@ -260,13 +263,13 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
       tenantId: tenantId as DatabaseId,
     });
-    console.log(
-      `[BypassDebug] Session successfully created in DB for user_id=${user._id}, sessionId=${session._id}`,
-    );
+    logger.info(`[BypassDebug] Session successfully created in DB for user_id=${user._id}`, {
+      sessionId: session._id,
+    });
     return { user, session };
   }
 
-  console.warn(
+  logger.warn(
     `[BypassDebug] getUserByEmail failed to find user or missing _id. Falling back to dummy mock session.`,
   );
   return {

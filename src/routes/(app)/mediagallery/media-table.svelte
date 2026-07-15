@@ -175,7 +175,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 						<div class="shrink-0" role="cell">
 							<div class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded">
 								{#if file.type === 'image' && !failedImages.has(fileId)}
-									<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" onerror={() => failedImages.add(fileId)} />
+									<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
 								{:else if file.type === 'image'}
 									<iconify-icon icon="mdi:image-off-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 								{:else}
@@ -269,7 +269,7 @@ function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 							<td class="media-table-preview w-16 shrink-0 px-2 py-2 sm:px-3">
 								<div class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12">
 									{#if file.type === 'image' && !failedImages.has(fileId)}
-										<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" onerror={() => failedImages.add(fileId)} />
+										<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
 									{:else if file.type === 'image'}
 										<iconify-icon icon="mdi:image-off-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 									{:else}

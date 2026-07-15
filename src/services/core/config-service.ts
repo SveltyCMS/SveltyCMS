@@ -398,10 +398,28 @@ export class ConfigService {
     try {
       switch (item.type) {
         case "collection": {
+          // Collection schemas are stored as content_nodes with nodeType="collection"
+          // and the schema definition in the collectionDef JSON column.
+          const now = new Date().toISOString();
+          const schema = item.entity as Record<string, unknown>;
           await adapter.crud.upsert(
-            "collections",
-            { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
-            { ...item.entity, ...(tenantId && { tenantId }) } as any,
+            "content_nodes",
+            {
+              nodeType: "collection",
+              name: item.name,
+              ...(tenantId && { tenantId }),
+            } as Record<string, unknown>,
+            {
+              _id: item.uuid,
+              path: schema.path || `/collection/${(item.name || item.uuid).toLowerCase()}`,
+              name: item.name,
+              icon: (schema.icon as string) || "bi:file",
+              nodeType: "collection",
+              collectionDef: schema,
+              tenantId: tenantId || "global",
+              createdAt: now,
+              updatedAt: now,
+            } as any,
             tenantId as any,
           );
           logger.info(`Imported collection: ${item.name}`);
@@ -853,20 +871,31 @@ export class ConfigService {
 
   private async fetchCollectionsFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     try {
+      // Collection schemas are stored as content_nodes with nodeType="collection"
+      // and the schema definition in the collectionDef JSON column.
       const collectionsResult = await dbAdapter!.crud.findMany(
-        "collections",
-        {},
+        "content_nodes",
+        { nodeType: "collection" } as any,
         { tenantId: (tenantId as any) || undefined },
       );
 
       if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
         const tasks = (collectionsResult.data as unknown as Record<string, unknown>[]).map(
-          async (collection) => {
-            const id = String(collection._id || "");
-            const name = String(collection.name || "");
+          async (node) => {
+            let schema = (node as any).collectionDef;
+            if (typeof schema === "string") {
+              try {
+                schema = JSON.parse(schema);
+              } catch {
+                /* ignore */
+              }
+            }
+            if (!schema) return null;
+            const id = String(schema._id || node._id || "");
+            const name = String(schema.name || node.name || "");
             if (!(id && name)) return null;
-            const hash = await createChecksum(collection);
-            return { uuid: id, type: "collection", name, hash, entity: collection };
+            const hash = await createChecksum(schema);
+            return { uuid: id, type: "collection", name, hash, entity: schema };
           },
         );
         const results = await Promise.all(tasks);

@@ -153,6 +153,7 @@ aspect-preview plugin and Drupal's focal point preview.
 						class="absolute inset-0 h-full w-full select-none"
 						style="object-fit: cover; object-position: {focalPoint.x}% {focalPoint.y}%;"
 						draggable="false"
+						crossorigin="anonymous"
 					/>
 
 					<!-- Rule of thirds overlay (subtle) -->

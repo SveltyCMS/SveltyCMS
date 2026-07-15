@@ -282,6 +282,7 @@ Features:
                     alt=""
                     class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
                     aria-hidden="true"
+                    crossorigin="anonymous"
                   />
                 {/if}
 
@@ -293,6 +294,7 @@ Features:
                     ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
                     : "center"}
                   loading="lazy"
+                  crossorigin="anonymous"
                   onerror={() => failedImages.add(fileId)}
                   onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
                 />
