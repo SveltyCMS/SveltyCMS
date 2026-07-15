@@ -42,4 +42,15 @@ bun run format --check || {
 # Step 3: Run lint-staged on staged files
 bun run gate:fast
 
+# Step 4: Security regression tests — validates all 4 security layers
+# (Middleware → Dispatcher → Handler → Page Action) in under 1s
+# Catches handler routing issues, permission gaps, and auth bypasses
+# that lint cannot detect. 123 tests, ~847ms.
+echo "🔒 Running security regression tests..."
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts 2>&1 || {
+    echo "❌ Security regression tests FAILED. Fix before committing."
+    echo "   Run manually: bun test tests/unit/hooks/"
+    exit 1
+}
+
 echo "✅ All pre-commit checks passed!"
