@@ -350,7 +350,8 @@ describe("API namespace ownership inventory (completeness Phase D)", () => {
 
     const requiredGates = [
       "Auth Contract",
-      "Collection CRUD Contract",
+      // Plan-first config + collections listing (was "Collection CRUD Contract")
+      "Collection / Config Contract",
       "User Batch Contract",
       "Setup Gating Contract",
       "Fail-Closed Contract",
