@@ -93,27 +93,34 @@ export function beginMediaDrag(
   // Fallback for environments that only expose text/plain during dragover
   dataTransfer.setData("text/plain", unique.join(","));
 
-  if (unique.length > 1 && typeof document !== "undefined") {
+  if (
+    unique.length > 1 &&
+    typeof document !== "undefined" &&
+    typeof document.createElement === "function" &&
+    document.body
+  ) {
     const ghost = document.createElement("div");
     ghost.textContent = `${unique.length} items`;
     ghost.style.cssText =
       "position:absolute;top:-9999px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,0.8);color:#fff;font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;";
     document.body.appendChild(ghost);
     dataTransfer.setDragImage(ghost, 24, 16);
-    requestAnimationFrame(() => ghost.remove());
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => ghost.remove());
+    } else {
+      ghost.remove();
+    }
   }
 
-  if (typeof document !== "undefined") {
-    document.documentElement.classList.add(MEDIA_DND_ACTIVE_CLASS);
-  }
+  const root = typeof document !== "undefined" ? document.documentElement : null;
+  root?.classList?.add(MEDIA_DND_ACTIVE_CLASS);
 
   return unique;
 }
 
 export function endMediaDrag(): void {
-  if (typeof document !== "undefined") {
-    document.documentElement.classList.remove(MEDIA_DND_ACTIVE_CLASS);
-  }
+  const root = typeof document !== "undefined" ? document.documentElement : null;
+  root?.classList?.remove(MEDIA_DND_ACTIVE_CLASS);
 }
 
 /**

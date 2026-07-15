@@ -1,6 +1,8 @@
 /**
  * @file tests/unit/utils/media-dnd.test.ts
  * @description Unit tests for media drag-and-drop payload helpers.
+ *
+ * Compatible with both Vitest and bun:test (via vitest shim) — avoid vi.stubGlobal.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,8 +18,10 @@ import {
 } from "@utils/media/media-dnd";
 
 describe("media-dnd", () => {
+  const originalFetch = globalThis.fetch;
+
   afterEach(() => {
-    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
@@ -60,7 +64,7 @@ describe("media-dnd", () => {
         data: { movedCount: 2, fileIds: ["a", "b"], targetFolderId: "folder-1" },
       }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await moveMediaToFolder(["a", "b"], "folder-1", { csrfToken: "tok" });
 
