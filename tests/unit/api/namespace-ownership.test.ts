@@ -141,10 +141,10 @@ function fileReferencesNamespace(
 
   // 3. Broad fallback: check if describe/it arguments contain a word that
   //    is a substring of the namespace, or vice versa
-  const describeItArgs = content.match(/(?:describe|it)\(\s*["'\`]([^"'\`]+)["'\`]/gi);
+  const describeItArgs = content.match(/(?:describe|it)\(\s*["']([^"']+)["']/gi);
   if (describeItArgs) {
     const describeTexts = describeItArgs.map((s) => {
-      const m = s.match(/["'\`]([^"'\`]+)["'\`]/);
+      const m = s.match(/["']([^"']+)["']/);
       return m ? m[1].toLowerCase() : "";
     });
     const nsLower = ns.toLowerCase();
