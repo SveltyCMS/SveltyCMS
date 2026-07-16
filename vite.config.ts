@@ -270,7 +270,7 @@ function databaseAdapterStripperPlugin(): Plugin {
       if (options?.ssr) return null;
       const resolved = await this.resolve(id, undefined, { ...options, skipSelf: true });
       const nid = (resolved?.id || id).replace(/\\/g, "/");
-      if (toStrip.some(db => nid.includes(`/databases/${db}/`))) return "\0virtual:db-stub";
+      if (toStrip.some((db) => nid.includes(`/databases/${db}/`))) return "\0virtual:db-stub";
       return null;
     },
     load(id) {
@@ -483,15 +483,13 @@ export default defineConfig(() => ({
     minify: "esbuild",
     sourcemap: !process.env.CI,
     chunkSizeWarningLimit: 1200,
+    checks: { pluginTimings: false },
     rollupOptions: {
       external: SERVER_EXTERNALS,
       onwarn(warning: any, warn: any) {
-        // Third-party circular deps from mongodb, mongoose, zod — not fixable
-        if (warning.code === "CIRCULAR_DEPENDENCY" && warning.message?.includes("node_modules"))
-          return;
-        // External dependencies correctly unresolved — informational
-        if (warning.code === "UNRESOLVED_IMPORT" && warning.exporter?.includes("node_modules"))
-          return;
+        if (warning.code === "CIRCULAR_DEPENDENCY" && warning.message?.includes("node_modules")) return;
+        if (warning.code === "SOURCEMAP_BROKEN" && warning.plugin === "vite-plugin-sveltekit-remote") return;
+        if (warning.code === "UNRESOLVED_IMPORT" && warning.exporter?.includes("node_modules")) return;
         warn(warning);
       },
     },
