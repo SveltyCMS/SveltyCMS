@@ -126,62 +126,20 @@ function testBackdoorStripperPlugin(): Plugin {
   };
 }
 
-/**
- * Plugin to alias @config/private to config/private.test.ts when running in TEST_MODE.
- * This allows local tests to use an isolated configuration without modifying the production config.
- */
-function testConfigAliasPlugin(): Plugin {
-  // Activate in TEST_MODE or when building for benchmarks (COMPILE_ALL_ADAPTERS)
-  if (process.env.TEST_MODE !== "true" && process.env.COMPILE_ALL_ADAPTERS !== "true") {
-    console.log(
-      "[testConfigAliasPlugin] TEST_MODE=" +
-        process.env.TEST_MODE +
-        " COMPILE_ALL_ADAPTERS=" +
-        process.env.COMPILE_ALL_ADAPTERS,
-    );
-    return { name: "test-config-alias" };
-  }
-
-  return {
-    name: "test-config-alias",
-    enforce: "pre",
-    resolveId(id) {
-      // Check for direct import or alias
-      if (id === "@config/private" || id.endsWith("config/private.ts")) {
-        const cwd = process.cwd();
-        const testConfigPath = path.resolve(cwd, "config/private.test.ts");
-        // Only alias if the test config actually exists
-        if (existsSync(testConfigPath)) {
-          log.info("Test Mode: Aliasing @config/private to config/private.test.ts");
-          return testConfigPath;
-        }
-      }
-    },
-  };
-}
-
-/**
- * Plugin that provides a fallback for @config/private and @config/private.test when the file doesn't exist
- * This allows builds to succeed in fresh clones without committing sensitive credentials
- */
 function privateConfigFallbackPlugin(): Plugin {
   const virtualModuleId = "@config/private";
   const virtualTestModuleId = "@config/private.test";
   const resolvedVirtualModuleId = `\0${virtualModuleId}`;
   const resolvedVirtualTestModuleId = `\0${virtualTestModuleId}`;
-
-  // Cache resolution results to avoid repeated filesystem checks (Rolldown optimization)
   const resolutionCache = new Map<string, string | null>();
+  const isTest = process.env.TEST_MODE === "true" || process.env.COMPILE_ALL_ADAPTERS === "true";
 
   return {
     name: "private-config-fallback",
     enforce: "pre",
     resolveId(id) {
-      // 1. Aggressive Early Exit: Check keywords FIRST before any logic
       if (!id.includes("config/private") && id !== virtualModuleId && id !== virtualTestModuleId)
         return null;
-
-      // 2. Cache check
       if (resolutionCache.has(id)) return resolutionCache.get(id);
 
       if (id === virtualModuleId) return resolvedVirtualModuleId;
@@ -191,16 +149,18 @@ function privateConfigFallbackPlugin(): Plugin {
       const normalizedId = id.replace(/\\/g, "/");
       let result: string | null = null;
 
-      // Check for production config
-      if (normalizedId.endsWith("config/private") || normalizedId.endsWith("config/private.ts")) {
+      // Test mode: alias @config/private → config/private.test.ts
+      if (isTest && (id === "@config/private" || normalizedId.endsWith("config/private.ts"))) {
+        const testPath = path.resolve(cwd, "config/private.test.ts");
+        if (existsSync(testPath)) result = testPath;
+      }
+      // Production config check
+      else if (normalizedId.endsWith("config/private") || normalizedId.endsWith("config/private.ts")) {
         const prodPath = path.resolve(cwd, "config/private.ts");
         result = existsSync(prodPath) ? null : resolvedVirtualModuleId;
       }
-      // Check for test config
-      else if (
-        normalizedId.endsWith("config/private.test") ||
-        normalizedId.endsWith("config/private.test.ts")
-      ) {
+      // Test config check
+      else if (normalizedId.endsWith("config/private.test") || normalizedId.endsWith("config/private.test.ts")) {
         const testPath = path.resolve(cwd, "config/private.test.ts");
         result = existsSync(testPath) ? null : resolvedVirtualTestModuleId;
       }
@@ -210,7 +170,6 @@ function privateConfigFallbackPlugin(): Plugin {
     },
     load(id) {
       if (id === resolvedVirtualModuleId || id === resolvedVirtualTestModuleId) {
-        // Provide fallback that reads from environment variables
         return `
 export const privateEnv = {
 	DB_TYPE: process.env.DB_TYPE || '',
@@ -327,77 +286,6 @@ process.on("SIGINT", () => {
 });
 
 // --- Vite Plugins ---
-
-/**
- * Plugin to suppress noisy third-party warnings during build
- */
-function suppressThirdPartyWarningsPlugin(): Plugin {
-  let originalConsoleWarn: typeof console.warn | undefined;
-  let originalConsoleLog: typeof console.log | undefined;
-  let originalStderrWrite: typeof process.stderr.write | undefined;
-  let originalStdoutWrite: typeof process.stdout.write | undefined;
-  let isIntercepted = false;
-  const warningPatterns = [
-    /Circular dependency:.*node_modules/,
-    /".*" is imported from external module ".*" but never used/,
-    /".*" is imported by ".*", but could not be resolved – treating it as an external dependency/,
-    // AWS SDK / Smithy chunk-split noise (adapter Rollup, not our code)
-    /will end up in different chunks.*@smithy/,
-    /will end up in different chunks.*@aws-sdk/,
-    // svelte-realtime startup noise (utility exports not meant for live())
-    /\[svelte-realtime\]/,
-    // Suppress sourcemap warnings from plugins that don't generate them
-    /\[SOURCEMAP_BROKEN\]/,
-    // Suppress "Module X has been externalized for browser compatibility" (informational, not an error)
-    /has been externalized for browser compatibility/,
-    // Suppress empty glob pattern warnings from dynamic imports with variable segments
-    /did not match any files/,
-  ];
-
-  function shouldSuppress(msg: string): boolean {
-    return warningPatterns.some((pattern) => pattern.test(msg));
-  }
-
-  return {
-    name: "suppress-third-party-warnings",
-    buildStart() {
-      if (!isIntercepted) {
-        isIntercepted = true;
-        originalConsoleWarn = console.warn;
-        originalConsoleLog = console.log;
-        originalStderrWrite = process.stderr.write.bind(process.stderr);
-        originalStdoutWrite = process.stdout.write.bind(process.stdout);
-        console.warn = (...args: unknown[]) => {
-          const msg = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
-          if (shouldSuppress(msg)) return;
-          (originalConsoleWarn as typeof console.warn).apply(console, args);
-        };
-        console.log = (...args: unknown[]) => {
-          const msg = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
-          if (shouldSuppress(msg)) return;
-          (originalConsoleLog as typeof console.log).apply(console, args);
-        };
-        process.stderr.write = (chunk: any, ...rest: any[]): boolean => {
-          const msg = typeof chunk === "string" ? chunk : (chunk?.toString() ?? "");
-          if (shouldSuppress(msg)) return true;
-          return originalStderrWrite!(chunk, ...rest);
-        };
-        process.stdout.write = (chunk: any, ...rest: any[]): boolean => {
-          const msg = typeof chunk === "string" ? chunk : (chunk?.toString() ?? "");
-          if (shouldSuppress(msg)) return true;
-          return originalStdoutWrite!(chunk, ...rest);
-        };
-      }
-    },
-    closeBundle() {
-      if (originalConsoleWarn) console.warn = originalConsoleWarn;
-      if (originalConsoleLog) console.log = originalConsoleLog;
-      if (originalStderrWrite) process.stderr.write = originalStderrWrite;
-      if (originalStdoutWrite) process.stdout.write = originalStdoutWrite;
-      isIntercepted = false;
-    },
-  };
-}
 
 function stubServerModulesPlugin(): Plugin {
   // Pre-compiled regex for high-performance pattern matching (Vite 8 / Rolldown optimization)
@@ -701,55 +589,6 @@ function sveltyCmsPlugin(): Plugin {
   };
 }
 
-/**
- * Plugin to capture build metadata (time, module counts) for analytics.
- * Writes to .svelte-kit/output/build-metadata-{client|server}.json
- */
-function buildMetadataPlugin(): Plugin {
-  let startTime: number;
-  let isSSR = false;
-  const outputPath = path.resolve(CWD, ".svelte-kit/output");
-
-  return {
-    name: "svelty-cms-build-metadata",
-    apply: "build", // Only run during build
-    configResolved(config) {
-      isSSR = !!config.build.ssr;
-    },
-    buildStart() {
-      startTime = performance.now();
-    },
-    async generateBundle(_options, bundle) {
-      const duration = performance.now() - startTime;
-      const moduleCount = Object.keys(bundle).length; // Rough count of chunks/assets
-
-      // Create output directory if it doesn't exist (it should, but safety first)
-      if (!existsSync(outputPath)) {
-        await fsPromises.mkdir(outputPath, { recursive: true });
-      }
-
-      const metadata = {
-        timestamp: new Date().toISOString(),
-        type: isSSR ? "server" : "client",
-        duration,
-        moduleCount,
-      };
-
-      const filename = `build-metadata-${isSSR ? "server" : "client"}.json`;
-      await fsPromises.writeFile(
-        path.resolve(outputPath, filename),
-        JSON.stringify(metadata, null, 2),
-      );
-
-      // Log explicitly to console for immediate visibility
-      const color = isSSR ? "\x1b[36m" : "\x1b[32m"; // Cyan for server, Green for client
-      const reset = "\x1b[0m";
-      console.log(
-        `${TAG} ${color}${isSSR ? "Server" : "Client"} build completed in ${duration.toFixed(2)}ms (${moduleCount} chunks/assets)${reset}`,
-      );
-    },
-  };
-}
 function databaseAdapterStripperPlugin(): Plugin {
   // Only strip adapters in production build and when setup is complete
   const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
@@ -886,103 +725,71 @@ export default defineConfig((): any => {
     }
   }
 
-  return {
-    plugins: [
-      uws(),
-      databaseAdapterStripperPlugin(),
-      testBackdoorStripperPlugin(),
-      testConfigAliasPlugin(),
-      privateConfigFallbackPlugin(),
-      stubServerModulesPlugin(),
-      browserShimsPlugin(),
-      sveltekit({
-        preprocess: [vitePreprocess()],
-        compilerOptions: {
-          runes: true,
-          experimental: {
-            async: true,
-          },
-        },
-        vitePlugin: {
-          inspector: {
-            // Hold alt+x to inspect elements in the browser and jump to source.
-            // holdMode: true means the inspector is active only while the keys are held,
-            // so it never interferes with e2e tests or normal clicking.
-            toggleKeyCombo: "alt-x",
-            holdMode: true,
-            showToggleButton: "always",
-            toggleButtonPos: "bottom-right",
-          },
-        },
-        adapter: adapter({
-          out: "build",
-          precompress: true,
-          envPrefix: "",
-          websocket: true,
-        }),
-        experimental: {
-          remoteFunctions: true,
-        },
-        alias: pathAliases,
-        csrf: {
-          trustedOrigins: ["http://127.0.0.1:4173"],
-        },
-        csp: !isBuild
-          ? undefined
-          : {
-              mode: "nonce",
-              directives: {
-                "default-src": ["self"],
-                "script-src": [
-                  "self",
-                  "blob:",
-                  "https://*.iconify.design",
-                  "https://code.iconify.design",
-                ],
-                "worker-src": ["self", "blob:"],
-                "style-src": ["self", "https://*.iconify.design"],
-                "img-src": [
-                  "self",
-                  "data:",
-                  "blob:",
-                  "https://*.iconify.design",
-                  "https://*.simplesvg.com",
-                  "https://*.unisvg.com",
-                  "https://placehold.co",
-                  "https://api.qrserver.com",
-                  "https://github.com",
-                  "https://raw.githubusercontent.com",
-                ],
-                "font-src": ["self", "data:"],
-                "connect-src": [
-                  "self",
-                  "https://*.iconify.design",
-                  "https://*.simplesvg.com",
-                  "https://*.unisvg.com",
-                  "https://code.iconify.design",
-                  "https://raw.githubusercontent.com",
-                  "wss://*" as any,
-                  "ws://*" as any,
-                ],
-                "object-src": ["none"],
-                "base-uri": ["self"],
-                "form-action": ["self"],
-                "frame-src": ["self", "https://127.0.0.1:5173", "https://localhost:5173"],
-              },
-            },
-      }),
-
-      realtime({ typedImports: !isBuild }),
-      sveltyCmsPlugin(),
-      securityCheckPlugin(),
-      suppressThirdPartyWarningsPlugin(),
-      buildMetadataPlugin(),
-      paraglideVitePlugin({
-        project: "./project.inlang",
-        outdir: "./src/paraglide",
-      }),
-      tailwindcss(),
-    ].filter(Boolean),
+	  return {
+	    plugins: ([
+	      uws(),
+	      databaseAdapterStripperPlugin(),
+	      testBackdoorStripperPlugin(),
+	      privateConfigFallbackPlugin(),
+	      stubServerModulesPlugin(),
+	      browserShimsPlugin(),
+	      sveltekit({
+	        preprocess: [vitePreprocess()],
+	        compilerOptions: {
+	          runes: true,
+	          experimental: {
+	            async: true,
+	          },
+	        },
+	        vitePlugin: {
+	          inspector: {
+	            toggleKeyCombo: "alt-x",
+	            holdMode: true,
+	            showToggleButton: "always",
+	            toggleButtonPos: "bottom-right",
+	          },
+	        },
+	        adapter: adapter({
+	          out: "build",
+	          precompress: true,
+	          envPrefix: "",
+	          websocket: true,
+	        }),
+	        experimental: {
+	          remoteFunctions: true,
+	        },
+	        alias: pathAliases,
+	        csrf: {
+	          trustedOrigins: ["http://127.0.0.1:4173"],
+	        },
+	        csp: !isBuild
+	          ? undefined
+	          : {
+	              mode: "nonce",
+	              directives: {
+	                "default-src": ["self"],
+	                "script-src": ["self", "blob:", "https://*.iconify.design", "https://code.iconify.design"],
+	                "worker-src": ["self", "blob:"],
+	                "style-src": ["self", "https://*.iconify.design"],
+	                "img-src": ["self", "data:", "blob:", "https://*.iconify.design", "https://*.simplesvg.com", "https://*.unisvg.com", "https://placehold.co", "https://api.qrserver.com", "https://github.com", "https://raw.githubusercontent.com"],
+	                "font-src": ["self", "data:"],
+	                "connect-src": ["self", "https://*.iconify.design", "https://*.simplesvg.com", "https://*.unisvg.com", "https://code.iconify.design", "https://raw.githubusercontent.com", "wss://*" as any, "ws://*" as any],
+	                "object-src": ["none"],
+	                "base-uri": ["self"],
+	                "form-action": ["self"],
+	                "frame-src": ["self", "https://127.0.0.1:5173", "https://localhost:5173"],
+	              },
+	            },
+	      }),
+	      realtime({ typedImports: !isBuild }),
+	      sveltyCmsPlugin(),
+	      securityCheckPlugin(),
+	      paraglideVitePlugin({
+	        project: "./project.inlang",
+	        outdir: "./src/paraglide",
+	      }),
+	      tailwindcss(),
+	    ] as any).filter(Boolean),
 
     server: {
       fs: {

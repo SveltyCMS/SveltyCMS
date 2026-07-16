@@ -187,7 +187,8 @@ const SUITE_RULES: SuiteRule[] = [
     label: "E2E Settings & System",
     gate: 4,
     patterns: ["src/routes/(app)/config/**"],
-    command: "npx playwright test tests/e2e/routes/config/ tests/e2e/routes/system/ --project=chromium",
+    command:
+      "npx playwright test tests/e2e/routes/config/ tests/e2e/routes/system/ --project=chromium",
   },
 ];
 
