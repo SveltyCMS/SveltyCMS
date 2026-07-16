@@ -245,8 +245,9 @@
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center rounded-full transition-colors
+    @apply inline-flex items-center justify-center rounded transition-colors
              duration-200 border-none bg-transparent p-2;
+    border-radius: var(--admin-radius-button, 0.25rem);
   }
   .btn-icon-sm {
     @apply p-1;

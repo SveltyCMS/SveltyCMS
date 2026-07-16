@@ -234,7 +234,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 </script>
 
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
-	<!-- Corporate Identity -->
+	<!-- Corporate Identity — min-h-12 + pt-2 matches PageTitle so brand + page name share one Y -->
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex min-h-12 shrink-0 items-center pt-2 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9" />
