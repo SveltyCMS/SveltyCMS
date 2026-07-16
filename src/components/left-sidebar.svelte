@@ -226,24 +226,24 @@ Route-driven sidebar content (no dual collapsible section headers):
 </script>
 
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
-	<!-- Corporate Identity -->
+	<!-- Corporate Identity — min-h-12 + pt-2 matches PageTitle so brand + page name share one Y -->
 	{#if isSidebarFull}
-		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex items-center pt-1 no-underline!" data-sveltekit-preload-data="hover">
+		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex min-h-12 shrink-0 items-center pt-2 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9" />
-			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
-		<div class="flex justify-start gap-2">
+		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
 			<Button variant="ghost"
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-			 class="p-0! min-w-0 preset-outline-surface-500 mt-1">
+			 class="p-0! min-w-0 preset-outline-surface-500">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 
-			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 no-underline!">
-				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
+			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!">
+				<SveltyCMSLogo fill="red" className="h-9 -ms-2" />
 			</a>
 		</div>
 	{/if}
@@ -252,7 +252,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 		positioning={{ placement: 'right-end' }}
-		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
+		triggerClass="absolute top-3 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
 			type="button"
@@ -409,7 +409,7 @@ Route-driven sidebar content (no dual collapsible section headers):
  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-300/20" iconSize={28} />
  					</div>
  				</SystemTooltip>
  			</div>

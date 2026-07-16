@@ -152,24 +152,25 @@
 </script>
 
 <div
-	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 bg-surface-50/95 backdrop-blur-sm dark:bg-surface-950/95
-		{compact ? 'px-2 py-2.5 sm:px-3' : 'gap-4 py-1.5'}"
+	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 border-b border-surface-200/70 bg-surface-50/95 px-2 pt-2 backdrop-blur-sm dark:border-surface-800/70 dark:bg-surface-950/95
+		{compact || description ? 'min-h-12 gap-3 pb-2 sm:px-3' : 'min-h-12 gap-4'}"
 >
-	<div class="flex min-w-0 items-center">
+	<div class="flex min-w-0 items-center gap-1">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<Button variant="outline"
+			<Button variant="ghost"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-			 class="p-0! min-w-0 shrink-0">
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
+				class="h-9 w-9 shrink-0 p-0! min-w-0 text-surface-700 hover:bg-surface-200/70 dark:text-surface-200 dark:hover:bg-surface-800/70"
+			>
+				<iconify-icon icon="mingcute:menu-fill" width="22" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/if}
-		<div class="flex flex-col ms-2 min-w-0">
+		<div class="flex min-w-0 flex-col justify-center">
 			<div class="flex min-w-0 items-center gap-1">
 				<h1
-					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 font-bold"
-					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.5rem, 3vw + 1rem, 2.25rem)'};"
+					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-none font-bold"
+					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
 					aria-live="polite"
 					data-cms-field="pageTitle"
 					data-cms-type="text"
@@ -178,8 +179,8 @@
 					{#if icon}
 						<iconify-icon
 							{icon}
-							width={compact ? '22' : iconSize}
-							class={`me-1 shrink-0 ${iconColor} sm:mr-2`}
+							width={compact ? '22' : '28'}
+							class={`me-1 shrink-0 ${iconColor} sm:me-2`}
 							aria-hidden="true"
 						></iconify-icon>
 					{/if}
@@ -220,13 +221,13 @@
 					<a
 						href={backUrl}
 						aria-label="Go back"
-						class="flex shrink-0 items-center justify-center rounded-full border border-surface-500 transition-colors hover:bg-surface-500/10 dark:border-surface-200
-							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
+						class="flex h-9 w-9 shrink-0 items-center justify-center border border-surface-500 transition-colors hover:bg-surface-500/10 dark:border-surface-200"
+						style="border-radius: var(--admin-radius-button, 0.25rem);"
 						data-cms-action="back"
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}
 					>
-						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="ri:arrow-left-line" width="20" aria-hidden="true"></iconify-icon>
 					</a>
 				</SystemTooltip>
 			{:else}
@@ -234,11 +235,10 @@
 					onclick={(e: MouseEvent) => handleBackClick(e)}
 					aria-label="Go back"
 					tabindex="0"
-					rounded={true}
-					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact ? 'h-9 w-9' : 'h-10 w-10'}"
+					class="flex h-9 w-9 min-w-0 shrink-0 items-center justify-center p-0!"
 					data-cms-action="back"
 				>
-					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="ri:arrow-left-line" width="20" aria-hidden="true"></iconify-icon>
 				</Button>
 			{/if}
 		{/if}
