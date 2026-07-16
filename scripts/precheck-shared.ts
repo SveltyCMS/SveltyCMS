@@ -413,12 +413,23 @@ const BASE_TASKS: TaskSpec[] = [
           ? [
               "run",
               "scripts/test-smart.ts",
-              "--unit-only",
+              "--unit+sqlite",
               "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
             ]
           : ["run", "test:unit"],
         { silent: true, timeout: 600_000 },
       ),
+  },
+  {
+    name: "CI Test Preview",
+    ciJob: undefined,
+    estimatedMs: 2000,
+    shouldSkip: (ctx) => ctx.tier !== "push",
+    run: () =>
+      runCommand("bun", ["run", "scripts/test-smart.ts", "--list"], {
+        silent: false,
+        timeout: 10_000,
+      }),
   },
   {
     name: "Production Build",

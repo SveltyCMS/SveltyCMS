@@ -241,6 +241,7 @@
 						onclick={modalUserForm}
 						title={userpage_edit_usersetting()}
 						aria-label={userpage_edit_usersetting()}
+						data-testid="edit-user-settings-btn"
 						class="rounded p-1.5 text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-700 dark:hover:text-surface-100"
 					>
 						<iconify-icon icon="bi:pencil-fill" width={18}></iconify-icon>
