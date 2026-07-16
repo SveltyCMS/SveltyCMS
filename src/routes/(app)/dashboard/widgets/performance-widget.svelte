@@ -68,9 +68,9 @@ export const widgetMeta = {
 	function updateMetricsHistory(newData: any) {
 		const metrics = newData as HealthMetrics | null;
 		if (!metrics?.requests) return;
-		
-		const rate = metrics.requests.total > 0 
-			? (metrics.requests.errors / metrics.requests.total) * 100 
+
+		const rate = metrics.requests.total > 0
+			? (metrics.requests.errors / metrics.requests.total) * 100
 			: 0;
 
 		errorHistory.push(rate);
@@ -111,7 +111,7 @@ export const widgetMeta = {
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
 			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">Upgrade License &rarr;</a>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-500">Upgrade License &rarr;</a>
 		</div>
 	</BaseWidget>
 {:else}
@@ -138,14 +138,14 @@ export const widgetMeta = {
 				</div>
 			</div>
 		{:else}
-			{const errorRate = metrics.requests?.total > 0 
-				? (metrics.requests.errors / metrics.requests.total) * 100 
+			{const errorRate = metrics.requests?.total > 0
+				? (metrics.requests.errors / metrics.requests.total) * 100
 				: 0}
-			{const cacheHitRate = (metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0 
-				? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100 
+			{const cacheHitRate = (metrics.cache?.hits ?? 0) + (metrics.cache?.misses ?? 0) > 0
+				? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100
 				: 0}
-			{const authSuccessRate = metrics.auth?.validations > 0 
-				? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100 
+			{const authSuccessRate = metrics.auth?.validations > 0
+				? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100
 				: 100}
 
 			{const points = errorHistory.map((val: number, i: number) => ({
@@ -188,7 +188,7 @@ export const widgetMeta = {
 								</div>
 								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">Last 10k requests</div>
 							</div>
-							
+
 							{#if errorHistory.length > 1}
 								<div class="w-[110px] h-[32px] overflow-visible pb-1 pe-1 shrink-0">
 									<svg viewBox="0 0 110 24" class="w-full h-full overflow-visible">

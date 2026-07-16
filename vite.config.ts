@@ -905,12 +905,12 @@ export default defineConfig((): any => {
         },
         vitePlugin: {
           inspector: {
-            // Hold meta+shift+s to inspect elements in the browser and jump to source.
+            // Hold alt+x to inspect elements in the browser and jump to source.
             // holdMode: true means the inspector is active only while the keys are held,
             // so it never interferes with e2e tests or normal clicking.
-            toggleKeyCombo: "meta-shift-s",
+            toggleKeyCombo: "alt-x",
             holdMode: true,
-            showToggleButton: "active",
+            showToggleButton: "always",
             toggleButtonPos: "bottom-right",
           },
         },
@@ -925,16 +925,7 @@ export default defineConfig((): any => {
         },
         alias: pathAliases,
         csrf: {
-          trustedOrigins: [
-            "http://127.0.0.1:4173",
-            "http://127.0.0.1:4174",
-            "http://127.0.0.1:4175",
-            "http://127.0.0.1:4176",
-            "http://127.0.0.1:4177",
-            "http://127.0.0.1:4178",
-            "http://127.0.0.1:4179",
-            "http://localhost:4173",
-          ],
+          trustedOrigins: ["http://127.0.0.1:4173"],
         },
         csp: !isBuild
           ? undefined

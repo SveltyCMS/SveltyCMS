@@ -392,7 +392,7 @@
                   </div>
                   <table class="w-full text-start border-collapse mt-2">
                     <thead>
-                      <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-400">
+                      <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-500">
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Size</th>
                         <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-center">Pixel</th>
                         <th class="font-bold py-1 px-2 text-end" colspan="2">Size</th>
@@ -400,7 +400,7 @@
                     </thead>
                     <tbody class="text-surface-700 dark:text-surface-300">
                       <tr class="border-b border-surface-300 dark:border-surface-700">
-                        <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
+                        <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
                         <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
                         <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes(file.size)}</td>
                       </tr>
@@ -416,7 +416,7 @@
                           {@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
                           {@const thumb = file.thumbnails[sizeKey]!}
                           <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
-                            <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-400 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>
+                            <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>
                             <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">
                               {thumb.width}x{thumb.height}
                             </td>

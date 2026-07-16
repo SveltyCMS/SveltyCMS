@@ -57,7 +57,6 @@ import { useContent } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import Button from "@components/ui/button.svelte";
-import StickyActions from "@components/ui/sticky-actions.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@components/system/slot.svelte";
 import AdminCard from "@components/admin-card.svelte";
@@ -653,30 +652,24 @@ function modalLoadPreset(): void {
     });
 </script>
 
-{#snippet saveButton(isHeader = false)}
-    <Button variant="tertiary"
-        data-testid="save-structure-button"
-        onclick={handleSave}
-        disabled={isLoading || Object.keys(nodesToSave).length === 0}
-        title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
-        aria-keyshortcuts="mod+s"
-     size={isHeader ? 'md' : 'lg'} class="flex items-center gap-1.5 px-4">
-        {#if isLoading}
-            <iconify-icon icon="mdi:loading" width={isHeader ? '20' : '24'} class="animate-spin"></iconify-icon>
-        {:else}
-            <iconify-icon icon="mdi:content-save" width={isHeader ? '20' : '24'}></iconify-icon>
-        {/if}
-        <span>{button_save()}</span>
-    </Button>
-{/snippet}
-
 <AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
     {#snippet actions()}
-        <StickyActions>
-            {#if currentConfig.length > 0}
-                {@render saveButton(false)}
-            {/if}
-        </StickyActions>
+        {#if currentConfig.length > 0}
+            <Button variant="tertiary"
+                data-testid="save-structure-button"
+                onclick={handleSave}
+                disabled={isLoading || Object.keys(nodesToSave).length === 0}
+                title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
+                aria-keyshortcuts="mod+s"
+             size="md" class="flex items-center gap-1.5 px-4">
+                {#if isLoading}
+                    <iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+                {:else}
+                    <iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+                {/if}
+                <span>{button_save()}</span>
+            </Button>
+        {/if}
     {/snippet}
 
     {#if currentConfig.length > 0}

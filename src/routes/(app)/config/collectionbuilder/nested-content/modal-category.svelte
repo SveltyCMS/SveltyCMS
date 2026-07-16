@@ -285,7 +285,7 @@ Features:
 						class="flex items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 p-4"
 						data-testid="category-preview"
 					>
-						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
+						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-500">
 							<iconify-icon icon={previewIcon} width="28" height="28"></iconify-icon>
 						</div>
 						<div class="min-w-0 flex-1">

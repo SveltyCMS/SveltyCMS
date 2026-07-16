@@ -48,6 +48,15 @@ import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
+
+/** Mask an email for log safety: r***s@web.de */
+function maskEmail(email: string): string {
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 1) return "***@***";
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex);
+  return local[0] + "***" + local[local.length - 1] + domain;
+}
 import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
@@ -255,7 +264,7 @@ async function getUserFromSession(
       if (userResult.data) {
         const user = userResult.data;
         logger.debug(
-          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${(user as any).email}`,
+          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
         );
         const sessionData: SessionCacheEntry = { user, timestamp: now };
         setSessionInCache(sessionId, sessionData);
@@ -521,10 +530,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
       const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
       logger.info(
-        `[Auth] getUserFromSession: ${user ? "FOUND " + user.email : "NULL"} path=${event.url.pathname}`,
+        `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) : "NULL"} path=${event.url.pathname}`,
       );
       logger.info(
-        `[Auth] getUserFromSession result: ${user ? user.email + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
+        `[Auth] getUserFromSession result: ${user ? maskEmail(user.email) + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
       );
 
       if (isDemoMode && !locals.tenantId && !user) {

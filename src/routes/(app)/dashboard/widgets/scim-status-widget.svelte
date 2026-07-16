@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/dashboard/widgets/scim-status-widget.svelte
 @component
 **Clean, modern SCIM Identity Synchronization status widget with compact and history tracking**
@@ -87,7 +87,7 @@ export const widgetMeta = {
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
 			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">Upgrade License &rarr;</a>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-500">Upgrade License &rarr;</a>
 		</div>
 	</BaseWidget>
 {:else}
@@ -167,7 +167,7 @@ export const widgetMeta = {
 								{scim.syncedToday}
 							</div>
 							<div class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1">Synced Today</div>
-							
+
 							<!-- Client-side mini sparkline for trend -->
 							{#if syncHistory.length > 1}
 								<div class="w-[80px] h-[16px] overflow-visible mt-1.5 opacity-80 shrink-0">
@@ -194,7 +194,7 @@ export const widgetMeta = {
 						</div>
 						<div class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2">
 							<span class="text-surface-500 dark:text-surface-400">Provider</span>
-							<span class="font-mono text-tertiary-600 dark:text-primary-600 dark:text-primary-400 font-semibold">{scim.provider}</span>
+							<span class="font-mono text-tertiary-600 dark:text-primary-600 dark:text-primary-500 font-semibold">{scim.provider}</span>
 						</div>
 
 						{#if scim.lastError}
@@ -207,8 +207,8 @@ export const widgetMeta = {
 					<!-- Health Footer -->
 					<div class="mt-auto pt-3 border-t border-surface-100 dark:border-surface-700">
 						<div class="flex items-center gap-2 text-sm font-medium">
-							<iconify-icon 
-								icon={scim.endpointsHealthy ? "mdi:check-circle" : "mdi:alert-circle"} 
+							<iconify-icon
+								icon={scim.endpointsHealthy ? "mdi:check-circle" : "mdi:alert-circle"}
 								width={18}
 								class={scim.endpointsHealthy ? "text-emerald-500" : "text-amber-500"}
 							></iconify-icon>

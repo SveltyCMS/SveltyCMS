@@ -23,7 +23,7 @@ import {
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { successResponse, rawResponse } from "./base";
-import { invalidateSessionCache } from "@src/hooks/handle-authentication";
+import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -345,6 +345,25 @@ export async function handleUpdateUserAttributesRoute(
     tenantId,
   });
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
+
+  // 🔄 Refresh session caches so the next page load returns updated user data
+  const currentSessionId =
+    (event.locals.session_id as DatabaseId | undefined) ??
+    event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
+    event.cookies.get(SESSION_COOKIE_NAME);
+  if (currentSessionId && result.data) {
+    primeSessionMemoryCache(currentSessionId, result.data);
+    // Also clear the Redis cache key so it's re-read from DB on next cache miss
+    try {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const cacheKey = tenantId
+        ? `session:${tenantId}:${currentSessionId}`
+        : `session:${currentSessionId}`;
+      cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
+    } catch {
+      /* cache service not available — memory-only is fine */
+    }
+  }
 
   // 🔐 Password change: Invalidate all other sessions across all devices
   const hasPasswordField = "password" in updates || "password" in (body as any);

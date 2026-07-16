@@ -11,7 +11,7 @@ Displays a preview of the shared link for different platforms.
 				{ id: 'facebook', icon: 'mdi:facebook', color: 'text-tertiary-500 dark:text-primary-500', label: 'Facebook' },
 				{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-success-500', label: 'WhatsApp' },
 				{ id: 'twitter', icon: 'mdi:twitter', color: 'text-surface-900 dark:text-surface-50', label: 'X (Twitter)' },
-				{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-tertiary-600 dark:text-primary-400', label: 'LinkedIn' },
+				{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-tertiary-600 dark:text-primary-500', label: 'LinkedIn' },
 				{ id: 'discord', icon: 'mdi:discord', color: 'text-secondary-500', label: 'Discord' }
 			] as const;
 </script>

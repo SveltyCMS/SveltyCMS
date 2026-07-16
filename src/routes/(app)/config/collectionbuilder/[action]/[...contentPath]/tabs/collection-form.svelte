@@ -122,7 +122,7 @@ $effect(() => {
 						<span class="text-[10px] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-1 block">
 							Database Name
 						</span>
-						<code class="text-sm font-mono font-bold text-primary-600 dark:text-primary-400">{DB_NAME}</code>
+						<code class="text-sm font-mono font-bold text-primary-600 dark:text-primary-500">{DB_NAME}</code>
 						<p class="text-[11px] text-surface-400 mt-1">Auto-generated from collection name — used as the database table name</p>
 					</div>
 				{/if}
@@ -148,7 +148,7 @@ $effect(() => {
 						id="description"
 						bind:value={description}
 						placeholder={collection_description_placeholder()}
-						aria-label="Collection description"
+						title={collectionname_description()}
 						class="w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-32"
 					></textarea>
 				</div>

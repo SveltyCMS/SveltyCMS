@@ -612,7 +612,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
         <Button variant="tertiary"
           onclick={() => activeTab = tab.id}
           size="sm"
-          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-400' : ''}>
+          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500' : ''}>
           <iconify-icon icon={tab.icon} width="16"></iconify-icon>
           <span>{tab.label}</span>
         </Button>

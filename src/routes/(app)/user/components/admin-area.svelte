@@ -332,14 +332,15 @@
 		// Update displayTableHeaders when view changes
 		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
-		displayTableHeaders = relevantHeaders.map((header) => ({
+		const newHeaders = relevantHeaders.map((header) => ({
 			label: header.label,
 			key: header.key,
 			visible: true,
 			id: `header-${header.key}`
 		}));
+		displayTableHeaders = newHeaders;
 		smartTable.setColumns(
-			displayTableHeaders.map((h) => ({
+			newHeaders.map((h) => ({
 				key: String(h.key),
 				label: h.label,
 				sortable: true,

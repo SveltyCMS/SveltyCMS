@@ -452,6 +452,7 @@ onMount(() => {
 <DialogManager />
 <ToastContainer position="responsive" />
 
+<div class="relative z-0">
 <svelte:boundary>
 	{#snippet failed(error: any, reset: any)}
 		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-50 text-center dark:bg-surface-900">
@@ -481,6 +482,7 @@ onMount(() => {
 		{@render children?.()}
 	{/key}
 </svelte:boundary>
+</div>
 
 <CookieConsent />
 

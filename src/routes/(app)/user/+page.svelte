@@ -43,6 +43,7 @@
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import AdminArea from './components/admin-area.svelte';
 	// Auth
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
@@ -73,9 +74,21 @@
 		permissions: []
 	});
 
+	// Role display lookup (icon + full name per role)
+	const roleDisplay = $derived.by(() => {
+		const r = String(user.role).toLowerCase();
+		switch (r) {
+			case 'admin':       return { icon: 'material-symbols:verified-outline', name: 'Administrator' };
+			case 'developer':    return { icon: 'material-symbols:code', name: 'Developer' };
+			case 'editor':      return { icon: 'material-symbols:edit', name: 'Editor' };
+			case 'guest':       return { icon: 'material-symbols:person', name: 'Guest' };
+			default:            return { icon: 'material-symbols:person', name: user.role };
+		}
+	});
+
 	// Function to open 2FA modal
 	function open2FAModal(): void {
-		modalState.trigger(ModalTwoFactorAuth, { user }, async (r: any) => {
+		modalState.trigger(ModalTwoFactorAuth, { user, size: 'fullscreen' }, async (r: any) => {
 			if (r) {
 				// Refresh user data after 2FA changes
 				await invalidateAll();
@@ -107,18 +120,28 @@
 		try {
 			const res = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				},
 				body: JSON.stringify({ user_id: 'self', newUserData })
 			});
 
 			if (res.ok) {
-				toast.success('Preferences updated');
+				if (value) {
+					toast.success({ title: 'Enabled', description: `Preference "${key}" enabled` });
+				} else {
+					toast.warning({ title: 'Disabled', description: `Preference "${key}" disabled` });
+				}
 				await invalidateAll();
+			} else if (res.status === 401 || res.status === 403) {
+				toast.error({ title: 'Auth error', description: 'Please reload the page and try again.' });
 			} else {
-				toast.error('Failed to update preferences');
+				const body = await res.json().catch(() => ({}));
+				toast.error({ title: 'Update failed', description: (body as any).message || `HTTP ${res.status}` });
 			}
-		} catch {
-			toast.error('Error updating preferences');
+		} catch (err) {
+			toast.error({ title: 'Network error', description: err instanceof Error ? err.message : 'Could not reach server' });
 		}
 	}
 
@@ -209,72 +232,89 @@
 		<section in:fly={{ y: 20, delay: 50, duration: 300 }}>
 			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm">
 				<!-- Section header -->
-				<div class="flex items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
-					<iconify-icon icon="mdi:account-circle" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Identity</h3>
+				<div class="flex items-center justify-between gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<div class="flex items-center gap-2">
+						<iconify-icon icon="mdi:account-circle" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
+						<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Identity</h3>
+					</div>
+					<button
+						onclick={modalUserForm}
+						title={userpage_edit_usersetting()}
+						aria-label={userpage_edit_usersetting()}
+						class="rounded p-1.5 text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-700 dark:hover:text-surface-100"
+					>
+						<iconify-icon icon="bi:pencil-fill" width={18}></iconify-icon>
+					</button>
 				</div>
 
 				<!-- Avatar (centered, with edit overlay) -->
 				<div class="flex flex-col items-center mb-5">
-					<div class="relative group mb-3">
+					<button
+						onclick={modalEditAvatar}
+						title={userpage_editavatar()}
+						aria-label={userpage_editavatar()}
+						class="relative group mb-3 cursor-pointer"
+					>
 						<Avatar
 							src={normalizeAvatarUrl(user.avatar)}
 							initials="AV"
 							size="size-24"
-							class="rounded-full border-2 border-surface-200 dark:border-surface-600 shadow-md"
+							class="rounded-full border-2 border-surface-200 dark:border-surface-600 shadow-md pointer-events-none"
 						/>
-						<!-- Edit overlay -->
-						<button
-							onclick={modalEditAvatar}
-							title={userpage_editavatar()}
-							class="absolute bottom-0 inset-e-0 p-1.5 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
-						>
-							<iconify-icon icon="mdi:camera-plus" width={16}></iconify-icon>
-						</button>
-					</div>
-					<span class="text-sm font-medium text-surface-600 dark:text-surface-300">Click avatar to change</span>
+						<!-- Pencil icon indicator top-left -->
+						<span class="absolute top-0 inset-s-0 p-1.5 rounded-full bg-tertiary-500 dark:bg-primary-500 text-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+							<iconify-icon icon="bi:pencil-fill" width={14}></iconify-icon>
+						</span>
+					</button>
 				</div>
 
 				<!-- Identity fields (read-only display) -->
 				<div class="space-y-3">
 					<div>
-						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{username()}</span>
+						<span class="flex items-center gap-1.5 text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
+							<iconify-icon icon="mdi:account" width={14} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{username()}
+						</span>
 						<p class="text-sm font-medium text-surface-900 dark:text-surface-100">{user.username || '—'}</p>
 					</div>
 					<div>
-						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{email()}</span>
+						<span class="flex items-center gap-1.5 text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
+							<iconify-icon icon="mdi:email-outline" width={14} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{email()}
+						</span>
 						<p class="text-sm font-medium text-surface-900 dark:text-surface-100">{user.email || '—'}</p>
 					</div>
 					<div>
-						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{role()}</span>
-						<p class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize">{user.role || '—'}</p>
+						<span class="flex items-center gap-1.5 text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
+							<iconify-icon icon="mdi:shield-account-outline" width={14} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{role()}
+						</span>
+							<Badge variant="primary" class="text-white">
+								<iconify-icon icon={roleDisplay.icon} width={20} ></iconify-icon>
+								{roleDisplay.name}
+							</Badge>
 					</div>
 					<div>
-						<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">{userpage_user_id()}</span>
-						<p class="text-xs font-mono text-surface-600 dark:text-surface-400 truncate">{user._id || 'N/A'}</p>
+						<span class="flex items-center gap-1.5 text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
+							<iconify-icon icon="mdi:identifier" width={14} class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{userpage_user_id()}
+						</span>
+						<Badge preset="tonal" color="tertiary" size="sm" class="font-mono">{user._id || 'N/A'}</Badge>
 					</div>
 					{#if isMultiTenant && user?.tenantId}
 						<div>
-							<span class="block text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">Tenant ID</span>
+							<span class="flex items-center gap-1.5 text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-1">
+								<iconify-icon icon="mdi:domain" width={14}></iconify-icon>
+								Tenant ID
+							</span>
 							<p class="text-xs font-mono text-surface-600 dark:text-surface-400 truncate">{user.tenantId}</p>
 						</div>
 					{/if}
 				</div>
 
 				<!-- Identity actions -->
-				<div class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-700 space-y-2">
-					<Button
-						variant="outline"
-						size="sm"
-						leadingIcon="bi:pencil-fill"
-						onclick={modalUserForm}
-						aria-label="Edit User Settings"
-						data-testid="edit-user-settings-btn"
-						class="w-full justify-start"
-					>
-						{userpage_edit_usersetting()}
-					</Button>
-					{#if isFirstUser}
+				{#if isFirstUser}
+					<div class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-700">
 						<Button
 							variant="outline"
 							size="sm"
@@ -284,16 +324,16 @@
 						>
 							{button_delete()}
 						</Button>
-					{/if}
-				</div>
+					</div>
+				{/if}
 			</AdminCard>
 		</section>
 
 		<!-- ═══ COLUMN 2: Security ═══ -->
 		<section in:fly={{ y: 20, delay: 100, duration: 300 }}>
 			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm h-full">
-				<div class="flex items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
-					<iconify-icon icon="mdi:shield-lock-outline" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
+				<div class="flex justify-center items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<iconify-icon icon="mdi:shield-lock-outline" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Security</h3>
 				</div>
 
@@ -308,7 +348,7 @@
 									<p class="text-xs text-surface-500 dark:text-surface-400">Change your account password</p>
 								</div>
 							</div>
-							<Button variant="ghost" size="sm" onclick={modalUserForm} class="text-xs">
+							<Button variant="surface" size="sm" onclick={modalUserForm} class="text-xs">
 								Change
 							</Button>
 						</div>
@@ -327,7 +367,7 @@
 										</p>
 									</div>
 								</div>
-								<Button variant="ghost" size="sm" onclick={open2FAModal} class="text-xs {user?.is2FAEnabled ? 'text-success-500' : ''}">
+								<Button variant="surface" size="sm" onclick={open2FAModal} class="text-xs {user?.is2FAEnabled ? 'text-success-500' : ''}">
 									{user?.is2FAEnabled ? 'Manage' : 'Setup'}
 								</Button>
 							</div>
@@ -409,8 +449,8 @@
 		<!-- ═══ COLUMN 3: Preferences ═══ -->
 		<section in:fly={{ y: 20, delay: 150, duration: 300 }}>
 			<AdminCard class="border border-surface-200 bg-white dark:bg-surface-900/60 dark:border-surface-800 p-6 shadow-sm h-full">
-				<div class="flex items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
-					<iconify-icon icon="mdi:tune-variant" class="text-tertiary-500 dark:text-primary-400" width={20}></iconify-icon>
+				<div class="flex justify-center items-center gap-2 mb-5 pb-3 border-b border-surface-200 dark:border-surface-700">
+					<iconify-icon icon="mdi:tune-variant" class="text-tertiary-500 dark:text-primary-500" width={20}></iconify-icon>
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">Preferences</h3>
 				</div>
 
@@ -420,8 +460,8 @@
 						class="pb-4 border-b border-surface-100 dark:border-surface-800"
 						data-testid="workspace-appearance-section"
 					>
-						<div class="flex items-center gap-2 mb-2">
-							<iconify-icon icon="mdi:palette-outline" class="text-surface-500" width={18}></iconify-icon>
+						<div class="flex justify-center items-center gap-2 mb-2">
+							<iconify-icon icon="mdi:palette-outline" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Workspace Appearance</p>
 						</div>
 						<p class="text-xs text-surface-500 dark:text-surface-400 mb-2">
@@ -442,7 +482,7 @@
 							data-testid="open-appearance-settings-btn"
 							aria-label="Open Appearance Settings"
 							data-sveltekit-preload-data="hover"
-							class="btn preset-outlined-surface-500 relative inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--admin-radius-button,0.25rem)] px-3 text-xs font-bold tracking-tight transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300"
+							class="btn preset-outlined-surface-500 relative inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem)] px-3 text-xs font-bold tracking-tight transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300"
 						>
 							<iconify-icon icon="mdi:open-in-new" width={14} class="me-1" aria-hidden="true"></iconify-icon>
 							Open Appearance Settings
@@ -451,8 +491,8 @@
 
 					<!-- Collaboration -->
 					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
-						<div class="flex items-center gap-2 mb-3">
-							<iconify-icon icon="mdi:forum" class="text-surface-500" width={18}></iconify-icon>
+						<div class="flex justify-center items-center gap-2 mb-3">
+							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Collaboration</p>
 						</div>
 						<div class="space-y-3">
@@ -481,7 +521,7 @@
 							onclick={modalPrivacyData}
 							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-start"
 						>
-							<iconify-icon icon="mdi:shield-account" class="text-surface-500" width={18}></iconify-icon>
+							<iconify-icon icon="mdi:shield-account" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<div class="flex-1">
 								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Privacy & Data</p>
 								<p class="text-xs text-surface-500 dark:text-surface-400">View, export, or delete your data</p>
@@ -508,7 +548,7 @@
 		} as any)}
 	>
 		<div in:fly={{ y: 20, delay: 200, duration: 300 }}>
-			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
+			<AdminArea currentUser={user as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
 		</div>
 	</PermissionGuard>
 </div>

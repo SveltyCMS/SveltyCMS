@@ -29,7 +29,7 @@ interface Props {
 let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickStart }: Props = $props();
 </script>
 
-<div class="flex flex-col items-center justify-center p-8 py-16 text-center" in:fade={{ duration: 400 }}>
+<div class="flex flex-col items-center justify-center p-8 pt-4 py-12 text-center" in:fade={{ duration: 400 }}>
     <!-- Illustration Container -->
     <div
         class="relative mb-8 flex h-48 w-48 items-center justify-center rounded-full bg-linear-to-br from-primary-500/10 to-tertiary-500/10 dark:from-primary-500/5 dark:to-tertiary-500/5"
@@ -76,14 +76,14 @@ let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickSt
                     <iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
                     <span>Quick Start</span>
                 </Button>
-                <p class="text-xs font-medium text-tertiary-600 dark:text-primary-400">Recommended for new projects</p>
+                <p class="text-xs font-medium text-tertiary-600 dark:text-primary-500">Recommended for new projects</p>
             {/if}
 
             <Button
                 href={newCollectionHref}
                 data-preload="hover"
                 onclick={onAddCollection}
-                variant="primary"
+                variant="error"
                 rounded={true}
                 size="lg"
                 class="group w-full max-w-sm justify-center sm:w-64"
@@ -93,37 +93,35 @@ let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickSt
                 <iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
                 <span>{collection_add()}</span>
             </Button>
-        </div>
 
-        <div class="mt-8 flex w-full flex-col items-center gap-3 border-t border-surface-200 pt-8 dark:border-surface-700">
-            <p class="text-xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400">Optional</p>
-            <div class="flex flex-wrap justify-center gap-3">
-                <Button
-                    onclick={onAddCategory}
-                    variant="outline"
-                    rounded={true}
-                    size="lg"
-                    class="group w-52 justify-center"
-                    data-testid="add-category-button"
-                >
-                    <iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
-                    <span>{collection_addcategory()}</span>
+            <p class="mb-4 text-xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400">Optional</p>
+
+            <Button
+                onclick={onAddCategory}
+                variant="tertiary"
+                rounded={true}
+                size="lg"
+                class="group w-full max-w-sm justify-center"
+                data-testid="add-category-button"
+            >
+                <iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
+                <span>{collection_addcategory()}</span>
+            </Button>
+
+            {#if onLoadPreset}
+                <Button onclick={onLoadPreset} variant="warning" rounded={true} size="lg" class="group w-full max-w-sm justify-center">
+                    <iconify-icon icon="mdi:package-variant" width="24" class="text-white transition-transform group-hover:scale-110"></iconify-icon>
+                    <span class="text-white">Load Preset</span>
                 </Button>
+            {/if}
 
-                {#if onLoadPreset}
-                    <Button onclick={onLoadPreset} variant="warning" rounded={true} size="lg" class="group w-52 justify-center">
-                        <iconify-icon icon="mdi:package-variant" width="24" class="text-white transition-transform group-hover:scale-110"></iconify-icon>
-                        <span class="text-white">Load Preset</span>
-                    </Button>
-                {/if}
-            </div>
         </div>
 
         <p class="mt-8 max-w-md text-sm text-surface-600 dark:text-surface-300" role="note">
             Templates apply immediately. Categories and layout changes require <strong>Save</strong>.
         </p>
 
-        <p class="mt-3 text-sm italic text-surface-500 dark:text-surface-400">
+        <p class="mt-3 text-sm italic text-tertiary-500 dark:text-primary-500">
             At least one collection is required to use the {publicEnv.SITE_NAME} features.
         </p>
     </div>

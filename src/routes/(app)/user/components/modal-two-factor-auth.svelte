@@ -267,12 +267,12 @@ This component provides a user interface for managing 2FA settings:
 </script>
 
 <!-- Main Modal Component -->
-<div class="modal-2fa space-y-3">
+<div class="modal-2fa flex flex-col h-full space-y-3">
 	<header class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader} shrink-0`}>{title ?? twofa_title()}</header>
 
 	<article class="shrink-0 text-center text-sm">{body ?? twofa_description()}</article>
 
-	<form class="modal-form {cForm} max-h-[60vh]">
+	<form class="modal-form {cForm} flex-1 min-h-0">
 		<!-- Status Section -->
 		<div class="mb-4 flex items-center justify-between rounded bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
