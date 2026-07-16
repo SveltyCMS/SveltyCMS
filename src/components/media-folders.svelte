@@ -387,7 +387,7 @@
 
 	<div class="group/folder relative flex flex-col">
 		<div
-			role="treeitem"
+			role="listitem"
 			class="flex w-full items-center gap-1 rounded py-0.5 text-start text-[15px] font-medium leading-none transition-colors
 				{dropHighlight ? 'bg-primary-500/20 ring-1 ring-inset ring-primary-500/60' : ''}"
 			style="padding-inline-start: {indent}px"
@@ -541,7 +541,7 @@
 				<div class="flex flex-col" role="tree" aria-label="Media folder tree">
 					<div class="group/root relative flex flex-col">
 						<div
-							role="treeitem"
+							role="listitem"
 							class="rounded transition-colors
 								{rootDropHighlight ? 'bg-primary-500/20 ring-1 ring-inset ring-primary-500/60' : ''}"
 							ondragover={(e) => handleMediaDragOver(e, 'root')}
