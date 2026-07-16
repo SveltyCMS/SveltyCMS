@@ -15,10 +15,10 @@ test.describe("System Smoke", () => {
       timeout: 10_000,
     });
     // The page title (PageTitle h1) renders "System Settings"; the descriptive
-    // h2 below it is asserted separately. Scope to level 1 to avoid matching the h2.
-    await expect(page.getByRole("heading", { level: 1, name: /system settings/i })).toBeVisible({
-      timeout: 10_000,
-    });
+    // h2 below it is asserted separately. Use testid to survive CSS refactors.
+    const pageTitle = page.getByTestId("page-title");
+    await pageTitle.waitFor({ state: "visible", timeout: 15_000 });
+    await expect(pageTitle).toContainText(/system settings/i);
     await expect(page.getByText(/configure global system settings/i)).toBeVisible({
       timeout: 10_000,
     });

@@ -56,7 +56,6 @@
 	role="separator"
 	aria-orientation="vertical"
 	aria-label="Resize column {columnKey}"
-	tabindex="0"
 	class="absolute inset-e-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none select-none hover:bg-tertiary-500/40 dark:hover:bg-primary-500/40 {dragging
 		? 'bg-tertiary-500/50 dark:bg-primary-500/50'
 		: ''}"

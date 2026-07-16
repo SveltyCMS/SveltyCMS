@@ -351,7 +351,7 @@ export async function handleUpdateUserAttributesRoute(
     (event.locals.session_id as DatabaseId | undefined) ??
     event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
     event.cookies.get(SESSION_COOKIE_NAME);
-  if (currentSessionId && result.data) {
+  if (targetId === event.locals.user?._id && currentSessionId && result.data) {
     primeSessionMemoryCache(currentSessionId, result.data);
     // Also clear the Redis cache key so it's re-read from DB on next cache miss
     try {

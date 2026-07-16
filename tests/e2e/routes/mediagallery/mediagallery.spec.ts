@@ -77,12 +77,15 @@ test.describe("Media Gallery", () => {
 
     // Native button — Playwright click is enough; evaluate as belt-and-suspenders
     await tableBtn.click({ force: true });
+    // Table view may unmount/remount the content container — wait for re-attach
+    await content.waitFor({ state: "attached", timeout: 15_000 });
     await expect(content).toHaveAttribute("data-view", "table", { timeout: 10_000 });
     await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
     await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
     await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
 
     await gridBtn.click({ force: true });
+    await content.waitFor({ state: "attached", timeout: 15_000 });
     await expect(content).toHaveAttribute("data-view", "grid", { timeout: 10_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
     await expect(gridBtn).toHaveAttribute("aria-pressed", "true");

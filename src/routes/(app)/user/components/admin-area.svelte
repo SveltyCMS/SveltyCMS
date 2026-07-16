@@ -113,7 +113,7 @@
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
-	type TableDataType = User | Token;
+	type TableDataType = (User | Token) & Record<string, unknown>;
 
 	interface TableHeader {
 		id: string;
@@ -136,7 +136,7 @@
 	let searchShow = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
-	let filters = $state<Record<string, string>>({});
+	let filters = $state<Record<string, string | undefined>>({});
 	let selectAllColumns = $state(true);
 
 	function getAdminRowId(row: TableDataType): string {
@@ -731,7 +731,7 @@
 		{#if showUsertoken && !showUserList && tableData}
 			{const now = new Date()}
 			{const expiredTokens = tableData.filter(
-				(item): item is Token => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
+				(item): item is Token & Record<string, unknown> => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
 			)}
 			{#if expiredTokens.length > 0}
 				<Button variant="outline"

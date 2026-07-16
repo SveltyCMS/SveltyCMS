@@ -154,6 +154,42 @@ const SUITE_RULES: SuiteRule[] = [
     patterns: ["src/routes/(app)/login/**", "src/routes/api/auth/**", "tests/e2e/auth.setup.ts"],
     command: "npx playwright test --project=auth-setup",
   },
+  {
+    label: "E2E User & Profile",
+    gate: 4,
+    patterns: [
+      "src/routes/(app)/user/**",
+      "src/components/ui/avatar.svelte",
+      "src/components/ui/checkbox.svelte",
+    ],
+    command:
+      "npx playwright test tests/e2e/routes/user/management.spec.ts tests/e2e/routes/user/profile.spec.ts --project=chromium",
+  },
+  {
+    label: "E2E Media Gallery",
+    gate: 4,
+    patterns: ["src/routes/(app)/mediagallery/**", "src/components/media/**"],
+    command: "npx playwright test tests/e2e/routes/mediagallery/ --project=chromium",
+  },
+  {
+    label: "E2E Collection Builder",
+    gate: 4,
+    patterns: ["src/routes/(app)/config/collectionbuilder/**"],
+    command: "npx playwright test tests/e2e/routes/collection-builder/ --project=chromium",
+  },
+  {
+    label: "E2E Dashboard",
+    gate: 4,
+    patterns: ["src/routes/(app)/dashboard/**"],
+    command: "npx playwright test tests/e2e/routes/dashboard/ --project=chromium",
+  },
+  {
+    label: "E2E Settings & System",
+    gate: 4,
+    patterns: ["src/routes/(app)/config/**"],
+    command:
+      "npx playwright test tests/e2e/routes/config/ tests/e2e/routes/system/ --project=chromium",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -302,6 +338,7 @@ async function main() {
   const runAll = argv.includes("--all");
   const listOnly = argv.includes("--list");
   const unitOnly = argv.includes("--unit-only");
+  const unitAndSqlite = argv.includes("--unit+sqlite");
   const suiteFilter = argv.includes("--suite") ? argv[argv.indexOf("--suite") + 1] : null;
   const excludeList = argv.includes("--exclude")
     ? argv[argv.indexOf("--exclude") + 1]
@@ -310,7 +347,7 @@ async function main() {
         .filter(Boolean)
     : [];
 
-  if (unitOnly) {
+  if (unitOnly || unitAndSqlite) {
     FULL_CORE_SUITE.command = "bun run test:unit";
   }
 
@@ -335,6 +372,10 @@ async function main() {
 
   if (unitOnly) {
     suites = suites.filter((s) => s.rule.gate === 1 || s.rule.gate === 0);
+  }
+
+  if (unitAndSqlite) {
+    suites = suites.filter((s) => s.rule.gate === 1 || s.rule.gate === 2 || s.rule.gate === 0);
   }
 
   if (suiteFilter) {
