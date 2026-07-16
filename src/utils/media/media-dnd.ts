@@ -144,12 +144,12 @@ export async function moveMediaToFolder(
     throw new Error("No media to move");
   }
 
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options.csrfToken) headers["X-CSRF-Token"] = options.csrfToken;
+
   const res = await fetch("/api/media/move", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRF-Token": options.csrfToken ?? "",
-    },
+    headers,
     body: JSON.stringify({
       fileIds: ids,
       targetFolderId,

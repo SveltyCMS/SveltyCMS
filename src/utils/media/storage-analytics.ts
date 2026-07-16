@@ -1,5 +1,5 @@
 /**
- * @file src/utils/media/storageAnalytics.ts
+ * @file src/utils/media/storage-analytics.ts
  * @description Storage analytics & insights for media files
  *
  * Features:
@@ -13,14 +13,26 @@
 
 import path from "node:path";
 import type { DatabaseId } from "@src/databases/db-interface";
-import type { MediaBase } from "./media-models";
+import { formatBytes } from "@utils/utils";
+import type { MediaItem } from "./media-models";
+import { isStoredMedia } from "./media-models";
+
+/** Typed breakdown entry (replaces `Record<string, any>`). */
+export interface SizeCount {
+  count: number;
+  size: number;
+}
+
+export interface PctSizeCount extends SizeCount {
+  pct: number;
+}
 
 /** Storage breakdown */
 export interface Breakdown {
-  byFolder: Record<string, { count: number; size: number; pct: number }>;
-  byMonth: Record<string, { count: number; size: number }>; // YYYY-MM
-  byType: Record<string, { count: number; size: number; pct: number }>;
-  byUser: Record<DatabaseId, { count: number; size: number; pct: number }>;
+  byFolder: Record<string, PctSizeCount>;
+  byMonth: Record<string, SizeCount>; // YYYY-MM
+  byType: Record<string, PctSizeCount>;
+  byUser: Record<DatabaseId, PctSizeCount>;
   total: {
     files: number;
     size: number;
@@ -47,17 +59,18 @@ export interface Trend {
 }
 
 /** Analyze current storage */
-export function analyze(files: MediaBase[]): Breakdown {
-  const byType: Record<string, any> = {};
-  const byFolder: Record<string, any> = {};
-  const byUser: Record<DatabaseId, any> = {};
-  const byMonth: Record<string, any> = {};
+export function analyze(files: MediaItem[]): Breakdown {
+  const byType: Record<string, SizeCount> = {};
+  const byFolder: Record<string, SizeCount> = {};
+  const byUser: Record<DatabaseId, SizeCount> = {};
+  const byMonth: Record<string, SizeCount> = {};
 
   let totalSize = 0;
   let totalFiles = 0;
 
   for (const f of files) {
-    const size = f.size ?? 0;
+    // Use type guard for size — remote videos have no `size` field
+    const size = isStoredMedia(f) ? (f.size ?? 0) : 0;
     totalSize += size;
     totalFiles++;
 
@@ -67,8 +80,8 @@ export function analyze(files: MediaBase[]): Breakdown {
     byType[type].count++;
     byType[type].size += size;
 
-    // Folder
-    const folder = f.path ? path.dirname(f.path) : "root";
+    // Folder — only stored media has a `path`
+    const folder = isStoredMedia(f) && f.path ? path.dirname(f.path) : "root";
     byFolder[folder] ??= { count: 0, size: 0 };
     byFolder[folder].count++;
     byFolder[folder].size += size;
@@ -90,20 +103,21 @@ export function analyze(files: MediaBase[]): Breakdown {
   }
 
   // Percentages
-  const addPct = (obj: Record<string, any>) => {
-    if (totalSize <= 0) return;
+  const addPct = <T extends SizeCount>(
+    obj: Record<string, T>,
+  ): Record<string, T & { pct: number }> => {
+    const result: Record<string, T & { pct: number }> = {};
+    if (totalSize <= 0) return result;
     for (const k in obj) {
-      obj[k].pct = (obj[k].size / totalSize) * 100;
+      result[k] = { ...obj[k], pct: (obj[k].size / totalSize) * 100 };
     }
+    return result;
   };
-  addPct(byType);
-  addPct(byFolder);
-  addPct(byUser);
 
   return {
-    byType,
-    byFolder,
-    byUser,
+    byType: addPct(byType),
+    byFolder: addPct(byFolder),
+    byUser: addPct(byUser),
     byMonth,
     total: {
       files: totalFiles,
@@ -113,14 +127,14 @@ export function analyze(files: MediaBase[]): Breakdown {
   };
 }
 
-/** Generate insights */
-export function insights(files: MediaBase[], breakdown: Breakdown): Insight[] {
+/** Generate insights from storage breakdown */
+export function generateInsights(files: MediaItem[], breakdown: Breakdown): Insight[] {
   const list: Insight[] = [];
 
   // Large files (>10MB)
-  const large = files.filter((f) => (f.size ?? 0) > 10 * 1024 * 1024);
+  const large = files.filter((f) => isStoredMedia(f) && (f.size ?? 0) > 10 * 1024 * 1024);
   if (large.length) {
-    const size = large.reduce((s, f) => s + (f.size ?? 0), 0);
+    const size = large.reduce((s, f) => s + (isStoredMedia(f) ? f.size : 0), 0);
     list.push({
       type: "info",
       title: "Large Files",
@@ -135,7 +149,7 @@ export function insights(files: MediaBase[], breakdown: Breakdown): Insight[] {
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
   const old = files.filter((f) => f.createdAt && new Date(f.createdAt) < yearAgo);
   if (old.length) {
-    const size = old.reduce((s, f) => s + (f.size ?? 0), 0);
+    const size = old.reduce((s, f) => s + (isStoredMedia(f) ? f.size : 0), 0);
     list.push({
       type: "info",
       title: "Old Files",
@@ -159,7 +173,7 @@ export function insights(files: MediaBase[], breakdown: Breakdown): Insight[] {
 }
 
 /** Monthly trends */
-export function trends(files: MediaBase[]): Trend[] {
+export function trends(files: MediaItem[]): Trend[] {
   const monthly: Record<string, { count: number; size: number }> = {};
 
   for (const f of files) {
@@ -169,7 +183,7 @@ export function trends(files: MediaBase[]): Trend[] {
     const m = f.createdAt.slice(0, 7);
     monthly[m] ??= { count: 0, size: 0 };
     monthly[m].count++;
-    monthly[m].size += f.size ?? 0;
+    monthly[m].size += isStoredMedia(f) ? (f.size ?? 0) : 0;
   }
 
   const sorted = Object.keys(monthly).sort();
@@ -198,14 +212,21 @@ export function trends(files: MediaBase[]): Trend[] {
 
 /** Top N consumers */
 export function top<T extends string | DatabaseId>(
-  map: Record<T, { count: number; size: number }>,
+  map: Record<T, SizeCount>,
   n = 10,
-): Array<{ key: T; count: number; size: number }> {
-  return Object.entries(map)
-    .map(([k, v]) => ({ key: k as T, ...(v as any) }))
+): Array<{ key: T } & SizeCount> {
+  return Object.entries<SizeCount>(map)
+    .map(([k, v]) => ({ key: k as T, ...v }))
     .sort((a, b) => b.size - a.size)
     .slice(0, n);
 }
+
+// ─── Backward-compatibility aliases ──────────────────────────────────────
+
+/** @deprecated Use `generateInsights()` instead. */
+export const insights = generateInsights;
+
+// ─── Quota ────────────────────────────────────────────────────────────────
 
 /** Simple quota usage */
 export function quota(current: number, limit: number) {
@@ -223,15 +244,4 @@ export function quota(current: number, limit: number) {
     percentage: pct,
     status,
   };
-}
-
-/** Human-readable bytes */
-export function formatBytes(bytes: number, decimals = 1): string {
-  if (bytes === 0) {
-    return "0 B";
-  }
-  const k = 1024;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  return `${(bytes / k ** i).toFixed(decimals)} ${units[i]}`;
 }

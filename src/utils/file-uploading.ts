@@ -1,135 +1,119 @@
 /**
- * @file src/utils/fileUploading.ts
- * @description ..
+ * @file src/utils/file-uploading.ts
+ * @description File upload and directory management utilities.
+ *
+ * ### Features:
+ * - Path traversal prevention via `path.resolve` + `startsWith` jail
+ * - Streaming upload (Web Streams API + createWriteStream) for low memory usage
+ * - Real progress tracking with incremental callbacks
+ * - Safe filename sanitization with fallback for edge cases
+ * - Idempotent directory creation and safe deletion with root guard
  */
 
 import * as fs from "node:fs/promises";
+import { createWriteStream } from "node:fs";
 import path from "node:path";
 import { publicEnv } from "@src/stores/global-settings.svelte.ts";
 import { logger } from "@utils/logger";
 
-const getRootPath = () => {
-  // Use process.cwd() which is more reliable across different runtimes
-  const cwd = process.cwd();
-  logger.debug(`getRootPath debug - process.cwd(): "${cwd}"`);
-  return cwd;
-};
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+/**
+ * Resolves a target directory against the base media folder and ensures
+ * it does not escape the root directory (prevents path traversal attacks).
+ */
+function getSafeJailedPath(subFolder?: string): string {
+  const baseMediaDir = path.resolve(process.cwd(), publicEnv.MEDIA_FOLDER);
+
+  if (!subFolder || !subFolder.trim()) {
+    return baseMediaDir;
+  }
+
+  // Resolve the target path and check if it starts with the base directory
+  const targetPath = path.resolve(baseMediaDir, subFolder.trim());
+  if (!targetPath.startsWith(baseMediaDir)) {
+    throw new Error("Security Violation: Path traversal detected.");
+  }
+
+  return targetPath;
+}
 
 export async function uploadFile(
   file: File,
   folder?: string,
   onProgress?: (progress: number) => void,
 ) {
-  // Validate file
   if (!file || file.size === 0) {
-    throw new Error("Invalid file provided");
+    throw new Error("Invalid file provided.");
   }
 
-  // Validate file size (max 50MB)
-  const MAX_FILE_SIZE = 50 * 1024 * 1024;
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`File size exceeds maximum limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+    throw new Error(`File size exceeds maximum limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
   }
-
-  // Construct safe directory path
-  const safeFolder = folder ? path.normalize(folder).replace(/^(\.\.(\/|\\|$))+/, "") : undefined;
-  const directoryPath = safeFolder
-    ? path.join(getRootPath(), publicEnv.MEDIA_FOLDER, safeFolder)
-    : path.join(getRootPath(), publicEnv.MEDIA_FOLDER);
 
   try {
-    // Ensure directory exists
+    const directoryPath = getSafeJailedPath(folder);
     await fs.mkdir(directoryPath, { recursive: true });
 
-    // Create safe filename
-    const safeFilename = file.name.replace(/[^a-zA-Z0-9\-_.]/g, "_");
+    // Sanitize filename and prevent entirely empty or dot-only filenames
+    let safeFilename = file.name.replace(/[^a-zA-Z0-9\-_.]/g, "_");
+    if (!safeFilename || /^\.+$/.test(safeFilename)) {
+      safeFilename = `upload_${Date.now()}`;
+    }
+
     const filePath = path.join(directoryPath, safeFilename);
 
-    // Check if file already exists
+    // Check if file exists without relying on throwing an error for control flow
     try {
       await fs.access(filePath);
-      throw new Error(`File "${safeFilename}" already exists`);
+      throw new Error(`File "${safeFilename}" already exists.`);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-        logger.warn("Unexpected error checking file existence:", err);
-        throw err;
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    }
+
+    // Stream the file instead of loading it entirely into RAM
+    const writeStream = createWriteStream(filePath);
+    const reader = file.stream().getReader();
+    let bytesWritten = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      writeStream.write(value);
+      bytesWritten += value.length;
+
+      if (onProgress) {
+        onProgress(Math.round((bytesWritten / file.size) * 100));
       }
-      // File doesn't exist, proceed with upload
     }
 
-    // Write file with progress tracking
-    const fileData = await file.arrayBuffer();
-    if (onProgress) {
-      onProgress(0);
-    }
+    // Ensure the stream is fully flushed and closed
+    await new Promise<void>((resolve, reject) => {
+      writeStream.end((err?: Error) => (err ? reject(err) : resolve()));
+    });
 
-    await fs.writeFile(filePath, new DataView(fileData));
-    if (onProgress) {
-      onProgress(100);
-    }
-
-    logger.info("File saved successfully:", filePath);
-    return {
-      success: true,
-      path: filePath,
-      filename: safeFilename,
-    };
+    logger.info(`File saved successfully: ${filePath}`);
+    return { success: true, path: filePath, filename: safeFilename };
   } catch (err) {
     logger.error("Error uploading file:", err);
-    throw err; // Re-throw for caller to handle
+    throw err;
   }
 }
 
 export async function createDirectory(relativePath: string) {
-  // Validate folder path
   if (typeof relativePath !== "string") {
-    // Adding a specific check for string type to prevent the error
     throw new Error("Folder path must be a string.");
   }
-  const trimmedPath = relativePath.trim();
-
-  // Sanitize folder name to prevent directory traversal attacks
-  const safeRelativePath = path.normalize(trimmedPath).replace(/^(\.\.(\/|\\|$))+/, "");
-
-  // Debug the path components
-  const rootPath = getRootPath();
-  const mediaFolder = publicEnv.MEDIA_FOLDER;
-  logger.debug(
-    `createDirectory debug - rootPath: "${rootPath}", mediaFolder: "${mediaFolder}", safeRelativePath: "${safeRelativePath}"`,
-  );
-  logger.debug(
-    `createDirectory debug - typeof rootPath: ${typeof rootPath}, typeof mediaFolder: ${typeof mediaFolder}, typeof safeRelativePath: ${typeof safeRelativePath}`,
-  );
-
-  // Validate each component before joining
-  if (typeof rootPath !== "string") {
-    throw new Error(`getRootPath() returned non-string: ${typeof rootPath}, value: ${rootPath}`);
-  }
-  if (typeof mediaFolder !== "string") {
-    throw new Error(
-      `publicEnv.MEDIA_FOLDER is non-string: ${typeof mediaFolder}, value: ${mediaFolder}`,
-    );
-  }
-  if (typeof safeRelativePath !== "string") {
-    throw new Error(
-      `safeRelativePath is non-string: ${typeof safeRelativePath}, value: ${safeRelativePath}`,
-    );
-  }
-
-  // Construct the full absolute path
-  const directoryPath = path.join(rootPath, mediaFolder, safeRelativePath);
-  logger.debug(`createDirectory - constructed directoryPath: "${directoryPath}"`);
 
   try {
-    // The `recursive: true` option ensures that the directory is created if it
-    // doesn't exist, and it doesn't throw an error if it already exists.
-    // This makes the function idempotent.
+    const directoryPath = getSafeJailedPath(relativePath);
+
+    // recursive: true makes this idempotent (won't fail if exists)
     await fs.mkdir(directoryPath, { recursive: true });
+
     logger.info(`Directory ensured: ${directoryPath}`);
-    return {
-      success: true,
-      path: directoryPath,
-    };
+    return { success: true, path: directoryPath };
   } catch (err) {
     logger.error("Error creating directory:", err);
     throw err;
@@ -137,26 +121,23 @@ export async function createDirectory(relativePath: string) {
 }
 
 export async function deleteDirectory(folder: string, force = false) {
-  // Validate folder name
-  if (!folder?.trim()) {
-    throw new Error("Folder name cannot be empty");
+  if (!folder || !folder.trim()) {
+    throw new Error("Folder name cannot be empty.");
   }
 
-  // Sanitize folder path
-  const safeFolder = path.normalize(folder.trim()).replace(/^(\.\.(\/|\\|$))+/, "");
-  const directoryPath = path.join(getRootPath(), publicEnv.MEDIA_FOLDER, safeFolder);
-
   try {
-    // Verify directory exists
-    await fs.access(directoryPath);
+    const directoryPath = getSafeJailedPath(folder);
 
-    // Delete directory
+    // Optional guard: Prevent accidental deletion of the root media folder itself
+    if (directoryPath === path.resolve(process.cwd(), publicEnv.MEDIA_FOLDER)) {
+      throw new Error("Cannot delete the root media directory.");
+    }
+
+    await fs.access(directoryPath);
     await fs.rm(directoryPath, { recursive: force, force });
-    logger.info(`Directory deleted: ${safeFolder}`);
-    return {
-      success: true,
-      path: directoryPath,
-    };
+
+    logger.info(`Directory deleted: ${directoryPath}`);
+    return { success: true, path: directoryPath };
   } catch (err) {
     logger.error("Error deleting directory:", err);
     throw err;

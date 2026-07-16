@@ -127,7 +127,8 @@ export async function fetchApi<T>(
   } catch (error) {
     // 3. Handle Network/Client Errors (Offline, DNS, etc)
     const err = error as Error;
-    logger.error(`[API Network Error] ${endpoint}`, err);
+    // 🛡️ Avoid logging raw Error objects (may contain PII/stack traces)
+    logger.error(`[API Network Error] ${endpoint.split("?")[0]}`);
     return {
       success: false,
       message: err.message || "Network error occurred",
@@ -298,6 +299,11 @@ function setCacheEntry(key: string, entry: CacheEntry): void {
   dataCache.set(key, entry);
 }
 
+/** Deterministic JSON stringify — sorted keys prevent cache-key mismatch */
+function deterministicStringify(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj, Object.keys(obj).sort());
+}
+
 function generateCacheKey(query: Record<string, unknown>): string {
   const normalizedQuery = {
     collectionId: (query.collectionId as string)?.trim().toLowerCase(),
@@ -309,7 +315,7 @@ function generateCacheKey(query: Record<string, unknown>): string {
     sortDirection: query.sortDirection || "desc",
     _langChange: query._langChange || 0,
   };
-  return JSON.stringify(normalizedQuery);
+  return deterministicStringify(normalizedQuery);
 }
 
 function isCacheValid(cacheEntry: CacheEntry): boolean {

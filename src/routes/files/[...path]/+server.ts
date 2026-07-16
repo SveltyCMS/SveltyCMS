@@ -24,15 +24,16 @@ const _baseHeaders = {
   "Accept-Ranges": "bytes",
 };
 
-// Lazy-load cloud storage module once
-let _cloudStorage: {
+// Lazy-load storage adapter once
+let _storageAdapter: {
   getMetadata: (p: string) => Promise<{ etag?: string; size?: number; lastModified?: Date } | null>;
 } | null = null;
-async function getCloudStorage() {
-  if (!_cloudStorage) {
-    _cloudStorage = await import("@src/utils/media/cloud-storage");
+async function getStorage() {
+  if (!_storageAdapter) {
+    const { getStorageAdapter } = await import("@src/utils/media/storage-adapters");
+    _storageAdapter = getStorageAdapter();
   }
-  return _cloudStorage!;
+  return _storageAdapter!;
 }
 
 // Compute resolved media base path once at first request
@@ -67,10 +68,10 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
       getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
     if (cloudPublicUrl) {
-      const cloud = await getCloudStorage();
+      const storage = await getStorage();
       let etag: string | undefined;
       try {
-        const metadata = await cloud.getMetadata(filePath);
+        const metadata = await storage.getMetadata(filePath);
         etag = metadata?.etag;
       } catch {
         /* metadata optional */

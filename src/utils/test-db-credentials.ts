@@ -36,13 +36,10 @@ const DB_PORTS: Record<string, string> = {
   postgresql: "5432",
 };
 
-export function getDockerDefaultDbCredentials(dbType: string): TestDbCredentials {
-  return DOCKER_DEFAULT_DB_CREDENTIALS[dbType] ?? { user: "", password: "" };
-}
+export const getDockerDefaultDbCredentials = (dbType: string): TestDbCredentials =>
+  DOCKER_DEFAULT_DB_CREDENTIALS[dbType] ?? { user: "", password: "" };
 
-export function getDefaultDbPort(dbType: string): string {
-  return DB_PORTS[dbType] ?? "";
-}
+export const getDefaultDbPort = (dbType: string): string => DB_PORTS[dbType] ?? "";
 
 /** DB name used by integration tests and db-tests CI job. */
 export function getIntegrationDbName(): string {
@@ -99,11 +96,12 @@ export function getBenchmarkTestEnv(
     DB_PASSWORD: creds.password,
     TEST_MODE: "true",
     BENCHMARK: "true",
-    JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-32ch",
-    ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-32ch",
+    // 🛡️ Allow CI to inject randomized secrets; fall back to benchmark defaults for local dev only
+    JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "Password123!",
     BENCHMARK_NO_REDIS: "1",
     BENCHMARK_RECORD: "1",
-    ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",
     UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(dbType),
     BENCHMARK_PROFILE: profile,

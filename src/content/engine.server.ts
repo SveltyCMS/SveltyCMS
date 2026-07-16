@@ -76,9 +76,9 @@ export async function notifyContentUpdate(
   await invalidateNavigationCache(tid);
 
   eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
-    version: Date.now(),
-    tenantId: tenantId || null,
-    ...(options?.batchSize !== undefined ? { batchSize: options.batchSize } : {}),
+    collection: "*",
+    entryId: "*",
+    action: "update" as const,
   });
 }
 

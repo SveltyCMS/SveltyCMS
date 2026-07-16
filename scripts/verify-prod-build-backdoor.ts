@@ -1,11 +1,34 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/verify-prod-build-backdoor.ts
- * @description Verifies the production build does or does not include the `/api/testing` backdoor.
+ * @description CI safety gate — prevents two catastrophic scenarios:
  *
- * Modes:
- *   --mode=deploy  Fail if the full testing handler is bundled (production release builds).
- *   --mode=bench   Fail if the testing handler was stripped (benchmark/CI builds need it).
+ * ### What's at stake
+ * `src/routes/api/[...path]/handlers/testing.ts` exposes endpoints for
+ * database reset, seeding, cache dumps, and system reinitialization.
+ * These are gated by a cryptographic secret (`x-test-secret` vs
+ * `TEST_API_SECRET`), but if accidentally deployed to production,
+ * the database can be wiped remotely.
+ *
+ * ### Modes
+ * ```
+ * bun run build  →  testBackdoorStripperPlugin replaces the handler
+ *                     with a 404 stub (safe for production).
+ *
+ * COMPILE_ALL_ADAPTERS=true bun run build  →  handler is bundled
+ *                     for benchmark/CI test harnesses.
+ * ```
+ *
+ * --mode=deploy  Fail if the full testing handler IS in the build.
+ *                Prevents shipping COMPILE_ALL_ADAPTERS=true to prod.
+ *
+ * --mode=bench   Fail if the testing handler was stripped.
+ *                Prevents CI/benchmarks from silently running against
+ *                a 404 stub (tests would pass with stale data).
+ *
+ * ### CI location
+ * `.github/workflows/ci.yml` build job runs this in bench mode after
+ * `COMPILE_ALL_ADAPTERS=true bun run build`.
  *
  * Usage:
  *   bun run build
@@ -23,11 +46,11 @@ const CHUNKS_DIR = join(ROOT, "build", "server", "chunks");
 
 const FULL_HANDLER_MARKERS = [
   "Unauthorized: Testing endpoints are disabled",
-  "MASTER TESTING HANDLER",
-  // "handleTestingRoutes" intentionally excluded — it appears as a string
-  // literal in NAMESPACE_CONFIG (fn: "handleTestingRoutes") in +server.ts,
-  // not just in the handler implementation. The two markers above are
-  // unique to the handler file and confirm the full handler is bundled.
+  "handleTestingRoutes",
+  // "MASTER TESTING HANDLER" removed — it's a JSDoc comment stripped during
+  // minification. "handleTestingRoutes" appears both in the handler export
+  // AND in NAMESPACE_CONFIG, but deploy mode catches false positives via
+  // the `full && !stub` check (the stub lacks NAMESPACE_CONFIG).
 ];
 
 const STUB_MARKERS = ['new Response("Not Found", { status: 404 })', "virtual:test-noop"];

@@ -150,7 +150,7 @@ export class MediaNamespace {
     );
 
     if (result.success && result.data) {
-      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix);
+      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix) as any;
       MediaNamespace._requestCache.set(cacheKey, result);
     }
 
@@ -368,7 +368,12 @@ export class MediaNamespace {
         mediaId,
         options.tenantId as DatabaseId,
       );
-      return { success: true, data: refs };
+      const mapped = refs.map((r) => ({
+        ...r,
+        entryName: r.entryName ?? r.entryId,
+        fieldName: r.fieldName ?? r.fieldPath,
+      }));
+      return { success: true, data: mapped };
     } catch (err: any) {
       return {
         success: false,
@@ -395,7 +400,15 @@ export class MediaNamespace {
     }[]
   > {
     if (!mediaId) throw new AppError("Media ID is required", 400);
-    return this.mediaService.getMediaReferences(mediaId, options.tenantId as DatabaseId);
+    const refs = await this.mediaService.getMediaReferences(
+      mediaId,
+      options.tenantId as DatabaseId,
+    );
+    return refs.map((r) => ({
+      ...r,
+      entryName: r.entryName ?? r.entryId,
+      fieldName: r.fieldName ?? r.fieldPath,
+    }));
   }
 
   async uploadVersion(

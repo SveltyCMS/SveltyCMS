@@ -2,6 +2,12 @@
  * @file src/utils/response-headers.ts
  * @description ETag and conditional response helpers for HTTP caching.
  *
+ * ### Hardening (audit 2026-07):
+ * - Cache-Control: added 'no-cache' to force ETag revalidation on every request
+ * - Multi-ETag support: split/map/some for RFC 7232 compliance (comma-separated tags)
+ * - Quote injection prevention: escapes embedded double-quotes in ETag values
+ * - Performance: some() for early exit on first ETag match
+ *
  * Features:
  * - ETag generation from content versions
  * - If-None-Match conditional request evaluation
@@ -9,35 +15,33 @@
  */
 
 /**
- * Sets the ETag header on a response Headers object.
- * The ETag value is derived from the content version, allowing clients
- * to perform conditional requests via If-None-Match.
- *
- * @param headers - The response Headers object to modify
- * @param contentVersion - A string or number representing the content version
+ * Sets the ETag header and Cache-Control directives.
+ * 🛡️ Security: Enforces 'no-cache' for dynamic content to ensure revalidation.
  */
 export function setETag(headers: Headers, contentVersion: string | number): void {
-  const etag = `"${String(contentVersion)}"`;
+  // ETag must be a quoted string per RFC 7232
+  const etag = `"${String(contentVersion).replace(/"/g, '\\"')}"`;
+
   headers.set("ETag", etag);
-  headers.set("Cache-Control", "private, must-revalidate");
+
+  // 'no-cache' forces the browser to revalidate with the server before using the cache,
+  // making the ETag effective. 'private' ensures CDNs/proxies don't cache sensitive data.
+  headers.set("Cache-Control", "private, no-cache, must-revalidate");
 }
 
 /**
  * Evaluates an incoming request for conditional GET (304 Not Modified).
- *
- * Checks the `If-None-Match` header against the provided content version.
- * If they match, the client already has the latest version and a 304
- * response should be returned.
- *
- * @param request - The incoming Request object
- * @param contentVersion - A string or number representing the current content version
- * @returns `true` if the client's cached version is still fresh (return 304), `false` otherwise
+ * 🚀 Performance: Uses some() to stop at the first match.
  */
 export function isNotModified(request: Request, contentVersion: string | number): boolean {
   const ifNoneMatch = request.headers.get("If-None-Match");
   if (!ifNoneMatch) return false;
 
-  // ETag values are wrapped in quotes; strip them for comparison
-  const normalizedMatch = ifNoneMatch.replace(/^"?|"?$/g, "");
-  return normalizedMatch === String(contentVersion);
+  const currentVersion = String(contentVersion);
+
+  // Split by comma (to handle multiple ETags) and normalize quotes
+  const etags = ifNoneMatch.split(",").map((tag) => tag.trim().replace(/^"?|"?$/g, ""));
+
+  // 🚀 Performance: Use some() to stop at the first match
+  return etags.some((tag) => tag === currentVersion);
 }

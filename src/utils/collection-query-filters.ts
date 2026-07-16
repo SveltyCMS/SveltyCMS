@@ -79,7 +79,7 @@ export function stableSerialize(value: unknown): string {
   return JSON.stringify(value, (_key, val) => {
     if (val && typeof val === "object" && !Array.isArray(val)) {
       const obj = val as Record<string, unknown>;
-      const sorted: Record<string, unknown> = {};
+      const sorted: Record<string, unknown> = Object.create(null);
       for (const k of Object.keys(obj).sort()) {
         sorted[k] = obj[k];
       }
@@ -145,8 +145,10 @@ export function whitelistFilterParams(
   raw: CollectionFilterMap | Record<string, unknown>,
   allowed: Set<string>,
 ): CollectionFilterMap {
-  const out: CollectionFilterMap = {};
-  for (const [key, op] of Object.entries(raw || {})) {
+  const out: CollectionFilterMap = Object.create(null);
+  if (!raw || typeof raw !== "object") return out;
+
+  for (const [key, op] of Object.entries(raw)) {
     if (!allowed.has(key)) continue;
     if (op == null) continue;
 
@@ -162,7 +164,7 @@ export function whitelistFilterParams(
       out[key] = { contains: o.contains.trim() };
     } else if (o.eq !== undefined && o.eq !== null && String(o.eq).trim() !== "") {
       out[key] = { eq: o.eq as string | number | boolean };
-    } else if (Array.isArray(o.in) && o.in.length > 0) {
+    } else if (Array.isArray(o.in) && o.in.length > 0 && o.in.length < 100) {
       out[key] = { in: o.in as Array<string | number | boolean> };
     } else if (typeof o.isNull === "boolean") {
       out[key] = { isNull: o.isNull };
@@ -263,10 +265,15 @@ export function buildCollectionQueryCacheKey(params: BuildCollectionCacheKeyPara
     editEntryId = null,
   } = params;
 
-  const edit = editEntryId || "none";
-  const tenant = tenantId ?? "global";
+  // 🛡️ Sanitize inputs to prevent cache key injection via colons
+  const sanitize = (s: string | null | undefined) => (s ?? "none").replace(/[:]/g, "");
 
-  return `collection:${collectionId}:query:${queryHash}:page:${page}:size:${pageSize}:lang:${language}:tenant:${tenant}:user:${userId}:edit:${edit}`;
+  const edit = sanitize(editEntryId);
+  const tenant = sanitize(tenantId) || "global";
+  const user = sanitize(userId) || "anon";
+  const lang = sanitize(language);
+
+  return `collection:${collectionId}:query:${queryHash}:page:${page}:size:${pageSize}:lang:${lang}:tenant:${tenant}:user:${user}:edit:${edit}`;
 }
 
 /**

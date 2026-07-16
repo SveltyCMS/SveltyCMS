@@ -1,60 +1,88 @@
 /**
  * @file src/utils/tenant.server.ts
- * @description Server-only tenant path resolution functions.
+ * @description Hardened server-side tenant path resolution.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Path traversal prevention: path.basename sanitizes tenantId/collectionName before join
+ * - path.relative-based extraction: replaces fragile regex with OS-safe relative path checks
+ * - Traversal boundary check: relative.startsWith("..") flags paths outside CONFIG_ROOT
+ * - Type consistency: undefined (no tenant) vs null (global tenant) explicitly handled
+ *
+ * Server-only tenant path resolution functions.
  */
 
 import path from "node:path";
 import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
 
+const CONFIG_ROOT = path.join(process.cwd(), "config");
+
 /**
- * Resolve collection directory based on tenant ID.
+ * Resolve collection directory. 🛡️ Hardened: Path normalized to prevent escapes.
  */
 export function getCollectionsPath(tenantId?: string | null): string {
-  const base = path.join(process.cwd(), "config");
-  // null (super-tenant) and undefined (no tenant) both use root collections dir
-  if (tenantId === undefined || tenantId === null) return path.join(base, "collections");
-  return path.join(base, tenantId, "collections");
+  if (!tenantId) return path.join(CONFIG_ROOT, "collections");
+
+  // 🛡️ Sanitize tenantId before joining to prevent path traversal
+  const sanitizedTenant = path.basename(tenantId);
+  return path.join(CONFIG_ROOT, sanitizedTenant, "collections");
 }
 
 /**
  * Resolve compiled collections output directory.
- * Local benchmarks redirect to `.compiledCollections/test/_local_sandbox/`.
  */
 export function getCompiledCollectionsPath(tenantId?: string | null): string {
   return resolveCompiledCollectionsPath(tenantId);
 }
 
 /**
- * Extract tenant ID from a file path.
+ * Extracts tenant ID from a file path using strict path.relative boundary.
  */
 export function extractTenantFromPath(filePath: string): string | null | undefined {
-  const normalized = filePath.replace(/\\/g, "/");
-  const match = normalized.match(/config\/([^/]+)\/collections\//);
-  if (!match) return normalized.includes("config/collections/") ? undefined : undefined;
-  return match[1] === "global" ? null : match[1];
+  const normalized = path.normalize(filePath);
+  const relative = path.relative(CONFIG_ROOT, normalized);
+
+  // If the file is not inside CONFIG_ROOT, it's invalid/external
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
+
+  const parts = relative.split(path.sep);
+
+  // Case: config/collections/file.ts → undefined (no tenant)
+  if (parts[0] === "collections") return undefined;
+
+  // Case: config/tenant/collections/file.ts
+  if (parts.length >= 3 && parts[1] === "collections") {
+    return parts[0] === "global" ? null : parts[0];
+  }
+
+  return undefined;
 }
 
 /**
- * Get all tenant collection paths for scanning.
+ * Get prioritized collection paths for scanning.
  */
 export function getAllTenantCollectionPaths(tenantId: string | null): string[] {
-  const paths: string[] = [getCollectionsPath(tenantId)];
-  if (tenantId !== null) paths.push(getCollectionsPath(null));
+  const paths = [getCollectionsPath(tenantId)];
+  // Only add 'global' path if the current context isn't already global
+  if (tenantId !== null) {
+    paths.push(getCollectionsPath(null));
+  }
   return paths;
 }
 
 /**
- * Get absolute path for a collection file.
+ * Validate path resolution to prevent directory traversal.
  */
 export function getCollectionFilePath(collectionName: string, tenantId?: string | null): string {
-  return path.join(getCollectionsPath(tenantId), `${collectionName}.ts`);
+  const dir = getCollectionsPath(tenantId);
+  // 🛡️ Ensure collectionName doesn't contain directory separators
+  const safeName = path.basename(collectionName, ".ts");
+  return path.join(dir, `${safeName}.ts`);
 }
 
 /**
  * Get display path for logging.
  */
 export function getCollectionDisplayPath(collectionName: string, tenantId?: string | null): string {
-  if (tenantId === undefined) return `config/collections/${collectionName}.ts`;
-  const tenant = tenantId === null ? "global" : tenantId;
-  return `config/${tenant}/collections/${collectionName}.ts`;
+  const tenant = tenantId === undefined ? "collections" : (tenantId ?? "global") + "/collections";
+  return `config/${tenant}/${collectionName}.ts`;
 }

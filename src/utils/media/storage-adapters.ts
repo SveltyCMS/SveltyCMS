@@ -9,7 +9,9 @@ import { createWriteStream } from "node:fs";
 import { Readable } from "node:stream";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error } from "@sveltejs/kit";
+import { isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { safeFetch, validateEgressUrl } from "../egress-guard";
 import type { StorageType } from "./media-models";
 
 // SSRF Protection: blocked IP ranges and hostnames for S3 endpoint validation
@@ -50,7 +52,9 @@ function validateS3Endpoint(endpoint: string | undefined): void {
       throw error(500, `S3 endpoint has blocked protocol: ${url.protocol}`);
     }
   } catch (e: any) {
-    if (e.status === 500) throw e;
+    // Re-throw SvelteKit HttpError (status 500) and AppError instances;
+    // swallow parse errors from invalid URLs and fall through to raw hostname check.
+    if (e?.status === 500 || isAppError(e)) throw e;
     hostname = endpoint.toLowerCase();
   }
 
@@ -86,6 +90,8 @@ export interface StorageAdapter {
   exists(relativePath: string): Promise<boolean>;
   getMetadata(relativePath: string): Promise<StorageMetadata | null>;
   getUrl(relativePath: string, prefix?: string): string;
+  /** Optional cleanup when the adapter is being replaced or shut down. */
+  dispose?(): void | Promise<void>;
 }
 
 export interface CloudStorageConfig {
@@ -113,9 +119,9 @@ export function getConfig(): CloudStorageConfig {
     endpoint: getPublicSettingSync("MEDIA_CLOUD_ENDPOINT"),
     publicUrl:
       getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL"),
-    accessKeyId: process.env.MEDIA_ACCESS_KEY_ID,
-    secretAccessKey: process.env.MEDIA_SECRET_ACCESS_KEY,
-    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    accessKeyId: getPublicSettingSync("MEDIA_ACCESS_KEY_ID") as string | undefined,
+    secretAccessKey: getPublicSettingSync("MEDIA_SECRET_ACCESS_KEY") as string | undefined,
+    cloudinaryCloudName: getPublicSettingSync("CLOUDINARY_CLOUD_NAME") as string | undefined,
   };
 }
 
@@ -123,7 +129,7 @@ function resolveMediaRoot(): string {
   return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
 }
 
-function getPath(config: CloudStorageConfig, relativePath: string, prefix?: string): string {
+export function getPath(config: CloudStorageConfig, relativePath: string, prefix?: string): string {
   const clean = relativePath.replace(/^\/+/, "");
   const p = prefix ? `${prefix}/${clean}` : clean;
   return config.mediaFolder ? `${config.mediaFolder}/${p}` : p;
@@ -194,10 +200,14 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async exists(relativePath: string): Promise<boolean> {
-    if (relativePath.includes("..")) return false;
-    const full = path.join(process.cwd(), resolveMediaRoot(), relativePath);
+    const mediaRoot = resolveMediaRoot();
+    const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
+    const fullPath = path.resolve(process.cwd(), mediaRoot, relativePath);
+
+    if (!fullPath.startsWith(MEDIA_ROOT_FULL)) return false;
+
     try {
-      await fs.access(full);
+      await fs.access(fullPath);
       return true;
     } catch {
       return false;
@@ -206,7 +216,11 @@ export class LocalStorageAdapter implements StorageAdapter {
 
   async getMetadata(relativePath: string): Promise<StorageMetadata | null> {
     const mediaRoot = resolveMediaRoot();
+    const MEDIA_ROOT_FULL = path.resolve(process.cwd(), mediaRoot) + path.sep;
     const fullPath = path.resolve(process.cwd(), mediaRoot, relativePath);
+
+    if (!fullPath.startsWith(MEDIA_ROOT_FULL)) return null;
+
     try {
       const stats = await fs.stat(fullPath);
       return {
@@ -233,6 +247,13 @@ export class S3StorageAdapter implements StorageAdapter {
 
   constructor(config: CloudStorageConfig) {
     this.config = config;
+  }
+
+  dispose(): void {
+    if (this.s3Client?.destroy) {
+      this.s3Client.destroy();
+    }
+    this.s3Client = null;
   }
 
   private async getS3Client() {
@@ -387,6 +408,11 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
     this.config = config;
   }
 
+  /** Build Cloudinary public ID (media folder + path without extension) for lookup operations. */
+  #publicId(relativePath: string): string {
+    return `${this.config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, "")}`;
+  }
+
   private async getCloudinary() {
     if (this.cloudinary) return this.cloudinary;
 
@@ -395,8 +421,8 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
 
     this.cloudinary.config({
       cloud_name: this.config.cloudinaryCloudName,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+      api_key: getPublicSettingSync("CLOUDINARY_API_KEY") as string,
+      api_secret: getPublicSettingSync("CLOUDINARY_API_SECRET") as string,
       secure: true,
     });
 
@@ -405,14 +431,13 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
 
   async upload(data: Buffer | ReadableStream | Readable, relativePath: string): Promise<string> {
     const cld = await this.getCloudinary();
-    const publicId = relativePath.replace(/\.[^.]+$/, "");
 
     logger.debug("Cloudinary upload start", { path: relativePath });
 
     return new Promise((resolve, reject) => {
       const stream = cld.uploader.upload_stream(
         {
-          public_id: publicId,
+          public_id: relativePath.replace(/\.[^.]+$/, ""),
           folder: this.config.mediaFolder,
           resource_type: "auto",
           overwrite: true,
@@ -438,9 +463,18 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
     try {
       const url = this.getUrl(relativePath);
       if (!url) throw error(500, "Cannot determine URL for Cloudinary download");
-      const res = await fetch(url);
-      if (!res.ok) throw error(res.status, `Failed to fetch from Cloudinary: ${res.statusText}`);
-      return Buffer.from(await res.arrayBuffer());
+
+      validateEgressUrl(url);
+      const result = await safeFetch(url, {
+        timeoutMs: 30_000,
+        maxSizeBytes: 100 * 1024 * 1024, // 100MB cap
+      });
+
+      if (!result.success || !result.body) {
+        throw error(500, `Failed to fetch from Cloudinary: ${result.error || "Unknown error"}`);
+      }
+
+      return Buffer.from(result.body);
     } catch (e: any) {
       logger.error("Cloudinary download failed", { error: e });
       throw error(500, `Failed to download from Cloudinary: ${e.message}`);
@@ -449,15 +483,13 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
 
   async remove(relativePath: string): Promise<void> {
     const cld = await this.getCloudinary();
-    const publicId = `${this.config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, "")}`;
-    await cld.uploader.destroy(publicId);
+    await cld.uploader.destroy(this.#publicId(relativePath));
   }
 
   async exists(relativePath: string): Promise<boolean> {
     const cld = await this.getCloudinary();
-    const publicId = `${this.config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, "")}`;
     try {
-      await cld.api.resource(publicId);
+      await cld.api.resource(this.#publicId(relativePath));
       return true;
     } catch {
       return false;
@@ -466,9 +498,8 @@ export class CloudinaryStorageAdapter implements StorageAdapter {
 
   async getMetadata(relativePath: string): Promise<StorageMetadata | null> {
     const cld = await this.getCloudinary();
-    const publicId = `${this.config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, "")}`;
     try {
-      const res = await cld.api.resource(publicId);
+      const res = await cld.api.resource(this.#publicId(relativePath));
       return {
         etag: res.etag,
         size: res.bytes,
@@ -502,6 +533,12 @@ export function getStorageAdapter(): StorageAdapter {
   }
 
   logger.info(`[Storage] Initializing storage adapter: ${config.storageType}`);
+
+  // Dispose previous adapter before switching
+  if (currentAdapter?.dispose) {
+    void currentAdapter.dispose();
+  }
+
   currentAdapterType = config.storageType;
 
   if (config.storageType === "s3" || config.storageType === "r2") {

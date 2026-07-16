@@ -18,12 +18,50 @@ import type {
   DatabaseId,
   DatabaseResult,
   MediaItem as DbMediaItem,
+  EntityCreate,
+  EntityUpdate,
 } from "@src/databases/db-interface";
-import type { MediaItem } from "./media-models";
+import { mediaTypeFromMime, type MediaItem } from "./media-models";
 import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./cloud-storage";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { sniffMimeType } from "./slim-sniffer.server";
+import type { SharpFactory, SharpOverlayOptions } from "./sharp-pipeline";
+import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
+import { eventBus, SystemEvents } from "@utils/event-bus";
+
+/* -------------------------------------------------------------------------- */
+/* Security helpers for SVG attribute injection defense                       */
+/* -------------------------------------------------------------------------- */
+
+/** Only allow hex colours (#RGB, #RRGGBB, #RRGGBBAA) in dynamically-built SVG. */
+const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+
+/** Only allow plain numeric strings (no expressions, no units) in SVG attributes. */
+const SAFE_NUMBER = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Validate a value against a regex; return a safe fallback when it fails.
+ * Used to harden dynamically-built SVG markup (watermark text colour, annotation
+ * stroke/fill, font-size, stroke-width, etc.).
+ */
+function guardAttr(value: string, pattern: RegExp, fallback: string): string {
+  if (pattern.test(value)) return value;
+  logger.warn(`[MediaService] Rejected unsafe SVG attribute value: "${value}"`);
+  return fallback;
+}
+
+/**
+ * Like guardAttr but for numeric values — converts to string first,
+ * returns the original number on match or the numeric fallback.
+ */
+function guardNumeric(value: number, fallback: number): number {
+  if (SAFE_NUMBER.test(String(value))) return value;
+  logger.warn(`[MediaService] Rejected unsafe SVG numeric value: ${value}`);
+  return fallback;
+}
+
+/* -------------------------------------------------------------------------- */
 
 /**
  * 🛡️ Lightweight SVG sanitizer — strips dangerous elements and attributes
@@ -103,9 +141,143 @@ function validateMime(mimeType: string, filename: string) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Media manipulation options (typed replacement for `any`)                   */
+/* -------------------------------------------------------------------------- */
+
+/** Shape accepted by enrichMediaWithUrl (path/url/thumbnails/metadata/versions). */
+interface EnrichableRecord {
+  path?: string;
+  url?: string;
+  thumbnails?: Record<string, { path?: string; url?: string; [key: string]: unknown } | undefined>;
+  metadata?: {
+    versions?: Array<{ path?: string; url?: string; [key: string]: unknown }>;
+    [key: string]: unknown;
+  };
+  versions?: unknown[];
+  [key: string]: unknown;
+}
+
+/** Minimal shape for database hook query parameters. */
+interface HookQuery {
+  _id?: unknown;
+  tenantId?: unknown;
+  [key: string]: unknown;
+}
+
+/** The subset of IDBAdapter needed by dispose() for hook management. */
+interface HookableAdapter {
+  unregisterHook?(id: string): void;
+  hooks?: Array<{ id: string }>;
+  hookCache?: { clear(): void };
+  compiledHooks?: { clear(): void };
+}
+
+/** A media version entry stored in metadata.versions. */
+interface MediaVersionEntry {
+  version: number;
+  url?: string;
+  path?: string;
+  hash?: string;
+  size?: number;
+  filename?: string;
+  mimeType?: string;
+  createdAt?: string;
+  createdBy?: string;
+  action?: string;
+}
+
+// MediaReference is now imported from ./media-reference-index
+
+/* -------------------------------------------------------------------------- */
+
+export interface CropOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  shape?: "circle" | "rect";
+}
+
+export interface FilterOptions {
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+  grayscale?: number;
+  sepia?: number;
+  temperature?: number;
+}
+
+export interface BlurRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  strength?: number;
+}
+
+export interface TextWatermark {
+  type: "text";
+  text: string;
+  color?: string;
+  fontSize?: number;
+  opacity?: number;
+  x: number;
+  y: number;
+}
+
+export interface ImageWatermark {
+  type: "image";
+  imageUrl: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+}
+
+export type Watermark = TextWatermark | ImageWatermark;
+
+export interface Annotation {
+  type: "rect" | "circle" | "text" | "arrow" | "line";
+  stroke?: string;
+  fill?: string;
+  strokeWidth?: number;
+  fontSize?: number;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+  text?: string;
+}
+
+export interface MediaManipulation {
+  rotation?: number;
+  flipH?: boolean;
+  flipV?: boolean;
+  crop?: CropOptions;
+  filters?: FilterOptions;
+  blurRegions?: BlurRegion[];
+  watermarks?: Watermark[];
+  annotations?: Annotation[];
+  saveBehavior?: "overwrite" | "new";
+}
+
+/* -------------------------------------------------------------------------- */
+
 export class MediaService {
   private readonly db: IDBAdapter;
   private static hookRegistered = false;
+  private registeredHookId: string | null = null;
+
+  /** In-memory reverse-index for O(1) media-reference lookups. */
+  private referenceIndex = new MediaReferenceIndex();
+
+  /** Tracks entry statuses populated during index rebuild for publish filtering. */
+  private entryStatusMap = new Map<string, string>();
+
+  /** Maps entryId to a human-readable name for reference summaries. */
+  private entryNameMap = new Map<string, string>();
 
   constructor(db: IDBAdapter) {
     this.db = db;
@@ -116,11 +288,12 @@ export class MediaService {
     // 🚀  Register automatic cleanup hook
     if (!MediaService.hookRegistered && this.db.registerHook) {
       MediaService.hookRegistered = true;
+      this.registeredHookId = "media-cleanup";
       this.db.registerHook({
-        id: "media-cleanup",
+        id: this.registeredHookId,
         type: "before",
         action: "delete",
-        handler: async (collection: string, query: any) => {
+        handler: async (collection: string, query: HookQuery) => {
           if (
             collection === "media_items" ||
             collection === "mediaItems" ||
@@ -129,7 +302,10 @@ export class MediaService {
             const id = query?._id;
             if (id) {
               try {
-                await this.deleteMedia(id.toString(), (query as any)?.tenantId);
+                await this.deleteMedia(
+                  id.toString(),
+                  query?.tenantId as DatabaseId | null | undefined,
+                );
               } catch (e) {
                 logger.error(`[Hooks] Media cleanup failed:`, e);
               }
@@ -138,6 +314,35 @@ export class MediaService {
         },
       });
     }
+
+    // 🔁 Auto-invalidate reference index on any content mutation
+    eventBus.on(SystemEvents.CONTENT_UPDATE, () => {
+      this.referenceIndex.clear();
+      this.entryStatusMap.clear();
+      this.entryNameMap.clear();
+    });
+  }
+
+  /**
+   * 🧹 Dispose – unregisters the DB hook to prevent orphaned hooks on
+   * tenant-switch or test teardown. Safe to call multiple times.
+   */
+  public dispose(): void {
+    if (!this.registeredHookId) return;
+
+    MediaService.hookRegistered = false;
+    const adapter = this.db as unknown as HookableAdapter;
+
+    if (typeof adapter.unregisterHook === "function") {
+      adapter.unregisterHook(this.registeredHookId);
+    } else if (Array.isArray(adapter.hooks)) {
+      // BaseAdapter stores hooks in a plain array keyed by id
+      adapter.hooks = adapter.hooks.filter((h: { id: string }) => h.id !== this.registeredHookId);
+      adapter.hookCache?.clear();
+      adapter.compiledHooks?.clear();
+    }
+
+    this.registeredHookId = null;
   }
 
   public get files() {
@@ -179,8 +384,8 @@ export class MediaService {
     _access: "public" | "private" = "public",
     tenantId?: DatabaseId | null,
     _basePath?: string,
-    _watermarkOptions?: any,
-    _userContext?: any,
+    _watermarkOptions?: unknown,
+    _userContext?: unknown,
     _skipResizing?: boolean,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
@@ -213,7 +418,7 @@ export class MediaService {
         if (effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)) {
           try {
             const sharpMod = await import("sharp");
-            const sharp = sharpMod.default || sharpMod;
+            const sharp: SharpFactory = (sharpMod.default || sharpMod) as SharpFactory;
             const imgMeta = await sharp(buffer).metadata();
             if (imgMeta.width) imageMetadata.width = imgMeta.width;
             if (imgMeta.height) imageMetadata.height = imgMeta.height;
@@ -235,17 +440,23 @@ export class MediaService {
         // 1. Check for existing file by hash (Deduplication)
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
-          const record = existing.data as any;
+          const record = existing.data;
           const patch: Record<string, unknown> = {};
           if (record.path !== relPath) patch.path = relPath;
           if (folderId !== record.folderId) patch.folderId = folderId;
           if (Object.keys(patch).length > 0) {
-            await this.db.crud.update("media_items", record._id, patch as any);
+            await this.db.crud.update(
+              "media_items",
+              record._id,
+              patch as unknown as EntityUpdate<DbMediaItem>,
+            );
             Object.assign(record, patch);
           }
           return {
             success: true,
-            data: this.enrichMediaWithUrl(record) as unknown as MediaItem,
+            data: this.enrichMediaWithUrl(
+              record as unknown as EnrichableRecord,
+            ) as unknown as MediaItem,
           };
         }
         return (await this.files.upload(
@@ -256,24 +467,33 @@ export class MediaService {
             size: file.size,
             hash,
             path: relPath,
-            createdBy: _userId,
-            updatedBy: _userId,
+            createdBy: _userId as DatabaseId,
+            updatedBy: _userId as DatabaseId,
             metadata: imageMetadata,
             thumbnails: imageThumbnails,
             access: _access,
             folderId,
             tenantId: tenantId ?? undefined,
-          } as any,
+          } as unknown as EntityCreate<DbMediaItem>,
           tenantId ?? undefined,
-        )) as any;
+        )) as unknown as DatabaseResult<MediaItem>;
       } else {
         // Large file: Stream it!
         // MIME sniffing for large files — read first 2048 bytes for validation
         const headerBuffer =
-          typeof (file as any).slice === "function"
-            ? Buffer.from(await (file as any).slice(0, 2048).arrayBuffer())
+          typeof (file as File).slice === "function"
+            ? Buffer.from(await (file as File).slice(0, 2048).arrayBuffer())
             : null;
-        const sniffedLarge = headerBuffer ? sniffMimeType(headerBuffer) : null;
+
+        // 🛡️ Fail-closed: if we cannot sniff the header (no slice support and no
+        // fallback), refuse the upload so we never silently pass the MIME check.
+        if (!headerBuffer || headerBuffer.length === 0) {
+          throw new Error(
+            "Cannot validate file type: file object does not support slicing for header inspection",
+          );
+        }
+
+        const sniffedLarge = sniffMimeType(headerBuffer);
         if (
           sniffedLarge &&
           sniffedLarge.mime !== "application/octet-stream" &&
@@ -302,17 +522,23 @@ export class MediaService {
 
         const existing = await this.files.getByHash(hash, tenantId ?? undefined);
         if (existing.success && existing.data) {
-          const record = existing.data as any;
+          const record = existing.data;
           const patch: Record<string, unknown> = {};
           if (record.path !== relPath) patch.path = relPath;
           if (folderId !== record.folderId) patch.folderId = folderId;
           if (Object.keys(patch).length > 0) {
-            await this.db.crud.update("media_items", record._id, patch as any);
+            await this.db.crud.update(
+              "media_items",
+              record._id,
+              patch as unknown as EntityUpdate<DbMediaItem>,
+            );
             Object.assign(record, patch);
           }
           return {
             success: true,
-            data: this.enrichMediaWithUrl(record) as unknown as MediaItem,
+            data: this.enrichMediaWithUrl(
+              record as unknown as EnrichableRecord,
+            ) as unknown as MediaItem,
           };
         }
 
@@ -324,21 +550,22 @@ export class MediaService {
             size: file.size,
             hash,
             path: relPath,
-            createdBy: _userId,
-            updatedBy: _userId,
+            createdBy: _userId as DatabaseId,
+            updatedBy: _userId as DatabaseId,
             metadata: {},
             thumbnails: {},
             access: _access,
             folderId,
             tenantId: tenantId ?? undefined,
-          } as any,
+          } as unknown as EntityCreate<DbMediaItem>,
           tenantId ?? undefined,
-        )) as any;
+        )) as unknown as DatabaseResult<MediaItem>;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = err as Error;
       return {
         success: false,
-        message: err.message,
+        message: e.message,
         error: err as DatabaseError,
       };
     }
@@ -347,11 +574,11 @@ export class MediaService {
   /**
    * Enriches a media item with a full URL including optional tenant prefix.
    */
-  public enrichMediaWithUrl(item: any, prefix?: string): any {
+  public enrichMediaWithUrl(item: EnrichableRecord, prefix?: string): EnrichableRecord {
     if (!item) return item;
 
-    const rel = resolveMediaRelPath(item);
-    const p = rel || item.path || item.url;
+    const rel = resolveMediaRelPath(item as unknown as Record<string, unknown>);
+    const p: string | undefined = rel || item.path || item.url;
     if (p && !p.startsWith("http")) {
       item.url = getUrl(p, prefix);
     }
@@ -361,20 +588,20 @@ export class MediaService {
       for (const key in item.thumbnails) {
         const thumb = item.thumbnails[key];
         if (thumb && (thumb.path || thumb.url)) {
-          thumb.url = getUrl(thumb.path || thumb.url, prefix);
+          thumb.url = getUrl((thumb.path || thumb.url) as string, prefix);
         }
       }
     }
 
     // Process versions from metadata
-    if (item.metadata && item.metadata.versions) {
-      item.versions = item.metadata.versions.map((v: any) => {
+    if (item.metadata?.versions) {
+      item.versions = item.metadata.versions.map((v: Record<string, unknown>) => {
         const enriched = { ...v };
-        if (enriched.path && (!enriched.url || !enriched.url.startsWith("http"))) {
-          enriched.url = getUrl(enriched.path, prefix);
+        if (enriched.path && (!enriched.url || !(enriched.url as string).startsWith("http"))) {
+          enriched.url = getUrl(enriched.path as string, prefix);
         }
         return enriched;
-      });
+      }) as unknown[];
     } else {
       item.versions = [];
     }
@@ -398,15 +625,19 @@ export class MediaService {
       });
       if (!resp.success || !resp.body || (resp.status && resp.status >= 400))
         throw new Error(`Failed to fetch remote media: ${resp.error || resp.status}`);
-      const blob = new Blob([resp.body], { type: "application/octet-stream" });
+
+      // Read real MIME from response headers instead of hardcoding
+      const remoteMime = resp.headers?.["content-type"] || "application/octet-stream";
+      const blob = new Blob([resp.body], { type: remoteMime });
       const name = url.split("/").pop() || "remote-file";
       const file = new File([blob], name, { type: blob.type });
 
-      return await this.saveMedia(file, userId, access as any, tenantId);
-    } catch (err: any) {
+      return await this.saveMedia(file, userId, access as "public" | "private", tenantId);
+    } catch (err: unknown) {
+      const e = err as Error;
       return {
         success: false,
-        message: err.message,
+        message: e.message,
         error: err as DatabaseError,
       };
     }
@@ -414,7 +645,7 @@ export class MediaService {
 
   public async updateMedia(
     mediaId: string,
-    data: any,
+    data: Record<string, unknown>,
     tenantId?: DatabaseId | null,
   ): Promise<void> {
     const res = await this.db.crud.update("media", mediaId as DatabaseId, data, {
@@ -430,13 +661,13 @@ export class MediaService {
 
   public async manipulateMedia(
     id: string,
-    manipulations: any,
+    manipulations: MediaManipulation,
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem> {
     const { hashFileContent } = await import("./media-processing.server");
     const sharpMod = await import("sharp");
-    const sharp = sharpMod.default || sharpMod;
+    const sharp: SharpFactory = (sharpMod.default || sharpMod) as SharpFactory;
 
     // 1. Load existing record
     const res = await this.db.crud.findOne<DbMediaItem>(
@@ -445,7 +676,7 @@ export class MediaService {
       { tenantId: tenantId ?? undefined },
     );
     if (!res.success || !res.data) throw new Error("Media not found");
-    const existing = res.data as any;
+    const existing = res.data;
 
     // 2. Read original file + get dimensions once (reused by blur/watermark)
     const originalBuffer = await getFile(existing.path);
@@ -583,7 +814,7 @@ export class MediaService {
     }
 
     // 4. Collect composites (blur regions + watermarks + annotations rendered as SVG)
-    const composites: any[] = [];
+    const composites: SharpOverlayOptions[] = [];
 
     // — Blur regions (coordinates are in original image space — offset by crop origin) —
     if (Array.isArray(blurRegions) && blurRegions.length > 0) {
@@ -628,8 +859,9 @@ export class MediaService {
     if (Array.isArray(watermarks) && watermarks.length > 0) {
       for (const wm of watermarks) {
         if (wm.type === "text" && wm.text) {
-          const fontSize = Math.round(wm.fontSize ?? 48);
-          const color = wm.color ?? "#ffffff";
+          // 🛡️ Validate user-supplied SVG attributes against safe patterns
+          const fontSize = guardNumeric(Math.round(wm.fontSize ?? 48), 48);
+          const color = guardAttr(wm.color ?? "#ffffff", SAFE_COLOR, "#ffffff");
           const opacity = Math.round((wm.opacity ?? 0.8) * 255)
             .toString(16)
             .padStart(2, "0");
@@ -669,10 +901,11 @@ export class MediaService {
     // — Annotations rendered as SVG overlay (crop-relative coordinates) —
     if (Array.isArray(annotations) && annotations.length > 0) {
       const shapes = annotations
-        .map((a: any) => {
-          const stroke = a.stroke ?? "#ff0000";
-          const fill = a.fill ?? "none";
-          const sw = a.strokeWidth ?? 2;
+        .map((a: Annotation) => {
+          // 🛡️ Validate user-supplied SVG attributes against safe patterns
+          const stroke = guardAttr(a.stroke ?? "#ff0000", SAFE_COLOR, "#ff0000");
+          const fill = a.fill === "none" ? "none" : guardAttr(a.fill ?? "none", SAFE_COLOR, "none");
+          const sw = guardNumeric(a.strokeWidth ?? 2, 2);
           const ax = (a.x ?? 0) - cropX;
           const ay = (a.y ?? 0) - cropY;
           switch (a.type) {
@@ -681,7 +914,7 @@ export class MediaService {
             case "circle":
               return `<circle cx="${ax}" cy="${ay}" r="${a.radius ?? 25}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
             case "text":
-              return `<text x="${ax}" y="${ay}" font-size="${a.fontSize ?? 20}" fill="${stroke}" font-family="sans-serif">${escXml(String(a.text ?? ""))}</text>`;
+              return `<text x="${ax}" y="${ay}" font-size="${guardNumeric(a.fontSize ?? 20, 20)}" fill="${stroke}" font-family="sans-serif">${escXml(String(a.text ?? ""))}</text>`;
             case "arrow":
             case "line":
               return `<line x1="${ax}" y1="${ay}" x2="${ax + (a.width ?? 50)}" y2="${ay + (a.height ?? 0)}" stroke="${stroke}" stroke-width="${sw}"/>`;
@@ -741,16 +974,18 @@ export class MediaService {
           folderId: existing.folderId ?? undefined,
           originalId: id,
           tenantId: tenantId ?? undefined,
-        } as any,
+        } as unknown as EntityCreate<DbMediaItem>,
         tenantId ?? undefined,
       );
       if (!uploadResult.success || !uploadResult.data)
         throw new Error("Failed to create new media record");
-      return this.enrichMediaWithUrl(uploadResult.data as any) as unknown as MediaItem;
+      return this.enrichMediaWithUrl(
+        uploadResult.data as unknown as EnrichableRecord,
+      ) as unknown as MediaItem;
     }
 
     // overwrite: push current file to version history, update record in place
-    const versions = existing.metadata?.versions || [];
+    const versions = (existing.metadata?.versions as MediaVersionEntry[] | undefined) || [];
     await this.updateMedia(
       id,
       {
@@ -766,14 +1001,20 @@ export class MediaService {
             ...versions,
             {
               version: versions.length + 1,
-              url: existing.url || "",
-              path: existing.path,
-              hash: existing.hash,
-              size: existing.size,
-              filename: existing.filename,
-              mimeType: existing.mimeType,
-              createdAt: existing.updatedAt || existing.createdAt || now,
-              createdBy: existing.updatedBy || existing.createdBy || userId,
+              url: (existing as unknown as EnrichableRecord).url || "",
+              path: (existing as unknown as EnrichableRecord).path,
+              hash: (existing as unknown as EnrichableRecord).hash,
+              size: (existing as unknown as EnrichableRecord).size,
+              filename: (existing as unknown as EnrichableRecord).filename,
+              mimeType: (existing as unknown as EnrichableRecord).mimeType,
+              createdAt:
+                (existing as unknown as EnrichableRecord).updatedAt ||
+                (existing as unknown as EnrichableRecord).createdAt ||
+                now,
+              createdBy:
+                (existing as unknown as EnrichableRecord).updatedBy ||
+                (existing as unknown as EnrichableRecord).createdBy ||
+                userId,
               action: "edit",
             },
           ],
@@ -788,12 +1029,14 @@ export class MediaService {
       { tenantId: tenantId ?? undefined },
     );
     if (!finalRes.success || !finalRes.data) throw new Error("Failed to retrieve updated media");
-    return this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem;
+    return this.enrichMediaWithUrl(
+      finalRes.data as unknown as EnrichableRecord,
+    ) as unknown as MediaItem;
   }
 
   public async batchProcessImages(
     ids: string[],
-    config: any,
+    config: MediaManipulation,
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem[]> {
@@ -811,77 +1054,27 @@ export class MediaService {
 
   /**
    * Determine media category from MIME type.
+   * Delegates to the canonical `mediaTypeFromMime` helper in media-models.
    */
   public getMediaType(mime: string): "image" | "video" | "audio" | "document" {
-    if (!mime) return "document";
-    if (mime.startsWith("image/")) return "image";
-    if (mime.startsWith("video/")) return "video";
-    if (mime.startsWith("audio/")) return "audio";
-    return "document";
+    return mediaTypeFromMime(mime) as "image" | "video" | "audio" | "document";
   }
 
   /**
-   * Scans all collection schemas and returns all database entries referencing a specific mediaId.
+   * Returns all collection entries referencing a specific mediaId.
+   * Uses the in-memory reverse-index for O(1) lookups after an initial
+   * O(n) rebuild on first access or after cache invalidation.
    */
-  public async getMediaReferences(mediaId: string, tenantId?: DatabaseId | null): Promise<any[]> {
+  public async getMediaReferences(
+    mediaId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<MediaReference[]> {
     try {
-      const { scanCompiledCollections } = await import("@src/content/engine.server");
-      const schemas = await scanCompiledCollections();
-      const references: any[] = [];
-
-      // Get the media item first to check by path/filename as well
-      const mediaRes = await this.db.crud.findOne<DbMediaItem>(
-        "media",
-        { _id: mediaId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
-      );
-      const mediaPath = mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
-
-      for (const schema of schemas) {
-        const collectionName = `collection_${schema._id}`;
-
-        // Fetch all entries in the collection
-        const res = await this.db.crud.findMany(
-          collectionName,
-          {},
-          { tenantId: tenantId ?? undefined },
-        );
-
-        if (res.success && Array.isArray(res.data)) {
-          for (const entry of res.data) {
-            const entryAny = entry as any;
-            // Scan all fields in this entry
-            for (const key of Object.keys(entryAny)) {
-              if (
-                key === "_id" ||
-                key === "createdAt" ||
-                key === "updatedAt" ||
-                key === "tenantId"
-              ) {
-                continue;
-              }
-              const val = entryAny[key];
-
-              // Direct match or embedded match
-              const referenced = this.isMediaReferencedInValue(val, mediaId, mediaPath);
-              if (referenced) {
-                // Find a friendly name/title for the entry if possible
-                const entryName =
-                  entryAny.name || entryAny.title || entryAny.slug || entryAny._id || "Untitled";
-                references.push({
-                  collectionId: schema._id,
-                  collectionName: schema.name || schema._id,
-                  entryId: entryAny._id,
-                  entryName,
-                  fieldName: key,
-                });
-              }
-            }
-          }
-        }
+      // First call or cache expired — rebuild the index
+      if (this.referenceIndex.getReferences(mediaId).length === 0) {
+        await this.rebuildReferenceIndex(tenantId);
       }
-
-      return references;
+      return this.enrichReferences(this.referenceIndex.getReferences(mediaId));
     } catch (err) {
       logger.error(`[MediaService] Error scanning usage references:`, err);
       return [];
@@ -890,12 +1083,12 @@ export class MediaService {
 
   /**
    * Checks if a media item is referenced by any published content entries.
-   * Scans all collection schemas for published entries that reference the given mediaId.
+   * Uses the in-memory reverse-index for fast lookups.
    */
   public async isReferencedByPublishedContent(
     mediaId: string,
     tenantId?: DatabaseId | null,
-  ): Promise<{ referenced: boolean; references: any[] }> {
+  ): Promise<{ referenced: boolean; references: MediaReference[] }> {
     try {
       const references = await this.getPublishedReferences(mediaId, tenantId);
       return {
@@ -910,109 +1103,131 @@ export class MediaService {
 
   /**
    * Returns all published collection entries that reference a specific mediaId.
-   * Filters entries to only those with status "publish".
+   * Uses the in-memory reverse-index — rebuilds on first access or after invalidation.
    */
   public async getPublishedReferences(
     mediaId: string,
     tenantId?: DatabaseId | null,
-  ): Promise<
-    {
-      collectionId: string;
-      collectionName: string;
-      entryId: string;
-      entryName: string;
-      fieldName: string;
-    }[]
-  > {
+  ): Promise<MediaReference[]> {
     try {
-      const { scanCompiledCollections } = await import("@src/content/engine.server");
-      const schemas = await scanCompiledCollections();
-      const references: {
-        collectionId: string;
-        collectionName: string;
-        entryId: string;
-        entryName: string;
-        fieldName: string;
-      }[] = [];
-
-      // Get the media item to check by path/filename as well
-      const mediaRes = await this.db.crud.findOne<DbMediaItem>(
-        "media",
-        { _id: mediaId as DatabaseId },
-        { tenantId: tenantId ?? undefined },
-      );
-      const mediaPath = mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
-
-      for (const schema of schemas) {
-        const collectionName = `collection_${schema._id}`;
-
-        // Fetch only PUBLISHED entries in the collection
-        const res = await this.db.crud.findMany<any>(collectionName, { status: "publish" } as any, {
-          tenantId: tenantId ?? undefined,
-        });
-
-        if (res.success && Array.isArray(res.data)) {
-          for (const entry of res.data) {
-            const entryAny = entry as any;
-            // Scan all fields in this entry
-            for (const key of Object.keys(entryAny)) {
-              if (
-                key === "_id" ||
-                key === "createdAt" ||
-                key === "updatedAt" ||
-                key === "tenantId"
-              ) {
-                continue;
-              }
-              const val = entryAny[key];
-
-              // Direct match or embedded match
-              const referenced = this.isMediaReferencedInValue(val, mediaId, mediaPath);
-              if (referenced) {
-                // Find a friendly name/title for the entry if possible
-                const entryName =
-                  entryAny.name || entryAny.title || entryAny.slug || entryAny._id || "Untitled";
-                references.push({
-                  collectionId: (schema._id ?? "") as string,
-                  collectionName: (schema.name ?? schema._id ?? "") as string,
-                  entryId: (entryAny._id ?? "") as string,
-                  entryName: entryName as string,
-                  fieldName: key as string,
-                });
-              }
-            }
-          }
-        }
+      // First call or cache expired — rebuild the index
+      if (this.referenceIndex.getReferences(mediaId).length === 0) {
+        await this.rebuildReferenceIndex(tenantId);
       }
-
-      return references;
+      // Filter to published-only references by checking the status map
+      const allRefs = this.referenceIndex.getReferences(mediaId);
+      return this.enrichReferences(
+        allRefs.filter((ref) => this.entryStatusMap.get(ref.entryId) === "publish"),
+      );
     } catch (err) {
       logger.error(`[MediaService] Error scanning published references:`, err);
       return [];
     }
   }
 
-  private isMediaReferencedInValue(val: any, mediaId: string, path: string): boolean {
+  /**
+   * 🛡️ Recursively checks whether `val` references the given mediaId or path.
+   * Uses a WeakSet to detect circular references so malicious or malformed
+   * payloads cannot cause infinite recursion.
+   */
+  private isMediaReferencedInValue(
+    val: unknown,
+    mediaId: string,
+    path: string,
+    seen: WeakSet<object> = new WeakSet(),
+  ): boolean {
     if (val === mediaId || (path && val === path)) {
       return true;
     }
     if (Array.isArray(val)) {
-      return val.some((item) => this.isMediaReferencedInValue(item, mediaId, path));
+      return val.some((item) => this.isMediaReferencedInValue(item, mediaId, path, seen));
     }
     if (val && typeof val === "object") {
+      const obj = val as Record<string, unknown>;
+      // 🛡️ Circular reference guard — stop recursion when we encounter a seen object
+      if (seen.has(val)) return false;
+      seen.add(val);
+
       if (
-        val._id === mediaId ||
-        val.id === mediaId ||
-        (path && (val.path === path || val.url === path))
+        obj._id === mediaId ||
+        obj.id === mediaId ||
+        (path && (obj.path === path || obj.url === path))
       ) {
         return true;
       }
-      return Object.values(val).some((item) => this.isMediaReferencedInValue(item, mediaId, path));
+      return Object.values(obj).some((item: unknown) =>
+        this.isMediaReferencedInValue(item, mediaId, path, seen),
+      );
     }
     if (typeof val === "string") {
       return val.includes(mediaId) || !!(path && val.includes(path));
     }
     return false;
+  }
+
+  /**
+   * Rebuilds the in-memory reference index by scanning all collection entries.
+   */
+  private async rebuildReferenceIndex(tenantId?: DatabaseId | null): Promise<void> {
+    const { scanCompiledCollections } = await import("@src/content/engine.server");
+    const schemas = await scanCompiledCollections();
+    const allEntries: Array<{
+      collectionId: string;
+      collectionName: string;
+      entryId: string;
+      data: Record<string, unknown>;
+      status?: string;
+    }> = [];
+
+    for (const schema of schemas) {
+      const collectionName = `collection_${schema._id}`;
+      const collectionLabel = schema.name || schema._id || "";
+      try {
+        const res = await this.db.crud.findMany(
+          collectionName,
+          {},
+          { tenantId: tenantId ?? undefined },
+        );
+        if (res.success && Array.isArray(res.data)) {
+          for (const entry of res.data) {
+            const entryAny = entry as unknown as Record<string, unknown>;
+            const entryId = entryAny._id?.toString() ?? "";
+            allEntries.push({
+              collectionId: schema._id ?? "",
+              collectionName: collectionLabel,
+              entryId,
+              data: entryAny,
+              status: entryAny.status as string | undefined,
+            });
+            const entryName =
+              entryAny.name || entryAny.title || entryAny.slug || entryAny._id || entryId;
+            this.entryNameMap.set(entryId, String(entryName));
+            if (entryAny.status) {
+              this.entryStatusMap.set(entryId, entryAny.status as string);
+            }
+          }
+        }
+      } catch (err) {
+        logger.error(`[MediaService] Error scanning ${collectionName} for references:`, err);
+      }
+    }
+    this.referenceIndex.rebuild(allEntries);
+  }
+
+  /** Enrich index references with legacy fields for backward compatibility. */
+  private enrichReferences(refs: MediaReference[]): MediaReference[] {
+    for (const ref of refs) {
+      ref.fieldName = ref.fieldPath.split(".")[0] || ref.fieldPath;
+      ref.entryName = this.entryNameMap.get(ref.entryId) || ref.entryId;
+    }
+    return refs;
+  }
+
+  /** Manually clear the reference-index cache. */
+  public invalidateReferenceCache(): void {
+    this.referenceIndex.clear();
+    this.entryStatusMap.clear();
+    this.entryNameMap.clear();
   }
 
   /**
@@ -1044,7 +1259,7 @@ export class MediaService {
       if (!res.success || !res.data) {
         throw new Error("Original media item not found");
       }
-      const existing = res.data as any;
+      const existing = res.data;
 
       // 2. Upload the new file to storage
       // To bypass hash deduplication returning the existing record, we can temporarily save
@@ -1078,7 +1293,7 @@ export class MediaService {
           stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
           arrayBuffer:
             typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
-        } as any,
+        } as unknown as EntityCreate<DbMediaItem>,
         tenantId ?? undefined,
       );
 
@@ -1089,21 +1304,22 @@ export class MediaService {
             : "Failed to upload new version file";
         throw new Error(errMsg);
       }
-      const uploadedFile = uploadRes.data as any;
+      const uploadedFile = uploadRes.data;
 
       // 3. Create version record from the OLD properties
-      const versions = existing.metadata?.versions || [];
+      const existingR = existing as unknown as EnrichableRecord;
+      const versions = (existingR.metadata?.versions as MediaVersionEntry[] | undefined) || [];
       const newVersionNum = versions.length + 1;
       const oldVersionEntry = {
         version: newVersionNum,
-        url: existing.url,
-        path: existing.path,
-        hash: existing.hash,
-        size: existing.size,
-        filename: existing.filename,
-        mimeType: existing.mimeType,
-        createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString(),
-        createdBy: existing.updatedBy || existing.createdBy || userId,
+        url: existingR.url || "",
+        path: existingR.path || "",
+        hash: existingR.hash || "",
+        size: existingR.size ?? 0,
+        filename: existingR.filename || "",
+        mimeType: existingR.mimeType || "",
+        createdAt: existingR.updatedAt || existingR.createdAt || new Date().toISOString(),
+        createdBy: existingR.updatedBy || existingR.createdBy || userId,
         action: "replace",
       };
 
@@ -1112,7 +1328,7 @@ export class MediaService {
 
       // 4. Update the existing database record with the new file properties
       const updatedMetadata = {
-        ...existing.metadata,
+        ...(existingR.metadata as Record<string, unknown>),
         versions: updatedVersions,
       };
 
@@ -1140,15 +1356,18 @@ export class MediaService {
       if (finalRes.success && finalRes.data) {
         return {
           success: true,
-          data: this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem,
+          data: this.enrichMediaWithUrl(
+            finalRes.data as unknown as EnrichableRecord,
+          ) as unknown as MediaItem,
         };
       }
       throw new Error("Failed to retrieve updated media item");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = err as Error;
       logger.error(`[MediaService] Error uploading new version:`, err);
       return {
         success: false,
-        message: err.message,
+        message: e.message,
         error: err as DatabaseError,
       };
     }
@@ -1173,10 +1392,10 @@ export class MediaService {
       if (!res.success || !res.data) {
         throw new Error("Media item not found");
       }
-      const existing = res.data as any;
+      const existingR = res.data as unknown as EnrichableRecord;
 
-      const versions = existing.metadata?.versions || [];
-      const targetVersion = versions.find((v: any) => v.version === versionNumber);
+      const versions = (existingR.metadata?.versions as MediaVersionEntry[] | undefined) || [];
+      const targetVersion = versions.find((v: MediaVersionEntry) => v.version === versionNumber);
       if (!targetVersion) {
         throw new Error(`Version ${versionNumber} not found`);
       }
@@ -1185,29 +1404,29 @@ export class MediaService {
       const currentVersionNum = versions.length + 1;
       const currentVersionEntry = {
         version: currentVersionNum,
-        url: existing.url,
-        path: existing.path,
-        hash: existing.hash,
-        size: existing.size,
-        filename: existing.filename,
-        mimeType: existing.mimeType,
-        createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString(),
-        createdBy: existing.updatedBy || existing.createdBy || userId,
+        url: existingR.url || "",
+        path: existingR.path || "",
+        hash: existingR.hash || "",
+        size: existingR.size ?? 0,
+        filename: existingR.filename || "",
+        mimeType: existingR.mimeType || "",
+        createdAt: existingR.updatedAt || existingR.createdAt || new Date().toISOString(),
+        createdBy: existingR.updatedBy || existingR.createdBy || userId,
         action: "restore",
       };
 
       // 3. Update the active record to point back to the restored version
       const updatedVersions = [...versions, currentVersionEntry];
       const updatedMetadata = {
-        ...existing.metadata,
+        ...(existingR.metadata as Record<string, unknown>),
         versions: updatedVersions,
       };
 
       const updateData = {
-        filename: targetVersion.filename || existing.filename,
-        originalFilename: targetVersion.filename || existing.filename,
-        mimeType: targetVersion.mimeType || existing.mimeType,
-        size: targetVersion.size || existing.size,
+        filename: targetVersion.filename || existingR.filename,
+        originalFilename: targetVersion.filename || existingR.filename,
+        mimeType: targetVersion.mimeType || existingR.mimeType,
+        size: targetVersion.size || existingR.size,
         hash: targetVersion.hash,
         path: targetVersion.path,
         metadata: updatedMetadata,
@@ -1225,15 +1444,18 @@ export class MediaService {
       if (finalRes.success && finalRes.data) {
         return {
           success: true,
-          data: this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem,
+          data: this.enrichMediaWithUrl(
+            finalRes.data as unknown as EnrichableRecord,
+          ) as unknown as MediaItem,
         };
       }
       throw new Error("Failed to retrieve restored media item");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = err as Error;
       logger.error(`[MediaService] Error restoring version:`, err);
       return {
         success: false,
-        message: err.message,
+        message: e.message,
         error: err as DatabaseError,
       };
     }

@@ -86,9 +86,10 @@ function calculateCpuUsagePercentage(): number {
 
   if (timeDeltaMs <= 0) return 0;
 
-  // Convert microseconds to milliseconds, distribute across CPU cores
-  const totalCpuTimeMs = (currentCpuUsage.user + currentCpuUsage.system) / 1000;
-  const percent = (totalCpuTimeMs / (timeDeltaMs * _cpuCores)) * 100;
+  // Total user + system time in microseconds
+  const totalUsage = currentCpuUsage.user + currentCpuUsage.system;
+  // Calculate percentage relative to total potential core time in the window
+  const percent = (totalUsage / (timeDeltaMs * 1000 * _cpuCores)) * 100;
 
   return Math.min(Math.round(percent), 100);
 }
@@ -244,7 +245,7 @@ export function getLatestSnapshot(): SystemHealthSnapshot | null {
 
 export function getCpuHistory(): HistoricalPoint[] {
   if (!_started) startSystemMonitor();
-  return _history;
+  return [..._history];
 }
 
 export function getCpuInfo(): { cores: number; model: string } {

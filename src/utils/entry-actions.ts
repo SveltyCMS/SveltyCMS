@@ -145,8 +145,13 @@ export async function deleteEntries(
         }
       } catch (batchError) {
         // Fallback: delete entries one by one
-        logger.warn("Batch delete failed, using individual deletes:", batchError);
-        await Promise.all(entryIds.map((entryId) => deleteEntry(collId, entryId)));
+        logger.warn("Batch delete failed, using chunked individual deletes:", batchError);
+        // Chunk processing to avoid rate-limiting on massive selections
+        const chunkSize = 10;
+        for (let i = 0; i < entryIds.length; i += chunkSize) {
+          const chunk = entryIds.slice(i, i + chunkSize);
+          await Promise.all(chunk.map((entryId) => deleteEntry(collId, entryId)));
+        }
         toast.success({
           description: entryMessages.entriesDeleted(entryIds.length),
         });
@@ -292,7 +297,7 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
     cancelText: "Show Delete Option",
     onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.archive),
     onCancel: () =>
-      showConfirm({
+      void showConfirm({
         title: "Delete Entry Permanently",
         body: `
 					<div class="space-y-3">
@@ -413,7 +418,12 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
   const entryId = entry._id as string;
 
   if (scheduledDate) {
-    // If date is provided, directly schedule
+    // Validate the Date object to prevent .toISOString() crashes
+    if (isNaN(scheduledDate.getTime())) {
+      toast.error({ description: entryMessages.errorScheduling("Invalid date provided.") });
+      return;
+    }
+
     try {
       // 'scheduled' is not a valid StatusType, use 'publish' or 'draft' as needed
       await updateStatus(collectionId, entryId, StatusTypes.publish);
@@ -471,8 +481,11 @@ export async function cloneCurrentEntry() {
     count: 1,
     onConfirm: async () => {
       try {
-        // Create a deep copy of the entry with all its data
-        const clonedPayload = JSON.parse(JSON.stringify(entry));
+        // Use structuredClone to preserve Date, RegExp, and avoid silent data loss
+        const clonedPayload =
+          typeof structuredClone === "function"
+            ? structuredClone(entry)
+            : JSON.parse(JSON.stringify(entry));
 
         // Remove unique identifiers and timestamps
         clonedPayload._id = undefined;
@@ -540,23 +553,16 @@ export async function saveDraftAndLeave(): Promise<boolean> {
       onConfirm: async () => {
         // Save as draft and allow navigation
         try {
-          const draftData = { ...entry };
+          // Guarantee draft status in the payload to avoid a second network call
+          const draftData = { ...entry, status: StatusTypes.draft };
 
           if (entry._id) {
-            // Update existing entry with draft status
             const entryId = entry._id as string;
             const result = await updateEntry(collectionId, entryId, draftData);
-            if (!result.success) {
-              throw new Error(result.error || "Failed to update entry");
-            }
-            await updateStatus(collectionId, entryId, StatusTypes.draft);
+            if (!result.success) throw new Error(result.error || "Failed to update entry");
           } else {
-            // Create new entry with draft status
-            draftData.status = StatusTypes.draft;
             const result = await createEntry(collectionId, draftData);
-            if (!result.success) {
-              throw new Error(result.error || "Failed to create entry");
-            }
+            if (!result.success) throw new Error(result.error || "Failed to create entry");
           }
 
           toast.warning("Changes saved as draft.");
@@ -593,7 +599,12 @@ interface MetaData {
 export const meta_data = {
   meta_data: {} as MetaData,
   add(key: keyof MetaData, data: unknown) {
-    this.meta_data[key] = data;
+    // Smart Array Merging: combine arrays with deduplication
+    if (Array.isArray(this.meta_data[key]) && Array.isArray(data)) {
+      this.meta_data[key] = [...new Set([...(this.meta_data[key] as unknown[]), ...data])];
+    } else {
+      this.meta_data[key] = data;
+    }
   },
   get(): MetaData {
     return this.meta_data;

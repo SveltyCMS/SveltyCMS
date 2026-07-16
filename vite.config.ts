@@ -240,7 +240,7 @@ function databaseAdapterStripperPlugin(): Plugin {
   const isTest = process.env.TEST_MODE === "true" || process.env.VITEST === "true";
   const setupComplete = isSetupComplete();
   const compileAll = process.env.COMPILE_ALL_ADAPTERS === "true";
-  if (!isBuild || isTest || !setupComplete || compileAll)
+  if (!_isBuild || isTest || !setupComplete || compileAll)
     return { name: "database-adapter-stripper" };
 
   let activeDbType = process.env.DATABASE_ENGINE || process.env.DB_TYPE;
@@ -463,11 +463,29 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
   };
 }
 
+function copyWorkerFilePlugin(): Plugin {
+  return {
+    name: "copy-module-worker",
+    apply: "build",
+    async writeBundle() {
+      const src = path.resolve(CWD, "src/content/module-worker.server.ts");
+      const dest = path.resolve(CWD, "build/server/chunks/module-worker.server.ts");
+      try {
+        await fsPromises.mkdir(path.dirname(dest), { recursive: true });
+        await fsPromises.copyFile(src, dest);
+        log.info("Copied module-worker.server.ts to build output");
+      } catch (e: unknown) {
+        log.warn(`Failed to copy worker file: ${(e as Error).message}`);
+      }
+    },
+  };
+}
+
 // ── Config ─────────────────────────────────────────────────────────────────
-const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
 
 export default defineConfig(() => ({
   plugins: [
+    tailwindcss() as any,
     databaseAdapterStripperPlugin(),
     testBackdoorStripperPlugin(),
     privateConfigFallbackPlugin(),
@@ -484,8 +502,8 @@ export default defineConfig(() => ({
     sveltyCmsPlugin(),
     securityCheckPlugin(),
     suppressThirdPartyWarningsPlugin(),
+    copyWorkerFilePlugin(),
     paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
-    tailwindcss(),
   ],
   server: {
     fs: { allow: ["static", "."], deny: ["**/tests/**"] },
@@ -509,7 +527,7 @@ export default defineConfig(() => ({
   },
   build: {
     target: "esnext",
-    minify: "esbuild",
+    minify: "esbuild" as const,
     sourcemap: !process.env.CI,
     chunkSizeWarningLimit: 1200,
     checks: { pluginTimings: false },

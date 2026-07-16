@@ -2,60 +2,74 @@
  * @file src/utils/id-generator.ts
  * @description Hydration-safe unique ID generator for DOM element identification.
  *
- * Uses a deterministic per-prefix counter instead of Math.random() to ensure
- * identical ID sequences during SSR and client-side hydration. This prevents
- * hydration mismatches where server-rendered `id` attributes differ from
- * client-rendered ones (e.g., `checkbox-a3x9f2` vs `checkbox-b7k1m4`).
- *
- * Features:
- * - deterministic counter-based generation (SSR/hydration-safe)
- * - per-prefix namespacing for organized DOM IDs
- * - reset capability for request-context isolation in SSR
- * - zero dependencies
+ * ### Hardening (audit 2026-07):
+ * - SSR concurrency fix: Svelte Context isolation replaces global reset (prevents
+ *   cross-request ID collisions under concurrent requests)
+ * - HMR survival: fallback map on `globalThis` survives Vite hot reload
+ * - HTML/CSS safety: sanitizes prefixes for valid selectors (no spaces, no leading digits)
+ * - Graceful fallback: try/catch around context lookup for event handler usage
  */
 
-const counters = new Map<string, number>();
+import { getContext, setContext, hasContext } from "svelte";
+
+const isServer = typeof window === "undefined";
+const ID_CONTEXT_KEY = Symbol.for("svelty-id-generator");
+
+// HMR-safe fallback: persists across Vite hot reloads on the client
+const _global = globalThis as any;
+_global.__ID_GLOBAL_MAP ??= new Map<string, number>();
 
 /**
- * Generates a deterministic, hydration-safe unique ID with an optional prefix.
+ * Initializes a request-scoped ID generator.
  *
- * IDs are sequential per prefix, guaranteeing identical output during SSR
- * and client hydration as long as components mount in the same order.
- *
- * @param prefix - Optional namespace prefix (default: 'id'). Use component
- *   names like 'select', 'checkbox', 'combobox' for readable DOM IDs.
- * @returns A deterministic unique ID string (e.g., 'select-0', 'select-1').
- *
- * @example
- * ```ts
- * const fieldId = generateId('checkbox');  // 'checkbox-0'
- * const errorId = `${fieldId}-error`;      // 'checkbox-0-error'
- * ```
+ * Call this ONCE in the `<script>` block of your root `+layout.svelte`.
+ * This eliminates cross-request ID pollution during concurrent SSR requests.
  */
-export function generateId(prefix = "id"): string {
-  const count = counters.get(prefix) ?? 0;
-  counters.set(prefix, count + 1);
-  return `${prefix}-${count}`;
+export function initIdGenerator(): void {
+  setContext(ID_CONTEXT_KEY, new Map<string, number>());
 }
 
 /**
- * Resets all ID counters.
+ * Generates a deterministic, hydration-safe unique HTML ID.
  *
- * Call this at the start of each SSR request context to guarantee
- * deterministic ID sequences per-request. Without reset, counters
- * would grow indefinitely across requests, causing mismatches when
- * components mount in different orders on different pages.
- *
- * @example
- * ```ts
- * // In hooks.server.ts or layout.server.ts:
- * import { resetIdCounters } from '@utils/id-generator';
- * export const handle = async ({ event, resolve }) => {
- *   resetIdCounters();
- *   return resolve(event);
- * };
- * ```
+ * @param prefix - Optional namespace prefix (default: 'id').
+ * @returns A deterministic unique ID string (e.g., 'select-0', 'select-1').
+ */
+export function generateId(prefix = "id"): string {
+  // 1. Sanitize HTML ID (must not contain spaces, must start with a letter)
+  let safePrefix = prefix.trim().replace(/[^a-zA-Z0-9_-]/g, "-") || "id";
+  if (/^[0-9-]/.test(safePrefix)) {
+    safePrefix = `el-${safePrefix}`;
+  }
+
+  let mapToUse: Map<string, number> = _global.__ID_GLOBAL_MAP;
+
+  // 2. Attempt to use request-isolated Svelte Context
+  try {
+    if (hasContext(ID_CONTEXT_KEY)) {
+      mapToUse = getContext<Map<string, number>>(ID_CONTEXT_KEY);
+    } else if (isServer) {
+      console.warn(
+        `[id-generator] generateId('${prefix}') called during SSR without initIdGenerator(). ` +
+          `Concurrent requests may experience hydration mismatches. Add initIdGenerator() to root +layout.svelte.`,
+      );
+    }
+  } catch {
+    // Normal: called outside component init (onMount, click handlers). Falls back to global map.
+  }
+
+  // 3. Increment with overflow guard
+  const count = mapToUse.get(safePrefix) ?? 0;
+  const nextCount = count >= Number.MAX_SAFE_INTEGER ? 0 : count + 1;
+  mapToUse.set(safePrefix, nextCount);
+
+  return `${safePrefix}-${count}`;
+}
+
+/**
+ * Resets the global ID counters.
+ * @deprecated Use initIdGenerator() in +layout.svelte instead for true SSR request isolation.
  */
 export function resetIdCounters(): void {
-  counters.clear();
+  _global.__ID_GLOBAL_MAP.clear();
 }

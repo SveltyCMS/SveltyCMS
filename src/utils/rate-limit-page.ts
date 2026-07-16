@@ -1,19 +1,24 @@
 /**
  * @file src/utils/rate-limit-page.ts
- * @description Renders a professional 429 Too Many Requests HTML page, styled consistently
- * with +error.svelte. Used by rate-limiting hooks to return user-friendly pages.
+ * @description Hardened 429 Too Many Requests HTML generator.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Client-side countdown timer: visual feedback even when meta-refresh is blocked
+ * - CSS variables: reduced CSS byte size, easier theme maintenance
+ * - Grid centering: modern CSS-native perfect centering on all screen sizes
+ * - Tabular nums: prevents layout jitter as countdown digits change
+ * - escapeHtml: one-liner map-based escaping applied to all dynamic strings
  *
  * ### Features:
  * - Dark-themed error page matching SveltyCMS design language
- * - Displays retry-after countdown (auto-refreshing via meta tag)
  * - WCAG 2.2 AA compliant (semantic HTML, ARIA labels, skip-to-content)
- * - Respects prefers-reduced-motion
+ * - Respects prefers-reduced-motion and prefers-contrast
  */
 
 interface RateLimitPageOptions {
   /** Human-readable retry duration (e.g. "60 seconds") */
   retryAfter: string;
-  /** Seconds until retry (used for meta refresh) */
+  /** Seconds until retry (used for meta refresh and client timer) */
   retryAfterSeconds: number;
   /** Current request path (shown to user for context) */
   pathname?: string;
@@ -21,6 +26,23 @@ interface RateLimitPageOptions {
   reason?: string;
   /** Site name for the title */
   siteName?: string;
+}
+
+/**
+ * Escapes HTML to prevent XSS during SSR.
+ */
+function escapeHtml(str: string): string {
+  return String(str).replace(
+    /[&<>"']/g,
+    (m) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      })[m]!,
+  );
 }
 
 export function renderRateLimitPage(options: RateLimitPageOptions): string {
@@ -40,20 +62,19 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta http-equiv="refresh" content="${retryAfterSeconds}" />
-<title>429 — ${reason} | ${siteName}</title>
+<title>429 — ${escapeHtml(reason)} | ${escapeHtml(siteName)}</title>
 <style>
+  :root { --bg: #0f172a; --text: #fff; --accent: #fbbf24; --err: #dc2626; }
   *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { -webkit-text-size-adjust: 100%; tab-size: 4; }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     background: linear-gradient(to top, #0f172a, #1e293b, #0f172a);
-    color: #fff;
+    color: var(--text);
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     padding: 1rem;
   }
   .sr-only {
@@ -63,8 +84,8 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
   .skip-link:focus {
     position: fixed; top: 1rem; inset-inline-start: 1rem; z-index: 50;
     width: auto; height: auto; padding: 0.5rem 1rem; clip: auto;
-    background: #fff; color: #0f172a; border-radius: 0.5rem;
-    outline: 2px solid #ef4444; outline-offset: 2px;
+    background: var(--text); color: var(--bg); border-radius: 0.5rem;
+    outline: 2px solid var(--err); outline-offset: 2px;
   }
   .container {
     display: flex; flex-direction: column; align-items: center;
@@ -75,7 +96,7 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
     font-weight: 800;
     letter-spacing: 0.05em;
     line-height: 1;
-    color: #fbbf24;
+    color: var(--accent);
     position: relative;
   }
   .badge {
@@ -111,8 +132,9 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
     padding: 0.75rem 1.25rem;
     border-radius: 9999px;
     font-size: 0.875rem;
-    color: #fbbf24;
+    color: var(--accent);
     border: 1px solid rgb(251 191 36 / 0.3);
+    font-variant-numeric: tabular-nums;
   }
   .countdown svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
   .actions {
@@ -130,10 +152,10 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
     cursor: pointer;
   }
   .btn:hover { transform: scale(1.05); }
-  .btn:focus-visible { outline: 2px solid #ef4444; outline-offset: 2px; }
+  .btn:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
   .btn-primary {
-    background: linear-gradient(to bottom right, #b91c1c, #dc2626, #b91c1c);
-    color: #fff;
+    background: linear-gradient(to bottom right, #b91c1c, var(--err), #b91c1c);
+    color: var(--text);
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
   }
   .btn-outline {
@@ -141,14 +163,14 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
     color: #e2e8f0;
     border: 2px solid #64748b;
   }
-  .btn-outline:hover { border-color: #fff; background: rgb(255 255 255 / 0.1); }
+  .btn-outline:hover { border-color: var(--text); background: rgb(255 255 255 / 0.1); }
   @media (prefers-reduced-motion: reduce) {
     .btn { transition: none; }
   }
   @media (prefers-contrast: high) {
     body { background: #000; }
     .status { color: #ff0; }
-    .badge { background: #f00; color: #fff; }
+    .badge { background: #f00; color: var(--text); }
   }
 </style>
 </head>
@@ -161,7 +183,7 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
       <span>${escapeHtml(reason)}</span>
     </div>
     <p class="message">Slow down — you&rsquo;re sending requests too quickly.</p>
-    <p class="hint">This page will automatically refresh when the rate limit resets.</p>
+    <p class="hint">Retrying in <span id="timer">${retryAfterSeconds}</span> seconds&hellip;</p>
     <div class="countdown">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -185,15 +207,17 @@ export function renderRateLimitPage(options: RateLimitPageOptions): string {
       </button>
     </div>
   </main>
+  <script>
+    let remaining = ${retryAfterSeconds};
+    const timerEl = document.getElementById('timer');
+    if (timerEl) {
+      const interval = setInterval(function() {
+        remaining--;
+        if (remaining <= 0) { clearInterval(interval); window.location.reload(); }
+        else { timerEl.textContent = remaining; }
+      }, 1000);
+    }
+  </script>
 </body>
 </html>`;
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }

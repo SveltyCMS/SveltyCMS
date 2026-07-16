@@ -1,15 +1,16 @@
 /**
  * @file tests/unit/user/debounce.test.ts
- * @description White-box unit tests for the debounce utility.
+ * @description White-box unit tests for the hardened debounce utility.
  *
  * Source: src/utils/debounce.ts
  *
  * Features tested:
  * - Basic delay behavior (fn delayed by `delay` ms)
  * - clearTimeout on subsequent calls within delay period
- * - Immediate mode (first call fires synchronously)
  * - Only the LAST call executes (standard debounce)
- * - debounce.create() factory
+ * - `.cancel()` prevents execution after unmount
+ * - `this` context preservation
+ * - Arguments pass-through
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -25,14 +26,14 @@ describe("debounce", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // BASIC DEBOUNCE — DELAYED EXECUTION
+  // debounce.create() — BASIC DELAY
   // ---------------------------------------------------------------------------
 
   it("should delay execution by the specified delay", () => {
     const fn = vi.fn();
-    const debounced = debounce(500);
+    const debouncedFn = debounce.create(fn, 500);
 
-    debounced(fn);
+    debouncedFn();
     expect(fn).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(499);
@@ -44,9 +45,9 @@ describe("debounce", () => {
 
   it("should use default delay of 300ms", () => {
     const fn = vi.fn();
-    const debounced = debounce(); // no args → default 300
+    const debouncedFn = debounce.create(fn);
 
-    debounced(fn);
+    debouncedFn();
     vi.advanceTimersByTime(299);
     expect(fn).not.toHaveBeenCalled();
 
@@ -60,88 +61,45 @@ describe("debounce", () => {
 
   it("should reset the timer on subsequent calls", () => {
     const fn = vi.fn();
-    const debounced = debounce(300);
+    const debouncedFn = debounce.create(fn, 300);
 
-    debounced(fn);
+    debouncedFn();
     vi.advanceTimersByTime(200);
-    debounced(fn); // reset timer
+    debouncedFn(); // reset timer
     vi.advanceTimersByTime(200);
-    expect(fn).not.toHaveBeenCalled(); // still not 300 since reset
-
-    vi.advanceTimersByTime(100);
-    expect(fn).toHaveBeenCalledTimes(1);
-  });
-
-  it("should only execute the last scheduled fn", () => {
-    const fn1 = vi.fn();
-    const fn2 = vi.fn();
-    const debounced = debounce(300);
-
-    debounced(fn1);
-    debounced(fn2); // replaces fn1
-    vi.advanceTimersByTime(300);
-
-    expect(fn1).not.toHaveBeenCalled();
-    expect(fn2).toHaveBeenCalledTimes(1);
-  });
-
-  it("should handle multiple rapid calls, executing only once", () => {
-    const fn = vi.fn();
-    const debounced = debounce(100);
-
-    for (let i = 0; i < 10; i++) {
-      debounced(fn);
-      vi.advanceTimersByTime(50); // each call resets the timer
-    }
-
     expect(fn).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(100);
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  // ---------------------------------------------------------------------------
-  // IMMEDIATE MODE
-  // ---------------------------------------------------------------------------
-
-  it("should execute first call immediately in immediate mode", () => {
+  it("should only call once for rapid invocations", () => {
     const fn = vi.fn();
-    const debounced = debounce(300, true);
+    const debouncedFn = debounce.create(fn, 150);
 
-    debounced(fn);
-    expect(fn).toHaveBeenCalledTimes(1); // fired synchronously
+    debouncedFn("a");
+    debouncedFn("b");
+    debouncedFn("c");
+    vi.advanceTimersByTime(150);
+
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith("c"); // last call wins
   });
 
-  it("should not fire subsequent calls in immediate mode during cooldown", () => {
-    const fn1 = vi.fn();
-    const fn2 = vi.fn();
-    const debounced = debounce(300, true);
+  it("should handle many rapid calls, executing only once", () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce.create(fn, 100);
 
-    debounced(fn1); // fires immediately
-    expect(fn1).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 10; i++) {
+      debouncedFn(i);
+      vi.advanceTimersByTime(50);
+    }
 
-    debounced(fn2); // during cooldown, should NOT fire immediately
-    expect(fn2).not.toHaveBeenCalled();
+    expect(fn).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(300);
-    expect(fn2).toHaveBeenCalledTimes(1);
-  });
-
-  it("should fire immediately only for the first call ever (hasExecuted tracks lifetime)", () => {
-    const fn1 = vi.fn();
-    const fn2 = vi.fn();
-    const debounced = debounce(300, true);
-
-    debounced(fn1); // immediate
-    expect(fn1).toHaveBeenCalledTimes(1);
-
-    vi.advanceTimersByTime(300); // let cooldown finish
-
-    debounced(fn2); // NOT immediate — hasExecuted is true forever
-    expect(fn2).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(300);
-    expect(fn2).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(100);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith(9);
   });
 
   // ---------------------------------------------------------------------------
@@ -150,65 +108,80 @@ describe("debounce", () => {
 
   it("should clear previous timeout when new call comes in", () => {
     const fn = vi.fn();
-    const debounced = debounce(200);
+    const debouncedFn = debounce.create(fn, 200);
 
-    debounced(fn);
+    debouncedFn();
     vi.advanceTimersByTime(100);
-    debounced(fn); // clears previous timer, starts new one
+    debouncedFn(); // clears previous timer, starts new one
 
-    // Only one timer is running now; advancing 200 should fire once
     vi.advanceTimersByTime(200);
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
   // ---------------------------------------------------------------------------
-  // debounce.create() FACTORY
+  // ARGUMENT PASS-THROUGH
   // ---------------------------------------------------------------------------
 
-  describe("debounce.create", () => {
-    it("should return a debounced version of the function", () => {
-      const fn = vi.fn();
-      const debouncedFn = debounce.create(fn, 200);
+  it("should pass all arguments through", () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce.create(fn, 100);
 
-      debouncedFn("arg1", "arg2");
-      expect(fn).not.toHaveBeenCalled();
+    debouncedFn(1, "two", { three: true });
+    vi.advanceTimersByTime(100);
+    expect(fn).toHaveBeenCalledWith(1, "two", { three: true });
+  });
 
-      vi.advanceTimersByTime(200);
-      expect(fn).toHaveBeenCalledWith("arg1", "arg2");
-    });
+  // ---------------------------------------------------------------------------
+  // CANCEL MECHANISM (Memory Leak Prevention)
+  // ---------------------------------------------------------------------------
 
-    it("should pass all arguments through", () => {
-      const fn = vi.fn();
-      const debouncedFn = debounce.create(fn, 100);
+  it("should not execute after cancel() is called", () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce.create(fn, 200);
 
-      debouncedFn(1, "two", { three: true });
-      vi.advanceTimersByTime(100);
-      expect(fn).toHaveBeenCalledWith(1, "two", { three: true });
-    });
+    debouncedFn();
+    vi.advanceTimersByTime(50);
+    debouncedFn.cancel();
+    vi.advanceTimersByTime(200);
 
-    it("should only call once for rapid invocations", () => {
-      const fn = vi.fn();
-      const debouncedFn = debounce.create(fn, 150);
+    expect(fn).not.toHaveBeenCalled();
+  });
 
-      debouncedFn("a");
-      debouncedFn("b");
-      debouncedFn("c");
-      vi.advanceTimersByTime(150);
+  it("should allow re-invocation after cancel", () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce.create(fn, 100);
 
-      expect(fn).toHaveBeenCalledTimes(1);
-      expect(fn).toHaveBeenCalledWith("c"); // last call wins
-    });
+    debouncedFn();
+    debouncedFn.cancel();
 
-    it("should use default wait of 300ms", () => {
-      const fn = vi.fn();
-      const debouncedFn = debounce.create(fn); // no wait arg
+    debouncedFn("re-invoked");
+    vi.advanceTimersByTime(100);
 
-      debouncedFn();
-      vi.advanceTimersByTime(299);
-      expect(fn).not.toHaveBeenCalled();
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith("re-invoked");
+  });
 
-      vi.advanceTimersByTime(1);
-      expect(fn).toHaveBeenCalledTimes(1);
-    });
+  // ---------------------------------------------------------------------------
+  // THIS CONTEXT PRESERVATION
+  // ---------------------------------------------------------------------------
+
+  it("should preserve `this` context when called as a method", () => {
+    const service = {
+      value: 42,
+      save: vi.fn(function (this: any, ...args: any[]) {
+        return this.value + (args[0] ?? 0);
+      }),
+    };
+
+    const debouncedFn = debounce.create(service.save, 100);
+
+    // Call as method of service — `this` should be service
+    debouncedFn.call(service, 10);
+    vi.advanceTimersByTime(100);
+
+    expect(service.save).toHaveBeenCalledTimes(1);
+    // `this.value` (42) + 10 = 52
+    const result = service.save.mock.results[0]?.value;
+    expect(result).toBe(52);
   });
 });

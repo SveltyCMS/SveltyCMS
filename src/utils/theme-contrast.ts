@@ -1,6 +1,12 @@
 /**
  * @file src/utils/theme-contrast.ts
- * @description Theme contrast auditing utility.
+ * @description Hardened theme contrast auditing utility.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Shorthand hex support: expands #FFF → #FFFFFF (3-digit → 6-digit)
+ * - Input validation: parseColorToRgb returns null on invalid/malformed hex
+ * - Divide-by-zero guard: contrastRatio returns 1.0 on invalid color inputs
+ * - Type safety: auditPresetJson validates properties is an object
  *
  * Analyzes theme JSON for WCAG contrast compliance.
  * Used by admin-theme-service when importing presets.
@@ -13,14 +19,27 @@ export interface ContrastWarning {
 }
 
 /**
- * Parse a hex color string to RGB array.
+ * Parses a hex color string to RGB.
+ * 🛡️ Hardened: Handles 3-digit shorthand (#FFF) and ensures valid hex length.
  */
-export function parseColorToRgb(hex: string): [number, number, number] {
-  const clean = hex.replace("#", "");
+export function parseColorToRgb(hex: string): [number, number, number] | null {
+  let clean = hex.replace("#", "");
+
+  // Expand shorthand (e.g., "F00" → "FF0000")
+  if (clean.length === 3) {
+    clean = clean
+      .split("")
+      .map((char) => char + char)
+      .join("");
+  }
+
+  if (clean.length !== 6) return null;
+
   const r = Number.parseInt(clean.slice(0, 2), 16);
   const g = Number.parseInt(clean.slice(2, 4), 16);
   const b = Number.parseInt(clean.slice(4, 6), 16);
-  return [r, g, b];
+
+  return isNaN(r) || isNaN(g) || isNaN(b) ? null : [r, g, b];
 }
 
 /**
@@ -35,13 +54,16 @@ function relativeLuminance(r: number, g: number, b: number): number {
 }
 
 /**
- * Calculate the WCAG contrast ratio between two hex colors.
+ * WCAG contrast ratio. 🛡️ Returns 1.0 on invalid input to prevent divide-by-zero.
  */
 export function contrastRatio(hex1: string, hex2: string): number {
-  const [r1, g1, b1] = parseColorToRgb(hex1);
-  const [r2, g2, b2] = parseColorToRgb(hex2);
-  const l1 = relativeLuminance(r1, g1, b1);
-  const l2 = relativeLuminance(r2, g2, b2);
+  const rgb1 = parseColorToRgb(hex1);
+  const rgb2 = parseColorToRgb(hex2);
+
+  if (!rgb1 || !rgb2) return 1.0;
+
+  const l1 = relativeLuminance(...rgb1);
+  const l2 = relativeLuminance(...rgb2);
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
@@ -52,40 +74,24 @@ export function contrastRatio(hex1: string, hex2: string): number {
  */
 export function auditThemePalette(palette: Record<string, string>): ContrastWarning[] {
   const warnings: ContrastWarning[] = [];
-  const pairs: { name: string; foreground: string; background: string }[] = [];
 
-  if (palette.primary && palette.surface) {
-    pairs.push({
-      name: "Primary accent on surface",
-      foreground: palette.primary,
-      background: palette.surface,
-    });
-  }
+  const checkPairs = [
+    { name: "Primary accent on surface", fg: palette.primary, bg: palette.surface },
+    { name: "Tertiary accent on surface", fg: palette.tertiary, bg: palette.surface },
+    { name: "Surface text on surface", fg: palette["surface-900"], bg: palette.surface },
+  ];
 
-  if (palette.tertiary && palette.surface) {
-    pairs.push({
-      name: "Tertiary accent on surface",
-      foreground: palette.tertiary,
-      background: palette.surface,
-    });
-  }
-
-  if (palette["surface-900"] && palette.surface) {
-    pairs.push({
-      name: "Surface text on surface",
-      foreground: palette["surface-900"],
-      background: palette.surface,
-    });
-  }
-
-  for (const pair of pairs) {
-    const ratio = contrastRatio(pair.foreground, pair.background);
-    if (ratio < 4.5) {
-      warnings.push({
-        message: `Low contrast: ${pair.name} (ratio: ${ratio.toFixed(2)})`,
-        level: ratio < 3 ? "error" : "warning",
-        pair: pair.name,
-      });
+  for (const pair of checkPairs) {
+    // Only audit if both colors exist
+    if (pair.fg && pair.bg) {
+      const ratio = contrastRatio(pair.fg, pair.bg);
+      if (ratio < 4.5) {
+        warnings.push({
+          message: `Low contrast: ${pair.name} (ratio: ${ratio.toFixed(2)})`,
+          level: ratio < 3 ? "error" : "warning",
+          pair: pair.name,
+        });
+      }
     }
   }
 
@@ -97,26 +103,23 @@ export function auditThemePalette(palette: Record<string, string>): ContrastWarn
  * Returns an array of warnings for display in the import UI.
  */
 export function auditPresetJson(presetJson: string): ContrastWarning[] {
-  const warnings: ContrastWarning[] = [];
   try {
     const preset = JSON.parse(presetJson);
+    const warnings: ContrastWarning[] = [];
 
-    if (preset.properties) {
-      const paletteWarnings = auditThemePalette(preset.properties);
-      warnings.push(...paletteWarnings);
+    if (preset?.properties && typeof preset.properties === "object") {
+      warnings.push(...auditThemePalette(preset.properties));
     }
 
-    if (preset.colors) {
+    if (preset?.colors) {
       warnings.push({
         message: "Custom theme imported. Please verify WCAG contrast ratios manually.",
         level: "info",
       });
     }
+
+    return warnings;
   } catch {
-    warnings.push({
-      message: "Unable to parse preset JSON for contrast audit.",
-      level: "warning",
-    });
+    return [{ message: "Unable to parse preset JSON for contrast audit.", level: "warning" }];
   }
-  return warnings;
 }

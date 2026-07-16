@@ -4,7 +4,7 @@ title: "Competitive Comparison"
 description: "A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-07-10"
+updated: "2026-07-16"
 tags:
   - "comparison"
   - "benchmarks"
@@ -16,3 +16,70 @@ tags:
 # Competitive Comparison
 
 SveltyCMS is designed for developers who prioritize performance, security, and accessibility. By using Svelte 5 (Runes) and a database-agnostic architecture, we offer a highly competitive alternative to traditional React-based or GUI-heavy CMS platforms.
+
+All claims are based on publicly available documentation as of July 2026. Performance numbers are measured on Intel i7-13700H, Bun 1.3.14, with reproduction commands documented in our benchmark reports.
+
+## Core Technology
+
+| Feature              | SveltyCMS                                             | Payload CMS         | Strapi                             | Directus                         |
+| :------------------- | :---------------------------------------------------- | :------------------ | :--------------------------------- | :------------------------------- |
+| **Framework**        | SvelteKit 2 + Svelte 5 Runes                          | Next.js + React     | Koa + React Admin                  | Vue 3 + Express                  |
+| **Runtime overhead** | Zero (compiled away)                                  | VDOM reconciliation | VDOM + Express middleware          | Vue reactivity + Express         |
+| **Cold start**       | <1s progressive                                       | ~3-5s               | ~4-8s                              | ~3-6s                            |
+| **i18n**             | Paraglide (compiled, zero-runtime)                    | i18next (runtime)   | i18n plugin (runtime)              | vue-i18n (runtime)               |
+| **Type safety**      | Strict TS + Valibot + discriminated unions            | Zod schemas         | TypeScript (partial)               | TypeScript (partial)             |
+| **Database support** | MongoDB, MariaDB, PostgreSQL, SQLite (all production) | MongoDB, PostgreSQL | SQLite, PostgreSQL, MySQL, MariaDB | PostgreSQL, MySQL, SQLite, MSSQL |
+
+## Media & DAM
+
+| Feature                  | SveltyCMS                                                            | Payload CMS               | Strapi               | Directus                 |
+| :----------------------- | :------------------------------------------------------------------- | :------------------------ | :------------------- | :----------------------- |
+| **Media type system**    | Discriminated union + 7 type guards + `assertNever()` exhaustiveness | Basic type discrimination | Media library plugin | File library             |
+| **Upload streaming**     | True byte-level streaming parser with backpressure                   | Buffer-based              | Buffer-based         | Buffer-based             |
+| **Reference protection** | Reverse-index + published-reference gate (409 Conflict)              | None documented           | None documented      | None documented          |
+| **Deduplication**        | SHA-256 content-addressable storage                                  | None documented           | Plugin-based         | None documented          |
+| **DAM analytics**        | Built-in (type/folder/user breakdowns, trends, quotas)               | None                      | Plugin-based         | Insights module          |
+| **Secure sharing**       | HMAC-signed URLs + password-protected share tokens                   | Standard auth only        | Plugin-based         | Standard auth only       |
+| **Version history**      | Per-file versioning with diff/compare/restore                        | None documented           | None documented      | Revisions (content only) |
+| **Signed URLs**          | HMAC-SHA256 + timing-safe validation + tenant-scoped                 | None documented           | Plugin-based         | None documented          |
+| **WebGPU optimization**  | Client-side browser compression pre-upload                           | None                      | None                 | None                     |
+| **Storage backends**     | Local, S3, R2, Cloudinary (pluggable adapters)                       | S3 plugin                 | Upload providers     | Storage adapters         |
+
+## Security
+
+| Feature                | SveltyCMS                                               | Payload CMS           | Strapi                | Directus              |
+| :--------------------- | :------------------------------------------------------ | :-------------------- | :-------------------- | :-------------------- |
+| **CSRF protection**    | `__Host-` cookie prefix + per-origin tokens             | Built-in              | Built-in              | Built-in              |
+| **Rate limiting**      | Hardware-aware (CPU/event-loop-adjusted)                | None documented       | Rate limit plugin     | Rate limit plugin     |
+| **Path traversal**     | All adapter methods gated with `resolve` + `startsWith` | None documented       | Partial               | Partial               |
+| **Secrets management** | DB-driven via Settings Service (no `process.env`)       | Environment variables | Environment variables | Environment variables |
+| **SVG sanitization**   | Iterative XML scrubbing + attribute validation          | None documented       | None documented       | None documented       |
+| **Signed URLs**        | Timing-safe comparison + tenantId injection prevention  | None                  | None                  | None                  |
+| **Audit logs**         | Crypto-chained (SHA-256 tamper-evident)                 | None documented       | Audit log plugin      | Activity log          |
+
+## Developer Experience
+
+| Feature               | SveltyCMS                                | Payload CMS      | Strapi           | Directus                       |
+| :-------------------- | :--------------------------------------- | :--------------- | :--------------- | :----------------------------- |
+| **Schema definition** | Hybrid (code + GUI, bi-directional sync) | Code-first       | GUI-first        | GUI-first with code extensions |
+| **Local SDK**         | Zero-latency `LocalCMS` (bypasses HTTP)  | Local API        | None             | None                           |
+| **API format**        | REST + GraphQL + OpenAPI 3.1.0           | REST + GraphQL   | REST + GraphQL   | REST + GraphQL                 |
+| **Real-time**         | SSE + WebSocket (Yjs collaboration)      | None documented  | WebSocket plugin | WebSocket + SSE                |
+| **SCIM 2.0**          | Native endpoints (RFC 7644)              | None             | None             | None                           |
+| **Marketplace**       | Built-in theme/plugin catalog            | Plugin directory | Marketplace      | Marketplace                    |
+
+## Accessibility
+
+| Feature                 | SveltyCMS                                 | Payload CMS    | Strapi         | Directus       |
+| :---------------------- | :---------------------------------------- | :------------- | :------------- | :------------- |
+| **WCAG target**         | 2.2 AA / ATAG 2.0 / WCAG 3.0-ready        | Not documented | Not documented | Not documented |
+| **RTL support**         | Tailwind v4 logical properties            | Partial        | Partial        | Partial        |
+| **Keyboard navigation** | Full keyboard support + ARIA-live regions | Partial        | Partial        | Partial        |
+
+---
+
+## Related
+
+- [Technical Evaluation 2026](./technical-evaluation-2026.mdx)
+- [Benchmark Reports](./benchmarks/index.mdx)
+- [Media System Architecture](../reference/architecture/media-system.mdx)

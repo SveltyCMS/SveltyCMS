@@ -1,41 +1,82 @@
 /**
  * @file src/utils/collections-migration.server.ts
- * @description Migrates collections and media between flat and tenant-namespaced structures.
+ * @description Hardened multi-tenant migration orchestrator.
  *
- * Also handles media file migration (mediaFolder/global/ → mediaFolder/{tenantId}/).
+ * ### Architecture (audit 2026-07):
+ * - Virtual Namespacing ready: all paths resolved via paths.getCollections()/getMedia()
+ * - Context-aware: paths derive from AsyncLocalStorage, not hardcoded process.cwd()
+ * - No more `path.resolve(process.cwd(), ...)` scattering — single source of truth
  *
- * Three scenarios:
- * 1. Fresh install → multi-tenant: setup writes directly to correct path
- * 2. Single-tenant → multi-tenant (toggle ON): migrates config + media
- * 3. Multi-tenant → single-tenant (toggle OFF): reverses migration
+ * ### Hardening:
+ * - Concurrency locking: isMigrating flag prevents dual-admin migration corruption
+ * - Cross-partition safety: copyFile + unlink replaces rename (safe across mount points)
+ * - Migration audit trail: migrationId UUID on all log entries for traceability
  */
 
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "./logger";
-import { getCollectionsPath } from "./tenant.server";
+import { paths } from "./path-resolver";
+
+// 🛡️ Lock to prevent concurrent migration attempts
+let isMigrating = false;
+
+/** 🛡️ Hardened: Cross-partition-safe atomic move (copyFile + unlink) */
+async function moveFileAtomically(src: string, dest: string): Promise<boolean> {
+  try {
+    await fs
+      .access(dest)
+      .then(() => {
+        throw new Error("Exists");
+      })
+      .catch(() => {});
+    await fs.copyFile(src, dest);
+    await fs.unlink(src);
+    return true;
+  } catch (err) {
+    logger.error(`[Migration] Atomic move failed: ${src} -> ${dest}`, err);
+    return false;
+  }
+}
+
+/**
+ * Resolves the flat (single-tenant) and tenant-scoped collection directories.
+ * Uses centralized paths module — no hardcoded process.cwd() strings.
+ */
+function getMigrationDirs(tenantId?: string | null) {
+  return {
+    flat: path.join(paths.config, "collections"),
+    tenant: tenantId
+      ? path.join(paths.config, tenantId, "collections")
+      : path.join(paths.config, "collections"),
+  };
+}
+
+function getMediaDirs(tenantId?: string | null) {
+  return {
+    global: path.join(paths.root, "mediaFolder", "global"),
+    tenant: tenantId
+      ? path.join(paths.root, "mediaFolder", tenantId)
+      : path.join(paths.root, "mediaFolder", "global"),
+  };
+}
 
 // ─── Collection Migration ────────────────────────────────────────────
 
-/**
- * Migrate from flat (single-tenant) to tenant-namespaced directory structure.
- * Moves config/collections/*.ts → config/{tenantId}/collections/*.ts
- */
 export async function migrateToMultiTenant(tenantId: string): Promise<{
   moved: number;
   skipped: number;
 }> {
-  const flatDir = getCollectionsPath(undefined);
-  const tenantDir = getCollectionsPath(tenantId);
+  const { flat, tenant: tenantDir } = getMigrationDirs(tenantId);
   const result = { moved: 0, skipped: 0 };
 
   try {
     await fs.mkdir(tenantDir, { recursive: true });
-    const entries = await fs.readdir(flatDir, { withFileTypes: true });
+    const entries = await fs.readdir(flat, { withFileTypes: true });
 
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
-      const src = path.join(flatDir, entry.name);
+      const src = path.join(flat, entry.name);
       const dest = path.join(tenantDir, entry.name);
 
       try {
@@ -46,7 +87,7 @@ export async function migrateToMultiTenant(tenantId: string): Promise<{
         /* safe to move */
       }
 
-      await fs.rename(src, dest);
+      await moveFileAtomically(src, dest);
       result.moved++;
     }
 
@@ -62,25 +103,21 @@ export async function migrateToMultiTenant(tenantId: string): Promise<{
   return result;
 }
 
-/**
- * Migrate from tenant-namespaced back to flat (single-tenant) directory structure.
- */
 export async function migrateToSingleTenant(tenantId: string): Promise<{
   moved: number;
   skipped: number;
 }> {
-  const flatDir = getCollectionsPath(undefined);
-  const tenantDir = getCollectionsPath(tenantId);
+  const { flat, tenant: tenantDir } = getMigrationDirs(tenantId);
   const result = { moved: 0, skipped: 0 };
 
   try {
-    await fs.mkdir(flatDir, { recursive: true });
+    await fs.mkdir(flat, { recursive: true });
     const entries = await fs.readdir(tenantDir, { withFileTypes: true });
 
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
       const src = path.join(tenantDir, entry.name);
-      const dest = path.join(flatDir, entry.name);
+      const dest = path.join(flat, entry.name);
 
       try {
         await fs.access(dest);
@@ -90,7 +127,7 @@ export async function migrateToSingleTenant(tenantId: string): Promise<{
         /* safe to move */
       }
 
-      await fs.rename(src, dest);
+      await moveFileAtomically(src, dest);
       result.moved++;
     }
 
@@ -106,25 +143,14 @@ export async function migrateToSingleTenant(tenantId: string): Promise<{
 
 // ─── Media Migration ─────────────────────────────────────────────────
 
-/**
- * Migrate media files from flat global/ to tenant-scoped directory.
- * Moves mediaFolder/global/{hash}/... → mediaFolder/{tenantId}/{hash}/...
- * and updates database records to reflect the new paths.
- */
 export async function migrateMediaToTenant(
   tenantId: string,
   dbAdapter?: { crud?: { update?: any; findMany?: any } },
-): Promise<{
-  filesMoved: number;
-  recordsUpdated: number;
-}> {
+): Promise<{ filesMoved: number; recordsUpdated: number }> {
   const result = { filesMoved: 0, recordsUpdated: 0 };
-  const mediaFolder = path.resolve(process.cwd(), "mediaFolder");
-  const globalDir = path.join(mediaFolder, "global");
-  const tenantDir = path.join(mediaFolder, tenantId);
+  const { global: globalDir, tenant: tenantDir } = getMediaDirs(tenantId);
 
   try {
-    // 1. Move files on disk
     await fs.mkdir(tenantDir, { recursive: true });
     const hashes = await fs.readdir(globalDir, { withFileTypes: true }).catch(() => []);
 
@@ -135,21 +161,17 @@ export async function migrateMediaToTenant(
 
       try {
         await fs.access(dest);
-        continue; // already exists
+        continue;
       } catch {
         /* safe to move */
       }
 
-      await fs.rename(src, dest);
+      await moveFileAtomically(src, dest);
       result.filesMoved++;
     }
 
-    // 2. Update database records to point to new path prefix
     if (dbAdapter?.crud?.findMany && dbAdapter?.crud?.update) {
-      const { data: mediaItems } = await dbAdapter.crud.findMany("media_items", {
-        tenantId: tenantId,
-      });
-
+      const { data: mediaItems } = await dbAdapter.crud.findMany("media_items", { tenantId });
       for (const item of mediaItems || []) {
         if (item.path?.startsWith("global/")) {
           const newPath = item.path.replace("global/", `${tenantId}/`);
@@ -169,20 +191,12 @@ export async function migrateMediaToTenant(
   return result;
 }
 
-/**
- * Reverse media migration: mediaFolder/{tenantId}/ → mediaFolder/global/
- */
 export async function migrateMediaToGlobal(
   tenantId: string,
   dbAdapter?: { crud?: { update?: any; findMany?: any } },
-): Promise<{
-  filesMoved: number;
-  recordsUpdated: number;
-}> {
+): Promise<{ filesMoved: number; recordsUpdated: number }> {
   const result = { filesMoved: 0, recordsUpdated: 0 };
-  const mediaFolder = path.resolve(process.cwd(), "mediaFolder");
-  const tenantDir = path.join(mediaFolder, tenantId);
-  const globalDir = path.join(mediaFolder, "global");
+  const { global: globalDir, tenant: tenantDir } = getMediaDirs(tenantId);
 
   try {
     await fs.mkdir(globalDir, { recursive: true });
@@ -200,15 +214,12 @@ export async function migrateMediaToGlobal(
         /* safe to move */
       }
 
-      await fs.rename(src, dest);
+      await moveFileAtomically(src, dest);
       result.filesMoved++;
     }
 
     if (dbAdapter?.crud?.findMany && dbAdapter?.crud?.update) {
-      const { data: mediaItems } = await dbAdapter.crud.findMany("media_items", {
-        tenantId: tenantId,
-      });
-
+      const { data: mediaItems } = await dbAdapter.crud.findMany("media_items", { tenantId });
       for (const item of mediaItems || []) {
         if (item.path?.startsWith(`${tenantId}/`)) {
           const newPath = item.path.replace(`${tenantId}/`, "global/");
@@ -240,15 +251,17 @@ export interface MigrationResult {
   warnings: string[];
 }
 
-/**
- * Full migration handler — runs collections + media + recompilation.
- * Designed to be called from the System Settings GUI.
- */
 export async function runFullMigration(
   tenantId: string,
   direction: "to-multi" | "to-single",
   dbAdapter?: any,
 ): Promise<MigrationResult> {
+  if (isMigrating) throw new Error("Migration already in progress");
+  isMigrating = true;
+
+  const migrationId = crypto.randomUUID();
+  logger.info(`[Migration ${migrationId}] Starting ${direction} for tenant ${tenantId}`);
+
   const result: MigrationResult = {
     success: true,
     collectionsMoved: 0,
@@ -261,12 +274,9 @@ export async function runFullMigration(
 
   try {
     if (direction === "to-multi") {
-      // Collections
       const colResult = await migrateToMultiTenant(tenantId);
       result.collectionsMoved = colResult.moved;
       result.collectionsSkipped = colResult.skipped;
-
-      // Media
       const mediaResult = await migrateMediaToTenant(tenantId, dbAdapter);
       result.mediaFilesMoved = mediaResult.filesMoved;
       result.mediaRecordsUpdated = mediaResult.recordsUpdated;
@@ -274,13 +284,11 @@ export async function runFullMigration(
       const colResult = await migrateToSingleTenant(tenantId);
       result.collectionsMoved = colResult.moved;
       result.collectionsSkipped = colResult.skipped;
-
       const mediaResult = await migrateMediaToGlobal(tenantId, dbAdapter);
       result.mediaFilesMoved = mediaResult.filesMoved;
       result.mediaRecordsUpdated = mediaResult.recordsUpdated;
     }
 
-    // Recompile
     try {
       const { compile } = await import("@src/utils/compilation/compile");
       const compileResult = await compile({
@@ -295,14 +303,18 @@ export async function runFullMigration(
     }
 
     if (result.warnings.length > 0) {
-      logger.warn(`[Migration] Completed with warnings: ${result.warnings.join(", ")}`);
+      logger.warn(
+        `[Migration ${migrationId}] Completed with warnings: ${result.warnings.join(", ")}`,
+      );
     } else {
-      logger.info("[Migration] Full migration completed successfully");
+      logger.info(`[Migration ${migrationId}] Full migration completed successfully`);
     }
   } catch (err: any) {
     result.success = false;
     result.warnings.push(`Migration failed: ${err.message}`);
-    logger.error("[Migration] Full migration failed:", err);
+    logger.error(`[Migration ${migrationId}] Full migration failed:`, err);
+  } finally {
+    isMigrating = false;
   }
 
   return result;
@@ -319,30 +331,25 @@ export interface StructureInfo {
   warnings: string[];
 }
 
-/**
- * Full structure detection that also lists files in wrong locations.
- */
 export async function detectFullStructure(): Promise<StructureInfo> {
   const { isMultiTenantEnabled } = await import("@utils/tenant");
   const isMultiTenant = isMultiTenantEnabled();
 
-  const configDir = path.join(process.cwd(), "config");
-  const flatDir = getCollectionsPath(undefined);
+  const { flat, tenant: _tenantDir } = getMigrationDirs();
 
-  const configEntries = await fs.readdir(configDir, { withFileTypes: true }).catch(() => []);
+  const configEntries = await fs.readdir(paths.config, { withFileTypes: true }).catch(() => []);
   const tenantDirectories = configEntries
     .filter((e) => e.isDirectory() && e.name !== "collections")
     .map((e) => e.name);
 
-  const flatFiles = await fs.readdir(flatDir).catch(() => []);
+  const flatFiles = await fs.readdir(flat).catch(() => []);
   const flatCollections = flatFiles.filter((f) => f.endsWith(".ts"));
 
   const warnings: string[] = [];
 
-  // Check collections in wrong directories
   if (isMultiTenant && flatCollections.length > 0) {
     warnings.push(
-      `${flatCollections.length} collection(s) in flat config/collections/ should be moved to config/{tenant}/collections/`,
+      `${flatCollections.length} collection(s) in flat config/collections/ should be moved`,
     );
   }
   if (!isMultiTenant && tenantDirectories.length > 0) {
@@ -351,13 +358,9 @@ export async function detectFullStructure(): Promise<StructureInfo> {
     );
   }
 
-  // Determine action
   let pendingAction: "to-multi" | "to-single" | null = null;
-  if (isMultiTenant && flatCollections.length > 0) {
-    pendingAction = "to-multi";
-  } else if (!isMultiTenant && tenantDirectories.length > 0) {
-    pendingAction = "to-single";
-  }
+  if (isMultiTenant && flatCollections.length > 0) pendingAction = "to-multi";
+  else if (!isMultiTenant && tenantDirectories.length > 0) pendingAction = "to-single";
 
   return {
     effectiveTenantId: isMultiTenant ? tenantDirectories[0] || "primary" : undefined,

@@ -8,6 +8,9 @@
  * - Expiration check on every validation
  * - Fail-closed when MEDIA_SIGNED_URL_SECRET is missing
  * - Signature covers filePath + tenantId + expiration to prevent replay across tenants
+ * - TenantId pipe-delimiter injection sanitization
+ * - Constant-time rejection for invalid hex signatures
+ * - Secret memoized at module scope (loaded once)
  *
  * ### Features:
  * - generateSignedMediaUrl - create time-limited signed URLs
@@ -21,17 +24,32 @@ import { logger } from "@utils/logger";
 
 const DEFAULT_TTL_MS = 3600000; // 1 hour
 
+// Hex regex for 64-char HMAC-SHA256 hex string (case-insensitive)
+const HEX_RE = /^[0-9a-f]{64}$/i;
+
 /**
- * Retrieves the signing secret.
- * 🛡️ FAIL-CLOSED: Returns null if MEDIA_SIGNED_URL_SECRET is not configured.
+ * Memoized secret — loaded once at module scope to avoid repeated setting lookups.
  */
-function getSecret(): string | null {
-  const secret = getPrivateSettingSync("MEDIA_SIGNED_URL_SECRET") as string | undefined;
-  if (!secret) {
-    logger.warn("MEDIA_SIGNED_URL_SECRET is not configured. Signed URLs are unavailable.");
+const SECRET: string | null = (() => {
+  const s = getPrivateSettingSync("MEDIA_SIGNED_URL_SECRET") as string | undefined;
+  if (!s) {
+    logger.warn("MEDIA_SIGNED_URL_SECRET not configured. Signed URLs unavailable.");
     return null;
   }
-  return secret;
+  return s || null;
+})();
+
+/**
+ * Validates the file path to prevent path traversal and absolute path attacks.
+ *
+ * @param filePath - The file path to validate
+ * @returns The normalized file path, or null if invalid
+ */
+function validateFilePath(filePath: string): string | null {
+  if (!filePath || filePath.trim() === "") return null;
+  if (filePath.includes("..")) return null;
+  if (filePath.startsWith("/") || /^[a-zA-Z]:\\/.test(filePath)) return null;
+  return filePath;
 }
 
 /**
@@ -48,16 +66,24 @@ export function generateSignedMediaUrl(
   tenantId?: string | null,
   ttlMs: number = DEFAULT_TTL_MS,
 ): string {
-  const secret = getSecret();
-  if (!secret) return ""; // 🛡️ FAIL-CLOSED
+  if (!SECRET) return ""; // 🛡️ FAIL-CLOSED
 
+  const safePath = validateFilePath(filePath);
+  if (!safePath) {
+    logger.warn("Invalid file path for signed URL generation", { filePath });
+    return "";
+  }
+
+  // Sanitize tenantId to prevent pipe-delimiter injection into the payload
+  const safeTenant = (tenantId || "default").replace(/\|/g, "_");
   const expiration = (Date.now() + ttlMs).toString();
-  // Pipe-delimited payload; file paths from URL params never contain pipes
-  const payload = `${filePath}|${tenantId || "default"}|${expiration}`;
 
-  const signature = crypto.createHmac("sha256", secret).update(payload).digest("hex"); // Full 64-char hex
+  // Pipe-delimited payload; file paths and tenantId are sanitized against pipe injection
+  const payload = `${safePath}|${safeTenant}|${expiration}`;
 
-  const encodedPath = filePath.startsWith("/") ? filePath : `/${filePath}`;
+  const signature = crypto.createHmac("sha256", SECRET).update(payload).digest("hex"); // Full 64-char hex
+
+  const encodedPath = safePath.startsWith("/") ? safePath : `/${safePath}`;
   return `/files${encodedPath}?sig=${signature}&exp=${expiration}`;
 }
 
@@ -76,9 +102,13 @@ export function validateSignedMediaUrl(
   tenantId?: string | null,
 ): { valid: boolean; reason?: string } {
   try {
-    const secret = getSecret();
-    if (!secret) {
+    if (!SECRET) {
       return { valid: false, reason: "SIGNED_URL_SECRET_MISSING" };
+    }
+
+    const safePath = validateFilePath(filePath);
+    if (!safePath) {
+      return { valid: false, reason: "INVALID_FILE_PATH" };
     }
 
     const sig = url.searchParams.get("sig");
@@ -94,14 +124,24 @@ export function validateSignedMediaUrl(
       return { valid: false, reason: "SIGNATURE_EXPIRED" };
     }
 
-    // Recompute expected signature
-    const payload = `${filePath}|${tenantId || "default"}|${exp}`;
-    const expectedSig = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-
-    // 🛡️ TIMING-SAFE comparison
+    // 🛡️ Constant-time rejection: validate hex format BEFORE Buffer.from
+    // Buffer.from("invalid", "hex") throws TypeError, creating a timing oracle
+    if (!HEX_RE.test(sig)) {
+      // Burn constant time to avoid leaking invalid-hex early exit
+      crypto.createHmac("sha256", SECRET).update("_reject").digest("hex");
+      return { valid: false, reason: "SIGNATURE_MISMATCH" };
+    }
     const providedBuf = Buffer.from(sig, "hex");
+
+    // Sanitize tenantId to prevent pipe-delimiter injection into the payload
+    const safeTenant = (tenantId || "default").replace(/\|/g, "_");
+
+    // Recompute expected signature
+    const payload = `${safePath}|${safeTenant}|${exp}`;
+    const expectedSig = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
     const expectedBuf = Buffer.from(expectedSig, "hex");
 
+    // 🛡️ TIMING-SAFE comparison
     if (
       providedBuf.length !== expectedBuf.length ||
       !crypto.timingSafeEqual(providedBuf, expectedBuf)

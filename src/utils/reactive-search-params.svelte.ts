@@ -1,8 +1,12 @@
 /**
  * @file src/utils/reactive-search-params.svelte.ts
- * @description Reactive URL search params for client-side filtering, sorting, and
- * pagination — without full page reloads. Wraps Svelte 5's SvelteURLSearchParams
- * with type-safe getters/setters and integration with the behavioral learner.
+ * @description Type-safe, reactive URL search params with debounced history sync.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Instance-based (not singleton): each call creates a fresh instance, no page collisions
+ * - Debounced sync: 150ms batch prevents browser history spam from rapid mutations
+ * - SvelteKit-native: uses goto() + page.url instead of raw history API
+ * - Simplified API: removed unused methods, kept core get/set/delete/clear/entries
  *
  * ### Why this over raw url.searchParams:
  * - Reactive: table re-renders instantly when filter changes (no SSR round-trip)
@@ -23,151 +27,72 @@
 
 import { SvelteURLSearchParams } from "svelte/reactivity";
 import { browser } from "$app/environment";
-
-// ─── Types ────────────────────────────────────────────────────────────────
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
 
 type ParsedValue = string | number | boolean;
 
-interface SearchParamOptions {
-  /** Use replaceState instead of pushState (default: true for filters) */
-  replace?: boolean;
-}
+/**
+ * Creates a reactive search param instance bound to the current page state.
+ * No longer a singleton, allowing multiple distinct table instances.
+ */
+export function useReactiveSearchParams() {
+  // 🚀 Bind directly to SvelteKit's reactive page state
+  const params = new SvelteURLSearchParams(browser ? page.url.searchParams : "");
 
-// ─── Instance ──────────────────────────────────────────────────────────────
+  /** Debounced history update to prevent browser history spam */
+  let timeout: ReturnType<typeof setTimeout>;
+  function scheduleSync(replace = true) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      goto(`?${params.toString()}`, {
+        replaceState: replace,
+        keepFocus: true,
+        noScroll: true,
+      });
+    }, 150);
+  }
 
-let _instance: ReturnType<typeof createReactiveSearchParams> | null = null;
-
-function syncUrl(params: SvelteURLSearchParams, options: SearchParamOptions = {}): void {
-  if (!browser) return;
-  const url = new URL(location.toString());
-  const str = params.toString();
-  url.search = str ? `?${str}` : "";
-  history[options.replace !== false ? "replaceState" : "pushState"]({}, "", url);
-}
-
-function parseValue(value: string): ParsedValue {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  const n = Number(value);
-  return Number.isNaN(n) ? value : n;
-}
-
-function createReactiveSearchParams() {
-  const params = new SvelteURLSearchParams(browser ? location.search : "");
-
-  /** Record behavioral data when a search param is set (feeds behavioral learner) */
-  function recordParamUsage(key: string): void {
-    if (!browser) return;
-    import("@src/services/intelligence/behavioral-learner")
-      .then(({ recordCollectionAccess }) => {
-        // Record which table/filter column the editor is using
-        recordCollectionAccess("global", `table:${key}`);
-      })
-      .catch(() => {});
+  function parseValue(value: string): ParsedValue {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    const n = Number(value);
+    return !Number.isNaN(n) && value !== "" ? n : value;
   }
 
   return {
-    /** Get a typed value from search params, with default fallback */
     get<T extends ParsedValue = string>(key: string, defaultValue?: T): T {
       const raw = params.get(key);
-      if (raw === null) return defaultValue as T;
-      return parseValue(raw) as T;
+      return raw === null ? (defaultValue as T) : (parseValue(raw) as T);
     },
 
-    /** Get all values for a key (for multi-select filters) */
-    getAll(key: string): ParsedValue[] {
-      return params.getAll(key).map(parseValue);
-    },
-
-    /** Set a search param value */
-    set(key: string, value: ParsedValue, options?: SearchParamOptions): void {
+    set(key: string, value: ParsedValue, replace = true) {
       params.set(key, String(value));
-      syncUrl(params, options);
-      recordParamUsage(key);
+      scheduleSync(replace);
+      this.recordUsage(key);
     },
 
-    /** Append a value (for multi-select) */
-    append(key: string, value: ParsedValue, options?: SearchParamOptions): void {
-      params.append(key, String(value));
-      syncUrl(params, options);
-      recordParamUsage(key);
-    },
-
-    /** Delete a search param */
-    delete(key: string, options?: SearchParamOptions): void {
+    delete(key: string, replace = true) {
       params.delete(key);
-      syncUrl(params, options);
+      scheduleSync(replace);
     },
 
-    /** Check if a param exists */
-    has(key: string): boolean {
-      return params.has(key);
+    clear(replace = true) {
+      for (const key of Array.from(params.keys())) params.delete(key);
+      scheduleSync(replace);
     },
 
-    /** Get all param keys */
-    keys(): string[] {
-      return [...params.keys()];
+    recordUsage(key: string) {
+      if (!browser) return;
+      // Dynamic import keeps main bundle lean
+      import("@src/services/intelligence/behavioral-learner")
+        .then(({ recordCollectionAccess }) => recordCollectionAccess("global", `table:${key}`))
+        .catch(() => {});
     },
 
-    /** Get all params as entries */
-    entries(): Array<[string, ParsedValue]> {
-      return [...params.entries()].map(([k, v]) => [k, parseValue(v)]);
-    },
-
-    /** Number of params */
-    get size(): number {
-      return params.size;
-    },
-
-    /** Reset all params */
-    clear(options?: SearchParamOptions): void {
-      for (const key of params.keys()) params.delete(key);
-      syncUrl(params, options);
-    },
-
-    /** Bulk set from an object */
-    setAll(record: Record<string, ParsedValue>, options?: SearchParamOptions): void {
-      for (const [key, value] of Object.entries(record)) {
-        params.set(key, String(value));
-      }
-      syncUrl(params, options);
-    },
-
-    /** Get the raw URLSearchParams string (for server-side serialization) */
-    toString(): string {
-      return params.toString();
-    },
-
-    /** Convert to plain URLSearchParams (for fetch calls) */
-    toURLSearchParams(): URLSearchParams {
-      return new URLSearchParams(params.toString());
+    // Expose the raw reactive object for direct iteration in templates
+    get entries() {
+      return Array.from(params.entries()).map(([k, v]) => [k, parseValue(v)] as const);
     },
   };
-}
-
-// ─── Public API ────────────────────────────────────────────────────────────
-
-/**
- * Get or create the singleton reactive search params instance.
- * Use in any client-side component for URL-synced reactive state.
- */
-export function useReactiveSearchParams() {
-  if (!_instance) _instance = createReactiveSearchParams();
-  return _instance;
-}
-
-/**
- * Sync internal state with browser URL (call after popstate events).
- */
-export function syncReactiveSearchParams(search: string): void {
-  const inst = _instance;
-  if (!inst) return;
-  // Rebuild from URL string
-  const newParams = new URLSearchParams(search);
-  for (const key of inst.keys()) {
-    if (!newParams.has(key)) inst.delete(key, { replace: true });
-  }
-  for (const [key, value] of newParams.entries()) {
-    inst.set(key, value, { replace: true });
-  }
 }

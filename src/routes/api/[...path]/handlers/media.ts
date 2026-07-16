@@ -19,11 +19,12 @@ import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { createLink, validateLink, revoke, extend, type ShareLink } from "@src/utils/media/sharing";
 import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
-import { analyze, insights, trends, quota, formatBytes } from "@src/utils/media/storage-analytics";
+import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
+import { formatBytes } from "@utils/utils";
 import { compareVersions, createVersion, getVersionStats } from "@src/utils/media/version-history";
 import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
-import type { MediaBase } from "@utils/media/media-models";
+import type { MediaItem } from "@utils/media/media-models";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -1069,7 +1070,7 @@ export async function handleMediaSearch(
 
   // Fetch all media for client-side filtering
   const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
-  const files: MediaBase[] = listRes.success ? (listRes.data ?? []) : [];
+  const files: MediaItem[] = listRes.success ? (listRes.data ?? []) : [];
 
   const result = advancedSearch(files, criteria);
 

@@ -128,11 +128,11 @@ describe("General Utilities (utils.ts)", () => {
 
     it("should debounce function calls", () => {
       const mockFn = vi.fn();
-      const schedule = debounce(100);
+      const debouncedFn = debounce.create(mockFn, 100);
 
-      schedule(mockFn);
-      schedule(mockFn);
-      schedule(mockFn);
+      debouncedFn();
+      debouncedFn();
+      debouncedFn();
 
       expect(mockFn).not.toHaveBeenCalled();
 
@@ -141,15 +141,16 @@ describe("General Utilities (utils.ts)", () => {
       expect(mockFn).toHaveBeenCalledTimes(1);
     });
 
-    it("should support immediate execution", () => {
+    it("should support debounce cancellation", () => {
       const mockFn = vi.fn();
-      const schedule = debounce(100, true);
+      const debouncedFn = debounce.create(mockFn, 100);
 
-      schedule(mockFn);
-      expect(mockFn).toHaveBeenCalledTimes(1);
+      debouncedFn();
+      debouncedFn.cancel();
 
-      schedule(mockFn);
-      expect(mockFn).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(150);
+
+      expect(mockFn).not.toHaveBeenCalled();
     });
 
     it("should support debounce.create for traditional debouncing with arguments", () => {

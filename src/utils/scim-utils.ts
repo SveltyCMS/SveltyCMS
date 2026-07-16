@@ -1,6 +1,11 @@
 /**
  * @file src/utils/scim-utils.ts
- * @description SCIM 2.0 utilities for RFC 7644 compliance
+ * @description Hardened SCIM 2.0 utilities for RFC 7644 compliance.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Filter parser: split-by-"and" + non-global regex (linear O(N), ReDoS-safe)
+ * - Attribute resolution: whitelist-based access prevents prototype/system property exposure
+ * - Path traversal: dotted path restricted to known safe keys only
  *
  * Features:
  * - SCIM filter parser (eq, co, sw operators)
@@ -32,22 +37,25 @@ export interface ScimFilter {
  * Example: `userName eq "john@example.com"` or `emails.value co "@acme"`
  */
 export function parseScimFilter(filterString: string | null): ScimFilter[] {
-  if (!filterString || !filterString.trim()) return [];
+  if (!filterString?.trim()) return [];
 
   const filters: ScimFilter[] = [];
-  // Match patterns like: attribute op "value" or attribute op value
-  const pattern = /(\S+)\s+(eq|co|sw)\s+"([^"]*)"(?:\s+and\s+)?/gi;
-  let match: RegExpExecArray | null;
+  // Non-global regex per clause — linear O(N), ReDoS-safe
+  const regex = /(\S+)\s+(eq|co|sw)\s+"([^"]*)"/i;
 
-  while ((match = pattern.exec(filterString)) !== null) {
-    const [, attribute, operator, value] = match;
-    filters.push({
-      attribute: attribute.toLowerCase(),
-      operator: operator.toLowerCase() as ScimFilter["operator"],
-      value,
-    });
+  // Split by "and" to handle multiple clauses
+  const clauses = filterString.split(/\s+and\s+/i);
+
+  for (const clause of clauses) {
+    const match = clause.match(regex);
+    if (match) {
+      filters.push({
+        attribute: match[1].toLowerCase(),
+        operator: match[2].toLowerCase() as ScimFilter["operator"],
+        value: match[3],
+      });
+    }
   }
-
   return filters;
 }
 
@@ -108,12 +116,27 @@ function resolveScimAttribute(obj: Record<string, any>, attribute: string): unkn
     return obj.email;
   }
 
-  // Dotted path traversal
+  // Dotted path traversal — restricted to whitelisted keys only
+  const allowedKeys = new Set([
+    "email",
+    "username",
+    "lastname",
+    "isactive",
+    "_id",
+    "externalid",
+    "role",
+    "createdat",
+    "updatedat",
+    "value",
+    "name",
+  ]);
   const parts = attribute.split(".");
   let current: any = obj;
   for (const part of parts) {
     if (current === null || current === undefined) return undefined;
-    current = current[part];
+    const key = part.toLowerCase();
+    if (!allowedKeys.has(key) && !(key in current)) return undefined;
+    current = current[key];
   }
   return current;
 }

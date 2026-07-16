@@ -1,30 +1,26 @@
 /**
  * @file src/utils/benchmark-paths.ts
- * @description Canonical filesystem boundaries between user live collection data and benchmark/test fixtures.
+ * @description Canonical filesystem boundaries for benchmark/test fixtures.
+ *
+ * ### Architecture (audit 2026-07):
+ * All path constants now delegate to `path-resolver.ts` — single source of truth.
+ * This file exists for backward compatibility with 10+ existing consumers.
  *
  * ### User live data (never touched by benchmarks)
  * - `config/collections/*.ts` — excluding `test/`
  * - `.compiledCollections/*.js` — excluding `test/`
- *
- * ### Benchmark / test data (isolated)
- * - `config/collections/test/<workspace>/`
- * - `.compiledCollections/test/<workspace>/`
- *
- * ### Features:
- * - workspace prepare / cleanup helpers
- * - path guards for compile and scanner layers
- * - legacy root debris directory list
  */
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { paths } from "./path-resolver";
 
-export const USER_COLLECTIONS_DIR = path.resolve(process.cwd(), "config", "collections");
-export const BENCHMARK_COLLECTIONS_DIR = path.join(USER_COLLECTIONS_DIR, "test");
-export const USER_COMPILED_DIR = path.resolve(process.cwd(), ".compiledCollections");
-export const BENCHMARK_COMPILED_DIR = path.join(USER_COMPILED_DIR, "test");
+// ─── Backward-compatible re-exports from path-resolver ────────────────
 
-/** Benchmark dirs that must never remain at the compiled root. */
+export const USER_COLLECTIONS_DIR = paths.collections;
+export const BENCHMARK_COLLECTIONS_DIR = paths.benchmark.collections;
+export const USER_COMPILED_DIR = paths.compiledCollections;
+export const BENCHMARK_COMPILED_DIR = paths.benchmark.compiled;
 export const LEGACY_COMPILED_BENCHMARK_DIRS = ["nested", "batch_bench"] as const;
 
 export interface BenchmarkWorkspace {
@@ -33,9 +29,12 @@ export interface BenchmarkWorkspace {
   compiled: string;
 }
 
-/** Resolves an isolated benchmark workspace under `test/`. */
+/** 🛡️ Sanitizes workspace name to prevent path traversal via `../` */
 export function getBenchmarkWorkspace(name: string): BenchmarkWorkspace {
-  const safe = name.replace(/[^a-z0-9_-]/gi, "_").toLowerCase();
+  const safe = path
+    .basename(name)
+    .replace(/[^a-z0-9_-]/gi, "_")
+    .toLowerCase();
   return {
     name: safe,
     source: path.join(BENCHMARK_COLLECTIONS_DIR, safe),
@@ -43,26 +42,18 @@ export function getBenchmarkWorkspace(name: string): BenchmarkWorkspace {
   };
 }
 
-/** True when a path is under benchmark source or compiled trees. */
 export function isUnderBenchmarkPath(filePath: string): boolean {
-  const normalized = path.normalize(filePath);
-  for (const root of [BENCHMARK_COMPILED_DIR, BENCHMARK_COLLECTIONS_DIR]) {
-    const base = path.normalize(root);
-    if (normalized === base || normalized.startsWith(base + path.sep)) return true;
-  }
-  return false;
+  return (
+    paths.isSafe(BENCHMARK_COMPILED_DIR, filePath) ||
+    paths.isSafe(BENCHMARK_COLLECTIONS_DIR, filePath)
+  );
 }
 
-/** True when a compiled/source relative path is inside `test/`. */
 export function isBenchmarkRelativePath(relativePath: string): boolean {
   const normalized = relativePath.replace(/\\/g, "/");
   return normalized === "test" || normalized.startsWith("test/");
 }
 
-/**
- * Prepares an isolated compiled workspace (wipes prior contents).
- * User files at `.compiledCollections/` root are preserved.
- */
 export async function prepareBenchmarkCompiledWorkspace(name: string): Promise<BenchmarkWorkspace> {
   const ws = getBenchmarkWorkspace(name);
   await fs.mkdir(path.dirname(ws.compiled), { recursive: true });
@@ -71,45 +62,39 @@ export async function prepareBenchmarkCompiledWorkspace(name: string): Promise<B
   return ws;
 }
 
-/** Removes one benchmark workspace without touching user live data. */
 export async function cleanupBenchmarkCompiledWorkspace(name: string): Promise<void> {
   const ws = getBenchmarkWorkspace(name);
-  await fs.rm(ws.compiled, { recursive: true, force: true }).catch(() => {});
+  if (paths.isSafe(BENCHMARK_COMPILED_DIR, ws.compiled)) {
+    await fs.rm(ws.compiled, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
-/**
- * Wipes all benchmark trees and legacy root debris.
- * Does not delete user collection files at config/collections root or .compiledCollections root.
- */
 export async function cleanupAllBenchmarkWorkspaces(): Promise<number> {
   let removed = 0;
-
-  async function countAndRm(target: string): Promise<void> {
+  async function safeRemove(target: string): Promise<void> {
     try {
-      const stat = await fs.stat(target);
-      if (stat.isDirectory()) {
-        const entries = await fs.readdir(target, { withFileTypes: true });
-        for (const entry of entries) {
-          await countAndRm(path.join(target, entry.name));
-        }
-        await fs.rmdir(target).catch(() => fs.rm(target, { recursive: true, force: true }));
-      } else {
-        await fs.unlink(target);
-      }
+      await fs.rm(target, { recursive: true, force: true });
       removed++;
     } catch {
       /* absent */
     }
   }
-
-  await countAndRm(BENCHMARK_COMPILED_DIR).catch(() => {});
-  await countAndRm(BENCHMARK_COLLECTIONS_DIR).catch(() => {});
-  await fs.mkdir(BENCHMARK_COMPILED_DIR, { recursive: true }).catch(() => {});
-  await fs.mkdir(BENCHMARK_COLLECTIONS_DIR, { recursive: true }).catch(() => {});
-
-  for (const legacy of LEGACY_COMPILED_BENCHMARK_DIRS) {
-    await countAndRm(path.join(USER_COMPILED_DIR, legacy)).catch(() => {});
+  if (
+    paths.isSafe(BENCHMARK_COMPILED_DIR, BENCHMARK_COMPILED_DIR) ||
+    BENCHMARK_COMPILED_DIR.includes("test")
+  ) {
+    await safeRemove(BENCHMARK_COMPILED_DIR);
+    await fs.mkdir(BENCHMARK_COMPILED_DIR, { recursive: true }).catch(() => {});
   }
-
+  if (
+    paths.isSafe(BENCHMARK_COLLECTIONS_DIR, BENCHMARK_COLLECTIONS_DIR) ||
+    BENCHMARK_COLLECTIONS_DIR.includes("test")
+  ) {
+    await safeRemove(BENCHMARK_COLLECTIONS_DIR);
+    await fs.mkdir(BENCHMARK_COLLECTIONS_DIR, { recursive: true }).catch(() => {});
+  }
+  for (const legacy of LEGACY_COMPILED_BENCHMARK_DIRS) {
+    await safeRemove(path.join(USER_COMPILED_DIR, legacy));
+  }
   return removed;
 }

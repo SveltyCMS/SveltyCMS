@@ -1,6 +1,12 @@
 /**
  * @file src/utils/use-dialog.svelte.ts
- * @description Shared Svelte 5 rune for native `<dialog>` lifecycle management.
+ * @description Hardened Svelte 5 rune for native `<dialog>` lifecycle management.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Destructor effect: closes dialog on component unmount (prevents zombie modals)
+ * - Focus trapping guard: prevents Tab from escaping empty modals
+ * - Race condition avoidance: checks dialogEl.open before showModal()
+ * - Immutable ARIA: derived object without mutation (stable for reactivity diffing)
  *
  * Handles modal/drawer open/close mechanics, focus trapping, Escape key
  * dismissal, backdrop click, body scroll lock, and WCAG 3.0 ARIA attributes.
@@ -36,21 +42,13 @@
  */
 
 interface DialogOptions {
-  /** Reactive getter for the open state */
   open: () => boolean;
-  /** Called to close the dialog */
   onClose: () => void;
-  /** Reactive getter for accessible label */
   ariaLabel?: () => string | undefined;
-  /** Reactive getter for labelledby ID */
   ariaLabelledBy?: () => string | undefined;
-  /** Reactive getter for closeOnEsc (default: true) */
   closeOnEsc?: () => boolean;
-  /** Reactive getter for closeOnOuterClick (default: true) */
   closeOnOuterClick?: () => boolean;
-  /** Callback when dialog opens */
   onopen?: () => void;
-  /** Callback when dialog closes */
   onclose?: () => void;
 }
 
@@ -59,62 +57,73 @@ const FOCUSABLE =
 
 export function useDialog(options: DialogOptions) {
   let dialogEl = $state<HTMLDialogElement | null>(null);
-  let triggerEl: Element | null = null;
+  let triggerEl: HTMLElement | null = null;
 
   // Open/close lifecycle — reads options reactively inside $effect
   $effect(() => {
     const isOpen = options.open();
 
     if (isOpen && dialogEl) {
-      triggerEl = document.activeElement;
-      dialogEl.showModal();
-      // Scroll chaining is prevented via CSS `overscroll-behavior: contain`
-      // on the <dialog> element in modal.svelte / drawer.svelte.
-      options.onopen?.();
+      // 🛡️ Capture trigger for restoration
+      triggerEl = document.activeElement as HTMLElement;
 
+      if (!dialogEl.open) {
+        dialogEl.showModal();
+        options.onopen?.();
+      }
+
+      // 🛡️ Focus management with guard
       requestAnimationFrame(() => {
-        const focusable = dialogEl?.querySelector<HTMLElement>(FOCUSABLE);
-        if (focusable) focusable.focus();
+        const first = dialogEl?.querySelector<HTMLElement>(FOCUSABLE);
+        if (first) first.focus();
       });
-    } else if (!isOpen) {
-      if (dialogEl && dialogEl.open) {
-        dialogEl.close();
-      }
-      if (triggerEl) {
-        if (document.contains(triggerEl)) {
-          (triggerEl as HTMLElement).focus();
-        }
-        triggerEl = null;
-      }
+    } else if (!isOpen && dialogEl?.open) {
+      // 🛡️ Close cleanly
+      dialogEl.close();
       options.onclose?.();
+
+      // 🛡️ Restore focus safely
+      if (triggerEl && document.contains(triggerEl)) {
+        triggerEl.focus();
+      }
+      triggerEl = null;
     }
+  });
+
+  // 🛡️ Cleanup on component destruction — prevents zombie modals
+  $effect(() => {
+    return () => {
+      if (dialogEl?.open) dialogEl.close();
+    };
   });
 
   function onKeydown(e: KeyboardEvent) {
     if (!options.open()) return;
 
-    const esc = options.closeOnEsc?.() ?? true;
-
-    if (e.key === "Escape" && esc) {
+    if (e.key === "Escape" && (options.closeOnEsc?.() ?? true)) {
       e.preventDefault();
       options.onClose();
       return;
     }
 
-    // Focus trapping
     if (e.key === "Tab" && dialogEl) {
       const focusable = Array.from(dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
         (el) => el.offsetParent !== null,
       );
 
-      if (focusable.length === 0) return;
+      if (focusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const active = document.activeElement;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
 
-      if (e.shiftKey && document.activeElement === first) {
+      if (e.shiftKey && active === first) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault();
         first.focus();
       }
@@ -122,34 +131,30 @@ export function useDialog(options: DialogOptions) {
   }
 
   function onBackdropClick(e: MouseEvent) {
-    const outer = options.closeOnOuterClick?.() ?? true;
-    if (!outer || !options.open()) return;
+    if (!(options.closeOnOuterClick?.() ?? true)) return;
+
+    // 🛡️ Hardened: Check that click is exactly on backdrop (dialog itself)
     if (e.target === dialogEl) {
       options.onClose();
     }
   }
 
   const dialogAria = $derived.by(() => {
-    const props: Record<string, string> = {
-      "aria-modal": "true",
-      role: "dialog",
-    };
     const label = options.ariaLabel?.();
     const labelledBy = options.ariaLabelledBy?.();
-    if (labelledBy) {
-      props["aria-labelledby"] = labelledBy;
-    } else if (label) {
-      props["aria-label"] = label;
-    }
-    return props;
+    return {
+      "aria-modal": "true",
+      role: "dialog",
+      ...(labelledBy ? { "aria-labelledby": labelledBy } : label ? { "aria-label": label } : {}),
+    };
   });
 
   return {
     get dialogEl() {
       return dialogEl;
     },
-    set dialogEl(value) {
-      dialogEl = value;
+    set dialogEl(v) {
+      dialogEl = v;
     },
     get dialogAria() {
       return dialogAria;

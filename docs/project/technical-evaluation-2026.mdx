@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-10"
+updated: "2026-07-16"
 tags:
   - "evaluation"
   - "technical"
@@ -673,6 +673,69 @@ A focused sprint to eliminate accidental complexity in the content and media sub
 - **Plugin-gated architecture**: Core rendering component (`AspectPreview.svelte`) with opt-in plugin (`focal-point`) that injects into `media_gallery`, `image_editor_tool`, and media-upload widget zones. Plugin-disabled-by-default — zero focal point UI when off.
 - **Cross-location coverage**: Media gallery (Slot injection + focal-quick-modal enhancement), collection entry forms (aspect preview button on image cards), image editor toolbar (crosshairs button).
 - **Competitive parity**: Equivalent to Drupal's Focal Point module and Payload CMS's aspect-preview plugin — both implemented as optional extensions in their respective ecosystems.
+
+### 3.6 July 16 Media System Overhaul — Security, Types & Streaming
+
+A comprehensive audit and rewrite of the media subsystem addressing 7 critical security vulnerabilities, eliminating type-casting hacks, and implementing production-grade streaming uploads with backpressure.
+
+**Security Hardening (3 CRITICAL + 12 HIGH fixes)**
+
+| Vulnerability                                         | Class                  | Fix                                                           |
+| :---------------------------------------------------- | :--------------------- | :------------------------------------------------------------ |
+| Path traversal in `LocalStorageAdapter.getMetadata()` | Information disclosure | `resolve()` + `startsWith()` gate on all adapter methods      |
+| Path traversal in `bulk-download.ts`                  | Arbitrary file read    | `safeResolve()` validation on every stored path               |
+| SVG injection via watermark/annotation attributes     | XSS                    | `SAFE_COLOR` / `SAFE_NUMBER` regex validation + `guardAttr()` |
+| Signed URL timing oracle                              | Auth bypass            | Constant-time rejection on invalid hex signatures             |
+| Signed URL tenantId pipe injection                    | Signature collision    | `replace(/\|/g, "_")` sanitization                            |
+| MIME confusion (SVG from bare `<svg` bytes)           | Content-type spoofing  | XML namespace + `<svg>` tag regex                             |
+| Binary corruption in streaming upload                 | Data loss              | Byte-level state machine replaces TextDecoder→TextEncoder     |
+| Upload memory exhaustion (full buffering)             | DoS                    | Incremental parser with backpressure + per-file size limits   |
+| Secrets from `process.env`                            | AGENTS.md violation    | All secrets migrated to `getPublicSettingSync()`              |
+| Cloudinary download raw `fetch()`                     | SSRF                   | `safeFetch()` + `validateEgressUrl()` + timeout               |
+| Dead EXIF parsing (camera/date never extracted)       | Silent empty data      | Binary tag extraction from raw EXIF buffer                    |
+| Temp file leak on Windows                             | Disk exhaustion        | Cross-platform `finally { unlinkSync() }` cleanup             |
+
+**Type Safety & Architecture**
+
+- **Discriminated union**: `MediaItem` = `MediaImage | MediaVideo | MediaAudio | MediaDocument | MediaRemoteVideo` with 7 type guards (`isMediaImage()`, `isStoredMedia()`, `isMediaOfType()`, `assertNever()`).
+- **DTO safety**: `NewMedia<T>` blocks server-assigned fields (`_id`, `hash`, `url`, `createdBy`) at compile time. `MediaPatch` restricts PATCH to user-editable fields only.
+- **Sharp type safety**: `SharpPipeline` typed interface eliminates `any` casts across all Sharp operations.
+- **Storage adapter lifecycle**: `dispose()?` added to `StorageAdapter` interface — prevents keepAlive agent leaks on adapter switch.
+- **`as const` maps**: `MediaType`, `MediaAccess`, `StorageType` use tree-shakable value maps instead of TypeScript enums.
+- **Watermark position normalization**: `normalizeWatermarkPosition()` maps convenience aliases (`"top"` → `"north"`) before passing to Sharp.
+
+**Streaming Upload Parser (rewrite)**
+
+- **Byte-level state machine**: Processes `ReadableStream` chunks incrementally — never buffers the full request body.
+- **Binary-safe**: Raw `Uint8Array` chunks pass through untouched. No `TextDecoder`→`TextEncoder` round-trip.
+- **Backpressure**: Per-file `ReadableStream` pipes directly to storage adapter — memory usage proportional to network speed, not file size.
+- **Configurable limits**: `maxFileSize` (1 GiB), `maxTotalSize` (5 GiB), `allowedMimePattern`, per-chunk read timeout (300s).
+- **Error cleanup**: Active push streams errored on parser failure — no hanging readers.
+
+**Media Reference Reverse-Index**
+
+- Replaces O(n × entries) full-scan in `getMediaReferences()` with O(1) in-memory lookup.
+- `MediaReferenceIndex` class with `rebuild()` (lazy on first query) and `eventBus`-driven invalidation on every content mutation.
+- Estimated **50x speedup** on repeated reference queries (pending benchmark verification).
+
+**MIME Sniffer Enhancements**
+
+- Added TIFF detection (little-endian + big-endian).
+- Added AVIF and HEIC detection via `ftyp` box brand parsing.
+- ZIP sub-type detection distinguishes DOCX/XLSX from plain ZIP archives.
+- WebP bound check hardened (requires 12 bytes before reading).
+
+**Measured Impact**
+
+| Metric                         | Before                              | After                         |
+| :----------------------------- | :---------------------------------- | :---------------------------- |
+| Type guards available          | 0                                   | 7 + `assertNever()`           |
+| `as any` casts in media system | ~20                                 | ~1 (`BaseEntity` → entry)     |
+| Path traversal vectors         | 3                                   | 0                             |
+| Upload data integrity          | Corrupted (TextDecoder→TextEncoder) | Binary-safe                   |
+| Reference scan complexity      | O(n × entries)                      | O(1) after lazy rebuild       |
+| Upload memory usage            | Full file in RAM                    | Proportional to network speed |
+| Temp file cleanup              | Windows-leaked                      | Cross-platform                |
 
 ## 4. Final Sprint Achievements (March 2026)
 

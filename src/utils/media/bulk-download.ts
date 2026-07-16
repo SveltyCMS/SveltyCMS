@@ -12,11 +12,23 @@
 
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, stat, unlink } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve, normalize } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { logger } from "@utils/logger";
-import type { MediaBase } from "./media-models";
+import type { StoredMedia } from "./media-models";
+
+/** Resolve the canonical media storage root (defense-in-depth). */
+function resolveMediaRoot(): string {
+  return resolve(process.cwd(), process.env.MEDIA_FOLDER || "uploads");
+}
+
+/** 🔒 Validate a stored path doesn't escape the media root. Returns resolved safe path or null. */
+function safeResolve(storedPath: string): string | null {
+  const resolved = normalize(resolve(resolveMediaRoot(), storedPath));
+  const root = resolve(resolveMediaRoot()) + "/";
+  return resolved.startsWith(root) ? resolved : null;
+}
 
 /** Minimal TAR creator */
 class TarBuilder {
@@ -100,25 +112,37 @@ class TarBuilder {
   }
 }
 
-/** Create TAR.GZ archive */
+/** Create TAR.GZ archive — only StoredMedia (remote videos excluded at type level). */
 export async function createBulkArchive(
-  files: MediaBase[],
+  files: StoredMedia[],
   outputDir: string,
 ): Promise<{ path: string; size: number; filename: string }> {
   const ts = Date.now();
   const tarPath = join(outputDir, `bulk-${ts}.tar`);
   const gzPath = join(outputDir, `bulk-${ts}.tar.gz`);
+  let blocked = 0;
 
   try {
     await mkdir(outputDir, { recursive: true });
 
     const tar = new TarBuilder();
     for (const f of files) {
-      if (!(f.path && f.size)) {
+      if (!(f.path && f.size)) continue;
+
+      // 🔒 Path traversal guard — reject paths that escape media root
+      const safePath = safeResolve(f.path);
+      if (!safePath) {
+        logger.warn(`[BulkDownload] Blocked path traversal: ${f.path}`);
+        blocked++;
         continue;
       }
-      const name = f.filename.replace(/[^a-zA-Z0-9.-]/g, "_");
-      tar.add(name, f.path, f.size);
+
+      const name = f.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+      tar.add(name, safePath, f.size);
+    }
+
+    if (tar.entries.length === 0) {
+      throw new Error(`No valid files to archive${blocked ? ` (${blocked} blocked)` : ""}`);
     }
 
     await tar.write(tarPath);

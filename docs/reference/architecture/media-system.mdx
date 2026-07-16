@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-07-15"
+updated: "2026-07-16"
 tags:
   - "architecture"
   - "media"
@@ -14,6 +14,9 @@ tags:
   - "svelte5"
   - "ai-tagging"
   - "virtual-folders"
+  - "streaming-upload"
+  - "reference-index"
+  - "type-safety"
 ---
 
 # Media System Architecture & Guide
@@ -297,6 +300,121 @@ For comprehensive performance details regarding media hashing, metadata extracti
 ## 📚 API Reference
 
 For detailed developer endpoints (upload, transform, **move**, job polling, focal points), read the comprehensive [**Media Reference**](../api/media.mdx).
+
+---
+
+## 🔍 Media Reference Reverse-Index
+
+> Added 2026-07-16 — replaces O(n × entries) full-scan with O(1) indexed lookups.
+
+### Problem
+
+`getMediaReferences()` and `getPublishedReferences()` previously scanned **every entry in every collection** for each query — O(n × entries) per call. On a CMS with 50 collections and 10,000 entries, this meant 500,000 field traversals per reference check.
+
+### Solution
+
+`MediaReferenceIndex` (`src/utils/media/media-reference-index.ts`) is an in-memory reverse-index that maps media identifiers to the entries that reference them:
+
+```typescript
+// First query triggers a full rebuild (lazy)
+// Subsequent queries are O(1) Map lookups
+const refs = await mediaService.getMediaReferences(mediaId);
+```
+
+| Component                 | Location                                    | Purpose                                             |
+| :------------------------ | :------------------------------------------ | :-------------------------------------------------- |
+| `MediaReferenceIndex`     | `media-reference-index.ts`                  | In-memory `Map<mediaId, MediaReference[]>`          |
+| `rebuildReferenceIndex()` | `media-service.server.ts`                   | Full scan → populates index, status map, name map   |
+| `eventBus` invalidation   | Constructor + `SystemEvents.CONTENT_UPDATE` | Auto-clears index on any content mutation           |
+| `enrichReferences()`      | `media-service.server.ts`                   | Backfills `fieldName`/`entryName` for API consumers |
+
+### Architecture
+
+```
+Content mutation (create/update/delete)
+  → eventBus.emit(CONTENT_UPDATE)
+    → referenceIndex.clear()  (cache invalidated)
+
+Next getMediaReferences() call
+  → lazy rebuildReferenceIndex()  (one full scan)
+    → O(1) lookups for all subsequent queries
+```
+
+**Design note**: The index is in-memory only. On first query it performs a full scan (rebuild), then subsequent queries are O(1). For production with thousands of entries, consider a periodic rebuild via `setInterval` or stale-while-revalidate. The `eventBus` listener ensures the cache is invalidated on any content update.
+
+---
+
+## 📤 Streaming Upload Parser
+
+> Added 2026-07-16 — true streaming multipart parser with backpressure, replacing the previous TextDecoder→TextEncoder implementation that corrupted binary uploads.
+
+### Problem
+
+The previous `streaming-upload.ts` had two critical bugs:
+
+1. **Binary corruption**: `TextDecoder`→`TextEncoder` round-trip replaced non-UTF8 bytes with replacement characters
+2. **Not streaming**: Read the entire request body into RAM before parsing — OOM on large files
+
+### Solution
+
+A byte-level state machine (`streaming-upload.ts`) that processes `ReadableStream` chunks incrementally:
+
+| Feature                   | Implementation                                                     |
+| :------------------------ | :----------------------------------------------------------------- |
+| **True streaming**        | Incremental byte-level parser — never buffers the full body        |
+| **Binary-safe**           | Raw `Uint8Array` chunks pass through untouched                     |
+| **Backpressure**          | Per-file `ReadableStream` pipes directly to storage adapter        |
+| **Size limits**           | Configurable `maxFileSize` (1 GiB) and `maxTotalSize` (5 GiB)      |
+| **MIME validation**       | Files rejected before body is consumed (415 on disallowed types)   |
+| **Filename sanitization** | Path separators, control chars, Windows reserved names stripped    |
+| **Error cleanup**         | Active push streams errored on parser failure — no hanging readers |
+| **Timeout**               | Configurable per-chunk read timeout (default 300s)                 |
+
+```typescript
+// Storage adapters receive a per-file ReadableStream — direct pipe to S3/disk
+await parseMultipartStream(request, {
+  onFile: async ({ filename, contentType, stream }) => {
+    await getStorageAdapter().uploadStream(stream, filename);
+  },
+});
+```
+
+---
+
+## 🛡️ Type-Safe Media Models
+
+> Refactored 2026-07-16 — discriminated union with type guards, DTO types, and exhaustiveness checking.
+
+### Design
+
+`media-models.ts` uses `as const` maps (not enums) for tree-shakable, JSON-safe value lists. Each map doubles as the runtime valid-value list:
+
+```typescript
+// Type guards — narrow discriminated union at runtime
+if (isMediaImage(item)) item.width;           // MediaImage
+if (isStoredMedia(item)) item.hash;           // StoredMedia (excludes remote video)
+if (isMediaOfType(item, MediaType.Video)) item.duration; // MediaVideo
+
+// DTO types — server-assigned fields rejected at compile time
+const draft: NewMedia<MediaImage> = { ... };  // no _id, hash, url, createdBy
+const patch: MediaPatch = { alt: "photo" };   // PATCH-safe fields only
+
+// Exhaustiveness — add a new media type and every switch fails to compile
+switch (item.type) {
+  case MediaType.Image:    return item.width;
+  case MediaType.RemoteVideo: return item.provider;
+  // ...
+  default: return assertNever(item);
+}
+```
+
+| Improvement         | Before                                      | After                                                    |
+| :------------------ | :------------------------------------------ | :------------------------------------------------------- |
+| Type safety         | `any` everywhere, zero guards               | Discriminated union + 7 type guards                      |
+| DTO safety          | Client could PATCH `hash`/`url`/`createdBy` | `NewMedia<T>`, `MediaPatch` block server-assigned fields |
+| Exhaustiveness      | Missing type = silent bug                   | `assertNever()` catches at compile time                  |
+| Tree-shaking        | `enum` blocks `erasableSyntaxOnly`          | `as const` maps are fully erasable                       |
+| Watermark positions | Sharp-rejected `"top"`/`"bottom"`           | `normalizeWatermarkPosition()` maps to compass values    |
 
 ---
 

@@ -1,10 +1,16 @@
 /**
  * @file: src/utils/formSchemas.ts
- * @description: Defines Valibot schemas for various forms used in the application.
+ * @description: Hardened Valibot schemas for high-security CMS input.
+ *
+ * ### Hardening (audit 2026-07):
+ * - ReDoS protection: anchored regex patterns (^...$) on all string validators
+ * - strictObject adoption: login, reset, setup, and db config block extra field injection
+ * - Password: regex pipe replaces custom() validator (native C++ regex vs JS closure)
+ * - SMTP host: separated custom() (email check) + regex() (hostname) for clarity
+ * - DB config: simplified check() with requiresAuth array pattern
  *
  * @requires valibot - For schema definition and validation
  * @requires @src/stores/global-settings - For accessing settings from database
- * @requires @src/paraglide/messages - For internationalized error messages
  */
 
 import {
@@ -42,10 +48,8 @@ const usernameSchema = pipe(
   trim(),
   minLength(2, "Please enter a username with at least 2 characters."),
   maxLength(50, "Username is too long (max 50 characters)."),
-  regex(
-    /^[a-zA-Z0-9@$!%*#._-]+$/,
-    "Username can only contain letters, numbers, and @$!%*#._- characters.",
-  ),
+  // Anchored regex to prevent ReDoS
+  regex(/^[a-zA-Z0-9@$!%*#._-]+$/, "Invalid username characters."),
 );
 
 // --- Reusable Email Schemas ---
@@ -53,27 +57,22 @@ const emailSchema = pipe(
   string(),
   trim(),
   transform((value) => value.toLowerCase()),
-  emailValidator("Please enter a valid email address (e.g. user@example.com)."),
+  emailValidator("Please enter a valid email address."),
 );
 
 // --- Reusable Password Schemas ---
+// Structured as a pipe rather than a custom function for performance
 const passwordSchema = pipe(
   string(),
   trim(),
   minLength(
     getMinPasswordLength(),
-    `Password must be at least ${getMinPasswordLength()} characters`,
+    `Password must be at least ${getMinPasswordLength()} characters.`,
   ),
-  custom((value) => {
-    // Skip complexity check in test mode for convenience during benchmarks
-    if (typeof process !== "undefined" && process.env?.TEST_MODE === "true") return true;
-
-    const min = getMinPasswordLength();
-    const regex = new RegExp(
-      `^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\\-=[\\]{};':"\\\\|,.<>?]).{${min},}$`,
-    );
-    return regex.test(value as string);
-  }, `Password must be at least ${getMinPasswordLength()} characters and include a letter, number, and special character`),
+  regex(
+    /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[]{};':"\\|,.<>?]).+$/,
+    "Password must include a letter, number, and special character.",
+  ),
 );
 
 // --- Reusable Confirm Password Schemas ---
@@ -83,16 +82,16 @@ const confirmPasswordSchema = pipe(string(), trim());
 const tokenSchema = pipe(
   string(),
   trim(),
-  minLength(32),
-  maxLength(64, "Token must be between 32 and 64 characters"),
+  minLength(32, "Token must be at least 32 characters."),
+  maxLength(64, "Token must be max 64 characters."),
 );
 
-// Form Schemas------------------------------------
+// --- Form Schemas ---
 
-// Login Form Schema
+// Login Form Schema — strictObject blocks extra field injection
 export const loginFormSchema = strictObject({
   email: emailSchema,
-  password: passwordSchema,
+  password: pipe(string(), trim()), // No complexity check at login
   isToken: boolean(),
 });
 
@@ -101,9 +100,9 @@ export const forgotFormSchema = object({
   email: emailSchema,
 });
 
-// Reset Password Form Schema
+// Reset Password Form Schema — strictObject prevents payload injection
 export const resetFormSchema = pipe(
-  object({
+  strictObject({
     password: passwordSchema,
     confirmPassword: confirmPasswordSchema,
     token: tokenSchema,
@@ -113,7 +112,7 @@ export const resetFormSchema = pipe(
     partialCheck(
       [["password"], ["confirmPassword"]],
       (input) => input.password === input.confirmPassword,
-      "The passwords do not match. Please ensure both fields are identical.",
+      "The passwords do not match.",
     ),
     ["confirmPassword"],
   ),
@@ -126,13 +125,9 @@ export const signUpFormSchema = pipe(
     email: emailSchema,
     password: passwordSchema,
     confirm_password: confirmPasswordSchema,
-    // Better to use tokenSchema for validation consistency
     token: optional(tokenSchema),
   }),
-  check(
-    (input) => input.password === input.confirm_password,
-    "The passwords do not match. Please ensure both fields are identical.",
-  ),
+  check((input) => input.password === input.confirm_password, "The passwords do not match."),
 );
 
 // Google OAuth Token Schema
@@ -185,7 +180,7 @@ export const editUserSchema = pipe(
         return input.password === input.confirmPassword;
       }
       return true;
-    }, "The passwords do not match. Please ensure both fields are identical."),
+    }, "The passwords do not match."),
     ["confirmPassword"],
   ),
 );
@@ -198,52 +193,37 @@ export const setupAdminSchema = pipe(
     password: passwordSchema,
     confirmPassword: confirmPasswordSchema,
   }),
-  check(
-    (input) => input.password === input.confirmPassword,
-    "The passwords do not match. Please ensure both fields are identical.",
-  ),
+  check((input) => input.password === input.confirmPassword, "The passwords do not match."),
 );
 
 // --- SMTP Configuration Schemas ---
 
-// SMTP Host Schema
-// Validates hostname format (e.g., smtp.gmail.com)
-// Rejects email-like inputs (e.g., user@domain.com)
+// SMTP Host Schema — separated custom check + regex for clarity
 const smtpHostSchema = pipe(
   string(),
   trim(),
   minLength(1, "SMTP host is required"),
   maxLength(255, "SMTP host is too long"),
-  custom((value) => {
-    if (typeof value !== "string") {
-      return false;
-    }
-    // Reject if it looks like an email
-    if (value.includes("@")) {
-      return false;
-    }
-    // Valid hostname: alphanumeric, hyphens, dots
-    // Must have at least one dot and valid format
-    return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(
-      value,
-    );
-  }, 'Invalid hostname format. Please use a format like "smtp.domain.com" (not an email address).'),
+  custom(
+    (v) => typeof v === "string" && !v.includes("@"),
+    "Do not use email addresses for SMTP hosts.",
+  ),
+  regex(
+    /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/,
+    "Invalid hostname.",
+  ),
 );
 
 // SMTP Port Schema
-// Validates port number (1-65535)
 const smtpPortSchema = pipe(
   number(),
   custom((value) => {
-    if (typeof value !== "number") {
-      return false;
-    }
+    if (typeof value !== "number") return false;
     return value >= 1 && value <= 65_535;
   }, "Port must be between 1 and 65535"),
 );
 
 // SMTP User Schema
-// Typically an email address or username
 const smtpUserSchema = pipe(
   string(),
   trim(),
@@ -290,12 +270,8 @@ const dbPortSchema = optional(
     trim(),
     transform((value) => (value ? Number.parseInt(value, 10) : undefined)),
     custom((value) => {
-      if (value === undefined) {
-        return true;
-      }
-      if (typeof value !== "number") {
-        return false;
-      }
+      if (value === undefined) return true;
+      if (typeof value !== "number") return false;
       return value >= 1 && value <= 65_535;
     }, "Port must be between 1 and 65535"),
   ),
@@ -319,9 +295,9 @@ const dbUserSchema = pipe(string(), trim());
 // Database Password Schema (optional for MongoDB without auth)
 const dbPasswordSchema = pipe(string(), trim());
 
-// Complete Database Configuration Schema
+// Complete Database Configuration Schema — strictObject blocks extra field injection
 export const dbConfigSchema = pipe(
-  object({
+  strictObject({
     type: dbTypeSchema,
     host: dbHostSchema,
     port: dbPortSchema,
@@ -330,16 +306,11 @@ export const dbConfigSchema = pipe(
     password: dbPasswordSchema,
   }),
   check((input) => {
-    // For PostgreSQL and MySQL, username and password are required
-    if (input.type === "postgresql" || input.type === "mysql" || input.type === "mariadb") {
-      return (input.user?.length ?? 0) > 0 && (input.password?.length ?? 0) > 0;
-    }
-    // For MongoDB Atlas, authentication is mandatory
-    if (input.type === "mongodb+srv") {
-      return (input.user?.length ?? 0) > 0 && (input.password?.length ?? 0) > 0;
-    }
-    // For MongoDB local and SQLite, auth is optional
-    return true;
+    const requiresAuth = ["postgresql", "mysql", "mariadb", "mongodb+srv"];
+    return (
+      !requiresAuth.includes(input.type) ||
+      ((input.user?.length ?? 0) > 0 && (input.password?.length ?? 0) > 0)
+    );
   }, "Username and password are required for this database type."),
 );
 

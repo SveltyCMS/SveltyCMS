@@ -1,9 +1,28 @@
 /**
  * @file src/utils/theme-preset-mapper.ts
- * @description Maps Skeleton.dev CSS preset exports and other theme formats to StoredAdminTheme.
+ * @description Hardened mapper for CSS preset imports.
  *
+ * ### Hardening (audit 2026-07):
+ * - CSS inject prevention: blocks @import, @media, url(), expression(), javascript:
+ * - Regex-based CSS parsing: handles both minified and pretty-printed CSS
+ * - Property validation: ensures only --prefixed custom properties pass through
+ * - Value validation in expand: palette values checked before color-mix generation
+ *
+ * Maps Skeleton.dev CSS preset exports and other theme formats to StoredAdminTheme.
  * Used by admin-theme-service when importing presets from the marketplace or local files.
  */
+
+/** 🛡️ Validates CSS values against injection attacks */
+function isUnsafeValue(value: string): boolean {
+  const unsafePatterns = [
+    /url\s*\(/i,
+    /expression\s*\(/i,
+    /javascript\s*:/i,
+    /@import/i,
+    /@media/i,
+  ];
+  return unsafePatterns.some((pattern) => pattern.test(value));
+}
 
 // Property name remapping: Skeleton.dev → SveltyCMS admin theme
 const PROPERTY_REMAP: Record<string, string> = {
@@ -41,9 +60,10 @@ export interface SkeletonPreset {
 export function mapThemePropertiesToCss(properties: Record<string, string>): string {
   let css = ".admin-theme-container, [data-admin-theme] {\n";
   for (let [prop, value] of Object.entries(properties)) {
-    // Block unsafe values (url, expression, etc.)
-    if (/url\s*\(/i.test(value) || /expression\s*\(/i.test(value) || /javascript\s*:/i.test(value))
-      continue;
+    // Block unsafe values
+    if (isUnsafeValue(value)) continue;
+    // Only allow CSS custom property keys
+    if (!prop.startsWith("--")) continue;
     // Apply Skeleton → SveltyCMS property name remapping
     prop = PROPERTY_REMAP[prop] || prop;
     css += `  ${prop}: ${value};\n`;
@@ -57,7 +77,6 @@ export const mapSkeletonPropertiesToCss = mapThemePropertiesToCss;
 
 /**
  * Expands shorthand palette properties to full shade scales.
- * e.g. `{ primary: "#0f766e" }` → `{ "--color-primary-500": "#0f766e", "--color-primary-50": "color-mix(...)" }`
  */
 export function expandShorthandPaletteProperties(
   palette: Record<string, string>,
@@ -66,6 +85,9 @@ export function expandShorthandPaletteProperties(
   for (const [key, value] of Object.entries(palette)) {
     const prefix = SHORTHAND_COLOR_TO_PREFIX[key];
     if (!prefix) continue;
+    // Validate value before expanding
+    if (isUnsafeValue(value)) continue;
+
     if (key === "surface") {
       expanded[`${prefix}-50`] = value;
       expanded[`${prefix}-500`] = `color-mix(in srgb, ${value}, black)`;
@@ -79,25 +101,15 @@ export function expandShorthandPaletteProperties(
 }
 
 /**
- * Parses a Skeleton.dev CSS block export into a properties object.
- * Extracts only CSS custom properties (-- prefixed) from the block.
+ * Parses a CSS block export into a properties object.
+ * 🛡️ Uses regex — handles both minified and pretty-printed CSS.
  */
 export function parseSkeletonCssBlock(block: string): Record<string, string> {
   const props: Record<string, string> = {};
-  const lines = block.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("--")) continue;
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx === -1) continue;
-    const key = trimmed.slice(0, colonIdx).trim();
-    const value = trimmed
-      .slice(colonIdx + 1)
-      .trim()
-      .replace(/;$/, "");
-    if (key && value) {
-      props[key] = value;
-    }
+  const regex = /(--[\w-]+)\s*:\s*([^;]+);/g;
+  let match;
+  while ((match = regex.exec(block)) !== null) {
+    props[match[1].trim()] = match[2].trim();
   }
   return props;
 }
@@ -125,7 +137,6 @@ export function isSkeletonPreset(preset: Record<string, unknown>): boolean {
 
 /**
  * Converts a properties object (shorthand or longhand) to CSS.
- * Handles detection of format automatically.
  */
 function propertiesToCss(properties: Record<string, string>): string {
   const hasLonghand = Object.keys(properties).some((k) => k.startsWith("--"));
