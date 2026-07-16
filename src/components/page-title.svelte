@@ -152,8 +152,8 @@
 </script>
 
 <div
-	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 border-b border-surface-200/70 bg-surface-50/95 px-2 pt-2 backdrop-blur-sm dark:border-surface-800/70 dark:bg-surface-950/95
-		{compact || description ? 'min-h-12 gap-3 pb-2 sm:px-3' : 'min-h-12 gap-4'}"
+	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 bg-surface-50/95 ps-5 pe-2 pt-2 backdrop-blur-sm dark:bg-surface-950/95
+		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
 >
 	<div class="flex min-w-0 items-center gap-1">
 		{#if ui.state.leftSidebar === 'hidden'}

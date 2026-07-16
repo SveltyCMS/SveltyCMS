@@ -90,7 +90,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{/if}
 	</PageTitle>
 
-	<div class="px-2 pb-2 pt-2 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
+	<div class="px-2 pb-2 pt-4 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
 		{@render children?.()}
 	</div>
 </div>

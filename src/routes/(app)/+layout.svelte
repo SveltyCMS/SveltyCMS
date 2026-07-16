@@ -436,7 +436,7 @@ afterNavigate(() => {
 					<aside
 						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
 							? ''
-							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
+							: 'w-fit'} relative bg-white px-2! text-center dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>

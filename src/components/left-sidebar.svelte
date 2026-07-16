@@ -536,6 +536,22 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	.sidebar-root {
 		max-width: var(--admin-sidebar-width, 240px);
+		position: relative;
+	}
+
+	.sidebar-root::after {
+		content: '';
+		position: absolute;
+		inset-inline-end: -0.5rem; /* match aside px-2 so line sits on the edge */
+		top: 3.5rem; /* pt-2 + min-h-12 brand row */
+		bottom: 0;
+		width: 1px;
+		background-color: var(--color-surface-200, #e2e8f0);
+		pointer-events: none;
+	}
+
+	:global(.dark) .sidebar-root::after {
+		background-color: var(--color-surface-500, #64748b);
 	}
 
 	/* Scrollbar styling */
