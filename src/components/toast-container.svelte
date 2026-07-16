@@ -243,7 +243,7 @@
 				</div>
 
 				{#if t.duration !== Infinity && !isToastPaused(t.id)}
-					<div class="h-1 bg-black/20">
+					<div class="h-1 bg-black/20 pointer-events-none">
 						<div class="h-full bg-white/40 origin-left" style="animation: shrink {t.remainingTime}ms linear forwards"></div>
 					</div>
 				{/if}

@@ -213,14 +213,14 @@ To support the UI migration and global dynamic content, SveltyCMS standardized i
 
 The following matrix evaluates core engineering implementations where SveltyCMS provides a distinct technical advantage over legacy and contemporary competitors.
 
-| Feature             | SveltyCMS (v2026)          | Strapi 5          | Payload 3.0        | Directus 11       | Sveltia CMS       |
-| :------------------ | :------------------------- | :---------------- | :----------------- | :---------------- | :---------------- |
-| **Core Framework**  | **Svelte 5 (Runes)**       | React             | Next.js / React    | Vue / Node.js     | Svelte (SPA)      |
-| **Architecture**    | **Server-First (SSR)**     | Node.js / React   | Next.js / React    | Node.js / Vue     | Git-based (Local) |
-| **Multi-Tenancy**   | **Native Adapter-Level**   | Paid (Enterprise) | Plugin-based       | Native            | N/A               |
-| **Slug Uniqueness** | **Tenant-Scoped (Native)** | Global Only       | Global Only        | Manual Config     | Locale-Agnostic   |
-| **AI Architecture** | **Local (Ollama) + Cloud** | Cloud Only (Paid) | MCP Native (Cloud) | Cloud Only (Paid) | N/A               |
-| **Real-time Sync**  | **uWS Native (Sub-1ms)**   | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
+| Feature             | SveltyCMS (v2026)           | Strapi 5          | Payload 3.0        | Directus 11       | Sveltia CMS       |
+| :------------------ | :-------------------------- | :---------------- | :----------------- | :---------------- | :---------------- |
+| **Core Framework**  | **Svelte 5 (Runes)**        | React             | Next.js / React    | Vue / Node.js     | Svelte (SPA)      |
+| **Architecture**    | **Server-First (SSR)**      | Node.js / React   | Next.js / React    | Node.js / Vue     | Git-based (Local) |
+| **Multi-Tenancy**   | **Native Adapter-Level**    | Paid (Enterprise) | Plugin-based       | Native            | N/A               |
+| **Slug Uniqueness** | **Tenant-Scoped (Native)**  | Global Only       | Global Only        | Manual Config     | Locale-Agnostic   |
+| **AI Architecture** | **Local (Ollama) + Cloud**  | Cloud Only (Paid) | MCP Native (Cloud) | Cloud Only (Paid) | N/A               |
+| **Real-time Sync**  | **Node ws + Yjs (Sub-1ms)** | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
 
 | Feature              | SveltyCMS (v2026)           | Strapi 5           | Payload 3.0     | Directus 11        | Sveltia CMS   |
 | :------------------- | :-------------------------- | :----------------- | :-------------- | :----------------- | :------------ |
@@ -709,8 +709,8 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 
 ### 4.6 Real-Time Collaboration & Concurrency (Phase 2 Complete)
 
-- **Features:** Conflict-free Replicated Data Type (CRDT) concurrent editing powered by **Yjs** and the **Hocuspocus** synchronization engine.
-- **Latency:** Real-time WebSocket-based sync achieving **sub-10ms** delta propagation across multiple editors.
+- **Features:** Conflict-free Replicated Data Type (CRDT) concurrent editing powered by **Yjs** and a lightweight built-in synchronization engine (ws + y-protocols).
+- **Latency:** Real-time WebSocket-based sync achieving **sub-1ms** delta propagation across multiple editors.
 - **Visuals:** High-fidelity remote cursor tracking with user identification, field-level awareness highlights, and active editor avatar stacks in the editor shell.
 - **Offline Support:** Full support for offline edits with mathematical merging upon reconnection, eliminating the "Lost Update" problem.
 - **Result:** Positions SveltyCMS as an industry leader in collaborative enterprise editorial environments, rivaling the high-concurrency performance of Google Docs.

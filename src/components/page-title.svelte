@@ -152,8 +152,8 @@
 </script>
 
 <div
-	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 bg-surface-50/95 backdrop-blur-sm dark:bg-surface-950/95
-		{compact ? 'px-2 py-2.5 sm:px-3' : 'gap-4 py-1.5'}"
+	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between gap-3 bg-surface-50/95 ps-5 pe-2 pt-2 backdrop-blur-sm dark:bg-surface-950/95
+		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
 >
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
@@ -161,15 +161,16 @@
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-			 class="p-0! min-w-0 shrink-0">
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
+				class="h-9 w-9 shrink-0 p-0! min-w-0 text-surface-700 hover:bg-surface-200/70 dark:text-surface-200 dark:hover:bg-surface-800/70"
+			>
+				<iconify-icon icon="mingcute:menu-fill" width="22" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/if}
-		<div class="flex flex-col ms-2 min-w-0">
+		<div class="flex min-w-0 flex-col justify-center">
 			<div class="flex min-w-0 items-center gap-1">
 				<h1
-					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 font-bold"
-					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.5rem, 3vw + 1rem, 2.25rem)'};"
+					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-none font-bold"
+					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
 					aria-live="polite"
 					data-cms-field="pageTitle"
 					data-cms-type="text"
