@@ -7,6 +7,7 @@ terminals/
 # bun-generated type stubs (local artifacts, not tracked)
 src/types/*/
 /src/live
+!/src/live/svelte-realtime-mock.ts
 /.svelte-kit
 /package
 # Lock files — bun is the recommended package manager; commit its lock file.
