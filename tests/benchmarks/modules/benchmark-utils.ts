@@ -835,7 +835,7 @@ export async function setupBenchmarkServer() {
   const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
   printBenchmarkIsolationBanner(dbType);
 
-  const serverProcess = spawn("node", ["build/index.js"], {
+  const serverProcess = spawn("node", ["index.cjs"], {
     env: {
       ...process.env,
       PORT: String(port),

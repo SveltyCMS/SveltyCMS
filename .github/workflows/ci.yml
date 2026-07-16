@@ -481,7 +481,7 @@ jobs:
           fi
 
           # Start the built server
-          node build/index.js > preview.log 2>&1 &
+          node index.cjs > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
           echo "PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173" >> $GITHUB_ENV
 
@@ -494,7 +494,7 @@ jobs:
       - name: Shutdown Preview Server
         if: always()
         run: |
-          pkill -f "node build/index.js" || true
+          pkill -f "node index.cjs" || true
           sleep 2
 
       - name: Archive E2E Environment (single artifact)
@@ -623,7 +623,7 @@ jobs:
           fi
           export TEST_API_SECRET
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          node build/index.js > preview.log 2>&1 &
+          node index.cjs > preview.log 2>&1 &
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test \
             --project=chromium \

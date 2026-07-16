@@ -1,6 +1,11 @@
 /**
  * @file tests/helpers/assert-real-adapter.ts
- * @description Guards against accidental use of mockDbAdapter in DB roundtrip tests.
+ * @description
+ * Guards against accidental use of mockDbAdapter in DB roundtrip tests.
+ *
+ * ### Features:
+ * - Type-safe guard assertRealAdapter
+ * - Verifies real DB connection signature
  */
 
 import { expect } from "vitest";

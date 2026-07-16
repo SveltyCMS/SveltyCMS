@@ -435,9 +435,7 @@ afterNavigate(() => {
 			<div class="flex flex-1 overflow-hidden">
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
-							? ''
-							: 'w-fit'} relative bg-white px-2! text-center dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
+						class="max-h-dvh border-e bg-surface-50 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-900 overflow-visible {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>

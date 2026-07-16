@@ -9,12 +9,12 @@ import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import adapter from "svelte-adapter-uws";
-import uws from "svelte-adapter-uws/vite";
+import adapter from "@sveltejs/adapter-node";
+
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
-import realtime from "svelte-realtime/vite";
+
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
@@ -236,7 +236,7 @@ function stubServerModulesPlugin(): Plugin {
 
 /** Strips unused DB adapters from production builds */
 function databaseAdapterStripperPlugin(): Plugin {
-  const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
+  const _isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
   const isTest = process.env.TEST_MODE === "true" || process.env.VITEST === "true";
   const setupComplete = isSetupComplete();
   const compileAll = process.env.COMPILE_ALL_ADAPTERS === "true";
@@ -270,7 +270,7 @@ function databaseAdapterStripperPlugin(): Plugin {
       if (options?.ssr) return null;
       const resolved = await this.resolve(id, undefined, { ...options, skipSelf: true });
       const nid = (resolved?.id || id).replace(/\\/g, "/");
-      if (toStrip.some(db => nid.includes(`/databases/${db}/`))) return "\0virtual:db-stub";
+      if (toStrip.some((db) => nid.includes(`/databases/${db}/`))) return "\0virtual:db-stub";
       return null;
     },
     load(id) {
@@ -433,12 +433,41 @@ function sveltyCmsPlugin(): Plugin {
   };
 }
 
+/**
+ * Plugin to suppress noisy third-party warnings (like circular dependencies and
+ * optional unresolved imports) globally during build (including adapter rollup).
+ */
+function suppressThirdPartyWarningsPlugin(): Plugin {
+  let isIntercepted = false;
+
+  const patterns = [
+    /Circular dependency:.*(?:node_modules|\.bun)/i,
+    /"(?:snappy|@mongodb-js\/zstd|bun:sqlite|node:sqlite|@react-email\/render|resend)" is imported.*could not be resolved/i,
+    /".*" is imported from external module ".*" but never used/i,
+  ];
+
+  return {
+    name: "suppress-third-party-warnings",
+    apply: "build",
+    buildStart() {
+      if (!isIntercepted) {
+        isIntercepted = true;
+        const originalConsoleWarn = console.warn;
+        console.warn = function (...args: unknown[]) {
+          const message = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
+          if (patterns.some((pattern) => pattern.test(message))) return;
+          originalConsoleWarn.apply(console, args);
+        };
+      }
+    },
+  };
+}
+
 // ── Config ─────────────────────────────────────────────────────────────────
 const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
 
 export default defineConfig(() => ({
   plugins: [
-    uws(),
     databaseAdapterStripperPlugin(),
     testBackdoorStripperPlugin(),
     privateConfigFallbackPlugin(),
@@ -447,14 +476,14 @@ export default defineConfig(() => ({
     sveltekit({
       preprocess: [vitePreprocess()],
       compilerOptions: { runes: true },
-      adapter: adapter({ out: "build", precompress: true, websocket: true }),
+      adapter: adapter({ out: "build", precompress: true }),
       experimental: { remoteFunctions: true },
       alias: pathAliases,
       csrf: { trustedOrigins: ["http://127.0.0.1:4173"] },
     }),
-    realtime({ typedImports: !isBuild }),
     sveltyCmsPlugin(),
     securityCheckPlugin(),
+    suppressThirdPartyWarningsPlugin(),
     paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
     tailwindcss(),
   ],
@@ -483,13 +512,17 @@ export default defineConfig(() => ({
     minify: "esbuild",
     sourcemap: !process.env.CI,
     chunkSizeWarningLimit: 1200,
+    checks: { pluginTimings: false },
     rollupOptions: {
       external: SERVER_EXTERNALS,
       onwarn(warning: any, warn: any) {
-        // Third-party circular deps from mongodb, mongoose, zod — not fixable
         if (warning.code === "CIRCULAR_DEPENDENCY" && warning.message?.includes("node_modules"))
           return;
-        // External dependencies correctly unresolved — informational
+        if (
+          warning.code === "SOURCEMAP_BROKEN" &&
+          warning.plugin === "vite-plugin-sveltekit-remote"
+        )
+          return;
         if (warning.code === "UNRESOLVED_IMPORT" && warning.exporter?.includes("node_modules"))
           return;
         warn(warning);

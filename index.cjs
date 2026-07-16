@@ -30,33 +30,29 @@ async function loadApp() {
     handler(req, res);
   });
 
-  // Conditional WebSocket upgrade handler — works on VPS/dedicated servers,
-  // degrades gracefully on shared Plesk hosting where proxies strip Upgrade headers.
-  // Enable with: ENABLE_WEBSOCKET=true (or re-add websocket: true in adapter config)
-  const enableWebSocket = process.env.ENABLE_WEBSOCKET === "true";
-
-  if (enableWebSocket) {
-    console.log("[SveltyCMS] WebSocket upgrades enabled");
-    server.on("upgrade", (req, socket, head) => {
-      try {
-        // Delegate to the adapter's upgrade handler (svelte-adapter-uws)
-        handler(req, socket, head);
-      } catch (err) {
-        console.warn("[SveltyCMS] WebSocket upgrade failed (shared hosting?):", err.message);
-        socket.destroy();
-      }
-    });
+  // Start standard Yjs collaboration WebSocket server
+  console.log("[SveltyCMS] Initializing Yjs WebSocket collaboration server on /ws...");
+  let stopYjs;
+  try {
+    const { startYjsSyncServer } = await import("./build/yjs-sync-server.js");
+    stopYjs = startYjsSyncServer({ server, path: "/ws" });
+  } catch (err) {
+    console.warn("[SveltyCMS] Failed to initialize Yjs collaboration server:", err.message);
   }
 
   server.listen(port, () => {
-    console.log(
-      `[SveltyCMS] Server listening on port ${port}${enableWebSocket ? " (WS enabled)" : ""}`,
-    );
+    console.log(`[SveltyCMS] Server listening on port ${port} (WS enabled)`);
   });
 
   // Handle signals for graceful shutdown
-  process.on("SIGTERM", () => server.close());
-  process.on("SIGINT", () => server.close());
+  process.on("SIGTERM", () => {
+    if (stopYjs) stopYjs();
+    server.close();
+  });
+  process.on("SIGINT", () => {
+    if (stopYjs) stopYjs();
+    server.close();
+  });
 }
 
 loadApp().catch((err) => {

@@ -1,17 +1,16 @@
 <!--
 @file src/components/theme-toggle.svelte
 @component
-**A component for cycling through all application theme states.**
-It relies entirely on the centralized `themeStore` for its state and logic.
+**Cycles through all theme states: System → Light → Dark → System.**
+Relies on the centralized `themeStore` for state and logic.
+
 ### Features
-- Three-way theme cycle: System → Light → Dark → System
-- Icons represent current theme preference (system/light/dark)
-- Optional tooltip for user guidance
+- Three-way theme cycle with icon feedback
+- Defaults to `preset-outline-surface-500 btn-icon rounded-full dark:text-white`
+- Optional tooltip with placement control
+- Svelte 5 runes — derived icon + tooltip text
 -->
 <script lang="ts">
-	//Stores
-
-	// Componets
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { setThemePreference, themeStore, useSystemPreference } from '@src/stores/theme-store.svelte.ts';
@@ -26,55 +25,44 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	const {
 		showTooltip = true,
 		tooltipPlacement = 'bottom',
-		buttonClass = 'preset-outline-surface-500 btn-icon dark:text-white',
-		iconSize = 22
+		buttonClass = 'preset-outline-surface-500 btn-icon rounded-full dark:text-white',
+		iconSize = 22,
 	}: Props = $props();
 
-	// Cycle through system -> light -> dark -> system
+	const icon = $derived(
+		themeStore.themePreference === 'light'
+			? 'mdi:white-balance-sunny'
+			: themeStore.themePreference === 'dark'
+				? 'mdi:moon-waning-crescent'
+				: 'mdi:theme-light-dark',
+	);
+
+	const tooltipText = $derived(
+		themeStore.themePreference === 'system'
+			? 'System theme (click for Light)'
+			: themeStore.themePreference === 'light'
+				? 'Light theme (click for Dark)'
+				: 'Dark theme (click for System)',
+	);
+
 	function cycleTheme() {
 		const current = themeStore.themePreference;
-		if (current === 'system') {
-			setThemePreference('light');
-		} else if (current === 'light') {
-			setThemePreference('dark');
-		} else {
-			useSystemPreference();
-		}
+		if (current === 'system') setThemePreference('light');
+		else if (current === 'light') setThemePreference('dark');
+		else useSystemPreference();
 	}
-
-	// Get tooltip text based on current preference
-	const getTooltipText = $derived(() => {
-		const current = themeStore.themePreference;
-		if (current === 'system') {
-			return 'System theme (click for Light)';
-		}
-		if (current === 'light') {
-			return 'Light theme (click for Dark)';
-		}
-		return 'Dark theme (click for System)';
-	});
 </script>
 
-	{#if showTooltip}
-		<SystemTooltip title={getTooltipText()} positioning={{ placement: tooltipPlacement }}>
-			<Button variant="outline" onclick={cycleTheme} aria-label="Toggle theme" class="{buttonClass} p-0! min-w-0 rounded-full">
-				{#if themeStore.themePreference === 'light'}
-					<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
-				{:else if themeStore.themePreference === 'dark'}
-					<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
-				{/if}
-			</Button>
-		</SystemTooltip>
-	{:else}
-		<Button variant="outline" onclick={cycleTheme} aria-label="Toggle theme" class="{buttonClass} p-0! min-w-0 rounded-full">
-			{#if themeStore.themePreference === 'light'}
-				<iconify-icon icon="mdi:white-balance-sunny" width={iconSize}></iconify-icon>
-			{:else if themeStore.themePreference === 'dark'}
-				<iconify-icon icon="mdi:moon-waning-crescent" width={iconSize}></iconify-icon>
-			{:else}
-				<iconify-icon icon="mdi:theme-light-dark" width={iconSize}></iconify-icon>
-			{/if}
-		</Button>
-	{/if}
+{#snippet toggleButton()}
+	<Button variant="outline" onclick={cycleTheme} aria-label="Toggle theme" class={`${buttonClass} p-0! min-w-0`}>
+		<iconify-icon {icon} width={iconSize} aria-hidden="true"></iconify-icon>
+	</Button>
+{/snippet}
+
+{#if showTooltip}
+	<SystemTooltip title={tooltipText} positioning={{ placement: tooltipPlacement }}>
+		{@render toggleButton()}
+	</SystemTooltip>
+{:else}
+	{@render toggleButton()}
+{/if}

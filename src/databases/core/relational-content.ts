@@ -341,6 +341,16 @@ export class RelationalContentModule implements IContentAdapter {
 
         // Batch multi-row insert + on conflict (avoids N individual roundtrips)
         // This is the Drizzle bulk upsert pattern for the hot content sync path.
+
+        // Pre-clean: delete rows with the same _id but different (path, tenantId) to
+        // prevent PK constraint violations. ON CONFLICT (path, tenantId) handles the
+        // path-based upsert (which is the canonical identity for content nodes).
+        for (const v of preparedValuesList as any[]) {
+          await db
+            .delete(this.schema.contentNodes)
+            .where(and(eq(this.schema.contentNodes._id, v._id)));
+        }
+
         const insert = db.insert(this.schema.contentNodes).values(preparedValuesList) as any;
 
         if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {

@@ -12,14 +12,14 @@ tags:
   - "websocket"
   - "subscriptions"
   - "real-time"
-  - "uWebSockets"
+  - "ws"
 ---
 
 # GraphQL Subscriptions Reference
 
-> **Note:** As of May 2026, SveltyCMS has migrated its real-time infrastructure to a unified **`svelte-realtime`** backend powered by **`uWebSockets.js`**. The previous separate GraphQL WebSocket server on port 3001 has been deprecated in favor of a single, high-performance port architecture.
+> **Note:** SveltyCMS uses a highly stable production-ready stack based on **`@sveltejs/adapter-node`** and the standard **`ws`** library. The WebSocket server runs natively on the main application port at `ws://[domain]/ws`.
 
-> **Migration Guide:** For standard GraphQL queries and mutations (REST/HTTP), see the [GraphQL API Reference](./graphql.mdx). The WebSocket subscription endpoint has moved from `ws://[domain]/api/graphql` (legacy) to `ws://[domain]/live` (new via `svelte-realtime`).
+> **Architecture Guide:** Real-time collaborative editing (CRDT) is supported via the integrated WebSocket server on `/ws`. For standard GraphQL queries, mutations, and subscriptions, standard HTTP Server-Sent Events (SSE) or REST-based fallbacks are recommended for maximum deployment compatibility.
 
 Real-time GraphQL subscriptions allow clients to receive instant updates when data changes. This guide covers the secure WebSocket implementation, JIT-optimized resolvers, and seamless Svelte 5 integration.
 
@@ -29,8 +29,8 @@ Real-time GraphQL subscriptions allow clients to receive instant updates when da
 
 | Feature                     | Details                                                                |
 | :-------------------------- | :--------------------------------------------------------------------- |
-| **Endpoint**                | `ws://[domain]/live` (Managed by svelte-realtime)                      |
-| **Protocol**                | `svelte-realtime` RPC                                                  |
+| **Endpoint**                | `ws://[domain]/ws` (Managed by built-in Yjs sync server)               |
+| **Protocol**                | Standard WebSockets (`ws` + `y-protocols`)                             |
 | **Auth Methods**            | Session ID, Cookie, or secure query parameter                          |
 | **Server-Side Alternative** | [**Real-Time Events API (SSE)**](./content.mdx#3-real-time-events-sse) |
 
@@ -104,9 +104,9 @@ participant Live as svelte-realtime
 
 ### Performance & Security
 
-- **uWebSockets.js Engine**: C++ powered WebSocket execution handles tens of thousands of concurrent connections with minimal memory overhead.
-- **Tenant Isolation**: Subscription streams are strictly filtered by `tenantId` natively in the `svelte-realtime` implementation.
-- **Batched Delivery**: High-frequency updates are automatically batched by `svelte-realtime/client` within `requestAnimationFrame`, rendering thousands of changes efficiently in Svelte 5 without locking the main thread.
+- **Standard Node.js ws Engine**: Powered by the highly optimized pure JavaScript `ws` library, handling thousands of concurrent connections efficiently.
+- **Tenant Isolation**: WebSocket connection parameters (e.g. `tenantId`, `docId`) are automatically parsed at the handshake layer to isolate user updates per tenant.
+- **No Native Addons**: Avoids compiled binary requirements, ensuring compatibility across all cloud, Docker, and enterprise platforms.
 
 ---
 

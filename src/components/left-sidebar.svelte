@@ -272,7 +272,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<iconify-icon
 				icon="bi:arrow-left-circle-fill"
 				width="34"
-				class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
+				class="rounded-full bg-surface-500 text-white transition-transform dark:bg-white dark:text-surface-600 {isSidebarFull
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
@@ -571,8 +571,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 	.sidebar-root::after {
 		content: '';
 		position: absolute;
-		inset-inline-end: -0.5rem; /* match aside px-2 so line sits on the edge */
-		top: 3.5rem; /* pt-2 + min-h-12 brand row */
+		inset-inline-end: -0.5rem;
+		top: 3.5rem;
 		bottom: 0;
 		width: 1px;
 		background-color: var(--color-surface-200, #e2e8f0);

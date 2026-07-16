@@ -52,7 +52,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 	let {
 		title,
 		icon,
-		description = '',
+		description,
 		showBackButton = false,
 		backUrl = '',
 		highlight = '',
@@ -64,17 +64,15 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		actions
 	}: Props = $props();
 
-	const spaceClass = $derived(
-		spaceY === '4' ? 'space-y-4' : spaceY === '8' ? 'space-y-8' : 'space-y-6'
-	);
-	
+	const spaceClass = $derived(`space-y-${spaceY}`);
+
 </script>
 
 <div
 	class="admin-theme-container absolute inset-0 bg-surface-50 dark:bg-surface-950 {fullHeight
 		? 'flex flex-col overflow-hidden'
 		: 'overflow-y-auto'}"
-	in:adminFade={animate ? { duration: 200 } : { duration: 0 }}
+	in:adminFade={animate ? { duration: 200 } : undefined}
 >
 	<PageTitle
 		name={title}
