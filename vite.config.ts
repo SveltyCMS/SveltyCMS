@@ -905,9 +905,12 @@ export default defineConfig((): any => {
         },
         vitePlugin: {
           inspector: {
-            toggleKeyCombo: "meta-shift",
-            holdMode: false,
-            showToggleButton: "always",
+            // Hold meta+shift+s to inspect elements in the browser and jump to source.
+            // holdMode: true means the inspector is active only while the keys are held,
+            // so it never interferes with e2e tests or normal clicking.
+            toggleKeyCombo: "meta-shift-s",
+            holdMode: true,
+            showToggleButton: "active",
             toggleButtonPos: "bottom-right",
           },
         },
