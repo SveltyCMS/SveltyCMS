@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { invokeApi } from "../utils/mock-event";
+import { invokeApi, expectApi } from "../utils/mock-event";
+import { runRbacMatrix } from "../utils/rbac-matrix";
 import { createMockUser } from "../utils/mock-factories";
 
 vi.mock("@src/databases/db", () => ({
@@ -111,52 +112,44 @@ describe("Dispatcher security matrix (real +server)", () => {
   });
 
   describe("Fail-closed namespaces", () => {
-    it("returns 404 for unknown API namespace (admin)", async () => {
-      const res = await invokeApi("GET", {
-        path: "this-namespace-does-not-exist",
-        user: admin,
-        tenantId: "t1",
-        bypass: true,
-      });
-      expect(res.status).toBe(404);
+    it("returns 403 for unknown API namespace (admin, fail-closed)", async () => {
+      await expectApi(
+        "GET",
+        { path: "this-namespace-does-not-exist", user: admin, tenantId: "t1", bypass: true },
+        403,
+      );
     });
 
-    it("returns 403 for unmapped ENDPOINT_PERMISSIONS when not admin (bypass off)", async () => {
-      // Namespace must exist in NAMESPACE_CONFIG for permission check to matter first.
-      // "logs" is admin-mapped; use a path that exists in config but fails closed for no perms.
-      // scim is enterprise-only → always false for non-admin
-      const res = await invokeApi("GET", {
-        path: "scim/Users",
-        user: editor,
-        tenantId: "t1",
-        roles: editorNoPerms,
-        bypass: false,
-      });
-      expect(res.status).toBe(403);
+    it("returns 403 for SCIM as non-admin (bypass off)", async () => {
+      await runRbacMatrix([
+        {
+          name: "scim denied",
+          method: "GET",
+          path: "scim/Users",
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+          bypass: false,
+        },
+      ]);
     });
 
     it("returns 401 when unauthenticated on protected route (bypass off)", async () => {
-      const res = await invokeApi("GET", {
-        path: "collections",
-        user: null,
-        tenantId: "t1",
-        bypass: false,
-      });
-      expect(res.status).toBe(401);
+      await expectApi(
+        "GET",
+        { path: "collections", user: null, tenantId: "t1", bypass: false },
+        401,
+      );
     });
   });
 
   describe("Multi-tenant isolation", () => {
     it("rejects collections list without tenantId when multi-tenant is on", async () => {
-      const res = await invokeApi("GET", {
-        path: "collections",
-        user: admin,
-        tenantId: null,
-        bypass: true,
-      });
-      // Handler/dispatcher TENANT_MISSING → 400
-      expect([400, 403]).toContain(res.status);
-      expect(res.status).not.toBe(200);
+      await expectApi(
+        "GET",
+        { path: "collections", user: admin, tenantId: null, bypass: true },
+        [400, 403],
+      );
     });
 
     it("rejects media list without tenantId when multi-tenant is on", async () => {
@@ -173,53 +166,44 @@ describe("Dispatcher security matrix (real +server)", () => {
   });
 
   describe("RBAC on hot namespaces (bypass off)", () => {
-    it("denies collections write without collections:write", async () => {
-      const res = await invokeApi("POST", {
-        path: "collections/posts",
-        body: { title: "Nope" },
-        user: editor,
-        tenantId: "t1",
-        roles: editorNoPerms,
-        bypass: false,
-      });
-      expect(res.status).toBe(403);
-    });
-
-    it("allows collections write when role has collections:write", async () => {
-      // May still fail deeper (missing collection) but must pass dispatcher authz (not 403/401)
-      const res = await invokeApi("POST", {
-        path: "collections/posts",
-        body: { title: "Maybe" },
-        user: editor,
-        tenantId: "t1",
-        roles: editorWithCollectionWrite,
-        bypass: false,
-      });
-      expect(res.status).not.toBe(401);
-      expect(res.status).not.toBe(403);
-    });
-
-    it("denies media DELETE without media:delete for non-admin", async () => {
-      const res = await invokeApi("DELETE", {
-        path: "media/some-id",
-        user: editor,
-        tenantId: "t1",
-        roles: editorNoPerms,
-        bypass: false,
-      });
-      expect(res.status).toBe(403);
-    });
-
-    it("denies system settings write without system:settings", async () => {
-      const res = await invokeApi("POST", {
-        path: "settings",
-        body: { key: "x", value: "y" },
-        user: editor,
-        tenantId: "t1",
-        roles: editorNoPerms,
-        bypass: false,
-      });
-      expect(res.status).toBe(403);
+    it("table-driven permission checks", async () => {
+      await runRbacMatrix([
+        {
+          name: "editor denied collections write",
+          method: "POST",
+          path: "collections/posts",
+          body: { title: "Nope" },
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
+        {
+          name: "editor with collections:write passes authz",
+          method: "POST",
+          path: "collections/posts",
+          body: { title: "Maybe" },
+          user: editor,
+          roles: editorWithCollectionWrite,
+          expectedNotStatus: [401, 403],
+        },
+        {
+          name: "editor denied media delete",
+          method: "DELETE",
+          path: "media/some-id",
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
+        {
+          name: "editor denied settings write",
+          method: "POST",
+          path: "settings",
+          body: { key: "x", value: "y" },
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
+      ]);
     });
   });
 });

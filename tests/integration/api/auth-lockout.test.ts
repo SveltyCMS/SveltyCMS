@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, afterAll } from "bun:test";
+import { beforeAll, describe, expect, it, afterAll } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { prepareAuthenticatedContext, cleanupTestDatabase } from "../helpers/test-setup";
 import { generateUUID } from "@src/utils/native-utils";

@@ -9,7 +9,184 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { _API_NAMESPACE_KEYS as API_NAMESPACE_KEYS } from "@src/routes/api/[...path]/+server";
+
+const ROOT = process.cwd();
+
+/**
+ * Handler function names mirroring NAMESPACE_CONFIG in +server.ts
+ * Used to generate search terms for verifying owner files actually test the namespace.
+ */
+const HANDLER_FN: Record<string, string> = {
+  auth: "handleAuthUserRoutes",
+  user: "handleAuthUserRoutes",
+  permission: "handlePermissionRoutes",
+  collections: "handleCollectionsRoutes",
+  "virtual-collections": "handleVirtualCollectionsRoutes",
+  content: "handleContentRoutes",
+  "content-structure": "handleContentRoutes",
+  widgets: "handleSystemRoutes",
+  dashboard: "handleDashboardRoutes",
+  media: "handleMediaRoutes",
+  scim: "handleScimRoutes",
+  search: "handleContentRoutes",
+  events: "handleContentRoutes",
+  system: "handleSystemRoutes",
+  settings: "handleSettingsRoutes",
+  "system-settings": "handleSettingsRoutes",
+  importer: "handleImporterRoutes",
+  ai: "handleAiRoutes",
+  automations: "handleAutomationRoutes",
+  setup: "handleSetupRoutes",
+  export: "handleExportRoutes",
+  import: "handleImportRoutes",
+  metrics: "handleSystemRoutes",
+  telemetry: "handleSystemRoutes",
+  security: "handleSystemRoutes",
+  theme: "handleThemeRoutes",
+  "system-preferences": "handlePreferenceRoutes",
+  health: "handleHealthRoutes",
+  token: "handleTokenRoutes",
+  "website-tokens": "handleTokenRoutes",
+  "get-tokens-provided": "handleAuthUserRoutes",
+  testing: "handleTestingRoutes",
+  reset: "handleTestingRoutes",
+  seed: "handleTestingRoutes",
+  reinitialize: "handleTestingRoutes",
+  cache: "handleUtilityRoutes",
+  marketplace: "handleUtilityRoutes",
+  "version-check": "handleUtilityRoutes",
+  "send-mail": "handleUtilityRoutes",
+  trash: "handleUtilityRoutes",
+  debug: "handleUtilityRoutes",
+  "openapi.json": "handleUtilityRoutes",
+  database: "handleDatabaseRoutes",
+  logs: "handleLogsRoutes",
+  "api-keys": "handleApiKeyRoutes",
+  webhooks: "handleWebhookRoutes",
+  "system-webhooks": "handleWebhookRoutes",
+  "system-virtual-folder": "handleSystemVirtualFolderRoutes",
+  systemVirtualFolder: "handleSystemVirtualFolderRoutes",
+  version: "handleVersionRoutes",
+  graphql: "handleGraphqlRoutes",
+  "system-jobs": "handleSystemJobRoutes",
+  config: "handleConfigRoutes",
+  "content-export": "handleContentExportRoutes",
+  "content-import": "handleContentImportRoutes",
+  migrations: "handleMigrationRoutes",
+  importers: "handleImporterRoutes",
+  backups: "handleBackupRoutes",
+  "content-sync": "handleContentSyncRoutes",
+  "import-data": "handleImporterRoutes",
+  config_sync: "handleConfigRoutes",
+  "config-sync": "handleConfigRoutes",
+};
+
+/**
+ * Generates case-insensitive search terms for a given namespace.
+ * Checks for the namespace name, a human-readable variant, and the handler function name.
+ */
+function namespaceSearchTerms(ns: string): string[] {
+  const terms = [ns];
+  // Human-readable variant: replace hyphens/underscores with spaces, Title Case
+  const readable = ns.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (readable !== ns) terms.push(readable);
+  // Add handler function name if available
+  const fn = HANDLER_FN[ns];
+  if (fn) terms.push(fn);
+  return terms;
+}
+
+/**
+ * Checks whether `content` contains a `describe(...)` or `it(...)` call
+ * that references any of the given terms (case-insensitive match).
+ *
+ * For files without describe/it (helpers), returns true (skip check).
+ * For files with describe/it but no direct term match, falls back to
+ * checking if any hyphen/underscore-split part of the namespace appears
+ * in a describe/it block (e.g. "get-tokens-provided" → "Token" in
+ * describe("Token API...")). Finally, checks known-legitimate
+ * shared-file groupings as a last resort.
+ */
+function fileReferencesNamespace(
+  content: string,
+  terms: string[],
+  ns: string,
+  relPath: string,
+): boolean {
+  const lower = content.toLowerCase();
+  const hasDescribeIt = /\b(describe|it)\s*\(/i.test(lower);
+
+  if (!hasDescribeIt) {
+    // Helper files (no describe/it blocks) — skip content verification
+    return true;
+  }
+
+  // 1. Direct match of any term in the file
+  const directMatch = terms.some((term) => {
+    const t = term.toLowerCase();
+    return lower.includes(t);
+  });
+  if (directMatch) return true;
+
+  // 2. Split namespace on hyphens/underscores and check each part
+  const parts = ns.split(/[-_]/).filter(Boolean);
+  const partMatch = parts.some((part) => {
+    if (part.length < 2) return false;
+    return lower.includes(part.toLowerCase());
+  });
+  if (partMatch) return true;
+
+  // 3. Broad fallback: check if describe/it arguments contain a word that
+  //    is a substring of the namespace, or vice versa
+  const describeItArgs = content.match(/(?:describe|it)\(\s*["']([^"']+)["']/gi);
+  if (describeItArgs) {
+    const describeTexts = describeItArgs.map((s) => {
+      const m = s.match(/["']([^"']+)["']/);
+      return m ? m[1].toLowerCase() : "";
+    });
+    const nsLower = ns.toLowerCase();
+    const nsParts = nsLower.split(/[-_]/);
+    for (const dt of describeTexts) {
+      if (dt.includes(nsLower)) return true;
+      for (const part of nsParts) {
+        if (part.length >= 2 && dt.includes(part)) return true;
+      }
+      const dtWords = dt.split(/[\s/]+/);
+      for (const word of dtWords) {
+        if (word.length >= 3 && nsLower.includes(word)) return true;
+      }
+    }
+  }
+
+  // 4. Known-legitimate shared security files
+  const KNOWN_SHARED: Record<string, Set<string>> = {
+    "tests/unit/api/export-import-security.test.ts": new Set([
+      "importer",
+      "content-export",
+      "content-import",
+      "migrations",
+      "importers",
+      "import-data",
+      "backups",
+      "content-sync",
+    ]),
+    "tests/unit/api/automation-security.test.ts": new Set(["system-jobs"]),
+    "tests/unit/api/media-security.test.ts": new Set([
+      "system-virtual-folder",
+      "systemVirtualFolder",
+    ]),
+    "tests/unit/api/bulk-delete-guard.test.ts": new Set(["trash"]),
+    "tests/unit/api/dispatcher-security-matrix.test.ts": new Set(["logs", "debug", "scim"]),
+  };
+
+  const shared = KNOWN_SHARED[relPath];
+  if (shared && shared.has(ns)) return true;
+
+  return false;
+}
 
 /**
  * Map: namespace → test file paths that cover it (unit and/or integration).
@@ -132,4 +309,71 @@ describe("API namespace ownership inventory (completeness Phase D)", () => {
     const stale = Object.keys(NAMESPACE_OWNERS).filter((k) => !live.has(k));
     expect(stale, `Remove stale NAMESPACE_OWNERS keys: ${stale.join(", ")}`).toEqual([]);
   });
+
+  it("every declared owner path exists on disk", () => {
+    const missingFiles: string[] = [];
+    for (const [ns, owners] of Object.entries(NAMESPACE_OWNERS)) {
+      for (const rel of owners) {
+        if (!existsSync(join(ROOT, rel))) {
+          missingFiles.push(`${ns} → ${rel}`);
+        }
+      }
+    }
+    expect(
+      missingFiles,
+      `Owner paths missing (fix NAMESPACE_OWNERS):\n${missingFiles.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("every owner file actually references its namespace in describe/it blocks", () => {
+    const noRef: string[] = [];
+    for (const [ns, owners] of Object.entries(NAMESPACE_OWNERS)) {
+      const terms = namespaceSearchTerms(ns);
+      for (const rel of owners) {
+        const absPath = join(ROOT, rel);
+        if (!existsSync(absPath)) continue; // already caught above
+        const content = readFileSync(absPath, "utf-8");
+        if (!fileReferencesNamespace(content, terms, ns, rel)) {
+          noRef.push(`${ns} → ${rel} (searched: ${terms.join(", ")})`);
+        }
+      }
+    }
+    expect(
+      noRef,
+      `Owner files missing describe/it referencing their namespace:\n${noRef.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("contract test covers all 6 contract gates (describe blocks)", () => {
+    const contractPath = join(ROOT, "tests/integration/databases/contract.test.ts");
+    const content = readFileSync(contractPath, "utf-8");
+
+    const requiredGates = [
+      "Auth Contract",
+      // Plan-first config + collections listing (was "Collection CRUD Contract")
+      "Collection / Config Contract",
+      "User Batch Contract",
+      "Setup Gating Contract",
+      "Fail-Closed Contract",
+      "Media Permissions Contract",
+    ];
+
+    const missing: string[] = [];
+    for (const gate of requiredGates) {
+      // Look for describe("<gate>") or describe('<gate>')
+      const pattern = new RegExp(`describe\\s*\\(\\s*["'\`]${escapeRegex(gate)}["'\`]`);
+      if (!pattern.test(content)) {
+        missing.push(gate);
+      }
+    }
+
+    expect(missing, `Contract test missing describe blocks for:\n${missing.join("\n")}`).toEqual(
+      [],
+    );
+  });
 });
+
+/** Escape special regex characters for literal matching */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

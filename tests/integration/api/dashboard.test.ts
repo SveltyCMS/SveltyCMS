@@ -16,7 +16,7 @@ import { safeFetch } from "../helpers/server";
  * - GET /api/dashboard/cache-metrics
  */
 
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "vitest";
 import { BASE_URL } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
 

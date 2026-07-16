@@ -48,8 +48,13 @@ with the AI collaboration assistant.
 		if (!newMessage.trim()) {
 			return;
 		}
-		collaboration.sendMessage(newMessage);
+			
+		// Clear the input immediately to provide instant feedback
 		newMessage = '';
+			
+		// Execute the send operation without awaiting it in the UI thread
+		// The store handles the internal try/catch and error reporting.
+		collaboration.sendMessage(newMessage);
 	}
 
 	function formatTimestamp(ts: string) {

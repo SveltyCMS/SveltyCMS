@@ -3,7 +3,7 @@
  * @description Comprehensive integration tests for Setup Actions (SvelteKit Server Actions)
  */
 
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "vitest";
 
 // Increase default timeout for database-heavy setup tests
 const TEST_TIMEOUT = 60_000;

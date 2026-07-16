@@ -1,21 +1,34 @@
 <!--
 @file src/routes/(app)/config/access-management/website-tokens.svelte
 @component
-**This component manages website tokens within the application's access management system**
-
-@xample
-<WebsiteTokens />
+**Website tokens access management — Smart Table server mode.**
 
 ### Features
-- Load and display website tokens and their associated permissions.
-- Allow users to create, edit, and delete website tokens through a modal interface.
-- Allow bulk deletion of selected website tokens.
-- Display a native modal for creating or editing website tokens with an intuitive UI for selecting associated permissions.
+- `createSmartTable({ mode: 'server', onQueryChange })` owns page/sort/selection
+- API fetch for `/api/website-tokens` driven by one controller
+- Shared table chrome (matches entry-list / users / media)
+- Create / delete / bulk delete tokens + permission picker
 -->
 
 <script lang="ts">
 import TableFilter from "@src/components/system/table/table-filter.svelte";
 import TablePagination from "@src/components/system/table/table-pagination.svelte";
+import {
+	createSmartTable,
+	pinCellClass,
+	SMART_TABLE,
+	SMART_TABLE_COLUMN_MANAGER,
+	SMART_TABLE_PAGINATION_BAR,
+	SMART_TABLE_ROW_HOVER,
+	SMART_TABLE_ROW_SELECTED,
+	SMART_TABLE_SCROLL,
+	SMART_TABLE_TD,
+	SMART_TABLE_TH,
+	SMART_TABLE_THEAD,
+	SMART_TABLE_TOOLBAR,
+	type TableDensity,
+} from "@components/ui/smart-table";
+import SmartTableEmpty from "@components/ui/smart-table/smart-table-empty.svelte";
 import type { Permission, User } from "@src/databases/auth/types";
 import type { DatabaseId, WebsiteToken } from "@src/content/types";
 import {
@@ -24,16 +37,16 @@ import {
 } from "@src/stores/loading-store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { showConfirm } from "@utils/modal.svelte";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
 import { dndzone } from "svelte-dnd-action";
-	import AdminCard from '@components/admin-card.svelte';
-	import Badge from '@components/ui/badge.svelte';
-	import Button from '@components/ui/button.svelte';
-	import Checkbox from '@components/ui/checkbox.svelte';
-	import Input from '@components/ui/input.svelte';
-	import Select from '@components/ui/select.svelte';
+import AdminCard from "@components/admin-card.svelte";
+import Badge from "@components/ui/badge.svelte";
+import Button from "@components/ui/button.svelte";
+import Checkbox from "@components/ui/checkbox.svelte";
+import Input from "@components/ui/input.svelte";
+import Select from "@components/ui/select.svelte";
 
 interface TableHeader {
 	id: string;
@@ -44,7 +57,6 @@ interface TableHeader {
 
 let { permissions = [] }: { permissions: Permission[] } = $props();
 
-let tokens: WebsiteToken[] = $state([]);
 let users: User[] = $state([]);
 
 const userMap = $derived(
@@ -59,20 +71,32 @@ let permissionSearchTerm = $state("");
 let tenantScope = $state("current");
 
 let showSecretMap: Record<string, boolean> = $state({});
-let selectedTokens = $state(new Set<string>());
 
 let globalSearchValue = $state("");
 let searchShow = $state(false);
 let filterShow = $state(false);
 let columnShow = $state(false);
-let density = $state("normal");
+let density = $state<TableDensity>("normal");
 let filters: Record<string, string | undefined> = $state({});
 
-let sorting = $state({ sortedBy: "createdAt", isSorted: -1 });
-let currentPage = $state(1);
-let rowsPerPage = $state(10);
-let totalItems = $state(0);
-const pagesCount = $derived(Math.ceil(totalItems / rowsPerPage) || 1);
+/** Single controller: page/sort/selection drive API refetch (server mode). */
+const smartTable = createSmartTable({
+	mode: "server",
+	pageSize: 10,
+	layoutKey: "website-tokens-table",
+	initialSort: { sortedBy: "createdAt", isSorted: -1 },
+	getRowId: (row) => String((row as WebsiteToken)._id ?? ""),
+	onQueryChange: () => {
+		fetchTokens().catch(() => {});
+	},
+});
+
+const tokens = $derived(smartTable.rows as WebsiteToken[]);
+const totalItems = $derived(smartTable.pagination.totalItems);
+const pagesCount = $derived(smartTable.pagination.pagesCount);
+const currentPage = $derived(smartTable.pagination.currentPage);
+const rowsPerPage = $derived(smartTable.pagination.pageSize);
+const sorting = $derived(smartTable.sort);
 
 	const tableHeaders = [
 		{ label: "Name", key: "name" },
@@ -147,7 +171,8 @@ function toggleSelectAllPermissions() {
 }
 
 onMount(async () => {
-	await Promise.all([fetchTokens(), fetchUsers()]);
+	// Tokens load via smartTable query effect / initial search effect
+	await fetchUsers();
 });
 
 async function fetchUsers() {
@@ -167,21 +192,19 @@ async function fetchUsers() {
 }
 
 async function fetchTokens() {
-	const currentPageVal = currentPage;
-	const rowsPerPageVal = rowsPerPage;
-	const sortingVal = sorting;
+	const pageVal = smartTable.pagination.currentPage;
+	const pageSizeVal = smartTable.pagination.pageSize;
+	const sortingVal = smartTable.sort;
 	const globalSearchValueVal = globalSearchValue;
 	const filtersVal = filters;
-	const tokensRef = { value: tokens };
-	const totalItemsRef = { value: totalItems };
 
 	await globalLoadingStore.withLoading(
 		loadingOperations.tokenGeneration,
 		async () => {
 			const params = new SvelteURLSearchParams();
-			params.set("page", String(currentPageVal));
-			params.set("limit", String(rowsPerPageVal));
-			params.set("sort", sortingVal.sortedBy);
+			params.set("page", String(pageVal));
+			params.set("limit", String(pageSizeVal));
+			params.set("sort", sortingVal.sortedBy || "createdAt");
 			if (sortingVal.isSorted !== 0) {
 				params.set("order", sortingVal.isSorted === 1 ? "asc" : "desc");
 			}
@@ -202,19 +225,27 @@ async function fetchTokens() {
 				);
 				if (response.ok) {
 					const result = await response.json();
-					tokensRef.value = result.data;
-					totalItemsRef.value = result.pagination.totalItems;
+					const items = (result.data || []) as WebsiteToken[];
+					const total = Number(result.pagination?.totalItems ?? items.length);
+					smartTable.setRows(items as unknown as Record<string, unknown>[]);
+					smartTable.setPaginationMeta({
+						totalItems: total,
+						pagesCount: Math.max(1, Math.ceil(total / pageSizeVal)),
+						currentPage: pageVal,
+						pageSize: pageSizeVal,
+					});
 				} else {
 					toast.error("Failed to fetch tokens");
+					smartTable.setRows([]);
+					smartTable.setPaginationMeta({ totalItems: 0, pagesCount: 1 });
 				}
 			} catch {
 				toast.error("An error occurred while fetching tokens");
+				smartTable.setRows([]);
 			}
 		},
 		"Fetching website tokens",
 	);
-	tokens = tokensRef.value;
-	totalItems = totalItemsRef.value;
 }
 
 function getExpirationDate(): string | null {
@@ -312,17 +343,18 @@ async function deleteToken(id: string, name: string) {
 }
 
 async function bulkDeleteTokens() {
-	if (selectedTokens.size === 0) return;
+	const ids = smartTable.getSelectedIds();
+	if (ids.length === 0) return;
 
 	showConfirm({
 		title: "Bulk Delete Tokens",
-		body: `Are you sure you want to delete ${selectedTokens.size} selected tokens? This action cannot be undone.`,
+		body: `Are you sure you want to delete ${ids.length} selected tokens? This action cannot be undone.`,
 		onConfirm: async () => {
 			await globalLoadingStore.withLoading(
 				loadingOperations.tokenGeneration,
 				async () => {
 					try {
-						const deletePromises = Array.from(selectedTokens).map((id) =>
+						const deletePromises = ids.map((id) =>
 							fetch(`/api/website-tokens/${id}`, { method: "DELETE" }),
 						);
 						const results = await Promise.all(deletePromises);
@@ -330,7 +362,7 @@ async function bulkDeleteTokens() {
 						const successCount = results.filter((r) => r.ok).length;
 						if (successCount > 0) {
 							toast.success(`${successCount} tokens deleted.`);
-							selectedTokens.clear();
+							smartTable.clearSelection();
 							await fetchTokens();
 						} else {
 							toast.error("Failed to delete selected tokens");
@@ -346,29 +378,33 @@ async function bulkDeleteTokens() {
 }
 
 function toggleTokenSelection(id: string) {
-	if (selectedTokens.has(id)) {
-		selectedTokens.delete(id);
-	} else {
-		selectedTokens.add(id);
-	}
+	smartTable.toggleSelect(id);
 }
 
 function toggleAllTokens() {
-	if (selectedTokens.size === tokens.length) {
-		selectedTokens.clear();
-	} else {
-		tokens.forEach((t) => selectedTokens.add(t._id));
-	}
+	smartTable.setSelectAll(!smartTable.allSelected);
 }
 
+// Search / column filters → reset page + refetch (sort/page go through smartTable.onQueryChange)
 $effect(() => {
-	if (totalItems <= 1) {
-		return;
-	}
-	void currentPage;
-	void rowsPerPage;
-	void sorting;
-	fetchTokens();
+	void globalSearchValue;
+	void filters;
+	untrack(() => {
+		smartTable.setPaginationMeta({ currentPage: 1 });
+		fetchTokens().catch(() => {});
+	});
+});
+
+$effect(() => {
+	smartTable.setDensity(density);
+	smartTable.setColumns(
+		displayTableHeaders.map((h) => ({
+			key: h.key,
+			label: h.label,
+			sortable: true,
+			visible: h.visible,
+		})),
+	);
 });
 </script>
 
@@ -459,21 +495,29 @@ $effect(() => {
 
 	<AdminCard class="border border-surface-200 dark:border-surface-800">
 		<div class="p-4">
-			<div class="my-4 flex flex-wrap items-center justify-between gap-1">
+			<div class={SMART_TABLE_TOOLBAR}>
 				<div class="flex items-center gap-4">
 					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
-					{#if selectedTokens.size > 0}
+					{#if smartTable.selectedCount > 0}
 						<Button variant="error" onclick={bulkDeleteTokens} size="sm">
-							Delete Selected ({selectedTokens.size})
+							Delete Selected ({smartTable.selectedCount})
 						</Button>
 					{/if}
 				</div>
-				<div class="order-3 sm:order-2"><TableFilter {globalSearchValue} {searchShow} {filterShow} {columnShow} {density} /></div>
+				<div class="order-3 sm:order-2">
+					<TableFilter
+						bind:globalSearchValue
+						bind:searchShow
+						bind:filterShow
+						bind:columnShow
+						bind:density
+					/>
+				</div>
 			</div>
 
 			{#if columnShow}
-				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b border-surface-200 bg-surface-100 text-center dark:border-surface-700 dark:bg-surface-800">
-					<div class="text-surface-700 dark:text-surface-200">Drag and drop to reorder columns</div>
+				<div class={SMART_TABLE_COLUMN_MANAGER}>
+					<div class="text-sm text-surface-700 dark:text-surface-200">Drag and drop to reorder columns</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
@@ -503,14 +547,21 @@ $effect(() => {
 				</div>
 			{/if}
 
-			<div class="overflow-x-auto w-full">
-				<table class="w-full text-sm border-collapse">
-					<thead>
+			<div class="{SMART_TABLE_SCROLL} w-full">
+				{#if tokens.length === 0}
+					<SmartTableEmpty
+						title="No website tokens"
+						description="Generate a token above to allow external sites to access your content."
+						icon="mdi:key-outline"
+					/>
+				{:else}
+				<table class={SMART_TABLE}>
+					<thead class={SMART_TABLE_THEAD}>
 						{#if filterShow}
 							<tr class="border-b border-surface-200 dark:border-surface-800">
-								<th class="px-2 py-2"></th>
+								<th class={SMART_TABLE_TH}></th>
 								{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
-									<th class="px-2 py-2">
+									<th class={SMART_TABLE_TH}>
 										<Input
 											placeholder={`Filter by ${header.label}...`}
 											oninput={(e) => handleInputChange((e.target as HTMLInputElement).value, header.key)}
@@ -518,28 +569,26 @@ $effect(() => {
 										/>
 									</th>
 								{/each}
-								<th class="px-2 py-2"></th>
+								<th class={SMART_TABLE_TH}></th>
 							</tr>
 						{/if}
-						<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
-							<th class="w-10 px-2 py-3 text-center">
+						<tr class="border-b border-surface-300 text-xs uppercase tracking-wide dark:border-surface-600">
+							<th class="{SMART_TABLE_TH} {pinCellClass('start')} w-10">
 								<Checkbox
-									checked={selectedTokens.size === tokens.length && tokens.length > 0}
+									checked={smartTable.allSelected}
 									onchange={toggleAllTokens}
 									label="Select all tokens"
 									class="[&_label:last-of-type]:sr-only"
 								/>
 							</th>
 							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-								<th class="px-2 py-3" aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}>
+								<th
+									class="{SMART_TABLE_TH} cursor-pointer"
+									aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}
+								>
 									<button
 										class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
-										onclick={() => {
-											sorting = {
-												sortedBy: header.key,
-												isSorted: sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? -1 : sorting.isSorted === -1 ? 0 : 1) : 1
-											};
-										}}
+										onclick={() => smartTable.setSort(header.key)}
 										aria-label={`Sort by ${header.label}`}
 									>
 										{header.label}
@@ -554,22 +603,26 @@ $effect(() => {
 									</button>
 								</th>
 							{/each}
-							<th class="px-2 py-3 text-center font-bold text-tertiary-500 dark:text-primary-500" scope="col">Action</th>
+							<th class="{SMART_TABLE_TH} {pinCellClass('end')}" scope="col">Action</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 						{#each tokens as token (token._id)}
-							<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30 {selectedTokens.has(token._id) ? 'bg-surface-50/60 dark:bg-surface-900/40' : ''}">
-								<td class="px-2 py-3 text-center">
+							<tr
+								class="text-surface-700 dark:text-surface-200 {smartTable.isSelected(token._id)
+									? SMART_TABLE_ROW_SELECTED
+									: SMART_TABLE_ROW_HOVER}"
+							>
+								<td class="{SMART_TABLE_TD} {pinCellClass('start')}">
 									<Checkbox
-										checked={selectedTokens.has(token._id)}
+										checked={smartTable.isSelected(token._id)}
 										onchange={() => toggleTokenSelection(token._id)}
 										label={`Select token ${token.name}`}
 										class="[&_label:last-of-type]:sr-only"
 									/>
 								</td>
 								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-									<td class="px-2 py-3">
+									<td class={SMART_TABLE_TD}>
 										{#if header.key === 'token'}
 											<div class="flex items-center gap-2">
 												<code class="bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded">
@@ -620,27 +673,28 @@ $effect(() => {
 										{/if}
 									</td>
 								{/each}
-								<td class="px-2 py-3"><Button variant="error" onclick={() => deleteToken(token._id, token.name)} size="sm">Delete</Button></td>
+								<td class="{SMART_TABLE_TD} {pinCellClass('end')}">
+									<Button variant="error" onclick={() => deleteToken(token._id, token.name)} size="sm">Delete</Button>
+								</td>
 							</tr>
 						{/each}
 					</tbody>
 				</table>
+				{/if}
 			</div>
-			<div class="flex justify-center">
-				<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
-					<TablePagination
-						bind:currentPage
-						bind:rowsPerPage
-						{pagesCount}
-						{totalItems}
-						onUpdatePage={(page: number) => (currentPage = page)}
-						onUpdateRowsPerPage={(rows: number) => {
-							rowsPerPage = rows;
-							currentPage = 1;
-						}}
-					/>
-				</div>
+			{#if tokens.length > 0}
+			<div class={SMART_TABLE_PAGINATION_BAR}>
+				<TablePagination
+					currentPage={currentPage}
+					rowsPerPage={rowsPerPage}
+					{pagesCount}
+					{totalItems}
+					rowsPerPageOptions={[10, 25, 50, 100, 500]}
+					onUpdatePage={(page: number) => smartTable.setPage(page)}
+					onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
+				/>
 			</div>
+			{/if}
 		</div>
 	</AdminCard>
 </div>

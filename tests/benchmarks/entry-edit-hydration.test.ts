@@ -9,7 +9,7 @@
  * - Field-level patch sync vs legacy JSON.stringify full-object compare
  */
 
-import { test } from "bun:test";
+import { test } from "vitest";
 import {
   runBenchmark,
   exportResult,

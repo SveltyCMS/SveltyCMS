@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/geolocation/display.svelte
 @component
 **Read-only coordinate display**
@@ -22,10 +22,10 @@
 		<span class="font-mono">
 			{value.coordinates[1].toFixed(6)}, {value.coordinates[0].toFixed(6)}
 		</span>
-		<a 
-			href="https://www.google.com/maps/search/?api=1&query={value.coordinates[1]},{value.coordinates[0]}" 
-			target="_blank" 
-			class="text-[10px] font-semibold h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-400 flex items-center justify-center transition-colors"
+		<a
+			href="https://www.google.com/maps/search/?api=1&query={value.coordinates[1]},{value.coordinates[0]}"
+			target="_blank"
+			class="text-[10px] font-semibold h-6 px-2.5 rounded bg-tertiary-500/10 hover:bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/10 dark:hover:bg-primary-500/20 dark:text-primary-500 flex items-center justify-center transition-colors"
 		>
 			View on Map
 		</a>

@@ -7,6 +7,12 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Unmock modules that may have been mocked by other test files (Vitest caches
+// module mocks across files in the same worker, causing cross-file leakage).
+// These hoisted calls ensure real module implementations are used.
+vi.unmock("@utils/tenant");
+vi.unmock("@utils/logger");
+
 describe("isValidTenantId", () => {
   it("validates correctly", async () => {
     function isValidTenantId(tenantId: string | null | undefined): boolean {

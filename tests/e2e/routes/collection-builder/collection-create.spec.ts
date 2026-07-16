@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import {
   addInputField,
   openNewCollectionEditor,
@@ -16,7 +16,7 @@ test.describe("Collection Builder — Create Schema", () => {
   test.setTimeout(120_000);
 
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
   });
 
   test("creates a collection with first and last name fields", async ({ page }) => {

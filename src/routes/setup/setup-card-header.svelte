@@ -21,7 +21,7 @@ Displays the current step title and icon, and a reset button.
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
 	<SystemTooltip title="Reset data">
-		<Button variant="outline"
+		<Button variant="ghost"
 			onclick={() => onreset()}
 			type="button"
 			aria-label="Reset data"

@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse, validate, buildSchema, NoSchemaIntrospectionCustomRule } from "graphql";
 import { createDepthLimitRule, createMaxAliasesRule } from "@src/routes/api/graphql/rules";
-import { invokeApi } from "../utils/mock-event";
+import { invokeGraphql } from "../utils/mock-event";
 import { createMockUser } from "../utils/mock-factories";
 
 // This simulates the schema we have
@@ -157,27 +157,26 @@ describe("GraphQL Whitebox Native Security Rules", () => {
 
 describe("GraphQL dispatcher auth gate (catch-all /api/graphql)", () => {
   it("rejects unauthenticated GraphQL POST with 401", async () => {
-    const res = await invokeApi("POST", {
-      path: "graphql",
-      body: { query: "{ __typename }" },
-      user: null,
-      tenantId: "t1",
-      bypass: false,
-    });
+    const res = await invokeGraphql(
+      "{ __typename }",
+      {},
+      { user: null, tenantId: "t1", bypass: false },
+    );
     expect(res.status).toBe(401);
   });
 
   it("does not return 401 for authenticated admin (may 200/4xx/5xx deeper)", async () => {
     const admin = createMockUser({ _id: "u1", role: "admin", isAdmin: true } as any);
-    const res = await invokeApi("POST", {
-      path: "graphql",
-      body: { query: "{ __typename }" },
-      user: admin,
-      tenantId: "t1",
-      roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: ["*"] }],
-      bypass: true,
-    });
-    // Auth gate passed — must not be unauthenticated
+    const res = await invokeGraphql(
+      "{ __typename }",
+      {},
+      {
+        user: admin,
+        tenantId: "t1",
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: ["*"] }],
+        bypass: true,
+      },
+    );
     expect(res.status).not.toBe(401);
   });
 });

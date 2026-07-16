@@ -14,7 +14,7 @@
  * NOTE: TypeScript errors are expected - bun:test is runtime-only, db-helper needs creation
  */
 
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "vitest";
 import { dropDatabase, getUser, getUserCount, userExists, waitFor } from "../../helpers/db-helper";
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:4173";

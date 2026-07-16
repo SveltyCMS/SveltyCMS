@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 
 async function selectFirstIcon(page: import("@playwright/test").Page): Promise<void> {
   const browseButton = page.getByRole("button", { name: /browse icons/i });
@@ -18,8 +18,10 @@ async function selectFirstIcon(page: import("@playwright/test").Page): Promise<v
 }
 
 test.describe("Collection Builder Structure Persistence", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
   });
 
   test("category save survives page reload", async ({ page }) => {

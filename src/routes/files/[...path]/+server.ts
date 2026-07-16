@@ -117,7 +117,8 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   const pathTenant = filePath.split("/")[0];
   if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
     const userTenantId = (locals as any)?.tenantId;
-    if (userTenantId && userTenantId !== pathTenant && userTenantId !== "global") {
+    // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass
+    if (!userTenantId || (userTenantId !== pathTenant && userTenantId !== "global")) {
       logger.warn("Cross-tenant file access blocked", {
         requested: filePath,
         userTenant: userTenantId,

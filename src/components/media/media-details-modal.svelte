@@ -508,6 +508,7 @@
           alt={file.filename}
           class="max-h-full max-w-full object-contain"
           style:object-position={file.metadata?.focalPoint ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%` : 'center'}
+          crossorigin="anonymous"
         />
       </div>
     {:else if file.type === 'video'}

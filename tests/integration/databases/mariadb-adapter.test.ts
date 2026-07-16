@@ -5,7 +5,7 @@
  * Performs full CRUD round-trips with Drizzle ORM mappings.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 
 // 1. CONFIGURATION (Isolation for CI)

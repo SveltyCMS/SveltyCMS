@@ -203,7 +203,7 @@ const imageUrl = $derived(
 					aria-label="Focal point position"
 					tabindex="0"
 				>
-					<img src={imageUrl} alt={media.filename} class="w-full h-auto max-h-[50vh] object-contain" />
+					<img src={imageUrl} alt={media.filename} class="w-full h-auto max-h-[50vh] object-contain" crossorigin="anonymous" />
 
 					<!-- Rule of Thirds Grid Overlay -->
 					<div class="absolute inset-0 pointer-events-none">

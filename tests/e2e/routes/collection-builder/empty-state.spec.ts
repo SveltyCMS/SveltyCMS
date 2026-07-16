@@ -13,10 +13,12 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin, ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 
 test.describe("Collection Builder — Empty State", () => {
+  test.describe.configure({ timeout: 90_000 });
   // These tests assert the empty state renders, which only happens when no
   // collections exist. Other builder specs (builder/collection/journey) create
   // collections in the same shared DB. Even with workers:1, those collections
@@ -62,7 +64,9 @@ test.describe("Collection Builder — Empty State", () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    // beforeAll reset/seed invalidates any storageState session cookies.
+    await page.context().clearCookies();
+    await ensureAuthenticated(page);
   });
 
   test("should show empty state when no collections exist", async ({ page }) => {

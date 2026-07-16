@@ -158,25 +158,25 @@ describe("getRemainingTime", () => {
   });
 
   it("should return hours only when minutes are 0", () => {
-    const future = new Date(Date.now() + 3 * 60 * 60 * 1000); // exactly 3h
+    const future = new Date(Date.now() + 3 * 60 * 60 * 1000 + 1000); // ~3h
     const result = getRemainingTime(future);
     expect(result).toBe("3h");
   });
 
   it("should return days and hours for > 24h remaining", () => {
-    const future = new Date(Date.now() + 3.5 * 24 * 60 * 60 * 1000); // 3d 12h
+    const future = new Date(Date.now() + 3.5 * 24 * 60 * 60 * 1000 + 1000); // ~3d 12h
     const result = getRemainingTime(future);
     expect(result).toBe("3d 12h");
   });
 
   it("should return days only when hours are 0", () => {
-    const future = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000); // exactly 5d
+    const future = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 1000); // ~5d
     const result = getRemainingTime(future);
     expect(result).toBe("5d");
   });
 
   it("should handle string date input", () => {
-    const future = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const future = new Date(Date.now() + 10 * 60 * 1000 + 1000); // ~10 min
     const result = getRemainingTime(future.toISOString());
     expect(result).toBe("10m");
   });
@@ -186,13 +186,15 @@ describe("getRemainingTime", () => {
   });
 
   it("should handle edge case: ~59 minutes as minutes, not hours", () => {
-    const future = new Date(Date.now() + 59 * 60 * 1000);
+    // +1s buffer: Date.now() drift between construct and call must not drop a minute
+    const future = new Date(Date.now() + 59 * 60 * 1000 + 1000);
     const result = getRemainingTime(future);
     expect(result).toBe("59m");
   });
 
   it("should handle edge case: exactly 60 minutes as 1h", () => {
-    const future = new Date(Date.now() + 60 * 60 * 1000);
+    // +1s buffer avoids flaky 59m when a few ms elapse before getRemainingTime runs
+    const future = new Date(Date.now() + 60 * 60 * 1000 + 1000);
     const result = getRemainingTime(future);
     expect(result).toBe("1h");
   });

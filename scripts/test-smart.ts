@@ -53,6 +53,7 @@ const SUITE_RULES: SuiteRule[] = [
       "src/databases/auth/**",
       "src/hooks/handle-authentication.ts",
       "src/routes/(app)/login/**",
+      "src/routes/api/[...path]/handlers/auth.ts",
     ],
     command:
       "bun test tests/unit/hooks/authentication.test.ts tests/unit/hooks/defense-in-depth.test.ts tests/unit/auth-lockout.test.ts",
@@ -65,9 +66,10 @@ const SUITE_RULES: SuiteRule[] = [
       "src/routes/api/[...path]/+server.ts",
       "src/services/permissions/**",
       "src/databases/auth/roles/**",
+      "src/routes/api/[...path]/handlers/*.ts",
     ],
     command:
-      "bun test tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts",
+      "bun test tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts",
   },
   {
     label: "Middleware & Setup",
@@ -250,6 +252,25 @@ function selectSuites(changedFiles: string[]): SelectedSuite[] {
 }
 
 // ---------------------------------------------------------------------------
+// Exclude filter
+// ---------------------------------------------------------------------------
+
+/**
+ * Removes test file paths from a command string that match the exclusion list.
+ * Only strips paths that appear as standalone arguments (not substrings).
+ */
+function filterExcludedFiles(cmd: string, excludeList: string[]): string {
+  if (excludeList.length === 0) return cmd;
+  const parts = cmd.split(/\s+/);
+  const filtered = parts.filter((part) => {
+    // Only filter arguments that look like test file paths
+    if (!part.endsWith(".test.ts")) return true;
+    return !excludeList.some((ex) => part === ex || part.endsWith("/" + ex));
+  });
+  return filtered.join(" ");
+}
+
+// ---------------------------------------------------------------------------
 // Test runner
 // ---------------------------------------------------------------------------
 
@@ -282,6 +303,12 @@ async function main() {
   const listOnly = argv.includes("--list");
   const unitOnly = argv.includes("--unit-only");
   const suiteFilter = argv.includes("--suite") ? argv[argv.indexOf("--suite") + 1] : null;
+  const excludeList = argv.includes("--exclude")
+    ? argv[argv.indexOf("--exclude") + 1]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 
   if (unitOnly) {
     FULL_CORE_SUITE.command = "bun run test:unit";
@@ -362,11 +389,12 @@ async function main() {
 
     for (const suite of suitesToRun) {
       const rule = suite.rule;
+      const effectiveCommand = filterExcludedFiles(rule.command, excludeList);
       const start = Date.now();
       console.log(`\n▶ ${rule.label} (Gate ${rule.gate})`);
-      console.log(`  $ ${rule.command}`);
+      console.log(`  $ ${effectiveCommand}`);
 
-      const { code } = await runCommand(rule.command, ROOT);
+      const { code } = await runCommand(effectiveCommand, ROOT);
       const duration = ((Date.now() - start) / 1000).toFixed(1);
 
       results.push({ label: rule.label, gate: rule.gate, code });

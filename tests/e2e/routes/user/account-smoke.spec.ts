@@ -1,3 +1,8 @@
+/**
+ * @file tests/e2e/routes/user/account-smoke.spec.ts
+ * @description Smoke: admin can open profile and logout.
+ */
+
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout } from "../../helpers/auth";
 
@@ -5,14 +10,31 @@ test.describe("Account Smoke", () => {
   test("admin can open the user profile and logout", async ({ page }) => {
     await loginAsAdmin(page);
 
-    await page.goto("/user", { waitUntil: "domcontentloaded" });
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
 
-    await expect(page).toHaveURL(/\/user/, { timeout: 10_000 });
-    await expect(page.getByRole("heading", { level: 1, name: /user profile/i })).toBeVisible({
+    // Fail fast with a clear signal if the root error boundary fired
+    const systemError = page.getByRole("heading", { name: /system error/i });
+    if (await systemError.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      const detail = await page
+        .locator(".font-mono, pre, code")
+        .first()
+        .textContent()
+        .catch(() => "");
+      throw new Error(`User profile hit System Error boundary: ${detail?.trim() || "(no detail)"}`);
+    }
+
+    // Prefer stable page-title marker (AdminPageShell → PageTitle h1)
+    const pageTitle = page.getByTestId("page-title");
+    await expect(pageTitle).toBeVisible({ timeout: 15_000 });
+    await expect(pageTitle).toContainText(/user profile|benutzerprofil/i);
+
+    // Body content confirms the profile shell finished loading
+    await expect(page.getByRole("heading", { name: /^identity$/i })).toBeVisible({
       timeout: 10_000,
     });
 
     await logout(page);
-    await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 15_000 });
   });
 });

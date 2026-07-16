@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import {
   addInputField,
   openNewCollectionEditor,
@@ -15,9 +15,12 @@ import {
 } from "../../helpers/collection-builder-flow";
 
 test.describe("Master Behavioral Journey", () => {
+  test.describe.configure({ timeout: 120_000 });
+
   test("Full Lifecycle: Builder -> Schema -> Entry -> API", async ({ page }) => {
-    // 1. Authentication
-    await loginAsAdmin(page);
+    // 1. Authentication (API session — avoid flaky UI login under 30s default)
+    await ensureAuthenticated(page);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 
     // 2–4. New collection + field + save (shared helpers / test ids)

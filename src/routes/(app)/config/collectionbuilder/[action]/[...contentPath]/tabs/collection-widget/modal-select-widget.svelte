@@ -65,11 +65,15 @@ const cHeader =
 		<!-- Search -->
 		<div class="relative my-4">
 			<iconify-icon icon="mdi:magnify" width="24" class="absolute inset-s-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-			<input type="text" placeholder="Search widgets..." class="input h-12 w-full ps-12 text-lg" bind:value={searchTerm}  aria-label="Input" />
+			<input type="text" aria-label="Search widgets" data-testid="select-widget-search"
+				placeholder="Search widgets..."
+				class="input h-12 w-full ps-12 text-lg"
+				bind:value={searchTerm}
+			/>
 		</div>
 
 		<!-- Grid -->
-		<div class="flex-1 overflow-y-auto p-6">
+		<div class="flex-1 overflow-y-auto p-6" data-testid="select-widget-grid">
 			{#each ['Core', 'Custom', 'Marketplace'] as category (category)}
 				{const categoryKeys =
 					category === 'Core'
@@ -89,9 +93,11 @@ const cHeader =
 							{#each filteredKeys as item (item)}
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}
 									<button
+										type="button"
 										onclick={() => onFormSubmit(item)}
 										class="group relative flex flex-col gap-3 rounded border border-surface-200 bg-surface-50 p-5 text-start transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
-										aria-label={item}
+										aria-label={`Select ${item} widget`}
+										data-testid={`select-widget-${String(item).toLowerCase()}`}
 									>
 										<div class="flex items-start justify-between w-full">
 											<div

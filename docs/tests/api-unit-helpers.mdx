@@ -25,31 +25,61 @@ SveltyCMS unit tests that exercise the catch-all API dispatcher should use the *
 
 ## What to use
 
-| Helper                             | File                             | Role                                      |
-| ---------------------------------- | -------------------------------- | ----------------------------------------- |
-| `createMockRequestEvent(opts)`     | `tests/unit/utils/mock-event.ts` | Build a consistent `RequestEvent`         |
-| `callApiDispatcher(method, event)` | same                             | Call production GET/POST/… from `+server` |
-| `invokeApi(method, opts)`          | same                             | One-liner: build event + dispatch         |
-| Fixtures                           | `@tests/harness`                 | `USERS`, `ROLES`, `PRIMARY_TENANT`        |
+| Helper                               | File                              | Role                                      |
+| ------------------------------------ | --------------------------------- | ----------------------------------------- |
+| `createMockRequestEvent(opts)`       | `tests/unit/utils/mock-event.ts`  | Build a consistent `RequestEvent`         |
+| `callApiDispatcher(method, event)`   | same                              | Call production GET/POST/… from `+server` |
+| `invokeApi(method, opts)`            | same                              | One-liner: build event + dispatch         |
+| `expectApi(method, opts, status)`    | same                              | invokeApi + status (+ JSON body)          |
+| `invokeGraphql(query, vars?, opts?)` | same                              | Thin POST `/api/graphql`                  |
+| `mockFormData(entries)`              | same                              | Multipart bag for media/DAM unit tests    |
+| `runRbacMatrix(rows)`                | `tests/unit/utils/rbac-matrix.ts` | Table-driven RBAC statuses                |
+| Fixtures                             | `@tests/harness`                  | `USERS`, `ROLES`, `PRIMARY_TENANT`        |
 
 ### Options that matter for security tests
 
 ```ts
-import { invokeApi } from "../utils/mock-event";
+import { invokeApi, expectApi, invokeGraphql, mockFormData } from "../utils/mock-event";
+import { runRbacMatrix } from "../utils/rbac-matrix";
 
 // Unauthenticated
-await invokeApi("POST", { path: "ai/chat", body: { … }, user: null, tenantId: "t1" });
+await expectApi("POST", { path: "ai/chat", body: { userMessage: "x" }, user: null }, 401);
 
 // Missing tenant (multi-tenant)
-await invokeApi("POST", { path: "ai/chat", body: { … }, user: admin, tenantId: null });
+await expectApi(
+  "GET",
+  { path: "collections", user: admin, tenantId: null, bypass: true },
+  [400, 403],
+);
 
-// Happy path
-await invokeApi("GET", { path: "user", user: admin, tenantId: "t1", roles, dbAdapter });
+// GraphQL (still unit-layer; real GraphQL contracts live in integration)
+await invokeGraphql("{ __typename }", {}, { user: null, bypass: false });
+
+// Media multipart
+const res = await invokeApi("POST", {
+  path: "media/process",
+  formData: mockFormData({ processType: "save", files: [file] }),
+  user: admin,
+});
+
+// RBAC table (bypass false = real ENDPOINT_PERMISSIONS)
+await runRbacMatrix([
+  {
+    name: "editor denied write",
+    method: "POST",
+    path: "collections/posts",
+    body: { title: "x" },
+    user: editor,
+    roles: [{ _id: "editor", name: "Editor", isAdmin: false, permissions: [] }],
+    expectedStatus: 403,
+  },
+]);
 ```
 
 - **`user: null`** — unauthenticated (do not omit; omit defaults to an admin-like user).
 - **`tenantId: null`** — explicit missing tenant (uses `"tenantId" in options`, not `??`).
-- **`bypass`** — default `true` sets `locals.__testBypass` for unit dispatcher tests.
+- **`bypass`** — default `true` sets `locals.__testBypass`. Use **`false`** for RBAC matrices.
+- **Role matching:** `hasPermissionWithRoles` matches `role._id === user.role` or display name `"Editor"` for `user.role === "editor"`.
 
 ---
 
@@ -79,27 +109,37 @@ Do **opportunistically** when touching a file:
 
 ## Security matrix (unit)
 
-`dispatcher-security-matrix.test.ts` exercises the **real** catch-all `+server` (apiHandler not unwrapped):
+`dispatcher-security-matrix.test.ts` exercises the **real** catch-all `+server` (apiHandler not unwrapped), including table-driven rows via `runRbacMatrix`.
 
-| Case                                                      | Expected      |
-| --------------------------------------------------------- | ------------- |
-| Unknown namespace (admin)                                 | 404           |
-| SCIM as non-admin (`bypass: false`)                       | 403           |
-| Unauthenticated collections                               | 401           |
-| Multi-tenant collections without `tenantId`               | 4xx (not 200) |
-| Editor without `collections:write`                        | 403 on POST   |
-| Editor with `collections:write` (role `_id`/`name` match) | not 401/403   |
-| Editor media DELETE / settings POST without perms         | 403           |
+| Case                                              | Expected      |
+| ------------------------------------------------- | ------------- |
+| Unknown namespace (admin)                         | 404           |
+| SCIM as non-admin (`bypass: false`)               | 403           |
+| Unauthenticated collections                       | 401           |
+| Multi-tenant collections without `tenantId`       | 4xx (not 200) |
+| Editor without `collections:write`                | 403 on POST   |
+| Editor with `collections:write`                   | not 401/403   |
+| Editor media DELETE / settings POST without perms | 403           |
 
-> Role matching: `hasPermissionWithRoles` matches `role._id === user.role` or display name `"Editor"` for `user.role === "editor"`.
+## Patterns by layer (thin helpers only at unit)
+
+| Concern                | Unit (helpers)                                              | Integration                           | E2E                            |
+| ---------------------- | ----------------------------------------------------------- | ------------------------------------- | ------------------------------ |
+| **RBAC / fail-closed** | `runRbacMatrix` + `expectApi`                               | Cookie as editor/admin on real server | UI affordances (hide Publish)  |
+| **Collections CRUD**   | Handler mocks + `invokeApi` for auth edges                  | HTTP CRUD + multi-DB                  | Builder → entry smoke          |
+| **Media / DAM**        | `mockFormData` + permission rows                            | Upload/delete HTTP + permissions      | Gallery smoke only             |
+| **GraphQL**            | Rules + `invokeGraphql` 401 gate; resolver tenant isolation | `graphql.test.ts` HTTP 401/200        | Avoid GraphQL in Playwright    |
+| **Widgets / Valibot**  | Widget unit packages                                        | Entry create rejects invalid payloads | Optional UI validation message |
+
+**Do not** use unit helpers inside multi-DB benchmarks or Playwright. CI multi-DB uses real HTTP.
 
 ## When to use which layer
 
-| Goal                            | Tool                                       |
-| ------------------------------- | ------------------------------------------ |
-| Dispatcher / handler unit logic | `invokeApi` + mocks                        |
-| Full hooks + cookies + multi-DB | Black-box [API testing](./api-testing.mdx) |
-| Browser UX                      | Playwright E2E                             |
+| Goal                            | Tool                                        |
+| ------------------------------- | ------------------------------------------- |
+| Dispatcher / handler unit logic | `invokeApi` / `expectApi` / `runRbacMatrix` |
+| Full hooks + cookies + multi-DB | Black-box [API testing](./api-testing.mdx)  |
+| Browser UX                      | Playwright E2E                              |
 
 ---
 

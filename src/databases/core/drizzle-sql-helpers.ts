@@ -45,6 +45,7 @@ export const SQL_TABLE_ALIASES: Record<string, string> = {
   content_nodes: "contentNodes",
   preferences: "systemPreferences",
   system_preferences: "systemPreferences",
+  system_settings: "systemPreferences",
   systemPreferences: "systemPreferences",
   tokens: "authTokens",
   auth_tokens: "authTokens",

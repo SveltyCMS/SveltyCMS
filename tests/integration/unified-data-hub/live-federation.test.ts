@@ -11,7 +11,7 @@
  * when the external fixture is unreachable (opt-in `--include-db-tasks`).
  */
 
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_DB_MATRIX } from "@src/utils/test-db-credentials";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";

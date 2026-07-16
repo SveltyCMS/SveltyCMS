@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { writePresetCollectionFiles } from "@src/routes/setup/preset-collections.server";

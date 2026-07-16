@@ -68,9 +68,8 @@ export function useDialog(options: DialogOptions) {
     if (isOpen && dialogEl) {
       triggerEl = document.activeElement;
       dialogEl.showModal();
-      // Lock both html and body to prevent background scrolling (scroll chaining)
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
+      // Scroll chaining is prevented via CSS `overscroll-behavior: contain`
+      // on the <dialog> element in modal.svelte / drawer.svelte.
       options.onopen?.();
 
       requestAnimationFrame(() => {
@@ -87,8 +86,6 @@ export function useDialog(options: DialogOptions) {
         }
         triggerEl = null;
       }
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
       options.onclose?.();
     }
   });

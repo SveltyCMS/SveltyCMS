@@ -275,11 +275,11 @@ When generating/modifying code:
     - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
+14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, `src/routes/files/`, or `src/routes/(app)/`, run the fast security regression suite:
     `bash
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/file-server-tenant.test.ts
 `
-    This validates all 4 security layers (Middleware → Dispatcher → Handler → Page Action) in under 1 second.
+    This validates all 5 security layers (Middleware → Dispatcher → Handler → Page Action → File Server) in under 2 seconds.
     n15. **Predictive Preloading (Anchor-First)**: - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading. - **Strategy Selection**: - Table rows / collection entries → `data-preload="smart"` (physics cone + behavioral priority) - Dashboard widget links → `data-preload="predict"` (cursor trajectory prediction) - Sidebar / config nav → `data-preload="hover"` (150ms intent detection) - Media gallery thumbnails → `data-preload="viewport"` (IntersectionObserver) - **Implementation**: `src/utils/predictive-preload.ts` — MutationObserver-based, initialized once in `+layout.svelte`. - **goto() escape hatch**: Only use `goto()` for non-navigation URL updates (filters, sorting, pagination). - **Reference**: `docs/reference/architecture/hover-preloading.mdx`
 15. **Behavioral Learning Integration**:
     - Every `+layout.server.ts` MUST call `recordCollectionAccess()` and `recordNavigation()` (already wired — do not remove).
@@ -492,24 +492,24 @@ it("uses bun:sqlite", async () => {
 
 ## Development Commands
 
-| Category      | Command                                                                                                                             | Description                                                       |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Daily Dev     | `bun run dev`                                                                                                                       | Dev server (auto-setup wizard)                                    |
-|               | `bun run build`                                                                                                                     | Production build                                                  |
-|               | `bun run preview`                                                                                                                   | Preview on 127.0.0.1:4173                                         |
-| Code Quality  | `bun run check`                                                                                                                     | Type checking                                                     |
-|               | `bun run lint`                                                                                                                      | Fast Lint (oxlint)                                                |
-|               | `bun run format`                                                                                                                    | Fast Format (oxfmt)                                               |
-| Testing       | `bun run test:unit`                                                                                                                 | Unit tests (Vitest/jsdom) — 1,516 tests                           |
-|               | `bun run test:integration`                                                                                                          | Integration (DB required)                                         |
-|               | `bun run test:e2e`                                                                                                                  | E2E (Playwright)                                                  |
-| **Git**       | `bun run git commit -m "msg"`                                                                                                       | Hardened commit (blocks --no-verify)                              |
-|               | `bun run git push`                                                                                                                  | Hardened push (blocks --no-verify)                                |
-| **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts` | Fast security regression check (69 tests)                         |
-| DB Operations | `bun run db:push`                                                                                                                   | Push schema changes (Drizzle)                                     |
-| i18n          | `bun run paraglide`                                                                                                                 | Compile messages                                                  |
-| Diagnostics   | `bun run check`                                                                                                                     | Type checking & validation (use `bun test` for isolated DB tests) |
-| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit`                                                              | **Mandatory before commit** (performs full local CI check)        |
+| Category      | Command                                                                                                                                                                         | Description                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Daily Dev     | `bun run dev`                                                                                                                                                                   | Dev server (auto-setup wizard)                                    |
+|               | `bun run build`                                                                                                                                                                 | Production build                                                  |
+|               | `bun run preview`                                                                                                                                                               | Preview on 127.0.0.1:4173                                         |
+| Code Quality  | `bun run check`                                                                                                                                                                 | Type checking                                                     |
+|               | `bun run lint`                                                                                                                                                                  | Fast Lint (oxlint)                                                |
+|               | `bun run format`                                                                                                                                                                | Fast Format (oxfmt)                                               |
+| Testing       | `bun run test:unit`                                                                                                                                                             | Unit tests (Vitest/jsdom) — 1,516 tests                           |
+|               | `bun run test:integration`                                                                                                                                                      | Integration (DB required)                                         |
+|               | `bun run test:e2e`                                                                                                                                                              | E2E (Playwright)                                                  |
+| **Git**       | `bun run git commit -m "msg"`                                                                                                                                                   | Hardened commit (blocks --no-verify)                              |
+|               | `bun run git push`                                                                                                                                                              | Hardened push (blocks --no-verify)                                |
+| **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/hooks/file-server-tenant.test.ts` | Fast security regression check (95 tests)                         |
+| DB Operations | `bun run db:push`                                                                                                                                                               | Push schema changes (Drizzle)                                     |
+| i18n          | `bun run paraglide`                                                                                                                                                             | Compile messages                                                  |
+| Diagnostics   | `bun run check`                                                                                                                                                                 | Type checking & validation (use `bun test` for isolated DB tests) |
+| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit`                                                                                                          | **Mandatory before commit** (performs full local CI check)        |
 
 ## Architecture Overview
 
@@ -632,7 +632,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
 | `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
 | `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/role-permission-access.test.ts`        | `docs/tests/rbac-testing.mdx`                                                                       |
+| `tests/unit/auth/role-permission-access.test.ts`   | `docs/tests/rbac-testing.mdx`                                                                       |
 | `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
 | `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
 | `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |

@@ -192,7 +192,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 				aria-pressed={showPassword}
 				class={cn(
-					"absolute inset-e-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none",
+										"absolute inset-e-2 top-3 hover:opacity-75 focus:outline-none",
 					bgTransparent
 						? "text-white"
 						: passwordIconColor

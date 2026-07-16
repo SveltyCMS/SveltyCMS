@@ -23,11 +23,12 @@ import {
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { successResponse, rawResponse } from "./base";
-import { invalidateSessionCache } from "@src/hooks/handle-authentication";
+import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
+import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -239,15 +240,17 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
   let userResult;
   try {
     userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
-    console.log(
-      `[BypassDebug] getUserByEmail results for email=${requestedEmail}, tenantId=${tenantId}:`,
-      JSON.stringify(userResult),
-    );
+    logger.info(`[BypassDebug] getUserByEmail results`, {
+      email: requestedEmail,
+      tenantId,
+      result: userResult,
+    });
   } catch (e: unknown) {
-    console.error(
-      `[BypassDebug] Error in getUserByEmail during test login for email=${requestedEmail}, tenantId=${tenantId}:`,
-      e,
-    );
+    logger.error(`[BypassDebug] Error in getUserByEmail during test login`, {
+      email: requestedEmail,
+      tenantId,
+      error: e,
+    });
   }
 
   if (userResult?.success && userResult.data?._id) {
@@ -260,13 +263,13 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
       tenantId: tenantId as DatabaseId,
     });
-    console.log(
-      `[BypassDebug] Session successfully created in DB for user_id=${user._id}, sessionId=${session._id}`,
-    );
+    logger.info(`[BypassDebug] Session successfully created in DB for user_id=${user._id}`, {
+      sessionId: session._id,
+    });
     return { user, session };
   }
 
-  console.warn(
+  logger.warn(
     `[BypassDebug] getUserByEmail failed to find user or missing _id. Falling back to dummy mock session.`,
   );
   return {
@@ -342,6 +345,25 @@ export async function handleUpdateUserAttributesRoute(
     tenantId,
   });
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
+
+  // 🔄 Refresh session caches so the next page load returns updated user data
+  const currentSessionId =
+    (event.locals.session_id as DatabaseId | undefined) ??
+    event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
+    event.cookies.get(SESSION_COOKIE_NAME);
+  if (currentSessionId && result.data) {
+    primeSessionMemoryCache(currentSessionId, result.data);
+    // Also clear the Redis cache key so it's re-read from DB on next cache miss
+    try {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const cacheKey = tenantId
+        ? `session:${tenantId}:${currentSessionId}`
+        : `session:${currentSessionId}`;
+      cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
+    } catch {
+      /* cache service not available — memory-only is fine */
+    }
+  }
 
   // 🔐 Password change: Invalidate all other sessions across all devices
   const hasPasswordField = "password" in updates || "password" in (body as any);
@@ -463,7 +485,11 @@ export async function handleSessionsRoutes(
 
   if (event.request.method === "GET") {
     // List all active sessions for the current user
-    const result = await cms.auth.getActiveSessions(user._id, { tenantId });
+    const userId = user._id || user.id;
+    if (!userId) {
+      throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    }
+    const result = await cms.auth.getActiveSessions(userId, { tenantId });
     if (!result.success) {
       throw new AppError(result.message || "Failed to retrieve sessions", 500);
     }
@@ -471,7 +497,7 @@ export async function handleSessionsRoutes(
     const currentSessionId = event.locals.session_id;
     const sessions = (result.data || []).map((s: any) => ({
       ...s,
-      isCurrent: s._id === currentSessionId,
+      isCurrent: s._id === currentSessionId || s.id === currentSessionId,
     }));
     return successResponse(event, { sessions });
   }
@@ -665,9 +691,20 @@ export async function handleUserSpecificRoutes(
   // Batch operations
   if (method === "batch" && request.method === "POST") {
     const body = await request.json();
-    const ids = body.ids || body.userIds;
+    const rawIds = body.ids || body.userIds;
+    const ids = (Array.isArray(rawIds) ? rawIds : []).map(String).filter(Boolean);
+    if (!body.action) {
+      throw new AppError("Batch action is required", 400, "INVALID_BATCH_ACTION");
+    }
+    if (ids.length === 0 && body.action !== "invalid_action") {
+      // Empty id list is a client error for mutating batch ops
+      throw new AppError("userIds must be a non-empty array", 400, "INVALID_BATCH_IDS");
+    }
     const result = await cms.auth.batchAction(ids, body.action, { tenantId });
-    return successResponse(event, result);
+    if (!result.success) {
+      throw new AppError(result.message || "Batch action failed", 400, "BATCH_FAILED");
+    }
+    return successResponse(event, result.data ?? result);
   }
 
   // Single user operations

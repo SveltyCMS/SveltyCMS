@@ -80,6 +80,12 @@ export interface PrecheckOptions {
    * Default: false for "push" (keeps pre-push fast), true for "full".
    */
   includeDbTasks?: boolean;
+  /**
+   * Push tier only — run SQLite integration tests (zero infra cost).
+   * Default: false for "push" (keeps pre-push fast), automatically
+   * enabled when includeDbTasks is set.
+   */
+  includeSqliteOnPush?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,12 +332,42 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
   },
   {
+    name: "P0 Coverage Validation",
+    ciJob: "whitebox",
+    estimatedMs: 1500,
+    remediation: "bun run scripts/validate-p0-coverage.ts --verbose",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () =>
+      runCommand("bun", ["run", "scripts/validate-p0-coverage.ts"], {
+        silent: true,
+        timeout: 30_000,
+      }),
+  },
+  {
     name: "Secret Misuse Scan",
     ciJob: "whitebox",
     estimatedMs: 1500,
     remediation: "bun run scripts/scan-secret-misuse.ts",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"]),
+  },
+  {
+    name: "Security Regression Tests",
+    ciJob: "whitebox",
+    estimatedMs: 1000,
+    remediation:
+      "bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () =>
+      runCommand("bun", [
+        "test",
+        "tests/unit/hooks/defense-in-depth.test.ts",
+        "tests/unit/hooks/authentication.test.ts",
+        "tests/unit/hooks/authorization.test.ts",
+        "tests/unit/auth/role-permission-access.test.ts",
+        "tests/unit/hooks/setup.test.ts",
+        "tests/unit/hooks/security-headers.test.ts",
+      ]),
   },
   {
     name: "Docs Lint",
@@ -374,7 +410,12 @@ const BASE_TASKS: TaskSpec[] = [
       runCommand(
         "bun",
         ctx.tier === "push"
-          ? ["run", "scripts/test-smart.ts", "--unit-only"]
+          ? [
+              "run",
+              "scripts/test-smart.ts",
+              "--unit-only",
+              "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
+            ]
           : ["run", "test:unit"],
         { silent: true, timeout: 600_000 },
       ),
@@ -531,16 +572,26 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
     estimatedMs: 120000,
     shouldSkip: (ctx) => {
       const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
-      return !includeDb || db !== "sqlite";
+      const includeSqlite =
+        includeDb || (ctx.tier === "push" && ctx.options.includeSqliteOnPush === true);
+      return !includeSqlite || db !== "sqlite";
     },
     run: (ctx) =>
-      runCommand("bun", ["test", "tests/integration/databases/content-nodes-contract.test.ts"], {
-        env: {
-          ...getIntegrationTestEnv("sqlite"),
-          TEST_API_SECRET: ctx.testSecret,
+      runCommand(
+        "bun",
+        [
+          "test",
+          "tests/integration/databases/content-nodes-contract.test.ts",
+          "tests/integration/databases/contract.test.ts",
+        ],
+        {
+          env: {
+            ...getIntegrationTestEnv("sqlite"),
+            TEST_API_SECRET: ctx.testSecret,
+          },
+          timeout: 300_000,
         },
-        timeout: 300_000,
-      }),
+      ),
   };
 
   return [

@@ -101,22 +101,16 @@ onDestroy(() => {
 });
 
 async function handleCollectionSave(confirmDeletions = false) {
-	if (
-		validationStore.errors &&
-		Object.keys(validationStore.errors).length > 0
-	) {
-		toast.error("Please fix validation errors before saving");
-		return;
-	}
+	// Clear stale validation errors so the save can proceed after
+	// the user has corrected field values (e.g. name validation from
+	// a previous attempt that was dismissed without a page reload).
+	validationStore.clearAllErrors();
 
 	// Validate required name client-side
 	if (!collection.value?.name?.trim()) {
 		validationStore.setError("name", "Collection name is required");
 		toast.error("Collection name is required");
 		return;
-	}
-	if (validationStore.hasError("name")) {
-		validationStore.clearError("name");
 	}
 
 	try {
@@ -250,7 +244,7 @@ $effect(() => {
 					</div>
 				{:else if activeTab === 'permissions'}
 					<div class="animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">
-						<CollectionPermissions roles={data.roles || []} />
+						<CollectionPermissions roles={data.roles as any || []} />
 					</div>
 				{/if}
 			</div>

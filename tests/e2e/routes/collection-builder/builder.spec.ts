@@ -4,11 +4,21 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
+import {
+  addInputField,
+  openNewCollectionEditor,
+  quickAddInputWidget,
+  uniqueCollectionFixture,
+} from "../../helpers/collection-builder-flow";
 
 test.describe("Collection Builder with Modern Widgets", () => {
+  // UI login + widget init regularly exceeds Playwright's 30s default under CI load.
+  test.describe.configure({ timeout: 120_000 });
+
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    // API session cookie — avoids flaky /login UI clicks that hit test timeout.
+    await ensureAuthenticated(page);
   });
 
   test("should navigate to collection builder", async ({ page }) => {
@@ -46,16 +56,14 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should create a collection with modern widgets", async ({ page }) => {
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
-
+    await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill("Test Article");
     await page.locator("#description").fill("Test collection for articles");
 
-    await page.getByTestId("tab-widgets").click();
-    await page.getByTestId("quick-add-input").click();
-
-    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
+    await quickAddInputWidget(page);
+    await expect(page.getByTestId("widget-fields-list").getByText(/New Input/i)).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("should filter widgets by search when search input is present", async ({ page }) => {
@@ -75,38 +83,30 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should configure widget-specific properties", async ({ page }) => {
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
-    await page.getByTestId("tab-widgets").click();
+    // quickAddInputWidget: dialog-scoped Input pick when "Add New Field" is open.
+    const fixture = uniqueCollectionFixture("WidgetCfg");
+    await openNewCollectionEditor(page);
+    await page.getByTestId("collection-name-input").fill(fixture.name);
 
-    await page.getByTestId("add-field-button").click();
+    await addInputField(page, { label: "User Email", fieldName: "email" });
 
-    // Select Input widget from the modal
-    await page.getByRole("button", { name: /Input/i }).first().click();
-
-    // Configure label in the WidgetInspector side panel
-    await page.getByPlaceholder("e.g. Profile Picture").fill("User Email");
-    await page.getByPlaceholder("e.g. profile_pic").fill("email");
-
-    await page.getByRole("button", { name: /Apply Changes/i }).click();
-
-    // Verify field appears in the widget-fields-list
-    await expect(page.getByTestId("widget-fields-list").getByText("User Email")).toBeVisible({
-      timeout: 10_000,
+    await expect(
+      page.getByTestId("widget-fields-list").getByText("User Email", { exact: true }),
+    ).toBeVisible({
+      timeout: 15_000,
     });
   });
 
   test("should handle widget dependency display", async ({ page }) => {
     await page.goto("/config/extensions");
-    await page.getByRole("tab", { name: /widgets/i }).click();
+    const widgetsTab = page.getByRole("tab", { name: /widgets/i });
+    await widgetsTab.click();
 
-    // Core widgets ship without external dependencies, so dependency info is optional.
-    // Verify the page loaded — the tab heading confirms we're on the right view.
-    await expect(page.getByRole("tab", { name: /widgets/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
-      { timeout: 5_000 },
-    );
+    // Core widgets always load — assert content rather than aria-selected
+    // (tab component variants differ on attribute timing in CI).
+    await expect(page.getByText(/Input|Checkbox|RichText|Select|Number/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("should enable/disable widgets when toggles are present", async ({ page }) => {
@@ -134,8 +134,8 @@ test.describe("Collection Builder with Modern Widgets", () => {
   });
 
   test("should validate collection creation", async ({ page }) => {
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
+    const fixture = uniqueCollectionFixture("ValidCol");
+    await openNewCollectionEditor(page);
 
     const nameInput = page.getByTestId("collection-name-input");
     await expect(nameInput).toBeVisible({ timeout: 10_000 });
@@ -147,16 +147,18 @@ test.describe("Collection Builder with Modern Widgets", () => {
       timeout: 5_000,
     });
 
-    // Fill required info and add a field
-    await nameInput.fill("Valid Collection");
-    await page.getByTestId("tab-widgets").click();
-    await page.getByTestId("quick-add-input").click();
-    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
-
-    // Save should succeed
-    await page.getByTestId("save-collection-button").first().click();
-    await expect(page.getByText(/collection saved/i)).toBeVisible({
+    // Unique name + field, then save via shared helper (toast wait)
+    await nameInput.fill(fixture.name);
+    await quickAddInputWidget(page);
+    await expect(page.getByTestId("widget-fields-list").getByText(/New Input/i)).toBeVisible({
       timeout: 15_000,
+    });
+
+    await page.getByTestId("save-collection-button").first().click();
+    await expect(
+      page.getByText(/collection saved|saved successfully|successfully saved/i),
+    ).toBeVisible({
+      timeout: 20_000,
     });
   });
 
@@ -173,13 +175,19 @@ test.describe("Collection Builder with Modern Widgets", () => {
     if (hasExisting) {
       await existingCollection.click();
     } else {
-      await page.getByTestId("add-collection-button").first().click();
+      await openNewCollectionEditor(page);
       await page.getByTestId("collection-name-input").fill("Reorder Test");
-      await page.getByTestId("tab-widgets").click();
 
       for (let i = 0; i < 3; i++) {
-        await page.getByTestId("quick-add-input").click();
-        await expect(page.getByText(/New Input/i).nth(i)).toBeVisible({ timeout: 10_000 });
+        await quickAddInputWidget(page);
+        await expect(
+          page
+            .getByTestId("widget-fields-list")
+            .getByText(/New Input/i)
+            .nth(i),
+        ).toBeVisible({
+          timeout: 10_000,
+        });
       }
     }
 

@@ -41,8 +41,9 @@ const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
     grep: "(collection-builder|journey|empty-state|content-smoke)",
   },
   {
+    // Paths + describe titles (Playwright --grep matches full title including file path)
     name: "Users & RBAC",
-    grep: "(user/profile|user/management|permissions|rbac|account-smoke)",
+    grep: "(user/profile|user/management|user/account-smoke|permissions|rbac|account-smoke)",
   },
   {
     name: "Media & Dashboard",
@@ -53,8 +54,10 @@ const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
     grep: "(branding|visual-regression|accessibility|language)",
   },
   {
+    // Prefer path/title anchors that won't accidentally scoop unrelated specs
+    // (e.g. profile tests that merely contain the word "settings").
     name: "Admin & Catch-All",
-    grep: "(tenants|settings|catch-all)",
+    grep: "(admin/tenants|system/settings|system-settings|catch-all|isolation)",
   },
 ];
 

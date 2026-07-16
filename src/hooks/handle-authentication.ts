@@ -6,13 +6,13 @@
  * - **Session Management**: Validates session cookies with 3-layer caching (in-memory → Redis → database)
  * - **Security Token Rotation**: Automatic token rotation for active sessions (prevents session hijacking)
  * - **Multi-tenancy**: Hostname-based tenant identification with strict isolation
- * - **Memory Optimization**: WeakRef-based cache with automatic garbage collection
+ * - **Memory Optimization**: LRU cache with TTL-based eviction (no WeakRef GC flakiness)
  * - **Rate Limiting**: Session rotation rate limits to prevent abuse
  * - **Metrics Integration**: Comprehensive tracking via metrics-service *
  *
  * ### Features
  * - Session rotation every 15 minutes for active users (industry best practice)
- * - WeakRef cache with LRU eviction (top 100 hot sessions)
+ * - LRU session cache (top 100 hot sessions) with TTL eviction
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - Rate-limited refresh attempts (100/min per IP)
  * - Automatic cleanup of expired sessions
@@ -48,6 +48,15 @@ import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
+
+/** Mask an email for log safety: r***s@web.de */
+function maskEmail(email: string): string {
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 1) return "***@***";
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex);
+  return local[0] + "***" + local[local.length - 1] + domain;
+}
 import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
@@ -106,13 +115,8 @@ interface SessionCacheEntry {
   user: User;
 }
 
-const sessionCache = new Map<string, WeakRef<SessionCacheEntry>>();
-const sessionCacheRegistry = new FinalizationRegistry<string>((sessionId) => {
-  sessionCache.delete(sessionId);
-});
-
-const MAX_STRONG_REFS = 100;
-const strongRefs = new Map<string, SessionCacheEntry>();
+const MAX_SESSION_CACHE = 100;
+const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();
 
@@ -125,44 +129,29 @@ const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per indus
 const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses
 
 /**
- * Gets a session from the cache, handling WeakRef dereferencing.
+ * Gets a session from the cache (LRU eviction, no WeakRef).
  */
 function getSessionFromCache(sessionId: string): SessionCacheEntry | null {
   const now = Date.now();
-  const strongRef = strongRefs.get(sessionId);
-  if (strongRef && now - strongRef.timestamp < SESSION_CACHE_TTL_MS) {
-    return strongRef;
-  }
-  const weakRef = sessionCache.get(sessionId);
-  if (weakRef) {
-    const entry = weakRef.deref();
-    if (entry && now - entry.timestamp < SESSION_CACHE_TTL_MS) {
-      addToStrongRefs(sessionId, entry);
-      return entry;
-    }
+  const entry = sessionCache.get(sessionId);
+  if (entry && now - entry.timestamp < SESSION_CACHE_TTL_MS) {
+    // Move to end (most recently used)
+    sessionCache.delete(sessionId);
+    sessionCache.set(sessionId, entry);
+    return entry;
   }
   return null;
 }
 
 /**
- * Sets a session in the cache with WeakRef.
+ * Sets a session in the cache with LRU eviction.
  */
 function setSessionInCache(sessionId: string, entry: SessionCacheEntry): void {
-  addToStrongRefs(sessionId, entry);
-  const weakRef = new WeakRef(entry);
-  sessionCache.set(sessionId, weakRef);
-  sessionCacheRegistry.register(entry, sessionId);
-}
-
-/**
- * Adds/updates a session in the strong reference LRU cache.
- */
-function addToStrongRefs(sessionId: string, entry: SessionCacheEntry): void {
-  if (strongRefs.has(sessionId)) strongRefs.delete(sessionId);
-  strongRefs.set(sessionId, entry);
-  if (strongRefs.size > MAX_STRONG_REFS) {
-    const firstKey = strongRefs.keys().next().value;
-    if (firstKey) strongRefs.delete(firstKey);
+  if (sessionCache.has(sessionId)) sessionCache.delete(sessionId);
+  sessionCache.set(sessionId, entry);
+  if (sessionCache.size > MAX_SESSION_CACHE) {
+    const firstKey = sessionCache.keys().next().value;
+    if (firstKey) sessionCache.delete(firstKey);
   }
 }
 
@@ -172,8 +161,8 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_K
   (globalThis as any)[SESSION_CLEANUP_KEY] = setInterval(
     () => {
       const now = Date.now();
-      for (const [sessionId, data] of strongRefs.entries()) {
-        if (now - data.timestamp > SESSION_CACHE_TTL_MS) strongRefs.delete(sessionId);
+      for (const [sessionId, data] of sessionCache.entries()) {
+        if (now - data.timestamp > SESSION_CACHE_TTL_MS) sessionCache.delete(sessionId);
       }
       for (const [sessionId, timestamp] of lastRefreshAttempt.entries()) {
         if (now - timestamp > 300_000) lastRefreshAttempt.delete(sessionId);
@@ -275,7 +264,7 @@ async function getUserFromSession(
       if (userResult.data) {
         const user = userResult.data;
         logger.debug(
-          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${(user as any).email}`,
+          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
         );
         const sessionData: SessionCacheEntry = { user, timestamp: now };
         setSessionInCache(sessionId, sessionData);
@@ -541,10 +530,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
       const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
       logger.info(
-        `[Auth] getUserFromSession: ${user ? "FOUND " + user.email : "NULL"} path=${event.url.pathname}`,
+        `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) : "NULL"} path=${event.url.pathname}`,
       );
       logger.info(
-        `[Auth] getUserFromSession result: ${user ? user.email + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
+        `[Auth] getUserFromSession result: ${user ? maskEmail(user.email) + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
       );
 
       if (isDemoMode && !locals.tenantId && !user) {
@@ -838,7 +827,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {
   sessionCache.delete(sessionId);
-  strongRefs.delete(sessionId);
   lastRefreshAttempt.delete(sessionId);
   lastRotationAttempt.delete(sessionId);
 
@@ -878,7 +866,6 @@ export function forceSessionRotation(sessionId: string): void {
 
 export function clearAllSessionCaches(): void {
   sessionCache.clear();
-  strongRefs.clear();
   lastRefreshAttempt.clear();
   lastRotationAttempt.clear();
   negativeCache.clear();
@@ -898,10 +885,9 @@ export function primeSessionMemoryCache(sessionId: string, user: User): void {
 
 export function getSessionCacheStats() {
   return {
-    weakRefs: sessionCache.size,
-    strongRefs: strongRefs.size,
+    cachedSessions: sessionCache.size,
     pendingRefreshes: lastRefreshAttempt.size,
     pendingRotations: lastRotationAttempt.size,
-    maxStrongRefs: MAX_STRONG_REFS,
+    maxCachedSessions: MAX_SESSION_CACHE,
   };
 }

@@ -3,7 +3,7 @@
  * @description Integration tests for Real-Time Collaboration (SSE) API.
  */
 
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
 

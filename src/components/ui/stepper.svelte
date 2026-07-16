@@ -44,10 +44,16 @@ let {
 	onStepClick?: (index: number) => void;
 }>();
 
-function isClickable(index: number) {
-	// Allow clicking completed steps or the next one
-	return completedSteps.has(index) || index <= currentStep + 1;
-}
+	function isClickable(index: number) {
+		// Allow clicking completed steps or the next one
+		return completedSteps.has(index) || index <= currentStep + 1;
+	}
+
+	function stepIndicatorClass(index: number): string {
+		if (completedSteps.has(index)) return 'bg-success-500 text-white';
+		if (index === currentStep) return 'bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110';
+		return 'bg-surface-200 dark:bg-surface-700 text-surface-500';
+	}
 </script>
 
 <div class="stepper-container {orientation === 'vertical' ? 'flex-col space-y-4' : 'flex-row gap-4 items-center justify-between'} flex w-full">
@@ -57,17 +63,14 @@ function isClickable(index: number) {
 				type="button"
 				class="w-full flex {orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded transition-all
 					{i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}
-					{isClickable(i) ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}"
+					{isClickable(i) ? '' : 'cursor-not-allowed opacity-50'}
 				onclick={() => isClickable(i) && onStepClick(i)}
 				disabled={!isClickable(i)}
 				aria-current={i === currentStep ? 'step' : undefined}
 				aria-label={step.label}
 			>
 				<!-- Step Indicator -->
-				<div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all
-					{completedSteps.has(i) ? 'bg-success-500 text-white' :
-					 i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110' :
-					 'bg-surface-200 dark:bg-surface-700 text-surface-500'}">
+				<div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all {stepIndicatorClass(i)}">
 					{#if completedSteps.has(i)}
 						<iconify-icon icon="mdi:check" width="20"></iconify-icon>
 					{:else if step.icon}

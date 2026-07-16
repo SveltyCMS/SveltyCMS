@@ -45,6 +45,7 @@ import type { User } from "@src/databases/auth/types";
 import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error, isRedirect, redirect } from "@sveltejs/kit";
+import { parseCollectionListQuery } from "@utils/collection-query-filters";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
@@ -159,54 +160,49 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     }
 
     // =================================================================
-    // 3. DEFINE CACHE KEY & CHECK CACHE
+    // 3. PARSE URL QUERY (search / filter_* / sort / page) — schema-whitelisted
     // =================================================================
-    const page = Number(url.searchParams.get("page") ?? 1);
-    const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
-    const sortField = url.searchParams.get("sort") || "_createdAt";
-    const sortOrder = url.searchParams.get("order") || "desc";
-    const sortParams = {
-      field: sortField,
-      direction: sortOrder as "asc" | "desc",
-    };
+    // Shared parser: whitelist field names against collection schema, stable
+    // queryHash for L1/L2 cache keys (see collection-query-filters + cache-system.mdx).
+    const listQuery = parseCollectionListQuery(url.searchParams, currentCollection);
     const editEntryId = url.searchParams.get("edit");
-    const globalSearch = url.searchParams.get("search") || "";
-
-    const filterParams: Record<string, { contains: string }> = {};
-
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key.startsWith("filter_")) {
-        const filterKey = key.substring(7); // remove "filter_"
-        if ((filterKey === "createdAt" || filterKey === "updatedAt") && value) {
-          // Check for "asda" type garbage. Valid dates or partial headers (numbers) allow pass.
-          if (Number.isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
-            // Invalid date filter - ignore/empty logic handled in service now
-          }
-        }
-        filterParams[filterKey] = { contains: value }; // Assuming a 'contains' filter strategy
-      }
-    }
 
     // =================================================================
-    // 3. LOAD COLLECTION DATA (via CollectionService)
+    // 4. LOAD COLLECTION DATA (via CollectionService + getOrSetSWR)
     // =================================================================
-    // Use the centralized service for data loading to enable pre-warming and consistent caching.
+    // Service builds `collection:{id}:query:{hash}:…` keys and uses SWR.
+    // Content mutations must call invalidateCollection(id) (prefix clear).
     const { entries, pagination, revisions, contentLanguage, collectionSchema } =
       await collectionService.getCollectionData({
         collection: currentCollection,
-        page,
-        pageSize,
-        sort: sortParams,
-        filter: filterParams,
-        search: globalSearch,
+        page: listQuery.page,
+        pageSize: listQuery.pageSize,
+        sort: listQuery.sort,
+        filter: listQuery.filter,
+        search: listQuery.search,
         language,
         user: typedUser,
         tenantId,
         editEntryId: editEntryId || undefined,
       });
 
+    // Status facets for filter chips (non-blocking failure → empty map)
+    let statusFacets: Record<string, number> = {};
+    try {
+      statusFacets = await collectionService.getStatusFacets({
+        collection: currentCollection,
+        tenantId,
+      });
+    } catch {
+      statusFacets = {};
+    }
+
+    // In-process list metrics (SSR snapshot for ?debug=table badge)
+    const { summarizeListQueryMetrics } = await import("@utils/list-query-metrics");
+    const listMetrics = summarizeListQueryMetrics("CollectionService.getCollectionData");
+
     // =================================================================
-    // 4. PREPARE FINAL RESPONSE
+    // 5. PREPARE FINAL RESPONSE
     // =================================================================
 
     const returnData = {
@@ -227,6 +223,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       entries,
       pagination,
       revisions,
+      statusFacets,
+      listMetrics,
     };
 
     return returnData;

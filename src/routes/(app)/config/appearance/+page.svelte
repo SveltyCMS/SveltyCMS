@@ -586,6 +586,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {#each USER_LAYOUT_PREF_KEYS as key (key)}
           <Select
+            id={`layout-pref-${key}`}
             bind:value={myLayoutPrefs[key]}
             label={getLayoutPrefLabel(key)}
             disabled={layoutLocked}
@@ -611,7 +612,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
         <Button variant="tertiary"
           onclick={() => activeTab = tab.id}
           size="sm"
-          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-400' : ''}>
+          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500' : ''}>
           <iconify-icon icon={tab.icon} width="16"></iconify-icon>
           <span>{tab.label}</span>
         </Button>

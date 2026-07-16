@@ -132,7 +132,7 @@ function starFill(displayVal: number, index: number): number {
 			role="presentation"
 			class={cn(
 				'relative inline-block transition-all duration-150',
-				!disabled && !readonly && 'cursor-pointer hover:scale-110'
+				!disabled && !readonly && 'hover:scale-110'
 			)}
 			onclick={(e) => {
 				if (disabled || readonly) return;

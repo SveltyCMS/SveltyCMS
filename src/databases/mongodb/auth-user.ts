@@ -254,12 +254,30 @@ export class UserAdapter {
     }
   }
 
+  /** Accept raw tenantId or BaseQueryOptions (SDK passes the latter). */
+  private resolveTenantId(
+    optionsOrTenant?: BaseQueryOptions | DatabaseId | null,
+  ): string | null | undefined {
+    if (optionsOrTenant == null) return optionsOrTenant as null | undefined;
+    if (typeof optionsOrTenant === "string") return optionsOrTenant;
+    if (typeof optionsOrTenant === "object" && "tenantId" in (optionsOrTenant as object)) {
+      const t = (optionsOrTenant as BaseQueryOptions).tenantId;
+      return t == null ? (t as null | undefined) : String(t);
+    }
+    return undefined;
+  }
+
   async blockUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    optionsOrTenant?: BaseQueryOptions | DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string, {
+      const ids = (userIds || []).filter(Boolean);
+      if (ids.length === 0) {
+        return { success: true, data: { modifiedCount: 0 } };
+      }
+      const tenantId = this.resolveTenantId(optionsOrTenant);
+      const filter = safeQuery({ _id: { $in: ids } } as any, tenantId as string, {
         includeDeleted: true,
       });
 
@@ -280,10 +298,15 @@ export class UserAdapter {
 
   async unblockUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    optionsOrTenant?: BaseQueryOptions | DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string, {
+      const ids = (userIds || []).filter(Boolean);
+      if (ids.length === 0) {
+        return { success: true, data: { modifiedCount: 0 } };
+      }
+      const tenantId = this.resolveTenantId(optionsOrTenant);
+      const filter = safeQuery({ _id: { $in: ids } } as any, tenantId as string, {
         includeDeleted: true,
       });
 
@@ -334,10 +357,15 @@ export class UserAdapter {
 
   async deleteUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    optionsOrTenant?: BaseQueryOptions | DatabaseId | null,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     try {
-      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string, {
+      const ids = (userIds || []).filter(Boolean);
+      if (ids.length === 0) {
+        return { success: true, data: { deletedCount: 0 } };
+      }
+      const tenantId = this.resolveTenantId(optionsOrTenant);
+      const filter = safeQuery({ _id: { $in: ids } } as any, tenantId as string, {
         includeDeleted: true,
       });
       const result = await this.UserModel.deleteMany(filter);

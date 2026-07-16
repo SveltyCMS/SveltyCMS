@@ -15,7 +15,7 @@ import {
   applyExtinction,
   predictNextPath,
 } from "@src/services/intelligence/behavioral-learner";
-import { expect } from "bun:test";
+import { expect } from "vitest";
 
 async function runBehavioralBenchmark() {
   console.log(`🚀 Starting BehavioralLearning Engine Benchmark...\n`);

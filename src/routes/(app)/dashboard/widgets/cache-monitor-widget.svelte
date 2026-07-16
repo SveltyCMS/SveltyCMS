@@ -109,7 +109,7 @@ export const widgetMeta = {
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
 			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">Upgrade License &rarr;</a>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-500">Upgrade License &rarr;</a>
 		</div>
 	</BaseWidget>
 {:else}

@@ -4,14 +4,18 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { ensureAuthenticated } from "../../helpers/test-auth";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
+import {
+  openNewCollectionEditor,
+  quickAddInputWidget,
+} from "../../helpers/collection-builder-flow";
 
 test.describe("Collection Builder — Federation Enrichment Picker", () => {
   test.setTimeout(120_000);
 
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await ensureAuthenticated(page);
   });
 
   test("configures federationEnrichments on Settings tab and persists after save", async ({
@@ -29,23 +33,20 @@ test.describe("Collection Builder — Federation Enrichment Picker", () => {
 
     const collectionName = `FedEnrich${Date.now()}`;
 
-    await page.goto("/config/collectionbuilder");
-    await page.getByTestId("add-collection-button").first().click();
+    await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill(collectionName);
 
-    await page.getByTestId("tab-widgets").click();
-    await page.getByTestId("quick-add-input").click();
-    await expect(page.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
+    // Dialog-safe: never click sidebar Input while "Add New Field" is open
+    await quickAddInputWidget(page);
 
-    const fieldRow = page
-      .getByTestId("widget-fields-list")
-      .getByText(/New Input/i)
-      .first();
-    await fieldRow.click();
+    const fieldRow = page.getByTestId("widget-fields-list").getByTestId("widget-field-row").first();
+    await expect(fieldRow.getByText(/New Input/i)).toBeVisible({ timeout: 15_000 });
+    await fieldRow.getByTestId("widget-field-open").click();
 
-    await page.getByPlaceholder("e.g. Profile Picture").fill("Author");
-    await page.getByPlaceholder("e.g. profile_pic").fill("authorId");
-    await page.getByRole("button", { name: /Apply Changes/i }).click();
+    await expect(page.getByTestId("widget-field-label")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("widget-field-label").fill("Author");
+    await page.getByTestId("widget-field-name").fill("authorId");
+    await page.getByTestId("widget-field-apply").click();
 
     await page.getByTestId("tab-permissions").click();
     const picker = page.getByTestId("federation-enrichment-picker");

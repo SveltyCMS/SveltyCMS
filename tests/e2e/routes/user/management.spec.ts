@@ -201,26 +201,51 @@ test.describe.serial("User Management Flow", () => {
   });
 
   test("Read and Edit User Profile", async ({ page }) => {
-    // Login
     await loginAsAdmin(page);
 
-    // Go to User Profile
-    await page.getByTestId("nav-user-profile").click();
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
 
-    // ✅ READ operation - assert user profile visible
-    await expect(page.locator("h1")).toContainText(/user profile/i);
+    // Fail fast if the root error boundary rendered
+    const systemError = page.getByRole("heading", { name: /system error/i });
+    if (await systemError.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      const detail = await page
+        .locator(".font-mono, pre, code")
+        .first()
+        .textContent()
+        .catch(() => "");
+      throw new Error(`User profile hit System Error boundary: ${detail?.trim() || "(no detail)"}`);
+    }
 
-    // ✅ UPDATE operation - Edit user info (scoped to the modal dialog)
-    await page.getByRole("button", { name: /edit user settings/i }).click();
-    const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
-    await expect(editDialog).toBeVisible({ timeout: 10_000 });
-    await editDialog.locator('input[name="username"]:not([disabled])').fill("updatedUser");
-    await editDialog.getByRole("button", { name: /save/i }).click();
-
-    // Confirm update saved via the success toast (modal closes on success)
-    await expect(page.getByText(/User Data Updated/i)).toBeVisible({
+    // ✅ READ — PageTitle testid (not fragile a11y name with nested controls)
+    const pageTitle = page.getByTestId("page-title");
+    await expect(pageTitle).toBeVisible({ timeout: 15_000 });
+    await expect(pageTitle).toContainText(/user profile|benutzerprofil/i);
+    await expect(page.getByRole("heading", { name: /^identity$/i })).toBeVisible({
       timeout: 10_000,
     });
+
+    // ✅ UPDATE — stable testid on Identity "Edit User Settings" button
+    const editBtn = page.getByTestId("edit-user-settings-btn");
+    await expect(editBtn).toBeVisible({ timeout: 10_000 });
+    await editBtn.click();
+
+    const editDialog = page
+      .getByRole("dialog")
+      .filter({ hasText: /edit user data|username/i })
+      .first();
+    await expect(editDialog).toBeVisible({ timeout: 15_000 });
+
+    // usernameSchema: no spaces — use a unique valid value each run
+    const newUsername = `updatedUser_${Date.now().toString(36).slice(-6)}`;
+    const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
+    await expect(usernameInput).toBeVisible({ timeout: 10_000 });
+    await usernameInput.fill(newUsername);
+
+    await editDialog.getByRole("button", { name: /^save$/i }).click();
+
+    // Toast may use HTML description; match text content
+    await expect(page.getByText(/User Data Updated/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {
