@@ -1,0 +1,20 @@
+{
+  "lsp": {
+    "tailwindcss-language-server": {
+      "settings": {
+        "includeLanguages": {
+          "svelte": "html"
+        },
+        "experimental": {
+          "classRegex": [
+            "class=\"([^\"]*)\"",
+            "class='([^']*)'",
+            "class:\\s*([^\\s{]+)",
+            "\\{\\s*class:\\s*\"([^\"]*)\"",
+            "\\{\\s*class:\\s*'([^']*)'"
+          ]
+        }
+      }
+    }
+  }
+}
