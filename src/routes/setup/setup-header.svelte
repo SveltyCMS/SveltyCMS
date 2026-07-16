@@ -110,7 +110,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 					<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-64">
 						{#snippet trigger()}
-							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1 dark:text-white">
+							<Button variant="ghost" type="button" class="h-10 rounded px-3 gap-1 dark:text-white">
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
 								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
 							</Button>
@@ -135,7 +135,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			</div>
 
 			<SystemTooltip title="Accessibility Help">
-				<Button variant="outline" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-black dark:text-white">
+				<Button variant="ghost" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-black dark:text-white">
 					<iconify-icon icon="mdi:accessibility" width="20"></iconify-icon>
 				</Button>
 			</SystemTooltip>

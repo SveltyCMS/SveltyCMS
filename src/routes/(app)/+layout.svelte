@@ -424,7 +424,8 @@ afterNavigate(() => {
 			<CommandBar />
 		{/if}
 
-		<div class="flex h-lvh flex-col overflow-hidden">
+		<div class="relative z-0">
+			<div class="flex h-lvh flex-col overflow-hidden">
 			{#if ui.state.header !== 'hidden'}
 				<header class="sticky top-0 z-10" style="height: var(--admin-header-height, 32px); min-height: 4px;">
 					<Slot name="global-toolbar" />
@@ -449,9 +450,9 @@ afterNavigate(() => {
 						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}
 
-					<div class="relative flex-1 overflow-visible {screen.isDesktop ? 'mb-2' : 'mb-16'}">
-						{@render children?.()}
-					</div>
+
+					{@render children?.()}
+
 
 					<!-- Sticky action bar (only rendered when content exists) -->
 										{#if theme.features.stickyActionBar && ui.stickyActionContent}
@@ -489,6 +490,7 @@ afterNavigate(() => {
 					<Slot name="global-footer" />
 				</footer>
 			{/if}
+		</div>
 		</div>
 
 		{#if screen.isMobile}

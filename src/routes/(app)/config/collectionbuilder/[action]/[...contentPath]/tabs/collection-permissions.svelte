@@ -123,7 +123,7 @@ function getRoleLabel(role: Role): string {
 							<!-- Role Name -->
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-3">
-									<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+									<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-500">
 										<span class="text-xs font-bold">{getRoleLabel(role).charAt(0)}</span>
 									</div>
 									<div>
@@ -140,7 +140,7 @@ function getRoleLabel(role: Role): string {
 								{#if perm}
 									<button
 										onclick={() => togglePermission(roleName, 'view')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.view ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.view ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-500' : 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
 										aria-label={`Toggle view for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.view}

@@ -529,17 +529,17 @@ Provides an organized interface for navigating hierarchical content structures.
 	{/if}
 
 	<!-- Search -->
-	<div class="relative {isFullSidebar ? 'w-full' : 'w-12'}">
-		<Input
-			id="collections-search"
-			type="search"
-			bind:value={search}
-			placeholder="Search collections..."
-			inputClass="pe-11 bg-surface-800/50 border-surface-700 text-white placeholder:text-surface-400 focus-visible:ring-primary-500 {isFullSidebar ? 'h-12 py-3' : 'h-10 py-2'}"
-			aria-label="Search collections"
-		/>
+	{#if isFullSidebar}
+		<div class="relative w-full">
+			<Input
+				id="collections-search"
+				type="search"
+				bind:value={search}
+				placeholder="Search collections..."
+				inputClass="pe-11 bg-surface-800/50 border-surface-700 text-white placeholder:text-surface-400 focus-visible:ring-primary-500 h-12 py-3"
+				aria-label="Search collections"
+			/>
 
-		{#if isFullSidebar}
 			<div class="absolute inset-e-0 top-0 flex h-full items-center">
 				{#if isSearching}
 					<div class="flex h-10 w-10 items-center justify-center">
@@ -560,8 +560,20 @@ Provides an organized interface for navigating hierarchical content structures.
 					</div>
 				{/if}
 			</div>
-		{/if}
-	</div>
+		</div>
+	{:else}
+		<div class="flex justify-center">
+			<Button
+				variant="ghost"
+				type="button"
+				onclick={() => ui.toggle('leftSidebar', 'full')}
+				aria-label="Search collections"
+				class="p-1"
+			>
+				<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
+			</Button>
+		</div>
+	{/if}
 
 	<!-- Custom Order Banner -->
 	{#if orderOverrides.size > 0}
@@ -576,19 +588,29 @@ Provides an organized interface for navigating hierarchical content structures.
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if treeNodes.length === 0}
-			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center text-surface-500">
-				{#if !widgets.isLoaded}
-					<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
-					<p class="text-xs">Loading collections…</p>
-				{:else if search || showOnlyFavorites || selectedTagFilter}
-					<iconify-icon icon="bi:search" width={28}></iconify-icon>
-					<p class="text-sm">No collections match your current filters.</p>
-					<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}>Clear filters</Button>
-				{:else}
-					<iconify-icon icon="bi:collection" width={28}></iconify-icon>
-					<p class="text-sm">No collections found.</p>
-				{/if}
-			</div>
+			{#if !isFullSidebar}
+				<div class="flex items-center justify-center py-4 text-surface-500">
+					{#if !widgets.isLoaded}
+						<div class="h-5 w-5 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
+					{:else}
+						<iconify-icon icon="bi:collection" width={24}></iconify-icon>
+					{/if}
+				</div>
+			{:else}
+				<div class="flex flex-col items-center justify-center gap-2 p-6 text-center text-surface-500">
+					{#if !widgets.isLoaded}
+						<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
+						<p class="text-xs">Loading collections…</p>
+					{:else if search || showOnlyFavorites || selectedTagFilter}
+						<iconify-icon icon="bi:search" width={28}></iconify-icon>
+						<p class="text-sm">No collections match your current filters.</p>
+						<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}>Clear filters</Button>
+					{:else}
+						<iconify-icon icon="bi:collection" width={28}></iconify-icon>
+						<p class="text-sm">No collections found.</p>
+					{/if}
+				</div>
+			{/if}
 		{:else if !widgets.isLoaded}
 			<div class="flex h-24 items-center justify-center">
 				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>

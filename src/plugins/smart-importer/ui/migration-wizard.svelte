@@ -386,7 +386,7 @@
               {step === s
                 ? 'bg-tertiary-500 text-white dark:bg-primary-500'
                 : step > s
-                  ? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400 cursor-pointer'
+                  ? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-500 cursor-pointer'
                   : 'bg-surface-100 text-surface-400 dark:bg-surface-800 dark:text-surface-600'}"
             aria-label="Step {s}: {label}"
             aria-current={step === s ? 'step' : undefined}
@@ -440,13 +440,13 @@
             <div class="flex items-start justify-between">
               <div class="flex items-center gap-4">
                 <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-tertiary-500/10 dark:bg-primary-500/10">
-                  <iconify-icon icon={confidenceLabels[detectedFormat] || 'mdi:file-outline'} width="28" class="text-tertiary-600 dark:text-primary-400" aria-hidden="true"></iconify-icon>
+                  <iconify-icon icon={confidenceLabels[detectedFormat] || 'mdi:file-outline'} width="28" class="text-tertiary-600 dark:text-primary-500" aria-hidden="true"></iconify-icon>
                 </div>
                 <div>
                   <h3 class="text-lg font-semibold text-surface-900 dark:text-white">{file.name}</h3>
                   <p class="text-sm text-surface-500">{formatFileSize(file.size)}</p>
                   {#if detectedFormat !== 'unknown'}
-                    <span class="mt-2 inline-flex items-center gap-1 rounded-full bg-tertiary-500/10 px-2.5 py-1 text-xs font-medium text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400">
+                    <span class="mt-2 inline-flex items-center gap-1 rounded-full bg-tertiary-500/10 px-2.5 py-1 text-xs font-medium text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-500">
                       <iconify-icon icon="mdi:check-circle" width="14" aria-hidden="true"></iconify-icon>
                       {formatLabels[detectedFormat] || detectedFormat}
                     </span>
@@ -476,7 +476,7 @@
                       onclick={() => toggleContentType(ct)}
                       class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
                         {selectedContentTypes.has(ct)
-                          ? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-600 dark:border-primary-500 dark:bg-primary-500/10 dark:text-primary-400'
+                          ? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-600 dark:border-primary-500 dark:bg-primary-500/10 dark:text-primary-500'
                           : 'border-surface-200 bg-surface-50 text-surface-500 dark:border-surface-700 dark:bg-surface-800'}"
                       aria-pressed={selectedContentTypes.has(ct)}
                       aria-label="Toggle {ct}"
@@ -512,7 +512,7 @@
               <p class="text-sm text-surface-500">{fieldMappings.length} fields detected — adjust targets below</p>
             </div>
             <div class="flex gap-2 text-xs">
-              <span class="px-2 py-1 rounded bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400">
+              <span class="px-2 py-1 rounded bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-500">
                 🟢 {fieldMappings.filter(m => m.confidence >= 80).length} High
               </span>
               <span class="px-2 py-1 rounded bg-warning-500/10 text-warning-600">
@@ -665,7 +665,7 @@
           <!-- Stats Grid -->
           <div class="grid grid-cols-3 gap-4">
             <div class="rounded-lg bg-tertiary-500/10 p-4 text-center dark:bg-primary-500/10">
-              <p class="text-2xl font-bold text-tertiary-600 dark:text-primary-400">{importResult?.imported || 0}</p>
+              <p class="text-2xl font-bold text-tertiary-600 dark:text-primary-500">{importResult?.imported || 0}</p>
               <p class="text-xs text-surface-500">Imported</p>
             </div>
             <div class="rounded-lg bg-warning-500/10 p-4 text-center">

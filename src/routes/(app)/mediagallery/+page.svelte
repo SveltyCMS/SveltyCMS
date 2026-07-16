@@ -818,7 +818,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 								href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
 								class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
 									{isDropTarget
-										? 'bg-primary-500/20 text-primary-600 ring-1 ring-inset ring-primary-500/70 dark:text-primary-400'
+										? 'bg-primary-500/20 text-primary-600 ring-1 ring-inset ring-primary-500/70 dark:text-primary-500'
 										: selectedFiles.size > 0
 											? 'bg-surface-100 text-surface-800 hover:bg-primary-500/15 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
 											: 'hover:text-primary-500'}"

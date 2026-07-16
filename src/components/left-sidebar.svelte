@@ -223,6 +223,14 @@ Route-driven sidebar content (no dual collapsible section headers):
 			toggleUIElement('leftSidebar', 'collapsed');
 		}
 	}
+
+	/** Navigate to the media gallery from collection builder context */
+	function handleGoToMediaGallery(): void {
+		goto('/mediagallery');
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'collapsed');
+		}
+	}
 </script>
 
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
@@ -367,6 +375,27 @@ Route-driven sidebar content (no dual collapsible section headers):
 				<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
 					<Collections />
 				</div>
+
+				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+
+				<SystemTooltip
+					title="Go to Media Gallery"
+					positioning={{ placement: 'right' }}
+					triggerClass="w-full"
+				>
+					<Button
+						variant="ghost"
+						type="button"
+						onclick={handleGoToMediaGallery}
+						aria-label="Go to Media Gallery"
+						class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-100 {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
+					>
+						<iconify-icon icon="bi:image" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{#if isSidebarFull}
+							<span class="truncate">Media Gallery</span>
+						{/if}
+					</Button>
+				</SystemTooltip>
 			{/if}
 		{/if}
 	</div>

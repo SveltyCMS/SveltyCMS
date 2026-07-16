@@ -657,7 +657,7 @@ import { tick } from "svelte";
                           aria-label="Switch locale for {field.label || fieldName}. Current: {currentFieldLocale.toUpperCase()}"
                         >
                           <iconify-icon icon="bi:translate" width="14" aria-hidden="true"></iconify-icon>
-                          <span class="text-tertiary-600 dark:text-primary-400">{currentFieldLocale.toUpperCase()}</span>
+                          <span class="text-tertiary-600 dark:text-primary-500">{currentFieldLocale.toUpperCase()}</span>
                           {#if availableLanguages.length > 1}
                             <iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"></iconify-icon>
                           {/if}
