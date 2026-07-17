@@ -70,7 +70,7 @@ const passwordSchema = pipe(
     `Password must be at least ${getMinPasswordLength()} characters.`,
   ),
   regex(
-    /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[]{};':"\\|,.<>?]).+$/,
+    /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]).+$/,
     "Password must include a letter, number, and special character.",
   ),
 );

@@ -62,7 +62,22 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/auth/saml/login",
 ]);
 
-const PUBLIC_PREFIX_ROUTES = ["/api/settings/public", "/api/theme/public"];
+const PUBLIC_PREFIX_ROUTES = ["/api/settings/public", "/api/theme/public", "/share"];
+
+/**
+ * Public route prefixes/paths for audits and docs.
+ * Prefer isPublicRoute()/isBootstrapRoute() at runtime (O(1) Set + prefix checks).
+ */
+export const PUBLIC_ROUTES: readonly string[] = [
+  ...PUBLIC_EXACT_ROUTES,
+  ...PUBLIC_PREFIX_ROUTES,
+  "/warming-up",
+  "/api/auth",
+  "/api/system",
+  "/register",
+  "/login",
+  "/setup",
+];
 
 // ─── One-shot request classifier ──────────────────────────────────────────
 

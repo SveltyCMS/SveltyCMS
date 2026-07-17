@@ -24,12 +24,12 @@ let isMigrating = false;
 /** 🛡️ Hardened: Cross-partition-safe atomic move (copyFile + unlink) */
 async function moveFileAtomically(src: string, dest: string): Promise<boolean> {
   try {
-    await fs
-      .access(dest)
-      .then(() => {
-        throw new Error("Exists");
-      })
-      .catch(() => {});
+    try {
+      await fs.access(dest);
+      return false; // destination already exists — caller should count as skipped
+    } catch {
+      /* dest missing — safe to move */
+    }
     await fs.copyFile(src, dest);
     await fs.unlink(src);
     return true;
@@ -79,16 +79,9 @@ export async function migrateToMultiTenant(tenantId: string): Promise<{
       const src = path.join(flat, entry.name);
       const dest = path.join(tenantDir, entry.name);
 
-      try {
-        await fs.access(dest);
-        result.skipped++;
-        continue;
-      } catch {
-        /* safe to move */
-      }
-
-      await moveFileAtomically(src, dest);
-      result.moved++;
+      const movedOk = await moveFileAtomically(src, dest);
+      if (movedOk) result.moved++;
+      else result.skipped++;
     }
 
     if (result.moved > 0) {
@@ -119,16 +112,9 @@ export async function migrateToSingleTenant(tenantId: string): Promise<{
       const src = path.join(tenantDir, entry.name);
       const dest = path.join(flat, entry.name);
 
-      try {
-        await fs.access(dest);
-        result.skipped++;
-        continue;
-      } catch {
-        /* safe to move */
-      }
-
-      await moveFileAtomically(src, dest);
-      result.moved++;
+      const movedOk = await moveFileAtomically(src, dest);
+      if (movedOk) result.moved++;
+      else result.skipped++;
     }
 
     if (result.moved > 0) {
