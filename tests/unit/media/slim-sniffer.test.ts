@@ -52,14 +52,24 @@ describe("slim-sniffer — document/video formats", () => {
     });
   });
 
-  it("detects DOCX/ZIP via 50 4B 03 04", () => {
-    // DOCX requires inner "word/" check — create a buffer with it at offset 30+
-    const buf = Buffer.alloc(64, 0);
+  it("detects bare ZIP via 50 4B 03 04 when OOXML markers are absent", () => {
+    expect(sniffMimeType(Buffer.from([0x50, 0x4b, 0x03, 0x04]))).toEqual({
+      ext: "zip",
+      mime: "application/zip",
+    });
+  });
+
+  it("detects DOCX when ZIP local header carries word/ payload path", () => {
+    // Minimal local-file header + filename "word/document.xml" so the sniffer
+    // can distinguish OOXML from a plain ZIP (filename starts at offset 30).
+    const name = "word/document.xml";
+    const buf = Buffer.alloc(30 + name.length);
     buf[0] = 0x50;
     buf[1] = 0x4b;
     buf[2] = 0x03;
     buf[3] = 0x04;
-    buf.write("word/", 30, "ascii");
+    buf.writeUInt16LE(name.length, 26);
+    buf.write(name, 30, "ascii");
     expect(sniffMimeType(buf)).toEqual({
       ext: "docx",
       mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

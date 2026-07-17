@@ -14,17 +14,20 @@
 import path from "node:path";
 import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
 
-const CONFIG_ROOT = path.join(process.cwd(), "config");
+function getConfigRoot(): string {
+  return path.join(process.cwd(), "config");
+}
 
 /**
  * Resolve collection directory. 🛡️ Hardened: Path normalized to prevent escapes.
  */
 export function getCollectionsPath(tenantId?: string | null): string {
-  if (!tenantId) return path.join(CONFIG_ROOT, "collections");
+  const configRoot = getConfigRoot();
+  if (!tenantId) return path.join(configRoot, "collections");
 
   // 🛡️ Sanitize tenantId before joining to prevent path traversal
   const sanitizedTenant = path.basename(tenantId);
-  return path.join(CONFIG_ROOT, sanitizedTenant, "collections");
+  return path.join(configRoot, sanitizedTenant, "collections");
 }
 
 /**
@@ -39,9 +42,9 @@ export function getCompiledCollectionsPath(tenantId?: string | null): string {
  */
 export function extractTenantFromPath(filePath: string): string | null | undefined {
   const normalized = path.normalize(filePath);
-  const relative = path.relative(CONFIG_ROOT, normalized);
+  const relative = path.relative(getConfigRoot(), normalized);
 
-  // If the file is not inside CONFIG_ROOT, it's invalid/external
+  // If the file is not inside config root, it's invalid/external
   if (relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
 
   const parts = relative.split(path.sep);

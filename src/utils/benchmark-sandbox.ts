@@ -83,15 +83,16 @@ export function getLocalSandboxMediaRoot(): string {
   return path.resolve(process.cwd(), SANDBOX_MEDIA_REL);
 }
 
-/** 🛡️ Hardened: Canonical path resolution using centralized paths module */
-const CWD = paths.root;
-const LIVE_ROOTS = [
-  paths.privateConfig,
-  paths.collections,
-  paths.compiledCollections,
-  paths.database,
-  paths.media,
-].map((p) => path.normalize(p));
+/** 🛡️ Hardened: live roots re-resolved each call so chdir/tests stay correct */
+function getLiveRoots(): string[] {
+  return [
+    paths.privateConfig,
+    paths.collections,
+    paths.compiledCollections,
+    paths.database,
+    paths.media,
+  ].map((p) => path.normalize(p));
+}
 
 function liveCompiledCollectionsPath(tenantId?: string | null): string {
   const base = path.join(process.cwd(), ".compiledCollections");
@@ -131,7 +132,7 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
   }
 
   // 2. Allow test collections
-  const testCollections = path.join(CWD, "config", "collections", "test");
+  const testCollections = path.join(process.cwd(), "config", "collections", "test");
   if (
     normalizedTarget === testCollections ||
     normalizedTarget.startsWith(testCollections + path.sep)
@@ -140,10 +141,10 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
   }
 
   // 3. Block all other live roots
-  for (const root of LIVE_ROOTS) {
+  for (const root of getLiveRoots()) {
     if (normalizedTarget === root || normalizedTarget.startsWith(root + path.sep)) {
       throw new Error(
-        `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(CWD, normalizedTarget)}'. ` +
+        `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
           `Use sandbox paths under ${SANDBOX_COMPILED_ROOT} or ${SANDBOX_MEDIA_REL}.`,
       );
     }

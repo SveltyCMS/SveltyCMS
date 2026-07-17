@@ -116,22 +116,15 @@ test("SignUp First User", async ({ page }) => {
   });
   expect(resetResponse.ok()).toBeTruthy();
 
-  // Go to root — system should redirect to /setup for first-user flow
+  // Go to root — system should redirect to /setup (missing admin) or /login (first-user UI).
+  // Wait for navigation to settle: intermediate hops (/, redirect chains) are not failures.
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await dismissCookieConsent(page);
+  await page.waitForURL(/\/(login|setup)(\/|$|\?)/, { timeout: 15_000 });
 
-  // The system should be in setup mode — either at /setup or showing setup wizard
-  // If redirected to /login, ensureAuth() recreated users after reset.
-  // In that case, just verify the login page loaded (the system is functional).
-  // The signup form flow with a registration token requires setup mode;
-  // setup wizard flows are tested in the wizard project instead.
-  const url = page.url();
-  if (!url.includes("/login")) {
-    // Setup mode — the wizard flow is tested in the wizard project
-    // Just verify we're not stuck at /login
-    await expect(page).not.toHaveURL(/\/login/);
-  }
-  // else: login page rendered — system is functional, signup not tested here
+  // Full signup/wizard coverage lives in the wizard project; this smoke check only
+  // verifies the post-reset entry surface is reachable and not stuck mid-redirect.
+  await expect(page).toHaveURL(/\/(login|setup)/);
 });
 
 test.describe("SignIn & SignOut Flows", () => {

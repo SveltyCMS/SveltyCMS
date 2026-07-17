@@ -276,7 +276,8 @@ class JobQueueService {
       }
 
       // 3. Clean up temp store every ~10 cycles
-      // cleanupTempStore is synchronous (in-memory map sweep) — never chain .catch on it.
+      // cleanupTempStore is synchronous — never call .catch on its void return
+      // (that threw TypeError and crashed the process via uncaughtException).
       if (Math.random() > 0.9) {
         try {
           cleanupTempStore();

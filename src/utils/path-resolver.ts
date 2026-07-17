@@ -17,19 +17,30 @@
 import path from "node:path";
 import { sveltyContext, requireTenantId } from "./context";
 
-const CWD = process.cwd();
+/** Always resolve from live process.cwd() so tests/chdir and tooling stay correct. */
+function cwd(): string {
+  return process.cwd();
+}
 
 export const paths = {
-  root: CWD,
+  get root(): string {
+    return cwd();
+  },
 
-  /** Static: config directory root */
-  config: path.join(CWD, "config"),
+  /** Config directory root */
+  get config(): string {
+    return path.join(cwd(), "config");
+  },
 
-  /** Static: flat collection directory (no tenant) */
-  collections: path.join(CWD, "config", "collections"),
+  /** Flat collection directory (no tenant) */
+  get collections(): string {
+    return path.join(cwd(), "config", "collections");
+  },
 
-  /** Static: global media directory */
-  media: path.join(CWD, "mediaFolder", "global"),
+  /** Global media directory */
+  get media(): string {
+    return path.join(cwd(), "mediaFolder", "global");
+  },
 
   /**
    * Dynamic: resolves collection directory based on active tenant.
@@ -38,8 +49,8 @@ export const paths = {
   getCollections: (): string => {
     const tenantId = sveltyContext.getStore()?.tenantId;
     return tenantId
-      ? path.join(CWD, "config", tenantId, "collections")
-      : path.join(CWD, "config", "collections");
+      ? path.join(cwd(), "config", tenantId, "collections")
+      : path.join(cwd(), "config", "collections");
   },
 
   /**
@@ -48,7 +59,7 @@ export const paths = {
    */
   requireCollections: (): string => {
     const tenantId = requireTenantId();
-    return path.join(CWD, "config", tenantId, "collections");
+    return path.join(cwd(), "config", tenantId, "collections");
   },
 
   /**
@@ -58,25 +69,34 @@ export const paths = {
   getMedia: (): string => {
     const tenantId = sveltyContext.getStore()?.tenantId;
     return tenantId
-      ? path.join(CWD, "mediaFolder", tenantId)
-      : path.join(CWD, "mediaFolder", "global");
+      ? path.join(cwd(), "mediaFolder", tenantId)
+      : path.join(cwd(), "mediaFolder", "global");
   },
 
-  /** Static: compiled collections output directory */
-  compiledCollections: path.join(CWD, ".compiledCollections"),
+  /** Compiled collections output directory */
+  get compiledCollections(): string {
+    return path.join(cwd(), ".compiledCollections");
+  },
 
-  /** Static: database directory */
-  database: path.join(CWD, "config", "database"),
+  /** Database directory */
+  get database(): string {
+    return path.join(cwd(), "config", "database");
+  },
 
-  /** Static: private config file */
-  privateConfig: path.join(CWD, "config", "private.ts"),
+  /** Private config file */
+  get privateConfig(): string {
+    return path.join(cwd(), "config", "private.ts");
+  },
 
   /** Benchmark-specific paths (isolated from user live data) */
-  benchmark: {
-    collections: path.join(CWD, "config", "collections", "test"),
-    compiled: path.join(CWD, ".compiledCollections", "test"),
-    sandboxCompiled: path.join(CWD, ".compiledCollections", "test", "_local_sandbox"),
-    sandboxMedia: path.join(CWD, "config", "benchmark-sandbox", "media"),
+  get benchmark() {
+    const root = cwd();
+    return {
+      collections: path.join(root, "config", "collections", "test"),
+      compiled: path.join(root, ".compiledCollections", "test"),
+      sandboxCompiled: path.join(root, ".compiledCollections", "test", "_local_sandbox"),
+      sandboxMedia: path.join(root, "config", "benchmark-sandbox", "media"),
+    };
   },
 
   /**
@@ -87,4 +107,4 @@ export const paths = {
     const relative = path.relative(base, target);
     return !relative.startsWith("..") && !path.isAbsolute(relative);
   },
-} as const;
+};
