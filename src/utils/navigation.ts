@@ -4,7 +4,6 @@
  *
  * ### Hardening (audit 2026-07):
  * - Race-condition guard: AbortController cancels stale navigation promises on rapid clicks
- * - Svelte 5 compliance: navigating uses $state() for reactive tracking
  * - Memory-leak protection: preloadTimers properly cleaned up with proper ReturnType typing
  * - URL sanitization: slugify uses escaped regex to prevent injection/backtracking
  * - encodeURIComponent: entryId is URL-encoded for safety
@@ -149,7 +148,11 @@ export function parseURLToMode(url: URL): ParsedURL {
 
 class NavigationManager {
   private navAbortController: AbortController | null = null;
-  navigating = $state(false);
+  navigating = false;
+
+  get isNavigating(): boolean {
+    return this.navigating;
+  }
 
   private async executeNavigation(action: string, task: () => Promise<void>): Promise<void> {
     if (this.navigating) {

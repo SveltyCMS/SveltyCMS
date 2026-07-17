@@ -79,7 +79,9 @@ export async function notifyContentUpdate(
     collection: "*",
     entryId: "*",
     action: "update" as const,
-  });
+    tenantId: tenantId ?? null,
+    ...(options?.batchSize !== undefined ? { batchSize: options.batchSize } : {}),
+  } as any);
 }
 
 /**

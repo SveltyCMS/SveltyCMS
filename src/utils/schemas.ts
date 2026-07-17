@@ -304,6 +304,7 @@ export const dbConfigSchema = pipe(
     name: dbNameSchema,
     user: dbUserSchema,
     password: dbPasswordSchema,
+    replicaUrls: optional(array(string())),
   }),
   check((input) => {
     const requiresAuth = ["postgresql", "mysql", "mariadb", "mongodb+srv"];

@@ -13,7 +13,7 @@
 
 import path from "node:path";
 import type { DatabaseId } from "@src/databases/db-interface";
-import { formatBytes } from "@utils/utils";
+import { formatBytes } from "../file";
 import type { MediaItem } from "./media-models";
 import { isStoredMedia } from "./media-models";
 

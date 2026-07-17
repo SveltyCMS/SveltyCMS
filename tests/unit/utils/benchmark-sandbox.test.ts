@@ -65,9 +65,7 @@ describe("benchmark-sandbox", () => {
 
     const liveManifest = path.join(ROOT, ".compiledCollections", ".compilation-manifest.json");
 
-    expect(() => sandbox.assertLiveDataWriteAllowed(liveManifest)).toThrow(
-      /Blocked write to live data/,
-    );
+    expect(() => sandbox.assertLiveDataWriteAllowed(liveManifest)).toThrow(/SECURITY VIOLATION/);
     expect(() =>
       sandbox.assertLiveDataWriteAllowed(path.join(SANDBOX_COMPILED, ".compilation-manifest.json")),
     ).not.toThrow();
@@ -87,9 +85,7 @@ describe("benchmark-sandbox", () => {
     });
     process.env.BENCHMARK = "true";
 
-    expect(() => sandbox.assertLiveDataWriteAllowed(PRIVATE_TS)).toThrow(
-      /Blocked write to live data/,
-    );
+    expect(() => sandbox.assertLiveDataWriteAllowed(PRIVATE_TS)).toThrow(/SECURITY VIOLATION/);
   });
 
   it("assertBenchmarkDbIsolation throws when DB_NAME matches live private.ts", () => {
