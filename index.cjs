@@ -10,7 +10,22 @@ async function loadApp() {
 
   // Production configuration
   process.env.BODY_SIZE_LIMIT = "104857600"; // 100MB
-  process.env.ORIGIN = process.env.ORIGIN || "https://demo.sveltycms.com";
+  // Prefer explicit ORIGIN. For local/CI preview (127.0.0.1 / localhost) default to
+  // the listening URL so SvelteKit remote CSRF (completeSetup) is not rejected as
+  // cross-site against the demo production host.
+  if (!process.env.ORIGIN) {
+    const host = process.env.HOST || "127.0.0.1";
+    const port = process.env.PORT || "4173";
+    const isLocal =
+      host === "127.0.0.1" ||
+      host === "localhost" ||
+      host === "0.0.0.0" ||
+      host === "::" ||
+      process.env.TEST_MODE === "true";
+    process.env.ORIGIN = isLocal
+      ? `http://${host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host}:${port}`
+      : "https://demo.sveltycms.com";
+  }
   process.env.NODE_ENV = "production";
 
   // PROXY HEADERS: Fix for "Too Many Requests" issue & Header mismatches

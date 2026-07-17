@@ -86,8 +86,10 @@ class SetupWizardPage {
     const response = await responsePromise;
     if (response && !response.ok()) {
       const body = await response.text().catch(() => "");
+      const status =
+        typeof response.status === "function" ? response.status() : (response as any).status;
       throw new Error(
-        `completeSetup HTTP ${response.status}: ${body.slice(0, 500)} (still on ${this.page.url()})`,
+        `completeSetup HTTP ${status}: ${body.slice(0, 500)} (still on ${this.page.url()})`,
       );
     }
 

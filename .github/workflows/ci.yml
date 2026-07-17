@@ -421,6 +421,9 @@ jobs:
       TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
       HOST: 127.0.0.1
       PORT: 4173
+      # index.cjs defaults ORIGIN to https://demo.sveltycms.com which breaks SvelteKit
+      # remote CSRF (Origin header must match request URL origin for completeSetup).
+      ORIGIN: http://127.0.0.1:4173
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -482,10 +485,17 @@ jobs:
             echo "TEST_API_SECRET=${TEST_API_SECRET}" >> $GITHUB_ENV
           fi
 
-          # Start the built server
-          node index.cjs > preview.log 2>&1 &
+          # Prefer adapter-node entry (build/index.js) with correct ORIGIN for remotes.
+          # Fall back to index.cjs (Plesk entry) only if needed — always pin ORIGIN.
+          export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          if [ -f build/index.js ]; then
+            node build/index.js > preview.log 2>&1 &
+          else
+            node index.cjs > preview.log 2>&1 &
+          fi
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
           echo "PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173" >> $GITHUB_ENV
+          echo "ORIGIN=${ORIGIN}" >> $GITHUB_ENV
 
       - name: Run E2E Wizard Setup
         run: bun x playwright test --project=wizard
@@ -496,6 +506,7 @@ jobs:
       - name: Shutdown Preview Server
         if: always()
         run: |
+          pkill -f "node build/index.js" || true
           pkill -f "node index.cjs" || true
           sleep 2
 
@@ -618,6 +629,7 @@ jobs:
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           HOST: 127.0.0.1
           PORT: 4173
+          ORIGIN: http://127.0.0.1:4173
           SKIP_E2E_DEPS: "true"
         run: |
           if [ -z "${TEST_API_SECRET}" ]; then
@@ -625,7 +637,12 @@ jobs:
           fi
           export TEST_API_SECRET
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          node index.cjs > preview.log 2>&1 &
+          export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          if [ -f build/index.js ]; then
+            node build/index.js > preview.log 2>&1 &
+          else
+            node index.cjs > preview.log 2>&1 &
+          fi
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test \
             --project=chromium \
