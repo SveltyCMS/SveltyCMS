@@ -167,7 +167,12 @@ function privateConfigFallbackPlugin(): Plugin {
       let result: string | null = null;
       if (isTest && (id === VID || nid.endsWith("config/private.ts"))) {
         const tp = path.resolve(CWD, "config/private.test.ts");
-        if (existsSync(tp)) result = tp;
+        if (existsSync(tp)) {
+          result = tp;
+        } else {
+          // Fall back to virtual module when private.test.ts is missing (CI)
+          result = RVID;
+        }
       } else if (nid.endsWith("config/private") || nid.endsWith("config/private.ts")) {
         result = existsSync(path.resolve(CWD, "config/private.ts")) ? null : RVID;
       } else if (nid.endsWith("config/private.test") || nid.endsWith("config/private.test.ts")) {
