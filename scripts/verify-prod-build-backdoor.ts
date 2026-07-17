@@ -43,6 +43,7 @@ import { join } from "node:path";
 
 const ROOT = process.cwd();
 const CHUNKS_DIR = join(ROOT, "build", "server", "chunks");
+const SK_OUTPUT_DIR = join(ROOT, ".svelte-kit", "output", "server", "chunks");
 
 const FULL_HANDLER_MARKERS = [
   // Unique to the real testing handler body (not present in NAMESPACE_CONFIG alone).
@@ -67,8 +68,8 @@ function getMode(): "deploy" | "bench" {
   return arg === "bench" ? "bench" : "deploy";
 }
 
-function scanBuildChunks(): { full: boolean; stub: boolean; scanned: number } {
-  if (!existsSync(CHUNKS_DIR)) {
+function scanDir(dir: string): { full: boolean; stub: boolean; scanned: number } {
+  if (!existsSync(dir)) {
     return { full: false, stub: false, scanned: 0 };
   }
 
@@ -76,10 +77,10 @@ function scanBuildChunks(): { full: boolean; stub: boolean; scanned: number } {
   let stub = false;
   let scanned = 0;
 
-  for (const file of readdirSync(CHUNKS_DIR)) {
+  for (const file of readdirSync(dir)) {
     if (!file.endsWith(".js")) continue;
     scanned++;
-    const content = readFileSync(join(CHUNKS_DIR, file), "utf8");
+    const content = readFileSync(join(dir, file), "utf8");
     if (FULL_HANDLER_MARKERS.some((m) => content.includes(m))) full = true;
     if (STUB_MARKERS.some((m) => content.includes(m))) stub = true;
   }
@@ -87,16 +88,44 @@ function scanBuildChunks(): { full: boolean; stub: boolean; scanned: number } {
   return { full, stub, scanned };
 }
 
+function scanBuildChunks(): { full: boolean; stub: boolean; scanned: number } {
+  // Prefer the adapter output (build/) — this is what CI archives and downstream jobs consume.
+  let result = scanDir(CHUNKS_DIR);
+  if (result.scanned === 0 && existsSync(SK_OUTPUT_DIR)) {
+    console.log(`   ⚠️  No chunks in ${CHUNKS_DIR}, falling back to ${SK_OUTPUT_DIR}`);
+    result = scanDir(SK_OUTPUT_DIR);
+  }
+  if (result.scanned === 0) {
+    console.error(`   ❌ No .js chunks found in ${CHUNKS_DIR} or ${SK_OUTPUT_DIR}`);
+    console.error(`   The SSR build may have failed silently. Check build logs for errors.`);
+  }
+  return result;
+}
+
 function main() {
   const mode = getMode();
 
-  if (!existsSync(join(ROOT, "build", "index.js"))) {
+  const buildEntry = join(ROOT, "build", "index.js");
+  const skEntry = join(ROOT, ".svelte-kit", "output", "server", "index.js");
+  if (!existsSync(buildEntry) && !existsSync(skEntry)) {
     console.error("❌ build/index.js missing. Run bun run build first.");
     process.exit(1);
+  }
+  if (!existsSync(buildEntry)) {
+    console.log(`   ⚠️  ${buildEntry} missing — scanning SvelteKit output directly.`);
   }
 
   const { full, stub, scanned } = scanBuildChunks();
   console.log(`🔍 Build backdoor scan (${mode} mode, ${scanned} chunks)`);
+
+  if (scanned === 0) {
+    console.error(
+      "❌ No SSR chunks found. The SSR build likely failed silently.\n" +
+        "   Check the build logs above for module resolution errors.\n" +
+        "   Common causes: missing config files, broken imports, case-sensitivity.",
+    );
+    process.exit(1);
+  }
 
   if (mode === "deploy") {
     if (full && !stub) {

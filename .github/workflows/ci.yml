@@ -164,6 +164,8 @@ jobs:
           node-version: "24"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
+      - name: Clean stale build output
+        run: rm -rf build .svelte-kit/output
       - run: bun run build
         env:
           COMPILE_ALL_ADAPTERS: "true"
