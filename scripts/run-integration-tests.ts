@@ -233,7 +233,16 @@ async function waitForServerReady(maxAttempts = 60, options: { allowSetup?: bool
   // "setup" until the wizard completes — treating that as healthy hang forever.
   // Regular integration also accepts "setup" under TEST_MODE: the server is
   // listening and seed will create admin users before suite body runs.
-  const targetStates = new Set(["ready", "healthy", "ok", "degraded", "setup", "idle"]);
+  const targetStates = new Set([
+    "ready",
+    "healthy",
+    "ok",
+    "degraded",
+    "setup",
+    "idle",
+    // Boot after isolated restart — process is listening while migrations finish.
+    "initializing",
+  ]);
   const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -386,9 +395,13 @@ async function startPreviewServer(options: { allowSetup?: boolean } = {}) {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  // Prefer bun when available — can load config/private.test.ts and keeps env intact.
-  // Fall back to node for CI images that only ship node.
-  const runtimeCmd = typeof Bun !== "undefined" ? "bun" : "node";
+  // Always prefer Node for the production adapter-node bundle.
+  // Bun cannot load the MongoDB driver (node:v8.isBuildingSnapshot is unimplemented),
+  // which crashes DB init under mongodb and cascades into failed seeds / exit 1.
+  // Core benchmarks already spawn with `node` for the same reason.
+  // Override with INTEGRATION_SERVER_RUNTIME=bun only for local experiments.
+  const runtimeCmd = process.env.INTEGRATION_SERVER_RUNTIME?.trim() || "node";
+  console.log(`⚙️ Preview server runtime: ${runtimeCmd}`);
 
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,

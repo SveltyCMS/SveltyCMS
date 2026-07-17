@@ -64,7 +64,41 @@ class SetupWizardPage {
     ]);
     if (!finishBtn) throw new Error("Could not find Complete/Finish button.");
     await expect(finishBtn).toBeEnabled({ timeout: 30000 });
+
+    // Wait for the remote completeSetup call (SvelteKit remote / form action) so we
+    // don't race the 500ms client redirect timer with a blind waitForURL.
+    const responsePromise = this.page
+      .waitForResponse(
+        (res) => {
+          const u = res.url();
+          return (
+            u.includes("completeSetup") ||
+            u.includes("/setup?/completeSetup") ||
+            (u.includes("/setup") && res.request().method() === "POST")
+          );
+        },
+        { timeout: 120_000 },
+      )
+      .catch(() => null);
+
     await finishBtn.click();
+
+    const response = await responsePromise;
+    if (response && !response.ok()) {
+      const body = await response.text().catch(() => "");
+      throw new Error(
+        `completeSetup HTTP ${response.status}: ${body.slice(0, 500)} (still on ${this.page.url()})`,
+      );
+    }
+
+    // Surface toast / inline wizard errors if redirect never starts.
+    const errorToast = this.page
+      .locator("[data-sonner-toast][data-type='error'], .toast-error, [role='alert']")
+      .first();
+    if (await errorToast.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const msg = (await errorToast.textContent().catch(() => ""))?.trim();
+      if (msg) throw new Error(`Setup complete failed with UI error: ${msg}`);
+    }
   }
 
   async handleAnyDbDialog() {
@@ -350,9 +384,25 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
       await test.step("Step 5: Review & Finalize", async () => {
         console.log(`[${dbType}] Finalizing...`);
         await wizard.complete();
-        await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
-          timeout: 90000,
-        });
+
+        // completeSetup seeds website collections then hard-redirects (500ms delay).
+        // CI runners need headroom beyond the default 90s for the full finalize path.
+        try {
+          await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
+            timeout: 180_000,
+            waitUntil: "commit",
+          });
+        } catch (err) {
+          const url = page.url();
+          const bodyText = await page
+            .locator("body")
+            .innerText()
+            .catch(() => "");
+          throw new Error(
+            `Setup finalize did not leave /setup. url=${url} body=${bodyText.slice(0, 800)} ` +
+              `cause=${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
         await expect(page).not.toHaveURL(/\/setup/);
       });
 
