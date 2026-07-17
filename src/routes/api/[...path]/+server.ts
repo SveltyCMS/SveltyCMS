@@ -137,6 +137,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   backups: { handler: "backups", fn: "handleBackupRoutes" },
   "content-sync": { handler: "content-sync", fn: "handleContentSyncRoutes" },
 
+  // Plugin Settings (encrypted, per-tenant, per-plugin)
+  "plugin-settings": { handler: "system", fn: "handlePluginSettingsRoutes" },
+
   // Deprecated Aliases
   "import-data": { handler: "importers", fn: "handleImporterRoutes" },
   config_sync: { handler: "config", fn: "handleConfigRoutes" },
@@ -218,6 +221,10 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "content-sync": (method: string) => (method === "POST" ? "content:sync" : "content:read"),
   config_sync: (method: string) => (method === "POST" ? "config:write" : "config:read"),
   "config-sync": (method: string) => (method === "POST" ? "config:write" : "config:read"),
+
+  // Plugin Settings (encrypted per-tenant settings, gated behind plugin:settings:manage)
+  "plugin-settings": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "plugin:settings:manage" : "plugin:settings:manage",
 };
 
 /**

@@ -703,8 +703,14 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - [x] **Smart Benchmark Regression Detection**: Statistical slope analysis, flapping detection, cross-DB correlation, budget forecasting. See `docs/tests/benchmark-matrix.mdx`.
 - [x] **Progress Dashboard on Pre-Push**: Enhanced git hooks with live progress bar, ETA, per-task timing, and error remediation hints.
 - [x] **CI Build Hardening**: Production build job gated to main/PR only; depends on check + unit passing first.
+- [x] **Plugin Capability Reconciliation**: Merged core + plugin catalog, owner auto-inheritance, boot reconcile, hasCapability(string & {}). See `src/services/security/capability-registry.ts`.
+- [x] **Encrypted Plugin Settings**: AES-256-GCM secret fields, versioned envelope, server-only decryption, masked API responses, validation on save. See `src/plugins/settings-crypto.ts`.
+- [x] **Schema Desugaring (Sugar Types)**: Shortcut field types expand to full objects while preserving access/validation/groups. Extensible registry. See `src/widgets/desugar-field.ts`.
+- [x] **Plugin Part System (definePlugin)**: Discriminated union, mandatory requiredCapabilities on routes, part resolution at boot. See `src/plugins/define-plugin.ts`.
+- [x] **AdminArea Shell Extensions**: Typed admin chrome extensions for plugins. See `src/plugins/admin-area.ts`.
+- [x] **Visual Editing Bridge Fix**: preview-bridge.ts only cancels navigation clicks (not checkboxes/details). stegaClean + usePreview() rune.
 - [ ] **Benchmark MDX reports show full truth tables (borders, titles, all data) matching single-test console output**
 
 ---
 
-_Last Updated: 2026-07-08_
+_Last Updated: 2026-07-17_

@@ -286,6 +286,9 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   "import-data": ["tests/unit/api/export-import-security.test.ts"],
   backups: ["tests/unit/api/export-import-security.test.ts"],
   "content-sync": ["tests/unit/api/export-import-security.test.ts"],
+
+  // Plugin system
+  "plugin-settings": ["tests/unit/plugins/settings-crypto.test.ts"],
 };
 
 describe("API namespace ownership inventory (completeness Phase D)", () => {

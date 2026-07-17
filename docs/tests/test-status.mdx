@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-15"
+updated: "2026-07-17"
 tags:
   - "testing"
   - "status"
@@ -99,12 +99,14 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 
 | Metric                                 | Value                                                                                                                                                           |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Total tests                            | **2,194** (251 files, 2,194 passing, 4 skipped)                                                                                                                 |
+| Total tests                            | **2,264** (254 files, 2,264 passing, 5 skipped)                                                                                                                 |
 | Pass rate                              | 100%                                                                                                                                                            |
-| Test files                             | 251 (249 passing, 2 skipped)                                                                                                                                    |
-| Security-specific                      | 130 (defense-in-depth, auth, RBAC, namespace-ownership, cache-integrity, audit-chain, route-access-audit, SVG sanitization)                                     |
+| Test files                             | 254 (252 passing, 2 skipped)                                                                                                                                    |
+| Security-specific                      | 155 (defense-in-depth, auth, RBAC, namespace-ownership, cache-integrity, audit-chain, route-access-audit, SVG sanitization, capability-registry)                |
 | **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                                                                                                      |
+| **Capability registry**                | **25** (core catalog, plugin registration, hasCapability, owner reconciliation, built-in roles)                                                                 |
 | Collection builder                     | **39** (utils 10, compilation 11, structure-persistence 3, save-content-structure 2, delete-content-nodes 2, code-gui parity 8 integration, structure-matrix 2) |
+| **Widgets (desugar-field)**            | **20** (sugar expansion, metadata preservation, sugar key stripping, nested recursion, custom registration)                                                     |
 | Content-specific                       | **57** (reconciliation 23, upsert 4, sync-state 11, sync-security 4, compile-manifest 4, content-refresh-sidebar 1, API surface)                                |
 | **Collection builder utils**           | **10**                                                                                                                                                          | `getDescendantIds`, `uniquePathForCategory` — tree traversal + slug dedup              |
 | **Collection builder compilation**     | **11**                                                                                                                                                          | AST generation, TypeScript compiler pipeline, code↔GUI parity validation               |
@@ -118,6 +120,7 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 | **Route access audit**                 | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)                                                                                          |
 | **Benchmark harness**                  | 11 (assertSuccess, warmup isolation, error visibility, >50% warmup guard)                                                                                       |
 | **Cache integrity**                    | **6** (HMAC signing, tamper detection, signed entry contract)                                                                                                   |
+| **Plugins (settings-crypto)**          | **25** (masking, secret processing, declaration validation, encryption)                                                                                         |
 | **Audit chain**                        | **7** (SHA-256 chaining, breakage detection, replay detection)                                                                                                  |
 | **Site starter & live preview**        | **12** (Svedit helpers 3, homepage seed 3, preview utils 3, protocol 3)                                                                                         |
 | **Editable Website license gate**      | **3** (client + server trial/expired checks)                                                                                                                    |
@@ -455,6 +458,32 @@ BENCHMARK_RECORD=1 bun test tests/benchmarks/content-boot-compile-drift.test.ts
 
 > **Why**: `permissions-setting.svelte` had a critical bug — `$derived` (read-only) was used for mutable state, making permission toggles silently fail. The toggle buttons used `variant="error"` for all states and showed identical ✓ icons for on/off. `collection-permissions.svelte` lacked reactive hydration, debounce, and had a `|| 20` falsy bug where `0` would incorrectly clamp to 20 instead of 5.
 
+**Plugin Capability System & Schema Desugaring (2026-07-17)**:
+
+`tests/unit/security/capability-registry.test.ts` — 25 capability registry and role reconciliation tests:
+
+| Test file                   | Tests | Covers                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| capability-registry.test.ts | 25    | Core catalog (33 caps), plugin registration/deregistration, merged catalog dedup, owner auto-inheritance, `hasCapability()` with core + plugin IDs, admin fast-path, `canManagePluginSettings`/`canExecutePlugins`, owner role reconciliation, built-in role reconciliation (owner-only invariant), `isOwnerRole`/`findOwnerRole` |
+
+> **Why**: Plugins declare capabilities in `metadata.capabilities` but there was no merged catalog, no boot reconciliation, and no `hasCapability()` supporting plugin-declared IDs. Owners of existing orgs wouldn't receive new plugin capabilities until a manual role update. The merged catalog now reconciles on boot — owner always gets ALL capabilities (core + plugin).
+
+`tests/unit/plugins/settings-crypto.test.ts` — 25 plugin settings encryption and validation tests:
+
+| Test file               | Tests          | Covers                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| settings-crypto.test.ts | 25 (1 skipped) | Masked value detection (6), `maskSecretFields` (5), `processSecretFields` (4: preserve existing, encrypt new, blank handling), `decryptSecretFields` (3), settings validation (8: valid/invalid currency, out-of-range numbers, required non-secret, secret blank-tolerant), `getSecretFieldNames` (2), `hasSecretFields` (2), `requiredCapabilities` (2) |
+
+> **Why**: Plugin settings had no encryption, no validation against a declaration, and no secret field type. The 1 skipped test is the live AES-256-GCM encryption test — it requires `SECRET_ENCRYPTION_KEY` in the environment, enforcing the fail-loudly-on-missing-key policy.
+
+`tests/unit/widgets/desugar-field.test.ts` — 20 schema desugaring tests:
+
+| Test file             | Tests | Covers                                                                                                                                                                                                                                                                     |
+| --------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| desugar-field.test.ts | 20    | Color expansion (3), SEO expansion (2), metadata preservation (4: access, validation, groups, custom), non-sugar pass-through (3), nested field recursion (2), schema-level desugaring (1), sugar type registry (4: recognition, listing, custom registration, sugar keys) |
+
+> **Why**: Shortcut field types (`{ type: 'color' }`) expand into full objects but previously had no way to guarantee that authored metadata (access control, validation, groups) survived the transform. The desugaring engine now layers authored over built — preservation is the default.
+
 ## 4. CI Pipeline Gates
 
 | Gate                      | Runtime         | What it catches                                                                                                            |
@@ -538,6 +567,9 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 | ✅ **Build artifact integrity verification** (resolved)      | SHA256 checksum generated on build artifact upload and verified on download in `ci.yml`; mismatch fails the job with checksum diff logged                                      | —         |
 | ✅ **`bun:test` imports** (resolved)                         | All 43 affected files migrated from `bun:test` to `vitest` imports; `bun-preload.ts` shim retained for `bun test` compatibility                                                | —         |
 | ✅ **Website Starter test coverage** (resolved)              | Unit: Svedit helpers, homepage seed, preview utils, license gate, protocol (12 tests). Integration: website preset files. E2E: `site-starter.spec.ts` (3 tests)                | —         |
+| ✅ **Plugin capability reconciliation** (resolved)           | Merged core + plugin catalog (25 tests): `capability-registry.test.ts` — core catalog, registration, owner auto-inheritance, boot reconciliation, `hasCapability(string & {})` | —         |
+| ✅ **Encrypted plugin settings** (resolved)                  | AES-256-GCM `secret` fields (25 tests): `settings-crypto.test.ts` — masking, encryption, validation against declaration, preservation on blank submit                          | —         |
+| ✅ **Schema desugaring sugar types** (resolved)              | Shortcut field expansion (20 tests): `desugar-field.test.ts` — color/seo expansion, metadata preservation, nested recursion, extensible registry                               | —         |
 
 ## 6. Recommended Next Actions
 
@@ -571,6 +603,12 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 26. ✅ **Permission components hardened** — Fixed derived→state bug in permissions-setting.svelte; 41 unit tests covering presets, bulk, undo/redo, debounce
 27. ✅ **Collection permissions tab** — Reactive hydration from store, 300ms debounced auto-save, unsaved-changes aria-live indicator
 28. ✅ **Website Starter test suite** — seedWebsiteStarterBlueprint testing API, 12 unit tests, website preset integration, site-starter.spec.ts E2E smoke
+29. ✅ **Plugin Capability Reconciliation** — merged core + plugin catalog (capability-registry.ts), owner auto-inheritance, boot reconcile, `hasCapability(string & {})` (25 tests)
+30. ✅ **Encrypted Plugin Settings** — AES-256-GCM secret fields with versioned envelope (`v1:iv:authTag:ciphertext`), server-only decryption, masked API responses, validation against SettingsPart declaration (25 tests)
+31. ✅ **Schema Desugaring (Sugar Types)** — `desugarFieldType` engine for color/seo shortcut types, extensible `registerSugarType()` registry, metadata preservation (access/validation/groups), nested recursion (20 tests)
+32. ✅ **Plugin Part System (definePlugin)** — Discriminated union of 8 PluginPart types, mandatory RoutePart.requiredCapabilities, boot-time part resolution in PluginRegistry
+33. ✅ **AdminArea Shell Extensions** — Typed extensions for admin chrome zones (sidebar, header, footer, content-header, content-footer) with capability gating
+34. ✅ **Visual Editing Preview Bridge** — Fixed preventDefault() bug (only cancels anchors/submit, not checkboxes/details), stegaClean(), usePreview() Svelte 5 rune
 
 ### Ongoing
 

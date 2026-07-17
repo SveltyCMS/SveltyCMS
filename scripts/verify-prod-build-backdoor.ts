@@ -46,10 +46,11 @@ const CHUNKS_DIR = join(ROOT, "build", "server", "chunks");
 
 const FULL_HANDLER_MARKERS = [
   // Unique to the real testing handler body (not present in NAMESPACE_CONFIG alone).
-  "Unauthorized: Testing endpoints are disabled",
   // handleTestingRoutes also appears in +server.ts NAMESPACE_CONFIG mapping, so
   // deploy mode must pair it with stub detection (full && !stub).
   "handleTestingRoutes",
+  // Unique function defined only in the testing handler's body.
+  "invalidateAllCaches",
 ];
 
 // Match both pretty and compact Response forms, plus the explicit strip marker
