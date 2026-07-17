@@ -56,7 +56,6 @@ bulk actions, and predictive preloading.
 	import Status from '@components/system/table/status.svelte';
 	import TableFilter from '@components/system/table/table-filter.svelte';
 	import TableIcons from '@components/system/table/table-icons.svelte';
-	import TablePagination from '@components/system/table/table-pagination.svelte';
 	import PluginComponent from '@src/components/plugins/plugin-component.svelte';
 	// Types
 	// =================================================================
@@ -92,7 +91,7 @@ bulk actions, and predictive preloading.
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { debounce, getFieldName, meta_data } from '@utils/utils';
+	import { getFieldName, meta_data } from '@utils/utils';
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -207,8 +206,16 @@ bulk actions, and predictive preloading.
 		};
 	}
 
-	const filterDebounce = debounce(500);
-	const searchDebounce = debounce(400);
+	let filterTimeoutId: ReturnType<typeof setTimeout>;
+	const filterDebounce = (fn: () => void) => {
+		clearTimeout(filterTimeoutId);
+		filterTimeoutId = setTimeout(fn, 500);
+	};
+	let searchTimeoutId: ReturnType<typeof setTimeout>;
+	const searchDebounce = (fn: () => void) => {
+		clearTimeout(searchTimeoutId);
+		searchTimeoutId = setTimeout(fn, 400);
+	};
 
 	// Schema-aware filter controller (platform pure defs + URL; server enforces FLAC)
 	const smartFilter = createSmartFilter(() => collection.value);
@@ -1124,7 +1131,7 @@ bulk actions, and predictive preloading.
 						/>
 
 						{#each visibleTableHeaders as header (header.id)}
-							{@const colKey = (header as TableHeader).name || header.id}
+							{@const colKey = ((header as TableHeader).name || header.id) as string}
 							<th
 								class="relative text-center text-xs sm:text-sm {cellPaddingClass}"
 								style={smartTable.getColumnWidthStyle(colKey)}
@@ -1160,7 +1167,6 @@ bulk actions, and predictive preloading.
 					{/if}
 					{#if tableData.length > 0}
 						{#each visibleRows as entry, idx (entry._id)}
-							{@const realIndex = useRowVirtualization ? virtualStartIndex + idx : idx}
 							{@const rowId = String(entry._id ?? '')}
 							{@const rowSelected = smartTable.isSelected(rowId)}
 							<tr
@@ -1178,7 +1184,7 @@ bulk actions, and predictive preloading.
 								/>
 								{#if visibleTableHeaders}
 									{#each visibleTableHeaders as header (header.id)}
-										{@const cellKey = (header as TableHeader).name || header.id}
+										{@const cellKey = ((header as TableHeader).name || header.id) as string}
 										<td
 											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:hover:bg-secondary-500/20'

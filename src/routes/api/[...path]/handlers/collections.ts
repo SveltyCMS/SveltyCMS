@@ -14,7 +14,10 @@
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
-import type { DatabaseId } from "@src/content/types";
+import type { DatabaseId, Schema } from "@src/content/types";
+import { validateFieldConstraints, stripNullRows } from "@src/content/content-utils";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
 import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
@@ -320,6 +323,51 @@ export async function handleCollectionEntry(
 
 // ─── Write Handlers ──────────────────────────────────────────────────────────
 
+/**
+ * Shared pre-validation for write payloads: gets schema, applies maxLength
+ * constraints, strips null array rows, and returns the cleaned data.
+ */
+async function validateWritePayload(
+  cms: LocalCMS,
+  collectionId: string,
+  tenantId: DatabaseId,
+  data: Record<string, unknown> | Record<string, unknown>[],
+): Promise<Record<string, unknown> | Record<string, unknown>[]> {
+  const schema = (await cms.collections.getSchema(collectionId, tenantId)) as Schema;
+  if (schema?.fields) {
+    if (Array.isArray(data)) {
+      return data.map(
+        (entry) =>
+          validateFieldConstraints(stripNullRows(entry, schema), schema) as Record<string, unknown>,
+      );
+    }
+    return validateFieldConstraints(stripNullRows(data, schema), schema);
+  }
+  return data;
+}
+
+/**
+ * Shared pre-validation for bulk update payloads (Array<{ id: string; data: Record }>).
+ * Validates constraints on each entry's `.data` portion and strips null array rows.
+ */
+async function validateBulkUpdatePayload(
+  cms: LocalCMS,
+  collectionId: string,
+  tenantId: DatabaseId,
+  updates: Array<{ id: string; data: Record<string, unknown> }>,
+): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+  const schema = (await cms.collections.getSchema(collectionId, tenantId)) as Schema;
+  if (!schema?.fields) return updates;
+
+  return updates.map((entry) => ({
+    ...entry,
+    data: validateFieldConstraints(stripNullRows(entry.data, schema), schema) as Record<
+      string,
+      unknown
+    >,
+  }));
+}
+
 export async function handleCollectionCreate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -327,7 +375,9 @@ export async function handleCollectionCreate(
   user: any,
   collectionId: string,
 ) {
-  const result = await cms.collections.create(collectionId, await event.request.json(), {
+  const rawData = await event.request.json();
+  const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
+  const result = await cms.collections.create(collectionId, data, {
     user: user!,
     tenantId,
   });
@@ -342,9 +392,11 @@ export async function handleCollectionUpdate(
   collectionId: string,
   entryId: string,
 ) {
+  const rawData = await event.request.json();
+  const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
   return successResponse(
     event,
-    await cms.collections.update(collectionId, entryId, await event.request.json(), {
+    await cms.collections.update(collectionId, entryId, data, {
       user: user!,
       tenantId,
     }),
@@ -425,9 +477,11 @@ export async function handleCollectionBulkCreate(
   user: any,
   collectionId: string,
 ) {
+  const rawData = await event.request.json();
+  const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
   return successResponse(
     event,
-    await cms.collections.bulkCreate(collectionId, await event.request.json(), {
+    await cms.collections.bulkCreate(collectionId, data, {
       user: user!,
       tenantId,
     }),
@@ -452,9 +506,58 @@ export async function handleCollectionBulkUpdate(
       413,
     );
   }
+
+  // 🛡️ BULK UPDATE DELETE GUARD: Prevent bypassing disableBulkDelete via bulk update
+  const schema = await cms.collections.getSchema(collectionId, tenantId);
+  if (schema?.disableBulkDelete && Array.isArray(payload)) {
+    const hasDeleteIntent = payload.some(
+      (entry: { data?: Record<string, unknown> }) =>
+        entry.data?._deleted === true ||
+        entry.data?.status === "deleted" ||
+        entry.data?.status === "trashed",
+    );
+    if (hasDeleteIntent) {
+      throw new AppError(
+        `Bulk delete is disabled for collection "${schema.name || collectionId}". Use individual delete instead.`,
+        403,
+        "BULK_DELETE_DISABLED",
+      );
+    }
+  }
+
+  // 🛡️ Permission check: verify delete permission when bulk update includes deletion markers
+  if (Array.isArray(payload)) {
+    const hasDeleteIntent = payload.some(
+      (entry: { data?: Record<string, unknown> }) =>
+        entry.data?._deleted === true ||
+        entry.data?.status === "deleted" ||
+        entry.data?.status === "trashed",
+    );
+    if (hasDeleteIntent && user) {
+      const roles = event.locals.roles || [];
+      const canDelete =
+        event.locals.isAdmin || hasPermissionWithRoles(user, "collection:delete", roles);
+      if (!canDelete) {
+        logger.warn(
+          `[handleCollectionBulkUpdate] User "${user._id || user.email}" attempted bulk update with delete intent on "${collectionId}" without permission`,
+        );
+        throw new AppError(
+          "You do not have permission to perform bulk delete operations via bulk update",
+          403,
+          "FORBIDDEN",
+        );
+      }
+    }
+  }
+
+  // Validate field constraints and strip null rows from each entry's data
+  const validPayload = Array.isArray(payload)
+    ? await validateBulkUpdatePayload(cms, collectionId, tenantId, payload)
+    : payload;
+
   return successResponse(
     event,
-    await cms.collections.bulkUpdate(collectionId, payload, {
+    await cms.collections.bulkUpdate(collectionId, validPayload, {
       user: user!,
       tenantId,
     }),

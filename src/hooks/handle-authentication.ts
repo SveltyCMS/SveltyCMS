@@ -57,6 +57,21 @@ function maskEmail(email: string): string {
   const domain = email.slice(atIndex);
   return local[0] + "***" + local[local.length - 1] + domain;
 }
+
+/**
+ * Resolves the configured cookie path from system settings.
+ * Falls back to "/" when COOKIE_PATH is not configured or empty.
+ */
+function getCookiePath(): string {
+  const configuredPath = getPrivateSettingSync("COOKIE_PATH");
+  if (configuredPath && typeof configuredPath === "string" && configuredPath.length > 0) {
+    logger.debug(`[Auth] Cookie path from settings: ${configuredPath}`);
+    return configuredPath;
+  }
+  logger.debug(`[Auth] Cookie path defaulting to "/"`);
+  return "/";
+}
+
 import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
@@ -334,7 +349,7 @@ async function handleSessionRotation(
       const cookieName = getSessionCookieName(isSecure);
 
       event.cookies.set(cookieName, newSessionId, {
-        path: "/",
+        path: getCookiePath(),
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? "strict" : "lax",
@@ -407,7 +422,7 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
   // where sign-up arrives mid-seed and generates a different tenantId.
   const maxAge = getDemoTTLSeconds();
   cookies.set(cookieName, tenantId, {
-    path: "/",
+    path: getCookiePath(),
     httpOnly: true,
     secure: isSecure,
     sameSite: "strict",
@@ -555,7 +570,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             sessionId,
           });
           metricsService.incrementAuthFailures();
-          cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+          cookies.delete(SESSION_COOKIE_NAME, { path: getCookiePath() });
           throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
         }
         locals.user = user;
@@ -574,7 +589,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
         // the dead cookie.
         (locals as any).returningUser = true;
-        cookies.delete(cookieName, { path: "/" });
+        cookies.delete(cookieName, { path: getCookiePath() });
       }
     } else {
       logger.info(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);

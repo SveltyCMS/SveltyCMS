@@ -104,7 +104,6 @@
 	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
 	// @ts-ignore - flip is used in template via animate:flip directive
 	import { flip } from 'svelte/animate';
@@ -125,7 +124,11 @@
 	// Props - Using API for scalability
 	const { currentUser = null, isMultiTenant = false, roles = [] }: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
 
-	const waitFilter = debounce(300);
+	let waitFilterTimeoutId: ReturnType<typeof setTimeout>;
+	const waitFilter = (fn: () => void) => {
+		clearTimeout(waitFilterTimeoutId);
+		waitFilterTimeoutId = setTimeout(fn, 300);
+	};
 	const flipDurationMs = 300;
 
 	// Core view state (must exist before smartTable onQueryChange can fetch)
@@ -150,7 +153,7 @@
 		mode: 'server',
 		pageSize: 10,
 		layoutKey: 'admin-area-users-tokens',
-		getRowId: (row) => getAdminRowId(row as TableDataType),
+		getRowId: (row: Record<string, unknown>) => getAdminRowId(row as TableDataType),
 		onQueryChange: () => {
 			fetchData().catch((err) => logger.error('AdminArea smartTable query change:', err));
 		}
@@ -547,8 +550,8 @@
 			if (result.success) {
 				// Optimistic update on current smartTable page
 				smartTable.setRows(
-					smartTable.rows.map((item) =>
-						isUser(item) && item._id === user._id ? { ...item, blocked: !item.blocked } : item
+					smartTable.rows.map((item: Record<string, unknown>) =>
+						isUser(item) && (item as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
 					) as TableDataType[]
 				);
 				toast.success(`User ${actionPastTense} successfully`);
@@ -614,8 +617,8 @@
 
 			if (result.success) {
 				smartTable.setRows(
-					smartTable.rows.map((item) =>
-						isToken(item) && item.token === token.token ? { ...item, blocked: !item.blocked } : item
+					smartTable.rows.map((item: Record<string, unknown>) =>
+						isToken(item) && (item as Token).token === token.token ? { ...item, blocked: !item.blocked } : item
 					) as TableDataType[]
 				);
 				toast.success(`Token ${actionPastTense} successfully`);
@@ -730,8 +733,8 @@
 
 		{#if showUsertoken && !showUserList && tableData}
 			{const now = new Date()}
-			{const expiredTokens = tableData.filter(
-				(item): item is Token & Record<string, unknown> => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
+			{const expiredTokens = (tableData as TableDataType[]).filter(
+				(item): item is Token & Record<string, unknown> => isToken(item as TableDataType) && (item as Token).expires != null && new Date(String((item as Token).expires)) < now
 			)}
 			{#if expiredTokens.length > 0}
 				<Button variant="outline"
@@ -828,8 +831,8 @@
 			rowsPerPage={rowsPerPage}
 			pagesCount={pagesCount}
 			totalItems={totalItems}
-			onUpdatePage={(page) => smartTable.setPage(page)}
-			onUpdateRowsPerPage={(rows) => smartTable.setPageSize(rows)}
+			onUpdatePage={(page: number) => smartTable.setPage(page)}
+			onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
 		>
 				<table class="{SMART_TABLE} {density === 'compact' ? 'table-compact' : density === 'comfortable' ? 'table-comfortable' : ''}">
 					<thead class={SMART_TABLE_THEAD}>
@@ -851,7 +854,7 @@
 												icon="material-symbols:search-rounded"
 												label={entrylist_filter()}
 												name={header.key}
-												onInput={(value) => handleInputChange(value, header.key)}
+												onInput={(value: string) => handleInputChange(value, String(header.key))}
 											/>
 										</div>
 									</th>
@@ -1018,7 +1021,7 @@
 													</Button>
 												</SystemTooltip>
 											</div>
-										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
+										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(String(header.key))}
 											{formatDate(isUser(row) ? row[header.key as keyof User] : isToken(row) ? row[header.key as keyof Token] : undefined)}
 										{:else if header.key === 'expires'}
 											{#if isToken(row)}

@@ -235,6 +235,9 @@ export interface FieldInstance {
   disableUnique?: boolean;
   tenantScopedUnique?: boolean;
 
+  /** Maximum allowed length for string field values (default: 255). */
+  maxLength?: number;
+
   // Functions
   validate?: (value: FieldValue) => boolean | Promise<boolean>;
   /** A reference to the widget's immutable definition. */

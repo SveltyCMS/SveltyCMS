@@ -45,15 +45,21 @@ const ROOT = process.cwd();
 const CHUNKS_DIR = join(ROOT, "build", "server", "chunks");
 
 const FULL_HANDLER_MARKERS = [
+  // Unique to the real testing handler body (not present in NAMESPACE_CONFIG alone).
   "Unauthorized: Testing endpoints are disabled",
+  // handleTestingRoutes also appears in +server.ts NAMESPACE_CONFIG mapping, so
+  // deploy mode must pair it with stub detection (full && !stub).
   "handleTestingRoutes",
-  // "MASTER TESTING HANDLER" removed — it's a JSDoc comment stripped during
-  // minification. "handleTestingRoutes" appears both in the handler export
-  // AND in NAMESPACE_CONFIG, but deploy mode catches false positives via
-  // the `full && !stub` check (the stub lacks NAMESPACE_CONFIG).
 ];
 
-const STUB_MARKERS = ['new Response("Not Found", { status: 404 })', "virtual:test-noop"];
+// Match both pretty and compact Response forms, plus the explicit strip marker
+// injected by testBackdoorStripperPlugin (virtual:test-noop).
+const STUB_MARKERS = [
+  "SVELTY_TEST_BACKDOOR_STRIPPED",
+  'new Response("Not Found", { status: 404 })',
+  'new Response("Not Found",{status:404})',
+  "virtual:test-noop",
+];
 
 function getMode(): "deploy" | "bench" {
   const arg = process.argv.find((a) => a.startsWith("--mode="))?.split("=")[1];

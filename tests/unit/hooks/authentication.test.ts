@@ -23,6 +23,13 @@ vi.mock("@src/databases/db", () => {
   };
 });
 
+const mockPrivateSettings = new Map<string, unknown>();
+
+vi.mock("@src/services/core/settings-service", () => ({
+  getPrivateSettingSync: vi.fn((key: string) => mockPrivateSettings.get(key)),
+  getPublicSettingSync: vi.fn(() => undefined),
+}));
+
 vi.mock("$app/environment", () => ({ dev: true, browser: false }));
 vi.mock("$app/navigation", () => ({
   goto: vi.fn(),
@@ -232,5 +239,68 @@ describe("handleAuthentication Middleware", () => {
       const httpsCookieName = (httpsEvent.cookies.set as any).mock.calls[0]?.[0];
       expect(httpCookieName).not.toBe(httpsCookieName);
     });
+  });
+});
+
+describe("Cookie Path Configuration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearAllSessionCaches();
+    mockPrivateSettings.clear();
+  });
+
+  it("should delete cookie with path '/' when COOKIE_PATH is not configured", async () => {
+    const event = createMockEvent("/dashboard", "invalid");
+    setupInvalidSession();
+    const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+    await handleAuthentication({ event, resolve });
+
+    // Cookie deletion uses getCookiePath() which defaults to "/"
+    expect(event.cookies.delete).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ path: "/" }),
+    );
+  });
+
+  it("should delete cookie with configured path when COOKIE_PATH is set", async () => {
+    mockPrivateSettings.set("COOKIE_PATH", "/admin");
+
+    const event = createMockEvent("/dashboard", "invalid");
+    setupInvalidSession();
+    const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+    await handleAuthentication({ event, resolve });
+
+    expect(event.cookies.delete).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ path: "/admin" }),
+    );
+  });
+
+  it("should delete cookie with path '/' when COOKIE_PATH is an empty string", async () => {
+    mockPrivateSettings.set("COOKIE_PATH", "");
+
+    const event = createMockEvent("/dashboard", "invalid");
+    setupInvalidSession();
+    const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+    await handleAuthentication({ event, resolve });
+
+    expect(event.cookies.delete).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ path: "/" }),
+    );
+  });
+
+  it("should delete cookie with path '/' when COOKIE_PATH returns null", async () => {
+    mockPrivateSettings.set("COOKIE_PATH", null);
+
+    const event = createMockEvent("/dashboard", "invalid");
+    setupInvalidSession();
+    const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+    await handleAuthentication({ event, resolve });
+
+    expect(event.cookies.delete).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ path: "/" }),
+    );
   });
 });

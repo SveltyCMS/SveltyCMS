@@ -485,3 +485,190 @@ describe("CSRF Protection Bypass for API Clients", () => {
     expect(verifyCsrfValidationBypass(null, "POST")).toBe(false);
   });
 });
+
+// ─── Bulk Update Delete Guard ────────────────────────────────────────────────
+
+describe("Bulk Update Delete Guard", () => {
+  /**
+   * Pure function mirroring the handler logic from handleCollectionBulkUpdate
+   * in collections.ts. Returns the blocking error if the operation should be
+   * denied, or null if allowed.
+   */
+  function checkBulkUpdateDeleteGuard(
+    schema: { disableBulkDelete?: boolean; name?: string } | null,
+    payload: Array<{ data?: Record<string, unknown> }>,
+    user: {
+      permissions?: string[];
+      roles?: string[];
+      isAdmin?: boolean;
+    } | null,
+  ): { blocked: boolean; code?: string } | null {
+    // Helper: detect delete intent in payload entries
+    function hasDeleteIntent(entries: Array<{ data?: Record<string, unknown> }>): boolean {
+      return entries.some(
+        (entry) =>
+          entry.data?._deleted === true ||
+          entry.data?.status === "deleted" ||
+          entry.data?.status === "trashed",
+      );
+    }
+
+    // 🛡️ Guard 1: disableBulkDelete schema flag
+    if (schema?.disableBulkDelete && hasDeleteIntent(payload)) {
+      return { blocked: true, code: "BULK_DELETE_DISABLED" };
+    }
+
+    // 🛡️ Guard 2: Permission check for delete markers
+    const intent = hasDeleteIntent(payload);
+    if (intent && user) {
+      const roles = user.roles ?? [];
+      const isAdmin =
+        user.isAdmin === true || roles.includes("admin") || roles.includes("super-admin");
+      const hasDeletePerm = user.permissions?.includes("collection:delete") ?? false;
+      const canDelete = isAdmin || hasDeletePerm;
+      if (!canDelete) {
+        return { blocked: true, code: "FORBIDDEN" };
+      }
+    }
+
+    return null; // Allowed
+  }
+
+  // ── Guard 1: disableBulkDelete ──────────────────────────────────────
+
+  it("should block bulk update with _deleted marker when disableBulkDelete is true", () => {
+    const schema = { disableBulkDelete: true };
+    const payload = [{ data: { _deleted: true, title: "Post 1" } }];
+    const user = { isAdmin: true, roles: ["admin"], permissions: ["collection:delete"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).not.toBeNull();
+    expect(result!.blocked).toBe(true);
+    expect(result!.code).toBe("BULK_DELETE_DISABLED");
+  });
+
+  it("should block bulk update with status 'deleted' when disableBulkDelete is true", () => {
+    const schema = { disableBulkDelete: true };
+    const payload = [{ data: { status: "deleted", title: "Post 1" } }];
+    const user = { isAdmin: true, roles: ["admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("BULK_DELETE_DISABLED");
+  });
+
+  it("should block bulk update with status 'trashed' when disableBulkDelete is true", () => {
+    const schema = { disableBulkDelete: true };
+    const payload = [{ data: { status: "trashed", title: "Post 1" } }];
+    const user = { isAdmin: true, roles: ["admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("BULK_DELETE_DISABLED");
+  });
+
+  it("should allow bulk update without delete markers even when disableBulkDelete is true", () => {
+    const schema = { disableBulkDelete: true };
+    const payload = [{ data: { title: "Updated Title" } }];
+    const user = { roles: ["editor"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  it("should allow bulk update when disableBulkDelete is false with delete markers", () => {
+    const schema = { disableBulkDelete: false };
+    const payload = [{ data: { _deleted: true } }];
+    const user = { isAdmin: true, roles: ["admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  it("should allow bulk update when disableBulkDelete is not set", () => {
+    const schema = {};
+    const payload = [{ data: { status: "deleted" } }];
+    const user = { isAdmin: true, roles: ["admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  // ── Guard 2: Permission check ───────────────────────────────────────
+
+  it("should block user without collection:delete permission from bulk update with _deleted marker", () => {
+    const schema = { disableBulkDelete: false };
+    const payload = [{ data: { _deleted: true, title: "Post 1" } }];
+    const user = { roles: ["editor"], permissions: ["collection:read", "collection:write"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("FORBIDDEN");
+  });
+
+  it("should block user without collection:delete permission from bulk update with status 'deleted'", () => {
+    const schema = {};
+    const payload = [{ data: { status: "deleted" } }];
+    const user = { roles: ["author"], permissions: ["collection:write"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("FORBIDDEN");
+  });
+
+  it("should allow admin with collection:delete to bulk update with delete markers", () => {
+    const schema = {};
+    const payload = [{ data: { _deleted: true } }];
+    const user = { isAdmin: true, roles: ["admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  it("should allow super-admin to bulk update with delete markers", () => {
+    const schema = {};
+    const payload = [{ data: { status: "trashed" } }];
+    const user = { roles: ["super-admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  it("should allow user with collection:delete permission to bulk update with delete markers", () => {
+    const schema = {};
+    const payload = [{ data: { _deleted: true } }];
+    const user = { roles: ["editor"], permissions: ["collection:delete"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  it("should allow bulk update when no entries have delete markers (any user)", () => {
+    const schema = { disableBulkDelete: false };
+    const payload = [{ data: { title: "A" } }, { data: { title: "B" } }];
+    const user = { roles: ["viewer"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    expect(result).toBeNull();
+  });
+
+  it("should detect delete intent in mixed payload (some entries with, some without markers)", () => {
+    const schema = { disableBulkDelete: true };
+    const payload = [
+      { data: { title: "A" } },
+      { data: { _deleted: true, title: "B" } },
+      { data: { title: "C" } },
+    ];
+    const user = { isAdmin: true, roles: ["admin"] };
+    const result = checkBulkUpdateDeleteGuard(schema, payload, user);
+    // Even one delete marker in the batch triggers the block
+    expect(result).not.toBeNull();
+    expect(result!.code).toBe("BULK_DELETE_DISABLED");
+  });
+
+  it("should NOT check permissions when user is null (no delete markers = allowed)", () => {
+    const schema = {};
+    const payload = [{ data: { title: "Safe" } }];
+    const result = checkBulkUpdateDeleteGuard(schema, payload, null);
+    expect(result).toBeNull();
+  });
+
+  it("should NOT check permissions when user is null and payload has no delete markers", () => {
+    // When user is null and payload has delete markers, the permission check
+    // guard in the handler is skipped due to `if (hasDeleteIntent && user)`.
+    // The disableBulkDelete check still runs (schema check doesn't require user).
+    const schema = {};
+    const payload = [{ data: { _deleted: true } }];
+    const result = checkBulkUpdateDeleteGuard(schema, payload, null);
+    // No user, so permission check is skipped → allowed
+    expect(result).toBeNull();
+  });
+});

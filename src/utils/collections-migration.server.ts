@@ -44,11 +44,12 @@ async function moveFileAtomically(src: string, dest: string): Promise<boolean> {
  * Uses centralized paths module — no hardcoded process.cwd() strings.
  */
 function getMigrationDirs(tenantId?: string | null) {
+  const config = path.join(process.cwd(), "config");
   return {
-    flat: path.join(paths.config, "collections"),
+    flat: path.join(config, "collections"),
     tenant: tenantId
-      ? path.join(paths.config, tenantId, "collections")
-      : path.join(paths.config, "collections"),
+      ? path.join(config, tenantId, "collections")
+      : path.join(config, "collections"),
   };
 }
 

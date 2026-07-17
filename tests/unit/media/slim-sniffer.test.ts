@@ -53,7 +53,14 @@ describe("slim-sniffer — document/video formats", () => {
   });
 
   it("detects DOCX/ZIP via 50 4B 03 04", () => {
-    expect(sniffMimeType(Buffer.from([0x50, 0x4b, 0x03, 0x04]))).toEqual({
+    // DOCX requires inner "word/" check — create a buffer with it at offset 30+
+    const buf = Buffer.alloc(64, 0);
+    buf[0] = 0x50;
+    buf[1] = 0x4b;
+    buf[2] = 0x03;
+    buf[3] = 0x04;
+    buf.write("word/", 30, "ascii");
+    expect(sniffMimeType(buf)).toEqual({
       ext: "docx",
       mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });

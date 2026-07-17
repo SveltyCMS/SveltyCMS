@@ -94,7 +94,7 @@ const LIVE_ROOTS = [
 ].map((p) => path.normalize(p));
 
 function liveCompiledCollectionsPath(tenantId?: string | null): string {
-  const base = path.join(CWD, ".compiledCollections");
+  const base = path.join(process.cwd(), ".compiledCollections");
   if (tenantId === undefined || tenantId === null) return base;
   return path.join(base, tenantId);
 }

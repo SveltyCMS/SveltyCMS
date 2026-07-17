@@ -62,7 +62,8 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/auth/saml/login",
 ]);
 
-const PUBLIC_PREFIX_ROUTES = ["/api/settings/public", "/api/theme/public"];
+// Prefix matches cover tokenized public surfaces (e.g. /share/{token}).
+const PUBLIC_PREFIX_ROUTES = ["/share/", "/api/settings/public", "/api/theme/public"];
 
 // ─── One-shot request classifier ──────────────────────────────────────────
 

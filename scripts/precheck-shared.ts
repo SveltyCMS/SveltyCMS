@@ -467,11 +467,15 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => {
       // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
       // Isolated from the CI-parity COMPILE_ALL_ADAPTERS build above.
+      // Explicitly delete (not empty-string) so the stripper condition
+      // `COMPILE_ALL_ADAPTERS !== "true"` is unambiguous across shells.
+      const deployEnv = { ...process.env };
+      delete deployEnv.COMPILE_ALL_ADAPTERS;
       const buildOk =
         runCommand("bun", ["run", "build"], {
           silent: true,
           timeout: 300_000,
-          env: { ...process.env, COMPILE_ALL_ADAPTERS: "" },
+          env: deployEnv,
         }) !== false;
       if (!buildOk) return false;
       return (

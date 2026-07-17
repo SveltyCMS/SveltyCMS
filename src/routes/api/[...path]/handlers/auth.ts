@@ -424,7 +424,7 @@ export async function handleSaveAvatarRoute(
     if (!uploadResult.success) {
       throw new AppError(uploadResult.message || "Failed to upload avatar", 400);
     }
-    finalAvatarUrl = uploadResult.data.url || uploadResult.data.path;
+    finalAvatarUrl = uploadResult.data.url || (uploadResult.data as any).path;
   } else {
     finalAvatarUrl = avatarValue;
   }

@@ -32,6 +32,7 @@ import { logger } from "@utils/logger";
 import {
 	type MediaBase,
 	type MediaImage,
+	type StoredMediaBase,
 	MediaTypeEnum,
 } from "@utils/media/media-models";
 import {
@@ -117,8 +118,8 @@ const filteredFiles = $derived.by(() => {
 			const meta = file.metadata as Record<string, any> | undefined;
 
 			if (searchCriteria.filename && !file.filename?.toLowerCase().includes(searchCriteria.filename.toLowerCase())) return false;
-			if (searchCriteria.minSize && file.size < searchCriteria.minSize) return false;
-			if (searchCriteria.maxSize && file.size > searchCriteria.maxSize) return false;
+			if (searchCriteria.minSize && (file as StoredMediaBase).size < searchCriteria.minSize) return false;
+			if (searchCriteria.maxSize && (file as StoredMediaBase).size > searchCriteria.maxSize) return false;
 			if (searchCriteria.minWidth && (!img.width || img.width < searchCriteria.minWidth)) return false;
 			if (searchCriteria.maxWidth && (!img.width || img.width > searchCriteria.maxWidth)) return false;
 			if (searchCriteria.minHeight && (!img.height || img.height < searchCriteria.minHeight)) return false;
@@ -154,8 +155,8 @@ const filteredFiles = $derived.by(() => {
 			case 'oldest': return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
 			case 'name-asc': return (a.filename || '').localeCompare(b.filename || '');
 			case 'name-desc': return (b.filename || '').localeCompare(a.filename || '');
-			case 'size-desc': return b.size - a.size;
-			case 'size-asc': return a.size - b.size;
+			case 'size-desc': return (b as StoredMediaBase).size - (a as StoredMediaBase).size;
+			case 'size-asc': return (a as StoredMediaBase).size - (b as StoredMediaBase).size;
 			case 'newest':
 			default: return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
 		}

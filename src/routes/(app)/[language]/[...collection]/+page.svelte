@@ -48,6 +48,8 @@ interface PageData {
 		pageSize: number;
 	};
 	revisions: any[];
+	statusFacets?: Record<string, number>;
+	listMetrics?: Record<string, unknown> | null;
 }
 
 const { data }: { data: PageData } = $props();

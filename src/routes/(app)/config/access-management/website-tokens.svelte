@@ -85,13 +85,13 @@ const smartTable = createSmartTable({
 	pageSize: 10,
 	layoutKey: "website-tokens-table",
 	initialSort: { sortedBy: "createdAt", isSorted: -1 },
-	getRowId: (row) => String((row as WebsiteToken)._id ?? ""),
+	getRowId: (row) => String((row as unknown as WebsiteToken)._id ?? ""),
 	onQueryChange: () => {
 		fetchTokens().catch(() => {});
 	},
 });
 
-const tokens = $derived(smartTable.rows as WebsiteToken[]);
+const tokens = $derived(smartTable.rows as unknown as WebsiteToken[]);
 const totalItems = $derived(smartTable.pagination.totalItems);
 const pagesCount = $derived(smartTable.pagination.pagesCount);
 const currentPage = $derived(smartTable.pagination.currentPage);

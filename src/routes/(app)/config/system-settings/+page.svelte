@@ -337,7 +337,7 @@ $effect(() => {
 				<p>Mode: <strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong></p>
 				{#if structureInfo.warnings && structureInfo.warnings.length > 0}
 					<div class="mt-2 p-3 rounded bg-warning-500/10 text-warning-700 dark:text-warning-300">
-						{#each structureInfo.warnings as w}
+						{#each structureInfo.warnings as w, i (i)}
 							<p class="text-xs">\u26a0\ufe0f {w}</p>
 						{/each}
 					</div>

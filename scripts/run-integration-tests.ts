@@ -182,14 +182,36 @@ async function waitForPortToBeFree(port: number, maxAttempts = 30) {
 async function freePort(port: number) {
   console.log(`🧹 Freeing port ${port}...`);
 
+  // Prefer killing only the preview process we spawned. Blind Stop-Process on
+  // every PID bound to the port can race Windows shells and orphan file locks
+  // around build/ during isolated restarts.
+  if (previewProcess?.pid) {
+    try {
+      if (process.platform === "win32") {
+        execSync(`taskkill /PID ${previewProcess.pid} /T /F`, { stdio: "ignore" });
+      } else {
+        try {
+          process.kill(-previewProcess.pid, "SIGKILL");
+        } catch {
+          previewProcess.kill("SIGKILL");
+        }
+      }
+    } catch {
+      // already dead
+    }
+    previewProcess = null;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
   try {
     if (process.platform === "win32") {
+      // Only kill LISTENING owners of this port (not our own shell if mis-matched).
       execSync(
-        `powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
+        `powershell -NoProfile -Command "$conns = Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue; foreach ($c in $conns) { $owner = $c.OwningProcess; if ($owner -and $owner -ne $PID) { Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue } }"`,
         { stdio: "ignore" },
       );
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9 || true`, { stdio: "ignore" });
+      execSync(`lsof -ti:${port} | xargs -r kill -9 || true`, { stdio: "ignore" });
     }
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -199,10 +221,21 @@ async function freePort(port: number) {
   await waitForPortToBeFree(port);
 }
 
-async function waitForServerReady(maxAttempts = 60) {
-  console.log("⏳ Waiting for server to reach READY state...");
+async function waitForServerReady(maxAttempts = 60, options: { allowSetup?: boolean } = {}) {
+  const allowSetup = options.allowSetup === true;
+  console.log(
+    allowSetup
+      ? "⏳ Waiting for server to listen (setup mode accepts state=setup)..."
+      : "⏳ Waiting for server to reach READY state...",
+  );
 
-  const targetStates = new Set(["ready", "healthy", "ok", "degraded"]);
+  // Setup-mode tests delete/recreate config and expect the app to stay in
+  // "setup" until the wizard completes — treating that as healthy hang forever.
+  const targetStates = new Set(
+    allowSetup
+      ? ["ready", "healthy", "ok", "degraded", "setup", "idle"]
+      : ["ready", "healthy", "ok", "degraded"],
+  );
   const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -215,15 +248,20 @@ async function waitForServerReady(maxAttempts = 60) {
         signal: AbortSignal.timeout(3000),
       });
 
-      if (res.ok || res.status === 533) {
+      if (res.ok || res.status === 533 || (allowSetup && res.status >= 200 && res.status < 600)) {
         const data = await res.json().catch(() => ({}));
         const payload = data?.data && typeof data.data === "object" ? data.data : data;
         const rawStatus = (payload.overallStatus || payload.status || payload.health || "")
           .toString()
           .toLowerCase();
 
-        if (targetStates.has(rawStatus)) {
-          console.log(`✅ Server is READY (state: ${rawStatus})`);
+        if (targetStates.has(rawStatus) || (allowSetup && res.ok && !rawStatus)) {
+          console.log(`✅ Server is up (state: ${rawStatus || res.status})`);
+
+          // Setup-mode: do not wait for full READY/migrations — DB may not exist yet.
+          if (allowSetup && (rawStatus === "setup" || rawStatus === "idle" || !rawStatus)) {
+            return true;
+          }
 
           // 🚀 RACE CONDITION FIX: The system state machine reports READY
           // before SQLite migrations complete (bootAll runs asynchronously).
@@ -243,8 +281,10 @@ async function waitForServerReady(maxAttempts = 60) {
               });
               if (settleRes.ok) {
                 const settleData = await settleRes.json().catch(() => ({}));
-                const db = settleData?.data?.database || "";
-                if (db === "connected") {
+                // HYPER-TURBO path: { database: true }
+                // Regular handler: { success: true, data: { database: "connected" } }
+                const db = settleData?.database ?? settleData?.data?.database ?? "";
+                if (db === "connected" || db === true) {
                   console.log("✅ Database migrations settled.");
                   return true;
                 }
@@ -293,7 +333,7 @@ function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
   };
 }
 
-async function startPreviewServer() {
+async function startPreviewServer(options: { allowSetup?: boolean } = {}) {
   const db = getDbDefaults();
 
   // 🚀 HARDENING: For SQLite, delete stale database file BEFORE starting the server.
@@ -349,7 +389,14 @@ async function startPreviewServer() {
     detached: false,
   });
 
-  await waitForServerReady();
+  const ready = await waitForServerReady(60, { allowSetup: options.allowSetup === true });
+  if (!ready) {
+    throw new Error(
+      options.allowSetup
+        ? "Preview server never became reachable (setup mode)."
+        : "Preview server never reached READY — aborting before seed.",
+    );
+  }
 }
 
 async function prepareIsolatedServerForTestFile(file: string) {
@@ -360,7 +407,7 @@ async function prepareIsolatedServerForTestFile(file: string) {
   await stopPreviewServer();
   await freePort(Number.parseInt(PORT, 10));
 
-  await startPreviewServer();
+  await startPreviewServer({ allowSetup: setupModeTest });
 
   if (!setupModeTest) {
     await testingAction("seed");
