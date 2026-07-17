@@ -8,8 +8,8 @@
  * Uses invokeApi / createMockRequestEvent — keeps apiHandler real so AppError → Response.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { invokeApi, expectApi } from "../utils/mock-event";
+import { describe, it, vi, beforeEach } from "vitest";
+import { expectApi } from "../utils/mock-event";
 import { runRbacMatrix } from "../utils/rbac-matrix";
 import { createMockUser } from "../utils/mock-factories";
 
@@ -153,15 +153,7 @@ describe("Dispatcher security matrix (real +server)", () => {
     });
 
     it("rejects media list without tenantId when multi-tenant is on", async () => {
-      const res = await invokeApi("GET", {
-        path: "media",
-        user: admin,
-        tenantId: null,
-        bypass: true,
-      });
-      // Prefer 400 TENANT_*; handlers may also 500 if adapter mocks are incomplete — never 200
-      expect(res.status).not.toBe(200);
-      expect(res.status).toBeGreaterThanOrEqual(400);
+      await expectApi("GET", { path: "media", user: admin, tenantId: null, bypass: true }, 400);
     });
   });
 

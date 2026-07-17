@@ -107,7 +107,16 @@ export class MediaNamespace {
       return MediaNamespace._requestCache.get(cacheKey);
     }
 
-    const result = await this._dbAdapter.media.files.getByFolder(
+    const getByFolder = this._dbAdapter?.media?.files?.getByFolder;
+    if (typeof getByFolder !== "function") {
+      throw new AppError(
+        "Media adapter is not available (media.files.getByFolder missing)",
+        503,
+        "MEDIA_ADAPTER_UNAVAILABLE",
+      );
+    }
+
+    const result = await getByFolder(
       folderId as DatabaseId,
       {
         pageSize: limit,

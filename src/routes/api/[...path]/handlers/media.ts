@@ -17,6 +17,7 @@ import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { createLink, validateLink, revoke, extend, type ShareLink } from "@src/utils/media/sharing";
 import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
@@ -97,6 +98,13 @@ export async function handleMediaRoutes(
   const { user } = locals;
   const method = segments[1];
 
+  // Public share endpoints are token-gated and may run without tenant locals.
+  // All other media operations require tenant isolation when multi-tenant is on.
+  const isSharePath = method === "share";
+  if (!isSharePath && isMultiTenantEnabled() && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
+
   try {
     switch (request.method) {
       case "GET":
@@ -117,8 +125,9 @@ export async function handleMediaRoutes(
         throw new AppError(`HTTP method ${request.method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     }
   } catch (err: any) {
-    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
+    // Expected client/auth errors should not spam stderr as "MediaRoute Error"
     if (err instanceof AppError) throw err;
+    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
     throw new AppError(err.message || "Media route handler transaction failed", 500);
   }
 }

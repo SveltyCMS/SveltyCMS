@@ -588,7 +588,10 @@ export default defineConfig(() => ({
   define: {
     __SVELTY_SETUP_COMPLETE__: isSetupComplete(),
     global: "globalThis",
-    "process.env": "{}",
+    // NEVER replace `"process.env": "{}"` — Rolldown/Vite then rewrites every
+    // `process.env.FOO` access to `{}.FOO` (always undefined) in SSR chunks.
+    // That breaks TEST_MODE, setup-check, integration preview, and any runtime
+    // flag. Client bundles must not import server secrets; use $env modules.
   },
   build: {
     target: "esnext",

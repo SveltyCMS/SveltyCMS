@@ -231,11 +231,9 @@ async function waitForServerReady(maxAttempts = 60, options: { allowSetup?: bool
 
   // Setup-mode tests delete/recreate config and expect the app to stay in
   // "setup" until the wizard completes — treating that as healthy hang forever.
-  const targetStates = new Set(
-    allowSetup
-      ? ["ready", "healthy", "ok", "degraded", "setup", "idle"]
-      : ["ready", "healthy", "ok", "degraded"],
-  );
+  // Regular integration also accepts "setup" under TEST_MODE: the server is
+  // listening and seed will create admin users before suite body runs.
+  const targetStates = new Set(["ready", "healthy", "ok", "degraded", "setup", "idle"]);
   const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -254,13 +252,19 @@ async function waitForServerReady(maxAttempts = 60, options: { allowSetup?: bool
         const rawStatus = (payload.overallStatus || payload.status || payload.health || "")
           .toString()
           .toLowerCase();
+        const dbStatus = String(payload.database || "").toLowerCase();
 
         if (targetStates.has(rawStatus) || (allowSetup && res.ok && !rawStatus)) {
-          console.log(`✅ Server is up (state: ${rawStatus || res.status})`);
+          console.log(
+            `✅ Server is up (state: ${rawStatus || res.status}, db: ${dbStatus || "n/a"})`,
+          );
 
-          // Setup-mode: do not wait for full READY/migrations — DB may not exist yet.
-          if (allowSetup && (rawStatus === "setup" || rawStatus === "idle" || !rawStatus)) {
-            return true;
+          // Setup-mode or pre-seed: accept setup/idle immediately (seed follows).
+          if (rawStatus === "setup" || rawStatus === "idle" || allowSetup) {
+            // Prefer connected DB when we can, but do not hang forever on empty DB.
+            if (dbStatus === "connected" || dbStatus === "healthy" || allowSetup || i >= 5) {
+              return true;
+            }
           }
 
           // 🚀 RACE CONDITION FIX: The system state machine reports READY
@@ -310,6 +314,11 @@ async function waitForServerReady(maxAttempts = 60, options: { allowSetup?: bool
 }
 
 function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
+  const jwt =
+    CONFIG?.JWT_SECRET_KEY || process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
+  const enc =
+    CONFIG?.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
+
   return {
     NODE_ENV: "test",
     TEST_MODE: "true",
@@ -319,17 +328,18 @@ function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
     PORT,
     API_BASE_URL,
     DB_TYPE: db.type,
-    DB_HOST: db.host,
-    DB_PORT: String(db.port),
+    DB_HOST: db.host || "127.0.0.1",
+    // Omit empty port for sqlite (Number("") is 0 and can fail validation)
+    ...(db.port ? { DB_PORT: String(db.port) } : {}),
     DB_NAME: db.name,
-    DB_USER: db.user,
-    DB_PASSWORD: db.password,
+    DB_USER: db.user || "",
+    DB_PASSWORD: db.password || "",
     TEST_API_SECRET: CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
     ADMIN_PASSWORD: CONFIG?.ADMIN_PASSWORD || "Password123!",
     ORIGIN: API_BASE_URL,
     PASSWORD_MIN_LENGTH: "8",
-    JWT_SECRET_KEY: CONFIG?.JWT_SECRET_KEY || "",
-    ENCRYPTION_KEY: CONFIG?.ENCRYPTION_KEY || "",
+    JWT_SECRET_KEY: jwt,
+    ENCRYPTION_KEY: enc,
   };
 }
 
@@ -376,13 +386,24 @@ async function startPreviewServer(options: { allowSetup?: boolean } = {}) {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  const runtimeCmd = "node";
+  // Prefer bun when available — can load config/private.test.ts and keeps env intact.
+  // Fall back to node for CI images that only ship node.
+  const runtimeCmd = typeof Bun !== "undefined" ? "bun" : "node";
 
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
     env: {
       ...process.env,
       ...getTestEnv(db),
+      // Ensure secrets are never empty strings (schema minLength 32)
+      JWT_SECRET_KEY:
+        process.env.JWT_SECRET_KEY ||
+        CONFIG?.JWT_SECRET_KEY ||
+        "Integration-Test-JWT-Secret-Key-2026",
+      ENCRYPTION_KEY:
+        process.env.ENCRYPTION_KEY ||
+        CONFIG?.ENCRYPTION_KEY ||
+        "Integration-Encryption-Key-2026-32ch",
     },
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -527,7 +548,8 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
     try {
       const body: any = { action };
       if (action === "seed") {
-        body.email = "admin@test.com";
+        // Must match tests/integration/helpers/test-setup.ts testFixtures.adminUser
+        body.email = "admin@example.com";
         body.password = CONFIG?.ADMIN_PASSWORD || "Password123!";
       }
       if (preset) body.preset = preset;

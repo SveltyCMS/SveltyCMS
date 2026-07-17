@@ -17,6 +17,17 @@ vi.mock("@src/services/core/settings-service", () => ({
   getPublicSetting: vi.fn(() => Promise.resolve("")),
 }));
 
+// Silence structured logs during expected error-path tests
+vi.mock("@utils/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    trace: vi.fn(),
+  },
+}));
+
 // Mock ollama
 vi.mock("ollama", () => {
   const mockFn = vi.fn((params: any) => {

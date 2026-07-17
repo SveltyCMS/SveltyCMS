@@ -19,6 +19,18 @@ const ID_CONTEXT_KEY = Symbol.for("svelty-id-generator");
 const _global = globalThis as any;
 _global.__ID_GLOBAL_MAP ??= new Map<string, number>();
 
+/** Suppress SSR warnings under vitest / quiet unit runs (still warn in real SSR). */
+function isIdGeneratorQuiet(): boolean {
+  if (_global.__SVELTY_QUIET__ === true) return true;
+  const env = typeof process !== "undefined" ? process.env : undefined;
+  if (!env) return false;
+  return (
+    (env.VITEST != null && env.VITEST !== "" && env.VITEST !== "false" && env.VITEST !== "0") ||
+    env.TEST_MODE === "true" ||
+    env.NODE_ENV === "test"
+  );
+}
+
 /**
  * Initializes a request-scoped ID generator.
  *
@@ -48,7 +60,7 @@ export function generateId(prefix = "id"): string {
   try {
     if (hasContext(ID_CONTEXT_KEY)) {
       mapToUse = getContext<Map<string, number>>(ID_CONTEXT_KEY);
-    } else if (isServer) {
+    } else if (isServer && !isIdGeneratorQuiet()) {
       console.warn(
         `[id-generator] generateId('${prefix}') called during SSR without initIdGenerator(). ` +
           `Concurrent requests may experience hydration mismatches. Add initIdGenerator() to root +layout.svelte.`,

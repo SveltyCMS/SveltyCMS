@@ -81,12 +81,49 @@ interface LoadedManifest {
 }
 
 // ─── Logger ──────────────────────────────────────────────────────────────
-const defaultLogger: Logger = {
+// Quiet progress logs in automated test runners (vitest / bun test / CI unit).
+function isCompileQuiet(): boolean {
+  if ((globalThis as any).__SVELTY_QUIET__ === true) return true;
+  const env = typeof process !== "undefined" ? process.env : undefined;
+  if (!env) return false;
+  // Vitest sets VITEST="true"; also honor mode flags and argv fallbacks.
+  if (env.VITEST != null && env.VITEST !== "" && env.VITEST !== "false" && env.VITEST !== "0") {
+    return true;
+  }
+  if (env.TEST_MODE === "true" || env.BUN_TEST === "true" || env.NODE_ENV === "test") {
+    return true;
+  }
+  if (env.CI === "true" && env.COMPILE_VERBOSE !== "true") {
+    // CI unit jobs: quiet unless explicitly verbose
+    if (env.VITEST != null || env.npm_lifecycle_event?.includes("test")) return true;
+  }
+  try {
+    const argv = process.argv.join(" ");
+    if (/\bvitest\b/.test(argv) || /\.test\.[tj]sx?\b/.test(argv)) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+const silentLogger: Logger = {
+  info: () => {},
+  success: () => {},
+  warn: () => {},
+  error: (msg, err) => console.error(`\x1b[34m[Compile]\x1b[0m \x1b[31m${msg}\x1b[0m`, err),
+};
+
+const verboseLogger: Logger = {
   info: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m ${msg}`),
   success: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m \x1b[32m${msg}\x1b[0m`),
   warn: (msg) => console.warn(`\x1b[34m[Compile]\x1b[0m \x1b[33m${msg}\x1b[0m`),
   error: (msg, err) => console.error(`\x1b[34m[Compile]\x1b[0m \x1b[31m${msg}\x1b[0m`, err),
 };
+
+function resolveLogger(override?: Logger): Logger {
+  if (override) return override;
+  return isCompileQuiet() ? silentLogger : verboseLogger;
+}
 
 // ─── Normalize manifest paths (Windows-safe, relative keys) ─────────────
 function normalizeCompiledJsPath(compiledDir: string, jsPath: string): string {
@@ -122,7 +159,7 @@ function isManifestEntry(value: unknown): value is ManifestEntry {
  */
 export async function compile(options: CompileOptions = {}): Promise<CompilationResult> {
   const startTime = Date.now();
-  const logger = options.logger || defaultLogger;
+  const logger = resolveLogger(options.logger);
 
   if (options.tenantId !== undefined && !isValidTenantId(options.tenantId)) {
     throw new Error(`Invalid tenant ID: ${options.tenantId}`);

@@ -4,6 +4,11 @@ import path from "node:path";
 let cachedResult: boolean | null = null;
 let cacheTime = 0;
 
+/** Runtime env — never use bare `process.env.X` (Vite may mangle those at build time). */
+function runtimeEnv(key: string): string | undefined {
+  return (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env?.[key];
+}
+
 export function invalidateFastSetupCache(): void {
   cachedResult = null;
   cacheTime = 0;
@@ -26,7 +31,7 @@ export function isSetupComplete(): boolean {
   if (
     g.__SVELTY_SETUP_FORCED_COMPLETE__ ||
     g.__SVELTY_SETUP_COMPLETE__ ||
-    process.env.BENCHMARK === "true"
+    runtimeEnv("BENCHMARK") === "true"
   ) {
     return true;
   }
@@ -38,10 +43,9 @@ export function isSetupComplete(): boolean {
 
   try {
     const isTestMode =
-      typeof process !== "undefined" &&
-      (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true");
+      runtimeEnv("TEST_MODE") === "true" || runtimeEnv("VITE_TEST_MODE") === "true";
 
-    if (isTestMode && !process.env.STRICT_SETUP_CHECK) return true;
+    if (isTestMode && runtimeEnv("STRICT_SETUP_CHECK") !== "true") return true;
 
     const configFileName = isTestMode ? "private.test.ts" : "private.ts";
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);

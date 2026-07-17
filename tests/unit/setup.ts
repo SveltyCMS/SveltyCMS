@@ -19,8 +19,11 @@ const isBenchmark =
   process.env.BENCHMARK_STABLE === "true" ||
   currentTest?.includes("benchmark");
 
+// Quiet progress loggers (compile, etc.) for all unit runs — not just benchmarks.
+(globalThis as any).__SVELTY_QUIET__ = true;
+process.env.TEST_MODE = process.env.TEST_MODE || "true";
 if (isBenchmark) {
-  (globalThis as any).__SVELTY_QUIET__ = true;
+  process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "true";
 }
 
 import { argvIncludesRealDbTest } from "../helpers/real-db-test-markers";

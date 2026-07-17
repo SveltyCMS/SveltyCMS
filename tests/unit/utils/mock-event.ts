@@ -164,10 +164,23 @@ export function createMockRequestEvent(options: MockEventOptions = {}): RequestE
           getModel: vi.fn().mockResolvedValue({}),
         },
         collections: {},
-        media: {},
+        media: {
+          files: {
+            getByFolder: vi.fn().mockResolvedValue({ success: true, data: { items: [] } }),
+            getByHash: vi.fn().mockResolvedValue({ success: true, data: null }),
+            upload: vi.fn().mockResolvedValue({ success: true, data: { _id: "m1" } }),
+            delete: vi.fn().mockResolvedValue({ success: true }),
+          },
+        },
         widgets: {},
-        system: {},
-        crud: {},
+        system: {
+          preferences: { getMany: vi.fn().mockResolvedValue({ success: true, data: {} }) },
+          widgets: { getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+        },
+        crud: {
+          findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
+        },
       },
       isAdmin: user?.isAdmin === true,
       ...(bypass ? { __testBypass: true } : {}),
