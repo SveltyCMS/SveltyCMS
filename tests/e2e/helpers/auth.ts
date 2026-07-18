@@ -404,13 +404,10 @@ async function injectSessionCookieFromResponse(
 
     let name = eq > 0 ? nv.slice(0, eq).trim() : "";
     let value = eq > 0 ? nv.slice(eq + 1).trim() : "";
-    if (!name || !value) {
-      if (!sid) return;
-      name = "auth_sessions";
-      value = sid;
-    } else if (!value && sid) {
-      value = sid;
-    }
+    // Prefer Set-Cookie name/value; fall back to plain auth_sessions + session id
+    if (!name) name = "auth_sessions";
+    if (!value) value = sid;
+    if (!value) return;
 
     // Force plain cookie over HTTP — browsers drop Secure/__Host- cookies on http://
     if (name.startsWith("__Host-") || name.startsWith("__Secure-")) {

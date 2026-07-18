@@ -58,13 +58,10 @@ async function applySessionFromResponse(
   let name = eqIdx > 0 ? cookieLine.slice(0, eqIdx).trim() : "";
   let value = eqIdx > 0 ? cookieLine.slice(eqIdx + 1).trim() : "";
 
-  if (!name || !value) {
-    if (!sid) return false;
-    name = "auth_sessions";
-    value = sid;
-  } else if (!value && sid) {
-    value = sid;
-  }
+  // Prefer Set-Cookie name/value; fall back to plain auth_sessions + session id
+  if (!name) name = "auth_sessions";
+  if (!value) value = sid;
+  if (!value) return false;
 
   const secure = name.startsWith("__Host-") || name.startsWith("__Secure-");
   // Over HTTP in CI, force non-secure plain cookie name
