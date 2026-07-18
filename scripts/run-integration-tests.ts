@@ -858,11 +858,12 @@ async function main() {
   async function runOneTest(
     file: string,
     setupMode: boolean,
-    opts?: { retry?: boolean },
+    opts?: { retry?: boolean; progress?: string },
   ): Promise<TestResult> {
     const relPath = relative(ROOT, file);
     const start = Date.now();
-    const label = opts?.retry ? `Retrying ${relPath}...` : `Running ${relPath}...`;
+    const prefix = opts?.progress ? `${opts.progress} ` : "";
+    const label = opts?.retry ? `${prefix}↻ Retry: ${relPath}` : `${prefix}${relPath}`;
     console.log(label);
 
     const bunTestPath = `./${normalizePath(relPath)}`;
@@ -913,19 +914,27 @@ async function main() {
     for (let i = 0; i < regularTests.length; i++) {
       if (isShuttingDown) break;
       const file = regularTests[i]!;
+      const progress = `[${i + 1}/${regularTests.length}]`;
 
-      const entry = await runOneTest(file, false);
+      const entry = await runOneTest(file, false, { progress });
 
       if (!entry.success && !isShuttingDown) {
         await testingAction("reset");
         await testingAction("seed");
-        const retry = await runOneTest(file, false, { retry: true });
+        const retry = await runOneTest(file, false, { retry: true, progress: `${progress} ↻` });
         results.push(retry);
         if (retry.success) passed++;
       } else {
         results.push(entry);
         if (entry.success) passed++;
       }
+
+      // Live progress: cumulative pass/fail after each test
+      const failCount = results.filter((r) => !r.success).length;
+      const passCount = results.filter((r) => r.success).length;
+      console.log(
+        `  📊 ${passCount} passed, ${failCount} failed, ${i + 1}/${regularTests.length} done`,
+      );
 
       // Reset/seed for next test (skip after last)
       if (i < regularTests.length - 1 && !isShuttingDown) {
