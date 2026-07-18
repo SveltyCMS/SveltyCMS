@@ -14,6 +14,12 @@ async function goAccess(page: Page) {
     waitUntil: "domcontentloaded",
     timeout: 30_000,
   });
+  // Re-auth once if bounced to /login (stale storageState / cookie desync)
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/config/access-management");
+  }
+  await expect(page).toHaveURL(/\/config\/access-management/, { timeout: ACTION_TIMEOUT });
+  await expect(page).not.toHaveURL(/\/login/);
   await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
   await expect(page.getByTestId("page-title")).toContainText(/access management/i);
   await expect(page.getByTestId("access-mgmt-page")).toBeVisible({ timeout: ACTION_TIMEOUT });

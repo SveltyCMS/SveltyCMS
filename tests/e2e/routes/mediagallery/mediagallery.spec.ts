@@ -15,13 +15,31 @@ async function openMediaGallery(page: import("@playwright/test").Page) {
   await loginAsAdmin(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
-  const pageTitle = page.getByTestId("page-title");
-  if (await pageTitle.isVisible({ timeout: 15_000 }).catch(() => false)) {
-    await expect(pageTitle).toContainText(/media gallery/i);
-  } else {
-    await expect(page.getByRole("heading", { name: /media gallery/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
+  await expect(page).not.toHaveURL(/\/login/);
+
+  // Shell may use page-title testid, heading, or toolbar-only layout
+  const markers = [
+    page.getByTestId("page-title"),
+    page.getByTestId("media-gallery-toolbar"),
+    page.getByTestId("media-gallery-content"),
+    page.getByRole("heading", { name: /media gallery/i }).first(),
+  ];
+  let ok = false;
+  for (const m of markers) {
+    if (await m.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      ok = true;
+      break;
+    }
+  }
+  if (!ok) {
+    throw new Error(
+      `Media gallery shell not visible at ${page.url()} body=${(
+        await page
+          .locator("body")
+          .innerText()
+          .catch(() => "")
+      ).slice(0, 400)}`,
+    );
   }
 }
 

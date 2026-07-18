@@ -138,7 +138,36 @@ async function selectInputFromAddFieldDialog(page: Page): Promise<void> {
 export async function openNewCollectionEditor(page: Page): Promise<void> {
   await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
   await dismissOpenDialogs(page);
+
+  // If builder shell never mounts (SSR error), surface URL + body for CI logs
   const addBtn = page.getByTestId("add-collection-button").first();
+  const board = page.getByTestId("collection-builder-board");
+  const title = page.getByTestId("page-title");
+  const shellVisible =
+    (await addBtn.isVisible({ timeout: 20_000 }).catch(() => false)) ||
+    (await board.isVisible({ timeout: 2_000 }).catch(() => false)) ||
+    (await title.isVisible({ timeout: 2_000 }).catch(() => false));
+
+  if (!shellVisible) {
+    // One recovery: re-login via testing API then retry once
+    try {
+      const { loginAsAdmin } = await import("./auth");
+      await loginAsAdmin(page);
+      await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+      await dismissOpenDialogs(page);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (!(await addBtn.isVisible({ timeout: 15_000 }).catch(() => false))) {
+    const body = await page
+      .locator("body")
+      .innerText()
+      .catch(() => "");
+    throw new Error(`collectionbuilder shell missing at ${page.url()} body=${body.slice(0, 500)}`);
+  }
+
   await stableClick(addBtn, 20_000);
   await page.waitForURL(/\/config\/collectionbuilder\/new/, { timeout: 20_000 });
   await expect(page.getByTestId("collection-name-input")).toBeVisible({ timeout: 15_000 });
