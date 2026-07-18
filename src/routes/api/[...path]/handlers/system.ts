@@ -56,6 +56,8 @@ export async function handleSystemRoutes(
       return handleAiRoutes(event, cms, tenantId, segments);
     case "automations":
       return handleAutomationRoutes(event, cms, tenantId, segments);
+    case "workflows":
+      return handleWorkflowRoutes(event, cms, tenantId, segments);
     case "metrics":
       return successResponse(
         event,
@@ -648,6 +650,90 @@ export async function handleAiRoutes(
 /**
  * --- AUTOMATION ---
  */
+/**
+ * --- WORKFLOWS (content lifecycle FSM definitions) ---
+ */
+export async function handleWorkflowRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request, locals, url } = event;
+  const { user } = locals;
+
+  // 🛡️ SECURITY: Admin for mutations; authenticated for GET
+  if (!["GET", "OPTIONS"].includes(request.method)) {
+    if (!user || (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin")) {
+      throw new AppError("Admin access required for workflow management", 403, "FORBIDDEN");
+    }
+  } else if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  if (isMultiTenantEnabled() && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
+
+  const { workflowService } = await import("@src/services/background/workflow-service");
+  const tid = tenantId ? String(tenantId) : undefined;
+
+  // PATCH = entry state transition (content ops, not definition CRUD)
+  if (request.method === "PATCH") {
+    const body = await request.json().catch(() => ({}));
+    const entryId = body.entryId as string | undefined;
+    const targetStateId = body.targetStateId as string | undefined;
+    if (!entryId || !targetStateId) {
+      throw new AppError("entryId and targetStateId are required", 400);
+    }
+    const roles = Array.isArray((user as any)?.roles) ? (user as any).roles : [];
+    const instance = await workflowService.transition(
+      entryId,
+      targetStateId,
+      user as any,
+      roles,
+      tid,
+      body.comment as string | undefined,
+    );
+    return successResponse(event, instance);
+  }
+
+  if (request.method === "GET") {
+    const collectionId = url.searchParams.get("collectionId") || segments[1];
+    const entryId = url.searchParams.get("entryId");
+
+    if (entryId) {
+      const instance = await workflowService.getWorkflowInstance(entryId, tid);
+      return successResponse(event, instance);
+    }
+
+    if (collectionId && collectionId !== "list") {
+      const def = await workflowService.getWorkflowForCollection(collectionId, tid);
+      return successResponse(event, def);
+    }
+
+    throw new AppError("collectionId or entryId query parameter required", 400);
+  }
+
+  if (request.method === "POST") {
+    const body = await request.json();
+    if (!body?.collectionId) {
+      throw new AppError("collectionId is required", 400);
+    }
+    const saved = await workflowService.saveWorkflow(body, user as any, tid);
+    return successResponse(event, saved, body._id ? 200 : 201);
+  }
+
+  if (request.method === "DELETE") {
+    const id = segments[1] || url.searchParams.get("id");
+    if (!id) throw new AppError("Workflow id required", 400);
+    await workflowService.deleteWorkflow(id, user as any, tid);
+    return successResponse(event, { success: true, deleted: id });
+  }
+
+  throw new AppError(`Method ${request.method} not allowed for workflows`, 405);
+}
+
 export async function handleAutomationRoutes(
   event: RequestEvent,
   cms: LocalCMS,

@@ -1,0 +1,9 @@
+# LiteRT.js Models
+
+Place .tflite model files here.
+
+Expected models:
+- mobilenet-v3-256.tflite (4.5 MB) — Image classification for alt-text
+- embedding-gemma-384.tflite (18 MB) — Text embeddings
+
+These are served from /ai/models/ by the AI Worker.

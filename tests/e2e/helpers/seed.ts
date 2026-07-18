@@ -100,6 +100,38 @@ export async function deleteAutomation(page: Requestish, id: string) {
   await postTesting(page, { action: "delete-automation", id });
 }
 
+/** Seed a content lifecycle workflow definition for a collection. */
+export async function seedWorkflow(
+  page: Requestish,
+  options: {
+    collectionId?: string;
+    id?: string;
+    states?: unknown[];
+    transitions?: unknown[];
+  } = {},
+): Promise<{ _id: string; collectionId: string }> {
+  const stamp = Date.now().toString(36);
+  const body = await postTesting(page, {
+    action: "seed-workflow",
+    collectionId: options.collectionId ?? `e2e_wf_${stamp}`,
+    id: options.id,
+    states: options.states,
+    transitions: options.transitions,
+  });
+  const wf = body.workflow || body.data;
+  if (!wf?._id && !wf?.id) {
+    throw new Error(`seed-workflow: missing id in response ${JSON.stringify(body).slice(0, 300)}`);
+  }
+  return {
+    _id: String(wf._id || wf.id),
+    collectionId: String(wf.collectionId),
+  };
+}
+
+export async function deleteWorkflow(page: Requestish, id: string) {
+  await postTesting(page, { action: "delete-workflow", id });
+}
+
 /**
  * Enable a core plugin for the current tenant. Throws on failure (no soft-skip).
  * Use only for plugins expected in CI; external fixture plugins may return 503.

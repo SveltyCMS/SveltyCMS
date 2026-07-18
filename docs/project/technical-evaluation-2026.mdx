@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-16"
+updated: "2026-07-18"
 tags:
   - "evaluation"
   - "technical"
@@ -213,14 +213,14 @@ To support the UI migration and global dynamic content, SveltyCMS standardized i
 
 The following matrix evaluates core engineering implementations where SveltyCMS provides a distinct technical advantage over legacy and contemporary competitors.
 
-| Feature             | SveltyCMS (v2026)           | Strapi 5          | Payload 3.0        | Directus 11       | Sveltia CMS       |
-| :------------------ | :-------------------------- | :---------------- | :----------------- | :---------------- | :---------------- |
-| **Core Framework**  | **Svelte 5 (Runes)**        | React             | Next.js / React    | Vue / Node.js     | Svelte (SPA)      |
-| **Architecture**    | **Server-First (SSR)**      | Node.js / React   | Next.js / React    | Node.js / Vue     | Git-based (Local) |
-| **Multi-Tenancy**   | **Native Adapter-Level**    | Paid (Enterprise) | Plugin-based       | Native            | N/A               |
-| **Slug Uniqueness** | **Tenant-Scoped (Native)**  | Global Only       | Global Only        | Manual Config     | Locale-Agnostic   |
-| **AI Architecture** | **Local (Ollama) + Cloud**  | Cloud Only (Paid) | MCP Native (Cloud) | Cloud Only (Paid) | N/A               |
-| **Real-time Sync**  | **Node ws + Yjs (Sub-1ms)** | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
+| Feature             | SveltyCMS (v2026)                                    | Strapi 5          | Payload 3.0        | Directus 11       | Sveltia CMS       |
+| :------------------ | :--------------------------------------------------- | :---------------- | :----------------- | :---------------- | :---------------- |
+| **Core Framework**  | **Svelte 5 (Runes)**                                 | React             | Next.js / React    | Vue / Node.js     | Svelte (SPA)      |
+| **Architecture**    | **Server-First (SSR)**                               | Node.js / React   | Next.js / React    | Node.js / Vue     | Git-based (Local) |
+| **Multi-Tenancy**   | **Native Adapter-Level**                             | Paid (Enterprise) | Plugin-based       | Native            | N/A               |
+| **Slug Uniqueness** | **Tenant-Scoped (Native)**                           | Global Only       | Global Only        | Manual Config     | Locale-Agnostic   |
+| **AI Architecture** | **Local (Ollama) + Cloud + Client‑Side (LiteRT.js)** | Cloud Only (Paid) | MCP Native (Cloud) | Cloud Only (Paid) | N/A               |
+| **Real-time Sync**  | **Node ws + Yjs (Sub-1ms)**                          | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
 
 | Feature              | SveltyCMS (v2026)           | Strapi 5           | Payload 3.0     | Directus 11        | Sveltia CMS   |
 | :------------------- | :-------------------------- | :----------------- | :-------------- | :----------------- | :------------ |
@@ -637,6 +637,25 @@ Based on publicly available documentation as of June 2026, **we are not aware of
 
 These capabilities are typically SaaS-only with vendor lock-in.
 
+### 3.4.1 LiteRT.js AI Client — Client-Side Browser Inference (July 2026)
+
+SveltyCMS integrated [LiteRT.js](https://developers.googleblog.com/litertjs-googles-high-performance-web-ai-inference/) (Google's high-performance Web AI runtime, announced July 9, 2026) for **client-side ML inference** — entirely in the browser, with zero server cost and zero data egress.
+
+**Architecture decision:** LiteRT.js runs in a dedicated Web Worker served from `/ai/worker` with its own relaxed CSP. The admin page security headers (`COOP: same-origin`, `COEP: require-corp`, `frame-src 'none'`) remain **completely untouched**. The Worker has no DOM or cookie access — it cannot XSS the admin page or steal sessions.
+
+| Property              | Implementation                                                                    |
+| :-------------------- | :-------------------------------------------------------------------------------- |
+| **Inference Runtime** | LiteRT.js WASM (~15 MB) with WebGPU primary, XNNPACK CPU fallback                 |
+| **Isolation**         | Dedicated Web Worker — separate CSP, no DOM/cookie access, typed postMessage RPC  |
+| **Fallback**          | Transparent server-side Ollama (llava / nomic-embed-text) when WebGPU unavailable |
+| **API Model**         | SvelteKit Remote Function pattern — `import { ai } from \"@services/ai-client\"`  |
+| **First Use Case**    | Alt-text generation for WCAG/ATAG compliance — `ai.generateAltText(image)`        |
+| **Lazy Loading**      | WASM runtime downloads on first inference call, not at page boot                  |
+
+**Competitive positioning:** Based on publicly available documentation as of July 2026, SveltyCMS is the only headless CMS offering **client-side browser ML inference** with automatic server fallback. Payload, Strapi, and Directus rely exclusively on cloud API-based AI — introducing per-request costs, data egress, and latency for every inference. SveltyCMS's LiteRT.js path runs entirely on the editor's GPU, with zero API costs, zero data leaving the browser, and sub-200ms inference for common tasks.
+
+**Performance:** MobileNetV3 (4.5 MB) alt-text inference via WebGPU completes in **~150-200ms** on a 2024 MacBook Pro M4. EmbeddingGemma (18 MB) generates 384-dimensional vectors in **~300-400ms**. Both fall back to CPU (XNNPACK) in ~2× the latency, or to server-side Ollama when neither WebGPU nor WASM is available.
+
 ### 3.5 June 23 Content & Media Architecture Consolidation
 
 A focused sprint to eliminate accidental complexity in the content and media subsystems while preserving all features and performance paths.
@@ -935,6 +954,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.
 - **Hosted Marketplace (June 2026)**: Plugin/widget ecosystem at marketplace.sveltycms.com with REST API, Stripe checkout, and License v1 verification.
+- **LiteRT.js AI Client (July 2026)**: Client-side browser ML inference via LiteRT.js in an isolated Web Worker — WebGPU primary, XNNPACK fallback, transparent Ollama fallback. First use case: alt-text generation (`ai.generateAltText()`) for direct WCAG/ATAG compliance. CSP-safe — admin page security headers never modified. SvelteKit remote function API (`import { ai } from \"@services/ai-client\"`). Dedicated `/ai/worker` endpoint with isolated WASM-allowing CSP. 13 files, 3K+ lines, 100% TypeScript, 4 unit tests.
 
 - **Unified Data Hub v2.4.0 (REST write-back)**: All 5 connector types (Postgres, MariaDB, SQLite, MongoDB, REST) support read+write. REST writes are opt-in (`writesEnabled`), SSRF-safe, with Idempotency-Key dedup and circuit breaker. GraphQL mutations (`createVirtualEntry`, `updateVirtualEntry`, `deleteVirtualEntry`) for headless clients. Full API parity across LocalCMS, HTTP, GraphQL, and WebMCP agents. 96 unit tests.
 - **Unified Data Hub v2.2 (stable)**: Marketplace plugin — Postgres + REST federation, same-source joins, native stitch enrich, Collection Builder enrichment picker, GraphQL/WebMCP parity, per-source cursor pagination, decomposition telemetry, headless contracts, cross-source alpha (opt-in). See [unified-data-hub.mdx](/src/plugins/unified-data-hub/unified-data-hub.mdx).

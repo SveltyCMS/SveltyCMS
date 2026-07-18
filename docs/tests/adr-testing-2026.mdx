@@ -167,9 +167,10 @@ Use when adding or finishing a domain:
 
 **Still incremental (not blockers for this ADR):**
 
-- [x] Appearance / themes full `*-api` matrix (`appearance-api.ts`)
-- [ ] Workflows builder **deep golden E2E** (API client done; journey TBD)
+- [x] Appearance / themes full `*-api` matrix + **theme create→list→delete golden**
+- [x] Workflows builder **API + page + golden E2E** (`seed-workflow`, `/api/workflows`)
 - [x] Trash **restore** golden (`seed-trash` / `purge-trash`)
+- [x] Extensions **widgets-api** (list/status/uninstall via `fetchApi`)
 - [x] Unified Data Hub: always-on tests hard-assert; Postgres suite uses `handleOptionalInfraUnavailable` (`REQUIRE_OPTIONAL_INFRA=true` → hard-fail)
 - [x] Residual soft-skips: dashboard reorder, collection entry status, media HTML5 drop → hard-fail
 
@@ -184,12 +185,12 @@ Use when adding or finishing a domain:
 | **Redirects**                    | server helpers + utils                       | ✅               | create→search→delete                    | ✅               |
 | **Trash**                        | `trash-api`                                  | ✅               | **golden restore** (`seed-trash`)       | ✅               |
 | **Access management**            | save via `fetchApi` + **website-tokens-api** | ✅ gate + tokens | permissions toggle+save                 | ✅               |
-| **Appearance / themes**          | `appearance-api`                             | ✅               | shell (deep golden incremental)         | ✅               |
-| **Workflows**                    | `workflows-api`                              | ✅               | shell (deep golden TBD)                 | —                |
+| **Appearance / themes**          | `appearance-api`                             | ✅               | **create→list→delete** + prefs shell    | ✅               |
+| **Workflows**                    | `workflows-api` + `/api/workflows`           | ✅               | **seed→load/save shell golden**         | ✅               |
 | **System settings**              | remotes + utils                              | ✅               | edit→save→reload (+ shell)              | ✅               |
 | **Sync**                         | plan/apply via `fetchApi`                    | ✅ gate          | shell tabs/status                       | ✅               |
 | **Queue / Monitor**              | admin gates + testids                        | ✅               | operations shell + filters              | ✅               |
-| **Extensions**                   | plugin toggle via `fetchApi`                 | ✅ gate          | tabs smoke                              | ✅               |
+| **Extensions**                   | plugins-api + **widgets-api**                | ✅               | tabs smoke                              | ✅               |
 | **Migration wizard**             | enable-plugin + hard-fail ready              | —                | dry-run / import (plugin)               | ✅ no empty skip |
 | **Collection builder structure** | —                                            | —                | category persist (Quick Start if empty) | ✅               |
 | **Dashboard reorder**            | —                                            | —                | ≥2 widgets hard-fail                    | ✅               |

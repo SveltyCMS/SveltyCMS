@@ -596,11 +596,12 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   <AdminCard
     class="border border-surface-200 bg-white shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
   >
-    <div class="flex flex-wrap gap-1 p-2 border-b border-surface-200 dark:border-surface-700">
+    <div class="flex flex-wrap gap-1 p-2 border-b border-surface-200 dark:border-surface-700" data-testid="appearance-tabs">
       {#each tabs as tab (tab.id)}
         <Button variant="tertiary"
           onclick={() => activeTab = tab.id}
           size="sm"
+          data-testid={`appearance-tab-${tab.id}`}
           class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500' : ''}>
           <iconify-icon icon={tab.icon} width="16"></iconify-icon>
           <span>{tab.label}</span>
@@ -614,7 +615,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
 
         <!-- ═══ THEMES (MULTI-THEME MANAGEMENT) ═══ -->
         {#if activeTab === "themes"}
-          <div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+          <div class="space-y-6" data-testid="appearance-themes-panel" in:fly={{ y: 10, duration: 200 }}>
             <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
               <iconify-icon icon="mdi:theme-light-dark" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
               Installed Themes
@@ -627,9 +628,12 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
             {#if loadingThemes}
               <div class="text-center py-8 text-surface-400">Loading themes...</div>
             {:else}
-              <div class="space-y-3 max-w-2xl">
+              <div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
                 {#each themes as t (t.id)}
-                  <AdminCard class="p-4 border-2 {t.isActive
+                  <AdminCard
+                    data-testid={`appearance-theme-card-${t.id}`}
+                    data-theme-name={t.name}
+                    class="p-4 border-2 {t.isActive
                     ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-50/30 dark:bg-primary-900/10'
                     : 'border-surface-200 dark:border-surface-700'} flex items-center gap-3 flex-wrap">
                     <iconify-icon icon={t.isActive ? "mdi:checkbox-marked-circle" : "mdi:theme-light-dark"}
@@ -637,7 +641,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-sm flex items-center gap-2">
                         {t.name}
-                        {#if t.isActive}<Badge preset="tonal" color="success" size="sm">Active</Badge>{/if}
+                        {#if t.isActive}<Badge preset="tonal" color="success" size="sm" data-testid="appearance-theme-active-badge">Active</Badge>{/if}
                         {#if t.isDefault}<Badge preset="tonal" color="surface" size="sm">Default</Badge>{/if}
                       </div>
                       <div class="text-xs text-surface-500 dark:text-surface-400">
@@ -646,15 +650,17 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     </div>
                     <div class="flex items-center gap-1">
                       {#if !t.isActive}
-                        <Button variant="primary" size="sm" onclick={() => handleActivate(t.id)}>Activate</Button>
+                        <Button variant="primary" size="sm" onclick={() => handleActivate(t.id)} data-testid={`appearance-theme-activate-${t.id}`}>Activate</Button>
                       {/if}
                       <Button variant="ghost" size="sm" leadingIcon="mdi:content-copy"
                         onclick={() => { cloneName = ""; handleClone(t.id); }}
-                        aria-label="Clone {t.name}"></Button>
+                        aria-label="Clone {t.name}"
+                        data-testid={`appearance-theme-clone-${t.id}`}></Button>
                       {#if !t.isActive && !t.isDefault}
                         <Button variant="ghost" size="sm" leadingIcon="mdi:delete"
                           onclick={() => handleDelete(t.id)}
-                          aria-label="Delete {t.name}"></Button>
+                          aria-label="Delete {t.name}"
+                          data-testid={`appearance-theme-delete-${t.id}`}></Button>
                       {/if}
                     </div>
                   </AdminCard>
@@ -664,6 +670,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
               <!-- Create new theme -->
               <AdminCard
                 class="mt-6 max-w-2xl border border-surface-200 p-4 dark:border-surface-700"
+                data-testid="appearance-theme-create"
               >
                 <h4 class="font-bold text-sm mb-3">Create New Theme</h4>
                 <div class="flex gap-2">
@@ -672,9 +679,10 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     class="flex-1"
                     placeholder="Theme name (e.g. Midnight Blue, High Contrast)"
                     aria-label="New theme name"
+                    data-testid="appearance-theme-name"
                     onkeydown={(e) => { if (e.key === 'Enter') handleCreate(); }}
                   />
-                  <Button variant="tertiary" onclick={handleCreate} leadingIcon="mdi:plus">Create</Button>
+                  <Button variant="tertiary" onclick={handleCreate} leadingIcon="mdi:plus" data-testid="appearance-theme-create-btn">Create</Button>
                 </div>
                 <p class="text-xs text-surface-400 mt-2">
                   New themes start with current density/variant/features as defaults.
@@ -979,8 +987,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
         Unsaved changes — live preview active
       </p>
       <div class="flex gap-2">
-        <Button variant="ghost" onclick={() => hasChanges = false}>Discard</Button>
-        <Button variant="primary" onclick={saveTheme} loading={saving}>Save Theme</Button>
+        <Button variant="ghost" onclick={() => hasChanges = false} data-testid="appearance-theme-discard">Discard</Button>
+        <Button variant="primary" onclick={saveTheme} loading={saving} data-testid="appearance-theme-save">Save Theme</Button>
       </div>
     </div>
   {/if}

@@ -88,6 +88,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   importer: { handler: "system", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
+  workflows: { handler: "system", fn: "handleWorkflowRoutes" },
   setup: { handler: "setup", fn: "handleSetupRoutes" },
   export: { handler: "system", fn: "handleExportRoutes" },
   import: { handler: "system", fn: "handleImportRoutes" },
@@ -183,6 +184,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   export: "config:importexport",
   ai: "system:settings",
   automations: "config:automations",
+  workflows: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "config:automations" : "config:automations",
   theme: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   "system-preferences": (method: string) =>

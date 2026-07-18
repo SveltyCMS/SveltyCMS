@@ -585,6 +585,39 @@ function buildWarningManagerPlugin(): Plugin {
   };
 }
 
+/** Serves LiteRT.js WASM binaries with correct MIME type from static/ai/wasm/. */
+function liteRtWasmPlugin(): Plugin {
+  const WASM_RE = /^\/ai\/wasm\//;
+  return {
+    name: "litert-wasm",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url || !WASM_RE.test(req.url)) return next();
+        const filePath = path.join(CWD, "static", req.url);
+        if (!existsSync(filePath)) {
+          res.statusCode = 404;
+          res.end("WASM file not found. Place LiteRT.js WASM binaries in static/ai/wasm/");
+          return;
+        }
+        const ext = path.extname(req.url);
+        const mime =
+          ext === ".wasm"
+            ? "application/wasm"
+            : ext === ".js"
+              ? "application/javascript"
+              : "application/octet-stream";
+        res.writeHead(200, {
+          "Content-Type": mime,
+          "Cross-Origin-Resource-Policy": "cross-origin",
+          "Cache-Control": "public, max-age=86400",
+        });
+        const content = readFileSync(filePath);
+        res.end(content);
+      });
+    },
+  };
+}
+
 function copyWorkerFilePlugin(): Plugin {
   return {
     name: "copy-module-worker",
@@ -623,6 +656,7 @@ export default defineConfig(() => ({
       alias: pathAliases,
       csrf: { trustedOrigins: ["http://127.0.0.1:4173"] },
     }),
+    liteRtWasmPlugin(),
     sveltyCmsPlugin(),
     securityCheckPlugin(),
     copyWorkerFilePlugin(),

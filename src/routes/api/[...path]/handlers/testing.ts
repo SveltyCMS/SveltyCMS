@@ -1436,6 +1436,49 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, deleted: id });
     }
 
+    if (action === "seed-workflow") {
+      const { workflowService } = await import("@src/services/background/workflow-service");
+      const stamp = generateUUID().slice(0, 8);
+      const collectionId =
+        (params.collectionId as string) || (params.collection as string) || `e2e_col_${stamp}`;
+      const adminUser = {
+        _id: (params.userId as string) || "system",
+        role: "admin",
+        isAdmin: true,
+        email: "e2e@sveltycms.test",
+      } as any;
+      const definition = {
+        _id: params.id as string | undefined,
+        collectionId,
+        states: (params.states as any[]) || [
+          { id: "draft", label: "Draft", color: "#94a3b8", isInitial: true },
+          { id: "review", label: "In Review", color: "#fbbf24" },
+          { id: "published", label: "Published", color: "#22c55e", isFinal: true },
+        ],
+        transitions: (params.transitions as any[]) || [
+          { id: "t1", from: "draft", to: "review", label: "Submit" },
+          { id: "t2", from: "review", to: "published", label: "Approve" },
+          { id: "t3", from: "review", to: "draft", label: "Reject" },
+        ],
+      };
+      const saved = await workflowService.saveWorkflow(definition, adminUser, String(tenantId));
+      return rawResponse({ success: true, workflow: saved, data: saved });
+    }
+
+    if (action === "delete-workflow") {
+      const id = params.id as string;
+      if (!id) throw new AppError("id required for delete-workflow", 400);
+      const { workflowService } = await import("@src/services/background/workflow-service");
+      const adminUser = {
+        _id: "system",
+        role: "admin",
+        isAdmin: true,
+        email: "e2e@sveltycms.test",
+      } as any;
+      await workflowService.deleteWorkflow(id, adminUser, String(tenantId));
+      return rawResponse({ success: true, deleted: id });
+    }
+
     if (action === "enable-plugin") {
       const pluginId = (params.pluginId || params.id) as string;
       if (!pluginId) throw new AppError("pluginId required for enable-plugin", 400);

@@ -42,8 +42,8 @@ export class WorkflowService {
   ): Promise<WorkflowDefinition> {
     const dbAdapter = await getDbAdapter();
 
-    // Ensure only admins can manage workflows (or specific role if needed)
-    if (user.role !== "admin") {
+    // Ensure only admins can manage workflows
+    if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
       throw new AppError("Only admins can manage workflows", 403, "FORBIDDEN");
     }
 
@@ -85,7 +85,7 @@ export class WorkflowService {
    */
   public async deleteWorkflow(workflowId: string, user: User, tenantId?: string): Promise<void> {
     const dbAdapter = await getDbAdapter();
-    if (user.role !== "admin") {
+    if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
       throw new AppError("Only admins can delete workflows", 403, "FORBIDDEN");
     }
 
