@@ -135,7 +135,7 @@ const SUITE_RULES: SuiteRule[] = [
     label: "API Integration (SQLite)",
     gate: 2,
     patterns: ["src/routes/api/**", "src/hooks/handle-api-requests.ts", "src/services/**"],
-    command: "bun run test:integration -- api --db=sqlite",
+    command: "bun run test:integration -- api --db=sqlite --no-build",
   },
   // ── Gate 4: E2E ─────────────────────────────────────────────────────────
   {
