@@ -430,11 +430,52 @@ export async function handleTestingRoutes(
         );
       }
 
-      return rawResponse({
-        success: result.success,
-        message: result.success ? "System seeded successfully" : (result as any).message,
-        data: result.success ? result.data : null,
-      });
+      if (!result?.success) {
+        return rawResponse({
+          success: false,
+          message: (result as any)?.message || "Seed failed",
+          data: null,
+        });
+      }
+
+      // Create a session + Set-Cookie so e2e auth-setup can capture storageState.
+      // Previously seed only created the user; auth.setup fell back to navigation and
+      // often saved empty cookies → chromium shards stuck on /login without page-title.
+      let sessionId: string | undefined;
+      try {
+        const loginResult = await cms.auth.login({ email, password }, { tenantId });
+        if (loginResult.success && loginResult.data?.session?._id) {
+          sessionId = loginResult.data.session._id;
+          const { getSessionCookieName } = await import("@src/databases/auth/constants");
+          const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+          const cookieName = getSessionCookieName(isSecure);
+          event.cookies.set(cookieName, sessionId, {
+            path: "/",
+            httpOnly: true,
+            sameSite: isSecure ? "strict" : "lax",
+            secure: isSecure,
+            maxAge: 60 * 60 * 24,
+          });
+        }
+      } catch (err: any) {
+        logger.warn(`[TestingHandler] Non-fatal seed login/session error: ${err.message}`);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "System seeded successfully",
+          data: result.data,
+          token: sessionId,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionId ? { "x-test-session-id": sessionId } : {}),
+          },
+        },
+      );
     }
 
     if (action === "login") {
