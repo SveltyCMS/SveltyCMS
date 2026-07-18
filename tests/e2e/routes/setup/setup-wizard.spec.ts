@@ -334,7 +334,11 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
         await page.locator("#db-type").selectOption(dbType);
 
         if (dbType === "sqlite") {
-          await page.locator("#db-name").fill(`e2e_wizard_${dbType}_${Date.now()}.db.sqlite`);
+          // Use the same DB name CI / auth-setup expect (process.env.DB_NAME overrides
+          // private.ts at runtime). A timestamped name writes private.ts to a different
+          // file while chromium shards still open e2e_auth_test → first-user mode forever.
+          const sqliteName = process.env.DB_NAME || process.env.E2E_SQLITE_DB || "e2e_auth_test";
+          await page.locator("#db-name").fill(sqliteName);
         } else {
           const ports = {
             mongodb: "27017",
@@ -360,14 +364,18 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
 
       await test.step("Step 2: Administrator Account", async () => {
         console.log(`[${dbType}] Creating admin user...`);
+        // Match ADMIN_CREDENTIALS / auth-setup so chromium storageState can log in.
+        const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+        const adminPassword =
+          process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Password123!";
         await page.locator("#admin-username").fill("admin");
-        await page.locator("#admin-email").fill("admin@test.com");
-        await page.locator("#admin-password").fill("Password123!");
+        await page.locator("#admin-email").fill(adminEmail);
+        await page.locator("#admin-password").fill(adminPassword);
         await page.locator("#admin-confirm-password").fill("Wrong123!");
         await page.locator("#admin-username").focus();
         await expect(page.getByLabel("Next", { exact: true }).first()).toBeDisabled();
 
-        await page.locator("#admin-confirm-password").fill("Password123!");
+        await page.locator("#admin-confirm-password").fill(adminPassword);
         await wizard.next();
       });
 
