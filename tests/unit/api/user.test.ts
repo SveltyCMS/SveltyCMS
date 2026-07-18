@@ -4,15 +4,34 @@
  *
  * Uses shared createMockRequestEvent + callApiDispatcher (tests/unit/utils/mock-event.ts).
  * Covers list, PUT attributes, batch delete, auth rejection — aligned with integration.
+ * Keeps real `apiHandler` so AppError → Response (same pattern as dispatcher-security-matrix).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
-import { invokeApi } from "../utils/mock-event";
+import { invokeApi, expectApi } from "../utils/mock-event";
 
-// Mock dependencies
+const dbAdapter = createDbAdapterStub();
+
+// Ensure batch paths have the methods LocalCMS.auth.batchAction calls
+(dbAdapter as any).auth.deleteUsers = vi.fn().mockResolvedValue({
+  success: true,
+  data: { deletedCount: 1 },
+});
+(dbAdapter as any).auth.blockUsers = vi.fn().mockResolvedValue({
+  success: true,
+  data: { modifiedCount: 1 },
+});
+(dbAdapter as any).auth.unblockUsers = vi.fn().mockResolvedValue({
+  success: true,
+  data: { modifiedCount: 1 },
+});
+(dbAdapter as any).auth.batchAction = vi.fn().mockResolvedValue({
+  success: true,
+  data: { modifiedCount: 1 },
+});
+
 vi.mock("@src/databases/db", () => {
-  const dbAdapter = createDbAdapterStub();
   return {
     dbAdapter,
     getDbInitPromise: vi.fn().mockResolvedValue(undefined),
@@ -27,9 +46,7 @@ vi.mock("@src/services/core/settings-service", () => ({
   getPublicSettingSync: vi.fn().mockReturnValue(true),
 }));
 
-vi.mock("@utils/api-handler", () => ({
-  apiHandler: (fn: any) => fn,
-}));
+// Do NOT mock apiHandler — need AppError → HTTP Response conversion.
 
 const adminUser = createMockUser({ _id: "u1", role: "admin", isAdmin: true } as any);
 const editorUser = createMockUser({
@@ -38,7 +55,7 @@ const editorUser = createMockUser({
   isAdmin: false,
   email: "editor@test.com",
 } as any);
-const dbAdapter = createDbAdapterStub();
+
 const adminRoles = [
   {
     _id: "admin",
@@ -51,6 +68,18 @@ const adminRoles = [
 describe("User API Unit Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (dbAdapter as any).auth.deleteUsers = vi.fn().mockResolvedValue({
+      success: true,
+      data: { deletedCount: 1 },
+    });
+    (dbAdapter as any).auth.blockUsers = vi.fn().mockResolvedValue({
+      success: true,
+      data: { modifiedCount: 1 },
+    });
+    (dbAdapter as any).auth.unblockUsers = vi.fn().mockResolvedValue({
+      success: true,
+      data: { modifiedCount: 1 },
+    });
   });
 
   it("should list users (GET)", async () => {
@@ -60,6 +89,7 @@ describe("User API Unit Tests", () => {
       tenantId: "t1",
       roles: adminRoles,
       dbAdapter,
+      bypass: true,
     });
     const result = await response.json();
     expect(response.status).toBe(200);
@@ -79,6 +109,7 @@ describe("User API Unit Tests", () => {
       tenantId: "t1",
       roles: adminRoles,
       dbAdapter,
+      bypass: true,
     });
     const result = await response.json();
     expect(response.status).toBe(200);
@@ -96,31 +127,28 @@ describe("User API Unit Tests", () => {
       tenantId: "t1",
       roles: adminRoles,
       dbAdapter,
+      bypass: true,
     });
-    // Accept 200 success or handler-specific 405 if only PUT is wired
     expect([200, 405]).toContain(response.status);
   });
 
   it("should reject unauthenticated attribute update", async () => {
-    const response = await invokeApi("PUT", {
-      path: "user/update-user-attributes",
-      body: { user_id: "self", newUserData: { username: "x" } },
-      user: null,
-      tenantId: "t1",
-      roles: [],
-      dbAdapter,
-    });
-    expect([401, 403]).toContain(response.status);
+    await expectApi(
+      "PUT",
+      {
+        path: "user/update-user-attributes",
+        body: { user_id: "self", newUserData: { username: "x" } },
+        user: null,
+        tenantId: "t1",
+        roles: [],
+        dbAdapter,
+        bypass: false,
+      },
+      [401, 403],
+    );
   });
 
   it("should batch delete users via POST /user/batch", async () => {
-    if (typeof (dbAdapter as any).auth?.batchAction === "function") {
-      (dbAdapter as any).auth.batchAction = vi.fn().mockResolvedValue({
-        success: true,
-        data: { deleted: 1 },
-      });
-    }
-
     const response = await invokeApi("POST", {
       path: "user/batch",
       body: { userIds: ["u2"], action: "delete" },
@@ -128,8 +156,8 @@ describe("User API Unit Tests", () => {
       tenantId: "t1",
       roles: adminRoles,
       dbAdapter,
+      bypass: true,
     });
-    // 200 success preferred; 400 if adapter stub lacks batchAction shape
     expect([200, 400, 500]).toContain(response.status);
     if (response.status === 200) {
       const result = await response.json();
@@ -138,26 +166,34 @@ describe("User API Unit Tests", () => {
   });
 
   it("should reject batch with empty userIds", async () => {
-    const response = await invokeApi("POST", {
-      path: "user/batch",
-      body: { userIds: [], action: "delete" },
-      user: adminUser,
-      tenantId: "t1",
-      roles: adminRoles,
-      dbAdapter,
-    });
-    expect([400, 422]).toContain(response.status);
+    await expectApi(
+      "POST",
+      {
+        path: "user/batch",
+        body: { userIds: [], action: "delete" },
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        bypass: true,
+      },
+      [400, 422],
+    );
   });
 
   it("should reject unauthenticated list", async () => {
-    const response = await invokeApi("GET", {
-      path: "user",
-      user: null,
-      tenantId: "t1",
-      roles: [],
-      dbAdapter,
-    });
-    expect([401, 403]).toContain(response.status);
+    await expectApi(
+      "GET",
+      {
+        path: "user",
+        user: null,
+        tenantId: "t1",
+        roles: [],
+        dbAdapter,
+        bypass: false,
+      },
+      [401, 403],
+    );
   });
 
   it("non-admin editor may still hit self attribute update path", async () => {
@@ -178,8 +214,8 @@ describe("User API Unit Tests", () => {
         },
       ],
       dbAdapter,
+      bypass: true,
     });
-    // Self-update allowed (200) or permission-denied depending on handler policy
     expect([200, 403]).toContain(response.status);
   });
 });
