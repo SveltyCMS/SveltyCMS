@@ -53,11 +53,20 @@ async function extractAndSaveSession(page: any, response: any, outputPath: strin
     const isHostCookie = name.startsWith("__Host-");
     const secure = isHostCookie || name.startsWith("__Secure-");
     const urlScheme = secure ? "https://" : "http://";
+    // Include host:port from the API response so cookies bind to 127.0.0.1:4173
+    // (hostname alone defaults to port 80 and is never sent to the preview server).
+    let cookieOrigin = urlScheme + hostname;
+    try {
+      const bu = new URL(response.url());
+      cookieOrigin = `${urlScheme}${bu.host}`;
+    } catch {
+      /* keep hostname-only fallback */
+    }
     await context.addCookies([
       {
         name,
         value,
-        url: urlScheme + hostname,
+        url: cookieOrigin,
         httpOnly: true,
         sameSite: "Lax",
         secure,
@@ -168,8 +177,23 @@ setup.describe("E2E Role-Based Setup", () => {
     expect(seedResponse.status()).toBe(200);
     expect(seedBody.success).toBe(true);
 
-    // 3. Extract session cookie from seed response and save storage state
-    await extractAndSaveSession(page, seedResponse, ADMIN_AUTH_FILE);
+    // 3. Prefer an explicit login after seed so Set-Cookie is always present.
+    // Seed now also sets a session cookie, but login is the reliable contract.
+    console.log(`[Setup] Logging in as ${ADMIN_CREDENTIALS.email} for storageState...`);
+    const loginResponse = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "login",
+        email: ADMIN_CREDENTIALS.email,
+        password: ADMIN_CREDENTIALS.password,
+      },
+    });
+    expect(loginResponse.status()).toBe(200);
+    const loginBody = await loginResponse.json();
+    expect(loginBody.success).toBe(true);
+
+    // 4. Extract session cookie and save storage state
+    await extractAndSaveSession(page, loginResponse, ADMIN_AUTH_FILE);
   });
 
   setup("provision editor and author via test API", async ({ page }) => {

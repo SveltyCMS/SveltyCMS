@@ -340,21 +340,10 @@ export async function handleTestingRoutes(
         logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
       }
 
-      // Idempotent seed: try createUser first, fallback to update-by-email.
-      // The reset action clears auth_users, but a race with handleSystemState
-      // or a duplicate seed call can cause CREATE_USER_FAILED.
-      // Explicitly clear auth_users to avoid UNIQUE constraint races
-      // with system init or previous test runs.
-      try {
-        const { sql } = await import("drizzle-orm");
-        if ((initializedAdapter as any).sqlite) {
-          (initializedAdapter as any).sqlite.exec("DELETE FROM auth_users;");
-        } else if ((initializedAdapter as any).db) {
-          await (initializedAdapter as any).db.execute(sql`DELETE FROM auth_users;`);
-        }
-      } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal auth_users clear error: ${err.message}`);
-      }
+      // Idempotent seed: createUser then update-by-email on conflict.
+      // NEVER wipe auth_users here — chromium shards call seed in parallel and a
+      // full DELETE invalidates every other worker's admin session mid-test.
+      // Use action=reset when a true clean slate is required (serial auth-setup).
 
       const seedOpts = { tenantId } as any;
       let result: any = await cms.auth.createUser(
@@ -430,11 +419,56 @@ export async function handleTestingRoutes(
         );
       }
 
-      return rawResponse({
-        success: result.success,
-        message: result.success ? "System seeded successfully" : (result as any).message,
-        data: result.success ? result.data : null,
-      });
+      if (!result?.success) {
+        return rawResponse({
+          success: false,
+          message: (result as any)?.message || "Seed failed",
+          data: null,
+        });
+      }
+
+      // Optional session (createSession:true) for auth-setup storageState capture.
+      // Default is user-only so firstuser UI login tests can still open /login.
+      let sessionId: string | undefined;
+      const wantSession =
+        params.createSession === true || params.createSession === "true" || params.session === true;
+      if (wantSession) {
+        try {
+          const loginResult = await cms.auth.login({ email, password }, { tenantId });
+          if (loginResult.success && loginResult.data?.session?._id) {
+            sessionId = loginResult.data.session._id;
+            const { getSessionCookieName, isSecureCookieContext } =
+              await import("@src/databases/auth/constants");
+            const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
+            const cookieName = getSessionCookieName(isSecure);
+            event.cookies.set(cookieName, sessionId, {
+              path: "/",
+              httpOnly: true,
+              sameSite: isSecure ? "strict" : "lax",
+              secure: isSecure,
+              maxAge: 60 * 60 * 24,
+            });
+          }
+        } catch (err: any) {
+          logger.warn(`[TestingHandler] Non-fatal seed login/session error: ${err.message}`);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "System seeded successfully",
+          data: result.data,
+          token: sessionId,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionId ? { "x-test-session-id": sessionId } : {}),
+          },
+        },
+      );
     }
 
     if (action === "login") {
@@ -449,8 +483,9 @@ export async function handleTestingRoutes(
       const { user, session } = loginResult.data;
 
       // Set cookie on event.cookies
-      const { getSessionCookieName } = await import("@src/databases/auth/constants");
-      const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+      const { getSessionCookieName, isSecureCookieContext } =
+        await import("@src/databases/auth/constants");
+      const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
       event.cookies.set(cookieName, session._id, {
         path: "/",

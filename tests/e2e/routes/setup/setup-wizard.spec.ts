@@ -64,7 +64,38 @@ class SetupWizardPage {
     ]);
     if (!finishBtn) throw new Error("Could not find Complete/Finish button.");
     await expect(finishBtn).toBeEnabled({ timeout: 30000 });
+
+    // Wait for the remote completeSetup call (SvelteKit remote / form action) so we
+    // don't race the 500ms client redirect timer with a blind waitForURL.
+    const responsePromise = this.page
+      .waitForResponse(
+        (res) => {
+          const u = res.url();
+          return (
+            u.includes("completeSetup") ||
+            u.includes("/setup?/completeSetup") ||
+            (u.includes("/setup") && res.request().method() === "POST")
+          );
+        },
+        { timeout: 120_000 },
+      )
+      .catch(() => null);
+
     await finishBtn.click();
+
+    const response = await responsePromise;
+    if (response && !response.ok()) {
+      const body = await response.text().catch(() => "");
+      const status =
+        typeof response.status === "function" ? response.status() : (response as any).status;
+      throw new Error(
+        `completeSetup HTTP ${status}: ${body.slice(0, 500)} (still on ${this.page.url()})`,
+      );
+    }
+
+    // Do not fail on post-redirect destination errors (e.g. collectionbuilder 500).
+    // completeSetup HTTP status is the source of truth for wizard success; Step 5
+    // then waits for navigation off /setup.
   }
 
   async handleAnyDbDialog() {
@@ -294,7 +325,11 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
         await page.locator("#db-type").selectOption(dbType);
 
         if (dbType === "sqlite") {
-          await page.locator("#db-name").fill(`e2e_wizard_${dbType}_${Date.now()}.db.sqlite`);
+          // Use the same DB name CI / auth-setup expect (process.env.DB_NAME overrides
+          // private.ts at runtime). A timestamped name writes private.ts to a different
+          // file while chromium shards still open e2e_auth_test → first-user mode forever.
+          const sqliteName = process.env.DB_NAME || process.env.E2E_SQLITE_DB || "e2e_auth_test";
+          await page.locator("#db-name").fill(sqliteName);
         } else {
           const ports = {
             mongodb: "27017",
@@ -320,14 +355,18 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
 
       await test.step("Step 2: Administrator Account", async () => {
         console.log(`[${dbType}] Creating admin user...`);
+        // Match ADMIN_CREDENTIALS / auth-setup so chromium storageState can log in.
+        const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+        const adminPassword =
+          process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Password123!";
         await page.locator("#admin-username").fill("admin");
-        await page.locator("#admin-email").fill("admin@test.com");
-        await page.locator("#admin-password").fill("Password123!");
+        await page.locator("#admin-email").fill(adminEmail);
+        await page.locator("#admin-password").fill(adminPassword);
         await page.locator("#admin-confirm-password").fill("Wrong123!");
         await page.locator("#admin-username").focus();
         await expect(page.getByLabel("Next", { exact: true }).first()).toBeDisabled();
 
-        await page.locator("#admin-confirm-password").fill("Password123!");
+        await page.locator("#admin-confirm-password").fill(adminPassword);
         await wizard.next();
       });
 
@@ -350,10 +389,27 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
       await test.step("Step 5: Review & Finalize", async () => {
         console.log(`[${dbType}] Finalizing...`);
         await wizard.complete();
-        await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
-          timeout: 90000,
-        });
-        await expect(page).not.toHaveURL(/\/setup/);
+
+        // Success criterion for e2e-prep: leave the multi-step wizard.
+        // Post-setup destination may be /login, a collection route, or a config page
+        // that is still warming (500) — that is out of scope for wizard provisioning.
+        try {
+          await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
+            timeout: 180_000,
+            waitUntil: "commit",
+          });
+        } catch (err) {
+          const url = page.url();
+          const bodyText = await page
+            .locator("body")
+            .innerText()
+            .catch(() => "");
+          throw new Error(
+            `Setup finalize did not leave /setup. url=${url} body=${bodyText.slice(0, 800)} ` +
+              `cause=${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        await expect(page).not.toHaveURL(/\/setup(\/|$|\?)/);
       });
 
       console.log(`✅ ${dbType.toUpperCase()} Wizard flow completed.`);

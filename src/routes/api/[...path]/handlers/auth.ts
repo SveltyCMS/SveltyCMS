@@ -14,7 +14,11 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
-import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
+import {
+  SESSION_COOKIE_NAME,
+  getSessionCookieName,
+  isSecureCookieContext,
+} from "@src/databases/auth/constants";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
 import {
   handleSAMLResponse,
@@ -152,7 +156,7 @@ export async function handleAuthUserRoutes(
 
 /** Determines the session cookie name based on connection security. */
 function getCookieConfig(event: RequestEvent): CookieConfig {
-  const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+  const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
   return {
     name: getSessionCookieName(isSecure),
     isSecure,

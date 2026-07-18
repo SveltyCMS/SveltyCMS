@@ -358,12 +358,77 @@ async function attemptLogin(
 }
 
 /**
- * Login as admin user (uses default ADMIN_CREDENTIALS)
- * @param page - Playwright page object
- * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
+ * Login as admin user (uses default ADMIN_CREDENTIALS).
+ * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
+ * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
+ * Falls back to UI loginAs if the testing API is unavailable.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
-  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+  const email = ADMIN_CREDENTIALS.email;
+  const password = ADMIN_CREDENTIALS.password;
+
+  // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
+  try {
+    await page.goto("/config/collectionbuilder", {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
+    if (!page.url().includes("/login") && !page.url().includes("/setup")) {
+      console.log("[Auth] ✓ Existing session still valid (storageState)");
+      if (waitForUrl instanceof RegExp) {
+        await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+      } else if (typeof waitForUrl === "string") {
+        await page.goto(waitForUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      }
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    // Login first; seed only if admin missing. Seed must NOT wipe users.
+    let loginRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "login", email, password },
+    });
+    if (!loginRes.ok()) {
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "seed", email, password },
+      });
+      loginRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email, password },
+      });
+    }
+    if (loginRes.ok()) {
+      console.log("[Auth] ✓ Admin session via testing API");
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+      await page.goto(target, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      if (page.url().includes("/login")) {
+        console.log("[Auth] API session did not stick — falling back to UI login");
+      } else {
+        if (waitForUrl instanceof RegExp) {
+          await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
+        }
+        if (!page.url().includes("/login")) {
+          return;
+        }
+      }
+    } else {
+      console.log(
+        `[Auth] testing API login status=${loginRes.status()} — falling back to UI login`,
+      );
+    }
+  } catch (err) {
+    console.log("[Auth] testing API login failed — falling back to UI login:", err);
+  }
+
+  await loginAs(page, email, password, waitForUrl);
 }
 
 /**

@@ -377,11 +377,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
             user_id: existingUser._id as DatabaseId,
             expires: new Date(Date.now() + SESSION_DURATION_MS).toISOString() as ISODateString,
           });
-          const isSecure =
-            url.protocol === "https:" ||
-            (url.hostname !== "localhost" &&
-              process.env.NODE_ENV !== "development" &&
-              process.env.TEST_MODE !== "true");
+          const isSecure = (await import("@src/databases/auth/constants")).isSecureCookieContext(
+            url.protocol,
+            url.hostname,
+          );
           const sessionCookie = auth.createSessionCookie(session._id as DatabaseId, isSecure);
           cookies.set(sessionCookie.name, sessionCookie.value, {
             ...(sessionCookie.attributes as Record<string, unknown>),
@@ -449,7 +448,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       // so this only flags lapsed sessions → default to the Sign In form (no extra cookie needed).
       returningUser: Boolean(
         locals.returningUser ??
-        readSessionCookie(cookies, url.protocol === "https:" || url.hostname !== "localhost"),
+        readSessionCookie(
+          cookies,
+          (await import("@src/databases/auth/constants")).isSecureCookieContext(
+            url.protocol,
+            url.hostname,
+          ),
+        ),
       ),
     };
   } catch (err: any) {

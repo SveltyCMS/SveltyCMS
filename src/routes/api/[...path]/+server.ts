@@ -5,7 +5,6 @@
  */
 
 import { json, type RequestEvent } from "@sveltejs/kit";
-import { dev } from "$app/environment";
 import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
@@ -462,7 +461,8 @@ export const _handler = async (event: RequestEvent) => {
     !(user as any)?.isApiToken &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())
   ) {
-    const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
+    const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
     const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
     if (!csrfResult.isValid)
       throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
