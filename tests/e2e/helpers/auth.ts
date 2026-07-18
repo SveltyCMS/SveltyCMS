@@ -367,39 +367,63 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
   const password = ADMIN_CREDENTIALS.password;
 
+  // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
   try {
-    // Ensure admin exists (idempotent)
-    await page.request.post("/api/testing", {
-      headers: TEST_API_HEADERS,
-      data: { action: "seed", email, password },
+    await page.goto("/config/collectionbuilder", {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
     });
-    const loginRes = await page.request.post("/api/testing", {
+    if (!page.url().includes("/login") && !page.url().includes("/setup")) {
+      console.log("[Auth] ✓ Existing session still valid (storageState)");
+      if (waitForUrl instanceof RegExp) {
+        await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+      } else if (typeof waitForUrl === "string") {
+        await page.goto(waitForUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      }
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    // Login first; seed only if admin missing. Seed must NOT wipe users.
+    let loginRes = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
       data: { action: "login", email, password },
     });
+    if (!loginRes.ok()) {
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "seed", email, password },
+      });
+      loginRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email, password },
+      });
+    }
     if (loginRes.ok()) {
-      // page.request stores Set-Cookie in the shared cookie jar for this context.
-      // Always navigate so the document picks up the cookie (never leave about:blank).
       console.log("[Auth] ✓ Admin session via testing API");
       const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
       await page.goto(target, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
-      // If still bounced to login, fall through to UI login
       if (page.url().includes("/login")) {
         console.log("[Auth] API session did not stick — falling back to UI login");
       } else {
         if (waitForUrl instanceof RegExp) {
           await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
         }
-        // Accept common post-auth destinations even if waitForUrl was not provided
         if (!page.url().includes("/login")) {
           return;
         }
       }
+    } else {
+      console.log(
+        `[Auth] testing API login status=${loginRes.status()} — falling back to UI login`,
+      );
     }
-    console.log(`[Auth] testing API login status=${loginRes.status()} — falling back to UI login`);
   } catch (err) {
     console.log("[Auth] testing API login failed — falling back to UI login:", err);
   }
