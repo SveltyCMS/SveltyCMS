@@ -1,12 +1,18 @@
 /**
- * @file src/utils/apiClient.ts
+ * @file src/utils/api.ts
  * @description Modern API client for RESTful collection endpoints.
  * Includes unified error handling compatible with server-side apiHandler.
+ *
+ * ### Features:
+ * - JSON parse + standardized ApiResponse shape
+ * - **CSRF on all non-GET mutations** via clientJsonHeaders (cookie or explicit token)
+ * - credentials: include for session cookies
  */
 
 import type { ISODateString } from "@src/content/types";
 import { publicEnv } from "@src/stores/global-settings.svelte.ts";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 
 // --- Type Definitions ---
 
@@ -59,22 +65,49 @@ interface GetDataResponse {
 
 // --- Core API Functions ---
 
+export type FetchApiOptions = RequestInit & {
+  /** Optional CSRF override (defaults to cookie via clientJsonHeaders on mutations) */
+  csrfToken?: string | null;
+};
+
 /**
  * Universal fetch wrapper that handles:
  * 1. JSON parsing
  * 2. HTTP Error status codes
  * 3. Unified Error Response extraction
  * 4. Network error catching
+ * 5. **CSRF headers on POST/PUT/PATCH/DELETE** (Testing 2026 ADR)
  */
 export async function fetchApi<T>(
   endpoint: string,
-  options: RequestInit = {},
+  options: FetchApiOptions = {},
 ): Promise<ApiResponse<T>> {
+  const { csrfToken, headers: optionHeaders, ...rest } = options;
+  const method = String(rest.method || "GET").toUpperCase();
+  const isMutation = !["GET", "HEAD", "OPTIONS"].includes(method);
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(isMutation ? clientJsonHeaders(csrfToken) : {}),
+  };
+
+  // Merge caller headers last so explicit X-CSRF-Token still wins
+  if (optionHeaders) {
+    const extra =
+      optionHeaders instanceof Headers
+        ? Object.fromEntries(optionHeaders.entries())
+        : Array.isArray(optionHeaders)
+          ? Object.fromEntries(optionHeaders)
+          : (optionHeaders as Record<string, string>);
+    Object.assign(headers, extra);
+  }
+
   try {
     const response = await fetch(endpoint, {
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // Ensure cookies/auth are sent
-      ...options,
+      credentials: "include",
+      ...rest,
+      method: rest.method || "GET",
+      headers,
     });
 
     // 1. Handle Successful Responses (2xx)

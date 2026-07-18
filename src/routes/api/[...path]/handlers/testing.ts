@@ -90,8 +90,16 @@ async function resetSystemStores() {
 
 /**
  * MASTER TESTING HANDLER
- * Provides backdoors for test runners to reset state, seed users, and verify internals.
- * 🛡️ This handler is only active when TEST_MODE=true or in authorized benchmark runs.
+ * Provides seed/reset helpers for E2E and integration runners.
+ *
+ * 🛡️ SECURITY (fail-closed — same bar as test-bypass.server):
+ * - Disabled when NODE_ENV=production (hard 403)
+ * - Requires explicit TEST_MODE / PLAYWRIGHT / BENCHMARK flag (not bare NODE_ENV=test)
+ * - Requires matching x-test-secret (timing-safe)
+ * - Production builds strip this module via testBackdoorStripperPlugin + verify-prod-build-backdoor
+ *
+ * Seed actions (seed-webhook, seed-automation, enable-plugin, etc.) inherit this gate —
+ * they are NOT available as unauthenticated or production backdoors.
  */
 export async function handleTestingRoutes(
   event: RequestEvent,
@@ -99,39 +107,13 @@ export async function handleTestingRoutes(
   tenantId: DatabaseId,
   _segments: string[],
 ) {
-  // 🛡️ Strictly enforce environment and cryptographic token verification
+  const { assertTestingApiAllowed } = await import("@utils/test-bypass.server");
+  const gate = assertTestingApiAllowed(event.request);
+  if (!gate.allowed) {
+    throw new AppError(gate.message, gate.status, gate.code);
+  }
+
   const runtimeEnv = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env;
-  const isTestMode =
-    runtimeEnv?.TEST_MODE === "true" ||
-    runtimeEnv?.BENCHMARK === "true" ||
-    runtimeEnv?.SVELTY_BENCHMARK_SUITE === "true" ||
-    runtimeEnv?.NODE_ENV === "test";
-
-  const requestSecret =
-    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
-
-  const { getTestSecret } = await import("@src/utils/server/setup-check");
-  const expectedSecret = runtimeEnv?.TEST_API_SECRET || getTestSecret();
-
-  if (!isTestMode || !expectedSecret || !requestSecret) {
-    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
-  }
-
-  // 🛡️ TIMING-SAFE: Pad to equal length before constant-time comparison.
-  // timingSafeEqual throws if buffers differ in length, so we pad the shorter.
-  const { timingSafeEqual } = await import("node:crypto");
-  const encoder = new TextEncoder();
-  let secretBuffer: any = encoder.encode(requestSecret);
-  let expectedBuffer: any = encoder.encode(expectedSecret);
-  const maxLen = Math.max(secretBuffer.length, expectedBuffer.length);
-  if (secretBuffer.length < maxLen)
-    secretBuffer = Buffer.concat([secretBuffer, Buffer.alloc(maxLen - secretBuffer.length)]);
-  if (expectedBuffer.length < maxLen)
-    expectedBuffer = Buffer.concat([expectedBuffer, Buffer.alloc(maxLen - expectedBuffer.length)]);
-
-  if (!timingSafeEqual(secretBuffer, expectedBuffer)) {
-    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
-  }
 
   if (runtimeEnv?.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
@@ -143,10 +125,12 @@ export async function handleTestingRoutes(
     const params = await request.json().catch(() => ({}));
     const action = params.action || event.url.searchParams.get("action");
 
-    // 🚀 Robust Parameter Logging (to stderr for benchmark visibility)
-    process.stderr.write(
-      `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
-    );
+    // Avoid logging secrets; only action names + tenant for benchmark visibility
+    if (runtimeEnv?.TEST_MODE === "true" || runtimeEnv?.BENCHMARK_DEBUG === "true") {
+      process.stderr.write(
+        `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
+      );
+    }
     if (process.env.BENCHMARK_DEBUG === "true") {
       process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
     }
@@ -923,6 +907,48 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, count });
     }
 
+    /**
+     * set-setting — update a private/public setting for E2E fixtures (e.g. USE_2FA).
+     * Body: { action, key, value, scope?: "private" | "public" }
+     */
+    if (action === "set-setting") {
+      const { key, value } = params;
+      if (!key || typeof key !== "string") {
+        throw new AppError("key is required", 400);
+      }
+      const { setPrivateSetting } = await import("@src/services/core/settings-service");
+      await setPrivateSetting(key as any, value as any, tenantId as any);
+      return rawResponse({ success: true, key, value });
+    }
+
+    /**
+     * bulk-create-users — seed N unique users for pagination E2E.
+     * Body: { action, count?: number, role?: string, prefix?: string }
+     */
+    if (action === "bulk-create-users") {
+      const count = Math.min(Math.max(Number(params.count) || 12, 1), 50);
+      const role = params.role || "editor";
+      const prefix = params.prefix || `bulk_${Date.now()}`;
+      const password = params.password || "BulkUser123!";
+      const created: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const email = `${prefix}_${i}@example.com`;
+        const result = await cms.auth.createUser(
+          {
+            email,
+            password,
+            username: `${prefix}_${i}`.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40),
+            role,
+            isRegistered: true,
+            emailVerified: true,
+          },
+          { tenantId },
+        );
+        if (result.success) created.push(email);
+      }
+      return rawResponse({ success: true, created: created.length, emails: created });
+    }
+
     if (action === "create-user") {
       const { email, password, username, role = "editor" } = params;
       if (!email || !password) throw new AppError("Email and password required", 400);
@@ -1349,6 +1375,207 @@ export async function handleTestingRoutes(
           redirects: 2,
         },
       });
+    }
+
+    // ── Config route E2E seeds (webhooks / automations) ───────────────────
+    if (action === "seed-webhook") {
+      const { webhookService } = await import("@src/services/background/webhook-service");
+      const stamp = generateUUID().slice(0, 8);
+      const webhook = await webhookService.saveWebhook(
+        {
+          id: params.id as string | undefined,
+          name: (params.name as string) || `E2E Webhook ${stamp}`,
+          url: (params.url as string) || `https://example.com/e2e-hook/${stamp}`,
+          events: (params.events as string[]) || ["entry:publish"],
+          active: params.active !== false,
+          secret: (params.secret as string) || `e2e-secret-${stamp}`,
+        },
+        String(tenantId),
+      );
+      return rawResponse({ success: true, webhook, data: webhook });
+    }
+
+    if (action === "delete-webhook") {
+      const id = params.id as string;
+      if (!id) throw new AppError("id required for delete-webhook", 400);
+      const { webhookService } = await import("@src/services/background/webhook-service");
+      await webhookService.deleteWebhook(id, String(tenantId));
+      return rawResponse({ success: true, deleted: id });
+    }
+
+    if (action === "seed-automation") {
+      const { automationService } =
+        await import("@src/services/background/automation/automation-service");
+      const stamp = generateUUID().slice(0, 8);
+      const flow = await automationService.saveFlow(
+        {
+          id: params.id as string | undefined,
+          name: (params.name as string) || `E2E Automation ${stamp}`,
+          description: (params.description as string) || "Seeded for E2E deep flow",
+          active: params.active !== false,
+          trigger: params.trigger || { type: "manual", events: [] },
+          operations: params.operations || [
+            {
+              id: generateUUID(),
+              type: "log",
+              config: { message: "E2E seed log: {{ trigger.event }}", level: "info" },
+            },
+          ],
+        },
+        String(tenantId),
+      );
+      return rawResponse({ success: true, flow, data: flow });
+    }
+
+    if (action === "delete-automation") {
+      const id = params.id as string;
+      if (!id) throw new AppError("id required for delete-automation", 400);
+      const { automationService } =
+        await import("@src/services/background/automation/automation-service");
+      await automationService.deleteFlow(id, String(tenantId));
+      return rawResponse({ success: true, deleted: id });
+    }
+
+    if (action === "enable-plugin") {
+      const pluginId = (params.pluginId || params.id) as string;
+      if (!pluginId) throw new AppError("pluginId required for enable-plugin", 400);
+      // Fail closed on weird ids (path traversal / injection surface)
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(pluginId)) {
+        throw new AppError("Invalid pluginId", 400, "INVALID_PLUGIN_ID");
+      }
+      try {
+        const { pluginRegistry } = await import("@src/plugins");
+        const enabled = params.enabled !== false;
+        const ok = await pluginRegistry.togglePlugin(
+          pluginId,
+          enabled,
+          String(tenantId),
+          // Never accept client-supplied userId for audit attribution via testing API
+          "system",
+        );
+        if (!ok) {
+          return rawResponse(
+            {
+              success: false,
+              code: "PLUGIN_UNAVAILABLE",
+              message: `Plugin "${pluginId}" could not be toggled (missing or settings service unavailable)`,
+              pluginId,
+            },
+            503,
+          );
+        }
+        return rawResponse({ success: true, pluginId, enabled });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return rawResponse({ success: false, code: "PLUGIN_UNAVAILABLE", message, pluginId }, 503);
+      }
+    }
+
+    /**
+     * Seed a soft-deleted collection entry for trash restore E2E.
+     * Creates collection model + content node if needed, inserts row, soft-deletes.
+     */
+    if (action === "seed-trash") {
+      const collectionId = String(params.collectionId || "e2e_trash_fixture").replace(
+        /[^a-zA-Z0-9_]/g,
+        "_",
+      );
+      if (!collectionId || collectionId.length > 64) {
+        throw new AppError("Invalid collectionId", 400);
+      }
+      const entryId = String(params.entryId || `trash_${generateUUID().slice(0, 12)}`);
+      const title = String(params.title || `E2E Trash Item ${generateUUID().slice(0, 6)}`);
+      const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+
+      try {
+        await initializedAdapter.collection.createModel({
+          _id: collectionId,
+          name: collectionId,
+          fields: [
+            {
+              db_fieldName: "title",
+              label: "Title",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+          ],
+        } as any);
+      } catch {
+        /* model may already exist */
+      }
+
+      if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
+        await initializedAdapter.content.nodes.upsertContentStructureNode({
+          _id: collectionId,
+          path: `/collection/${collectionId.toLowerCase()}`,
+          name: collectionId,
+          nodeType: "collection",
+          collectionDef: {
+            _id: collectionId,
+            name: collectionId,
+            fields: [{ db_fieldName: "title", widget: { Name: "Input" }, type: "string" }],
+          },
+          status: "publish",
+          source: "api",
+          tenantId,
+        } as any);
+      }
+
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, {
+        mode: "schemas",
+        adapter: initializedAdapter,
+      });
+      if (cms.collections?.refresh) {
+        await cms.collections.refresh(tenantId as any, true);
+      }
+
+      const insertRes = await initializedAdapter.crud.insert(
+        collectionName,
+        {
+          _id: entryId as any,
+          title,
+          status: "publish",
+          tenantId,
+        },
+        { tenantId },
+      );
+      if (!insertRes.success) {
+        // Idempotent: try soft-delete if already exists
+        logger.warn(`[testing] seed-trash insert: ${insertRes.message || "failed"}`);
+      }
+
+      const delRes = await initializedAdapter.crud.delete(collectionName, entryId as any, {
+        tenantId,
+        permanent: false,
+        userId: "system",
+      });
+      if (!delRes.success) {
+        throw new AppError(`seed-trash soft-delete failed: ${delRes.message || "unknown"}`, 500);
+      }
+
+      return rawResponse({
+        success: true,
+        collectionId,
+        entryId,
+        title,
+        collectionName,
+      });
+    }
+
+    if (action === "purge-trash") {
+      const collectionId = String(params.collectionId || "").replace(/[^a-zA-Z0-9_]/g, "_");
+      const entryId = String(params.entryId || "");
+      if (!collectionId || !entryId) {
+        throw new AppError("collectionId and entryId required for purge-trash", 400);
+      }
+      const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+      await initializedAdapter.crud.delete(collectionName, entryId as any, {
+        tenantId,
+        permanent: true,
+        userId: "system",
+      });
+      return rawResponse({ success: true, purged: entryId, collectionId });
     }
 
     throw new AppError(`Unknown action: ${action}`, 400);

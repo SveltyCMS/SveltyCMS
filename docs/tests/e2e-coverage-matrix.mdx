@@ -96,13 +96,35 @@ tags:
 | **Password change (full)**     | `user/p0-journeys.spec.ts`       | ✅ editor verify→set→re-login |
 | **Non-admin profile**          | `user/p0-journeys.spec.ts`       | ✅ AdminArea hidden           |
 | **Token edit/delete (seeded)** | `user/p0-journeys.spec.ts`       | ✅ no soft-skip               |
-| **2FA setup**                  | partial complete-coverage        | ⚠️ needs USE_2FA fixture      |
-| **GDPR export / anonymize**    | open modal only                  | ❌                            |
-| **RTC prefs persistence**      | —                                | ❌                            |
-| **Permissions badges**         | page.server unit                 | ⚠️ E2E pending                |
-| **User import**                | —                                | ❌ out of scope / future      |
+| **2FA setup / enroll**         | `user/coverage-100.spec.ts`      | ✅ USE_2FA + TOTP             |
+| **GDPR export / anonymize**    | `user/coverage-100.spec.ts`      | ✅ download + secondary wipe  |
+| **RTC prefs persistence**      | `user/coverage-100.spec.ts`      | ✅ toggle + reload            |
+| **Permissions badges**         | `user/coverage-100.spec.ts`      | ✅ admin list                 |
+| **Pagination (11+ users)**     | `user/coverage-100.spec.ts`      | ✅ bulk-create-users          |
+| **Identity email/role/id**     | `user/coverage-100.spec.ts`      | ✅                            |
 
-**Coverage: ~17/22 features (~77%) — P0 journeys added; P1 remains**
+**Coverage: 100% of `/user` control map** — see [routes/user.mdx](./routes/user.mdx)
+
+---
+
+## 3b. `/dashboard` — Shell (widget catalog varies per install)
+
+> Full control map: [routes/dashboard.mdx](./routes/dashboard.mdx).  
+> **Never assert a fixed widget list** — core + plugins differ by install.
+
+| Feature                           | Test File                       | Status                                                 |
+| --------------------------------- | ------------------------------- | ------------------------------------------------------ |
+| Page shell + title                | `dashboard/dashboard.spec.ts`   | ✅                                                     |
+| Empty state **or** widget grid    | same                            | ✅ install-dependent                                   |
+| Add widget menu                   | same                            | ✅ if catalog has free widgets                         |
+| Widget search filter              | same                            | ✅ nonsense → no results                               |
+| Reset layout                      | same                            | ✅                                                     |
+| AI toggle present                 | same                            | ✅ no live MCP required                                |
+| Plugin slot                       | same                            | ✅ attached                                            |
+| Dashboard APIs (health/metrics/…) | integration `dashboard.test.ts` | ✅                                                     |
+| Drag-reorder E2E                  | —                               | 🟢 Low (keyboard reorder exists; pointer DnD optional) |
+
+**Coverage: shell 100%** (per-widget UI content = opt-in, not part of shell contract)
 
 ---
 
@@ -146,9 +168,14 @@ tags:
 | Route                   | Feature                     | Test File                        | CI Project      | Status |
 | ----------------------- | --------------------------- | -------------------------------- | --------------- | ------ |
 | `/config/sync`          | Sync settings smoke         | `config/data-management.spec.ts` | `config-routes` | ✅     |
-| `/config/redirects`     | Redirect manager smoke      | `config/data-management.spec.ts` | `config-routes` | ✅     |
-| `/config/monitor`       | Service health              | `config/operations.spec.ts`      | `config-routes` | ✅     |
-| `/config/queue`         | Job queue list              | `config/operations.spec.ts`      | `config-routes` | ✅     |
+| `/config/redirects`     | Create / search / delete    | `config/redirects.spec.ts`       | `config-routes` | ✅     |
+| `/config/monitor`       | Stats + service health      | `config/operations.spec.ts`      | `config-routes` | ✅     |
+| `/config/queue`         | Stats + status filter URL   | `config/operations.spec.ts`      | `config-routes` | ✅     |
+| `/config/webhooks`      | Modal + logs shell          | `config/webhooks.spec.ts`        | `config-routes` | ✅     |
+| `/config/extensions`    | Tabs + plugins grid         | `config/extensions.spec.ts`      | `config-routes` | ✅     |
+| `/config/automations`   | List + new builder link     | `config/automations.spec.ts`     | `config-routes` | ✅     |
+| `/config/sync`          | Tabs + status shell         | `config/data-ops.spec.ts`        | `config-routes` | ✅     |
+| `/config/trash`         | Empty or restore table      | `config/data-ops.spec.ts`        | `config-routes` | ✅     |
 | `/config/extensions`    | Extension list              | `config/operations.spec.ts`      | `config-routes` | ✅     |
 | `/config/appearance`    | My Overrides + layout prefs | `config/appearance.spec.ts`      | `appearance`    | ✅     |
 | `/config/design-system` | Component playground        | `config/design-system.spec.ts`   | `appearance`    | ✅     |
@@ -168,32 +195,37 @@ tags:
 
 ---
 
-## 7. `/dashboard` — Smoke tested (1 spec)
+## 7. `/dashboard` — Shell 100% (widget catalog install-specific)
 
-| Feature                              | Test File                     | CI Project  | Status |
-| ------------------------------------ | ----------------------------- | ----------- | ------ |
-| Page shell + grid/empty state        | `dashboard/dashboard.spec.ts` | `dashboard` | ✅     |
-| Add widget menu (CPU, System Health) | `dashboard/dashboard.spec.ts` | `dashboard` | ✅     |
-| Add CPU widget to grid               | `dashboard/dashboard.spec.ts` | `dashboard` | ✅     |
-| **Widget drag reorder**              | —                             | —           | ❌     |
-| **Cache monitor widget content**     | —                             | —           | ❌     |
-| **Real-time metrics assertions**     | —                             | —           | ❌     |
+| Feature                         | Test File                       | CI Project             | Status                                     |
+| ------------------------------- | ------------------------------- | ---------------------- | ------------------------------------------ |
+| Page shell + toolbar            | `dashboard/dashboard.spec.ts`   | `dashboard` / chromium | ✅                                         |
+| Empty state **or** grid         | same                            |                        | ✅ never fixed widget list                 |
+| Add / search / reset            | same                            |                        | ✅                                         |
+| AI toggle present               | same                            |                        | ✅                                         |
+| Dashboard APIs                  | integration `dashboard.test.ts` |                        | ✅                                         |
+| **Pointer drag-reorder E2E**    | `dashboard/dashboard.spec.ts`   |                        | ✅ ≥2 widgets, header band drag            |
+| **Keyboard Ctrl+Arrow reorder** | same                            |                        | ✅                                         |
+| **Per-widget visual content**   | —                               |                        | ⚪ out of shell scope (varies per install) |
 
 ---
 
-## 8. `/mediagallery` — Smoke tested (1 spec)
+## 8. `/mediagallery` — Shell strong (see [routes/mediagallery.mdx](./routes/mediagallery.mdx))
 
-| Feature                       | Test File                           | CI Project | Status |
-| ----------------------------- | ----------------------------------- | ---------- | ------ |
-| Page shell + toolbar          | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
-| Search + type filter          | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
-| Grid/table view toggle        | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
-| Local file upload             | `mediagallery/mediagallery.spec.ts` | `media`    | ✅     |
-| **Delete media**              | —                                   | —          | ❌     |
-| **Folder management**         | —                                   | —          | ❌     |
-| **Image editor (crop/focal)** | `mediagallery/image-editor.spec.ts` | `media`    | ✅     |
-| **Image editor save**         | —                                   | —          | ❌     |
-| **Virtual folder navigation** | —                                   | —          | ❌     |
+| Feature                          | Test File                           | CI Project | Status            |
+| -------------------------------- | ----------------------------------- | ---------- | ----------------- |
+| Page shell + toolbar             | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
+| Search + type filter             | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
+| Grid/table view toggle           | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
+| Local file upload                | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
+| **Delete media**                 | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
+| **Image editor (crop/focal)**    | `mediagallery/image-editor.spec.ts` | `media`    | ✅                |
+| **Image editor save**            | `mediagallery/image-editor.spec.ts` | `media`    | ✅ manipulate API |
+| **Create / open folder**         | `mediagallery/folders-bulk.spec.ts` | `media`    | ✅                |
+| **Bulk select / download / Del** | `mediagallery/folders-bulk.spec.ts` | `media`    | ✅                |
+| **media:read gate**              | unit `mediagallery-page-server`     | —          | ✅                |
+| Selection + breadcrumb move      | `mediagallery/move-remote.spec.ts`  | `media`    | ✅                |
+| Remote URL upload page           | `mediagallery/move-remote.spec.ts`  | `media`    | ✅                |
 
 ---
 
@@ -209,18 +241,18 @@ tags:
 
 ## Summary
 
-| Route                       | Features | Tested | Coverage |
-| --------------------------- | -------- | ------ | -------- |
-| `/setup`                    | 16       | 6      | 37%      |
-| `/login`                    | 16       | 10     | 62%      |
-| `/user`                     | 15       | 9      | 60%      |
-| `/config/collectionbuilder` | 15       | 10     | 66%      |
-| `/config/*` (other)         | 15       | 11     | 73%      |
-| `/admin/tenants`            | 5        | 2      | 40%      |
-| `/dashboard`                | 10       | 3      | 30%      |
-| `/mediagallery`             | 8        | 4      | 50%      |
-| `/language`                 | 3        | 1      | 33%      |
-| **TOTAL**                   | **105**  | **63** | **60%**  |
+| Route                       | Features | Tested | Coverage                           |
+| --------------------------- | -------- | ------ | ---------------------------------- |
+| `/setup`                    | 16       | 6      | 37%                                |
+| `/login`                    | 16       | 10     | 62%                                |
+| `/user`                     | 15       | 9      | 60%                                |
+| `/config/collectionbuilder` | 15       | 10     | 66%                                |
+| `/config/*` (other)         | 15       | 11     | 73%                                |
+| `/admin/tenants`            | 5        | 2      | 40%                                |
+| `/dashboard`                | 8        | 7      | **88% shell** (widget content N/A) |
+| `/mediagallery`             | 8        | 4      | 50%                                |
+| `/language`                 | 3        | 1      | 33%                                |
+| **TOTAL**                   | **105**  | **63** | **60%**                            |
 
 > **Critical gaps**: Setup presets, 2FA, SAML, rate limiting, image editor, dashboard drag-reorder.
 >

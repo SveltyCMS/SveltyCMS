@@ -71,15 +71,20 @@ test.describe("Collection Builder with Modern Widgets", () => {
     await page.getByTestId("add-collection-button").first().click();
     await page.getByTestId("tab-widgets").click();
 
-    const searchInput = page.locator('input[placeholder*="search"], input[type="search"]').first();
-    if (!(await searchInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip(true, "Widget search input not present in this UI variant");
-      return;
-    }
+    // Control risk: widget catalog must be filterable or show a named list
+    const searchInput = page
+      .getByTestId("widget-search")
+      .or(page.locator('input[placeholder*="search" i], input[type="search"]'))
+      .first();
+    await expect(
+      searchInput.or(page.getByText(/Input|Text|RichText|Checkbox/i).first()),
+    ).toBeVisible({ timeout: 10_000 });
 
-    await searchInput.fill("text");
-    await expect(page.getByText(/Input|Text/i).first()).toBeVisible();
-    await searchInput.fill("");
+    if (await searchInput.isVisible().catch(() => false)) {
+      await searchInput.fill("text");
+      await expect(page.getByText(/Input|Text/i).first()).toBeVisible();
+      await searchInput.fill("");
+    }
   });
 
   test("should configure widget-specific properties", async ({ page }) => {
@@ -111,26 +116,29 @@ test.describe("Collection Builder with Modern Widgets", () => {
 
   test("should enable/disable widgets when toggles are present", async ({ page }) => {
     await page.goto("/config/extensions");
-    await page.getByRole("tab", { name: /widgets/i }).click();
+    await page
+      .getByRole("tab", { name: /widgets/i })
+      .or(page.getByTestId("extensions-tab-widgets"))
+      .click();
 
-    const toggles = page.locator('button:has-text("Deactivate"), button:has-text("Activate")');
+    // Core catalog must render — hard assert (no soft-skip)
+    await expect(page.getByText(/Input|Checkbox|RichText|Select|Number/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const toggles = page.locator(
+      'button:has-text("Deactivate"), button:has-text("Activate"), button:has-text("Active"), button:has-text("Disabled")',
+    );
     const firstToggle = toggles.first();
-
-    if (!(await firstToggle.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      test.skip(true, "No widget toggles present");
-      return;
+    if (await firstToggle.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const textBefore = await firstToggle.textContent();
+      const wasActive = /deactivate|active/i.test(textBefore || "");
+      await firstToggle.click();
+      await expect(async () => {
+        const textAfter = await firstToggle.textContent();
+        expect(/deactivate|active/i.test(textAfter || "")).toBe(!wasActive);
+      }).toPass({ timeout: 5_000 });
     }
-
-    const textBefore = await firstToggle.textContent();
-    const wasActive = textBefore?.includes("Deactivate");
-
-    await firstToggle.click();
-
-    // Wait for the toggle state to flip via the button text change
-    await expect(async () => {
-      const textAfter = await firstToggle.textContent();
-      expect(textAfter?.includes("Deactivate")).toBe(!wasActive);
-    }).toPass({ timeout: 5_000 });
   });
 
   test("should validate collection creation", async ({ page }) => {

@@ -212,10 +212,21 @@ function handleFinalize(e: CustomEvent) {
 	<div class="wrapper my-4">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
-				<Button variant="tertiary" onclick={() => openModal(null, '')} class="dark:" leadingIcon="mdi:plus-circle-outline">
+				<Button
+					variant="tertiary"
+					onclick={() => openModal(null, '')}
+					class="dark:"
+					leadingIcon="mdi:plus-circle-outline"
+					data-testid="access-create-role"
+				>
 					Create Role
 				</Button>
-				<Button variant="error" onclick={deleteSelectedRoles} disabled={selectedRoles.size === 0}>
+				<Button
+					variant="error"
+					onclick={deleteSelectedRoles}
+					disabled={selectedRoles.size === 0}
+					data-testid="access-delete-roles"
+				>
 					Delete Selected ({selectedRoles.size})
 				</Button>
 			</div>
@@ -226,6 +237,7 @@ function handleFinalize(e: CustomEvent) {
 					bind:value={roleSearchTerm}
 					placeholder="Search roles..."
 					aria-label="Search roles"
+					data-testid="access-role-search"
 					class="ps-10 w-full"
 				/>
 			</div>

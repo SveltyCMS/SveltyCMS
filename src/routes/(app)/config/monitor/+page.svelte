@@ -51,17 +51,23 @@ function formatUptime(seconds: number): string {
 >
 	{#snippet actions()}
 		{#if isPolling}
-			<Badge preset="tonal" color="primary" size="sm" class="animate-pulse">Syncing...</Badge>
+			<Badge preset="tonal" color="primary" size="sm" class="animate-pulse" data-testid="monitor-syncing">Syncing...</Badge>
 		{/if}
-		<Badge preset="tonal" color={systemState?.overallState === 'READY' ? 'success' : 'warning'} size="sm">
+		<Badge
+			preset="tonal"
+			color={systemState?.overallState === 'READY' ? 'success' : 'warning'}
+			size="sm"
+			data-testid="monitor-overall-state"
+		>
 			{systemState?.overallState || 'Unknown'}
 		</Badge>
 	{/snippet}
 
+	<div data-testid="monitor-page" class="contents">
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4" data-testid="monitor-stats">
         <!-- Security Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-security">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/10">
                     <iconify-icon icon="mdi:shield-lock" class="text-2xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -79,7 +85,7 @@ function formatUptime(seconds: number): string {
         </AdminCard>
 
         <!-- System State Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-system">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500/10 p-2">
                     <iconify-icon icon="mdi:server-network" class="text-2xl text-tertiary-500"></iconify-icon>
@@ -88,7 +94,7 @@ function formatUptime(seconds: number): string {
             </div>
             <div>
                 <h3 class="text-sm font-bold uppercase tracking-widest opacity-40">System</h3>
-                <p class="text-3xl font-black">{formatUptime(system?.uptime ?? 0)} <span class="text-base font-normal opacity-50">Uptime</span></p>
+                <p class="text-3xl font-black" data-testid="monitor-uptime">{formatUptime(system?.uptime ?? 0)} <span class="text-base font-normal opacity-50">Uptime</span></p>
             </div>
             <div class="flex justify-between border-t border-surface-200 pt-2 text-xs dark:border-surface-800">
                 <span>Services: <b>{systemState?.services?.length ?? 0}</b></span>
@@ -97,7 +103,7 @@ function formatUptime(seconds: number): string {
         </AdminCard>
 
         <!-- API Traffic Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-requests">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500/10 p-2">
                     <iconify-icon icon="mdi:chart-line" class="text-2xl text-tertiary-500"></iconify-icon>
@@ -115,7 +121,7 @@ function formatUptime(seconds: number): string {
         </AdminCard>
 
         <!-- Quick Actions Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-actions">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500/10 p-2">
                     <iconify-icon icon="mdi:lightning-bolt" class="text-2xl text-tertiary-500"></iconify-icon>
@@ -127,11 +133,11 @@ function formatUptime(seconds: number): string {
                 <p class="text-sm opacity-60">Jump to common admin tools</p>
             </div>
             <div class="space-y-2 border-t border-surface-200 pt-2 dark:border-surface-800">
-                <Button variant="tertiary" size="sm" href="/config/system-settings" class="w-full justify-between" data-sveltekit-preload-data="hover">
+                <Button variant="tertiary" size="sm" href="/config/system-settings" class="w-full justify-between" data-sveltekit-preload-data="hover" data-preload="hover" data-testid="monitor-link-settings">
                     <span>System Settings</span>
                     <iconify-icon icon="mdi:arrow-right"></iconify-icon>
                 </Button>
-                <Button variant="tertiary" size="sm" href="/config/collectionbuilder" class="w-full justify-between" data-sveltekit-preload-data="hover">
+                <Button variant="tertiary" size="sm" href="/config/collectionbuilder" class="w-full justify-between" data-sveltekit-preload-data="hover" data-preload="hover" data-testid="monitor-link-builder">
                     <span>Collection Builder</span>
                     <iconify-icon icon="mdi:arrow-right"></iconify-icon>
                 </Button>
@@ -140,7 +146,7 @@ function formatUptime(seconds: number): string {
     </div>
 
     <!-- Service Health Table -->
-    <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+    <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900" data-testid="monitor-service-health">
         <h2 class="mb-4 text-lg font-bold">Service Health</h2>
         {#if systemState?.services?.length > 0}
             <div class="overflow-x-auto">
@@ -286,4 +292,5 @@ function formatUptime(seconds: number): string {
             </div>
         {/if}
     </AdminCard>
+	</div>
 </AdminPageShell>

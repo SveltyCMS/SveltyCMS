@@ -1,0 +1,232 @@
+---
+path: "docs/tests/adr-testing-2026.mdx"
+title: "ADR: Testing 2026 — Pyramid, Fixtures, Soft-Skip Ban, Testids"
+description: "Accepted and implemented: pyramid, seed-first E2E, soft-skip ban, shared CSRF client, fail-closed testing API, reference routes."
+order: 2
+icon: "mdi:file-document-check"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "adr"
+  - "e2e"
+  - "architecture"
+  - "security"
+status: accepted
+---
+
+# ADR: Testing 2026
+
+| Field                | Value                                                               |
+| -------------------- | ------------------------------------------------------------------- |
+| **Status**           | **Accepted + Implemented** (core admin rollout complete 2026-07-18) |
+| **Date**             | 2026-07-18                                                          |
+| **Reference routes** | Webhooks (canonical), automations, redirects, trash                 |
+| **Policy source**    | [AGENTS.md](../../AGENTS.md) (E2E & Control-Map Testing Policy)     |
+
+## Context
+
+Route hardening (2026-07) expanded **control maps** and `data-testid`s quickly. That improved security/UX consistency but tilted the suite toward:
+
+- Brittle **shell E2E** (“every testid exists”)
+- **Soft-skips** when lists were empty (green CI, hidden regressions)
+- **Duplicated CSRF/fetch** in Svelte pages
+- Risk of treating `/api/testing` seeds as a production-facing backdoor
+
+This ADR locks **how** admin/product routes are tested and structured so UI refactors do not erase proof, empty installs cannot skip mutating journeys, and testing infrastructure stays **fail-closed** outside CI.
+
+## Decision (summary)
+
+1. **Pyramid** — unit-heavy; E2E only for golden outcome journeys
+2. **Soft-skip ban** on control-map rows — seed via `/api/testing` instead
+3. **Fixture-first E2E** — login → seed (if needed) → journey → cleanup
+4. **Testid policy** — control-risk anchors only
+5. **Shared mutation client** — `fetchApi` always attaches CSRF on non-GET
+6. **Testing API security** — production-hard-closed; same gate as test bypass
+
+---
+
+## 1. Testing pyramid (target ratio)
+
+| Layer           | Share (guidance) | Proves                                                        | Tools             |
+| --------------- | ---------------- | ------------------------------------------------------------- | ----------------- |
+| **Unit**        | ~70%             | Pure utils, validation, page.server gates, `*-api.ts` clients | Vitest            |
+| **Integration** | ~20%             | HTTP + DB, RBAC, settings/webhooks services                   | Integration suite |
+| **E2E**         | ~10%             | **Golden journeys** (outcome), sparse shell guards            | Playwright        |
+
+“100% control map” means every **control risk** has the right layer(s)—not 100% of DOM nodes.
+
+---
+
+## 2. Soft-skip ban (control-map rows) — **enforced**
+
+| Rule                  | Practice                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Forbidden**         | `test.skip` because a list is empty, no sample data, or “install-specific empty state”                        |
+| **Required**          | Seed via `POST /api/testing` (`tests/e2e/helpers/seed.ts` + `handlers/testing.ts`)                            |
+| **Allowed hard-fail** | Optional external fixtures (Docker Postgres, real IdP) after seed returns structured `503` / unavailable code |
+| **Policy text**       | [AGENTS.md](../../AGENTS.md)                                                                                  |
+
+---
+
+## 3. Fixture-first E2E — **enforced**
+
+```text
+login → seed (if needed) → UI journey → assert outcome → cleanup (finally)
+```
+
+| Prefer                                | Avoid                           |
+| ------------------------------------- | ------------------------------- |
+| Create → reload → value still present | Asserting 12 decorative testids |
+| Delete → name gone                    | Fixed `waitForTimeout(800)`     |
+| URL / API / list text                 | Soft-skip when empty            |
+
+Shared helpers (implemented):
+
+| Helper           | Path                                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| Seeds            | `tests/e2e/helpers/seed.ts` — `seedWebhook`, `seedAutomation`, `enablePlugin`, …          |
+| Confirm modal    | `tests/e2e/helpers/confirm-modal.ts`                                                      |
+| Migration wizard | `tests/e2e/helpers/migration-wizard.ts` — `ensureSmartImporterReady` (hard-fail, no skip) |
+
+Testing API actions (behind fail-closed gate only):
+
+| Action                                  | Purpose                                                  |
+| --------------------------------------- | -------------------------------------------------------- |
+| `seed-webhook` / `delete-webhook`       | Webhook list fixtures                                    |
+| `seed-automation` / `delete-automation` | Automation list / search fixtures                        |
+| `seed-trash` / `purge-trash`            | Soft-deleted entry for restore golden E2E                |
+| `enable-plugin`                         | Core plugin enable for wizard E2E (`pluginId` sanitized) |
+
+---
+
+## 4. Testid policy — **enforced on reference specs**
+
+| Use testids for                                  | Do **not** require testids for          |
+| ------------------------------------------------ | --------------------------------------- |
+| Primary actions (add/save/delete)                | Every badge, icon, spacer               |
+| Modal root + critical fields                     | Entire field matrix when catalog varies |
+| Loading/empty **states** used as wait conditions | Redundant duplicates of role+name       |
+
+Prefer `getByRole` / accessible name when stable.
+
+---
+
+## 5. Shared mutation client — **implemented**
+
+| Piece                        | Location                                                | Status |
+| ---------------------------- | ------------------------------------------------------- | ------ |
+| CSRF on mutations            | `fetchApi` → `clientJsonHeaders` (`src/utils/api.ts`)   | ✅     |
+| Domain API clients           | `webhooks-api.ts`, `automations-api.ts`, `trash-api.ts` | ✅     |
+| Pure validation              | `webhooks-utils.ts`, `redirects-utils.ts`, …            | ✅     |
+| Admin gates                  | `+page.server.ts` unit tests                            | ✅     |
+| Access save / plugins / sync | `fetchApi` (no manual CSRF)                             | ✅     |
+
+Canonical stack (copy for new routes):
+
+```text
++page.server.ts  →  admin gate (unit)
+*-utils.ts       →  validate/filter (unit)
+*-api.ts         →  list/create/update/delete via fetchApi (unit, mock fetch)
++page.svelte     →  UI + showConfirm only (no raw fetch / manual CSRF)
+E2E              →  one golden create→list→reload→delete (or equivalent)
+```
+
+---
+
+## 6. Security: testing API is not a production backdoor — **hardened**
+
+Seed/reset under `/api/testing` exist **only** for CI/E2E.
+
+| Control               | Implementation                                                                                          | Proof                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Production hard-close | `NODE_ENV=production` → **403**                                                                         | `testing-api-gate.test.ts`  |
+| Env allowlist         | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` / `SVELTY_BENCHMARK_SUITE` — **not** bare `NODE_ENV=test` | same                        |
+| Secret                | Timing-safe `x-test-secret` vs `TEST_API_SECRET`                                                        | same + `route-access-audit` |
+| Authz bypass          | Same production hard-gate in `applyTestBypassFromRequest`                                               | `test-bypass.server.ts`     |
+| Bundle strip          | Vite `testBackdoorStripperPlugin` + `verify-prod-build-backdoor`                                        | unit + precheck             |
+| Shared entry          | `assertTestingApiAllowed` used by `handleTestingRoutes`                                                 | no weaker second gate       |
+
+**Agents:** Do not add seed routes outside this handler. Do not weaken the gate. Do not commit production secrets. Known e2e default secret strings are rejected outside an explicit test env.
+
+---
+
+## Migration checklist (per admin route)
+
+Use when adding or finishing a domain:
+
+1. [x] Shared `fetchApi` CSRF for mutations (global)
+2. [x] Extract pure utils + unit tests (reference domains)
+3. [x] Extract `*-api.ts` using `fetchApi` (webhooks, automations, trash)
+4. [x] Page.server admin/permission unit tests (config admin surfaces)
+5. [x] Testing seed + delete helpers where E2E needs fixtures
+6. [x] Golden E2E journeys; soft-skips removed on control-map paths
+7. [x] Control maps + test-status + this ADR updated
+8. [x] Testing API fail-closed gate hardened + unit proof
+
+**Still incremental (not blockers for this ADR):**
+
+- [ ] Appearance / themes full `*-api` matrix
+- [ ] Workflows builder deep golden E2E
+- [x] Trash **restore** golden (`seed-trash` / `purge-trash`)
+- [x] Unified Data Hub: always-on tests hard-assert; Postgres suite uses `handleOptionalInfraUnavailable` (`REQUIRE_OPTIONAL_INFRA=true` → hard-fail)
+
+---
+
+## Rollout status (complete as of 2026-07-18)
+
+| Domain                           | Product / API                   | Unit    | Golden / outcome E2E                    | Soft-skip free   |
+| -------------------------------- | ------------------------------- | ------- | --------------------------------------- | ---------------- |
+| **Webhooks**                     | `webhooks-api` + utils          | ✅      | create→list→reload→delete               | ✅               |
+| **Automations**                  | `automations-api`               | ✅      | builder create→list→edit→delete         | ✅               |
+| **Redirects**                    | server helpers + utils          | ✅      | create→search→delete                    | ✅               |
+| **Trash**                        | `trash-api`                     | ✅      | **golden restore** (`seed-trash`)       | ✅               |
+| **Access management**            | save via `fetchApi`             | ✅ gate | permissions toggle+save                 | ✅               |
+| **System settings**              | remotes + utils                 | ✅      | edit→save→reload (+ shell)              | ✅               |
+| **Sync**                         | plan/apply via `fetchApi`       | ✅ gate | shell tabs/status                       | ✅               |
+| **Queue / Monitor**              | admin gates + testids           | ✅      | operations shell + filters              | ✅               |
+| **Extensions**                   | plugin toggle via `fetchApi`    | ✅ gate | tabs smoke                              | ✅               |
+| **Migration wizard**             | enable-plugin + hard-fail ready | —       | dry-run / import (plugin)               | ✅ no empty skip |
+| **Collection builder structure** | —                               | —       | category persist (Quick Start if empty) | ✅               |
+| Unified Data Hub                 | plugin + external DB            | —       | optional infra / 503                    | external only    |
+
+**Shared infrastructure**
+
+| Piece                 | Path                                                          |
+| --------------------- | ------------------------------------------------------------- |
+| CSRF mutation client  | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`      |
+| Testing / bypass gate | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`) |
+| Testing handler       | `src/routes/api/[...path]/handlers/testing.ts`                |
+| E2E seeds             | `tests/e2e/helpers/seed.ts`                                   |
+| Confirm helper        | `tests/e2e/helpers/confirm-modal.ts`                          |
+| Gate unit tests       | `tests/unit/utils/testing-api-gate.test.ts`                   |
+| Prod strip proof      | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`       |
+
+---
+
+## Consequences
+
+**Positive**
+
+- UI refactors less often break unit proofs.
+- Empty CI installs cannot soft-skip mutation coverage.
+- CSRF cannot be forgotten on a single page’s `fetch`.
+- E2E stays smaller and outcome-focused.
+- Seeds cannot run under `NODE_ENV=production` even with flag + secret.
+
+**Trade-offs**
+
+- New domains still need a seed action before deep E2E.
+- Remaining pages (appearance, workflows) migrate incrementally using the checklist.
+
+---
+
+## Related
+
+- [Testing Strategy](./testing-strategy.mdx)
+- [Three-Layer Completeness](./three-layer-completeness.mdx)
+- [Test Status dashboard](./test-status.mdx)
+- [Webhooks control map](./routes/webhooks.mdx) (canonical reference)
+- [Automations](./routes/automations.mdx) · [Redirects](./routes/redirects.mdx) · [Sync/Trash](./routes/sync-trash.mdx)
+- [AGENTS.md](../../AGENTS.md) — E2E policy + Testing API security sections

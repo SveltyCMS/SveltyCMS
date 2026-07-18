@@ -622,6 +622,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				size="sm"
 				onclick={handleCreateFolder}
 				aria-label="Create new virtual folder"
+				data-testid="media-create-folder"
 				class="h-9 gap-1.5 px-2 text-surface-600 sm:px-3 dark:text-surface-300"
 			>
 				<iconify-icon icon="mdi:folder-plus" width="18"></iconify-icon>
@@ -661,9 +662,10 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					class="flex flex-wrap items-center justify-between gap-2 border-b border-primary-500/30 py-2"
 					role="status"
 					aria-live="polite"
+					data-testid="media-bulk-bar"
 				>
 					<p class="text-xs text-surface-600 dark:text-surface-300">
-						<span class="font-medium text-surface-800 dark:text-surface-100">{assetStats.selected} selected</span>
+						<span class="font-medium text-surface-800 dark:text-surface-100" data-testid="media-bulk-count">{assetStats.selected} selected</span>
 						<span class="hidden text-surface-500 sm:inline dark:text-surface-400"> · Del to remove · Esc to clear</span>
 					</p>
 					<Button
@@ -673,6 +675,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						disabled={isBulkDownloading}
 						aria-busy={isBulkDownloading}
 						aria-label="Download selected files as archive"
+						data-testid="media-bulk-download"
 						class="h-8 gap-1.5 px-3"
 					>
 						<iconify-icon
@@ -773,6 +776,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						onclick={() => (isSelectionMode = !isSelectionMode)}
 						aria-label="Toggle selection mode"
 						aria-pressed={isSelectionMode}
+						data-testid="media-selection-toggle"
 						class="h-10 text-sm"
 					>
 						<span class="sm:hidden">{isSelectionMode ? 'Done' : 'Select'}</span>
@@ -825,6 +829,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 											: 'hover:text-primary-500'}"
 								data-preload="hover"
 								data-media-drop-target={dropKey}
+								data-testid={`media-breadcrumb-${dropKey}`}
 								aria-label={selectedFiles.size > 0
 									? `Move ${selectedFiles.size} selected to ${crumb.name}`
 									: `Open folder ${crumb.name}`}

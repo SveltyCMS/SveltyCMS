@@ -1,0 +1,43 @@
+---
+path: "docs/tests/routes/monitor.mdx"
+title: "Enterprise Monitor Tests — Control Map"
+description: "Coverage for /config/monitor: admin gate, resilient load, stats + service health UI."
+order: 22
+icon: "mdi:shield-check-outline"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "monitor"
+---
+
+# Enterprise Monitor (`/config/monitor`)
+
+## Surface
+
+| Piece             | Role                                                                        |
+| ----------------- | --------------------------------------------------------------------------- |
+| `+page.server.ts` | Admin-only; independent fetches (security, webhooks, metrics, state, audit) |
+| `+page.svelte`    | Stat cards, service health, incident feed, audit trail                      |
+
+Metrics **vary by runtime**; tests assert shell presence and admin gate.
+
+---
+
+## Control → test matrix
+
+| Control                               | Unit           | E2E |
+| ------------------------------------- | -------------- | --- |
+| Admin gate                            | ✅ page.server | —   |
+| Resilient defaults when services fail | ✅ page.server | —   |
+| Stats grid + service health           | —              | ✅  |
+| Overall state badge + quick links     | —              | ✅  |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/monitor-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/operations.spec.ts
+```

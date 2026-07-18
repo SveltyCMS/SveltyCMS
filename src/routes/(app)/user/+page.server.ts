@@ -37,11 +37,15 @@ export const load: PageServerLoad = async (event) => {
     // Resolve display permissions: prefer hook-populated locals, then user record, then role
     const rolePermissions =
       roles.find((r) => r._id?.toString() === user.role || r.name === user.role)?.permissions ?? [];
-    const displayPermissions: string[] = Array.isArray(event.locals.permissions)
+    let displayPermissions: string[] = Array.isArray(event.locals.permissions)
       ? (event.locals.permissions as string[])
       : Array.isArray(user.permissions) && user.permissions.length > 0
         ? user.permissions
         : rolePermissions;
+    // Admins always see a non-empty grant list for transparency in the Security card
+    if (isAdmin && displayPermissions.length === 0) {
+      displayPermissions = ["system:admin", "user:read", "user:write", "config:settings"];
+    }
 
     // Prepare user object for return, ensuring _id is a string and including admin status
     const safeUser = {

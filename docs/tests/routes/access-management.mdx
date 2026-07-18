@@ -1,0 +1,60 @@
+---
+path: "docs/tests/routes/access-management.mdx"
+title: "Access Management Tests — Control Map"
+description: "E2E and unit coverage for /config/access-management roles, permissions, admin, website tokens."
+order: 18
+icon: "mdi:shield-account"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "rbac"
+  - "access"
+---
+
+# Access Management (`/config/access-management`)
+
+## Surface
+
+| Piece                   | Role                                                        |
+| ----------------------- | ----------------------------------------------------------- |
+| `+page.server.ts`       | Admin-only load; roles from locals; permission catalog      |
+| `+page.svelte`          | Tabs: Permissions, Roles, Admin, Website Tokens; save/reset |
+| `permissions.svelte`    | Permission matrix vs roles                                  |
+| `roles.svelte`          | Create/edit/delete/reorder roles                            |
+| `admin-role.svelte`     | Admin role chrome                                           |
+| `website-tokens.svelte` | Website API tokens                                          |
+| `access.remote.ts`      | Token remote helpers                                        |
+
+---
+
+## Control → test matrix
+
+| Control                            | Unit           | E2E            | Spec                 |
+| ---------------------------------- | -------------- | -------------- | -------------------- |
+| Admin-only gate                    | ✅ page.server | RBAC elsewhere | unit                 |
+| Four tabs                          | —              | ✅             | `access-tab-*`       |
+| Save disabled when clean           | —              | ✅             | `access-mgmt-save`   |
+| Permissions matrix content         | —              | ✅             | permissions tab      |
+| Roles list + admin visible         | —              | ✅             | roles tab            |
+| Create role → save enabled → reset | —              | ✅             | create + discard     |
+| Role search                        | —              | ✅             | `access-role-search` |
+| Admin tab                          | —              | ✅             | opens                |
+| Website Tokens tab                 | —              | ✅             | opens                |
+| CSRF on save POST                  | code           | —              | +page.svelte         |
+
+---
+
+## Associated tests
+
+- [access-management.spec.ts](../../../tests/e2e/routes/config/access-management.spec.ts)
+- [access-management-page-server.test.ts](../../../tests/unit/routes/access-management-page-server.test.ts)
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/access-management-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/access-management.spec.ts
+```

@@ -43,6 +43,7 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   importers: () => import("./handlers/importers"),
   backups: () => import("./handlers/backups"),
   "content-sync": () => import("./handlers/content-sync"),
+  gdpr: () => import("./handlers/gdpr"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -139,6 +140,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   // Plugin Settings (encrypted, per-tenant, per-plugin)
   "plugin-settings": { handler: "system", fn: "handlePluginSettingsRoutes" },
 
+  // GDPR Right to Access / Erasure (self or admin)
+  gdpr: { handler: "gdpr", fn: "handleGdprRoutes" },
+
   // Deprecated Aliases
   "import-data": { handler: "importers", fn: "handleImporterRoutes" },
   config_sync: { handler: "config", fn: "handleConfigRoutes" },
@@ -224,6 +228,9 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   // Plugin Settings (encrypted per-tenant settings, gated behind plugin:settings:manage)
   "plugin-settings": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "plugin:settings:manage" : "plugin:settings:manage",
+
+  // GDPR — authenticated self-service (handler enforces self-or-admin)
+  gdpr: (method: string) => (["GET", "OPTIONS"].includes(method) ? "user:read" : "user:write"),
 };
 
 /**
@@ -247,6 +254,11 @@ function checkEndpointPermission(
   }
 
   // User management endpoints
+  // GDPR self-service: any authenticated user; handler enforces self-or-admin
+  if (namespace === "gdpr") {
+    return true;
+  }
+
   if (namespace === "user" || namespace === "auth") {
     const action = segments[1];
     // Public / self endpoints are allowed

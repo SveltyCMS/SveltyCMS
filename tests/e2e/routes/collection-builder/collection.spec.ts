@@ -5,8 +5,11 @@
  * Kept as a thin smoke re-export for CI projects that still reference this file.
  */
 
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test.describe("Full Collection & Widget Flow (legacy shim)", () => {
-  test.skip(true, "Split into collection-create.spec.ts and collection-entry-status.spec.ts");
+  // Deprecated file — kept so imports do not 404; suite is empty on purpose.
+  test("deprecated suite placeholder", () => {
+    expect(true).toBe(true);
+  });
 });

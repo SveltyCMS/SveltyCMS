@@ -45,9 +45,11 @@ import type { PageData } from "./$types";
 import { systemPreferences } from "@src/stores/dashboard-preferences.svelte.ts";
 // Stores
 import { themeStore } from "@src/stores/theme-store.svelte.ts";
+import { page } from "$app/state";
 
 // System logger
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -56,6 +58,13 @@ import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 // Lucide Icons
 
 const { data }: { data: PageData } = $props();
+
+function csrfJsonHeaders(): Record<string, string> {
+	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	const token = (page.data as { csrfToken?: string })?.csrfToken;
+	if (token) headers["X-CSRF-Token"] = token;
+	return headers;
+}
 
 // Define the types for the widget registry
 interface WidgetRegistryEntry {
@@ -118,7 +127,7 @@ async function toggleAiMode() {
 		// For now, we use a default high-quality prompt that leverages the MCP knowledge.
 		const response = await fetch("/api/ai/generate-layout", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: csrfJsonHeaders(),
 			body: JSON.stringify({
 				prompt:
 					"Generate a professional system monitoring dashboard with a welcome header and a summary of active users.",
@@ -370,7 +379,7 @@ function addNewWidget(componentName: string) {
 	const defaultSize = componentInfo.widgetMeta?.defaultSize || { w: 1, h: 1 };
 
 	const newItem: DashboardWidgetConfig = {
-		id: `widget-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`,
+		id: `widget-${generateUUID()}`,
 		component: componentName,
 		label: componentInfo.name,
 		icon: componentInfo.icon,
@@ -619,18 +628,19 @@ onMount(() => {
 <AdminPageShell title="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config">
 	<WelcomeThemePicker />
 	{#snippet actions()}
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
 			<!-- Generate AI Dashboard Button -->
 			<Button variant="outline"
 				onclick={toggleAiMode}
 				aria-label="Toggle AI Dashboard Mode"
 				title="Toggle AI Dashboard Mode"
+				data-testid="dashboard-ai-toggle"
 			 class="p-0! min-w-0">
 				<iconify-icon icon="mdi:robot-outline" width={20} class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}></iconify-icon>
 			</Button>
 			<!-- Reset All Button - Small and subtle -->
 			{#if currentPreferences.length > 0}
-				<Button variant="outline" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets" class="p-0! min-w-0">
+				<Button variant="outline" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets" data-testid="dashboard-reset-widgets" class="p-0! min-w-0">
 					<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
 				</Button>
 			{/if}
@@ -642,6 +652,7 @@ onMount(() => {
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
+						data-testid="dashboard-add-widget"
 					 class="dark:">
 						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 						Add Widget
@@ -651,6 +662,7 @@ onMount(() => {
 					<div
 						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
+						data-testid="dashboard-widget-menu"
 					>
 						<div class="p-2">
 							<Input
@@ -658,6 +670,7 @@ onMount(() => {
 								bind:value={searchQuery}
 								placeholder="Search widgets..."
 								aria-label="Search widgets"
+								data-testid="dashboard-widget-search"
 								class="w-full"
 							/>
 						</div>
@@ -688,8 +701,8 @@ onMount(() => {
 		</div>
 	{/snippet}
 
-	<div bind:this={mainContainerEl} class="relative m-0 w-full p-0" style="touch-action: pan-y;">
-		<section class="w-full px-1 py-4">
+	<div bind:this={mainContainerEl} class="relative m-0 w-full p-0" style="touch-action: pan-y;" data-testid="dashboard-main">
+		<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
 			<GenerativeDashboard spec={aiDashboardSpec}>
 				{#if aiLoading}
 					<AdminCard class="flex flex-col items-center justify-center border border-surface-200 py-20 dark:border-surface-800">
@@ -698,7 +711,7 @@ onMount(() => {
 						<p class="text-sm text-surface-500">Connecting to Knowledge Core (mcp.sveltycms.com)</p>
 					</AdminCard>
 				{:else if currentPreferences.length > 0}
-					<div class="responsive-dashboard-grid" role="grid">
+					<div class="responsive-dashboard-grid" role="grid" data-testid="dashboard-widget-grid" aria-label="Dashboard widgets">
 						<!-- Grid drop indicator -->
 						{#if gridDropIndicator}
 							<div
@@ -721,6 +734,8 @@ onMount(() => {
 								tabindex="0"
 								class="widget-container group relative select-none overflow-hidden rounded border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
+								data-widget-order={item.order ?? 0}
+								data-testid="dashboard-widget"
 								style:grid-column="span {item.size.w}"
 								style:grid-row="span {item.size.h}"
 								style:touch-action="manipulation"
@@ -764,14 +779,20 @@ onMount(() => {
 						{/each}
 					</div>
 				{:else}
-					<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center">
+					<div
+						class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center"
+						data-testid="dashboard-empty-state"
+					>
 						<div class="flex flex-col items-center px-10 py-12">
 							<iconify-icon icon="mdi:view-dashboard" width={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"></iconify-icon>
 							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
-							<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
+							<p class="mb-6 text-base text-surface-600 dark:text-surface-300">
+								Add widgets from the toolbar. Available widgets vary per install (core + plugins).
+							</p>
 							<Button variant="outline"
 								onclick={() => (dropdownOpen = true)}
 								aria-label="Add first widget"
+								data-testid="dashboard-add-first-widget"
 							 class="rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500">
 								<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
 								Add Widget
@@ -780,8 +801,8 @@ onMount(() => {
 					</div>
 				{/if}
 
-				<!-- Dashboard Injection Zone -->
-				<section class="w-full px-4 mb-8"><Slot name="dashboard" /></section>
+				<!-- Dashboard Injection Zone (plugins may inject install-specific chrome) -->
+				<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot"><Slot name="dashboard" /></section>
 			</GenerativeDashboard>
 		</section>
 	</div>

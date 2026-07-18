@@ -4,7 +4,7 @@ title: "Testing Strategy: Four-Gate Architecture"
 description: "SveltyCMS testing strategy — Contracts, White-Box unit, Black-Box integration, and E2E with Smart Orchestrator."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-07-15"
+updated: "2026-07-18"
 tags:
   - "testing"
   - "strategy"
@@ -16,6 +16,15 @@ tags:
 # Testing Strategy: Four-Gate Architecture
 
 SveltyCMS uses a **four-gate testing architecture** enforced by a Smart Test Orchestrator. Every changed file triggers exactly the tests that verify it. Unknown changes fail closed into the full core suite.
+
+## 2026 product-route standard
+
+Admin/config routes should follow **[ADR: Testing 2026](./adr-testing-2026.mdx)**:
+
+- Shared **`fetchApi`** mutations (CSRF always)
+- Domain **`*-api.ts` + `*-utils.ts`** (unit) + golden E2E journey
+- **No soft-skip** for empty install on control-map rows — seed via `/api/testing`
+- **Reference route:** `/config/webhooks`
 
 ## Primary goal: 100% three-layer completeness
 

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-15"
+updated: "2026-07-18"
 tags:
   - "testing"
   - "documentation"
@@ -21,7 +21,7 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** July 15, 2026
+**Last Updated:** July 18, 2026
 **Source of Truth:** GitHub Actions on the current branch or pull request
 **Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E  
 **Primary Goal:** [100% three-layer completeness](./three-layer-completeness.mdx) (critical inventory, not vanity line %)  
@@ -33,6 +33,7 @@ tags:
 ## Quick Links
 
 - [Testing Overview & Strategy](./testing-strategy.mdx) 🚀
+- **[ADR: Testing 2026](./adr-testing-2026.mdx)** — pyramid, fixtures, soft-skip ban, testid policy (webhooks reference)
 - **[Three-Layer Completeness (100% Goal)](./three-layer-completeness.mdx)** 🎯
 - [Contract Tests](./testing-strategy.mdx#1-contract-tests-universal-adapter-verification) 🔗
 - [Smart Orchestrator](./testing-strategy.mdx#smart-test-orchestrator) 🧠
@@ -45,7 +46,8 @@ tags:
 - **[Git Workflow & Quality Gate](./git-workflow.mdx)**
 - **[Security Testing](./security-testing.mdx)** (Encryption, Auth, Fail-Closed API)
 - **[Benchmark Collection Isolation](./benchmark-isolation.mdx)** 🛡️
-- [Test Status Report](./test-status.mdx)
+- **[Test Status (dashboard)](./test-status.mdx)** — live health, open gaps, commands
+- [Test Status Archive](./test-status-archive.mdx) — inventories & history
 - [API Coverage Report](./api-testing.mdx)
 - [API Unit Helpers](./api-unit-helpers.mdx) (shared `invokeApi` / mock events)
 - [Widget Coverage](./widget-test-coverage.mdx)
@@ -55,6 +57,10 @@ tags:
 - [Setup Wizard E2E Tests](./routes/setup.mdx) 🧙‍♂️
 - [Authentication E2E Tests](./routes/login.mdx) 🔑
 - [User Profile & Management E2E Tests](./routes/user.mdx) 👤
+- [Dashboard Tests (widget-agnostic)](./routes/dashboard.mdx) 📊
+- [Media Gallery Tests](./routes/mediagallery.mdx) 🖼️
+- [Access Management Tests](./routes/access-management.mdx) 🛡️
+- [System Settings Tests](./routes/system-settings.mdx) ⚙️
 - [Collection Builder E2E Tests](./routes/collection-builder.mdx) 🛠️
 - [System Config E2E Tests](./routes/system.mdx) ⚙️
 
@@ -450,6 +456,7 @@ bun run test:unit
 - **[Accessibility Audit](./accessibility-audit.mdx)** ♿️ (Mandatory CI Check)
 - [Testing Strategy](./testing-strategy.mdx)
 - [Benchmark Collection Isolation](./benchmark-isolation.mdx)
-- [Test Status Report](./test-status.mdx)
+- **[Test Status (dashboard)](./test-status.mdx)** — live health, open gaps, commands
+- [Test Status Archive](./test-status-archive.mdx) — inventories & history
 - [Widget Coverage](./widget-test-coverage.mdx)
 ````

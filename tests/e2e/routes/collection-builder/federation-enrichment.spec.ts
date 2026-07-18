@@ -10,6 +10,7 @@ import {
   openNewCollectionEditor,
   quickAddInputWidget,
 } from "../../helpers/collection-builder-flow";
+import { enablePlugin, handleOptionalInfraUnavailable } from "../../helpers/seed";
 
 test.describe("Collection Builder — Federation Enrichment Picker", () => {
   test.setTimeout(120_000);
@@ -27,8 +28,20 @@ test.describe("Collection Builder — Federation Enrichment Picker", () => {
       data: { action: "seed-unified-data-hub", fixture: "postgres", rowCount: 5 },
     });
     if (seedRes.status() === 503) {
-      test.skip(true, "Postgres fixture unavailable");
+      const body = await seedRes.json().catch(() => ({}));
+      handleOptionalInfraUnavailable(
+        "POSTGRES",
+        body.message || "Postgres UDH fixture unavailable",
+        (c, d) => test.skip(c, d),
+      );
       return;
+    }
+    expect(seedRes.ok()).toBeTruthy();
+
+    try {
+      await enablePlugin(page, "unified-data-hub", true);
+    } catch {
+      /* plugin may already be enabled */
     }
 
     const collectionName = `FedEnrich${Date.now()}`;
@@ -36,7 +49,6 @@ test.describe("Collection Builder — Federation Enrichment Picker", () => {
     await openNewCollectionEditor(page);
     await page.getByTestId("collection-name-input").fill(collectionName);
 
-    // Dialog-safe: never click sidebar Input while "Add New Field" is open
     await quickAddInputWidget(page);
 
     const fieldRow = page.getByTestId("widget-fields-list").getByTestId("widget-field-row").first();
@@ -50,14 +62,10 @@ test.describe("Collection Builder — Federation Enrichment Picker", () => {
 
     await page.getByTestId("tab-permissions").click();
     const picker = page.getByTestId("federation-enrichment-picker");
-    const pickerVisible = await picker
-      .waitFor({ state: "visible", timeout: 15_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (!pickerVisible) {
-      test.skip(true, "Federation enrichment picker not visible — enable Unified Data Hub plugin");
-      return;
-    }
+    await expect(
+      picker,
+      "Federation enrichment picker must render after UDH enable + seed",
+    ).toBeVisible({ timeout: 20_000 });
 
     const addBtn = page.getByTestId("add-federation-enrichment");
     if (await addBtn.isEnabled()) {

@@ -34,7 +34,8 @@ interface E2eMatrix {
 const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   {
     name: "Config & System",
-    grep: "(appearance|design-system|webhooks|operations|access-management|automations|data-management|system-settings|monitor|queue|extensions|sync|trash|redirects)",
+    // Include data-ops (sync/trash shell) by path/title; sync|trash alone can miss case-sensitive path matches
+    grep: "(appearance|design-system|webhooks|operations|access-management|automations|data-management|data-ops|system-settings|monitor|queue|extensions|sync|trash|redirects)",
   },
   {
     name: "Builder & Content",

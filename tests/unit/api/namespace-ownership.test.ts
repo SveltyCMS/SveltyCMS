@@ -82,6 +82,7 @@ const HANDLER_FN: Record<string, string> = {
   "import-data": "handleImporterRoutes",
   config_sync: "handleConfigRoutes",
   "config-sync": "handleConfigRoutes",
+  gdpr: "handleGdprRoutes",
 };
 
 /**
@@ -196,6 +197,7 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   // Auth / users
   auth: ["tests/unit/api/auth-2fa.test.ts", "tests/integration/api/auth-2fa.test.ts"],
   user: ["tests/unit/api/user.test.ts", "tests/integration/api/user.test.ts"],
+  gdpr: ["tests/unit/api/gdpr.test.ts", "tests/unit/services/gdpr-service.test.ts"],
   permission: [
     "tests/unit/api/config-permissions.test.ts",
     "tests/integration/api/permissions.test.ts",

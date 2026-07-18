@@ -1,0 +1,62 @@
+---
+path: "docs/tests/routes/redirects.mdx"
+title: "Redirect Manager Tests — Control Map"
+description: "Coverage for /config/redirects: admin gate, CRUD, search, confirm delete."
+order: 20
+icon: "mdi:arrow-decision"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "redirects"
+---
+
+# Redirect Manager (`/config/redirects`)
+
+## Surface
+
+| Piece                 | Role                                              |
+| --------------------- | ------------------------------------------------- |
+| `+page.server.ts`     | Auth + **admin-only** gate; load tenant redirects |
+| `+page.svelte`        | Table, search, modal create/edit, confirm delete  |
+| `redirects-utils.ts`  | Path validation, payload normalize, client filter |
+| `redirects.server.ts` | LocalCMS create/update/delete + cache invalidate  |
+| `redirects.remote.ts` | SvelteKit command wrappers                        |
+
+---
+
+## Control → test matrix
+
+| Control                                | Unit                                  | E2E                  |
+| -------------------------------------- | ------------------------------------- | -------------------- |
+| Admin gate (403 non-admin)             | ✅ page.server                        | —                    |
+| Validation (from/to paths, type)       | ✅ redirects-utils + redirects.server | —                    |
+| Create + cache invalidate              | ✅ redirects.server                   | ✅ create happy path |
+| Delete + confirm (no `window.confirm`) | ✅ server                             | ✅ delete happy path |
+| Shell + search + empty                 | —                                     | ✅                   |
+| Modal open / cancel                    | —                                     | ✅                   |
+
+---
+
+## Product hardening (2026-07-18)
+
+- [x] Admin-only page load and mutations
+- [x] Pure validation helpers (`redirects-utils.ts`)
+- [x] `showConfirm` for delete; `invalidateAll` instead of full reload
+- [x] Stable `data-testid`s for automation
+
+## Associated tests
+
+- [redirects.spec.ts](../../../tests/e2e/routes/config/redirects.spec.ts)
+- [redirects-page-server.test.ts](../../../tests/unit/routes/redirects-page-server.test.ts)
+- [redirects-server.test.ts](../../../tests/unit/routes/redirects-server.test.ts)
+- [redirects-utils.test.ts](../../../tests/unit/config/redirects-utils.test.ts)
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/redirects-page-server.test.ts tests/unit/routes/redirects-server.test.ts tests/unit/config/redirects-utils.test.ts
+bun x playwright test tests/e2e/routes/config/redirects.spec.ts
+```

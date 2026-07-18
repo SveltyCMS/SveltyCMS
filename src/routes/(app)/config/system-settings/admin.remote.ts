@@ -129,6 +129,14 @@ export const detectTenantStructure = command(
     warnings?: string[];
     error?: string;
   }> => {
+    const event = getRequestEvent();
+    if (!event.locals.isAdmin) {
+      return {
+        success: false,
+        error: "Only administrators can inspect tenant structure.",
+      };
+    }
+
     try {
       const { detectFullStructure } = await import("@utils/collections-migration.server");
       const { isMultiTenantEnabled } = await import("@utils/tenant");

@@ -1,44 +1,106 @@
 /**
  * @file tests/e2e/routes/config/automations.spec.ts
- * @description E2E tests for /config/automations — workflow automation builder.
+ * @description Automations E2E — Testing 2026: golden builder journey + minimal shell.
+ * Soft-skip banned; seeds via /api/testing when needed outside golden create path.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { confirmModal } from "../../helpers/confirm-modal";
+import { deleteAutomation, seedAutomation } from "../../helpers/seed";
 
-test.describe("Automations", () => {
-  test.beforeEach(async ({ page }) => {
+const ACTION_TIMEOUT = 20_000;
+
+async function goAutomations(page: Page) {
+  await loginAsAdmin(page);
+  await page.goto("/config/automations", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await expect(page.getByTestId("page-title")).toContainText(/automation/i);
+  await expect(page.getByTestId("automations-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await expect(page.getByTestId("automations-loading")).toHaveCount(0, {
+    timeout: ACTION_TIMEOUT,
+  });
+}
+
+test.describe.configure({ mode: "serial" });
+test.use({ storageState: { cookies: [], origins: [] } });
+
+test.describe("Automations (Testing 2026)", () => {
+  test.setTimeout(120_000);
+
+  test("shell: page and new control", async ({ page }) => {
+    await goAutomations(page);
+    await expect(page.getByTestId("automations-new")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  });
+
+  test("search empty state with seeded fixture (no soft-skip)", async ({ page }) => {
     await loginAsAdmin(page);
-  });
-
-  test("page loads with automation list", async ({ page }) => {
-    await page.goto("/config/automations");
-    await expect(page.getByRole("heading", { level: 1, name: /automation/i })).toBeVisible({
-      timeout: 10_000,
+    const seeded = await seedAutomation(page, {
+      name: `E2E Search Base ${Date.now().toString(36)}`,
     });
-    await expect(page.getByRole("button", { name: /new|create|add/i }).first()).toBeVisible({
-      timeout: 10_000,
-    });
-  });
-
-  test("can start creating an automation", async ({ page }) => {
-    await page.goto("/config/automations");
-    const createBtn = page.getByRole("button", { name: /new|create|add/i }).first();
-    if (await createBtn.isVisible()) {
-      await createBtn.click();
-      await expect(page).toHaveURL(/automations/, { timeout: 10_000 });
-      await expect(page.getByText(/trigger|event|schedule|when/i).first()).toBeVisible({
-        timeout: 10_000,
+    try {
+      await page.goto("/config/automations", {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
       });
+      await expect(page.getByTestId("automations-list")).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+      await page.getByTestId("automations-search").fill("zzzz-no-automation-xyz-999");
+      await expect(page.getByTestId("automations-search-empty")).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+    } finally {
+      await deleteAutomation(page, seeded.id).catch(() => {});
     }
   });
 
-  test("empty state shows guidance", async ({ page }) => {
-    await page.goto("/config/automations");
-    const emptyState = page.getByText(/no automations|get started|create your first/i);
-    const hasItems = page.locator('[class*="card"]').first();
-    await expect(emptyState.or(hasItems).first()).toBeVisible({
-      timeout: 10_000,
+  /**
+   * Golden journey — create via builder → list → open editor → delete.
+   */
+  test("golden: builder create → list → edit → delete", async ({ page }) => {
+    await goAutomations(page);
+    await page.getByTestId("automations-new").click();
+    await expect(page.getByTestId("automation-editor")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
     });
+
+    const stamp = Date.now().toString(36);
+    const name = `E2E Golden ${stamp}`;
+
+    await page.getByTestId("automation-name").fill(name);
+    await page.getByTestId("automation-trigger-manual").click();
+    await page.getByTestId("automation-next").click();
+
+    await expect(page.getByTestId("automation-add-ops")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await page.getByTestId("automation-add-op-log").click();
+    await page.getByTestId("automation-next").click();
+
+    await page.getByTestId("automation-save").click();
+    await expect(page).toHaveURL(/\/config\/automations\/?$/, { timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("automations-loading")).toHaveCount(0, {
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.getByText(name).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    await page.getByText(name).first().click();
+    await expect(page.getByTestId("automation-editor")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.getByTestId("automation-name")).toHaveValue(name, {
+      timeout: ACTION_TIMEOUT,
+    });
+
+    await page.goto("/config/automations", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("automations-list")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    const card = page.locator(`[data-automation-name="${name}"]`);
+    await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await card.getByTestId("automation-delete").click();
+    await confirmModal(page);
+    await expect(page.getByText(name)).toHaveCount(0, { timeout: ACTION_TIMEOUT });
   });
 });
