@@ -49,9 +49,9 @@ test.describe("Universal Accessibility Audits", () => {
   });
 
   test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
-    // 1. Login first
-    await loginAsAdmin(page);
-    await page.waitForURL(/\/(Collections|admin|dashboard|collectionbuilder)/, {
+    // 1. Login first — loginAsAdmin lands on /user (protected), not collectionbuilder
+    await loginAsAdmin(page, "/user");
+    await page.waitForURL(/\/(user|Collections|admin|dashboard|collectionbuilder)/, {
       timeout: 15_000,
     });
 
