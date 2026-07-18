@@ -358,12 +358,43 @@ async function attemptLogin(
 }
 
 /**
- * Login as admin user (uses default ADMIN_CREDENTIALS)
- * @param page - Playwright page object
- * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
+ * Login as admin user (uses default ADMIN_CREDENTIALS).
+ * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
+ * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
+ * Falls back to UI loginAs if the testing API is unavailable.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
-  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+  const email = ADMIN_CREDENTIALS.email;
+  const password = ADMIN_CREDENTIALS.password;
+
+  try {
+    // Ensure admin exists (idempotent)
+    await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "seed", email, password },
+    });
+    const loginRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "login", email, password },
+    });
+    if (loginRes.ok()) {
+      // page.request stores Set-Cookie in the shared cookie jar for this context
+      console.log("[Auth] ✓ Admin session via testing API");
+      if (waitForUrl) {
+        await page.goto(typeof waitForUrl === "string" ? waitForUrl : "/", {
+          waitUntil: "domcontentloaded",
+          timeout: 30_000,
+        });
+        await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
+      }
+      return;
+    }
+    console.log(`[Auth] testing API login status=${loginRes.status()} — falling back to UI login`);
+  } catch (err) {
+    console.log("[Auth] testing API login failed — falling back to UI login:", err);
+  }
+
+  await loginAs(page, email, password, waitForUrl);
 }
 
 /**
