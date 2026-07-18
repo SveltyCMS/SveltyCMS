@@ -438,27 +438,30 @@ export async function handleTestingRoutes(
         });
       }
 
-      // Create a session + Set-Cookie so e2e auth-setup can capture storageState.
-      // Previously seed only created the user; auth.setup fell back to navigation and
-      // often saved empty cookies → chromium shards stuck on /login without page-title.
+      // Optional session (createSession:true) for auth-setup storageState capture.
+      // Default is user-only so firstuser UI login tests can still open /login.
       let sessionId: string | undefined;
-      try {
-        const loginResult = await cms.auth.login({ email, password }, { tenantId });
-        if (loginResult.success && loginResult.data?.session?._id) {
-          sessionId = loginResult.data.session._id;
-          const { getSessionCookieName } = await import("@src/databases/auth/constants");
-          const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
-          const cookieName = getSessionCookieName(isSecure);
-          event.cookies.set(cookieName, sessionId, {
-            path: "/",
-            httpOnly: true,
-            sameSite: isSecure ? "strict" : "lax",
-            secure: isSecure,
-            maxAge: 60 * 60 * 24,
-          });
+      const wantSession =
+        params.createSession === true || params.createSession === "true" || params.session === true;
+      if (wantSession) {
+        try {
+          const loginResult = await cms.auth.login({ email, password }, { tenantId });
+          if (loginResult.success && loginResult.data?.session?._id) {
+            sessionId = loginResult.data.session._id;
+            const { getSessionCookieName } = await import("@src/databases/auth/constants");
+            const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+            const cookieName = getSessionCookieName(isSecure);
+            event.cookies.set(cookieName, sessionId, {
+              path: "/",
+              httpOnly: true,
+              sameSite: isSecure ? "strict" : "lax",
+              secure: isSecure,
+              maxAge: 60 * 60 * 24,
+            });
+          }
+        } catch (err: any) {
+          logger.warn(`[TestingHandler] Non-fatal seed login/session error: ${err.message}`);
         }
-      } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal seed login/session error: ${err.message}`);
       }
 
       return new Response(
