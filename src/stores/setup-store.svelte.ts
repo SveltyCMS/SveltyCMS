@@ -609,8 +609,9 @@ function createSetupStore() {
         logger.debug("[SetupStore] Flash message set in sessionStorage");
       }
 
-      // Clear store state locally
-      const targetPath = (data as any).redirectPath || "/en/collections";
+      // Clear store state locally — prefer server redirectPath; never fall back to
+      // collectionbuilder (cold-boot 500). /login is always valid with a session.
+      const targetPath = (data as any).redirectPath || "/login";
 
       // Hard redirect immediately so E2E/CI do not race a delayed timer against
       // waitForURL (toast is non-blocking). Keep a tiny yield for paint/sessionStorage.

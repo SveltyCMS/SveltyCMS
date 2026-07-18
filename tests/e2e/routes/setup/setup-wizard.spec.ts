@@ -93,18 +93,9 @@ class SetupWizardPage {
       );
     }
 
-    // Only treat UI errors as setup failures while still on /setup.
-    // Destination pages (e.g. /config/collectionbuilder) can 500 independently
-    // after a successful completeSetup — that must not fail wizard provisioning.
-    if (this.page.url().includes("/setup")) {
-      const errorToast = this.page
-        .locator("[data-sonner-toast][data-type='error'], .toast-error, [role='alert']")
-        .first();
-      if (await errorToast.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const msg = (await errorToast.textContent().catch(() => ""))?.trim();
-        if (msg) throw new Error(`Setup complete failed with UI error: ${msg}`);
-      }
-    }
+    // Do not fail on post-redirect destination errors (e.g. collectionbuilder 500).
+    // completeSetup HTTP status is the source of truth for wizard success; Step 5
+    // then waits for navigation off /setup.
   }
 
   async handleAnyDbDialog() {

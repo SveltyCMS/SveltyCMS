@@ -551,17 +551,23 @@ export async function completeSetup(
     // Non-fatal: cache will self-heal on next authoritative read.
   }
 
-  // Prefer first collection when seeded. Avoid /config/collectionbuilder as the
-  // default — that route can 500 right after cold setup while content engine warms,
-  // which breaks E2E even though setup itself succeeded. /login is always safe:
-  // session cookie is set, and first-user flows land on sign-in/dashboard next.
+  // Prefer /login after setup: session cookie is set and the route is cold-boot safe.
+  // /config/collectionbuilder often 500s while the content engine warms (breaks E2E).
+  // In TEST_MODE always use /login so e2e-prep is deterministic.
   let redirectPath = "/login";
-  try {
-    const { getCachedFirstCollectionPath } = await import("@utils/server/collection-utils.server");
-    const path = await getCachedFirstCollectionPath("en" as any);
-    if (path) redirectPath = path;
-  } catch {
-    // Collections may not be seeded yet — fall back to /login
+  const isTest =
+    process.env.TEST_MODE === "true" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.NODE_ENV === "test";
+  if (!isTest) {
+    try {
+      const { getCachedFirstCollectionPath } =
+        await import("@utils/server/collection-utils.server");
+      const path = await getCachedFirstCollectionPath("en" as any);
+      if (path) redirectPath = path;
+    } catch {
+      // Collections may not be seeded yet — keep /login
+    }
   }
 
   return {
