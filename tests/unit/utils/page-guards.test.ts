@@ -6,24 +6,34 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@sveltejs/kit", async () => {
-  const actual = await vi.importActual<typeof import("@sveltejs/kit")>("@sveltejs/kit");
-  return {
-    ...actual,
-    redirect: (status: number, location: string) => {
-      const err = new Error(`Redirect ${status} → ${location}`) as Error & {
-        status: number;
-        location: string;
-      };
-      err.status = status;
-      err.location = location;
-      throw err;
-    },
-    error: (status: number, message: string) => {
-      const err = new Error(message) as Error & { status: number };
-      err.status = status;
-      throw err;
-    },
+  const redirect = (status: number, location: string) => {
+    const err = new Error(`Redirect ${status} → ${location}`) as Error & {
+      status: number;
+      location: string;
+    };
+    err.status = status;
+    err.location = location;
+    throw err;
   };
+  const error = (status: number, message: string) => {
+    const err = new Error(message) as Error & { status: number };
+    err.status = status;
+    throw err;
+  };
+
+  try {
+    const actual = await vi.importActual<any>("@sveltejs/kit");
+    return {
+      ...actual,
+      redirect,
+      error,
+    };
+  } catch {
+    return {
+      redirect,
+      error,
+    };
+  }
 });
 
 import {
