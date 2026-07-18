@@ -73,11 +73,11 @@ flowchart TD
 
 The previous architecture used **19 CI jobs** (one per Playwright project). The simplified architecture uses only **3 CI job definitions**:
 
-| CI Job              | Playwright Projects                 | Concurrency         | Purpose                                           |
-| ------------------- | ----------------------------------- | ------------------- | ------------------------------------------------- |
-| `e2e-prep`          | `wizard`, `firstuser`, `auth-setup` | Serial              | Bootstrap the CMS and generate shared auth state  |
-| `e2e-chromium` (×6) | `chromium`                          | Parallel (6 shards) | Run all browser-based tests against one server    |
-| `e2e-report`        | —                                   | Serial (merge)      | Aggregate shard reports into a single HTML report |
+| CI Job              | Playwright Projects                 | Concurrency                                    | Purpose                                              |
+| ------------------- | ----------------------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| `e2e-prep`          | `wizard`, `firstuser`, `auth-setup` | Serial                                         | Bootstrap the CMS and generate shared auth state     |
+| `e2e-chromium` (×6) | `chromium`                          | Parallel (6 **grep groups**, each `shard=1/1`) | Named suites via `--grep` (not N/6 of the full list) |
+| `e2e-report`        | —                                   | Serial (merge)                                 | Aggregate shard reports into a single HTML report    |
 
 All 6 chromium shards connect to **one preview server instance** started by the CI runner, eliminating redundant cold starts.
 
@@ -126,9 +126,10 @@ Each worker within a chromium shard uses **header-based database routing** for f
 ### 4. `chromium` – All Functional Tests
 
 - Runs **all** spec files: dashboard, collections, media, RBAC, security, accessibility, visual regression
-- Sharded into 6 parallel jobs using Playwright's `--shard=N/6`
-- Each shard reuses the `storageState` files from `auth-setup`
-- All 6 shards connect to the same preview server instance
+- Split into 6 parallel jobs by **named `--grep` groups** (Config, Builder, Users, Media, Auth, Admin)
+- Each group runs **all** matching tests (`--shard=1/1`) — do **not** combine grep with `--shard=N/6` (that dropped ~5/6 of each suite)
+- Each job reuses the `storageState` files from `auth-setup`
+- Each job starts its own preview server from the e2e-prep artifact
 
 ## Why This Works
 

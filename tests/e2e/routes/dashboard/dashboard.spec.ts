@@ -46,15 +46,25 @@ async function widgetIdsInDomOrder(page: Page): Promise<string[]> {
     .evaluateAll((els) => els.map((el) => el.getAttribute("data-widget-id") || "").filter(Boolean));
 }
 
-/** Reset layout and add up to `count` install widgets (names not asserted). */
+/**
+ * Ensure ≥`count` widgets on the dashboard.
+ * Prefers existing widgets; only resets when the board is empty so CI
+ * installs with a default layout are not wiped to zero.
+ * Adds distinct menu items (nth) so one-type catalogs still get multiple tiles.
+ */
 async function ensureNWidgets(page: Page, count: number): Promise<number> {
-  const reset = page.getByTestId("dashboard-reset-widgets");
-  if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await reset.click();
-    await page.waitForTimeout(400);
+  let n = await page.locator("[data-widget-id]").count();
+  if (n >= count) return n;
+
+  // Empty board: try add from empty-state first (do not reset a partial board)
+  if (n === 0) {
+    const reset = page.getByTestId("dashboard-reset-widgets");
+    if (await reset.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      // Only reset when we already have widgets but need a clean reorder baseline later
+    }
   }
 
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < count + 2 && n < count; i++) {
     const addBtn = page
       .getByTestId("dashboard-add-widget")
       .or(page.getByTestId("dashboard-add-first-widget"));
@@ -69,18 +79,24 @@ async function ensureNWidgets(page: Page, count: number): Promise<number> {
     await addBtn.first().click();
     const menu = page.getByTestId("dashboard-widget-menu");
     await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
-    const item = menu.getByRole("menuitem").first();
+    // Prefer a new menuitem each pass so we do not re-click the same single type only once
+    const items = menu.getByRole("menuitem");
+    const itemCount = await items.count();
+    if (itemCount === 0) {
+      await page.keyboard.press("Escape").catch(() => {});
+      break;
+    }
+    const item = items.nth(Math.min(i, itemCount - 1));
     if (!(await item.isVisible({ timeout: 2_000 }).catch(() => false))) {
-      // close menu if open
       await page.keyboard.press("Escape").catch(() => {});
       break;
     }
     await item.click();
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(400);
+    n = await page.locator("[data-widget-id]").count();
   }
 
-  const n = await page.locator("[data-widget-id]").count();
-  return n;
+  return page.locator("[data-widget-id]").count();
 }
 
 /**

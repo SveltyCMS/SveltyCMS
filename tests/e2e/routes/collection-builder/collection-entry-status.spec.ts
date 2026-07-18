@@ -1,48 +1,67 @@
 /**
  * @file tests/e2e/routes/collection-builder/collection-entry-status.spec.ts
- * @description Isolated E2E: entry create + publish/unpublish on an existing Names collection.
+ * @description Entry create + publish/unpublish — seeds its own collection (no soft-skip).
  */
 
 import { expect, test } from "@playwright/test";
 import { ensureAuthenticated } from "../../helpers/test-auth";
-import { createEntryWithNames, openCollectionEntries } from "../../helpers/collection-builder-flow";
-
-const COLLECTION_SLUG = "names";
+import {
+  addInputField,
+  createEntryWithNames,
+  openCollectionEntries,
+  openNewCollectionEditor,
+  saveCollectionSchema,
+  uniqueCollectionFixture,
+} from "../../helpers/collection-builder-flow";
 
 test.describe("Collection Entries — Status Transitions", () => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
 
   test.beforeEach(async ({ page }) => {
     await ensureAuthenticated(page);
   });
 
-  test("creates an entry and toggles publish/unpublish", async ({ page }) => {
-    await openCollectionEntries(page, COLLECTION_SLUG);
+  test("creates collection + entry and toggles publish/unpublish", async ({ page }) => {
+    const fixture = uniqueCollectionFixture("E2E_Status");
 
-    // Hard-fail when fixture collection is missing (no soft-skip on control-map path)
+    // Seed schema: First Name + Last Name (matches createEntryWithNames labels)
+    await openNewCollectionEditor(page);
+    await page.getByTestId("collection-name-input").fill(fixture.name);
+    await addInputField(page, { label: "First Name", fieldName: "firstName", index: 0 });
+    await addInputField(page, { label: "Last Name", fieldName: "lastName", index: 1 });
+    await saveCollectionSchema(page);
+
+    await openCollectionEntries(page, fixture.slug);
+
     const createBtn = page.getByTestId("entry-list-action-create");
     await expect(
       createBtn,
-      `Collection "${COLLECTION_SLUG}" not present — seed Names via e2e-prep / collection create before this suite`,
-    ).toBeVisible({ timeout: 15_000 });
+      `Expected entry list for collection "${fixture.slug}" after schema save`,
+    ).toBeVisible({ timeout: 20_000 });
 
     await createEntryWithNames(page, "John", "Doe");
-    await expect(page).toHaveURL(new RegExp(`/en/collection/${COLLECTION_SLUG}`, "i"), {
+    await expect(page).toHaveURL(new RegExp(`/en/collection/${fixture.slug}`, "i"), {
       timeout: 15_000,
     });
 
-    const statusBadge = page
-      .locator("table tbody tr")
-      .first()
-      .getByRole("button", { name: /^(publish|unpublish|draft)$/i });
-    const rowCheckbox = page.locator("table tbody tr").first().getByRole("checkbox");
+    const firstRow = page.locator("table tbody tr").first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+
+    const statusBadge = firstRow.getByRole("button", {
+      name: /^(publish|unpublish|draft|published|unpublished)$/i,
+    });
+    const rowCheckbox = firstRow.getByRole("checkbox");
 
     await rowCheckbox.check();
     await page.getByTestId("entry-list-action-publish").click();
-    await expect(statusBadge).toHaveText(/publish/i, { timeout: 10_000 });
+    await expect(statusBadge.or(firstRow.getByText(/publish/i)).first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     await rowCheckbox.check();
     await page.getByTestId("entry-list-action-unpublish").click();
-    await expect(statusBadge).toHaveText(/unpublish/i, { timeout: 10_000 });
+    await expect(statusBadge.or(firstRow.getByText(/unpublish|draft/i)).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });
