@@ -51,6 +51,19 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   import { untrack, onMount } from "svelte";
   import { invalidate } from "$app/navigation";
   import { browser } from "$app/environment";
+  import {
+    listThemes as apiListThemes,
+    listMarketplaceThemes as apiListMarketplaceThemes,
+    installMarketplaceTheme as apiInstallMarketplaceTheme,
+    activateTheme as apiActivateTheme,
+    createTheme as apiCreateTheme,
+    cloneTheme as apiCloneTheme,
+    deleteTheme as apiDeleteTheme,
+    saveAdminTheme as apiSaveAdminTheme,
+    resetAdminTheme as apiResetAdminTheme,
+    importThemePreset as apiImportThemePreset,
+    updateUserThemePrefs as apiUpdateUserThemePrefs,
+  } from "./appearance-api";
 
   const layoutVisibilityOptions = [
     { value: "", label: "Use theme default" },
@@ -136,14 +149,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function saveMyOverrides() {
     try {
       const themePrefs = buildMyThemePrefs();
-      const payload: Record<string, any> = { preferences: { theme: { ...themePrefs } } };
-
-      const res = await fetch("/api/user/update-user-attributes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: "self", newUserData: payload }),
-      });
-      if (!res.ok) throw new Error("Save failed");
+      const res = await apiUpdateUserThemePrefs({ ...themePrefs });
+      if (!res.success) throw new Error(res.message || "Save failed");
 
       if (browser) localStorage.setItem(LOCAL_PREFS_KEY, JSON.stringify(themePrefs));
       userThemePrefs.apply(themePrefs);
@@ -165,11 +172,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
 
   async function clearMyOverrides() {
     try {
-      await fetch("/api/user/update-user-attributes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: "self", newUserData: { preferences: { theme: {} } } }),
-      });
+      await apiUpdateUserThemePrefs({});
       myDensity = "";
       myVariant = "";
       myReducedMotion = false;
@@ -196,8 +199,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function loadThemes() {
     loadingThemes = true;
     try {
-      const res = await fetch("/api/theme/list");
-      if (res.ok) themes = await res.json();
+      themes = await apiListThemes();
     } catch { /* ignore */ }
     loadingThemes = false;
   }
@@ -209,12 +211,9 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function loadMarketplaceThemes() {
     loadingMarketplace = true;
     try {
-      const res = await fetch("/api/marketplace?type=theme");
-      if (!res.ok) return;
-      const body = await res.json();
-      const data = body?.data ?? body;
-      marketplaceThemes = data?.items ?? [];
-      marketplaceSource = data?.source ?? "local";
+      const result = await apiListMarketplaceThemes();
+      marketplaceThemes = result.items;
+      marketplaceSource = result.source;
     } catch { /* ignore */ }
     finally { loadingMarketplace = false; }
   }
@@ -222,12 +221,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function installMarketplaceTheme(itemId: string) {
     saving = true;
     try {
-      const res = await fetch("/api/marketplace/install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId }),
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Install failed");
+      const res = await apiInstallMarketplaceTheme(itemId);
+      if (!res.success) throw new Error(res.message || res.error || "Install failed");
       toast.success("Theme installed from marketplace");
       await loadThemes();
       await loadMarketplaceThemes();
@@ -337,15 +332,11 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     { value: "both", label: "Both Sidebars" },
   ];
 
-  // ── Theme CRUD ──
+  // ── Theme CRUD (appearance-api → fetchApi CSRF) ──
   async function handleActivate(id: string) {
     try {
-      const res = await fetch("/api/theme/activate", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ themeId: id }),
-      });
-      if (!res.ok) throw new Error("Activation failed");
-      const result = await res.json();
+      const result = await apiActivateTheme(id);
+      if (!result.success || !result.data) throw new Error(result.message || "Activation failed");
       const a = result.data as StoredAdminTheme;
       if (a.density) density = a.density;
       if (a.variant) variant = a.variant;
@@ -370,11 +361,23 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     const n = newThemeName.trim();
     if (!n) { toast.warning("Enter a name"); return; }
     try {
-      const res = await fetch("/api/theme/create", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: n, settings: { density, variant, features: { stickyActionBar, collapsibleSidebar, brandedLogin, highContrastMode, reducedMotion, layoutRegions: { collections: collectionsLayout, mediaGalleries: 'left' } }, customCss: customCss || undefined } }),
+      const res = await apiCreateTheme({
+        name: n,
+        settings: {
+          density,
+          variant,
+          features: {
+            stickyActionBar,
+            collapsibleSidebar,
+            brandedLogin,
+            highContrastMode,
+            reducedMotion,
+            layoutRegions: { collections: collectionsLayout, mediaGalleries: "left" },
+          },
+          customCss: customCss || undefined,
+        },
       });
-      if (!res.ok) throw new Error("Creation failed");
+      if (!res.success) throw new Error(res.message || "Creation failed");
       newThemeName = "";
       await loadThemes();
       toast.success(`"${n}" created`);
@@ -385,11 +388,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     const src = themes.find((t) => t.id === id);
     const n = cloneName.trim() || `Copy of ${src?.name || "theme"}`;
     try {
-      const res = await fetch("/api/theme/clone", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId: id, name: n }),
-      });
-      if (!res.ok) throw new Error("Clone failed");
+      const res = await apiCloneTheme(id, n);
+      if (!res.success) throw new Error(res.message || "Clone failed");
       cloneName = "";
       await loadThemes();
       toast.success(`"${n}" cloned`);
@@ -400,14 +400,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     const t = themes.find((x) => x.id === id);
     if (!confirm(`Delete "${t?.name}" permanently?`)) return;
     try {
-      const res = await fetch("/api/theme/delete", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ themeId: id }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || "Delete failed");
-      }
+      const res = await apiDeleteTheme(id);
+      if (!res.success) throw new Error(res.message || res.error || "Delete failed");
       await loadThemes();
       toast.success("Theme deleted");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
@@ -423,11 +417,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
         customCss: customCss || undefined,
         lockedSettings,
       };
-      const res = await fetch("/api/theme/admin-theme", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Save failed");
+      const res = await apiSaveAdminTheme(payload);
+      if (!res.success) throw new Error(res.message || "Save failed");
       toast.success("Theme saved");
       hasChanges = false;
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
@@ -437,7 +428,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function resetToDefaults() {
     if (!confirm("Reset to defaults?")) return;
     try {
-      await fetch("/api/theme/admin-theme", { method: "DELETE" });
+      await apiResetAdminTheme();
       density = "cozy"; variant = "bordered";
       stickyActionBar = collapsibleSidebar = brandedLogin = highContrastMode = reducedMotion = false;
       customCss = "";
@@ -450,12 +441,10 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     if (!importPresetJson.trim()) { toast.warning("Paste JSON first"); return; }
     saving = true;
     try {
-      const res = await fetch("/api/theme/import-preset", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ presetJson: importPresetJson.trim() }),
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Import failed");
-      const body = await res.json();
+      const body = await apiImportThemePreset(importPresetJson.trim());
+      if (!body.success || !body.data) {
+        throw new Error(body.message || body.error || "Import failed");
+      }
       const imported = body.data as StoredAdminTheme;
       const warnings = (body.warnings ?? []) as Array<{ pair: string; ratio: number; required: number }>;
       if (imported.density) density = imported.density;

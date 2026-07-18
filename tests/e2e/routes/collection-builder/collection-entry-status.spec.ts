@@ -19,14 +19,12 @@ test.describe("Collection Entries — Status Transitions", () => {
   test("creates an entry and toggles publish/unpublish", async ({ page }) => {
     await openCollectionEntries(page, COLLECTION_SLUG);
 
+    // Hard-fail when fixture collection is missing (no soft-skip on control-map path)
     const createBtn = page.getByTestId("entry-list-action-create");
-    if (!(await createBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip(
-        true,
-        `Collection "${COLLECTION_SLUG}" not present — run collection-create or seed first`,
-      );
-      return;
-    }
+    await expect(
+      createBtn,
+      `Collection "${COLLECTION_SLUG}" not present — seed Names via e2e-prep / collection create before this suite`,
+    ).toBeVisible({ timeout: 15_000 });
 
     await createEntryWithNames(page, "John", "Doe");
     await expect(page).toHaveURL(new RegExp(`/en/collection/${COLLECTION_SLUG}`, "i"), {

@@ -15,6 +15,12 @@ import type { WorkflowDefinition, WorkflowState, WorkflowTransition } from "@src
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import StickyActions from '@components/ui/sticky-actions.svelte';
+import {
+	listWorkflowCollections,
+	listWorkflowRoles,
+	loadWorkflow as loadWorkflowApi,
+	saveWorkflowDefinition,
+} from "./workflows-api";
 
 let states = $state<WorkflowState[]>([
 	{ id: "draft", label: "Draft", color: "#94a3b8", isInitial: true },
@@ -40,59 +46,45 @@ let selectedCollectionId = $state<string>("");
 let workflowId = $state<string | null>(null);
 
 onMount(async () => {
-    // Load collections
-    const colRes = await fetch('/api/collections');
-    const colData = await colRes.json();
-    if (colData.success) collections = colData.data;
-
-    // Load roles (using a common endpoint if available or dedicated one)
-    const roleRes = await fetch('/api/user/roles'); // Assuming this endpoint exists based on standard patterns
-    const roleData = await roleRes.json();
-    if (roleData.success) roles = roleData.data;
+	// Load collections + roles via workflows-api (CSRF-safe fetchApi)
+	collections = await listWorkflowCollections();
+	roles = await listWorkflowRoles();
 });
 
 async function loadWorkflow(collectionId: string) {
-    if (!collectionId) return;
-    const res = await fetch(`/api/workflows?collectionId=${collectionId}`);
-    const data = await res.json();
-    if (data.success && data.data) {
-        const wf = data.data as WorkflowDefinition;
-        workflowId = wf._id || null;
-        states = wf.states;
-        transitions = wf.transitions;
-        toast.success(`Workflow loaded for ${collectionId}`);
-    } else {
-        workflowId = null;
-        // Reset to default or keep current as template
-    }
+	if (!collectionId) return;
+	const data = await loadWorkflowApi(collectionId);
+	if (data.success && data.data) {
+		const wf = data.data as WorkflowDefinition;
+		workflowId = wf._id || null;
+		states = wf.states;
+		transitions = wf.transitions;
+		toast.success(`Workflow loaded for ${collectionId}`);
+	} else {
+		workflowId = null;
+	}
 }
 
 async function saveWorkflow() {
-    if (!selectedCollectionId) {
-        toast.error("Please select a collection first");
-        return;
-    }
+	if (!selectedCollectionId) {
+		toast.error("Please select a collection first");
+		return;
+	}
 
-    const definition: WorkflowDefinition = {
-        _id: workflowId || undefined,
-        collectionId: selectedCollectionId,
-        states: $state.snapshot(states),
-        transitions: $state.snapshot(transitions)
-    };
+	const definition: WorkflowDefinition = {
+		_id: workflowId || undefined,
+		collectionId: selectedCollectionId,
+		states: $state.snapshot(states),
+		transitions: $state.snapshot(transitions)
+	};
 
-    const res = await fetch('/api/workflows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(definition)
-    });
-
-    const data = await res.json();
-    if (data.success) {
-        workflowId = data.data._id;
-        toast.success("Workflow saved successfully");
-    } else {
-        toast.error(data.message || "Failed to save workflow");
-    }
+	const data = await saveWorkflowDefinition(definition);
+	if (data.success && data.data) {
+		workflowId = data.data._id || null;
+		toast.success("Workflow saved successfully");
+	} else {
+		toast.error(data.message || "Failed to save workflow");
+	}
 }
 
 function addState() {

@@ -136,9 +136,11 @@ test.describe("Media move to folder", () => {
           .first(),
       );
 
-    // If sidebar not visible, skip HTML5 path (breadcrumb path covers move)
-    const dropVisible = await folderDrop.isVisible({ timeout: 5_000 }).catch(() => false);
-    test.skip(!dropVisible, "Sidebar folder drop target not visible in this layout");
+    // Sidebar drop target is product chrome for folder move — hard-fail if missing
+    await expect(
+      folderDrop,
+      "Sidebar folder drop target not visible — media layout must expose data-media-drop-target for HTML5 move",
+    ).toBeVisible({ timeout: 10_000 });
 
     const moveApi = page.waitForResponse(
       (res) => res.url().includes("/api/media/move") && res.request().method() === "POST",

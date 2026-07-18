@@ -6,7 +6,7 @@
  * otherwise skip with [optional-infra:POSTGRES] only (not empty-install soft-skip).
  */
 
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 import { enablePlugin, handleOptionalInfraUnavailable } from "../../helpers/seed";

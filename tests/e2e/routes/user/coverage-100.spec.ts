@@ -16,7 +16,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
-import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor, logout } from "../../helpers/auth";
+import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_USERS } from "../../helpers/seed";
 import { TEST_API_HEADERS } from "../../helpers/test-api";
 

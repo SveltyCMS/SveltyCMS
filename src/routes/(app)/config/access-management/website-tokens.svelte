@@ -47,6 +47,14 @@ import Button from "@components/ui/button.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";
+import {
+	listUsersForTokens,
+	listWebsiteTokens,
+	unwrapWebsiteTokensList,
+	createWebsiteToken,
+	deleteWebsiteTokenById,
+	bulkDeleteWebsiteTokens as apiBulkDeleteWebsiteTokens,
+} from "./website-tokens-api";
 
 interface TableHeader {
 	id: string;
@@ -176,19 +184,17 @@ onMount(async () => {
 });
 
 async function fetchUsers() {
-	const usersRef = { value: users };
 	try {
-		const response = await fetch("/api/user");
-		if (response.ok) {
-			const result = await response.json();
-			usersRef.value = result.data;
-		} else {
-			toast.error("Failed to fetch users");
+		const list = await listUsersForTokens();
+		if (list.length === 0) {
+			// Empty is valid; only toast when API clearly failed (success false path returns [])
+			users = [];
+			return;
 		}
+		users = list;
 	} catch {
 		toast.error("An error occurred while fetching users");
 	}
-	users = usersRef.value;
 }
 
 async function fetchTokens() {
@@ -220,17 +226,13 @@ async function fetchTokens() {
 			}
 
 			try {
-				const response = await fetch(
-					`/api/website-tokens?${params.toString()}`,
-				);
-				if (response.ok) {
-					const result = await response.json();
-					const items = (result.data || []) as WebsiteToken[];
-					const total = Number(result.pagination?.totalItems ?? items.length);
+				const result = await listWebsiteTokens(params);
+				if (result.success) {
+					const { items, totalItems } = unwrapWebsiteTokensList(result);
 					smartTable.setRows(items as unknown as Record<string, unknown>[]);
 					smartTable.setPaginationMeta({
-						totalItems: total,
-						pagesCount: Math.max(1, Math.ceil(total / pageSizeVal)),
+						totalItems,
+						pagesCount: Math.max(1, Math.ceil(totalItems / pageSizeVal)),
 						currentPage: pageVal,
 						pageSize: pageSizeVal,
 					});
@@ -291,28 +293,24 @@ async function generateToken() {
 	}
 
 	try {
-		const response = await fetch("/api/website-tokens", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				name: currentNewTokenName,
-				permissions: selectedPermissions,
-				expiresAt: getExpirationDate(),
-				tenantId: tenantScope === 'global' ? null : undefined,
-			}),
+		const response = await createWebsiteToken({
+			name: currentNewTokenName,
+			permissions: selectedPermissions,
+			expiresAt: getExpirationDate(),
+			tenantId: tenantScope === "global" ? null : undefined,
 		});
 
-		if (response.ok) {
+		if (response.success) {
 			await fetchTokens();
 			toast.success(`Token generated for ${currentNewTokenName}`);
 			newTokenName = "";
 			selectedPermissions = [];
 			expirationOption = "90d";
 			tenantScope = "current";
-		} else if (response.status === 409) {
+		} else if (response.code === "HTTP_409" || /exist/i.test(response.message || "")) {
 			toast.error("A token with this name already exists");
 		} else {
-			toast.error("Failed to generate token");
+			toast.error(response.message || "Failed to generate token");
 		}
 	} catch {
 		toast.error("An error occurred while generating the token");
@@ -325,15 +323,12 @@ async function deleteToken(id: string, name: string) {
 		body: `Are you sure you want to delete the token "${name}"? This action cannot be undone.`,
 		onConfirm: async () => {
 			try {
-				const response = await fetch(`/api/website-tokens/${id}`, {
-					method: "DELETE",
-				});
-
-				if (response.ok) {
+				const response = await deleteWebsiteTokenById(id);
+				if (response.success) {
 					await fetchTokens();
 					toast.success("Token deleted.");
 				} else {
-					toast.error("Failed to delete token");
+					toast.error(response.message || "Failed to delete token");
 				}
 			} catch {
 				toast.error("An error occurred while deleting the token");
@@ -354,12 +349,7 @@ async function bulkDeleteTokens() {
 				loadingOperations.tokenGeneration,
 				async () => {
 					try {
-						const deletePromises = ids.map((id) =>
-							fetch(`/api/website-tokens/${id}`, { method: "DELETE" }),
-						);
-						const results = await Promise.all(deletePromises);
-
-						const successCount = results.filter((r) => r.ok).length;
+						const { successCount } = await apiBulkDeleteWebsiteTokens(ids.map(String));
 						if (successCount > 0) {
 							toast.success(`${successCount} tokens deleted.`);
 							smartTable.clearSelection();

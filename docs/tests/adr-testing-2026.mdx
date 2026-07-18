@@ -167,29 +167,33 @@ Use when adding or finishing a domain:
 
 **Still incremental (not blockers for this ADR):**
 
-- [ ] Appearance / themes full `*-api` matrix
-- [ ] Workflows builder deep golden E2E
+- [x] Appearance / themes full `*-api` matrix (`appearance-api.ts`)
+- [ ] Workflows builder **deep golden E2E** (API client done; journey TBD)
 - [x] Trash **restore** golden (`seed-trash` / `purge-trash`)
 - [x] Unified Data Hub: always-on tests hard-assert; Postgres suite uses `handleOptionalInfraUnavailable` (`REQUIRE_OPTIONAL_INFRA=true` → hard-fail)
+- [x] Residual soft-skips: dashboard reorder, collection entry status, media HTML5 drop → hard-fail
 
 ---
 
 ## Rollout status (complete as of 2026-07-18)
 
-| Domain                           | Product / API                   | Unit    | Golden / outcome E2E                    | Soft-skip free   |
-| -------------------------------- | ------------------------------- | ------- | --------------------------------------- | ---------------- |
-| **Webhooks**                     | `webhooks-api` + utils          | ✅      | create→list→reload→delete               | ✅               |
-| **Automations**                  | `automations-api`               | ✅      | builder create→list→edit→delete         | ✅               |
-| **Redirects**                    | server helpers + utils          | ✅      | create→search→delete                    | ✅               |
-| **Trash**                        | `trash-api`                     | ✅      | **golden restore** (`seed-trash`)       | ✅               |
-| **Access management**            | save via `fetchApi`             | ✅ gate | permissions toggle+save                 | ✅               |
-| **System settings**              | remotes + utils                 | ✅      | edit→save→reload (+ shell)              | ✅               |
-| **Sync**                         | plan/apply via `fetchApi`       | ✅ gate | shell tabs/status                       | ✅               |
-| **Queue / Monitor**              | admin gates + testids           | ✅      | operations shell + filters              | ✅               |
-| **Extensions**                   | plugin toggle via `fetchApi`    | ✅ gate | tabs smoke                              | ✅               |
-| **Migration wizard**             | enable-plugin + hard-fail ready | —       | dry-run / import (plugin)               | ✅ no empty skip |
-| **Collection builder structure** | —                               | —       | category persist (Quick Start if empty) | ✅               |
-| Unified Data Hub                 | plugin + external DB            | —       | optional infra / 503                    | external only    |
+| Domain                           | Product / API                                | Unit             | Golden / outcome E2E                    | Soft-skip free   |
+| -------------------------------- | -------------------------------------------- | ---------------- | --------------------------------------- | ---------------- |
+| **Webhooks**                     | `webhooks-api` + utils                       | ✅               | create→list→reload→delete               | ✅               |
+| **Automations**                  | `automations-api`                            | ✅               | builder create→list→edit→delete         | ✅               |
+| **Redirects**                    | server helpers + utils                       | ✅               | create→search→delete                    | ✅               |
+| **Trash**                        | `trash-api`                                  | ✅               | **golden restore** (`seed-trash`)       | ✅               |
+| **Access management**            | save via `fetchApi` + **website-tokens-api** | ✅ gate + tokens | permissions toggle+save                 | ✅               |
+| **Appearance / themes**          | `appearance-api`                             | ✅               | shell (deep golden incremental)         | ✅               |
+| **Workflows**                    | `workflows-api`                              | ✅               | shell (deep golden TBD)                 | —                |
+| **System settings**              | remotes + utils                              | ✅               | edit→save→reload (+ shell)              | ✅               |
+| **Sync**                         | plan/apply via `fetchApi`                    | ✅ gate          | shell tabs/status                       | ✅               |
+| **Queue / Monitor**              | admin gates + testids                        | ✅               | operations shell + filters              | ✅               |
+| **Extensions**                   | plugin toggle via `fetchApi`                 | ✅ gate          | tabs smoke                              | ✅               |
+| **Migration wizard**             | enable-plugin + hard-fail ready              | —                | dry-run / import (plugin)               | ✅ no empty skip |
+| **Collection builder structure** | —                                            | —                | category persist (Quick Start if empty) | ✅               |
+| **Dashboard reorder**            | —                                            | —                | ≥2 widgets hard-fail                    | ✅               |
+| Unified Data Hub                 | plugin + external DB                         | —                | optional infra / 503                    | external only    |
 
 **Shared infrastructure**
 

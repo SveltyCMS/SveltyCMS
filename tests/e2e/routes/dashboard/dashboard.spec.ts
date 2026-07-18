@@ -292,7 +292,11 @@ test.describe("Dashboard widget reorder", () => {
     await page.waitForTimeout(600);
 
     const count = await ensureNWidgets(page, 2);
-    test.skip(count < 2, `Install only has ${count} addable widget(s); pointer reorder needs ≥2`);
+    // Core dashboard catalog must expose ≥2 widgets — hard-fail empty catalog soft-pass
+    expect(
+      count,
+      `Install only has ${count} addable widget(s); pointer reorder needs ≥2 (core catalog required in CI)`,
+    ).toBeGreaterThanOrEqual(2);
 
     await expect(page.getByTestId("dashboard-widget-grid")).toBeVisible({
       timeout: ACTION_TIMEOUT,
@@ -320,7 +324,10 @@ test.describe("Dashboard widget reorder", () => {
     await page.waitForTimeout(600);
 
     const count = await ensureNWidgets(page, 2);
-    test.skip(count < 2, `Install only has ${count} widget(s); keyboard reorder needs ≥2`);
+    expect(
+      count,
+      `Install only has ${count} widget(s); keyboard reorder needs ≥2 (core catalog required in CI)`,
+    ).toBeGreaterThanOrEqual(2);
 
     const widgets = page.locator("[data-widget-id]");
     await expect(widgets.first()).toBeVisible({ timeout: ACTION_TIMEOUT });

@@ -12,7 +12,6 @@ describe("clientJsonHeaders", () => {
   beforeEach(() => {
     cookieValue = "";
     vi.stubGlobal("document", {
-      cookie: "",
       get cookie() {
         return cookieValue;
       },
