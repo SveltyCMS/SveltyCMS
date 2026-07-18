@@ -9,6 +9,7 @@ import {
   loadWorkflow,
   saveWorkflowDefinition,
 } from "../../../src/routes/(app)/config/workflows/workflows-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -24,15 +25,11 @@ describe("workflows-api mutations attach CSRF", () => {
       json: async () => ({ success: true, data: { _id: "wf1", states: [], transitions: [] } }),
     });
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=wf-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=wf-csrf");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

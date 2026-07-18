@@ -3,26 +3,25 @@
  * @description Unit tests for clientJsonHeaders CSRF builder.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { clientJsonHeaders } from "../../../src/utils/security/client-csrf";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 describe("clientJsonHeaders", () => {
   let cookieValue = "";
 
   beforeEach(() => {
     cookieValue = "";
-    vi.stubGlobal("document", {
-      get cookie() {
-        return cookieValue;
-      },
-      set cookie(v: string) {
+    stubDocumentCookie(
+      () => cookieValue,
+      (v) => {
         cookieValue = v;
       },
-    });
+    );
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
   });
 
   it("always sets Content-Type", () => {

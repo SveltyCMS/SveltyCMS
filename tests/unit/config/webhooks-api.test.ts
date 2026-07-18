@@ -12,6 +12,7 @@ import {
   saveWebhook,
   testWebhookDelivery,
 } from "../../../src/routes/(app)/config/webhooks/webhooks-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -34,15 +35,11 @@ describe("webhooks-api + fetchApi CSRF", () => {
   beforeEach(() => {
     fetchMock = vi.fn();
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=unit-csrf-token";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=unit-csrf-token");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

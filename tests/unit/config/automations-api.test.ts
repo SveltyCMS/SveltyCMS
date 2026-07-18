@@ -12,6 +12,7 @@ import {
   saveAutomation,
   testAutomation,
 } from "../../../src/routes/(app)/config/automations/automations-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -38,15 +39,11 @@ describe("automations-api mutations attach CSRF", () => {
       json: async () => ({ success: true, data: { id: "a1" } }),
     });
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=auto-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=auto-csrf");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

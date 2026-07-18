@@ -11,6 +11,7 @@ import {
   updateUserThemePrefs,
   resetAdminTheme,
 } from "../../../src/routes/(app)/config/appearance/appearance-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -26,15 +27,11 @@ describe("appearance-api", () => {
       json: async () => ({ success: true, data: { id: "t1", name: "Default" } }),
     });
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=theme-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=theme-csrf");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

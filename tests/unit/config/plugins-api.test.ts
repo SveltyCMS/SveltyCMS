@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { togglePlugin } from "../../../src/routes/(app)/config/extensions/plugins-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -20,15 +21,11 @@ describe("plugins-api", () => {
       json: async () => ({ success: true }),
     });
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=plugin-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=plugin-csrf");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

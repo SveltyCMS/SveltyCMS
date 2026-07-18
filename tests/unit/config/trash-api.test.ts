@@ -9,6 +9,7 @@ import {
   listTrash,
   restoreTrashItem,
 } from "../../../src/routes/(app)/config/trash/trash-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -24,15 +25,11 @@ describe("trash-api", () => {
       json: async () => ({ success: true, data: [] }),
     });
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=trash-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=trash-csrf");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

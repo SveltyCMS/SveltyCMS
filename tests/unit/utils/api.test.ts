@@ -13,6 +13,7 @@ import {
   invalidateCollectionCache,
   getCollections,
 } from "@src/utils/api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 // Mock the publicEnv to avoid unresolved imports
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
@@ -27,11 +28,7 @@ describe("API Client Utilities", () => {
   beforeEach(() => {
     globalFetchMock = vi.fn();
     (globalThis as any).fetch = globalFetchMock;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=api-test-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=api-test-csrf");
 
     // Clear internal cache by trying to invalidate
     invalidateCollectionCache("test-collection");
@@ -39,7 +36,7 @@ describe("API Client Utilities", () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

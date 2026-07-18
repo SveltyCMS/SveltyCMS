@@ -11,6 +11,7 @@ import {
   unwrapWebsiteTokensList,
   bulkDeleteWebsiteTokens,
 } from "../../../src/routes/(app)/config/access-management/website-tokens-api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
   publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
@@ -26,15 +27,11 @@ describe("website-tokens-api", () => {
       json: async () => ({ success: true, data: [] }),
     });
     globalThis.fetch = fetchMock as typeof fetch;
-    vi.stubGlobal("document", {
-      get cookie() {
-        return "csrf_token=token-csrf";
-      },
-    });
+    stubDocumentCookie(() => "csrf_token=token-csrf");
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 

@@ -134,13 +134,37 @@ if (isBun) {
     importActual: (path: string) => import(`${path}?bun-unmock=${Date.now()}`),
   };
 
-  setGlobal("vi", viShim);
-  setGlobal("vitest", viShim);
+  // Bun 1.3+ ships a partial built-in `vitest.vi` (timers/fn) that lacks stubGlobal.
+  // Prefer merging our shim onto any existing Bun vi so `import { vi } from "vitest"` works.
+  const mergeVi = (target: Record<string, any> | null | undefined) => {
+    if (!target || typeof target !== "object") return viShim;
+    for (const [k, v] of Object.entries(viShim)) {
+      if (typeof target[k] === "undefined") {
+        try {
+          Object.defineProperty(target, k, {
+            value: v,
+            writable: true,
+            configurable: true,
+            enumerable: true,
+          });
+        } catch {
+          target[k] = v;
+        }
+      }
+    }
+    return target;
+  };
+
+  // Patch global early
+  mergeVi((globalThis as any).vi);
+  setGlobal("vi", mergeVi((globalThis as any).vi) || viShim);
+  setGlobal("vitest", (globalThis as any).vi);
 
   const vitestMock = {
     ...bunTest,
-    vi: viShim,
-    vitest: viShim,
+    ...viShim,
+    vi: (globalThis as any).vi || viShim,
+    vitest: (globalThis as any).vi || viShim,
     describe: bunTest.describe,
     it: bunTest.it,
     test: bunTest.test,
@@ -149,14 +173,29 @@ if (isBun) {
     afterEach: bunTest.afterEach,
     beforeAll: bunTest.beforeAll,
     afterAll: bunTest.afterAll,
-    default: { ...bunTest, vi: viShim },
+    default: { ...bunTest, vi: (globalThis as any).vi || viShim },
   };
 
-  bunTest.mock.module("vitest", () => vitestMock);
+  bunTest.mock.module("vitest", () => {
+    // Re-merge every resolution in case Bun recreated its partial vi
+    if (vitestMock.vi) mergeVi(vitestMock.vi as Record<string, any>);
+    return vitestMock;
+  });
   try {
     const vitestPath = import.meta.resolve("vitest");
-    bunTest.mock.module(vitestPath, () => vitestMock);
+    bunTest.mock.module(vitestPath, () => {
+      if (vitestMock.vi) mergeVi(vitestMock.vi as Record<string, any>);
+      return vitestMock;
+    });
   } catch {}
+
+  // Best-effort: patch the already-resolved package export object
+  try {
+    const resolved = require("vitest") as { vi?: Record<string, any> };
+    if (resolved?.vi) mergeVi(resolved.vi);
+  } catch {
+    /* ignore */
+  }
 
   (globalThis as any).mock = bunTest.mock;
   if (!globalThis.describe) setGlobal("describe", bunTest.describe);
