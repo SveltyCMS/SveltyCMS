@@ -340,21 +340,10 @@ export async function handleTestingRoutes(
         logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
       }
 
-      // Idempotent seed: try createUser first, fallback to update-by-email.
-      // The reset action clears auth_users, but a race with handleSystemState
-      // or a duplicate seed call can cause CREATE_USER_FAILED.
-      // Explicitly clear auth_users to avoid UNIQUE constraint races
-      // with system init or previous test runs.
-      try {
-        const { sql } = await import("drizzle-orm");
-        if ((initializedAdapter as any).sqlite) {
-          (initializedAdapter as any).sqlite.exec("DELETE FROM auth_users;");
-        } else if ((initializedAdapter as any).db) {
-          await (initializedAdapter as any).db.execute(sql`DELETE FROM auth_users;`);
-        }
-      } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal auth_users clear error: ${err.message}`);
-      }
+      // Idempotent seed: createUser then update-by-email on conflict.
+      // NEVER wipe auth_users here — chromium shards call seed in parallel and a
+      // full DELETE invalidates every other worker's admin session mid-test.
+      // Use action=reset when a true clean slate is required (serial auth-setup).
 
       const seedOpts = { tenantId } as any;
       let result: any = await cms.auth.createUser(
