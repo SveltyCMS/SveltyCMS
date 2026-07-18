@@ -63,9 +63,10 @@ describe("Config admin HTTP surface (remaining E2E-only namespaces)", () => {
 
   for (const ep of SURFACE) {
     describe(ep.name, () => {
-      it(`unauth GET ${ep.path} → 401`, async () => {
+      it(`unauth GET ${ep.path} → denied`, async () => {
         const { status } = await authGet(ep.path);
-        expect(status).toBe(401);
+        // Fail-closed namespaces return 403, auth-gated ones return 401
+        expect([401, 403], `${ep.path} unauth status=${status}`).toContain(status);
       });
 
       it(`admin GET ${ep.path} → success`, async () => {

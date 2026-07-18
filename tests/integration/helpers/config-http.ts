@@ -65,13 +65,17 @@ export async function ensureEditorUser(adminCookie: string): Promise<void> {
 export async function authGet(
   path: string,
   cookie?: string,
+  opts?: { skipTestSecret?: boolean },
 ): Promise<{ status: number; body: any; raw: Response }> {
   const headers: Record<string, string> = {
     Accept: "application/json",
     Origin: API_BASE_URL,
   };
   if (cookie) headers.Cookie = cookie;
-  const res = await safeFetch(`${API_BASE_URL}${path}`, { headers });
+  const res = await safeFetch(`${API_BASE_URL}${path}`, {
+    headers,
+    skipTestSecret: opts?.skipTestSecret ?? !cookie,
+  });
   let body: any = null;
   try {
     body = await res.json();
@@ -97,6 +101,7 @@ export async function authJson(
     method,
     headers,
     body: payload === undefined ? undefined : JSON.stringify(payload),
+    skipTestSecret: !cookie,
   });
   let body: any = null;
   try {
