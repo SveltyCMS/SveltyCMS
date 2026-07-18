@@ -41,7 +41,7 @@ const SURFACE: SurfaceEndpoint[] = [
   { name: "workflows", path: "/api/workflows?collectionId=test", editorDenied: true },
   { name: "config sync status", path: "/api/config/status", editorDenied: true },
   { name: "widgets list (extensions)", path: "/api/widgets/list", editorDenied: false },
-  { name: "logs (monitor)", path: "/api/logs", editorDenied: true },
+  { name: "logs (monitor)", path: "/api/logs/audit", editorDenied: true },
 ];
 
 describe("Config admin HTTP surface (remaining E2E-only namespaces)", () => {
