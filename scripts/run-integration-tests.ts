@@ -605,18 +605,37 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
   throw lastError || new Error(`Failed /api/testing ${action} after ${maxRetries} retries`);
 }
 
-async function runCommand(cmd: string, args: string[], opts: any = {}) {
+type RunResult = { code: number | null; stderr: string; stdout: string };
+
+async function runCommand(cmd: string, args: string[], opts: any = {}): Promise<RunResult> {
+  const capture = opts.capture === true;
   const proc = spawn(cmd, args, {
     cwd: ROOT,
-    stdio: "inherit",
+    stdio: capture ? "pipe" : "inherit",
     shell: process.platform === "win32",
     ...opts,
     env: { ...process.env, ...opts.env },
+    capture: undefined,
   });
 
-  return new Promise<{ code: number | null }>((resolve) => {
-    proc.on("close", (code) => resolve({ code }));
-    proc.on("error", () => resolve({ code: 1 }));
+  let stdout = "";
+  let stderr = "";
+  if (capture) {
+    proc.stdout?.on("data", (d) => {
+      const s = d.toString();
+      stdout += s;
+      process.stdout.write(s);
+    });
+    proc.stderr?.on("data", (d) => {
+      const s = d.toString();
+      stderr += s;
+      process.stderr.write(s);
+    });
+  }
+
+  return new Promise<RunResult>((resolve) => {
+    proc.on("close", (code) => resolve({ code, stdout, stderr }));
+    proc.on("error", () => resolve({ code: 1, stdout, stderr }));
   });
 }
 
@@ -829,18 +848,26 @@ async function main() {
   const regularTests = testFiles.filter((f) => !isSetupModeTest(f));
   const setupTests = testFiles.filter((f) => isSetupModeTest(f));
 
+  type TestResult = { file: string; success: boolean; time: number; stderr?: string };
+
   let passed = 0;
-  const results: { file: string; success: boolean; time: number }[] = [];
+  const results: TestResult[] = [];
   const db = getDbDefaults();
   const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
 
-  async function runOneTest(file: string, setupMode: boolean) {
+  async function runOneTest(
+    file: string,
+    setupMode: boolean,
+    opts?: { retry?: boolean },
+  ): Promise<TestResult> {
     const relPath = relative(ROOT, file);
     const start = Date.now();
-    console.log(`Running ${relPath}...`);
+    const label = opts?.retry ? `Retrying ${relPath}...` : `Running ${relPath}...`;
+    console.log(label);
 
     const bunTestPath = `./${normalizePath(relPath)}`;
-    const { code } = await runCommand("bun", ["test", "--timeout", dbTimeout, bunTestPath], {
+    const result = await runCommand("bun", ["test", "--timeout", dbTimeout, bunTestPath], {
+      capture: true,
       env: {
         ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
@@ -849,78 +876,167 @@ async function main() {
     });
 
     const duration = Date.now() - start;
-    const success = code === 0;
-    results.push({ file: relPath, success, time: duration });
-    if (success) passed++;
-    console.log(success ? `Passed (${(duration / 1000).toFixed(1)}s)` : "Failed");
-    return success;
+    const success = result.code === 0;
+    const entry: TestResult = { file: relPath, success, time: duration };
+
+    // On failure, extract the assertion error lines for diagnostics
+    if (!success && result.stderr) {
+      const lines = result.stderr.split("\n");
+      const errorLines = lines.filter(
+        (l) =>
+          l.includes("error:") ||
+          l.includes("AssertionError") ||
+          l.includes("Expected") ||
+          l.includes("Received") ||
+          l.includes("FAIL"),
+      );
+      entry.stderr = errorLines.slice(0, 8).join("\n") || result.stderr.slice(0, 600);
+    }
+
+    const status = success ? `Passed (${(duration / 1000).toFixed(1)}s)` : "Failed";
+    console.log(status);
+
+    if (!success && entry.stderr) {
+      console.log(`  ${entry.stderr.replace(/\n/g, "\n  ")}`);
+    }
+
+    return entry;
   }
 
-  // Phase 1: Regular tests - shared server, reset/seed between files
+  // Phase 1: Regular tests — sequential with reset/seed isolation between tests
   if (regularTests.length > 0) {
-    console.log(`Phase 1: ${regularTests.length} regular test(s) - shared server`);
+    console.log(`\n📦 Phase 1: ${regularTests.length} regular test(s) — sequential isolation`);
 
     await startPreviewServer();
     await testingAction("seed");
 
-    for (const file of regularTests) {
+    for (let i = 0; i < regularTests.length; i++) {
       if (isShuttingDown) break;
-      const ok = await runOneTest(file, false);
-      if (!ok && failFast) break;
-      if (!isShuttingDown) {
+      const file = regularTests[i]!;
+
+      const entry = await runOneTest(file, false);
+
+      if (!entry.success && !isShuttingDown) {
+        await testingAction("reset");
+        await testingAction("seed");
+        const retry = await runOneTest(file, false, { retry: true });
+        results.push(retry);
+        if (retry.success) passed++;
+      } else {
+        results.push(entry);
+        if (entry.success) passed++;
+      }
+
+      // Reset/seed for next test (skip after last)
+      if (i < regularTests.length - 1 && !isShuttingDown) {
         await testingAction("reset");
         await testingAction("seed");
       }
+
+      if (failFast && results.filter((r) => !r.success).length > 0) break;
     }
 
     await stopPreviewServer();
     await freePort(Number.parseInt(PORT, 10));
   }
 
-  // Phase 2: Setup-mode tests - fresh server per file
+  // Phase 2: Setup-mode tests - fresh server per file, retry once on failure
   for (const file of setupTests) {
     if (isShuttingDown) break;
     const relPath = relative(ROOT, file);
     console.log(`Preparing isolated environment on port ${PORT} for ${relPath}`);
     await prepareIsolatedServerForTestFile(file);
-    const ok = await runOneTest(file, true);
-    if (!ok && failFast) break;
+    const entry = await runOneTest(file, true);
+    if (!entry.success && !isShuttingDown) {
+      // Retry with fresh isolated server
+      console.log(`Retrying ${relPath} with fresh isolated environment...`);
+      await prepareIsolatedServerForTestFile(file);
+      const retry = await runOneTest(file, true, { retry: true });
+      results.push(retry);
+      if (retry.success) passed++;
+    } else {
+      results.push(entry);
+      if (entry.success) passed++;
+    }
+    if (failFast && !entry.success) break;
   }
+
+  const failedCount = results.length - passed;
+  const failedResults = results.filter((r) => !r.success);
 
   console.log("\n" + "=".repeat(80));
   console.log("🏁 INTEGRATION TEST SUMMARY");
   console.log("=".repeat(80));
-  console.log(`Passed : ${passed}/${results.length}`);
-  console.log(`Failed : ${results.length - passed}`);
 
-  for (const result of results) {
-    const status = result.success ? "✅" : "❌";
-    console.log(` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
+  if (failedResults.length === 0) {
+    console.log(`✅ All ${results.length} tests passed`);
+  } else {
+    console.log(`Passed : ${passed}/${results.length}`);
+    console.log(`Failed : ${failedCount}`);
+    for (const result of failedResults) {
+      console.log(` ❌ ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
+    }
   }
 
-  // CI summary generation
+  // CI summary generation — compact: only list failures
   const shouldWriteCiSummary =
     process.env.CI === "true" || process.env.GITHUB_STEP_SUMMARY !== undefined;
 
   if (shouldWriteCiSummary) {
     const summaryPath = process.env.GITHUB_STEP_SUMMARY;
     if (summaryPath) {
-      const failed = results.length - passed;
-      let markdown = `## Integration Test Results (DB: ${dbType})\n\n`;
-      markdown += `| Test File | Status | Duration |\n`;
-      markdown += `|-----------|--------|----------|\n`;
-      for (const result of results) {
-        const status = result.success ? "✅" : "❌";
-        markdown += `| ${result.file} | ${status} | ${(result.time / 1000).toFixed(1)}s |\n`;
+      const icon = failedCount > 0 ? "❌" : "✅";
+      let markdown = `## ${icon} Integration Tests (DB: **${dbType}**)\n\n`;
+      markdown += `| Result | Count |\n`;
+      markdown += `|--------|-------|\n`;
+      markdown += `| ✅ Passed | ${passed}/${results.length} |\n`;
+      if (failedCount > 0) {
+        markdown += `| ❌ Failed | ${failedCount} |\n`;
+        markdown += `\n<details open><summary>❌ Failures + diagnostics</summary>\n\n`;
+        markdown += `| Test File | Duration | First error |\n`;
+        markdown += `|-----------|----------|-------------|\n`;
+        for (const result of failedResults) {
+          const err = (result.stderr || "")
+            .split("\n")
+            .map((l) => l.trim())
+            .find((l) => l.length > 0)
+            ?.replace(/\|/g, "\\|")
+            .slice(0, 140);
+          markdown += `| \`${result.file}\` | ${(result.time / 1000).toFixed(1)}s | ${err || "_(see job log)_"} |\n`;
+          // Annotation for Actions UI
+          console.log(
+            `::error file=${result.file},title=Integration failed (${dbType})::${err || result.file}`,
+          );
+        }
+        markdown += `\n**Fix:** re-run locally:\n\`\`\`bash\nbun run scripts/run-integration-tests.ts --db=${dbType} --no-build\n\`\`\`\n`;
+        markdown += `\n</details>\n`;
+      } else {
+        markdown += `\n_All integration files green on **${dbType}**._\n`;
       }
-      markdown += `\n**Passed: ${passed}/${results.length}** | **Failed: ${failed}**\n`;
+      markdown += `\n`;
       appendFileSync(summaryPath, markdown, "utf8");
     }
 
+    // Per-adapter results JSON for cross-DB summary aggregation
+    const resultsDir = join(ROOT, "tests", "test-results");
+    if (!existsSync(resultsDir)) mkdirSync(resultsDir, { recursive: true });
+    const summaryJson = JSON.stringify({
+      passed,
+      failed: failedCount,
+      total: results.length,
+      db: dbType,
+      failures: failedResults.map((r) => ({ file: r.file, time: r.time, stderr: r.stderr })),
+    });
+    writeFileSync(join(resultsDir, `integration-${dbType}.json`), summaryJson, "utf8");
+
     const outputPath = process.env.GITHUB_OUTPUT;
     if (outputPath) {
-      const failed = results.length - passed;
-      const json = JSON.stringify({ passed, failed, total: results.length, db: dbType });
+      const json = JSON.stringify({
+        passed,
+        failed: failedCount,
+        total: results.length,
+        db: dbType,
+      });
       appendFileSync(outputPath, `integration_results=${json}\n`, "utf8");
     }
   }

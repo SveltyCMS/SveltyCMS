@@ -189,10 +189,12 @@ test.describe("System Settings shell", () => {
     await expect(input).toHaveValue(target, { timeout: ACTION_TIMEOUT });
 
     // Hard reload — value must come from API, not client state
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+        timeout: 10_000,
+      });
+    }).toPass({ timeout: 25_000 });
     const afterReload = page
       .getByTestId("settings-field-CACHE_TTL_SCHEMA")
       .locator("input")

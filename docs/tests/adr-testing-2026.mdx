@@ -173,6 +173,14 @@ Use when adding or finishing a domain:
 - [x] Extensions **widgets-api** (list/status/uninstall via `fetchApi`)
 - [x] Unified Data Hub: always-on tests hard-assert; Postgres suite uses `handleOptionalInfraUnavailable` (`REQUIRE_OPTIONAL_INFRA=true` → hard-fail)
 - [x] Residual soft-skips: dashboard reorder, collection entry status, media HTML5 drop → hard-fail
+- [x] Integration coverage: all 9 E2E-only namespaces now HTTP-covered (P0: 26/26 files)
+- [x] Integration runner: sequential isolation + auto-retry + stderr capture
+- [x] CI: centralized secrets (fork-safe) + server process traps
+- [x] Multi-tenancy E2E: `isolation.spec.ts` gated behind `MULTI_TENANT=true`
+- [x] OAuth E2E: separate Playwright project, gated behind `OAUTH_ENABLED=true`
+- [x] Builder E2E: consolidated 9 files → 1 (shell + golden)
+- [x] E2E reliability: 6 `page.reload()` → `.toPass()` polling
+- [x] Multi-DB tracking: `db-summary` CI job with per-adapter dashboard
 
 ---
 
@@ -195,6 +203,7 @@ Use when adding or finishing a domain:
 | **Collection builder structure** | —                                            | —                | category persist (Quick Start if empty) | ✅               |
 | **Dashboard reorder**            | —                                            | —                | ≥2 widgets hard-fail                    | ✅               |
 | Unified Data Hub                 | plugin + external DB                         | —                | optional infra / 503                    | external only    |
+| **Multi-tenancy**                | `isolation.spec.ts`                          | —                | browser isolation (gated)               | ✅ env-gated     |
 
 **Shared infrastructure**
 

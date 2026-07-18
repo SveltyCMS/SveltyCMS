@@ -61,11 +61,14 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     });
     await expect(page.getByText(name).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("webhooks-loading")).toHaveCount(0, {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(page.getByText(name).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Polling reload: SQLite WAL may not flush before the first read
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("webhooks-loading")).toHaveCount(0, {
+        timeout: 10_000,
+      });
+      await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 25_000 });
 
     const card = page.locator(`[data-webhook-name="${name}"]`);
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });

@@ -36,6 +36,8 @@ Admin/config routes should follow **[ADR: Testing 2026](./adr-testing-2026.mdx)*
 
 “100%” means **100% of the critical inventory** has the correct layer proof(s) — not 100% of every source line. Full definition, scorecards, and P0 lists: **[Three-Layer Completeness](./three-layer-completeness.mdx)**.
 
+**Headless-first placement** (adapters + session + RBAC before admin E2E): **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
+
 ````mermaid
 graph TD
     GitDiff[Git Diff] --> SmartOrch{Smart Orchestrator<br>scripts/test-smart.ts}

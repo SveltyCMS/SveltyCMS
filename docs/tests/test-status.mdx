@@ -20,30 +20,33 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > Deep inventories and “what we shipped when” live in **[Test Status Archive](./test-status-archive.mdx)**.
 
-**Dashboard updated:** 2026-07-18
+**Dashboard updated:** 2026-07-18 (ultra-smart unit + session→page integration)
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                          |
-| --------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **Are the gates healthy?**        | Yes in design: unit → security regression → push build/integration → CI E2E                     |
-| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc     |
-| **Biggest recent win**            | `/user` stability pack (product fixes + P0 E2E journeys) — [routes/user.mdx](./routes/user.mdx) |
-| **Biggest open risk on admin UX** | Multi-tenant browser isolation, data-ops E2E ( `/user` control map is 100%)                     |
+| Question                          | Answer                                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Are the gates healthy?**        | Yes in design: unit → security regression → push build/integration → CI E2E                                     |
+| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc                     |
+| **Biggest recent win**            | **Ultra-smart auth/session + client import boundary** — see [headless inventory](./headless-test-inventory.mdx) |
+| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)                    |
+
+> [!TIP]
+> **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
 
 ---
 
 ## 2. Health by layer
 
-| Layer                       | Confidence         | What it proves                                                      | How to run                                                        |
-| --------------------------- | ------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **Unit** (Vitest)           | **High**           | Fast white-box: auth, security, widgets, content, data-ops, helpers | `bun run test:unit`                                               |
-| **Security regression**     | **High**           | Hooks + RBAC defense-in-depth (~2s local)                           | See AGENTS.md security command                                    |
-| **Integration** (black-box) | **High on SQLite** | Real HTTP + DB; multi-adapter in CI (Maria/Mongo/PG may differ)     | `bun run scripts/run-integration-tests.ts --db=sqlite --no-build` |
-| **E2E** (Playwright)        | **Medium–High**    | Browser journeys; some suites still flaky/soft in places            | `bun x playwright test --project=chromium`                        |
-| **Benchmarks**              | **Selective**      | Perf matrix; full suite is long — not every PR                      | See [benchmarks](../project/benchmarks/index.mdx)                 |
+| Layer                       | Confidence         | What it proves                                                                 | How to run                                                        |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| **Unit** (Vitest)           | **High**           | Auth cookies, import-boundary, page gates, widgets, security, dispatcher edges | `bun run test:unit`                                               |
+| **Security regression**     | **High**           | Hooks + RBAC defense-in-depth (~2s local)                                      | See AGENTS.md security command                                    |
+| **Integration** (black-box) | **High on SQLite** | HTTP + DB; **session→`__data` page loads**; multi-adapter matrix in CI         | `bun run scripts/run-integration-tests.ts --db=sqlite --no-build` |
+| **E2E** (Playwright)        | **Medium–High**    | Browser goldens / P0 journeys; not API matrices                                | `bun x playwright test --project=chromium`                        |
+| **Benchmarks**              | **Selective**      | Perf matrix; full suite is long — not every PR                                 | See [benchmarks](../project/benchmarks/index.mdx)                 |
 
 **Gates (local → CI)**
 
@@ -52,6 +55,14 @@ tags:
 | Pre-commit | Format/lint/slop on staged + fast security set                       |
 | Pre-push   | Full unit, build (when needed), optional DB tasks, P0 coverage check |
 | CI         | Matrix: lint/types/unit → build → integration × DBs → E2E projects   |
+
+**CI smart reporting** (job Summary tab + annotations):
+
+| Job                   | Reporter                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| E2E prep / E2E shards | `scripts/ci-report-playwright.ts` — pass/fail counts, first error, fix hints, `preview.log` tail |
+| Integration per DB    | runner writes table + failure stderr; `db-summary` aggregates adapters                           |
+| All Green             | `scripts/ci-report-all-green.ts` — job matrix + fix order                                        |
 
 Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status-archive.mdx#4-ci-pipeline-gates)
 
@@ -126,13 +137,14 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 
 ### `/config/webhooks` — Testing 2026 reference (2026-07-18)
 
-|            |                                                                                                     |
-| ---------- | --------------------------------------------------------------------------------------------------- |
-| **Status** | **ADR reference**: `webhooks-api` + `fetchApi` CSRF; golden create→list→reload→delete; no soft-skip |
-| **E2E**    | `config/webhooks.spec.ts` (shell guard + golden journey only)                                       |
-| **Unit**   | page.server + webhooks-utils + **webhooks-api** + fetchApi CSRF                                     |
-| **ADR**    | [adr-testing-2026.mdx](./adr-testing-2026.mdx)                                                      |
-| **Docs**   | [routes/webhooks.mdx](./routes/webhooks.mdx)                                                        |
+|                 |                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| **Status**      | **ADR reference** — full three layers: unit + **HTTP integration** + golden E2E              |
+| **E2E**         | `config/webhooks.spec.ts` (shell guard + golden journey only)                                |
+| **Unit**        | page.server + webhooks-utils + **webhooks-api** + fetchApi CSRF                              |
+| **Integration** | **`tests/integration/api/webhooks.test.ts`** — list/create/delete + 401 unauth + editor deny |
+| **ADR**         | [adr-testing-2026.mdx](./adr-testing-2026.mdx)                                               |
+| **Docs**        | [routes/webhooks.mdx](./routes/webhooks.mdx)                                                 |
 
 ### `/config/extensions` (2026-07-18)
 
@@ -161,18 +173,27 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | **Unit**   | `sync-trash-page-server.test.ts`                                           |
 | **Docs**   | [routes/sync-trash.mdx](./routes/sync-trash.mdx)                           |
 
+### Ultra-smart auth & client safety (2026-07-18)
+
+|                 |                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**      | **P0 hardened** — loopback cookies, testing dual-write, **exhaustive** import-boundary, session→**18** admin pages             |
+| **Unit**        | `session-cookies`, `client-import-boundary` (full client-root walk), login-cookie contract, `page-guards`, builder page.server |
+| **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix     |
+| **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                                   |
+
 ### Other solid areas (summary)
 
-| Area                   | Notes                                                        |
-| ---------------------- | ------------------------------------------------------------ |
-| Auth & users API       | Strong integration (login, batch, avatar, sessions, 2FA API) |
-| Security hooks         | Dedicated regression suite in pre-commit/push                |
-| Collection builder     | Unit + E2E; some builder selectors still fragile             |
-| Site starter / preview | Smoke E2E + unit; deep iframe edit still open                |
-| Data operations        | Strong **unit**; thin browser E2E                            |
-| Multi-tenant           | Unit/guard coverage; browser isolation still thin            |
+| Area                   | Notes                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| Auth & users API       | Strong integration (login, batch, avatar, sessions, 2FA) + **page-load session**   |
+| Security hooks         | Dedicated regression suite in pre-commit/push                                      |
+| Collection builder     | **E2E = shell + 1 golden only** (`builder.spec.ts`); structure/utils in unit+integ |
+| Site starter / preview | Smoke E2E + unit; deep iframe edit still open                                      |
+| Data operations        | Strong **unit**; thin browser E2E                                                  |
+| Multi-tenant           | Unit/guard coverage; E2E isolation spec exists, gated behind `MULTI_TENANT=true`   |
 
-Full suite catalogs → [archive](./test-status-archive.mdx).
+Full suite catalogs → [archive](./test-status-archive.mdx) · tiers → [headless inventory](./headless-test-inventory.mdx).
 
 ---
 
@@ -180,15 +201,17 @@ Full suite catalogs → [archive](./test-status-archive.mdx).
 
 Resolved historical items are **not** listed here — see [archive gaps](./test-status-archive.mdx#5-gaps--whats-not-tested).
 
-| Gap                                         | Priority  | Why it matters                                                   |
-| ------------------------------------------- | --------- | ---------------------------------------------------------------- |
-| **Multi-tenant browser isolation**          | 🟡 Medium | Unit OK; cross-tenant UI/file access not fully proven in browser |
-| **Data operations E2E**                     | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated   |
-| **Cache L2 (Redis) integration**            | 🟡 Medium | L1 contract exists; Redis path thin                              |
-| **GraphQL browser E2E**                     | 🟡 Medium | Integration only                                                 |
-| **SSO/OAuth real IdP**                      | 🟡 Medium | Mock-only in CI                                                  |
-| **Builder selector / journey flake**        | 🟡 Medium | `builder` / `journey` still fragile in places                    |
-| Plugin deep E2E, breadcrumb media drag-move | 🟢 Low    | Optional polish                                                  |
+| Gap                                         | Priority  | Why it matters                                                              |
+| ------------------------------------------- | --------- | --------------------------------------------------------------------------- |
+| **Multi-DB contract without asterisks**     | 🟠 High   | Headless ship gate — all adapters must match contract suite                 |
+| **Multi-tenant browser isolation**          | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env |
+| **Redirects/queue remotes (no REST)**       | ✅ Closed | Remote admin contracts + queue-actions unit; system-jobs HTTP               |
+| **Data operations deep E2E**                | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated              |
+| **Cache L2 (Redis) integration**            | 🟡 Medium | L1 contract exists; Redis path thin                                         |
+| **GraphQL browser E2E**                     | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                     |
+| **SSO/OAuth real IdP**                      | 🟡 Medium | Mock-only in CI                                                             |
+| **Builder E2E sprawl**                      | ✅ Closed | Consolidated to shell + golden; 8 specs removed                             |
+| Plugin deep E2E, breadcrumb media drag-move | 🟢 Low    | Optional polish                                                             |
 
 ---
 
@@ -204,7 +227,10 @@ bun run verify:push
 # Unit only
 bun run test:unit
 
-# Integration (SQLite, no rebuild if already built)
+# Ultra-smart unit slice (auth, boundary, queue/redirects remotes)
+bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
+
+# Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
 bun run scripts/run-integration-tests.ts --db=sqlite --no-build
 
 # E2E (example: user journeys)
@@ -222,9 +248,10 @@ Safety: tests must never point at production DBs — see test-config safety guar
 
 | Need                                        | Doc                                                                                                             |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Headless-first tiers & route↔layer map**  | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                    |
 | This dashboard’s history & unit inventories | [test-status-archive.mdx](./test-status-archive.mdx)                                                            |
 | Strategy & three-layer goal                 | [testing-strategy.mdx](./testing-strategy.mdx) · [three-layer-completeness.mdx](./three-layer-completeness.mdx) |
-| Route E2E matrices                          | [e2e-coverage-matrix.mdx](./e2e-coverage-matrix.mdx) · [routes/](./routes/)                                     |
+| Route E2E matrices                          | [e2e-coverage-matrix.mdx](./e2e-coverage-matrix.mdx) · [routes/webhooks.mdx](./routes/webhooks.mdx)             |
 | `/user` control map                         | [routes/user.mdx](./routes/user.mdx)                                                                            |
 | Security testing                            | [security-testing.mdx](./security-testing.mdx)                                                                  |
 | Benchmarks                                  | [docs/project/benchmarks](../project/benchmarks/index.mdx)                                                      |

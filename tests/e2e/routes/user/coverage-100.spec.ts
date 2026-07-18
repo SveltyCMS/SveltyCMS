@@ -82,8 +82,10 @@ test.describe("RTC preferences", () => {
     const body = res.request().postDataJSON();
     const expectedSound = body?.newUserData?.preferences?.rtc?.sound;
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 25_000 });
     const checked = await page
       .getByTestId("pref-rtc-sound")
       .locator('input[type="checkbox"]')
@@ -297,8 +299,10 @@ test.describe("Admin table scale", () => {
       await page.getByRole("button", { name: /show user list/i }).click();
     }
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 25_000 });
 
     const nextBtn = page.getByTestId("user-admin-area").getByRole("button", { name: /next/i });
     // Either Next is enabled (multi-page) or rows-per-page proves table chrome

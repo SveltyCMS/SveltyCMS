@@ -237,18 +237,29 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   metrics: ["tests/integration/api/metrics.test.ts"],
   telemetry: ["tests/integration/api/telemetry.test.ts"],
   security: ["tests/unit/api/security.test.ts", "tests/integration/api/security.test.ts"],
-  logs: ["tests/unit/api/dispatcher-security-matrix.test.ts"],
   database: ["tests/integration/databases/contract.test.ts"],
   version: ["tests/unit/api/version.test.ts", "tests/integration/api/version.test.ts"],
-  "system-jobs": ["tests/unit/api/automation-security.test.ts"],
-  automations: ["tests/unit/api/automation-security.test.ts"],
-  workflows: ["tests/unit/api/workflow-security.test.ts"],
+  "system-jobs": [
+    "tests/unit/api/automation-security.test.ts",
+    "tests/integration/api/config-admin-surface.test.ts",
+  ],
+  automations: [
+    "tests/unit/api/automation-security.test.ts",
+    "tests/integration/api/automations.test.ts",
+  ],
+  workflows: [
+    "tests/unit/api/workflow-security.test.ts",
+    "tests/integration/api/config-admin-surface.test.ts",
+  ],
   ai: ["tests/unit/api/ai-security.test.ts", "tests/unit/api/ai-copilot.test.ts"],
   importer: ["tests/unit/api/export-import-security.test.ts"],
   export: ["tests/unit/api/export-import-security.test.ts"],
   import: ["tests/unit/api/export-import-security.test.ts"],
-  webhooks: ["tests/unit/api/webhook-security.test.ts"],
-  "system-webhooks": ["tests/unit/api/webhook-security.test.ts"],
+  webhooks: ["tests/unit/api/webhook-security.test.ts", "tests/integration/api/webhooks.test.ts"],
+  "system-webhooks": [
+    "tests/unit/api/webhook-security.test.ts",
+    "tests/integration/api/webhooks.test.ts",
+  ],
   "system-virtual-folder": ["tests/unit/api/media-security.test.ts"],
   systemVirtualFolder: ["tests/unit/api/media-security.test.ts"],
 
@@ -269,7 +280,14 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   marketplace: ["tests/integration/api/marketplace.test.ts"],
   "version-check": ["tests/unit/api/version.test.ts"],
   "send-mail": ["tests/integration/api/mail.test.ts"],
-  trash: ["tests/unit/api/bulk-delete-guard.test.ts"],
+  trash: [
+    "tests/unit/api/bulk-delete-guard.test.ts",
+    "tests/integration/api/config-admin-surface.test.ts",
+  ],
+  logs: [
+    "tests/unit/api/dispatcher-security-matrix.test.ts",
+    "tests/integration/api/config-admin-surface.test.ts",
+  ],
   debug: ["tests/unit/api/dispatcher-security-matrix.test.ts"],
   "openapi.json": ["tests/unit/api/openapi.test.ts", "tests/integration/api/openapi.test.ts"],
 

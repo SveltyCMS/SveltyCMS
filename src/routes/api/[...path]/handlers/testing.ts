@@ -24,6 +24,56 @@ function rawResponse(data: any, status = 200) {
 }
 
 /**
+ * Explicit Set-Cookie for session tokens.
+ * Playwright APIRequestContext sometimes omits Set-Cookie from response.headers()
+ * when cookies only flow through SvelteKit's cookies.set merge — dual-write so
+ * E2E extractAndSaveSession / applySessionCookie can always see the header.
+ */
+function sessionCookieHeader(
+  name: string,
+  value: string,
+  opts: { secure: boolean; sameSite: "Strict" | "Lax"; maxAge: number },
+): string {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    `SameSite=${opts.sameSite}`,
+    `Max-Age=${opts.maxAge}`,
+  ];
+  if (opts.secure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+async function setTestingSessionCookie(
+  event: RequestEvent,
+  sessionId: string,
+): Promise<{ cookieName: string; isSecure: boolean; setCookieHeader: string }> {
+  const { getSessionCookieName, isSecureCookieContext } =
+    await import("@src/databases/auth/constants");
+  const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
+  const cookieName = getSessionCookieName(isSecure);
+  const sameSite = isSecure ? "strict" : "lax";
+  const maxAge = 60 * 60 * 24;
+  event.cookies.set(cookieName, sessionId, {
+    path: "/",
+    httpOnly: true,
+    sameSite,
+    secure: isSecure,
+    maxAge,
+  });
+  return {
+    cookieName,
+    isSecure,
+    setCookieHeader: sessionCookieHeader(cookieName, sessionId, {
+      secure: isSecure,
+      sameSite: isSecure ? "Strict" : "Lax",
+      maxAge,
+    }),
+  };
+}
+
+/**
  * Invalidate all caches (setup, cache-service, auth, API spec, theme).
  */
 async function invalidateAllCaches(tenantId: DatabaseId) {
@@ -416,26 +466,26 @@ export async function handleTestingRoutes(
       let sessionId: string | undefined;
       const wantSession =
         params.createSession === true || params.createSession === "true" || params.session === true;
+      let seedSetCookie: string | undefined;
       if (wantSession) {
         try {
           const loginResult = await cms.auth.login({ email, password }, { tenantId });
           if (loginResult.success && loginResult.data?.session?._id) {
             sessionId = loginResult.data.session._id;
-            const { getSessionCookieName, isSecureCookieContext } =
-              await import("@src/databases/auth/constants");
-            const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
-            const cookieName = getSessionCookieName(isSecure);
-            event.cookies.set(cookieName, sessionId, {
-              path: "/",
-              httpOnly: true,
-              sameSite: isSecure ? "strict" : "lax",
-              secure: isSecure,
-              maxAge: 60 * 60 * 24,
-            });
+            const cookie = await setTestingSessionCookie(event, sessionId);
+            seedSetCookie = cookie.setCookieHeader;
           }
         } catch (err: any) {
           logger.warn(`[TestingHandler] Non-fatal seed login/session error: ${err.message}`);
         }
+      }
+
+      const seedHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (sessionId) {
+        seedHeaders["x-test-session-id"] = sessionId;
+        if (seedSetCookie) seedHeaders["Set-Cookie"] = seedSetCookie;
       }
 
       return new Response(
@@ -447,10 +497,7 @@ export async function handleTestingRoutes(
         }),
         {
           status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            ...(sessionId ? { "x-test-session-id": sessionId } : {}),
-          },
+          headers: seedHeaders,
         },
       );
     }
@@ -466,18 +513,8 @@ export async function handleTestingRoutes(
 
       const { user, session } = loginResult.data;
 
-      // Set cookie on event.cookies
-      const { getSessionCookieName, isSecureCookieContext } =
-        await import("@src/databases/auth/constants");
-      const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
-      const cookieName = getSessionCookieName(isSecure);
-      event.cookies.set(cookieName, session._id, {
-        path: "/",
-        httpOnly: true,
-        sameSite: isSecure ? "strict" : "lax",
-        secure: isSecure,
-        maxAge: 60 * 60 * 24, // 24 hours
-      });
+      // Dual-write: event.cookies (SvelteKit) + explicit Set-Cookie for Playwright
+      const cookie = await setTestingSessionCookie(event, session._id);
 
       return new Response(
         JSON.stringify({
@@ -495,6 +532,7 @@ export async function handleTestingRoutes(
           headers: {
             "Content-Type": "application/json",
             "x-test-session-id": session._id,
+            "Set-Cookie": cookie.setCookieHeader,
           },
         },
       );

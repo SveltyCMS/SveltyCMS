@@ -94,4 +94,44 @@ describe("Security Negative Scenarios (Black-Box)", () => {
     // 400 (bad request), 403 (firewall block), or 404 (collection not found) are acceptable
     expect([400, 403, 404]).toContain(res.status);
   });
+
+  /**
+   * Config/admin namespaces must never be anonymously writable.
+   * Complements config-admin-surface happy paths with pure deny coverage.
+   */
+  describe("config namespaces unauth deny matrix", () => {
+    const PROTECTED = [
+      "/api/webhooks",
+      "/api/automations",
+      "/api/workflows",
+      "/api/trash",
+      "/api/system-jobs",
+      "/api/config/status",
+      "/api/widgets/list",
+      "/api/logs",
+    ] as const;
+
+    for (const path of PROTECTED) {
+      it(`GET ${path} without cookie → 401/403`, async () => {
+        if (!serverAvailable) return;
+        const res = await safeFetch(`${BASE_URL}${path}`);
+        expect([401, 403]).toContain(res.status);
+      });
+    }
+
+    it("POST /api/webhooks without cookie → 401/403", async () => {
+      if (!serverAvailable) return;
+      const res = await safeFetch(`${BASE_URL}/api/webhooks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: BASE_URL },
+        body: JSON.stringify({
+          name: "x",
+          url: "https://example.com/x",
+          events: ["entry:create"],
+          active: true,
+        }),
+      });
+      expect([401, 403]).toContain(res.status);
+    });
+  });
 });

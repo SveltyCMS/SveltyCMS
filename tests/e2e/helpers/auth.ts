@@ -357,78 +357,6 @@ async function attemptLogin(
   }
 }
 
-/** True when page.request can call a protected API with the current cookie jar. */
-async function adminSessionLooksValid(page: Page): Promise<boolean> {
-  try {
-    // /api/user/me returns the current user; /api/user is a list endpoint (needs user:read)
-    const res = await page.request.get("/api/user/me", {
-      headers: { Accept: "application/json" },
-    });
-    if (res.status() === 401 || res.status() === 403) return false;
-    return res.ok();
-  } catch {
-    return false;
-  }
-}
-
-/** Best-effort inject Set-Cookie / x-test-session-id into browser context. */
-async function injectSessionCookieFromResponse(
-  page: Page,
-  loginRes: {
-    headers: () => Record<string, string>;
-    url: () => string;
-    json?: () => Promise<any>;
-  },
-  bodyToken?: string,
-): Promise<void> {
-  try {
-    const headers = loginRes.headers();
-    const setCookie = headers["set-cookie"] || "";
-    let sid = headers["x-test-session-id"] || bodyToken || "";
-    if (!sid && loginRes.json) {
-      try {
-        const body = await loginRes.json();
-        sid = body?.token || "";
-      } catch {
-        /* ignore */
-      }
-    }
-    const nv = setCookie.split(";")[0] || "";
-    const eq = nv.indexOf("=");
-    let host = "127.0.0.1:4173";
-    try {
-      host = new URL(loginRes.url()).host;
-    } catch {
-      /* keep default */
-    }
-
-    let name = eq > 0 ? nv.slice(0, eq).trim() : "";
-    let value = eq > 0 ? nv.slice(eq + 1).trim() : "";
-    // Prefer Set-Cookie name/value; fall back to plain auth_sessions + session id
-    if (!name) name = "auth_sessions";
-    if (!value) value = sid;
-    if (!value) return;
-
-    // Force plain cookie over HTTP — browsers drop Secure/__Host- cookies on http://
-    if (name.startsWith("__Host-") || name.startsWith("__Secure-")) {
-      name = "auth_sessions";
-    }
-
-    await page.context().addCookies([
-      {
-        name,
-        value: value || sid,
-        url: `http://${host}`,
-        httpOnly: true,
-        sameSite: "Lax",
-        secure: false,
-      },
-    ]);
-  } catch (err) {
-    console.log("[Auth] cookie inject skipped:", err);
-  }
-}
-
 /**
  * Login as a non-admin test user (editor by default) via testing API when possible.
  * Always clears prior admin storageState so role-gated UI is honest.
@@ -490,37 +418,33 @@ export async function loginAsEditor(
  * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
  * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
  * Falls back to UI loginAs if the testing API is unavailable.
- *
- * Never treats public "/" as an auth probe — use /api/user/me + protected /user.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
   const password = ADMIN_CREDENTIALS.password;
 
-  // CRITICAL: never treat public "/" as an auth probe — it does not redirect to
-  // /login when unauthenticated, which previously false-positived storageState
-  // ("Existing session still valid") while protected routes still bounced to login.
+  // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
   try {
-    if (await adminSessionLooksValid(page)) {
-      console.log("[Auth] ✓ Existing session valid (/api/user/me)");
-      if (typeof waitForUrl === "string") {
-        await page.goto(waitForUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
-        if (!page.url().includes("/login")) return;
-      } else if (waitForUrl instanceof RegExp) {
-        // Land on a protected page first so waitForURL has a chance to match
-        await page
-          .goto("/user", { waitUntil: "domcontentloaded", timeout: 20_000 })
-          .catch(() => undefined);
+    await page.goto("/config/collectionbuilder", {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
+    if (!page.url().includes("/login") && !page.url().includes("/setup")) {
+      console.log("[Auth] ✓ Existing session still valid (storageState)");
+      if (waitForUrl instanceof RegExp) {
         await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
-        if (!page.url().includes("/login")) return;
-      } else {
-        return;
+      } else if (typeof waitForUrl === "string") {
+        await page.goto(waitForUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
       }
-      // Session API ok but document request bounced — re-login below
-      console.log("[Auth] API session ok but document bounced to login — re-auth");
+      return;
     }
+  } catch {
+    /* fall through */
+  }
 
-    // Mint session via testing API (seed only if admin missing; never wipe users)
+  try {
+    // Login first; seed only if admin missing. Seed must NOT wipe users.
+    const { applySessionCookie } = await import("./test-auth");
     let loginRes = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
       data: { action: "login", email, password },
@@ -535,30 +459,26 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         data: { action: "login", email, password },
       });
     }
-
     if (loginRes.ok()) {
-      let bodyToken = "";
-      try {
-        const body = await loginRes.json();
-        bodyToken = body?.token || "";
-      } catch {
-        /* ignore */
-      }
-      await injectSessionCookieFromResponse(page, loginRes, bodyToken);
+      // Force cookie into browser context with port-aware origin (page.request jar
+      // alone is not always enough when storageState was cleared).
+      await applySessionCookie(page, loginRes);
       console.log("[Auth] ✓ Admin session via testing API");
-
-      // Verify on a protected route — must NOT bounce to /login
-      const verifyPath = typeof waitForUrl === "string" ? waitForUrl : "/user";
-      await page.goto(verifyPath, { waitUntil: "domcontentloaded", timeout: 30_000 });
-      if (!page.url().includes("/login") && !page.url().includes("/setup")) {
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+      await page.goto(target, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      if (page.url().includes("/login")) {
+        console.log("[Auth] API session did not stick — falling back to UI login");
+      } else {
         if (waitForUrl instanceof RegExp) {
-          await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+          await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
         }
-        return;
+        if (!page.url().includes("/login")) {
+          return;
+        }
       }
-      console.log(
-        `[Auth] API session did not stick (landed on ${page.url()}) — falling back to UI login`,
-      );
     } else {
       console.log(
         `[Auth] testing API login status=${loginRes.status()} — falling back to UI login`,

@@ -46,10 +46,41 @@ export const P0_API_DOMAINS: P0ManifestEntry[] = [
     testFiles: [
       "tests/integration/api/user.test.ts",
       "tests/integration/api/auth-lockout.test.ts",
+      "tests/integration/api/session-page-load.test.ts",
       "tests/integration/databases/contract.test.ts",
+      "tests/unit/auth/session-cookies.test.ts",
     ],
     description:
-      "Admin can login, get session cookie, reuse session on subsequent requests, wrong credentials rejected",
+      "Admin can login, get session cookie, reuse session on API and (app) __data page loads, wrong credentials rejected; loopback cookies never Secure/__Host-",
+    isApiDomain: true,
+    isE2EJourney: false,
+  },
+  {
+    key: "webhooks-http",
+    domain: "Webhooks HTTP (Testing 2026 reference)",
+    testFiles: ["tests/integration/api/webhooks.test.ts"],
+    description:
+      "Admin list/create/delete webhooks via /api/webhooks; unauthenticated 401; editor without config:webhooks denied",
+    isApiDomain: true,
+    isE2EJourney: false,
+  },
+  {
+    key: "automations-http",
+    domain: "Automations HTTP",
+    testFiles: ["tests/integration/api/automations.test.ts"],
+    description: "Admin list/create/delete automations; unauth 401; editor denied on GET/POST",
+    isApiDomain: true,
+    isE2EJourney: false,
+  },
+  {
+    key: "config-admin-surface",
+    domain: "Config admin HTTP surface (trash/queue/workflows/sync/widgets/logs)",
+    testFiles: [
+      "tests/integration/api/config-admin-surface.test.ts",
+      "tests/integration/api/collection-structure.test.ts",
+    ],
+    description:
+      "Unauth 401 + admin GET for trash, system-jobs, workflows, config status, widgets list, logs; mutation unauth denials; collections structure readable",
     isApiDomain: true,
     isE2EJourney: false,
   },
@@ -153,13 +184,14 @@ export const P0_E2E_JOURNEYS: P0ManifestEntry[] = [
   },
   {
     key: "e2e-collection-builder",
-    domain: "Collection builder: open + new draft",
+    domain: "Collection builder: shell + golden journey",
     testFiles: [
       "tests/e2e/routes/collection-builder/builder.spec.ts",
-      "tests/e2e/routes/collection-builder/journey.spec.ts",
-      "tests/e2e/routes/collection-builder/collection-create.spec.ts",
+      "tests/integration/api/collection-structure.test.ts",
+      "tests/unit/routes/collectionbuilder-page-server.test.ts",
     ],
-    description: "Open collection builder UI, create a new draft collection, verify it appears",
+    description:
+      "Shell: board/add-collection chrome. Golden: schema → entry → API. Structure/utils covered in unit+integration (not 9 E2E files).",
     isApiDomain: false,
     isE2EJourney: true,
   },
@@ -167,10 +199,11 @@ export const P0_E2E_JOURNEYS: P0ManifestEntry[] = [
     key: "e2e-entry-crud",
     domain: "Create/list entry on a collection",
     testFiles: [
-      "tests/e2e/routes/collection-builder/content-smoke.spec.ts",
-      "tests/e2e/routes/collection-builder/collection.spec.ts",
+      "tests/e2e/routes/collection-builder/builder.spec.ts",
+      "tests/integration/api/collections.test.ts",
     ],
-    description: "Create an entry in a collection and list entries (or smoke equivalent)",
+    description:
+      "Golden E2E creates entry + API asserts content/status; collections HTTP integration for list/CRUD",
     isApiDomain: false,
     isE2EJourney: true,
   },

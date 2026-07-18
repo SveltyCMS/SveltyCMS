@@ -26,13 +26,15 @@ See **[ADR: Testing 2026](../adr-testing-2026.mdx)** for pyramid, soft-skip ban,
 
 ## Control → test matrix
 
-| Control                                     | Unit                       | E2E                          |
-| ------------------------------------------- | -------------------------- | ---------------------------- |
-| Admin gate                                  | ✅ page.server             | —                            |
-| Validation + filter                         | ✅ webhooks-utils          | golden empty-save stays open |
-| API client + CSRF                           | ✅ webhooks-api + fetchApi | —                            |
-| **Golden: create → list → reload → delete** | —                          | ✅ **required**              |
-| Shell add button                            | —                          | ✅ minimal guard only        |
+| Control                                     | Unit                       | Integration (HTTP)    | E2E                          |
+| ------------------------------------------- | -------------------------- | --------------------- | ---------------------------- |
+| Admin gate                                  | ✅ page.server             | —                     | —                            |
+| Validation + filter                         | ✅ webhooks-utils          | —                     | golden empty-save stays open |
+| API client + CSRF                           | ✅ webhooks-api + fetchApi | —                     | —                            |
+| **List / create / delete**                  | —                          | ✅ `webhooks.test.ts` | —                            |
+| Unauth / editor deny                        | —                          | ✅ 401 + 403          | —                            |
+| **Golden: create → list → reload → delete** | —                          | —                     | ✅ **required**              |
+| Shell add button                            | —                          | —                     | ✅ minimal guard only        |
 
 Deprecated: many decorative testid-only rows without outcome assertions.
 
@@ -49,5 +51,7 @@ Testing API: `seed-webhook`, `delete-webhook`.
 
 ```bash
 bun run test:unit -- tests/unit/config/webhooks-utils.test.ts tests/unit/config/webhooks-api.test.ts tests/unit/routes/webhooks-page-server.test.ts tests/unit/utils/api.test.ts
+# Integration (via runner / preview server):
+# bun test tests/integration/api/webhooks.test.ts
 bun x playwright test tests/e2e/routes/config/webhooks.spec.ts
 ```

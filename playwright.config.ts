@@ -62,10 +62,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 4 : undefined,
-  reporter: [
-    ["html", { outputFolder: "tests/playwright-report", open: "never" }],
-    [process.env.CI ? "github" : "list"],
-  ],
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["github"], // inline annotations on the PR check
+        ["html", { outputFolder: "tests/playwright-report", open: "never" }],
+        // Machine-readable for scripts/ci-report-playwright.ts → GITHUB_STEP_SUMMARY
+        ["json", { outputFile: "tests/playwright-results.json" }],
+      ]
+    : [["list"], ["html", { outputFolder: "tests/playwright-report", open: "never" }]],
 
   use: {
     // Default: Vite dev server (port 5173). CI sets PLAYWRIGHT_TEST_BASE_URL.
@@ -94,8 +99,19 @@ export default defineConfig({
     },
     {
       name: "firstuser",
-      testMatch: ["**/login/signup.spec.ts", "**/login/oauth.spec.ts"],
+      testMatch: ["**/login/signup.spec.ts"],
       workers: 1,
+    },
+    // OAuth tests require a real IdP — run manually when configured
+    // bun x playwright test tests/e2e/routes/login/oauth.spec.ts --project=firstuser
+    {
+      name: "oauth",
+      testMatch: ["**/login/oauth.spec.ts"],
+      workers: 1,
+      // Only included in CI when OAUTH_ENABLED=true
+      ...(process.env.CI === "true" && process.env.OAUTH_ENABLED !== "true"
+        ? { testIgnore: ["**/*.spec.ts"] }
+        : {}),
     },
     {
       name: "auth-setup",

@@ -4,13 +4,17 @@
  * Bridges the internal EventBus to connected WebSocket clients with tenant isolation.
  *
  * Handlers have individual access controls via `access` callback.
+ *
+ * ### Client safety
+ * Collaboration UI imports this module in the browser. Server-only deps
+ * (`@utils/event-bus` → `node:events`, ws-platform) MUST stay behind dynamic
+ * imports that only run when `window` is undefined — a static import crashes
+ * Vite client bundles (externalized node:events) and yields mass E2E 500s.
  */
 // realtime-allow-public
 
 import { live } from "svelte-realtime/server";
-import { eventBus } from "@utils/event-bus";
-import { getGlobalPlatform } from "@src/live/ws-platform";
-import { logger } from "@utils/logger";
+import { browser } from "$app/environment";
 
 // ====================== TYPES ======================
 
@@ -52,7 +56,7 @@ export const events = live.stream(
   },
 );
 
-// ====================== EVENTBUS BRIDGE ======================
+// ====================== EVENTBUS BRIDGE (server-only) ======================
 
 /**
  * Pre-filter: only bridge events matching these prefixes to WebSocket clients.
@@ -83,34 +87,53 @@ function shouldBridgeEvent(event: string): boolean {
 /**
  * Bridges internal EventBus events to all connected WebSocket clients.
  * Automatically handles tenant isolation.
+ *
+ * Loaded only on the server so browser bundles never resolve `node:events`.
  */
-eventBus.on("*", (payload: any) => {
-  try {
-    const globalPlatform = getGlobalPlatform();
-    if (!globalPlatform) {
-      // This can happen during startup or in certain test environments
-      return;
-    }
+function installEventBusBridge(): void {
+  if (browser) return;
 
-    const { event, data } = payload || {};
-    if (!event) return;
+  void Promise.all([
+    import("@utils/event-bus"),
+    import("@src/live/ws-platform"),
+    import("@utils/logger"),
+  ])
+    .then(([{ eventBus }, { getGlobalPlatform }, { logger }]) => {
+      eventBus.on("*", (payload: any) => {
+        try {
+          const globalPlatform = getGlobalPlatform();
+          if (!globalPlatform) {
+            // This can happen during startup or in certain test environments
+            return;
+          }
 
-    // 🚀 Performance: skip events that don't need real-time broadcasting
-    if (!shouldBridgeEvent(event)) return;
+          const { event, data } = payload || {};
+          if (!event) return;
 
-    const tenantId = data?.tenantId || DEFAULT_TENANT_ID;
-    const topic = `system_events:${tenantId}`;
+          // 🚀 Performance: skip events that don't need real-time broadcasting
+          if (!shouldBridgeEvent(event)) return;
 
-    const systemEvent: SystemEvent = {
-      id: crypto.randomUUID(),
-      event,
-      data: data || {},
-      timestamp: Date.now(),
-      tenantId,
-    };
+          const tenantId = data?.tenantId || DEFAULT_TENANT_ID;
+          const topic = `system_events:${tenantId}`;
 
-    (globalPlatform as any).publish(topic, "create", systemEvent);
-  } catch (err) {
-    logger.error("Failed to bridge EventBus to WebSocket", err);
-  }
-});
+          const systemEvent: SystemEvent = {
+            id: crypto.randomUUID(),
+            event,
+            data: data || {},
+            timestamp: Date.now(),
+            tenantId,
+          };
+
+          (globalPlatform as any).publish(topic, "create", systemEvent);
+        } catch (err) {
+          logger.error("Failed to bridge EventBus to WebSocket", err);
+        }
+      });
+    })
+    .catch((err) => {
+      // Non-fatal during tests / partial boot
+      console.error("[live/system] Failed to install EventBus bridge:", err);
+    });
+}
+
+installEventBusBridge();

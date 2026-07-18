@@ -3,12 +3,15 @@
  * @description Real-time AI chat and collaboration logic using svelte-realtime.
  *
  * Handlers have individual access controls via `access` callback and inline auth checks.
+ *
+ * ### Client safety
+ * Collaboration store imports this module in the browser for the `chat` stream handle.
+ * Do NOT statically import Node-only modules (ollama / ai-service / node:fs) here —
+ * that externalizes into the client and 500s every authenticated admin page.
  */
 // realtime-allow-public
 
 import { live } from "svelte-realtime/server";
-import { aiService } from "@src/services/core/ai-service";
-import { logger } from "@utils/logger";
 import type { User } from "@src/databases/auth/types";
 
 // ====================== TYPES ======================
@@ -146,6 +149,12 @@ async function triggerAIResponse(
   history: ChatMessage[],
   tenantId: string,
 ) {
+  // Dynamic import — keeps ollama/node:fs out of the browser collaboration bundle
+  const [{ aiService }, { logger }] = await Promise.all([
+    import("@src/services/core/ai-service"),
+    import("@utils/logger"),
+  ]);
+
   try {
     const responseText = await aiService.chat(userMessage, history);
 

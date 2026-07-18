@@ -1,47 +1,75 @@
 ---
 path: "docs/tests/routes/collection-builder.mdx"
-title: "Collection Builder E2E Tests"
-description: "End-to-end test specifications and coverage checklist for collection schema builder and content entries."
+title: "Collection Builder Tests — Control Map"
+description: "Testing 2026: shell + one golden E2E; structure/utils/persistence in unit + integration."
 order: 16
 icon: "mdi:database-edit"
 author: "SveltyCMS Team"
 created: "2026-06-13"
-updated: "2026-07-05"
+updated: "2026-07-18"
 tags:
   - "testing"
   - "e2e"
   - "playwright"
   - "collections"
   - "builder"
+  - "adr"
 ---
 
-# Collection Builder and Content Management E2E Tests (`/config/collectionbuilder`)
+# Collection Builder (`/config/collectionbuilder`)
 
-This document details the end-to-end test specifications and coverage checklist for the core schema modeling engine and content CRUD workflows.
+Follows **[ADR: Testing 2026](../adr-testing-2026.mdx)** — **one domain, shell + golden**, same pattern as webhooks.
 
-## Coverage Checklist
+> [!IMPORTANT]
+> Do **not** re-grow a multi-file Playwright suite for builder. Structure persistence, empty board, widget catalog, and federation belong in unit/integration (or plugin-specific tests).
 
-- [x] Creating, modifying, and deleting collection schemas
-- [x] Adding content entries utilizing various schema widgets
-- [x] Smoke tests for content preview and lists
-- [x] End-to-end journey tests for content creators
-- [x] Tab-based editor navigation (Basic Setup, Widgets & Fields, Settings & Permissions)
-- [ ] Drag-and-drop field sorting in collection builder - _Gaps identified, pending integration_
+## Layer map
 
-## Associated Tests
+| Layer           | What it proves                                                                  | Where                                                                   |
+| --------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **E2E shell**   | Title, board / add-collection, new editor tabs                                  | `builder.spec.ts` — `shell: page title and new collection control`      |
+| **E2E golden**  | Schema (Input field) → save → entry → list → **API** body + default `unpublish` | `builder.spec.ts` — `golden: schema → entry → API`                      |
+| **Unit**        | Pure tree/slug utils; page.server permission + structure shape                  | `collectionbuilder-utils`, `collectionbuilder-page-server`              |
+| **Integration** | Collections list auth; structure persistence matrix / code-gui parity           | `collection-structure.test.ts`, `tests/integration/collectionbuilder/*` |
 
-- [builder.spec.ts](../../../tests/e2e/routes/collection-builder/builder.spec.ts)
-- [collection.spec.ts](../../../tests/e2e/routes/collection-builder/collection.spec.ts)
-- [content-smoke.spec.ts](../../../tests/e2e/routes/collection-builder/content-smoke.spec.ts)
-- [empty-state.spec.ts](../../../tests/e2e/routes/collection-builder/empty-state.spec.ts)
-- [journey.spec.ts](../../../tests/e2e/routes/collection-builder/journey.spec.ts)
+## Demoted (removed from E2E)
 
-## Implementation Details
+| Former E2E file                   | Replacement                                                           |
+| --------------------------------- | --------------------------------------------------------------------- |
+| `journey.spec.ts`                 | Merged into **golden**                                                |
+| `collection-create.spec.ts`       | Covered by golden                                                     |
+| `collection-entry-status.spec.ts` | Default status via golden API assert; publish UI not P0               |
+| `structure-persistence.spec.ts`   | `tests/integration/collectionbuilder/structure-persistence*.test.ts`  |
+| `empty-state.spec.ts`             | Destructive reset + empty UI — not golden; unit/integration structure |
+| `content-smoke.spec.ts`           | Shell + golden                                                        |
+| `collection.spec.ts`              | Was noop shim                                                         |
+| `federation-enrichment.spec.ts`   | Plugin (UDH) — restore under plugin E2E if needed                     |
 
-Collection tests evaluate widget lifecycle mapping (Input, RichText, Select, Relation, Repeater, Image). Playwright mock interceptors intercept local and server database calls to ensure isolated verification.
+## Control → test matrix
 
-## Next Steps
+| Control                     | Unit            | Integration                                   | E2E                             |
+| --------------------------- | --------------- | --------------------------------------------- | ------------------------------- |
+| Admin open builder          | page.server     | session-page-load `/config/collectionbuilder` | shell                           |
+| Add collection → editor     | —               | —                                             | shell                           |
+| Name + Input field + save   | utils / helpers | collections HTTP                              | **golden**                      |
+| Entry create + list         | —               | collections                                   | **golden**                      |
+| Entry value + status        | —               | API in golden                                 | **golden** (API)                |
+| Org structure save          | structure unit  | structure-persistence matrix                  | —                               |
+| Widget catalog / extensions | —               | widgets list surface                          | extensions golden (not builder) |
 
-- [E2E Testing Guide](../e2e-testing-guide.mdx)
-- [Testing Overview & Strategy](../testing-strategy.mdx)
-- [E2E Coverage Matrix](../e2e-coverage-matrix.mdx)
+## Run
+
+```bash
+# Golden + shell only
+bun x playwright test tests/e2e/routes/collection-builder/builder.spec.ts --project=chromium
+
+# Unit
+bun run test:unit -- tests/unit/collectionbuilder/collectionbuilder-utils.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts
+
+# Integration structure
+# bun test tests/integration/api/collection-structure.test.ts tests/integration/collectionbuilder/
+```
+
+## Helpers
+
+Shared stable flow: `tests/e2e/helpers/collection-builder-flow.ts` (testids, dialog-safe Input pick).

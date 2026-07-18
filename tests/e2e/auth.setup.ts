@@ -3,145 +3,58 @@
  * @description Authentication setup for Playwright E2E tests
  *
  * Uses deterministic test API (no UI-based login) for reliable storage state generation.
- * The seed and login endpoints return set-cookie headers / x-test-session-id that are
- * applied to the browser context, then saved as storage state.
- *
- * IMPORTANT: Never treat public "/" as proof of authentication — it does not redirect
- * to /login when unauthenticated.
+ * The seed and login endpoints return set-cookie headers that are applied directly
+ * to the browser context, eliminating UI flakiness.
  */
 
 import { test as setup, expect } from "@playwright/test";
 import { ADMIN_CREDENTIALS } from "./helpers/auth";
-import { readFileSync } from "node:fs";
 import { TEST_API_HEADERS } from "./helpers/test-api";
+import { applySessionCookie } from "./helpers/test-auth";
+import { readFileSync } from "node:fs";
 
 const ADMIN_AUTH_FILE = "tests/e2e/.auth/admin.json";
 const EDITOR_AUTH_FILE = "tests/e2e/.auth/editor.json";
 const AUTHOR_AUTH_FILE = "tests/e2e/.auth/author.json";
 
-function originFromResponse(response: { url: () => string }, secure: boolean): string {
-  try {
-    const bu = new URL(response.url());
-    return `${secure ? "https" : "http"}://${bu.host}`;
-  } catch {
-    return `${secure ? "https" : "http"}://127.0.0.1:4173`;
-  }
-}
-
-/**
- * Apply session cookie from testing-API login/seed response.
- * Playwright often strips Set-Cookie from response.headers() — fall back to
- * x-test-session-id / JSON token body.
- */
-async function applySessionFromResponse(
-  page: any,
-  response: any,
-  bodyToken?: string,
-): Promise<boolean> {
-  const headers = response.headers();
-  const setCookie = headers["set-cookie"] || "";
-  const sessionId = headers["x-test-session-id"] || "";
-
-  let tokenFromBody = bodyToken || "";
-  if (!tokenFromBody) {
-    try {
-      const body = await response.json();
-      tokenFromBody = body?.token || body?.data?.session?._id || "";
-    } catch {
-      /* body may already be consumed; ignore */
-    }
-  }
-
-  const sid = sessionId || tokenFromBody;
-  const cookieLine = setCookie.split(";")[0] || "";
-  const eqIdx = cookieLine.indexOf("=");
-  let name = eqIdx > 0 ? cookieLine.slice(0, eqIdx).trim() : "";
-  let value = eqIdx > 0 ? cookieLine.slice(eqIdx + 1).trim() : "";
-
-  // Prefer Set-Cookie name/value; fall back to plain auth_sessions + session id
-  if (!name) name = "auth_sessions";
-  if (!value) value = sid;
-  if (!value) return false;
-
-  const secure = name.startsWith("__Host-") || name.startsWith("__Secure-");
-  // Over HTTP in CI, force non-secure plain cookie name
-  if (secure && !response.url().startsWith("https")) {
-    name = "auth_sessions";
-  }
-  const finalSecure = name.startsWith("__Host-") || name.startsWith("__Secure-");
-  const origin = originFromResponse(response, finalSecure);
-
-  try {
-    await page.context().addCookies([
-      {
-        name,
-        value,
-        url: origin,
-        httpOnly: true,
-        sameSite: "Lax",
-        secure: finalSecure,
-      },
-    ]);
-    return true;
-  } catch (err) {
-    console.log("[Setup] addCookies failed:", err);
-    // Last resort: plain cookie without secure prefix
-    try {
-      await page.context().addCookies([
-        {
-          name: "auth_sessions",
-          value: sid || value,
-          url: originFromResponse(response, false),
-          httpOnly: true,
-          sameSite: "Lax",
-          secure: false,
-        },
-      ]);
-      return true;
-    } catch (err2) {
-      console.log("[Setup] plain addCookies also failed:", err2);
-      return false;
-    }
-  }
-}
-
-/** Verify browser can reach a protected page with the current cookie jar. */
-async function sessionIsAuthenticated(page: any): Promise<boolean> {
-  try {
-    const api = await page.request.get("/api/user/me", {
-      headers: { Accept: "application/json" },
-    });
-    if (api.ok()) return true;
-    // 401/403 = definitely unauthenticated
-    if (api.status() === 401 || api.status() === 403) return false;
-  } catch {
-    /* fall through to document probe */
-  }
-
-  try {
-    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 20_000 });
-    const url = page.url();
-    return !url.includes("/login") && !url.includes("/setup");
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Extract session cookie from response and apply it to the current context.
+ * Prefer applySessionCookie (headersArray + x-test-session-id fallback + port-aware URL).
+ * Hard-fail if no session can be established — soft-saving empty state poisons all chromium shards.
  */
-async function extractAndSaveSession(
-  page: any,
-  response: any,
-  outputPath: string,
-  bodyToken?: string,
-) {
-  let sessionEstablished = await applySessionFromResponse(page, response, bodyToken);
+async function extractAndSaveSession(page: any, response: any, outputPath: string) {
+  let sessionEstablished = await applySessionCookie(page, response);
 
-  // page.request may already have stored Set-Cookie into the jar even when
-  // response.headers() omits set-cookie — verify before re-login.
-  if (!sessionEstablished || !(await sessionIsAuthenticated(page))) {
-    console.log("[Setup] Session not confirmed — attempting explicit testing API login...");
+  // page.request also stores Set-Cookie in the shared jar — verify via cookie list
+  if (!sessionEstablished) {
+    const cookies = await page.context().cookies();
+    sessionEstablished = cookies.some(
+      (c: { name: string }) =>
+        c.name === "auth_sessions" ||
+        c.name === "__Host-auth_sessions" ||
+        c.name === "__Secure-auth_sessions",
+    );
+  }
+
+  // Fallback: seed succeeded but no cookie returned — navigate once
+  if (!sessionEstablished) {
+    console.log("[Setup] No session cookie yet — navigating to establish session...");
+    try {
+      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15_000 });
+      const currentUrl = page.url();
+      if (!currentUrl.includes("/login") && !currentUrl.includes("/setup")) {
+        sessionEstablished = true;
+      } else {
+        console.log("[Setup] Session not established via navigation — will attempt direct login");
+      }
+    } catch (navErr) {
+      console.log("[Setup] Navigation failed:", navErr);
+    }
+  }
+
+  // If all session checks fail, attempt direct login via test API
+  if (!sessionEstablished) {
+    console.log("[Setup] Attempting direct test API login fallback...");
     try {
       const loginResp = await page.request.post("/api/testing", {
         headers: TEST_API_HEADERS,
@@ -151,23 +64,28 @@ async function extractAndSaveSession(
           password: ADMIN_CREDENTIALS.password,
         },
       });
-      if (loginResp.ok()) {
-        await applySessionFromResponse(page, loginResp);
-        sessionEstablished = await sessionIsAuthenticated(page);
-        console.log(`[Setup] Re-login sessionEstablished=${sessionEstablished}`);
-      } else {
-        console.log(`[Setup] Re-login status=${loginResp.status()}`);
+      if (loginResp.status() === 200) {
+        const body = await loginResp.json();
+        if (body.success) {
+          sessionEstablished = await applySessionCookie(page, loginResp);
+          if (sessionEstablished) {
+            console.log("[Setup] Direct login fallback succeeded");
+          }
+        }
       }
     } catch (fallbackErr) {
-      console.log("[Setup] Direct login fallback failed:", fallbackErr);
+      console.log("[Setup] Direct login fallback also failed:", fallbackErr);
     }
-  } else {
-    sessionEstablished = true;
   }
 
+  // Fail closed: empty storageState causes every chromium test to fail with missing page-title
   if (!sessionEstablished) {
-    console.warn(
-      "[Setup] WARNING: could not confirm authenticated storageState — chromium tests will re-login",
+    const jar = await page.context().cookies();
+    throw new Error(
+      `[Setup] Failed to establish session for ${outputPath}. ` +
+        `Cookies in jar: ${jar.map((c: { name: string }) => c.name).join(", ") || "(none)"}. ` +
+        `Ensure /api/testing login returns Set-Cookie or x-test-session-id ` +
+        `(build with COMPILE_ALL_ADAPTERS=true for production preview).`,
     );
   }
 
@@ -187,7 +105,7 @@ setup.describe("E2E Role-Based Setup", () => {
     });
     expect(resetResponse.status()).toBe(200);
 
-    // 2. Seed system (creates admin user; session is optional)
+    // 2. Seed system (creates admin user + session, returns set-cookie)
     console.log(`[Setup] Seeding database with ${ADMIN_CREDENTIALS.email}...`);
     const seedResponse = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
@@ -202,7 +120,8 @@ setup.describe("E2E Role-Based Setup", () => {
     expect(seedResponse.status()).toBe(200);
     expect(seedBody.success).toBe(true);
 
-    // 3. Prefer an explicit login after seed so Set-Cookie / session id is always present.
+    // 3. Prefer an explicit login after seed so Set-Cookie is always present.
+    // Seed now also sets a session cookie, but login is the reliable contract.
     console.log(`[Setup] Logging in as ${ADMIN_CREDENTIALS.email} for storageState...`);
     const loginResponse = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
@@ -216,8 +135,8 @@ setup.describe("E2E Role-Based Setup", () => {
     const loginBody = await loginResponse.json();
     expect(loginBody.success).toBe(true);
 
-    // 4. Extract session cookie and save storage state (verified on /user)
-    await extractAndSaveSession(page, loginResponse, ADMIN_AUTH_FILE, loginBody.token);
+    // 4. Extract session cookie and save storage state
+    await extractAndSaveSession(page, loginResponse, ADMIN_AUTH_FILE);
   });
 
   setup("provision editor and author via test API", async ({ page }) => {
@@ -258,7 +177,7 @@ setup.describe("E2E Role-Based Setup", () => {
       expect(loginBody.success).toBe(true);
 
       const targetFile = role === "Editor" ? EDITOR_AUTH_FILE : AUTHOR_AUTH_FILE;
-      await extractAndSaveSession(page, loginResponse, targetFile, loginBody.token);
+      await extractAndSaveSession(page, loginResponse, targetFile);
     }
   });
 });

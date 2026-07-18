@@ -64,11 +64,13 @@ test.describe.serial("Appearance — My Overrides", () => {
       timeout: 15_000,
     });
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("#layout-pref-leftSidebar")).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator("#layout-pref-leftSidebar")).toHaveValue("hidden", {
-      timeout: 15_000,
-    });
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.locator("#layout-pref-leftSidebar")).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator("#layout-pref-leftSidebar")).toHaveValue("hidden", {
+        timeout: 10_000,
+      });
+    }).toPass({ timeout: 25_000 });
   });
 
   test("clear overrides resets layout to theme default", async ({ page }) => {

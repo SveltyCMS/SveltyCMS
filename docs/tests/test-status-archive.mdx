@@ -64,7 +64,7 @@ These measures ensure zero cross-test contamination and deterministic test resul
 | ------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
 | 🟢 **In CI**              | ~43   | Spec files under `tests/e2e/` across Playwright projects (wizard + firstuser + auth-setup + app) |
 | 🟢 **Visual regression**  | 7     | Screenshot baselines in `admin-theme/visual-regression.spec.ts`                                  |
-| 🟡 **Fragile selectors**  | 2     | `builder.spec.ts`, `journey.spec.ts` (collection + management split into focused specs)          |
+| 🟡 **Fragile selectors**  | 1     | `builder.spec.ts` (consolidated to shell + golden per ADR 2026)                                  |
 | ⚠️ **Auth Resilience**    | 1     | `auth.setup.ts` — 3-layer fallback (cookie→navigation→direct API login)                          |
 | ⚠️ **Pre-existing known** | 3     | OAuth (no real creds in CI), language (Paraglide), signup (DB provisioning)                      |
 
@@ -72,7 +72,7 @@ These measures ensure zero cross-test contamination and deterministic test resul
 
 **Config & admin specs**: `config/access-management`, `config/webhooks`, `config/automations`, `config/data-management`, `config/operations`, `admin/tenants`
 
-**Specs**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`, `collection-builder/empty-state.spec.ts`, `site/site-starter.spec.ts`
+**Specs**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`, `site/site-starter.spec.ts`
 
 ### User profile & management (`/user`) — hardened 2026-07-18
 
@@ -253,12 +253,11 @@ Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spe
 | structure-persistence.test.ts | 3     | DB upsert roundtrip, manifest `structureNodes` + `collectionOrder` |
 | code-gui-parity.test.ts       | 10    | Collection load parity, manifest readability after init            |
 
-**Collection Builder E2E** (`tests/e2e/routes/collection-builder/structure-persistence.spec.ts` — 2 tests, `builder` project):
+**Collection Builder golden E2E** (`tests/e2e/routes/collection-builder/builder.spec.ts` — 2 tests):
 
-| Test                          | Covers                                                |
-| ----------------------------- | ----------------------------------------------------- |
-| Category save survives reload | Add category → Save → reload → category still visible |
-| Unsaved changes banner        | Staging org changes shows warning before Save         |
+| Test           | Covers                                    |
+| -------------- | ----------------------------------------- |
+| Shell + golden | Board chrome + schema→entry→API lifecycle |
 
 **Content Sync & Benchmarks (2026-07-12)** — measured on Windows 10, Bun 1.3.14, Intel-class CPU:
 

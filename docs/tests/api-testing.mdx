@@ -133,6 +133,12 @@ Bulk user actions are covered by black-box integration:
 
 Keep bulk **HTTP** coverage there; use unit tests for pure batch helpers only.
 
+### Session → page load (P0, 2026-07-18)
+
+`tests/integration/api/session-page-load.test.ts` proves a login cookie unlocks SvelteKit `__data.json` for admin pages (`/user`, `/dashboard`, `/config/collectionbuilder`, …) — not only `/api/user`.
+Unit companions: `tests/unit/auth/session-cookies.test.ts`, `tests/unit/api/testing-login-cookie-contract.test.ts`.
+See [Headless-First Test Inventory](./headless-test-inventory.mdx).
+
 ---
 
 ## Maintenance Notes
