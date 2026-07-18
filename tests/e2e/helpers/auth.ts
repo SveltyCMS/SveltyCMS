@@ -378,16 +378,26 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       data: { action: "login", email, password },
     });
     if (loginRes.ok()) {
-      // page.request stores Set-Cookie in the shared cookie jar for this context
+      // page.request stores Set-Cookie in the shared cookie jar for this context.
+      // Always navigate so the document picks up the cookie (never leave about:blank).
       console.log("[Auth] ✓ Admin session via testing API");
-      if (waitForUrl) {
-        await page.goto(typeof waitForUrl === "string" ? waitForUrl : "/", {
-          waitUntil: "domcontentloaded",
-          timeout: 30_000,
-        });
-        await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+      await page.goto(target, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      // If still bounced to login, fall through to UI login
+      if (page.url().includes("/login")) {
+        console.log("[Auth] API session did not stick — falling back to UI login");
+      } else {
+        if (waitForUrl instanceof RegExp) {
+          await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
+        }
+        // Accept common post-auth destinations even if waitForUrl was not provided
+        if (!page.url().includes("/login")) {
+          return;
+        }
       }
-      return;
     }
     console.log(`[Auth] testing API login status=${loginRes.status()} — falling back to UI login`);
   } catch (err) {
