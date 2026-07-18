@@ -56,23 +56,93 @@
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
 	import ModalPrivacyData from './components/modal-privacy-data.svelte';
+	import { getActiveSessions, revokeSession } from './user.remote';
 
 	// Props
 	const { data } = $props();
 	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
-	// Make user data reactive
+	// Role permissions fallback when user.permissions is empty (display only)
+	const rolePermissionFallback = $derived.by(() => {
+		const roles = (data.roles ?? []) as Array<{ _id?: string; name?: string; permissions?: string[] }>;
+		const roleKey = serverUser?.role;
+		const match = roles.find((r) => r._id === roleKey || r.name === roleKey);
+		return Array.isArray(match?.permissions) ? match.permissions : [];
+	});
+
+	// Make user data reactive — permissions come from load (locals / user / role)
 	const user = $derived({
 		_id: serverUser?._id ?? '',
 		email: serverUser?.email ?? '',
 		username: serverUser?.username ?? '',
 		role: serverUser?.role ?? '',
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
-		tenantId: serverUser?.tenantId ?? '', // Add tenantId
+		tenantId: serverUser?.tenantId ?? '',
 		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
-		isAdmin: serverUser?.isAdmin ?? false, // Add isAdmin property
-		permissions: []
+		isAdmin: serverUser?.isAdmin ?? false,
+		permissions: Array.isArray(serverUser?.permissions) && serverUser.permissions.length > 0
+			? (serverUser.permissions as string[])
+			: rolePermissionFallback
 	});
+
+	// Active sessions (security card)
+	type SessionRow = {
+		_id?: string;
+		id?: string;
+		isCurrent?: boolean;
+		userAgent?: string;
+		ip?: string;
+		createdAt?: string;
+		lastAccess?: string;
+	};
+	let sessions = $state<SessionRow[]>([]);
+	let sessionsLoading = $state(false);
+	let sessionsError = $state<string | null>(null);
+
+	async function loadSessions(): Promise<void> {
+		sessionsLoading = true;
+		sessionsError = null;
+		try {
+			const result = await getActiveSessions();
+			if (result.error) {
+				sessionsError = result.error;
+				sessions = [];
+			} else {
+				sessions = (result.sessions ?? []) as SessionRow[];
+			}
+		} catch (err) {
+			sessionsError = err instanceof Error ? err.message : 'Failed to load sessions';
+			sessions = [];
+		} finally {
+			sessionsLoading = false;
+		}
+	}
+
+	async function handleRevokeSession(session: SessionRow): Promise<void> {
+		const sessionId = String(session._id ?? session.id ?? '');
+		if (!sessionId || session.isCurrent) return;
+		try {
+			const result = await revokeSession(sessionId);
+			if (!result.success) {
+				toast.error({ title: 'Revoke failed', description: result.error || 'Could not revoke session' });
+				return;
+			}
+			toast.success({ title: 'Session revoked', description: 'The device was signed out.' });
+			await loadSessions();
+		} catch (err) {
+			toast.error({
+				title: 'Revoke failed',
+				description: err instanceof Error ? err.message : 'Could not revoke session'
+			});
+		}
+	}
+
+	function sessionLabel(session: SessionRow): string {
+		const ua = session.userAgent?.trim();
+		if (ua) return ua.length > 48 ? `${ua.slice(0, 48)}…` : ua;
+		if (session.ip) return `IP ${session.ip}`;
+		return 'Unknown device';
+	}
 
 	// Role display lookup (icon + full name per role)
 	const roleDisplay = $derived.by(() => {
@@ -164,9 +234,8 @@
 			executeActions();
 		}
 		setCollection(null);
-
-		// Note: Avatar initialization is handled by the layout component
-		// to ensure consistent avatar state across the application
+		// Prefetch active sessions for the Security card (non-blocking)
+		loadSessions().catch(() => {});
 	});
 
 	// Modal Trigger - User Form
@@ -201,20 +270,41 @@
 		modalState.trigger(ModalPrivacyData as any, { user });
 	}
 
-	// Modal Confirm
+	// Modal Confirm — first-user self-delete uses the same batch endpoint as admin bulk delete
 	function modalConfirm(): void {
 		showConfirm({
 			title: usermodalconfirmtitle(),
 			body: usermodalconfirmbody(),
-			// confirmText: usermodalconfirmdeleteuser(),
 			onConfirm: async () => {
-				const res = await fetch('/api/user/deleteUsers', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify([user])
-				});
-				if (res.status === 200) {
-					await invalidateAll();
+				if (!user._id) {
+					toast.error({ title: 'Delete failed', description: 'Missing user id' });
+					return;
+				}
+				try {
+					const res = await fetch('/api/user/batch', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': page.data.csrfToken || ''
+						},
+						body: JSON.stringify({ userIds: [user._id], action: 'delete' })
+					});
+					if (res.ok) {
+						toast.success({ title: 'Account deleted', description: 'Your account has been removed.' });
+						await invalidateAll();
+						window.location.href = '/login';
+						return;
+					}
+					const body = await res.json().catch(() => ({}));
+					toast.error({
+						title: 'Delete failed',
+						description: (body as { message?: string }).message || `HTTP ${res.status}`
+					});
+				} catch (err) {
+					toast.error({
+						title: 'Network error',
+						description: err instanceof Error ? err.message : 'Could not reach server'
+					});
 				}
 			}
 		});
@@ -376,67 +466,122 @@
 					{/if}
 
 					<!-- Passkeys -->
-					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:fingerprint" class="text-surface-500" width={18}></iconify-icon>
-								<div>
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800" data-testid="pref-passkey">
+						<div class="flex items-center justify-between gap-2">
+							<div class="flex items-center gap-2 min-w-0">
+								<iconify-icon icon="mdi:fingerprint" class="text-surface-500 shrink-0" width={18}></iconify-icon>
+								<div class="min-w-0">
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Passkeys</p>
-									<p class="text-xs text-surface-500 dark:text-surface-400">Passwordless biometric login</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Prefer passwordless biometric login when available</p>
 								</div>
 							</div>
 							<Checkbox
 								checked={(serverUser?.preferences as any)?.auth?.passkeyEnabled ?? false}
 								onchange={async (enabled) => updateRtcPreference('passkeyEnabled' as any, enabled)}
 								size="sm"
+								label="Enable passkey preference"
+								hideLabel={true}
 							/>
 						</div>
 					</div>
 
 					<!-- Magic Link -->
-					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:magic-staff" class="text-surface-500" width={18}></iconify-icon>
-								<div>
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800" data-testid="pref-magic-link">
+						<div class="flex items-center justify-between gap-2">
+							<div class="flex items-center gap-2 min-w-0">
+								<iconify-icon icon="mdi:magic-staff" class="text-surface-500 shrink-0" width={18}></iconify-icon>
+								<div class="min-w-0">
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Magic Link</p>
-									<p class="text-xs text-surface-500 dark:text-surface-400">Passwordless email login</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Prefer passwordless email login when available</p>
 								</div>
 							</div>
 							<Checkbox
 								checked={(serverUser?.preferences as any)?.auth?.magicLinkEnabled ?? false}
 								onchange={async (enabled) => updateRtcPreference('magicLinkEnabled' as any, enabled)}
 								size="sm"
+								label="Enable magic link preference"
+								hideLabel={true}
 							/>
 						</div>
 					</div>
 
 					<!-- OAuth -->
-					<div class="pb-4 border-b border-surface-100 dark:border-surface-800">
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:account-group-outline" class="text-surface-500" width={18}></iconify-icon>
-								<div>
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800" data-testid="pref-oauth">
+						<div class="flex items-center justify-between gap-2">
+							<div class="flex items-center gap-2 min-w-0">
+								<iconify-icon icon="mdi:account-group-outline" class="text-surface-500 shrink-0" width={18}></iconify-icon>
+								<div class="min-w-0">
 									<p class="text-sm font-medium text-surface-900 dark:text-surface-100">OAuth Login</p>
-									<p class="text-xs text-surface-500 dark:text-surface-400">Sign in with Google, GitHub</p>
+									<p class="text-xs text-surface-500 dark:text-surface-400">Prefer sign-in with Google, GitHub when configured</p>
 								</div>
 							</div>
 							<Checkbox
 								checked={(serverUser?.preferences as any)?.auth?.oauthEnabled ?? false}
 								onchange={async (enabled) => updateRtcPreference('oauthEnabled' as any, enabled)}
 								size="sm"
+								label="Enable OAuth login preference"
+								hideLabel={true}
 							/>
 						</div>
 					</div>
 
+					<!-- Active Sessions -->
+					<div class="pb-4 border-b border-surface-100 dark:border-surface-800" data-testid="active-sessions-section">
+						<div class="flex items-center justify-between gap-2 mb-2">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:devices" class="text-surface-500" width={18}></iconify-icon>
+								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Active Sessions</p>
+							</div>
+							<Button
+								variant="surface"
+								size="sm"
+								class="text-xs"
+								onclick={loadSessions}
+								disabled={sessionsLoading}
+								aria-label="Refresh active sessions"
+							>
+								{sessionsLoading ? 'Loading…' : 'Refresh'}
+							</Button>
+						</div>
+						{#if sessionsError}
+							<p class="text-xs text-error-500" role="alert">{sessionsError}</p>
+						{:else if sessions.length === 0 && !sessionsLoading}
+							<p class="text-xs text-surface-500 dark:text-surface-400">No other sessions found.</p>
+						{:else}
+							<ul class="space-y-2 max-h-40 overflow-y-auto" aria-label="Active sessions list">
+								{#each sessions as session (String(session._id ?? session.id))}
+									<li class="flex items-center justify-between gap-2 text-xs">
+										<span class="min-w-0 truncate text-surface-700 dark:text-surface-300" title={sessionLabel(session)}>
+											{sessionLabel(session)}
+											{#if session.isCurrent}
+												<Badge preset="tonal" color="success" size="sm" class="ms-1">This device</Badge>
+											{/if}
+										</span>
+										{#if !session.isCurrent}
+											<Button
+												variant="outline"
+												size="sm"
+												class="text-xs shrink-0"
+												onclick={() => handleRevokeSession(session)}
+												aria-label="Revoke session"
+											>
+												Revoke
+											</Button>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+
 					<!-- Permissions -->
 					{#if user.permissions.length > 0}
-						<div>
+						<div data-testid="user-permissions-list">
 							<div class="flex items-center gap-2 mb-2">
 								<iconify-icon icon="mdi:shield-check" class="text-surface-500" width={18}></iconify-icon>
 								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Permissions</p>
 							</div>
-							<div class="flex flex-wrap gap-1">
+							<div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
 								{#each user.permissions as permission (permission)}
 									<Badge preset="tonal" color="primary" size="sm">{permission}</Badge>
 								{/each}
@@ -496,35 +641,41 @@
 							<iconify-icon icon="mdi:forum" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Collaboration</p>
 						</div>
-						<div class="space-y-3">
-							<div class="flex items-center justify-between">
+						<div class="space-y-3" data-testid="collaboration-prefs">
+							<div class="flex items-center justify-between" data-testid="pref-rtc-enabled">
 								<span class="text-sm text-surface-700 dark:text-surface-300">Real-time editing</span>
 								<Checkbox
 									checked={serverUser?.preferences?.rtc?.enabled ?? true}
 									onchange={async (enabled) => updateRtcPreference('enabled', enabled)}
 									size="sm"
+									label="Enable real-time editing"
+									hideLabel={true}
 								/>
 							</div>
-							<div class="flex items-center justify-between">
+							<div class="flex items-center justify-between" data-testid="pref-rtc-sound">
 								<span class="text-sm text-surface-700 dark:text-surface-300">Sound notifications</span>
 								<Checkbox
 									checked={serverUser?.preferences?.rtc?.sound ?? true}
 									onchange={async (sound) => updateRtcPreference('sound', sound)}
 									size="sm"
+									label="Enable sound notifications"
+									hideLabel={true}
 								/>
 							</div>
 						</div>
 					</div>
 
-					<!-- Privacy & Data -->
-					<div>
+					<!-- Privacy & Data (GDPR) -->
+					<div data-testid="privacy-data-section">
 						<button
 							onclick={modalPrivacyData}
+							data-testid="privacy-data-btn"
+							aria-label="Privacy and Data GDPR"
 							class="w-full flex items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors text-start"
 						>
 							<iconify-icon icon="mdi:shield-account" class="text-tertiary-500 dark:text-primary-500" width={18}></iconify-icon>
 							<div class="flex-1">
-								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Privacy & Data</p>
+								<p class="text-sm font-medium text-surface-900 dark:text-surface-100">Privacy & Data (GDPR)</p>
 								<p class="text-xs text-surface-500 dark:text-surface-400">View, export, or delete your data</p>
 							</div>
 							<iconify-icon icon="mdi:chevron-right" class="text-surface-400" width={16}></iconify-icon>

@@ -663,22 +663,10 @@ test.describe("GDPR Privacy Data", () => {
   });
 
   test("open and close privacy data modal", async ({ page }) => {
-    // The GDPR button is labeled "Privacy & Data (GDPR)"
-    const gdprBtn = page.getByRole("button", { name: /privacy.*data.*gdpr/i });
-
-    const btnVisible = await gdprBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-
-    if (!btnVisible) {
-      // Try alternative locator
-      const gdprAlt = page.getByText(/privacy.*data.*gdpr/i).last();
-      if (await gdprAlt.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await gdprAlt.click({ timeout: ACTION_TIMEOUT });
-      } else {
-        return; // GDPR button may not be rendered
-      }
-    } else {
-      await gdprBtn.click({ timeout: ACTION_TIMEOUT });
-    }
+    // Stable testid on Privacy & Data (GDPR) control
+    const gdprBtn = page.getByTestId("privacy-data-btn");
+    await expect(gdprBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await gdprBtn.click({ timeout: ACTION_TIMEOUT });
 
     // The modal should open with privacy-related content
     const dialog = page.getByRole("dialog");
@@ -686,7 +674,7 @@ test.describe("GDPR Privacy Data", () => {
 
     // Verify it contains GDPR-related text
     await expect(
-      dialog.getByText(/privacy.*data|GDPR|export.*data|anonymize/i).first(),
+      dialog.getByText(/privacy.*data|GDPR|export.*data|anonymize|download my data/i).first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Close the modal
@@ -695,6 +683,20 @@ test.describe("GDPR Privacy Data", () => {
 
     // Modal should be gone
     await expect(dialog).not.toBeVisible({ timeout: ACTION_TIMEOUT });
+  });
+
+  test("active sessions section is present and refreshable", async ({ page }) => {
+    const section = page.getByTestId("active-sessions-section");
+    await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const refresh = page.getByRole("button", { name: /refresh active sessions/i });
+    await expect(refresh).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await refresh.click({ timeout: ACTION_TIMEOUT });
+    // After refresh: either a list, empty state, or error alert — not a crash
+    await expect(
+      section
+        .getByRole("list", { name: /active sessions/i })
+        .or(section.getByText(/no other sessions|failed|loading/i)),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
 

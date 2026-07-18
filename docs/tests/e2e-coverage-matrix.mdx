@@ -72,27 +72,36 @@ tags:
 
 ---
 
-## 3. `/user` — User Profile & Management (3 specs)
+## 3. `/user` — User Profile & Management (5 specs + control map)
 
-| Feature                      | Test File                    | Status              |
-| ---------------------------- | ---------------------------- | ------------------- |
-| View profile                 | `user/account-smoke.spec.ts` | ✅                  |
-| Edit avatar                  | `user/profile.spec.ts`       | ⚠️ Needs test image |
-| Delete avatar                | `user/profile.spec.ts`       | ⚠️                  |
-| Edit user details            | `user/profile.spec.ts`       | ⚠️                  |
-| Registration token workflow  | `user/profile.spec.ts`       | ⚠️                  |
-| Toggle token/list visibility | `user/profile.spec.ts`       | ⚠️                  |
-| Read/edit user (admin)       | `user/management.spec.ts`    | ⚠️                  |
-| Delete/block/unblock (admin) | `user/management.spec.ts`    | ⚠️                  |
-| Invite user via email        | `user/management.spec.ts`    | ⚠️                  |
-| **Password change**          | —                            | ❌                  |
-| **2FA setup**                | —                            | ❌                  |
-| **API key management**       | —                            | ❌                  |
-| **User search/filter**       | —                            | ❌                  |
-| **Bulk user actions**        | —                            | ❌                  |
-| **User import**              | —                            | ❌                  |
+> Full 1:1 control map: [routes/user.mdx](./routes/user.mdx) (updated 2026-07-18).
+> Product fixes: batch self-delete, CSRF on remotes/GDPR, permissions display, sessions UI.
 
-**Coverage: 9/15 features (60%) — all marked ⚠️ (fragile selectors)**
+| Feature                      | Test File                        | Status                   |
+| ---------------------------- | -------------------------------- | ------------------------ |
+| View profile                 | `user/account-smoke.spec.ts`     | ✅                       |
+| Edit avatar                  | `user/profile.spec.ts`           | ⚠️ Needs test image      |
+| Delete avatar                | `user/profile.spec.ts`           | ⚠️ serial                |
+| Edit user details            | `user/profile.spec.ts`           | ✅                       |
+| Appearance settings link     | `user/profile.spec.ts`           | ✅                       |
+| Registration token workflow  | `user/profile.spec.ts`           | ⚠️                       |
+| Toggle token/list visibility | `user/profile.spec.ts`           | ✅                       |
+| Read/edit user (admin)       | `user/management.spec.ts`        | ✅                       |
+| Delete/block/unblock (admin) | `user/management.spec.ts`        | ✅                       |
+| Invite user via email        | `user/management-invite.spec.ts` | ✅                       |
+| Auth preference toggles      | `user/complete-coverage.spec.ts` | ✅                       |
+| Admin table search/sort      | `user/complete-coverage.spec.ts` | ✅                       |
+| Privacy modal open/close     | `user/complete-coverage.spec.ts` | ✅ (`privacy-data-btn`)  |
+| Active sessions refresh      | `user/complete-coverage.spec.ts` | ✅                       |
+| **Password change (full)**   | —                                | ❌ re-login journey      |
+| **2FA setup**                | partial complete-coverage        | ⚠️ needs USE_2FA fixture |
+| **GDPR export / anonymize**  | open modal only                  | ❌                       |
+| **RTC prefs persistence**    | —                                | ❌                       |
+| **Non-admin profile**        | —                                | ❌ AdminArea hidden      |
+| **Permissions badges**       | page.server unit                 | ⚠️ E2E pending           |
+| **User import**              | —                                | ❌ out of scope / future |
+
+**Coverage: ~14/21 features (~67%) — control map tracks remaining P0/P1**
 
 ---
 

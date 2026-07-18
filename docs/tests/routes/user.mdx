@@ -1,43 +1,202 @@
 ---
 path: "docs/tests/routes/user.mdx"
-title: "User Profile and Management E2E Tests"
-description: "End-to-end test specifications and coverage checklist for user profiles and credentials."
+title: "User Profile and Management Tests — 100% Control Map"
+description: "Concrete unit, integration, and E2E coverage plan mapped 1:1 to every control on /user."
 order: 15
 icon: "mdi:account"
 author: "SveltyCMS Team"
 created: "2026-06-13"
-updated: "2026-06-13"
+updated: "2026-07-18"
 tags:
   - "testing"
   - "e2e"
   - "playwright"
   - "user"
+  - "coverage"
 ---
 
-# User Profile and Management E2E Tests (`/user`)
+# User Profile & Management — Coverage Plan (`/user`)
 
-This document details the end-to-end test specifications and coverage checklist for user accounts, profiles, credentials management, and admin CRUD actions.
+This document is the **source of truth** for reaching honest 100% behavioral coverage of
+`src/routes/(app)/user`. Every UI control is mapped to unit, integration, and E2E cases.
 
-## Coverage Checklist
+> **Policy:** Soft-skip `return` on missing UI is forbidden for P0/P1 cases. Prefer
+> `test.skip(condition, reason)` with a seeded fixture, or fail hard.
 
-- [x] Profile details updates
-- [x] Password changes and security checks
-- [x] User management CRUD (for admins)
-- [x] API verification for user retrieval
-- [ ] User self-deletion & account cleanup - _Gaps identified, pending integration_
+## Implementation surface
 
-## Associated Tests
+| File                                        | Responsibility                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `+page.svelte`                              | Identity / Security / Preferences shell, preference toggles, sessions, privacy entry |
+| `+page.server.ts`                           | Load: safe user, permissions, adminArea flag, 2FA global                             |
+| `user.remote.ts`                            | Profile update, password verify, batch delete, tokens, sessions                      |
+| `components/admin-area.svelte`              | User + token smart tables                                                            |
+| `components/multibutton.svelte`             | Bulk block / unblock / delete                                                        |
+| `components/modal-edit-form.svelte`         | Username / password / role edit                                                      |
+| `components/modal-edit-avatar.svelte`       | Avatar upload / delete                                                               |
+| `components/modal-edit-token.svelte`        | Invite token create / edit                                                           |
+| `components/modal-privacy-data.svelte`      | GDPR export / anonymize                                                              |
+| `components/modal-two-factor-auth.svelte`   | 2FA manage                                                                           |
+| `components/two-factor-setup-modal.svelte`  | 2FA enroll                                                                           |
+| `components/two-factor-verify-modal.svelte` | 2FA verify                                                                           |
 
+---
+
+## Control → test matrix
+
+Legend: ✅ present · 🟡 partial / soft · ❌ missing · 🔧 seed next
+
+### Identity card
+
+| Control                  | `data-testid` / role     | Unit         | Integration        | E2E | File / case                   |
+| ------------------------ | ------------------------ | ------------ | ------------------ | --- | ----------------------------- |
+| Page title               | `page-title`             | load server  | —                  | ✅  | `account-smoke`, `management` |
+| Username display         | text                     | —            | —                  | ✅  | `management` read             |
+| Email display            | text                     | —            | —                  | 🟡  | assert in smoke               |
+| Role badge               | Badge                    | —            | —                  | 🟡  | assert role name              |
+| User id badge            | mono Badge               | —            | —                  | 🟡  | assert id non-empty           |
+| Tenant ID (MT only)      | —                        | —            | MT suite           | ❌  | add MT user e2e               |
+| Edit settings btn        | `edit-user-settings-btn` | —            | PUT attributes     | ✅  | `profile`, `management`       |
+| Avatar open              | `Edit Avatar` role       | avatar-utils | save/delete avatar | ✅  | `profile` serial              |
+| Self-delete (first user) | Delete button            | batch unit   | batch API          | 🔧  | seed first-user fixture       |
+
+### Security card
+
+| Control           | `data-testid` / a11y      | Unit             | Integration     | E2E           | File / case                       |
+| ----------------- | ------------------------- | ---------------- | --------------- | ------------- | --------------------------------- |
+| Password Change   | button Change             | editUserSchema   | verify-password | 🟡 modal only | full change + re-login 🔧         |
+| 2FA Setup/Manage  | Setup\|Manage             | auth-2fa unit    | auth-2fa        | 🟡 soft       | force `USE_2FA` fixture 🔧        |
+| Passkey toggle    | `pref-passkey`            | —                | PUT prefs       | ✅            | `complete-coverage`               |
+| Magic link toggle | `pref-magic-link`         | —                | PUT prefs       | ✅            | `complete-coverage`               |
+| OAuth toggle      | `pref-oauth`              | —                | PUT prefs       | ✅            | `complete-coverage`               |
+| Active sessions   | `active-sessions-section` | remote helpers   | sessions API    | ✅ refresh    | revoke other session 🔧           |
+| Permissions list  | `user-permissions-list`   | page.server load | —               | 🔧            | assert badges when role has perms |
+
+### Preferences card
+
+| Control         | `data-testid`                  | Unit | Integration | E2E           | File / case           |
+| --------------- | ------------------------------ | ---- | ----------- | ------------- | --------------------- |
+| Appearance link | `open-appearance-settings-btn` | —    | —           | ✅            | `profile`             |
+| RTC enabled     | `pref-rtc-enabled`             | —    | PUT prefs   | 🔧            | toggle + reload       |
+| RTC sound       | `pref-rtc-sound`               | —    | PUT prefs   | 🔧            | toggle + reload       |
+| Privacy & Data  | `privacy-data-btn`             | —    | gdpr API    | ✅ open/close | export + anonymize 🔧 |
+
+### Admin area (permission-gated)
+
+| Control                  | `data-testid`                  | Unit             | Integration  | E2E | File / case         |
+| ------------------------ | ------------------------------ | ---------------- | ------------ | --- | ------------------- |
+| Admin shell              | `user-admin-area`              | page.server flag | —            | ✅  | management          |
+| Show/hide user list      | buttons                        | helpers          | GET /user    | ✅  | profile             |
+| Show/hide tokens         | buttons                        | helpers          | GET /token   | ✅  | profile             |
+| Search                   | search textbox                 | debounce unit    | search=      | ✅  | complete-coverage   |
+| Sort header              | thead th                       | —                | sort=        | ✅  | complete-coverage   |
+| Pagination               | table pagination               | —                | page=        | 🟡  | seed 11+ users 🔧   |
+| Density toggle           | density button                 | —                | —            | 🟡  | complete-coverage   |
+| Row block/unblock        | row buttons                    | batch unit       | batch        | ✅  | management          |
+| Bulk delete              | `user-bulk-actions-menu`       | batch unit       | batch        | ✅  | management          |
+| Email invite token       | `email-registration-token-btn` | —                | token create | ✅  | management-invite   |
+| Edit token row           | dialog                         | —                | token PUT    | 🟡  | seed token first 🔧 |
+| Non-admin: no admin area | —                              | page.server deny | 403 list     | ❌  | editor login e2e 🔧 |
+
+### Modals (detail)
+
+| Modal     | Critical assertions                                                            | Unit                        | E2E                                  |
+| --------- | ------------------------------------------------------------------------------ | --------------------------- | ------------------------------------ |
+| Edit form | empty username invalid; email disabled; own role locked; password fields gated | form-validation, Form class | complete-coverage + full password 🔧 |
+| Avatar    | reject non-image; size limit; delete success toast                             | avatar-utils                | profile serial                       |
+| Token     | create link with `invite_token=`; signup accept                                | —                           | management-invite                    |
+| Privacy   | export JSON download; anonymize → logout                                       | —                           | export 🔧 / anonymize 🔧             |
+| 2FA       | setup QR; enable; disable with password                                        | auth-2fa                    | full journey 🔧                      |
+
+### Remotes / server
+
+| Symbol                   | Unit file                                                      | Cases                                                             |
+| ------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `buildUpdateProfileBody` | `tests/unit/user/user-remote-helpers.test.ts`                  | user_id split, self default                                       |
+| `remoteJsonHeaders`      | same                                                           | CSRF cookie / Host prefix                                         |
+| `load` (+page.server)    | `tests/unit/routes/user-page-server.test.ts`                   | redact password, permissions, adminArea, 2FA flag, error fallback |
+| User API dispatcher      | `tests/unit/api/user.test.ts`                                  | GET list, PUT update, batch, unauth                               |
+| Integration API          | `tests/integration/api/user.test.ts` + `user-extended.test.ts` | create, login, avatar, sessions, batch                            |
+
+---
+
+## Priority backlog (to close remaining gaps)
+
+### P0 (must for “honest green”)
+
+1. ✅ Self-delete uses `/api/user/batch` + CSRF (fixed 2026-07-18)
+2. ✅ Remotes send CSRF headers; profile body splits `user_id` (fixed)
+3. ✅ Permissions resolved in load + displayed (fixed)
+4. ✅ Sessions UI wired to remotes (fixed)
+5. 🔧 Full password-change E2E (verify → set → re-login)
+6. 🔧 Non-admin profile E2E (AdminArea hidden)
+
+### P1
+
+7. 🔧 GDPR export download assertion
+8. 🔧 GDPR anonymize (secondary user only)
+9. 🔧 2FA enroll with fixture `USE_2FA=true`
+10. 🔧 RTC preference persistence after reload
+11. 🔧 Token edit/delete with seeded token (no soft-skip)
+12. 🔧 Pagination with ≥11 seeded users
+
+### P2
+
+13. Component tests: `modal-edit-form`, `multibutton`, `admin-area` fetch/optimistic
+14. MT tenant column visible when multi-tenant enabled
+15. Focus trap + axe audit on all user modals
+
+---
+
+## Associated test files
+
+### E2E
+
+- [account-smoke.spec.ts](../../../tests/e2e/routes/user/account-smoke.spec.ts)
 - [profile.spec.ts](../../../tests/e2e/routes/user/profile.spec.ts)
 - [management.spec.ts](../../../tests/e2e/routes/user/management.spec.ts)
-- [account-smoke.spec.ts](../../../tests/e2e/routes/user/account-smoke.spec.ts)
+- [management-invite.spec.ts](../../../tests/e2e/routes/user/management-invite.spec.ts)
+- [complete-coverage.spec.ts](../../../tests/e2e/routes/user/complete-coverage.spec.ts)
 
-## Implementation Details
+### Unit
 
-User profiles are validated under different role definitions (admin, editor, developer). Tests include file upload verification for avatars, username modifications, and timing-safe password updates.
+- [tests/unit/user/](../../../tests/unit/user/) — schema, Form, debounce, avatar, helpers, type-guards, **remote helpers**
+- [tests/unit/api/user.test.ts](../../../tests/unit/api/user.test.ts)
+- [tests/unit/routes/user-page-server.test.ts](../../../tests/unit/routes/user-page-server.test.ts)
+- [tests/unit/api/auth-2fa.test.ts](../../../tests/unit/api/auth-2fa.test.ts)
 
-## Next Steps
+### Integration
 
-- [E2E Testing Guide](../e2e-testing-guide.mdx)
-- [Testing Overview & Strategy](../testing-strategy.mdx)
+- [tests/integration/api/user.test.ts](../../../tests/integration/api/user.test.ts)
+- [tests/integration/api/user-extended.test.ts](../../../tests/integration/api/user-extended.test.ts)
+- [tests/integration/api/auth-2fa.test.ts](../../../tests/integration/api/auth-2fa.test.ts)
+
+---
+
+## Run commands
+
+```bash
+# Unit (fast)
+bun run test:unit -- tests/unit/user tests/unit/api/user.test.ts tests/unit/routes/user-page-server.test.ts
+
+# Integration (server + DB)
+bun run test:integration -- tests/integration/api/user.test.ts tests/integration/api/user-extended.test.ts
+
+# E2E user project
+bun run test:e2e -- tests/e2e/routes/user
+```
+
+## Definition of done (100%)
+
+- [ ] Every row in the control matrix is ✅ (not 🟡/❌)
+- [ ] No soft-skip `return` in P0/P1 E2E
+- [ ] Non-admin + admin journeys both green
+- [ ] Password change, 2FA (when enabled), GDPR export covered
+- [ ] Page load + remotes unit-tested
+- [ ] Docs matrix stays in sync when adding a control
+
+## Next steps
+
 - [E2E Coverage Matrix](../e2e-coverage-matrix.mdx)
+- [User API Tests](../user-api-tests.mdx)
+- [E2E Testing Guide](../e2e-testing-guide.mdx)

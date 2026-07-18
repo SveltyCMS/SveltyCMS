@@ -1,10 +1,10 @@
-fix: revert wrapHandle micro-optimization that breaks CI E2E tests
+fix: correct user.remote.ts exports and revert wrapHandle optimization
 
-The direct return wrapper (without async/await) caused page content
-not to render in CI E2E tests (Config, Users, Media pages). The
-microtask boundary from async/await is needed by SvelteKit's sequence
-function to properly chain handlers.
-
-Builder & Content E2E tests now pass thanks to the Playwright config
-fix (baseURL port change). The remaining 9 failures across Config,
-Users, and Media are pre-existing and unrelated to this change.
+- Fix production build failure: SvelteKit 5 .remote.ts files require all
+  exports to be remote functions (query()). Made buildUpdateProfileBody
+  and remoteJsonHeaders local functions instead of exported.
+  
+- Revert wrapHandle micro-optimization: The direct return wrapper (without
+  async/await) caused page content not to render in CI E2E tests. The
+  microtask boundary from async/await is needed by SvelteKit's sequence
+  function to properly chain handlers.

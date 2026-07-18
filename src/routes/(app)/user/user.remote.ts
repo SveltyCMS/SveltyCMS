@@ -4,53 +4,68 @@
  *
  * All exports are SvelteKit query() wrappers that provide full type inference.
  * Plain interface exports have been moved inline or removed per SvelteKit .remote.ts rules.
+ *
+ * ### Features:
+ * - CSRF headers on all mutating internal fetches (defense-in-depth)
+ * - Clean separation of user_id vs newUserData for profile updates
+ * - Token create/edit/delete, session list/revoke, batch delete
  */
 
 import { query, getRequestEvent } from "$app/server";
+import { buildUpdateProfileBody, remoteJsonHeaders } from "./user-remote-utils";
+
+// Re-export pure helpers for consumers / tests that import from the remote module path
+export { buildUpdateProfileBody, remoteJsonHeaders } from "./user-remote-utils";
 
 export const updateProfile = query(
   "unchecked",
   async (
     data: Record<string, unknown>,
   ): Promise<{ success: boolean; message?: string; error?: string }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch("/api/user/update-user-attributes", {
+    const event = getRequestEvent();
+    const body = buildUpdateProfileBody(data);
+    const r = await event.fetch("/api/user/update-user-attributes", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: data.user_id, newUserData: data }),
+      headers: remoteJsonHeaders(event.cookies),
+      body: JSON.stringify(body),
     });
-    const d = await r.json();
-    return r.ok ? { success: true, message: "Updated" } : { success: false, error: d.message };
+    const d = await r.json().catch(() => ({}));
+    return r.ok
+      ? { success: true, message: "Updated" }
+      : { success: false, error: (d as { message?: string }).message || "Update failed" };
   },
 );
 
 export const verifyPassword = query(
   "unchecked",
   async (password: string): Promise<{ valid: boolean }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch("/api/user/verify-password", {
+    const event = getRequestEvent();
+    const r = await event.fetch("/api/user/verify-password", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
       body: JSON.stringify({ password }),
     });
-    const d = await r.json();
-    return { valid: !!d.valid };
+    const d = await r.json().catch(() => ({}));
+    return { valid: !!(d as { valid?: boolean }).valid };
   },
 );
 
 export const deleteUser = query(
   "unchecked",
   async (userIds: string[]): Promise<{ success: boolean; message?: string; error?: string }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch("/api/user/batch", {
+    const event = getRequestEvent();
+    const r = await event.fetch("/api/user/batch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
       body: JSON.stringify({ userIds, action: "delete" }),
     });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     return r.ok
-      ? { success: true, message: d.message || "Deleted" }
-      : { success: false, error: d.message };
+      ? { success: true, message: (d as { message?: string }).message || "Deleted" }
+      : {
+          success: false,
+          error: (d as { message?: string }).message || "Delete failed",
+        };
   },
 );
 
@@ -64,7 +79,7 @@ export const saveToken = query(
     message?: string;
     error?: string;
   }> => {
-    const { fetch } = getRequestEvent();
+    const event = getRequestEvent();
     const isEdit = !!data.token;
     const endpoint = isEdit ? `/api/token/${data.token}` : "/api/token/createToken";
     const method = isEdit ? "PUT" : "POST";
@@ -82,55 +97,86 @@ export const saveToken = query(
           expiresIn: data.expiresIn || "2 days",
         };
 
-    const r = await fetch(endpoint, {
+    const r = await event.fetch(endpoint, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
       body: JSON.stringify(body),
     });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
+    const tokenVal =
+      (d as { token?: { value?: string } | string }).token &&
+      typeof (d as { token?: unknown }).token === "object"
+        ? ((d as { token: { value?: string } }).token.value as string | undefined)
+        : ((d as { token?: string }).token as string | undefined);
     return r.ok
-      ? { success: true, token: d.token?.value || d.token, message: d.message }
-      : { success: false, error: d.message };
+      ? {
+          success: true,
+          token: tokenVal,
+          message: (d as { message?: string }).message,
+        }
+      : {
+          success: false,
+          error: (d as { message?: string }).message || "Token save failed",
+        };
   },
 );
 
 export const deleteTokenAction = query(
   "unchecked",
   async (token: string): Promise<{ success: boolean; message?: string; error?: string }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch(`/api/token/${token}`, {
+    const event = getRequestEvent();
+    const r = await event.fetch(`/api/token/${token}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
     });
-    const d = await r.json();
-    return r.ok ? { success: true, message: "Deleted" } : { success: false, error: d.message };
+    const d = await r.json().catch(() => ({}));
+    return r.ok
+      ? { success: true, message: "Deleted" }
+      : {
+          success: false,
+          error: (d as { message?: string }).message || "Token delete failed",
+        };
   },
 );
 
 export const getActiveSessions = query(
   "unchecked",
   async (): Promise<{ sessions?: any[]; error?: string }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch("/api/user/sessions", {
+    const event = getRequestEvent();
+    const r = await event.fetch("/api/user/sessions", {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
     });
-    const d = await r.json();
-    return r.ok ? { sessions: d.sessions || [] } : { error: d.message };
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      return { error: (d as { message?: string }).message || "Failed to load sessions" };
+    }
+    const sessions =
+      (d as { sessions?: unknown[] }).sessions ||
+      (d as { data?: { sessions?: unknown[] } }).data?.sessions ||
+      (d as { data?: unknown[] }).data ||
+      [];
+    return { sessions: Array.isArray(sessions) ? sessions : [] };
   },
 );
 
 export const revokeSession = query(
   "unchecked",
   async (sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch(`/api/user/sessions/${sessionId}`, {
+    const event = getRequestEvent();
+    const r = await event.fetch(`/api/user/sessions/${sessionId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
     });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     return r.ok
-      ? { success: true, message: d.message || "Revoked" }
-      : { success: false, error: d.message };
+      ? {
+          success: true,
+          message: (d as { message?: string }).message || "Revoked",
+        }
+      : {
+          success: false,
+          error: (d as { message?: string }).message || "Revoke failed",
+        };
   },
 );

@@ -34,12 +34,22 @@ export const load: PageServerLoad = async (event) => {
     // Use isAdmin from authorization hook (handles multi-tenant fallback correctly)
     const isAdmin = event.locals.isAdmin === true;
 
+    // Resolve display permissions: prefer hook-populated locals, then user record, then role
+    const rolePermissions =
+      roles.find((r) => r._id?.toString() === user.role || r.name === user.role)?.permissions ?? [];
+    const displayPermissions: string[] = Array.isArray(event.locals.permissions)
+      ? (event.locals.permissions as string[])
+      : Array.isArray(user.permissions) && user.permissions.length > 0
+        ? user.permissions
+        : rolePermissions;
+
     // Prepare user object for return, ensuring _id is a string and including admin status
     const safeUser = {
       ...user,
       _id: user._id.toString(),
       password: "[REDACTED]", // Ensure password is not sent to client
       isAdmin, // Add the properly calculated admin status
+      permissions: displayPermissions,
     };
 
     // Admin data will now be fetched on-demand via API endpoints
