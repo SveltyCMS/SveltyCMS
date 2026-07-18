@@ -21,7 +21,6 @@ import { setupAdminSchema } from "@utils/schemas";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { ISODateString } from "@src/databases/db-interface";
 import { setupManager } from "@src/routes/setup/setup-manager";
-import { dev } from "$app/environment";
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 

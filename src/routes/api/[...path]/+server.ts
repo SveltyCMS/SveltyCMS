@@ -5,7 +5,6 @@
  */
 
 import { json, type RequestEvent } from "@sveltejs/kit";
-import { dev } from "$app/environment";
 import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";

@@ -347,7 +347,6 @@ async function handleSessionRotation(
 
     if (newSession && newSession._id !== oldSessionId) {
       const newSessionId = newSession._id;
-      const isProd = !dev && process.env.TEST_MODE !== "true";
       const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
 
@@ -458,7 +457,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   if (flags.isStatic) return resolve(event);
 
   // ── Compute cookie config once (used by turbo check + normal flow) ─────
-  const isProd = !dev && process.env.TEST_MODE !== "true";
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = getSessionCookieName(isSecure);
 

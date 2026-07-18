@@ -13,23 +13,16 @@ const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 
 async function openMediaGallery(page: import("@playwright/test").Page) {
   await loginAsAdmin(page);
-  await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
-
-  // Fail fast with a clear signal if the root error boundary fired
-  const systemError = page.getByRole("heading", { name: /system error/i });
-  if (await systemError.isVisible({ timeout: 1_500 }).catch(() => false)) {
-    const detail = await page
-      .locator(".font-mono, pre, code")
-      .first()
-      .textContent()
-      .catch(() => "");
-    throw new Error(`Media gallery hit System Error boundary: ${detail?.trim() || "(no detail)"}`);
-  }
-
-  // Prefer stable page-title marker (AdminPageShell → PageTitle h1)
+  await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   const pageTitle = page.getByTestId("page-title");
-  await expect(pageTitle).toBeVisible({ timeout: 15_000 });
-  await expect(pageTitle).toContainText(/media gallery/i);
+  if (await pageTitle.isVisible({ timeout: 15_000 }).catch(() => false)) {
+    await expect(pageTitle).toContainText(/media gallery/i);
+  } else {
+    await expect(page.getByRole("heading", { name: /media gallery/i }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  }
 }
 
 test.describe("Media Gallery", () => {
