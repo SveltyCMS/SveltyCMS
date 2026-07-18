@@ -38,7 +38,7 @@ type SurfaceEndpoint = {
 const SURFACE: SurfaceEndpoint[] = [
   { name: "trash list", path: "/api/trash", editorDenied: true },
   { name: "system-jobs (queue)", path: "/api/system-jobs", editorDenied: true },
-  { name: "workflows", path: "/api/workflows", editorDenied: true },
+  { name: "workflows", path: "/api/workflows?collectionId=test", editorDenied: true },
   { name: "config sync status", path: "/api/config/status", editorDenied: true },
   { name: "widgets list (extensions)", path: "/api/widgets/list", editorDenied: false },
   { name: "logs (monitor)", path: "/api/logs", editorDenied: true },
