@@ -180,6 +180,8 @@ jobs:
           COMPILE_ALL_ADAPTERS: "true"
       - name: Verify benchmark build includes testing harness
         run: bun run scripts/verify-prod-build-backdoor.ts --mode=bench
+      - name: Verify bundle size (no TipTap leak, entry < 80KB)
+        run: bun run scripts/check-bundle-size.ts
       - name: Compute build artifact checksum
         run: |
           find build/ .svelte-kit/output/ -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1 > build-checksum.txt

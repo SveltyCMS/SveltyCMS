@@ -458,6 +458,18 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
+    name: "Bundle Size Check (no TipTap leak)",
+    estimatedMs: 2000,
+    remediation:
+      "Check scripts/check-bundle-size.ts thresholds; ensure TipTap is lazy-loaded in rich-text widget only",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "scripts/check-bundle-size.ts"], {
+        silent: true,
+        timeout: 30_000,
+      }),
+  },
+  {
     name: "Deploy Build Backdoor Probe",
     estimatedMs: 35000,
     ciJob: "whitebox",
