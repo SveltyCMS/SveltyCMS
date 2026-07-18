@@ -978,43 +978,23 @@ async function main() {
     }
   }
 
-  // CI summary generation — compact: only list failures
+  // CI summary: only emit ::error annotations and JSON for db-summary aggregation.
+  // Per-adapter markdown is suppressed — the combined db-summary job renders the dashboard.
   const shouldWriteCiSummary =
     process.env.CI === "true" || process.env.GITHUB_STEP_SUMMARY !== undefined;
 
   if (shouldWriteCiSummary) {
-    const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-    if (summaryPath) {
-      const icon = failedCount > 0 ? "❌" : "✅";
-      let markdown = `## ${icon} Integration Tests (DB: **${dbType}**)\n\n`;
-      markdown += `| Result | Count |\n`;
-      markdown += `|--------|-------|\n`;
-      markdown += `| ✅ Passed | ${passed}/${results.length} |\n`;
-      if (failedCount > 0) {
-        markdown += `| ❌ Failed | ${failedCount} |\n`;
-        markdown += `\n<details open><summary>❌ Failures + diagnostics</summary>\n\n`;
-        markdown += `| Test File | Duration | First error |\n`;
-        markdown += `|-----------|----------|-------------|\n`;
-        for (const result of failedResults) {
-          const err = (result.stderr || "")
-            .split("\n")
-            .map((l) => l.trim())
-            .find((l) => l.length > 0)
-            ?.replace(/\|/g, "\\|")
-            .slice(0, 140);
-          markdown += `| \`${result.file}\` | ${(result.time / 1000).toFixed(1)}s | ${err || "_(see job log)_"} |\n`;
-          // Annotation for Actions UI
-          console.log(
-            `::error file=${result.file},title=Integration failed (${dbType})::${err || result.file}`,
-          );
-        }
-        markdown += `\n**Fix:** re-run locally:\n\`\`\`bash\nbun run scripts/run-integration-tests.ts --db=${dbType} --no-build\n\`\`\`\n`;
-        markdown += `\n</details>\n`;
-      } else {
-        markdown += `\n_All integration files green on **${dbType}**._\n`;
-      }
-      markdown += `\n`;
-      appendFileSync(summaryPath, markdown, "utf8");
+    // ::error annotations so failures show inline on the PR Files tab
+    for (const result of failedResults) {
+      const err = (result.stderr || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l.length > 0)
+        ?.replace(/\|/g, "\\|")
+        .slice(0, 140);
+      console.log(
+        `::error file=${result.file},title=Integration failed (${dbType})::${err || result.file}`,
+      );
     }
 
     // Per-adapter results JSON for cross-DB summary aggregation

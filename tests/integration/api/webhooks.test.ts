@@ -86,6 +86,7 @@ describe("Webhooks API (Testing 2026 reference — headless HTTP)", () => {
     it("GET /api/webhooks without auth → 401", async () => {
       const res = await safeFetch(`${API_BASE_URL}/api/webhooks`, {
         headers: { Accept: "application/json", Origin: API_BASE_URL },
+        skipTestSecret: true,
       });
       expect(res.status).toBe(401);
     });
@@ -104,6 +105,7 @@ describe("Webhooks API (Testing 2026 reference — headless HTTP)", () => {
           events: ["entry:create"],
           active: true,
         }),
+        skipTestSecret: true,
       });
       expect(res.status).toBe(401);
     });
