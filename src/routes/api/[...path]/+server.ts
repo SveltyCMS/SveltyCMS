@@ -536,6 +536,14 @@ export const _handler = async (event: RequestEvent) => {
   const handlerModule = await HANDLERS[config.handler]();
   const fn = handlerModule[config.fn];
 
+  if (typeof fn !== "function") {
+    throw new AppError(
+      `API Endpoint for namespace "/api/${namespace}" is not enabled or available in this environment`,
+      404,
+      "API_ENDPOINT_NOT_AVAILABLE",
+    );
+  }
+
   const response = await fn(event, cms, tenantId as DatabaseId, segments);
 
   if (!(response instanceof Response)) {

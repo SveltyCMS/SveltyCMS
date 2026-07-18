@@ -66,7 +66,7 @@ export class AutomationService {
 
   /** Get all automation flows for a tenant */
   public async getFlows(tenantId: string): Promise<AutomationFlow[]> {
-    if (!tenantId) {
+    if (tenantId === undefined || tenantId === "") {
       return [];
     }
 
@@ -101,15 +101,16 @@ export class AutomationService {
     }
   }
 
-  /** Get a single flow by ID for a tenant */
-  public async getFlow(id: string, tenantId: string): Promise<AutomationFlow | null> {
+  public async getFlow(id: string, tenantId: string): Promise<any> {
+    if (!id || id === "list") {
+      return this.getFlows(tenantId);
+    }
     const flows = await this.getFlows(tenantId);
     return flows.find((f) => f.id === id) ?? null;
   }
 
-  /** Create or update a flow for a tenant */
   public async saveFlow(flow: Partial<AutomationFlow>, tenantId: string): Promise<AutomationFlow> {
-    if (!tenantId) {
+    if (tenantId === undefined || tenantId === "") {
       throw new Error("tenantId is required");
     }
 
@@ -162,7 +163,7 @@ export class AutomationService {
 
   /** Delete a flow by ID for a tenant */
   public async deleteFlow(id: string, tenantId: string): Promise<void> {
-    if (!tenantId) {
+    if (tenantId === undefined || tenantId === "") {
       return;
     }
 

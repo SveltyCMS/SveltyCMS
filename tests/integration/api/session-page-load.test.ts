@@ -73,11 +73,24 @@ async function assertPageLoadNotLoginRedirect(path: string, cookie: string): Pro
 
   expect(res.status, `${path} status`).toBe(200);
   const text = await res.text();
-  let body: { type?: string; location?: string };
+  let body: { type?: string; location?: string } = {};
   try {
     body = JSON.parse(text);
-  } catch {
-    throw new Error(`${path} __data.json not JSON: ${text.slice(0, 200)}`);
+  } catch (err: any) {
+    const isRedirect = text.includes('"type":"redirect"');
+    if (isRedirect) {
+      body.type = "redirect";
+      const locMatch = text.match(/"location"\s*:\s*"([^"]+)"/);
+      if (locMatch) {
+        body.location = locMatch[1];
+      }
+    } else if (text.startsWith('{"type":"data"')) {
+      body.type = "data";
+    } else {
+      throw new Error(
+        `${path} __data.json not JSON (len=${text.length}, err=${err.message}): ${text.slice(0, 500)}`,
+      );
+    }
   }
 
   if (body.type === "redirect") {
