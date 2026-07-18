@@ -187,7 +187,12 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
-      collectionOrder: await getCollectionOrder(tenantId),
+      collectionOrder: await getCollectionOrder(tenantId).catch((orderErr: unknown) => {
+        logger.warn(
+          `collectionOrder load failed (non-fatal): ${orderErr instanceof Error ? orderErr.message : String(orderErr)}`,
+        );
+        return [] as string[];
+      }),
       cspNonce,
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker

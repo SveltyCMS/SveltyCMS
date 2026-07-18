@@ -57,7 +57,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   try {
     const user = getAuthenticatedUser(locals);
-    const isAdmin = !!(locals.isAdmin || (user as any)?.isAdmin || user.role === "admin");
+    const isAdmin =
+      locals.isAdmin === true ||
+      (user as any)?.isAdmin === true ||
+      (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
     // Admin early-return in handleAuthorization can leave locals.roles undefined — never
     // call Object.values on undefined (that 500s the whole media gallery).
     const tenantRoles = (locals.roles ?? []) as Array<{ permissions?: string[] }>;
@@ -119,23 +122,34 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       : null;
     logger.trace("Current folder determined:", currentFolder);
 
-    // Use db-agnostic adapter method to fetch media
-    const mediaResult = await dbAdapter.media.files.getByFolder(
-      folderId as DatabaseId | undefined,
-      {
-        pageSize: 100,
-        page: 1,
-        sortField: "updatedAt",
-        sortDirection: "desc",
-        user, // Pass user for ownership filtering
-      },
-      recursive,
-    );
-
-    const allMediaResults: Record<string, unknown>[] =
-      mediaResult.success && mediaResult.data
-        ? (mediaResult.data.items as unknown as Record<string, unknown>[])
-        : [];
+    // Use db-agnostic adapter method to fetch media (soft-fail: empty list > 500)
+    let allMediaResults: Record<string, unknown>[] = [];
+    try {
+      const getByFolder = dbAdapter.media?.files?.getByFolder;
+      if (typeof getByFolder !== "function") {
+        logger.warn("media.files.getByFolder is unavailable — returning empty media list");
+      } else {
+        const mediaResult = await getByFolder(
+          folderId as DatabaseId | undefined,
+          {
+            pageSize: 100,
+            page: 1,
+            sortField: "updatedAt",
+            sortDirection: "desc",
+            user, // Pass user for ownership filtering
+          },
+          recursive,
+        );
+        if (mediaResult?.success && mediaResult.data) {
+          allMediaResults = (mediaResult.data.items as unknown as Record<string, unknown>[]) || [];
+        }
+      }
+    } catch (mediaErr) {
+      logger.warn(
+        `Media getByFolder failed (non-fatal): ${mediaErr instanceof Error ? mediaErr.message : String(mediaErr)}`,
+      );
+      allMediaResults = [];
+    }
 
     logger.info(`Fetched ${allMediaResults.length} media items for folder ${folderId || "root"}`);
 
@@ -223,18 +237,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       );
     }
 
-    const returnData = {
-      user: {
-        // Ensure user data is serializable
-        role: user.role,
-        _id: user._id.toString(), // Convert user ID to string
-        avatar: user.avatar,
-      },
-      media: processedMedia, // Use the processed and filtered media
-      systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component
-      currentFolder: currentFolder as SystemVirtualFolder | null, // The specific folder object for the current view
-      publishedMediaIds, // IDs of media items referenced by published content
-    };
+    // Force JSON-safe payload — Buffers/ObjectIds in avatar or media metadata
+    // previously crashed SvelteKit serialization after a successful load (500 UI).
+    const returnData = JSON.parse(
+      JSON.stringify({
+        user: {
+          role: user.role,
+          _id: String(user._id),
+          avatar:
+            typeof user.avatar === "string"
+              ? user.avatar
+              : user.avatar
+                ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
+                : undefined,
+        },
+        media: processedMedia,
+        systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[],
+        currentFolder: currentFolder as SystemVirtualFolder | null,
+        publishedMediaIds,
+      }),
+    );
 
     return returnData;
   } catch (err) {

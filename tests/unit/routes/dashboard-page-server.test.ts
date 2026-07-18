@@ -80,6 +80,12 @@ describe("dashboard +page.server load", () => {
     const data = await load({
       locals: makeLocals({
         isAdmin: false,
+        // user.role must not be "admin" — load treats role===admin as isAdmin
+        user: {
+          _id: { toString: () => "u1" },
+          email: "editor@test.com",
+          role: "editor",
+        },
         roles: [{ _id: "editor", permissions: ["dashboard:read", "collection:read"] }],
       }),
     } as any);
@@ -92,6 +98,11 @@ describe("dashboard +page.server load", () => {
       load({
         locals: makeLocals({
           isAdmin: false,
+          user: {
+            _id: { toString: () => "u2" },
+            email: "viewer@test.com",
+            role: "viewer",
+          },
           roles: [{ _id: "viewer", permissions: ["collection:read"] }],
         }),
       } as any),
