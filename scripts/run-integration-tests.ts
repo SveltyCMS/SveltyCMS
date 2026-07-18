@@ -905,6 +905,9 @@ async function main() {
   }
 
   // Phase 1: Regular tests — sequential with reset/seed isolation between tests
+  const totalCount = testFiles.length;
+  let testIndex = 0;
+
   if (regularTests.length > 0) {
     console.log(`\n📦 Phase 1: ${regularTests.length} regular test(s) — sequential isolation`);
 
@@ -914,7 +917,8 @@ async function main() {
     for (let i = 0; i < regularTests.length; i++) {
       if (isShuttingDown) break;
       const file = regularTests[i]!;
-      const progress = `[${i + 1}/${regularTests.length}]`;
+      testIndex++;
+      const progress = `[${testIndex}/${totalCount}]`;
 
       const entry = await runOneTest(file, false, { progress });
 
@@ -932,9 +936,7 @@ async function main() {
       // Live progress: cumulative pass/fail after each test
       const failCount = results.filter((r) => !r.success).length;
       const passCount = results.filter((r) => r.success).length;
-      console.log(
-        `  📊 ${passCount} passed, ${failCount} failed, ${i + 1}/${regularTests.length} done`,
-      );
+      console.log(`  📊 ${passCount} passed, ${failCount} failed, ${testIndex}/${totalCount} done`);
 
       // Reset/seed for next test (skip after last)
       if (i < regularTests.length - 1 && !isShuttingDown) {
@@ -950,23 +952,30 @@ async function main() {
   }
 
   // Phase 2: Setup-mode tests - fresh server per file, retry once on failure
-  for (const file of setupTests) {
+  for (let i = 0; i < setupTests.length; i++) {
     if (isShuttingDown) break;
+    const file = setupTests[i]!;
     const relPath = relative(ROOT, file);
+    testIndex++;
+    const progress = `[${testIndex}/${totalCount}]`;
     console.log(`Preparing isolated environment on port ${PORT} for ${relPath}`);
     await prepareIsolatedServerForTestFile(file);
-    const entry = await runOneTest(file, true);
+    const entry = await runOneTest(file, true, { progress });
     if (!entry.success && !isShuttingDown) {
       // Retry with fresh isolated server
       console.log(`Retrying ${relPath} with fresh isolated environment...`);
       await prepareIsolatedServerForTestFile(file);
-      const retry = await runOneTest(file, true, { retry: true });
+      const retry = await runOneTest(file, true, { retry: true, progress: `${progress} ↻` });
       results.push(retry);
       if (retry.success) passed++;
     } else {
       results.push(entry);
       if (entry.success) passed++;
     }
+    // Live progress: cumulative pass/fail after each test
+    const failCount = results.filter((r) => !r.success).length;
+    const passCount = results.filter((r) => r.success).length;
+    console.log(`  📊 ${passCount} passed, ${failCount} failed, ${testIndex}/${totalCount} done`);
     if (failFast && !entry.success) break;
   }
 

@@ -19,7 +19,7 @@
  * - `getPrecheckPlan()` for debugging task selection before execution
  */
 
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -43,7 +43,7 @@ export type PrecheckTier = "push" | "full";
 export interface Task {
   name: string;
   skip?: boolean | (() => boolean);
-  run: () => boolean | Promise<boolean>;
+  run: (onProgress?: (text: string) => void) => boolean | Promise<boolean>;
   ciJob?: string;
   timeout?: number;
   /** Estimated duration in ms for ETA calculation */
@@ -114,7 +114,7 @@ export interface TaskSpec {
   blocking?: boolean;
   shouldInclude?: (ctx: RunContext) => boolean;
   shouldSkip?: (ctx: RunContext) => boolean;
-  run: (ctx: RunContext) => boolean | Promise<boolean>;
+  run: (ctx: RunContext, onProgress?: (text: string) => void) => boolean | Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +174,83 @@ export function runCommand(
   return true;
 }
 
+export function runCommandAsync(
+  cmd: string,
+  args: string[] = [],
+  options: {
+    silent?: boolean;
+    env?: Record<string, string>;
+    timeout?: number;
+    onLine?: (line: string) => void;
+  } = {},
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn(cmd, args, {
+      stdio: "pipe",
+      shell: IS_WINDOWS,
+      env: options.env ? { ...process.env, ...options.env } : process.env,
+      cwd: ROOT,
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    let timer: NodeJS.Timeout | undefined;
+    if (options.timeout) {
+      timer = setTimeout(() => {
+        try {
+          proc.kill("SIGKILL");
+        } catch {
+          // ignore
+        }
+      }, options.timeout);
+    }
+
+    let stdoutBuffer = "";
+    proc.stdout?.on("data", (data) => {
+      const chunk = data.toString("utf8");
+      stdout += chunk;
+      stdoutBuffer += chunk;
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.trim() && options.onLine) {
+          options.onLine(line.trim());
+        }
+      }
+    });
+
+    proc.stderr?.on("data", (data) => {
+      stderr += data.toString("utf8");
+    });
+
+    proc.on("close", (code) => {
+      if (timer) clearTimeout(timer);
+      if (stdoutBuffer.trim() && options.onLine) {
+        options.onLine(stdoutBuffer.trim());
+      }
+      lastCommandOutput = {
+        cmd: `${cmd} ${args.join(" ")}`,
+        stdout,
+        stderr,
+        code,
+      };
+      resolve(code === 0);
+    });
+
+    proc.on("error", (err) => {
+      if (timer) clearTimeout(timer);
+      lastCommandOutput = {
+        cmd: `${cmd} ${args.join(" ")}`,
+        stdout,
+        stderr: stderr + `\nCommand failed to start: ${err.message}`,
+        code: 1,
+      };
+      resolve(false);
+    });
+  });
+}
+
 function gitOutput(args: string[]): string {
   try {
     const result = spawnSync("git", args, {
@@ -189,13 +266,58 @@ function gitOutput(args: string[]): string {
 }
 
 export function getChangedPaths(): string[] {
-  const output =
-    gitOutput(["diff", "--name-only", "@{u}..HEAD"]) ||
-    gitOutput(["diff", "--name-only", "HEAD~1..HEAD"]);
-  return output
-    .split("\n")
-    .map((f) => f.trim().replace(/\\/g, "/"))
-    .filter(Boolean);
+  try {
+    // 1. diff against merge-base
+    let mergeBase = "";
+    try {
+      const baseCmd = IS_WINDOWS
+        ? "git merge-base origin/main HEAD 2>nul || git merge-base main HEAD 2>nul || echo HEAD~1"
+        : "git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo HEAD~1";
+      const proc = require("node:child_process").execSync(baseCmd, { encoding: "utf8" });
+      mergeBase = proc.trim();
+    } catch {
+      mergeBase = "HEAD~1";
+    }
+
+    const files = new Set<string>();
+
+    // Merge base diff
+    const baseDiff = gitOutput(["diff", "--name-only", `${mergeBase}..HEAD`]);
+    if (baseDiff) {
+      for (const line of baseDiff.split("\n")) {
+        if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
+      }
+    }
+
+    // Working directory unstaged changes
+    const unstagedDiff = gitOutput(["diff", "--name-only"]);
+    if (unstagedDiff) {
+      for (const line of unstagedDiff.split("\n")) {
+        if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
+      }
+    }
+
+    // Untracked changes
+    const statusPorcelain = gitOutput(["status", "--porcelain"]);
+    if (statusPorcelain) {
+      for (const line of statusPorcelain.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("?? ")) {
+          files.add(trimmed.slice(3).replace(/\\/g, "/"));
+        } else if (trimmed && !trimmed.includes("->")) {
+          const parts = trimmed.split(/\s+/);
+          if (parts.length >= 2) {
+            files.add(parts[parts.length - 1].replace(/\\/g, "/"));
+          }
+        }
+      }
+    }
+
+    const { existsSync } = require("node:fs");
+    return [...files].filter((f) => existsSync(f));
+  } catch {
+    return [];
+  }
 }
 
 export function analyzeChanges(paths: string[]): ChangeProfile {
@@ -306,15 +428,28 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/check-test-db-safety.ts"]),
   },
   {
-    name: "Format, Lint & Check",
+    name: "Auto-Format Check",
     ciJob: "whitebox",
-    estimatedMs: 20000,
-    remediation: "bun run format && bun run lint && bun run check",
+    estimatedMs: 3000,
+    remediation: "bun run format",
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
-    run: () =>
-      runCommand("bun", ["run", "format"], {}) &&
-      runCommand("bun", ["run", "lint"], {}) &&
-      runCommand("bun", ["run", "check"], {}),
+    run: () => runCommand("bun", ["run", "format"], {}),
+  },
+  {
+    name: "Linter (oxlint) Check",
+    ciJob: "whitebox",
+    estimatedMs: 5000,
+    remediation: "bun run lint",
+    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
+    run: () => runCommand("bun", ["run", "lint"], {}),
+  },
+  {
+    name: "Svelte Compiler Check",
+    ciJob: "whitebox",
+    estimatedMs: 12000,
+    remediation: "bun run check",
+    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
+    run: () => runCommand("bun", ["run", "check"], {}),
   },
   {
     name: "Slop Scanner",
@@ -481,7 +616,7 @@ const BASE_TASKS: TaskSpec[] = [
       // Isolated from the CI-parity COMPILE_ALL_ADAPTERS build above.
       // Explicitly delete (not empty-string) so the stripper condition
       // `COMPILE_ALL_ADAPTERS !== "true"` is unambiguous across shells.
-      const deployEnv = { ...process.env };
+      const deployEnv = { ...process.env } as Record<string, string>;
       delete deployEnv.COMPILE_ALL_ADAPTERS;
       const buildOk =
         runCommand("bun", ["run", "build"], {
@@ -525,6 +660,7 @@ function runDbTask(
   db: IntegrationDbType,
   kind: "integration" | "benchmark",
   ctx: RunContext,
+  onProgress?: (text: string) => void,
 ): boolean | Promise<boolean> {
   if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
     const port = getDefaultDbPort(db);
@@ -568,7 +704,7 @@ function runDbTask(
   const timeout = db === "mongodb" || db === "mariadb" ? 900_000 : 600_000;
 
   if (kind === "integration") {
-    return runCommand(
+    return runCommandAsync(
       "bun",
       ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"],
       {
@@ -578,13 +714,26 @@ function runDbTask(
           ADMIN_PASSWORD: "Password123!",
         },
         timeout,
+        onLine: (line) => {
+          const match = line.match(/\[(\d+\/\d+)\]/);
+          if (match && onProgress) {
+            onProgress(match[0]);
+          } else if (line.includes("Phase") && onProgress) {
+            onProgress(line.trim());
+          }
+        },
       },
     );
   }
 
-  return runCommand("bun", ["run", "scripts/run-core-benchmarks.ts", `--db=${db}`], {
+  return runCommandAsync("bun", ["run", "scripts/run-core-benchmarks.ts", `--db=${db}`], {
     env: getBenchmarkTestEnv(db, { TEST_API_SECRET: ctx.testSecret }),
     timeout,
+    onLine: (line) => {
+      if (line.includes("benchmark") && onProgress) {
+        onProgress(line.trim());
+      }
+    },
   });
 }
 
@@ -631,7 +780,7 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
         const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
         return !includeDb;
       },
-      run: (ctx) => runDbTask(db, "integration", ctx),
+      run: (ctx, onProgress) => runDbTask(db, "integration", ctx, onProgress),
     },
     {
       name: `Benchmarks (${db})`,
@@ -642,7 +791,7 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
         const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
         return !includeDb;
       },
-      run: (ctx) => runDbTask(db, "benchmark", ctx),
+      run: (ctx, onProgress) => runDbTask(db, "benchmark", ctx, onProgress),
     },
   ];
 }
@@ -689,7 +838,7 @@ export function buildPrecheckTasks(
         remediation: spec.remediation,
         blocking: spec.blocking ?? true,
         skip: spec.shouldSkip ? spec.shouldSkip(ctx) : false,
-        run: () => spec.run(ctx),
+        run: (onProgress) => spec.run(ctx, onProgress),
       }),
     );
 }

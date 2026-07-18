@@ -152,6 +152,21 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 ---
 
+## Shared infrastructure
+
+| Piece                 | Path                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| CSRF mutation client  | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                            |
+| Testing / bypass gate | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                       |
+| Testing handler       | `src/routes/api/[...path]/handlers/testing.ts`                                      |
+| E2E seeds             | `tests/e2e/helpers/seed.ts`                                                         |
+| Confirm helper        | `tests/e2e/helpers/confirm-modal.ts`                                                |
+| Gate unit tests       | `tests/unit/utils/testing-api-gate.test.ts`                                         |
+| Prod strip proof      | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                             |
+| Smart Test Selector   | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering |
+
+---
+
 ## Migration checklist (per admin route)
 
 Use when adding or finishing a domain:
@@ -204,18 +219,6 @@ Use when adding or finishing a domain:
 | **Dashboard reorder**            | —                                            | —                | ≥2 widgets hard-fail                    | ✅               |
 | Unified Data Hub                 | plugin + external DB                         | —                | optional infra / 503                    | external only    |
 | **Multi-tenancy**                | `isolation.spec.ts`                          | —                | browser isolation (gated)               | ✅ env-gated     |
-
-**Shared infrastructure**
-
-| Piece                 | Path                                                          |
-| --------------------- | ------------------------------------------------------------- |
-| CSRF mutation client  | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`      |
-| Testing / bypass gate | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`) |
-| Testing handler       | `src/routes/api/[...path]/handlers/testing.ts`                |
-| E2E seeds             | `tests/e2e/helpers/seed.ts`                                   |
-| Confirm helper        | `tests/e2e/helpers/confirm-modal.ts`                          |
-| Gate unit tests       | `tests/unit/utils/testing-api-gate.test.ts`                   |
-| Prod strip proof      | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`       |
 
 ---
 
