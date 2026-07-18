@@ -77,31 +77,32 @@ tags:
 > Full 1:1 control map: [routes/user.mdx](./routes/user.mdx) (updated 2026-07-18).
 > Product fixes: batch self-delete, CSRF on remotes/GDPR, permissions display, sessions UI.
 
-| Feature                      | Test File                        | Status                   |
-| ---------------------------- | -------------------------------- | ------------------------ |
-| View profile                 | `user/account-smoke.spec.ts`     | ✅                       |
-| Edit avatar                  | `user/profile.spec.ts`           | ⚠️ Needs test image      |
-| Delete avatar                | `user/profile.spec.ts`           | ⚠️ serial                |
-| Edit user details            | `user/profile.spec.ts`           | ✅                       |
-| Appearance settings link     | `user/profile.spec.ts`           | ✅                       |
-| Registration token workflow  | `user/profile.spec.ts`           | ⚠️                       |
-| Toggle token/list visibility | `user/profile.spec.ts`           | ✅                       |
-| Read/edit user (admin)       | `user/management.spec.ts`        | ✅                       |
-| Delete/block/unblock (admin) | `user/management.spec.ts`        | ✅                       |
-| Invite user via email        | `user/management-invite.spec.ts` | ✅                       |
-| Auth preference toggles      | `user/complete-coverage.spec.ts` | ✅                       |
-| Admin table search/sort      | `user/complete-coverage.spec.ts` | ✅                       |
-| Privacy modal open/close     | `user/complete-coverage.spec.ts` | ✅ (`privacy-data-btn`)  |
-| Active sessions refresh      | `user/complete-coverage.spec.ts` | ✅                       |
-| **Password change (full)**   | —                                | ❌ re-login journey      |
-| **2FA setup**                | partial complete-coverage        | ⚠️ needs USE_2FA fixture |
-| **GDPR export / anonymize**  | open modal only                  | ❌                       |
-| **RTC prefs persistence**    | —                                | ❌                       |
-| **Non-admin profile**        | —                                | ❌ AdminArea hidden      |
-| **Permissions badges**       | page.server unit                 | ⚠️ E2E pending           |
-| **User import**              | —                                | ❌ out of scope / future |
+| Feature                        | Test File                        | Status                        |
+| ------------------------------ | -------------------------------- | ----------------------------- |
+| View profile                   | `user/account-smoke.spec.ts`     | ✅                            |
+| Edit avatar                    | `user/profile.spec.ts`           | ⚠️ Needs test image           |
+| Delete avatar                  | `user/profile.spec.ts`           | ⚠️ serial                     |
+| Edit user details              | `user/profile.spec.ts`           | ✅                            |
+| Appearance settings link       | `user/profile.spec.ts`           | ✅                            |
+| Registration token workflow    | `user/profile.spec.ts`           | ⚠️                            |
+| Toggle token/list visibility   | `user/profile.spec.ts`           | ✅                            |
+| Read/edit user (admin)         | `user/management.spec.ts`        | ✅                            |
+| Delete/block/unblock (admin)   | `user/management.spec.ts`        | ✅                            |
+| Invite user via email          | `user/management-invite.spec.ts` | ✅                            |
+| Auth preference toggles        | `user/complete-coverage.spec.ts` | ✅                            |
+| Admin table search/sort        | `user/complete-coverage.spec.ts` | ✅                            |
+| Privacy modal open/close       | `user/complete-coverage.spec.ts` | ✅ (`privacy-data-btn`)       |
+| Active sessions refresh        | `user/complete-coverage.spec.ts` | ✅                            |
+| **Password change (full)**     | `user/p0-journeys.spec.ts`       | ✅ editor verify→set→re-login |
+| **Non-admin profile**          | `user/p0-journeys.spec.ts`       | ✅ AdminArea hidden           |
+| **Token edit/delete (seeded)** | `user/p0-journeys.spec.ts`       | ✅ no soft-skip               |
+| **2FA setup**                  | partial complete-coverage        | ⚠️ needs USE_2FA fixture      |
+| **GDPR export / anonymize**    | open modal only                  | ❌                            |
+| **RTC prefs persistence**      | —                                | ❌                            |
+| **Permissions badges**         | page.server unit                 | ⚠️ E2E pending                |
+| **User import**                | —                                | ❌ out of scope / future      |
 
-**Coverage: ~14/21 features (~67%) — control map tracks remaining P0/P1**
+**Coverage: ~17/22 features (~77%) — P0 journeys added; P1 remains**
 
 ---
 

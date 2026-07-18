@@ -14,8 +14,8 @@
 import { query, getRequestEvent } from "$app/server";
 import { buildUpdateProfileBody, remoteJsonHeaders } from "./user-remote-utils";
 
-// Re-export pure helpers for consumers / tests that import from the remote module path
-export { buildUpdateProfileBody, remoteJsonHeaders } from "./user-remote-utils";
+// Not re-exported: SvelteKit .remote.ts files require all exports to be remote functions.
+// Use user-remote-utils.ts directly in tests.
 
 export const updateProfile = query(
   "unchecked",

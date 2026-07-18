@@ -62,15 +62,15 @@ Legend: ✅ present · 🟡 partial / soft · ❌ missing · 🔧 seed next
 
 ### Security card
 
-| Control           | `data-testid` / a11y      | Unit             | Integration     | E2E           | File / case                       |
-| ----------------- | ------------------------- | ---------------- | --------------- | ------------- | --------------------------------- |
-| Password Change   | button Change             | editUserSchema   | verify-password | 🟡 modal only | full change + re-login 🔧         |
-| 2FA Setup/Manage  | Setup\|Manage             | auth-2fa unit    | auth-2fa        | 🟡 soft       | force `USE_2FA` fixture 🔧        |
-| Passkey toggle    | `pref-passkey`            | —                | PUT prefs       | ✅            | `complete-coverage`               |
-| Magic link toggle | `pref-magic-link`         | —                | PUT prefs       | ✅            | `complete-coverage`               |
-| OAuth toggle      | `pref-oauth`              | —                | PUT prefs       | ✅            | `complete-coverage`               |
-| Active sessions   | `active-sessions-section` | remote helpers   | sessions API    | ✅ refresh    | revoke other session 🔧           |
-| Permissions list  | `user-permissions-list`   | page.server load | —               | 🔧            | assert badges when role has perms |
+| Control           | `data-testid` / a11y      | Unit             | Integration     | E2E        | File / case                          |
+| ----------------- | ------------------------- | ---------------- | --------------- | ---------- | ------------------------------------ |
+| Password Change   | button Change             | editUserSchema   | verify-password | ✅         | `p0-journeys` full change + re-login |
+| 2FA Setup/Manage  | Setup\|Manage             | auth-2fa unit    | auth-2fa        | 🟡 soft    | force `USE_2FA` fixture 🔧           |
+| Passkey toggle    | `pref-passkey`            | —                | PUT prefs       | ✅         | `complete-coverage`                  |
+| Magic link toggle | `pref-magic-link`         | —                | PUT prefs       | ✅         | `complete-coverage`                  |
+| OAuth toggle      | `pref-oauth`              | —                | PUT prefs       | ✅         | `complete-coverage`                  |
+| Active sessions   | `active-sessions-section` | remote helpers   | sessions API    | ✅ refresh | revoke other session 🔧              |
+| Permissions list  | `user-permissions-list`   | page.server load | —               | 🔧         | assert badges when role has perms    |
 
 ### Preferences card
 
@@ -83,20 +83,20 @@ Legend: ✅ present · 🟡 partial / soft · ❌ missing · 🔧 seed next
 
 ### Admin area (permission-gated)
 
-| Control                  | `data-testid`                  | Unit             | Integration  | E2E | File / case         |
-| ------------------------ | ------------------------------ | ---------------- | ------------ | --- | ------------------- |
-| Admin shell              | `user-admin-area`              | page.server flag | —            | ✅  | management          |
-| Show/hide user list      | buttons                        | helpers          | GET /user    | ✅  | profile             |
-| Show/hide tokens         | buttons                        | helpers          | GET /token   | ✅  | profile             |
-| Search                   | search textbox                 | debounce unit    | search=      | ✅  | complete-coverage   |
-| Sort header              | thead th                       | —                | sort=        | ✅  | complete-coverage   |
-| Pagination               | table pagination               | —                | page=        | 🟡  | seed 11+ users 🔧   |
-| Density toggle           | density button                 | —                | —            | 🟡  | complete-coverage   |
-| Row block/unblock        | row buttons                    | batch unit       | batch        | ✅  | management          |
-| Bulk delete              | `user-bulk-actions-menu`       | batch unit       | batch        | ✅  | management          |
-| Email invite token       | `email-registration-token-btn` | —                | token create | ✅  | management-invite   |
-| Edit token row           | dialog                         | —                | token PUT    | 🟡  | seed token first 🔧 |
-| Non-admin: no admin area | —                              | page.server deny | 403 list     | ❌  | editor login e2e 🔧 |
+| Control                  | `data-testid`                  | Unit             | Integration  | E2E | File / case                |
+| ------------------------ | ------------------------------ | ---------------- | ------------ | --- | -------------------------- |
+| Admin shell              | `user-admin-area`              | page.server flag | —            | ✅  | management                 |
+| Show/hide user list      | buttons                        | helpers          | GET /user    | ✅  | profile                    |
+| Show/hide tokens         | buttons                        | helpers          | GET /token   | ✅  | profile                    |
+| Search                   | search textbox                 | debounce unit    | search=      | ✅  | complete-coverage          |
+| Sort header              | thead th                       | —                | sort=        | ✅  | complete-coverage          |
+| Pagination               | table pagination               | —                | page=        | 🟡  | seed 11+ users 🔧          |
+| Density toggle           | density button                 | —                | —            | 🟡  | complete-coverage          |
+| Row block/unblock        | row buttons                    | batch unit       | batch        | ✅  | management                 |
+| Bulk delete              | `user-bulk-actions-menu`       | batch unit       | batch        | ✅  | management                 |
+| Email invite token       | `email-registration-token-btn` | —                | token create | ✅  | management-invite          |
+| Edit token row           | dialog                         | —                | token PUT    | 🟡  | seed token first 🔧        |
+| Non-admin: no admin area | —                              | page.server deny | 403 list     | ✅  | `p0-journeys` editor login |
 
 ### Modals (detail)
 
@@ -128,8 +128,9 @@ Legend: ✅ present · 🟡 partial / soft · ❌ missing · 🔧 seed next
 2. ✅ Remotes send CSRF headers; profile body splits `user_id` (fixed)
 3. ✅ Permissions resolved in load + displayed (fixed)
 4. ✅ Sessions UI wired to remotes (fixed)
-5. 🔧 Full password-change E2E (verify → set → re-login)
-6. 🔧 Non-admin profile E2E (AdminArea hidden)
+5. ✅ Full password-change E2E (verify → set → re-login) — `p0-journeys.spec.ts`
+6. ✅ Non-admin profile E2E (AdminArea hidden) — `p0-journeys.spec.ts` + PermissionGuard fix
+7. ✅ Token edit/delete with seeded token (no soft-skip) — `p0-journeys.spec.ts`
 
 ### P1
 
@@ -137,7 +138,7 @@ Legend: ✅ present · 🟡 partial / soft · ❌ missing · 🔧 seed next
 8. 🔧 GDPR anonymize (secondary user only)
 9. 🔧 2FA enroll with fixture `USE_2FA=true`
 10. 🔧 RTC preference persistence after reload
-11. 🔧 Token edit/delete with seeded token (no soft-skip)
+11. ✅ Token edit/delete with seeded token (no soft-skip) — done in P0
 12. 🔧 Pagination with ≥11 seeded users
 
 ### P2
@@ -157,6 +158,7 @@ Legend: ✅ present · 🟡 partial / soft · ❌ missing · 🔧 seed next
 - [management.spec.ts](../../../tests/e2e/routes/user/management.spec.ts)
 - [management-invite.spec.ts](../../../tests/e2e/routes/user/management-invite.spec.ts)
 - [complete-coverage.spec.ts](../../../tests/e2e/routes/user/complete-coverage.spec.ts)
+- [p0-journeys.spec.ts](../../../tests/e2e/routes/user/p0-journeys.spec.ts) — password change, non-admin, seeded token CRUD
 
 ### Unit
 

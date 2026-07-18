@@ -358,6 +358,62 @@ async function attemptLogin(
 }
 
 /**
+ * Login as a non-admin test user (editor by default) via testing API when possible.
+ * Always clears prior admin storageState so role-gated UI is honest.
+ */
+export async function loginAsEditor(
+  page: Page,
+  waitForUrl?: string | RegExp,
+  credentials: { email: string; password: string } = {
+    email: "editor@example.com",
+    password: "Editor123!",
+  },
+) {
+  await page.context().clearCookies();
+  await page
+    .evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    })
+    .catch(() => {});
+
+  try {
+    let loginRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "login", email: credentials.email, password: credentials.password },
+    });
+    if (!loginRes.ok()) {
+      // Ensure user exists then retry
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "prepare-test-user",
+          email: credentials.email,
+          password: credentials.password,
+          role: "editor",
+          username: "Editor",
+        },
+      });
+      loginRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email: credentials.email, password: credentials.password },
+      });
+    }
+    if (loginRes.ok()) {
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/user";
+      await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      if (!page.url().includes("/login")) {
+        return;
+      }
+    }
+  } catch {
+    /* fall through to UI login */
+  }
+
+  await loginAs(page, credentials.email, credentials.password, waitForUrl);
+}
+
+/**
  * Login as admin user (uses default ADMIN_CREDENTIALS).
  * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
  * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.

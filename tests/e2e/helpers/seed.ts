@@ -17,6 +17,63 @@ export const TEST_USERS = {
 type TestUserKey = keyof typeof TEST_USERS;
 
 /**
+ * Create a registration invite token via the admin session (cookie jar on page).
+ * Used so token E2E never soft-skips on empty tables.
+ */
+export async function seedInviteToken(
+  page: Page,
+  options: { email?: string; role?: string; expiresIn?: string } = {},
+): Promise<{ token: string; email: string }> {
+  const email = options.email ?? `invite_seed_${Date.now()}@example.com`;
+  const role = options.role ?? "editor";
+  const expiresIn = options.expiresIn ?? "2 days";
+
+  const response = await page.request.post("/api/token/create-token", {
+    headers: {
+      ...TEST_API_HEADERS,
+      "Content-Type": "application/json",
+    },
+    data: {
+      email,
+      role,
+      expiresIn,
+      type: "invite-token",
+    },
+  });
+
+  if (!response.ok()) {
+    // Fallback path used by some adapters
+    const fallback = await page.request.post("/api/token", {
+      headers: {
+        ...TEST_API_HEADERS,
+        "Content-Type": "application/json",
+      },
+      data: { email, role, expiresIn, type: "invite-token" },
+    });
+    if (!fallback.ok()) {
+      throw new Error(
+        `seedInviteToken failed: ${response.status()} ${await response.text()} / fallback ${fallback.status()} ${await fallback.text()}`,
+      );
+    }
+    const body = await fallback.json();
+    const token = body?.token?.value || body?.token || body?.data?.token || body?.data || "";
+    if (!token || typeof token !== "string") {
+      throw new Error(
+        `seedInviteToken: no token in response ${JSON.stringify(body).slice(0, 300)}`,
+      );
+    }
+    return { token: String(token), email };
+  }
+
+  const body = await response.json();
+  const token = body?.token?.value || body?.token || body?.data?.token || body?.data || "";
+  if (!token || typeof token !== "string") {
+    throw new Error(`seedInviteToken: no token in response ${JSON.stringify(body).slice(0, 300)}`);
+  }
+  return { token: String(token), email };
+}
+
+/**
  * Seeds the database with additional test users (Developer, Editor)
  * using the Testing API. This is cleaner and more robust for E2E.
  */
