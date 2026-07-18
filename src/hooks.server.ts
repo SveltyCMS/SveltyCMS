@@ -350,7 +350,8 @@ function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   const resolvedHandle = handleFnRef();
   if (!HOOK_TIMING_ENABLED) {
     // Minimal wrapper: no timing/trace cost in hot prod path.
-    return async (input) => await resolvedHandle(input);
+    // Direct return avoids unnecessary microtask from async/await.
+    return (input) => resolvedHandle(input);
   }
   return async (input) => {
     const start = performance.now();

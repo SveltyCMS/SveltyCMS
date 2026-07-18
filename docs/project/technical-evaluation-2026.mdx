@@ -545,8 +545,7 @@ In mid-June 2026, SveltyCMS executed a comprehensive 19-file, multi-phase perfor
 
 #### Phase 3b — Trained zstd Dictionary (Build-Time Artifact)
 
-- **Dictionary builder**: Production-ready `scripts/build-zstd-dict.ts` generates 110KB trained zstd/Brotli dictionary from representative CMS payloads (widget names, field structures, JSON patterns). Output at `static/dictionaries/cms-payloads.dict` with companion metadata JSON. Expected extra 10-25% compression ratio beyond generic Brotli on repetitive CMS JSON.
-- **Runtime integration**: `handle-compression.ts` prepared with zstd stub and `DATABASE_PREPARE` flag for PgBouncer compatibility.
+_Removed_. Benchmarks showed the trained dictionary provided 0% improvement over generic Brotli at production quality levels (Brotli-4), and Node.js/Bun's zlib does not expose `BROTLI_PARAM_DICTIONARY`. Brotli's built-in sliding window already handles repetitive CMS JSON field names optimally without an external dictionary. The dictionary builder, dictionary files, and all runtime loading code have been removed.
 
 #### Enterprise Scaling Layers
 

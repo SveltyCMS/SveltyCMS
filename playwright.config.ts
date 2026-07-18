@@ -3,13 +3,18 @@
  * @description Playwright test configuration for SveltyCMS
  *
  * Simplified 4-project architecture:
- * - wizard:     Setup wizard on clean slate (serial, port 4174 fallback)
+ * - wizard:     Setup wizard on clean slate (serial, port 5174 fallback)
  * - firstuser:  Signup + OAuth before auth seeding (serial)
  * - auth-setup: Seed users + login test + save auth state (serial)
  * - chromium:   All CMS routes — fully parallel, sharded in CI
  *
  * Projects run in dependency order. In CI, e2e-prep runs wizard →
  * firstuser → auth-setup sequentially, then chromium is sharded N ways.
+ *
+ * For local runs, use: npm run test:e2e
+ * This starts the Vite dev server (port 5173) which includes the /api/testing
+ * handler needed for test authentication. The production build strips this
+ * handler for security — build with `npm run build:e2e` if you need it.
  */
 
 import { defineConfig, devices } from "@playwright/test";
@@ -39,17 +44,10 @@ if (!TEST_API_SECRET) {
 // Ensure workers inherit the secret so they can authenticate testing endpoints
 process.env.TEST_API_SECRET = TEST_API_SECRET;
 
-const TEST_JWT_SECRET = "e2e-test-jwt-secret-key-min-32-chars!!";
-const TEST_ENCRYPTION_KEY = "e2e-test-encryption-key-min-32-chars!!";
-
-// See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.{test,spec,spect}.ts",
-  // 🧹 Consolidate all artifacts under tests/ — no more root-level test-results/
   outputDir: "./tests/test-results",
-  // Default 30s is too tight for CI: login/seed retries + SPA navigation often
-  // surface as "locator.click: Test timeout of 30000ms exceeded".
   timeout: 90_000,
   expect: {
     timeout: 10 * 1000,
@@ -70,8 +68,8 @@ export default defineConfig({
   ],
 
   use: {
-    // Default: READY server. Wizard project overrides this.
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
+    // Default: Vite dev server (port 5173). CI sets PLAYWRIGHT_TEST_BASE_URL.
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
     extraHTTPHeaders: {
       "x-test-mode": "true",
       "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
@@ -87,39 +85,24 @@ export default defineConfig({
 
   globalSetup: "./tests/e2e/global.setup.ts",
 
-  // ── Simplified 4-project architecture ──────────────────────────────────
-  //
-  // Phase 1 (e2e-prep): wizard → firstuser → auth-setup (all serial)
-  // Phase 2 (e2e CI):   chromium — sharded N ways (fully parallel)
-  //
-  // Tests within chromium that need serial ordering use
-  // test.describe.serial / test.describe.configure({ mode: "serial" })
-  // at the spec level. Workers auto-scale; Playwright handles isolation.
   projects: [
-    // ── Phase 1a: Setup Wizard (port 4174 fallback, serial) ──────────────
     {
       name: "wizard",
-      use: { baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4174" },
+      use: { baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173" },
       testMatch: "routes/setup/setup-wizard.spec.ts",
       workers: 1,
     },
-
-    // ── Phase 1b: Signup & OAuth (before auth seeding, serial) ───────────
     {
       name: "firstuser",
       testMatch: ["**/login/signup.spec.ts", "**/login/oauth.spec.ts"],
       workers: 1,
     },
-
-    // ── Phase 1c: Auth Setup (seed users, save state, serial) ────────────
     {
       name: "auth-setup",
       testMatch: [/auth\.setup\.ts/, /routes\/login\/login\.spec\.ts/],
       dependencies: ["firstuser"],
       workers: 1,
     },
-
-    // ── Phase 2: All CMS Routes (parallel, sharded in CI) ────────────────
     {
       name: "chromium",
       testIgnore: [
@@ -132,8 +115,6 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         headless: !!process.env.CI,
-        // Prefer session from auth-setup when present (skips per-test UI login).
-        // Specs that need a clean slate opt out with test.use({ storageState: { cookies: [], origins: [] } }).
         ...(existsSync(join(authDir, "admin.json"))
           ? { storageState: join(authDir, "admin.json") }
           : {}),
@@ -141,48 +122,4 @@ export default defineConfig({
       dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },
   ],
-
-  /* Run preview servers before starting the tests (local dev only; CI starts servers manually) */
-  ...(process.env.CI
-    ? {}
-    : {
-        webServer: [
-          {
-            // READY server — pre-configured DB for login + downstream tests
-            command: "node build/index.js",
-            port: 4173,
-            timeout: 300_000,
-            reuseExistingServer: true,
-            env: {
-              HOST: "127.0.0.1",
-              PORT: "4173",
-              TEST_MODE: "true",
-              STRICT_SETUP_CHECK: "false",
-              DB_TYPE: "sqlite",
-              DB_HOST: "localhost",
-              DB_NAME: "sveltycms_e2e_ready.db",
-              JWT_SECRET_KEY: TEST_JWT_SECRET,
-              ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
-              TEST_API_SECRET: TEST_API_SECRET,
-              GOOGLE_CLIENT_ID: "e2e-test-google-client-id",
-              GITHUB_CLIENT_ID: "e2e-test-github-client-id",
-            },
-          },
-          {
-            // SETUP server — clean slate for setup-wizard tests
-            command: "node build/index.js",
-            port: 4174,
-            timeout: 300_000,
-            reuseExistingServer: true,
-            env: {
-              HOST: "127.0.0.1",
-              PORT: "4174",
-              TEST_MODE: "true",
-              STRICT_SETUP_CHECK: "true",
-              DB_TYPE: "sqlite",
-              TEST_API_SECRET: TEST_API_SECRET,
-            },
-          },
-        ],
-      }),
 });

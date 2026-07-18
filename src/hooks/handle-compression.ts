@@ -16,17 +16,13 @@
  * - Graceful fallback chain: Brotli → Gzip → Deflate → uncompressed
  * - Exported sync compress + negotiate for Turbo fast-path pre-compression (previously
  *   turbo cache hits bypassed all HTTP compression, serving full redundant JSON).
- * - zstd negotiation stub + future-proofing (Phase 3b trained dict `cms-payloads.dict` wired
- *   for Brotli today; zstd when native binding available — adds 10-25% on CMS JSON).
  *
  * Integrated with handle-turbo-get.ts so the lowest-latency path now ships compressed
- * responses when clients advertise support. Directly attacks repeated keys in CMS JSON.
+ * responses when clients advertise support.
  */
 
 import type { Handle } from "@sveltejs/kit";
 import { getRequestFlags } from "@utils/hook-utils";
-import fsp from "node:fs/promises";
-import path from "node:path";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB
 
@@ -48,7 +44,6 @@ const COMPRESSIBLE_TYPES = [
 let zlib: any = null;
 let stream: any = null;
 let isNativeChecked = false;
-let cmsDict: Buffer | null = null;
 
 // 🚀 Eager background init — avoids microtask overhead on first request
 initNativeModules().catch(() => {});
@@ -58,13 +53,6 @@ async function initNativeModules() {
   try {
     zlib = await import("node:zlib");
     stream = await import("node:stream");
-    // Async dictionary load — prevents event loop freeze on first request
-    const dictPath = path.join(process.cwd(), "static", "dictionaries", "cms-payloads.dict");
-    try {
-      cmsDict = await fsp.readFile(dictPath);
-    } catch {
-      cmsDict = null;
-    }
   } catch {
     // Edge/Deno/Workers — fall back to CompressionStream
   } finally {
@@ -74,44 +62,18 @@ async function initNativeModules() {
 
 /**
  * Negotiate the best compression algorithm based on Accept-Encoding.
- * Priority: dcz (delta-zstd with shared dict) → dcb (delta-brotli) → zstd → Brotli → Gzip → Deflate
+ * Priority: zstd → Brotli → Gzip → Deflate
  * Exported for use by turbo fast-path and other layers.
- *
- * Phase 4 — Dictionary Transport (RFC  for Compressed Dictionary):
- * When the client sends Available-Dictionary with our dict hash, we can use
- * dcb/dcz content-encoding for delta compression (90-97% reduction vs gzip).
  */
 export function negotiateEncoding(
   acceptEncoding: string,
   hasZlib: boolean,
-): "dcb" | "dcz" | "br" | "gzip" | "deflate" | "zstd" | null {
-  // Phase 4: Delta compression with shared dictionary (browser-cached).
-  // dcz = delta-zstd, dcb = delta-brotli. Browser decodes with cached dict.
-  if (acceptEncoding.includes("dcz")) return "dcz";
-  if (acceptEncoding.includes("dcb") && hasZlib) return "dcb";
-  // zstd (preferred for speed/ratio on repetitive JSON when available)
+): "br" | "gzip" | "deflate" | "zstd" | null {
   if (acceptEncoding.includes("zstd")) return "zstd";
-  // Brotli is only available via zlib (CompressionStream doesn't support it)
   if (hasZlib && acceptEncoding.includes("br")) return "br";
   if (acceptEncoding.includes("gzip")) return "gzip";
   if (acceptEncoding.includes("deflate")) return "deflate";
   return null;
-}
-
-// Phase 4: Dictionary Transport — advertise the CMS dict to browsers.
-// Browsers that support Compression Dictionary Transport (Chrome/Edge 2024+)
-// will cache the dict and request delta-compressed payloads on subsequent visits.
-const DICT_PATH = "/dictionaries/cms-payloads.dict";
-
-/** Check if client has the CMS dictionary cached (via Available-Dictionary header). */
-export function hasAvailableDictionary(request: Request): boolean {
-  const available = request.headers.get("Available-Dictionary");
-  return available !== null && available.includes(DICT_PATH);
-}
-
-/** Advertise the CMS dictionary for delta compression on subsequent requests. */
-export function advertiseDictionary(headers: Headers): void {
-  headers.set("Use-As-Dictionary", DICT_PATH);
 }
 
 /**
@@ -129,19 +91,11 @@ function compressWithZlib(
     | import("node:zlib").Deflate;
 
   if (algorithm === "br") {
-    const dict = cmsDict;
-    const brOpts: any = {
-      params: {
-        [zlib!.constants.BROTLI_PARAM_QUALITY]: 4, // Fast mode (0-11 scale, 4 is speed-optimized)
-      },
-    };
-    const dictParam = zlib!.constants && zlib!.constants.BROTLI_PARAM_DICTIONARY;
-    if (dict && dictParam !== undefined) {
-      brOpts.params[dictParam] = dict;
-    }
-    zlibTransform = zlib!.createBrotliCompress(brOpts);
+    zlibTransform = zlib!.createBrotliCompress({
+      params: { [zlib!.constants.BROTLI_PARAM_QUALITY]: 4 },
+    });
   } else if (algorithm === "gzip") {
-    zlibTransform = zlib!.createGzip({ level: 6 }); // Default balanced level
+    zlibTransform = zlib!.createGzip({ level: 6 });
   } else {
     zlibTransform = zlib!.createDeflate({ level: 6 });
   }
@@ -168,44 +122,24 @@ function compressWithWebStreams(
  * Sync compression for hot cached payloads (e.g. Turbo GET hits).
  * Uses native zlib sync APIs (very fast for <1MB JSON). Zero stream overhead.
  * Falls back to null (serve raw) if native not ready — preserves latency budget.
- * Supports Brotli (with Phase 3b CMS trained dictionary for +10-25% ratio), gzip, deflate.
- * zstd hook prepared for when native binding available (dict ready to pass).
- *
- * This directly implements entropy reduction on the hottest path (previously
- * turbo HITs bypassed compression entirely).
  */
 export function compressSync(
   data: string | Uint8Array | Buffer,
   algorithm: "br" | "gzip" | "deflate" | "zstd",
 ): Uint8Array | null {
   if (!zlib) return null;
-  if (algorithm === "zstd") {
-    // zstd sync not yet in core node:zlib in all supported runtimes.
-    // When available: return zlib.zstdCompressSync(...) or use @mongodb-js/zstd etc.
-    // For now fall through to best available (caller can fallback).
-    return null;
-  }
   const input = Buffer.isBuffer(data) ? data : Buffer.from(data as any);
   try {
     if (algorithm === "br") {
-      const dict = cmsDict;
-      const brOpts: any = {
-        params: {
-          [zlib.constants.BROTLI_PARAM_QUALITY]: 4, // speed-optimized like streaming path
-        },
-      };
-      const dictParam = zlib.constants && zlib.constants.BROTLI_PARAM_DICTIONARY;
-      if (dict && dictParam !== undefined) {
-        brOpts.params[dictParam] = dict;
-      }
-      return zlib.brotliCompressSync(input, brOpts);
+      return zlib.brotliCompressSync(input, {
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 },
+      });
     } else if (algorithm === "gzip") {
       return zlib.gzipSync(input, { level: 6 });
     } else {
       return zlib.deflateSync(input, { level: 6 });
     }
   } catch {
-    // Never throw in hot path — degrade gracefully to uncompressed
     return null;
   }
 }
@@ -215,40 +149,16 @@ export function hasNativeCompression(): boolean {
   return zlib !== null && stream !== null;
 }
 
-// Phase 3b zstd native wiring (optional binding for full speed + dict on zstd path).
-// Uses dynamic import so no hard dependency — users can `bun add @mongodb-js/zstd` (or equivalent)
-// for zstd support with the trained CMS dict for extra ratio on repetitive payloads.
-// This makes responses smaller/faster for clients that advertise zstd (modern browsers, HTTP/2+ clients, curl, etc.).
-let zstdMod: any = null;
-
-async function ensureZstd() {
-  if (zstdMod !== null) return zstdMod;
-  try {
-    // @ts-expect-error - optional peer dep, installed only when user wants full zstd + dict support
-    zstdMod = await import("@mongodb-js/zstd");
-  } catch {
-    zstdMod = false; // not installed / unavailable — graceful, zstd will fall back
-  }
-  return zstdMod;
-}
-
 /**
- * Async zstd compress using the trained dict when available.
- * Exported for use in background pre-compress paths (api cache MISS) and main handler.
+ * Async zstd compress. Optional @mongodb-js/zstd binding required.
  */
 export async function compressZstd(data: string | Uint8Array | Buffer): Promise<Uint8Array | null> {
-  const mod = await ensureZstd();
-  if (!mod || mod === false) return null;
   try {
+    const mod = await import("@mongodb-js/zstd");
     const input = Buffer.isBuffer(data)
       ? new Uint8Array(data)
       : new Uint8Array(Buffer.from(data as any));
-    const dict = cmsDict;
-    const opts: any = {};
-    if (dict) {
-      opts.dictionary = dict;
-    }
-    const compressed = await mod.compress(input, opts);
+    const compressed = await mod.compress(input, {});
     return Buffer.from(compressed);
   } catch {
     return null;
@@ -284,15 +194,10 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   // 🚀 FAST-PATH: Skip compression for static assets and internal requests
   if (flags.isStatic) return resolve(event);
 
-  // 🧪 TEST / BENCHMARK BYPASS: E2E, integration black-box, and benchmark runs must see
-  // uncompressed, header-stable responses identical to pre-Phase-4 behavior. This preserves
-  // the stability achieved in the last-known-good commit (757e928) for the DB matrix + E2E.
-  // isTestMode is populated by turbo-pipeline from x-test-mode header (Playwright) or TEST_MODE env.
   if (flags.isTestMode || (event.locals as any).__testBypass) return resolve(event);
 
   // Ensure native modules are loaded if available
-  await initNativeModules();
-
+  // initNativeModules runs eagerly at module scope — no need to await here
   const response = await resolve(event);
 
   if (
@@ -325,11 +230,7 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
     return response;
   }
 
-  // Special case zstd: already handled via pre-compression on cache MISS
-  // (handle-api-requests.ts, async-safe) + turbo pre-compressed serve
-  // (handle-turbo-get.ts, sync-safe). The streaming handler below uses
-  // br/gzip/deflate only — zstd body-buffering would conflict with
-  // SvelteKit's response body streaming and cause "body is locked" errors.
+  // zstd isn't supported via streaming — fall back to br/gzip/deflate
   if (algorithm === "zstd") {
     algorithm =
       hasZlib && acceptEncoding.includes("br")
@@ -346,13 +247,10 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
     let compressedStream: ReadableStream<Uint8Array>;
 
     if (hasZlib) {
-      // Tier 1: Native zlib (Node/Bun) — faster + supports Brotli (with dict)
       compressedStream = compressWithZlib(response.body, algorithm as "br" | "gzip" | "deflate");
     } else if (algorithm !== "br") {
-      // Tier 2: Web Streams (Edge/Workers) — no Brotli support
       compressedStream = compressWithWebStreams(response.body, algorithm as "gzip" | "deflate");
     } else {
-      // Brotli requested but no zlib available: fall back to gzip
       const fallback = acceptEncoding.includes("gzip") ? "gzip" : "deflate";
       compressedStream = compressWithWebStreams(response.body, fallback);
     }
@@ -362,19 +260,9 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
     headers.set("Content-Encoding", algorithm);
     headers.set("Vary", "Accept-Encoding");
 
-    // 📏 Make Smart Entropy Compression / wire gains observable
     const origLen = response.headers.get("content-length");
     if (origLen) headers.set("X-Original-Size", origLen);
     headers.set("X-Compression-Algorithm", algorithm);
-    // Don't duplicate the Content-Length / ratio calc comment here
-
-    // Phase 4: Advertise CMS dictionary for delta compression on next request.
-    // Browsers that support Dictionary Transport cache the dict and request
-    // delta-compressed (dcb/dcz) payloads on subsequent visits — 90-97% smaller.
-    advertiseDictionary(headers);
-    // Note: exact compressed bytes are visible via the response's final Content-Length
-    // (or via client-side measurement of transferred bytes). For precise ratio in
-    // benchmarks we also export via the harness when headers are present.
 
     return new Response(compressedStream, {
       headers,

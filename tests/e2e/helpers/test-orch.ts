@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 function getBaseUrl(): string {
-  return process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173";
+  return process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173";
 }
 
 function getSecret(): string {

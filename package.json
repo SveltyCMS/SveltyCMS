@@ -90,7 +90,8 @@
     "test:smart": "bun run scripts/test-smart.ts",
     "test:integration": "bun run scripts/run-integration-tests.ts",
     "test:e2e": "concurrently -k -s last \"$npm_execpath run dev\" \"$npm_execpath run test:e2e:run\"",
-    "test:e2e:run": "wait-on http://127.0.0.1:4173 && bun x playwright test",
+    "test:e2e:run": "wait-on http://127.0.0.1:5173 && PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:5173 bun x playwright test",
+    "build:e2e": "COMPILE_ALL_ADAPTERS=true vite build",
     "test:all": "bun run test:unit && bun run test:integration && bun run test:e2e",
     "-- ANALYSIS -------------------------------------------": "",
     "slop": "bun run scripts/slop-scanner.ts",
@@ -120,7 +121,7 @@
     "upgrade": "npx tsx scripts/upgrade.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1089.0",
+    "@aws-sdk/client-s3": "^3.1090.0",
     "@better-svelte-email/components": "^2.1.1",
     "@better-svelte-email/preview": "^2.1.1",
     "@better-svelte-email/server": "^2.1.1",
@@ -131,7 +132,7 @@
     "@node-saml/node-saml": "^5.1.0",
     "@opentelemetry/api": "^1.9.1",
     "@smithy/node-http-handler": "^4.9.7",
-    "@sveltejs/kit": "^2.69.3",
+    "@sveltejs/kit": "^2.70.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",

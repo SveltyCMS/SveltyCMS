@@ -1,0 +1,52 @@
+perf: reduce bundle size 64%, fix E2E test infra, remove dead code
+
+## Bundle Size: 20.44 MB -> 7.29 MB (-64.3%)
+
+- **jsdom shim**: Shimmed jsdom in client builds (76-byte stub vs 5.5 MB).
+  Only used server-side in sanitize.svelte (!browser guard) but Vite bundled
+  it as a dynamic import for the client. Added to browserShimsPlugin.
+
+- **Shiki languages slim**: Added shikiLangSlimPlugin that intercepts
+  @shikijs/langs/* dynamic imports. Only 15 common languages pass through
+  (html, css, js, ts, jsx, tsx, json, md, yaml, xml, bash, diff, sql,
+  svelte, vue). Remaining 332 languages get ~370-byte stubs. Knocked 279
+  chunks out of the build.
+
+## Runtime Performance
+
+- **wrapHandle microtask removal**: Changed async wrapper to direct return
+  in hooks.server.ts. Saves one microtask per handler x 18 handlers per
+  request.
+
+- **initNativeModules await removal**: handle-compression.ts no longer
+  awaits initNativeModules on every request. Module-scope eager init
+  already handles it.
+
+- **Dictionary loading removed**: The trained zstd/Brotli dictionary was
+  loaded into memory on every startup but NEVER applied. Node.js/Bun zlib
+  doesn't expose BROTLI_PARAM_DICTIONARY. Benchmark confirmed -0.26%
+  average compression improvement (made things worse).
+
+## Dead Code Removed
+
+- scripts/build-zstd-dict.ts: produced unused dictionary (benchmark-
+  proven 0% improvement at Brotli-4)
+- scripts/build-packages.ts: packages/ directory never existed
+- static/dictionaries/: 110 KB unused artifact
+- tests/platform-shims.ts: superseded by Vitest jsdom
+- Updated docs (scaling-layers.mdx, technical-evaluation.mdx) to
+  remove dictionary references
+
+## E2E Test Infrastructure Fix
+
+Root cause: testBackdoorStripperPlugin strips /api/testing handler
+during production build. Playwright webServer started node build/
+index.js - a build without the testing handler. Every test that
+needed to authenticate via /api/testing got a 404.
+
+- Changed default Playwright baseURL from :4173 to :5173 (Vite dev
+  server, which includes the testing handler)
+- Removed webServer blocks from playwright.config.ts (conflicted with
+  concurrently-managed dev server)
+- Added build:e2e script: COMPILE_ALL_ADAPTERS=true vite build
+- Updated test-orch.ts default URL to match

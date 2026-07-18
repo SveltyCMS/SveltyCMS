@@ -299,6 +299,48 @@ function databaseAdapterStripperPlugin(): Plugin {
   };
 }
 
+/** Common languages subset for shiki — stubs out the other ~330 languages */
+const SHIKI_COMMON_LANGS = new Set([
+  "html",
+  "css",
+  "javascript",
+  "typescript",
+  "jsx",
+  "tsx",
+  "json",
+  "markdown",
+  "yaml",
+  "xml",
+  "bash",
+  "diff",
+  "sql",
+  "svelte",
+  "vue",
+]);
+
+function shikiLangSlimPlugin(): Plugin {
+  return {
+    name: "shiki-lang-slim",
+    enforce: "pre",
+    resolveId(id, _importer, options) {
+      // Server needs all languages for SSR; client only needs common subset
+      if (options?.ssr) return null;
+      const m = id.match(/^@shikijs\/langs\/([a-z][a-z0-9-]*)$/i);
+      if (!m) return null;
+      if (SHIKI_COMMON_LANGS.has(m[1].toLowerCase())) return null;
+      return `\0virtual:shiki-stub:${m[1]}`;
+    },
+    load(id) {
+      if (!id.startsWith("\0virtual:shiki-stub:")) return null;
+      const name = id.split(":").pop();
+      return {
+        code: `const lang=Object.freeze({displayName:"${name}",name:"${name}",scopeName:"source.${name}",patterns:[]});export default lang;`,
+        map: null,
+      };
+    },
+  };
+}
+
 /** Shims Node.js APIs for browser */
 function browserShimsPlugin(): Plugin {
   return {
@@ -309,6 +351,9 @@ function browserShimsPlugin(): Plugin {
       if (options?.ssr) return null;
       if (id === "node:path" || id === "path") return "\0virtual:browser-shim:path";
       if (id === "node:os" || id === "os") return "\0virtual:browser-shim:os";
+      // jsdom is only used server-side in sanitize.svelte (!browser branch).
+      // Shimming it prevents the 5.5 MB chunk from appearing in client builds.
+      if (id === "jsdom") return "\0virtual:browser-shim:jsdom";
       return null;
     },
     load(id) {
@@ -320,6 +365,13 @@ function browserShimsPlugin(): Plugin {
       if (id === "\0virtual:browser-shim:os")
         return {
           code: `const platform=()=>"browser";const cpus=()=>[];const totalmem=()=>0;const freemem=()=>0;export{platform,cpus,totalmem,freemem};export default{platform,cpus,totalmem,freemem};`,
+          map: null,
+        };
+      if (id === "\0virtual:browser-shim:jsdom")
+        return {
+          // Client-side stub — real jsdom is never used on client.
+          // The only consumer (sanitize.svelte) guards this behind `!browser`.
+          code: `// @ts-nocheck\nexport class JSDOM { constructor() { this.window = {}; } }\nexport { JSDOM as default };`,
           map: null,
         };
       return null;
@@ -562,6 +614,7 @@ export default defineConfig(() => ({
     privateConfigFallbackPlugin(),
     stubServerModulesPlugin(),
     browserShimsPlugin(),
+    shikiLangSlimPlugin(),
     sveltekit({
       preprocess: [vitePreprocess()],
       compilerOptions: { runes: true },

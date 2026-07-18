@@ -435,7 +435,14 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
             fileName: sourcePath,
           });
 
-          await fs.writeFile(targetPath, compilation.outputText);
+          // Strip whitespace from compiled JS — machine-read, not human-read
+          const minified = compilation.outputText
+            .replace(/\/\*[\s\S]*?\*\//g, "") // block comments
+            .replace(/\/\/[^\n]*/g, "") // line comments
+            .replace(/^\s+|\s+$/gm, "") // leading/trailing whitespace per line
+            .replace(/\n{2,}/g, "\n") // blank lines
+            .replace(/[ \t]+/g, " "); // multiple spaces to one
+          await fs.writeFile(targetPath, minified);
 
           manifest.set(targetPath, {
             sourcePath: relativePath,
