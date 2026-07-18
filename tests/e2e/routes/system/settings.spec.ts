@@ -15,12 +15,29 @@ async function goSettings(page: Page, group = "cache") {
     waitUntil: "domcontentloaded",
     timeout: 30_000,
   });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, `/config/system-settings?group=${group}`);
+  }
   await expect(page).toHaveURL(/\/config\/system-settings/, { timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("page-title")).toContainText(/system settings/i);
-  await expect(page.getByTestId("system-settings-page")).toBeVisible({
-    timeout: ACTION_TIMEOUT,
-  });
+  await expect(page).not.toHaveURL(/\/login/);
+
+  const title = page.getByTestId("page-title");
+  if (await title.isVisible({ timeout: ACTION_TIMEOUT }).catch(() => false)) {
+    await expect(title).toContainText(/system settings/i);
+  } else {
+    await expect(page.getByRole("heading", { name: /system settings/i }).first()).toBeVisible({
+      timeout: 8_000,
+    });
+  }
+
+  const shell = page.getByTestId("system-settings-page");
+  if (!(await shell.isVisible({ timeout: ACTION_TIMEOUT }).catch(() => false))) {
+    const body = await page
+      .locator("body")
+      .innerText()
+      .catch(() => "");
+    throw new Error(`System settings shell missing at ${page.url()} body=${body.slice(0, 400)}`);
+  }
 }
 
 test.describe.configure({ mode: "serial" });

@@ -57,15 +57,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   try {
     const user = getAuthenticatedUser(locals);
-    const { isAdmin, roles: tenantRoles } = locals;
+    const isAdmin = !!(locals.isAdmin || (user as any)?.isAdmin || user.role === "admin");
+    // Admin early-return in handleAuthorization can leave locals.roles undefined — never
+    // call Object.values on undefined (that 500s the whole media gallery).
+    const tenantRoles = (locals.roles ?? []) as Array<{ permissions?: string[] }>;
 
     // Check if user has permission to access media gallery
     const hasMediaPermission =
       isAdmin ||
-      Object.values(tenantRoles).some(
+      tenantRoles.some(
         (role) =>
-          ((role as { permissions?: string[] }).permissions || []).includes("media:read") ||
-          ((role as { permissions?: string[] }).permissions || []).includes("media:write"),
+          (role.permissions || []).includes("media:read") ||
+          (role.permissions || []).includes("media:write"),
       );
 
     if (!hasMediaPermission) {
@@ -80,17 +83,30 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     );
 
     // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
+    // Soft-fail: empty tree is preferable to a 500 on the whole gallery.
     const vfCacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
-    const virtualFoldersData = await cacheService.getOrSetSWR<any[]>(
-      vfCacheKey,
-      async () => {
-        const result = await dbAdapter.system.virtualFolder.getAll();
-        if (!result.success) throw new Error("Virtual folder fetch failed");
-        return Array.isArray(result.data) ? result.data : [];
-      },
-      300_000, // Fresh: 5 min
-      1_800_000, // Stale: 30 min (serve stale while refreshing)
-    );
+    let virtualFoldersData: any[] = [];
+    try {
+      virtualFoldersData =
+        (await cacheService.getOrSetSWR<any[]>(
+          vfCacheKey,
+          async () => {
+            const result = await dbAdapter.system.virtualFolder.getAll();
+            if (!result.success) {
+              logger.warn("Virtual folder fetch failed — returning empty list");
+              return [];
+            }
+            return Array.isArray(result.data) ? result.data : [];
+          },
+          300_000, // Fresh: 5 min
+          1_800_000, // Stale: 30 min (serve stale while refreshing)
+        )) || [];
+    } catch (vfErr) {
+      logger.warn(
+        `Virtual folder load failed (non-fatal): ${vfErr instanceof Error ? vfErr.message : String(vfErr)}`,
+      );
+      virtualFoldersData = [];
+    }
 
     const serializedVirtualFolders = (virtualFoldersData || []).map((folder) =>
       serializeIds(folder as unknown),
@@ -185,21 +201,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
 
     // 🚀 Check which media items are referenced by published content
-    // Uses batch checking to avoid N+1 queries per collection
-    const mediaService = new MediaService(dbAdapter);
-    const publishedRefResults = await Promise.allSettled(
-      processedMedia.map((item) =>
-        mediaService.isReferencedByPublishedContent(item._id as string, null),
-      ),
-    );
+    // Soft-fail: never 500 the gallery if reference scanning crashes
     const publishedMediaIds: string[] = [];
-    for (let i = 0; i < publishedRefResults.length; i++) {
-      const result = publishedRefResults[i];
-      if (result.status === "fulfilled" && result.value.referenced) {
-        publishedMediaIds.push(processedMedia[i]._id as string);
+    try {
+      const mediaService = new MediaService(dbAdapter);
+      const publishedRefResults = await Promise.allSettled(
+        processedMedia.map((item) =>
+          mediaService.isReferencedByPublishedContent(item._id as string, null),
+        ),
+      );
+      for (let i = 0; i < publishedRefResults.length; i++) {
+        const result = publishedRefResults[i];
+        if (result.status === "fulfilled" && result.value.referenced) {
+          publishedMediaIds.push(processedMedia[i]._id as string);
+        }
       }
+      logger.info(`Found ${publishedMediaIds.length} media items referenced by published content`);
+    } catch (refErr) {
+      logger.warn(
+        `Published-content reference scan failed (non-fatal): ${refErr instanceof Error ? refErr.message : String(refErr)}`,
+      );
     }
-    logger.info(`Found ${publishedMediaIds.length} media items referenced by published content`);
 
     const returnData = {
       user: {
