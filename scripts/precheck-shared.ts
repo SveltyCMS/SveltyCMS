@@ -413,7 +413,7 @@ const BASE_TASKS: TaskSpec[] = [
           ? [
               "run",
               "scripts/test-smart.ts",
-              "--unit-only",
+              "--unit+sqlite",
               "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
             ]
           : ["run", "test:unit"],
