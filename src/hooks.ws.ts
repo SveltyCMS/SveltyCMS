@@ -133,7 +133,8 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     const tenantIdHeader = getHeader(ctx, "x-tenant-id");
 
     // Cookie name handling (secure prefix)
-    const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
+    const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     // Extract session ID

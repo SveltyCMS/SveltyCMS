@@ -448,8 +448,9 @@ export async function handleTestingRoutes(
           const loginResult = await cms.auth.login({ email, password }, { tenantId });
           if (loginResult.success && loginResult.data?.session?._id) {
             sessionId = loginResult.data.session._id;
-            const { getSessionCookieName } = await import("@src/databases/auth/constants");
-            const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+            const { getSessionCookieName, isSecureCookieContext } =
+              await import("@src/databases/auth/constants");
+            const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
             const cookieName = getSessionCookieName(isSecure);
             event.cookies.set(cookieName, sessionId, {
               path: "/",
@@ -493,8 +494,9 @@ export async function handleTestingRoutes(
       const { user, session } = loginResult.data;
 
       // Set cookie on event.cookies
-      const { getSessionCookieName } = await import("@src/databases/auth/constants");
-      const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+      const { getSessionCookieName, isSecureCookieContext } =
+        await import("@src/databases/auth/constants");
+      const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
       event.cookies.set(cookieName, session._id, {
         path: "/",

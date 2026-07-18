@@ -233,7 +233,8 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
 
   // Set secure session cookie
   const session = authResult.data.session;
-  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && !dev);
+  const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
   event.cookies.set(cookieName, session._id as string, {

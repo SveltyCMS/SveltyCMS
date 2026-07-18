@@ -24,7 +24,11 @@
 import type { ISODateString } from "@databases/db-interface";
 import { BloomFilter } from "@utils/bloom-filter";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
-import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
+import {
+  SESSION_COOKIE_NAME,
+  getSessionCookieName,
+  isSecureCookieContext,
+} from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import {
@@ -344,8 +348,7 @@ async function handleSessionRotation(
     if (newSession && newSession._id !== oldSessionId) {
       const newSessionId = newSession._id;
       const isProd = !dev && process.env.TEST_MODE !== "true";
-      const isSecure =
-        event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+      const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
 
       event.cookies.set(cookieName, newSessionId, {
@@ -456,7 +459,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   // ── Compute cookie config once (used by turbo check + normal flow) ─────
   const isProd = !dev && process.env.TEST_MODE !== "true";
-  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = getSessionCookieName(isSecure);
 
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any

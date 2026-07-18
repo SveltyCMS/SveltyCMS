@@ -30,10 +30,10 @@ import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
 
 function isSecureConnection(event: RequestEvent): boolean {
-  const isProd = process.env.NODE_ENV !== "development" && process.env.TEST_MODE !== "true";
-  return event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+  return isSecureCookieContext(event.url.protocol, event.url.hostname);
 }
 
 const limiter = new RateLimiter({
