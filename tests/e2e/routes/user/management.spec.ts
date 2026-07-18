@@ -193,9 +193,10 @@ test.describe.serial("User Management Flow", () => {
   });
 
   test("Admin Login", async ({ page }) => {
-    await loginAsAdmin(page);
-    // Verify login succeeded — should not be on /login
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+    // Force landing on a protected route so public "/" cannot false-positive
+    await loginAsAdmin(page, "/user");
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/login/);
     // Accept any admin page content as success (dashboard, collections, etc.)
     await expect(page.locator("body")).not.toHaveText(/sign in/i, { timeout: 5_000 });
   });

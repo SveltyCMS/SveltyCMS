@@ -14,6 +14,9 @@ const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 async function openMediaGallery(page: import("@playwright/test").Page) {
   await loginAsAdmin(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/mediagallery");
+  }
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 

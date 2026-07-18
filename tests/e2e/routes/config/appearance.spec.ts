@@ -12,6 +12,9 @@ import { loginAsAdmin } from "../../helpers/auth";
 async function openAppearancePage(page: Page): Promise<void> {
   await loginAsAdmin(page);
   await page.goto("/config/appearance", { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/config/appearance");
+  }
   await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 

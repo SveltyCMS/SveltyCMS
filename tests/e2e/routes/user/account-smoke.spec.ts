@@ -11,7 +11,11 @@ test.describe("Account Smoke", () => {
     await loginAsAdmin(page);
 
     await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/user");
+    }
     await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/login/);
 
     // Fail fast with a clear signal if the root error boundary fired
     const systemError = page.getByRole("heading", { name: /system error/i });

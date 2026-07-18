@@ -10,9 +10,12 @@ test.describe("User Management — Invite Flow", () => {
   test.setTimeout(120_000);
 
   test("invite user via email token and accept signup", async ({ page, browser }) => {
-    await loginAsAdmin(page);
-    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await loginAsAdmin(page, "/user");
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/user");
+    }
     await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/login/);
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
 
     // Admin area is below the profile cards — wait for it before interacting

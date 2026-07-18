@@ -66,28 +66,37 @@ export async function applySessionCookie(
     if (pairs.length === 0) {
       pairs = parseSetCookieHeader(response.headers()["set-cookie"] ?? "");
     }
+    // Playwright often strips Set-Cookie from headers — use x-test-session-id
+    if (pairs.length === 0) {
+      const sid = response.headers()["x-test-session-id"] || "";
+      if (sid) pairs = [{ name: "auth_sessions", value: sid }];
+    }
     // Prefer session cookies only
     const sessionPairs = pairs.filter((p) => SESSION_COOKIE_RE.test(p.name));
     const toApply = sessionPairs.length > 0 ? sessionPairs : pairs.slice(0, 1);
     if (toApply.length === 0) return false;
 
     let host = hostname;
+    let port = "";
     try {
-      const u = response.url();
-      if (u) host = new URL(u).hostname || host;
+      const u = new URL(response.url());
+      if (u.hostname) host = u.hostname;
+      if (u.port) port = u.port;
     } catch {
       /* keep */
     }
     if (!host) host = "127.0.0.1";
+    // Include port so cookie binds to :4173 (not default :80)
+    const hostWithPort = port ? `${host}:${port}` : host;
 
     let anyOk = false;
-    for (const { name, value } of toApply) {
-      const isHost = name.startsWith("__Host-");
-      const isSecurePrefixed = isHost || name.startsWith("__Secure-");
-      // Host/Secure prefixes REQUIRE secure:true — otherwise CDP throws
-      // "Invalid cookie fields"
-      const secure = isSecurePrefixed;
-      const url = `${secure ? "https" : "http"}://${host}`;
+    for (const { name: rawName, value } of toApply) {
+      // Force plain cookie over HTTP — browsers drop Secure/__Host- on http://127.0.0.1
+      const name =
+        rawName.startsWith("__Host-") || rawName.startsWith("__Secure-")
+          ? "auth_sessions"
+          : rawName;
+      const url = `http://${hostWithPort}`;
 
       try {
         await page.context().addCookies([
@@ -97,13 +106,11 @@ export async function applySessionCookie(
             url,
             httpOnly: true,
             sameSite: "Lax",
-            secure,
+            secure: false,
           },
         ]);
         anyOk = true;
       } catch {
-        // __Host- forbids Domain attribute — only try domain form for plain cookies
-        if (isHost) continue;
         try {
           await page.context().addCookies([
             {
@@ -113,7 +120,7 @@ export async function applySessionCookie(
               path: "/",
               httpOnly: true,
               sameSite: "Lax",
-              secure,
+              secure: false,
             },
           ]);
           anyOk = true;
@@ -146,11 +153,12 @@ export async function injectModalBypass(page: Page): Promise<void> {
 
 async function sessionLooksValid(page: Page): Promise<boolean> {
   try {
-    const res = await page.request.get("/api/user", {
+    // Prefer /api/user/me (current user) — /api/user is a list endpoint.
+    const res = await page.request.get("/api/user/me", {
       headers: { Accept: "application/json" },
     });
     if (res.status() === 401 || res.status() === 403) return false;
-    return res.status() >= 200 && res.status() < 500;
+    return res.ok();
   } catch {
     return false;
   }
@@ -225,10 +233,11 @@ export async function ensureAuthenticated(page: Page): Promise<void> {
 
   if (await sessionLooksValid(page)) return;
 
-  // Navigation probe — some cookies only stick after a document request
+  // Navigation probe on a protected route — "/" is public and never redirects
+  // to /login when unauthenticated, so it is not a valid session signal.
   try {
-    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 15_000 });
-    if (!page.url().includes("/login")) return;
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 15_000 });
+    if (!page.url().includes("/login") && !page.url().includes("/setup")) return;
     if (await sessionLooksValid(page)) return;
   } catch {
     /* ignore */

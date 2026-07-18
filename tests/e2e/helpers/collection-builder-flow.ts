@@ -136,7 +136,19 @@ async function selectInputFromAddFieldDialog(page: Page): Promise<void> {
 }
 
 export async function openNewCollectionEditor(page: Page): Promise<void> {
+  // Ensure authenticated before hitting the builder (storageState can be stale)
+  try {
+    const { loginAsAdmin } = await import("./auth");
+    await loginAsAdmin(page);
+  } catch {
+    /* continue — ensureAuthenticated may already have run in beforeEach */
+  }
+
   await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/login")) {
+    const { loginAsAdmin } = await import("./auth");
+    await loginAsAdmin(page, "/config/collectionbuilder");
+  }
   await dismissOpenDialogs(page);
 
   // If builder shell never mounts (SSR error), surface URL + body for CI logs
@@ -152,8 +164,7 @@ export async function openNewCollectionEditor(page: Page): Promise<void> {
     // One recovery: re-login via testing API then retry once
     try {
       const { loginAsAdmin } = await import("./auth");
-      await loginAsAdmin(page);
-      await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+      await loginAsAdmin(page, "/config/collectionbuilder");
       await dismissOpenDialogs(page);
     } catch {
       /* ignore */
@@ -165,7 +176,10 @@ export async function openNewCollectionEditor(page: Page): Promise<void> {
       .locator("body")
       .innerText()
       .catch(() => "");
-    throw new Error(`collectionbuilder shell missing at ${page.url()} body=${body.slice(0, 500)}`);
+    const html = await page.content().catch(() => "");
+    throw new Error(
+      `collectionbuilder shell missing at ${page.url()} body=${body.slice(0, 400)} html=${html.slice(0, 300)}`,
+    );
   }
 
   await stableClick(addBtn, 20_000);
