@@ -31,17 +31,25 @@ function run(cmd: string, args: string[], env: Record<string, string> = {}): num
   return result.status ?? 1;
 }
 
+/**
+ * Deploy probe must not clobber a developer's config/private.ts.
+ * Local: leave private.ts alone (vite virtual fallback / existing live file).
+ * Never write config/private.ts from this script — see private-config-policy.ts.
+ */
 function ensureProbeConfig(): void {
   const configDir = join(ROOT, "config");
-  const privatePath = join(configDir, "private.ts");
-  if (existsSync(privatePath)) return;
-
   mkdirSync(configDir, { recursive: true });
   mkdirSync(join(configDir, "database"), { recursive: true });
 
+  const privateTestPath = join(configDir, "private.test.ts");
+  if (existsSync(privateTestPath)) return;
+
   writeFileSync(
-    privatePath,
-    `export const privateEnv = {
+    privateTestPath,
+    `/**
+ * Probe-only test config — does not replace config/private.ts
+ */
+export const privateEnv = {
   DB_TYPE: "sqlite",
   DB_HOST: "127.0.0.1",
   DB_PORT: "",

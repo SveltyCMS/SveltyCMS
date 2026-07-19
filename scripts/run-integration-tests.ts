@@ -21,6 +21,7 @@ import { isAbsolute, join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getDockerDefaultDbCredentials } from "../src/utils/test-db-credentials.ts";
 import { isConfigSourceSafeForTesting, isIsolatedTestDbName } from "../src/utils/test-db-safety.ts";
+import { isCiRunner } from "../src/utils/private-config-policy.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -538,7 +539,9 @@ function ensurePrivateTestConfig() {
   const configDir = join(ROOT, "config");
   const privateTestPath = join(configDir, "private.test.ts");
   const privatePath = join(configDir, "private.ts");
-  const isCI = process.env.CI === "true";
+  // Only GitHub CI may mirror into private.ts (ephemeral, never pushed).
+  // Local precheck / integration / e2e: private.test.ts ONLY.
+  const isCI = isCiRunner();
 
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true });
@@ -547,15 +550,13 @@ function ensurePrivateTestConfig() {
   if (isCI) {
     generatePrivateTestConfig(privateTestPath);
     copyFileSync(privateTestPath, privatePath);
-    console.log("✅ Mirrored config/private.test.ts to config/private.ts for CI build");
+    console.log("✅ [CI] Mirrored config/private.test.ts → config/private.ts (ephemeral)");
     console.log(`✅ Test config verified: ${privateTestPath}`);
     return;
   }
 
-  // SAFETY: config/private.ts may point at a real deployment with live user data.
-  // It must NEVER be used to seed the test config, even locally, even if
-  // private.test.ts doesn't exist yet. Always (re)generate a fresh, isolated test
-  // config instead of copying from private.ts.
+  // LOCAL: never create, overwrite, rename, or delete config/private.ts.
+  // SAFETY: private.ts may point at a real deployment — do not seed from it.
   if (existsSync(privateTestPath)) {
     const { dbName, safe } = isConfigSourceSafeForTesting(readFileSync(privateTestPath, "utf8"));
     if (!safe) {
@@ -575,7 +576,7 @@ function ensurePrivateTestConfig() {
     throw new Error(`System setup did not create required test config: ${privateTestPath}`);
   }
 
-  console.log(`✅ Test config verified: ${privateTestPath}`);
+  console.log(`✅ LOCAL test config: ${privateTestPath} (config/private.ts left untouched)`);
 }
 
 async function testingAction(action: "reset" | "seed", preset?: string): Promise<void> {

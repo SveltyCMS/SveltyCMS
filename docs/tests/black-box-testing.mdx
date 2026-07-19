@@ -192,7 +192,7 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 ---
 
 > [!IMPORTANT]
-> **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the local source of truth. Local integration and E2E runs must never rename, copy from, delete, or otherwise mutate the user's `config/private.ts`. CI may create an ephemeral `config/private.ts` only on fresh runners for build parity, and that file must be a mirror of the isolated test config.
+> **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the **only** local source of truth for precheck, integration, and local E2E. Local runs must never create, overwrite, rename, copy into, or delete the developer's `config/private.ts` (see `src/utils/private-config-policy.ts`). CI (`ci.yml`) may write an ephemeral `config/private.ts` on the runner as a mirror of the test config — that file is never committed or pushed.
 >
 > The safety check runs automatically in **pre-commit** and **pre-push** hooks via `scripts/check-test-db-safety.ts`. It blocks any `config/private.test.ts` with a non-isolated `DB_NAME`. Run it manually with `bun run scripts/check-test-db-safety.ts`.
 >

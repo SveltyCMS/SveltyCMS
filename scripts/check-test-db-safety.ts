@@ -2,17 +2,18 @@
 /**
  * @file scripts/check-test-db-safety.ts
  * @description
- * Standalone, dependency-free (<50ms) safety check reused by both pre-commit
- * and pre-push. Catches unsafe config/private.test.ts files before any other
- * checks run — prevents the class of bug where a real (possibly production)
- * config/private.ts was copied as the test config.
+ * Standalone safety check for pre-commit / pre-push (<50ms).
  *
- * Imports the shared classifier from src/utils/test-db-safety.ts so the rule
- * can never drift between this gate, the server (config-state.ts), and the
- * integration runner (run-integration-tests.ts).
+ * ### Private config policy
+ * - Local automated tests use **config/private.test.ts only**.
+ * - They must **never** mutate **config/private.ts** (developer live config).
+ * - CI may create ephemeral private.ts (never committed); see private-config-policy.ts.
  *
- * Invoked by: .githooks/pre-commit and scripts/quality-gate.ts
- * Manual run: bun run scripts/check-test-db-safety.ts
+ * Also catches unsafe private.test.ts DB names and live private.ts pointing at
+ * test DBs (e.g. sveltycms_test / benchmark_shared).
+ *
+ * Invoked by: .githooks/pre-commit and scripts/precheck.ts
+ * Manual: bun run scripts/check-test-db-safety.ts
  */
 
 import { existsSync, readFileSync } from "node:fs";
