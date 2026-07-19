@@ -75,11 +75,9 @@ export class PluginSettingsService {
     declaration?: SettingsPart,
   ): Promise<Record<string, unknown> | null> {
     try {
-      const result = await this.dbAdapter.crud.findOne<{ settings: Record<string, unknown> }>(
-        this.SETTINGS_COLLECTION,
-        { pluginId, tenantId } as any,
-        { bypassTenantCheck: true },
-      );
+      const result = await (this.dbAdapter.crud.findOne as any)<{
+        settings: Record<string, unknown>;
+      }>(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
 
       if (!result.success || !result.data?.settings) return null;
 
@@ -114,11 +112,10 @@ export class PluginSettingsService {
     declaration?: SettingsPart,
   ): Promise<Record<string, unknown> | null> {
     try {
-      const result = await this.dbAdapter.crud.findOne<{ settings: Record<string, unknown> }>(
-        this.SETTINGS_COLLECTION,
-        { pluginId, tenantId } as any,
-        { bypassTenantCheck: true },
-      );
+      const result = await (this.dbAdapter.crud.findOne as any)<
+        any,
+        { settings: Record<string, unknown> }
+      >(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
 
       if (!result.success || !result.data?.settings) return null;
 
@@ -177,7 +174,7 @@ export class PluginSettingsService {
       if (existing.success && existing.data?._id) {
         const updateResult = await this.dbAdapter.crud.update(
           this.SETTINGS_COLLECTION,
-          existing.data._id,
+          existing.data._id as unknown as string,
           {
             settings: toStore,
             updatedAt: new Date(),

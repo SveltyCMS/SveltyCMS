@@ -12,6 +12,7 @@ import type {
   ISODateString,
 } from "@databases/db-interface";
 import type { PluginPart } from "./define-plugin";
+export type { PluginPart };
 
 /** All possible capabilities a plugin can request */
 export type PluginCapability =
