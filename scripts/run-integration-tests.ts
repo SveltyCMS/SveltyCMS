@@ -205,11 +205,29 @@ async function freePort(port: number) {
 
   try {
     if (process.platform === "win32") {
-      // Only kill LISTENING owners of this port (not our own shell if mis-matched).
-      execSync(
-        `powershell -NoProfile -Command "$conns = Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue; foreach ($c in $conns) { $owner = $c.OwningProcess; if ($owner -and $owner -ne $PID) { Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue } }"`,
-        { stdio: "ignore" },
-      );
+      // netstat is far faster/more reliable than Get-NetTCPConnection on Windows
+      // (the latter often hangs 10–30s under load and leaves 4173 held).
+      const netstat = execSync("netstat -ano -p tcp", {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      const pids = new Set<string>();
+      for (const line of netstat.split(/\r?\n/)) {
+        // e.g. "  TCP    0.0.0.0:4173    0.0.0.0:0    LISTENING    12345"
+        if (!line.includes(`:${port}`) || !/LISTENING/i.test(line)) continue;
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && /^\d+$/.test(pid) && pid !== String(process.pid) && pid !== "0") {
+          pids.add(pid);
+        }
+      }
+      for (const pid of pids) {
+        try {
+          execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+        } catch {
+          /* already dead */
+        }
+      }
     } else {
       execSync(`lsof -ti:${port} | xargs -r kill -9 || true`, { stdio: "ignore" });
     }

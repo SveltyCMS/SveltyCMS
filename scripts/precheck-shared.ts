@@ -836,12 +836,13 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
     estimatedMs: 180000,
     remediation: "bun run test:integration:smoke",
     shouldSkip: (ctx) => {
+      // Push: SQLite HTTP smoke is opt-in only (--include-sqlite-on-push or
+      // --include-db-tasks). Auto-running on every hasDbInfra change made
+      // pre-push a flaky multi-minute preview suite (EADDRINUSE / ECONNRESET
+      // on Windows) for work that CI db-tests already covers.
       const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
-      // A++: auto SQLite smoke on push when databases/plugins/hooks change
       const includeSqlite =
-        includeDb ||
-        (ctx.tier === "push" &&
-          (ctx.options.includeSqliteOnPush === true || ctx.profile.hasDbInfra));
+        includeDb || (ctx.tier === "push" && ctx.options.includeSqliteOnPush === true);
       return !includeSqlite || db !== "sqlite";
     },
     run: (ctx) =>
