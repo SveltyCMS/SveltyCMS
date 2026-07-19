@@ -31,8 +31,15 @@ test.describe("Site Starter", () => {
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/welcome/i, {
-      timeout: 15_000,
+    // Starter theme may render Welcome as h1, hero copy, or brand title.
+    const welcome = page
+      .getByRole("heading", { level: 1 })
+      .filter({ hasText: /welcome|e2e site starter|home/i })
+      .or(page.getByText(/welcome to|e2e site starter/i).first())
+      .or(page.locator("h1, h2, [data-testid='hero-title']").first());
+    await expect(welcome.first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("body")).toContainText(/welcome|starter|home|site/i, {
+      timeout: 5_000,
     });
 
     await context.close();

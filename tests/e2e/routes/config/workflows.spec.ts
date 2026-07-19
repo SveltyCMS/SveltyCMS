@@ -27,9 +27,12 @@ test.describe("Config Workflows", () => {
 
   test("shell: canvas, toolbar, save control", async ({ page }) => {
     await goWorkflows(page);
+    const builder = page.getByTestId("workflow-builder");
     await expect(page.getByTestId("workflow-toolbar")).toBeVisible();
     await expect(page.getByTestId("workflow-canvas")).toBeVisible();
-    await expect(page.getByTestId("workflow-save")).toBeVisible();
+    // StickyActions mirrors toolbar controls into the layout page-actions bar.
+    // Scope to the builder to avoid strict-mode duplicates.
+    await expect(builder.getByTestId("workflow-save")).toBeVisible();
     await expect(page.getByTestId("workflow-state-draft")).toBeVisible();
     await expect(page.getByTestId("workflow-state-published")).toBeVisible();
   });
@@ -58,8 +61,9 @@ test.describe("Config Workflows", () => {
       expect(String(data._id || seeded._id)).toBeTruthy();
 
       await page.goto("/config/workflows", { waitUntil: "domcontentloaded", timeout: 30_000 });
-      await expect(page.getByTestId("workflow-builder")).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await expect(page.getByTestId("workflow-save")).toBeVisible();
+      const builder = page.getByTestId("workflow-builder");
+      await expect(builder).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(builder.getByTestId("workflow-save")).toBeVisible();
       await expect(page.getByTestId("workflow-state-draft")).toBeVisible();
       await expect(page.getByTestId("workflow-state-published")).toBeVisible();
     } finally {

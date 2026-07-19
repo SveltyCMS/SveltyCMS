@@ -43,10 +43,15 @@ export async function prepareLoginForm(page: Page) {
     // Setup wizard welcome modal
     window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
 
-    // Cookie consent
+    // Cookie consent (full shape so GDPR banner never mounts)
     window.localStorage.setItem(
       "sveltycms_consent",
-      JSON.stringify({ responded: true, necessary: true }),
+      JSON.stringify({
+        responded: true,
+        necessary: true,
+        analytics: false,
+        marketing: false,
+      }),
     );
 
     // First login welcome for admin
