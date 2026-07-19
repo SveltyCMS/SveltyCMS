@@ -37,10 +37,11 @@ import {
 	OPERATION_TYPES,
 } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { fade, slide } from "svelte/transition";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 	import Badge from '@components/ui/badge.svelte';
@@ -141,11 +142,15 @@ async function testFlow() {
 	try {
 		const result = await testAutomation(flow.id);
 		if (result.success) {
-			const data = (result as { data?: typeof testResult }).data as typeof testResult;
-			testResult = data;
-			if (data) {
-				toast[data.status === "success" ? "success" : "warning"](
-					`Test ${data.status} in ${data.duration}ms`,
+			const d = (result as any).data as {
+			status: string;
+			duration: number;
+			operationResults: { type: string; status: string; duration: number; error?: string }[];
+		} | null;
+			if (d) {
+				testResult = d;
+				toast[d.status === "success" ? "success" : "warning"](
+					`Test ${d.status} in ${d.duration}ms`,
 				);
 			}
 		} else {
@@ -158,9 +163,18 @@ async function testFlow() {
 	}
 }
 
-function handleDnd(e: CustomEvent<{ items: AutomationOperation[] }>) {
-	flow.operations = e.detail.items;
-}
+	function handleOperationDrop(state: DragDropState<AutomationOperation>) {
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = flow.operations.indexOf(dragged);
+		if (fromIndex === state.targetIndex) return;
+		flow.operations = untrack(() => {
+			const newOps = [...flow.operations];
+			newOps.splice(fromIndex, 1);
+			newOps.splice(state.targetIndex, 0, dragged);
+			return newOps;
+		});
+	}
 
 function insertToken(opIndex: number, field: string, token: string) {
 	const op = flow.operations[opIndex] as any;
@@ -516,15 +530,25 @@ const conditionOperatorOptions = [
 					{#if flow.operations.length > 0}
 						<div
 							class="space-y-3"
-							use:dndzone={{ items: flow.operations, flipDurationMs: 200, dragDisabled: activeStep !== 2 }}
-							onconsider={handleDnd}
-							onfinalize={handleDnd}
+							use:droppable={{
+								container: 'operations',
+								onDrop: handleOperationDrop,
+								direction: 'vertical',
+								keyboard: true,
+								attributes: { dragOverClass: 'bg-secondary-200' }
+							}}
+							role="list"
+							aria-label="Operation chain"
 						>
 							{#each flow.operations as op, i (op.id)}
 								{const meta = getOperationMeta(op.type)}
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 								<div
 									class="card p-4 border border-surface-300 dark:border-surface-600 rounded bg-surface-50 dark:bg-surface-900 relative"
 									transition:slide
+									use:draggable={{ container: 'operations', dragData: op, disabled: activeStep !== 2, keyboard: true }}
+									role="listitem"
+									tabindex={activeStep === 2 ? 0 : -1}
 								>
 									<!-- Drag Handle -->
 									<div class="absolute inset-s-1 top-1/2 -translate-y-1/2 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">

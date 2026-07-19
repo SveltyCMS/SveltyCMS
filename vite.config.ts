@@ -47,6 +47,7 @@ const SERVER_EXTERNALS = [
 
 const SSR_NO_EXTERNAL = [
   "@iconify/svelte",
+  "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-dnd-action",
   "svelte-awesome-color-picker",
@@ -56,6 +57,7 @@ const SSR_NO_EXTERNAL = [
 
 const OPTIMIZE_DEPS_INCLUDE = [
   "@iconify/svelte",
+  "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-dnd-action",
   "svelte-awesome-color-picker",

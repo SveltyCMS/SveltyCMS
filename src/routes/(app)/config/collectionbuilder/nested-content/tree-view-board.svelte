@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewBoard.svelte
 @component
-**Enhanced Board component for managing nested collections using svelte-dnd-action**
+**Enhanced Board component for managing nested collections using @thisux/sveltednd**
 
 ### Props
 - `contentNodes` {ContentNode[]} - Array of content nodes representing collections and categories
@@ -11,7 +11,7 @@
 - `onDuplicateNode` {Function} - Callback function to handle node duplication
 
 ### Features:
-- Drag and drop reordering of collections using svelte-dnd-action
+- Drag and drop reordering of collections using @thisux/sveltednd
 - Support for nested categories with cross-level drag
 - Cycle detection (prevents dropping parent into own child)
 - Race condition prevention with hash synchronization
@@ -30,11 +30,8 @@ import { sortContentNodes } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { tick } from "svelte";
 import { flip } from "svelte/animate";
-import {
-	dndzone,
-	SHADOW_ITEM_MARKER_PROPERTY_NAME,
-	TRIGGERS,
-} from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
 // Components
@@ -42,18 +39,18 @@ import TreeViewNode from "./tree-view-node.svelte";
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 
-export interface TreeViewItem extends Record<string, any> {
-	_id?: any;
-	icon?: string;
-	id: string;
-	isDraggable?: boolean;
-	isDropAllowed?: boolean;
-	name: string;
-	nodeType: "category" | "collection" | "folder";
-	order?: number;
-	parent: string | null;
-	path: string;
-}
+	export interface TreeViewItem extends Record<string, any> {
+		_id?: any;
+		icon?: string;
+		id: string;
+		isDraggable?: boolean;
+		isDropAllowed?: boolean;
+		name: string;
+		nodeType: "category" | "collection" | "folder";
+		order?: number;
+		parent: string | null;
+		path: string;
+	}
 
 interface Props {
 	contentNodes: ContentNode[];
@@ -87,9 +84,7 @@ let initialized = $state(false);
 // eslint-disable-next-line svelte/no-unnecessary-state-wrap
 let expandedNodes = $state(new SvelteSet<string>());
 let isDragging = $state(false);
-// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-let nodeSnapshot = $state(new SvelteMap<string, EnhancedTreeViewItem>());
-let lastContentNodesHash = $state("");
+	let lastContentNodesHash = $state("");
 /** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
 let lastPushedHash = $state("");
 /** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
@@ -107,11 +102,10 @@ let typeaheadBuffer = $state("");
 let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Enhanced Item Type
-type EnhancedTreeViewItem = TreeViewItem & {
-	children: EnhancedTreeViewItem[];
-	level: number;
-	isDndShadowItem?: boolean;
-};
+	type EnhancedTreeViewItem = TreeViewItem & {
+		children: EnhancedTreeViewItem[];
+		level: number;
+	};
 
 // Cleanup effect to prevent memory leaks
 $effect(() => {
@@ -245,10 +239,9 @@ function flattenTree(
 	let flat: TreeViewItem[] = [];
 
 	nodes.forEach((node, index) => {
-		const {
+			const {
 			children,
 			level: _level,
-			isDndShadowItem: _isDndShadowItem,
 			...rest
 		} = node;
 		const newItem: TreeViewItem = { ...rest, parent: parentId, order: index };
@@ -385,204 +378,79 @@ function announce(message: string) {
 	}, 1000);
 }
 
-// --- Drag & Drop Handlers ---
+// --- Drag & Drop Handler ---
 
-function handleRootConsider(e: CustomEvent) {
-	const { items, info } = e.detail;
+function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
+	if (!state.item) return;
 
-	if (info.trigger === "dragStarted") {
-		isDragging = true;
-		// Take snapshot of current tree state including all children
-		nodeSnapshot.clear();
-		takeSnapshot(treeRoots);
+	const draggedId = state.item.itemId;
+	const sourceContainer = state.container;
+	const targetContainer = state.targetContainer || sourceContainer;
+	const targetIndex = state.targetIndex;
+	if (targetIndex < 0) return;
+
+	// Convert container names to parent IDs
+	const targetParentId = targetContainer === 'root' ? null : targetContainer.replace('children:', '');
+
+	// Same position = no-op
+	const siblingList = targetParentId
+		? (findNode(treeRoots, targetParentId)?.children || [])
+		: treeRoots;
+	const currentIndex = siblingList.findIndex(n => n.id === draggedId);
+	if (sourceContainer === targetContainer && currentIndex === targetIndex) return;
+
+	// CYCLE DETECTION
+	const draggedNode = findNode(treeRoots, draggedId);
+	if (!draggedNode) return;
+	if (targetParentId && draggedNode.nodeType === 'category' && isAncestorOf(draggedId, targetParentId, treeRoots)) {
+		announce(`Cannot move "${draggedNode?.name || 'item'}" into its own sub-category`);
+		return;
 	}
 
-	// Rehydrate items from snapshot to preserve children
-	treeRoots = items.map((item: EnhancedTreeViewItem) => rehydrateItem(item));
-}
-
-function handleNestedConsider(e: CustomEvent, parentId: string) {
-	const { items, info } = e.detail;
-
-	if (info.trigger === "dragStarted") {
-		isDragging = true;
-		nodeSnapshot.clear();
-		takeSnapshot(treeRoots);
+	// DUPLICATE NAME DETECTION
+	const targetSiblings = targetParentId
+		? (findNode(treeRoots, targetParentId)?.children || [])
+		: treeRoots;
+	const nameNorm = (n: string) => n.trim().toLowerCase();
+	const draggedName = nameNorm(draggedNode.name || '');
+	if (draggedName && targetSiblings.some(n => n.id !== draggedId && nameNorm(n.name || '') === draggedName)) {
+		announce("A collection with this name already exists in the target category.");
+		toast.warning("A collection with this name already exists in the target category.");
+		return;
 	}
 
-	const parent = findNode(treeRoots, parentId);
-	if (parent) {
-		// Rehydrate to preserve children
-		parent.children = items.map((item: EnhancedTreeViewItem) =>
-			rehydrateItem(item),
-		);
-		treeRoots = [...treeRoots]; // Trigger reactivity
-	}
-}
+	// Get full node data before removal
+	const fullNode = { ...draggedNode, children: [...(draggedNode.children || [])] };
 
-function handleFinalize(e: CustomEvent, targetParentId: string | null) {
-	const { items: newZoneItems, info } = e.detail;
-	// Only process the zone that received the drop. The zone that lost the item gets trigger DROPPED_INTO_ANOTHER.
-	if (info?.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) return;
+	// Remove from source
+	removeFromTree(treeRoots, draggedId);
 
-	// Get IDs of items being moved
-	const movingIds = new Set<string>(
-		newZoneItems.map((i: EnhancedTreeViewItem) => i.id),
-	);
+	// Insert at target
+	const targetList = targetParentId
+		? (findNode(treeRoots, targetParentId)?.children || [])
+		: treeRoots;
+	targetList.splice(Math.min(targetIndex, targetList.length), 0, fullNode);
 
-	// CYCLE DETECTION: Prevent dropping parent into its own child
-	if (targetParentId && movingIds.size > 0) {
-		for (const movedId of movingIds) {
-			if (isAncestorOf(movedId, targetParentId, treeRoots)) {
-				const movedNode = findNode(treeRoots, movedId);
-				announce(
-					`Cannot move "${movedNode?.name || "item"}" into its own sub-category`,
-				);
-
-				// Revert to snapshot
-				if (nodeSnapshot.size > 0) {
-					treeRoots = buildTree(
-						flattenTree(
-							Array.from(nodeSnapshot.values()).filter((n) => !n.parent),
-						),
-					);
-				}
-				isDragging = false;
-				return;
-			}
-		}
-	}
-
-	// DUPLICATE NAME IN TARGET: No two siblings with same name (case-insensitive, trimmed)
-	const nameNorm = (name: unknown) =>
-		String(name ?? "")
-			.trim()
-			.toLowerCase();
-	for (const movedItem of newZoneItems) {
-		if (!movingIds.has(movedItem.id)) continue;
-		const movedName = nameNorm(movedItem.name);
-		if (!movedName) continue;
-		const hasDuplicate = newZoneItems.some(
-			(other: EnhancedTreeViewItem) =>
-				other.id !== movedItem.id && nameNorm(other.name) === movedName,
-		);
-		if (hasDuplicate) {
-			announce(
-				"A collection with this name already exists in the target category.",
-			);
-			toast.warning(
-				"A collection with this name already exists in the target category.",
-			);
-			if (nodeSnapshot.size > 0) {
-				treeRoots = buildTree(
-					flattenTree(
-						Array.from(nodeSnapshot.values()).filter((n) => !n.parent),
-					),
-				);
-			}
-			isDragging = false;
-			return;
-		}
-	}
-
-	// 1. Remove moving items from their current (old) positions in the tree
-	// This creates a "clean" tree where moved items only exist in newZoneItems
-	function cleanTree(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
-		return nodes
-			.filter((n) => !movingIds.has(n.id))
-			.map((n) => ({
-				...n,
-				children: cleanTree(n.children || []),
-			}));
-	}
-
-	const cleanedRoots = cleanTree(treeRoots);
-
-	// 2. Reconstruct the tree with moved items in their new location.
-	// Use children from cleanedRoots so the old parent doesn't keep the moved node.
-	let newTreeRoots: EnhancedTreeViewItem[];
-
-	if (targetParentId === null) {
-		// Dropped at root level - newZoneItems are the new roots.
-		newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => {
-			const fromCleaned = findNode(cleanedRoots, item.id);
-			return {
-				...item,
-				parent: null,
-				children: fromCleaned
-					? fromCleaned.children || []
-					: item.children || [],
-			};
-		});
-	} else {
-		// Dropped into a parent - find target and update its children. Use children from cleanedRoots per item.
-		const updateTargetParent = (
-			nodes: EnhancedTreeViewItem[],
-		): EnhancedTreeViewItem[] => {
-			return nodes.map((n) => {
-				if (n.id === targetParentId) {
-					return {
-						...n,
-						children: newZoneItems.map((item: EnhancedTreeViewItem) => {
-							const fromCleaned = findNode(cleanedRoots, item.id);
-							return {
-								...item,
-								parent: targetParentId,
-								children: fromCleaned
-									? fromCleaned.children || []
-									: item.children || [],
-							};
-						}),
-					};
-				}
-				return {
-					...n,
-					children: updateTargetParent(n.children || []),
-				};
-			});
-		};
-		newTreeRoots = updateTargetParent(cleanedRoots);
-	}
-
-	// Ensure moved items appear only in their new location: strip them from any other node's children
-	function stripMovedFromTreeExceptTarget(
-		nodes: EnhancedTreeViewItem[],
-		ids: Set<string>,
-		targetParentId: string | null,
-	): EnhancedTreeViewItem[] {
-		return nodes.map((n) => {
-			const isDropTarget = targetParentId !== null && n.id === targetParentId;
-			const children = n.children || [];
-			const filtered = isDropTarget
-				? children
-				: children.filter((c) => !ids.has(c.id));
-			return {
-				...n,
-				children: stripMovedFromTreeExceptTarget(filtered, ids, targetParentId),
-			};
-		});
-	}
-	newTreeRoots = stripMovedFromTreeExceptTarget(
-		newTreeRoots,
-		movingIds,
-		targetParentId,
-	);
-
-	// Recompute path (and parent/order) for every node so moved items get correct path
-	const flatAfterMove = flattenTree(newTreeRoots);
+	// Trigger reactivity and recalculate
+	treeRoots = [...treeRoots];
+	const flatAfterMove = flattenTree(treeRoots);
 	const withPaths = recalculatePaths(flatAfterMove);
 	const treeWithPaths = buildTree(withPaths);
-	// Update state - Svelte 5 native snapshot to strip proxies cleanly without triggering unmounts/flickers
 	treeRoots = $state.snapshot(treeWithPaths) as EnhancedTreeViewItem[];
 
-	// Save and notify parent (path/parentId already correct in treeRoots)
+	// Save
 	saveTreeData();
+	isDragging = false;
+}
 
-	// Clear dragging state after a delay to let animations complete
-	setTimeout(() => {
-		isDragging = false;
-		nodeSnapshot.clear();
-	}, flipDurationMs + 50);
+// Helper: Remove node from tree
+function removeFromTree(nodes: EnhancedTreeViewItem[], id: string): boolean {
+	const idx = nodes.findIndex(n => n.id === id);
+	if (idx >= 0) { nodes.splice(idx, 1); return true; }
+	for (const n of nodes) {
+		if (n.children && removeFromTree(n.children, id)) return true;
+	}
+	return false;
 }
 
 // Helper: Check if potentialAncestor is actually an ancestor of nodeId
@@ -614,30 +482,6 @@ function isAncestorOf(
 	return false;
 }
 
-// Helper: Take snapshot of entire tree
-function takeSnapshot(nodes: EnhancedTreeViewItem[]) {
-	nodes.forEach((node) => {
-		nodeSnapshot.set(node.id, {
-			...node,
-			children: [...(node.children || [])],
-		});
-		if (node.children?.length) {
-			takeSnapshot(node.children);
-		}
-	});
-}
-
-// Helper: Rehydrate single item from snapshot
-function rehydrateItem(item: EnhancedTreeViewItem): EnhancedTreeViewItem {
-	const snap = nodeSnapshot.get(item.id);
-	if (snap) {
-		return {
-			...item,
-			children: snap.children.map((child) => rehydrateItem(child)),
-		};
-	}
-	return { ...item, children: item.children || [] };
-}
 
 function saveTreeData() {
 	const flatItems = flattenTree(treeRoots);
@@ -1093,21 +937,16 @@ const flipDurationMs = 200;
 	{:else}
 		<div
 			class="dnd-zone root-zone"
-			use:dndzone={{
-				items: treeRoots,
-				flipDurationMs,
-				type: 'tree-items',
-				dragDisabled: !!searchText,
-				dropFromOthersDisabled: false,
-				centreDraggedOnCursor: false,
-				morphDisabled: false,
-				dropTargetStyle: {
-					outline: '2px dashed rgb(var(--color-primary-500))',
-					background: 'rgb(var(--color-primary-500) / 0.1)'
+			class:is-dragging={isDragging}
+			use:droppable={{
+				container: 'root',
+				onDrop: handleTreeDrop,
+				direction: 'vertical',
+				attributes: {
+					draggingClass: 'opacity-50',
+					dragOverClass: 'drag-over'
 				}
 			}}
-			onconsider={handleRootConsider}
-			onfinalize={(e) => handleFinalize(e, null)}
 			role="group"
 		>
 			{#each treeRoots as item (item.id)}
@@ -1120,7 +959,7 @@ const flipDurationMs = 200;
 					aria-selected="false"
 					data-item-id={item.id}
 					data-node-type={item.nodeType}
-					data-is-dnd-shadow-item={item[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? true : false}
+					use:draggable={{ container: 'root', dragData: { itemId: item.id }, disabled: !!searchText }}
 				>
 					{@render treeNode(item, 0)}
 				</div>
@@ -1160,21 +999,15 @@ const flipDurationMs = 200;
 				<div
 					class="dnd-zone nested-zone mt-2"
 					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
-					use:dndzone={{
-						items: item.children || [],
-						flipDurationMs,
-						type: 'tree-items',
-						dragDisabled: !!searchText,
-						dropFromOthersDisabled: false,
-						centreDraggedOnCursor: false,
-						morphDisabled: false,
-						dropTargetStyle: {
-							outline: '2px dashed rgb(var(--color-tertiary-500))',
-							background: 'rgb(var(--color-tertiary-500) / 0.1)'
+					use:droppable={{
+						container: 'children:' + item.id,
+						onDrop: handleTreeDrop,
+						direction: 'vertical',
+						attributes: {
+							draggingClass: 'opacity-50',
+							dragOverClass: 'drag-over'
 						}
 					}}
-					onconsider={(e) => handleNestedConsider(e, item.id)}
-					onfinalize={(e) => handleFinalize(e, item.id)}
 					role="group"
 					aria-label={`Contents of ${item.name}`}
 				>
@@ -1189,7 +1022,7 @@ const flipDurationMs = 200;
 								aria-selected="false"
 								data-item-id={child.id}
 								data-node-type={child.nodeType}
-								data-is-dnd-shadow-item={child[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? true : false}
+								use:draggable={{ container: 'children:' + item.id, dragData: { itemId: child.id }, disabled: !!searchText }}
 							>
 								{@render treeNode(child, level + 1)}
 							</div>
@@ -1264,28 +1097,21 @@ const flipDurationMs = 200;
 	}
 
 	/* Active dragging state */
-	:global(.tree-node-wrapper.svelte-dnd-action-dragged-el) {
+	:global(.tree-node-wrapper.dragging) {
 		opacity: 0.5;
 		transform: scale(0.95);
 	}
 
 	/* Drop target feedback */
-	:global(.dnd-zone.svelte-dnd-action-shadow-placeholder-active) {
+	:global(.dnd-zone.drag-over) {
 		background: rgb(var(--color-primary-500) / 0.1) !important;
-		border-color: rgb(var(--color-primary-500)) !important;
-	}
-
-	/* Shadow item (placeholder) styling */
-	:global([aria-grabbed='true']) {
-		border-radius: 0.5rem;
-		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-		opacity: 0.4;
+		outline: 2px dashed rgb(var(--color-primary-500)) !important;
 	}
 
 	/* Category drop zone feedback */
-	:global(.nested-zone.svelte-dnd-action-shadow-placeholder-active) {
+	:global(.nested-zone.drag-over) {
 		background: rgb(var(--color-tertiary-500) / 0.1) !important;
-		border-color: rgb(var(--color-tertiary-500)) !important;
+		outline: 2px dashed rgb(var(--color-tertiary-500)) !important;
 	}
 
 	/* Disable selection during drag */

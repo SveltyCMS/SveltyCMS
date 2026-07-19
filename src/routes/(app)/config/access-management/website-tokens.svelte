@@ -40,7 +40,8 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import AdminCard from "@components/admin-card.svelte";
 import Badge from "@components/ui/badge.svelte";
 import Button from "@components/ui/button.svelte";
@@ -133,13 +134,15 @@ let displayTableHeaders = $state(
 );
 let selectAllColumns = $state(true);
 
-function handleDndConsider(event: CustomEvent) {
-	displayTableHeaders = event.detail.items;
-}
-
-function handleDndFinalize(event: CustomEvent) {
-	displayTableHeaders = event.detail.items;
-}
+	function handleColumnDrop(state: DragDropState<TableHeader>) {
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = displayTableHeaders.indexOf(dragged);
+		if (fromIndex === state.targetIndex) return;
+		displayTableHeaders = untrack(() =>
+			displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(state.targetIndex, 0, dragged)
+		);
+	}
 
 const filteredAvailablePermissions = $derived(
 	permissions.filter(
@@ -512,13 +515,19 @@ $effect(() => {
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
 						<section
-							use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300 }}
-							onconsider={handleDndConsider}
-							onfinalize={handleDndFinalize}
+							use:droppable={{
+								container: 'columns',
+								onDrop: handleColumnDrop,
+								direction: 'horizontal',
+								keyboard: true
+							}}
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
+							role="list"
+							aria-label="Drag columns to reorder"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<div animate:flip={{ duration: 300 }}>
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header, keyboard: true }} role="listitem" tabindex="0">
 									<Button variant="secondary"
 										onclick={() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));

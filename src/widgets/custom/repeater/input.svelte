@@ -17,8 +17,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { getFieldName } from '@utils/utils';
 	import { flip } from 'svelte/animate';
-	import type { DndEvent } from 'svelte-dnd-action';
-	import { dndzone } from 'svelte-dnd-action';
+	import { untrack } from 'svelte';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 	const uuidv4 = () => crypto.randomUUID();
 	import type { FieldType } from './index';
 	import Button from '@components/ui/button.svelte';
@@ -63,12 +64,18 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		value = items.map((i) => i.data);
 	}
 
-	function handleDndConsider(e: CustomEvent<DndEvent<{ id: string; data: any }>>) {
-		items = e.detail.items;
-	}
-
-	function handleDndFinalize(e: CustomEvent<DndEvent<{ id: string; data: any }>>) {
-		items = e.detail.items;
+	function handleRepeaterDrop(state: DragDropState<{ id: string; data: Record<string, any> }>) {
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = items.indexOf(dragged);
+		if (fromIndex === state.targetIndex) return;
+		const newItems = untrack(() => {
+			const copy = [...items];
+			copy.splice(fromIndex, 1);
+			copy.splice(state.targetIndex, 0, dragged);
+			return copy;
+		});
+		items = newItems;
 		updateValue();
 	}
 
@@ -117,15 +124,25 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 
 <div class="w-full space-y-2">
 	<div
-		use:dndzone={{ items, flipDurationMs: 300, dropTargetStyle: { outline: '2px solid var(--color-primary-500)', 'border-radius': '0.5rem' } }}
-		onconsider={handleDndConsider}
-		onfinalize={handleDndFinalize}
+		use:droppable={{
+			container: 'repeater',
+			onDrop: handleRepeaterDrop,
+			direction: 'vertical',
+			keyboard: true,
+			attributes: { dragOverClass: 'bg-secondary-200' }
+		}}
 		class="flex flex-col gap-2"
+		role="list"
+		aria-label="Repeater items"
 	>
 		{#each items as item, index (item.id)}
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
 				animate:flip={{ duration: 300 }}
+				use:draggable={{ container: 'repeater', dragData: item, keyboard: true }}
+				role="listitem"
+				tabindex="0"
 			>
 				<!-- Header / Handle -->
 				<header class="flex items-center justify-between border-b border-surface-200 p-2 dark:border-surface-700">
