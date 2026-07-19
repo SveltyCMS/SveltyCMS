@@ -664,10 +664,9 @@ const BASE_TASKS: TaskSpec[] = [
     },
     run: () => {
       // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
-      // CRITICAL: save the good build first, then restore it after verification.
-      // Without this, the deploy build overwrites the COMPILE_ALL_ADAPTERS build
-      // and all subsequent --no-build integration/E2E tests pick up the stripped build.
-      // Keep SVELTY_PRECHECK/TEST_MODE so vite still never resolves live private.ts.
+      // CRITICAL: save the good COMPILE_ALL_ADAPTERS build first, then restore it.
+      // Windows rename can leave mixed chunk hashes if restore fails mid-way — use
+      // copy + rm for restore reliability so integration --no-build stays coherent.
       const deployEnv = {
         ...process.env,
         SVELTY_PRECHECK: "true",
@@ -679,18 +678,50 @@ const BASE_TASKS: TaskSpec[] = [
       const savedDir = join(ROOT, ".svelte-kit", "output-saved");
       const buildDir = join(ROOT, "build");
       const savedBuildDir = join(ROOT, "build-saved");
-      try {
-        if (existsSync(savedDir)) rmSync(savedDir, { recursive: true, force: true });
-      } catch {}
-      try {
-        if (existsSync(savedBuildDir)) rmSync(savedBuildDir, { recursive: true, force: true });
-      } catch {}
-      try {
-        if (existsSync(outputDir)) renameSync(outputDir, savedDir);
-      } catch {}
-      try {
-        if (existsSync(buildDir)) renameSync(buildDir, savedBuildDir);
-      } catch {}
+
+      const wipe = (dir: string) => {
+        try {
+          if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+        } catch {
+          /* best-effort */
+        }
+      };
+      const moveAside = (from: string, to: string) => {
+        wipe(to);
+        if (!existsSync(from)) return;
+        try {
+          renameSync(from, to);
+        } catch {
+          // Fallback: copy then wipe source (Windows file locks)
+          try {
+            const { cpSync } = require("node:fs") as typeof import("node:fs");
+            cpSync(from, to, { recursive: true });
+            wipe(from);
+          } catch {
+            /* leave as-is; probe may still work */
+          }
+        }
+      };
+      const restore = (saved: string, target: string) => {
+        wipe(target);
+        if (!existsSync(saved)) return;
+        try {
+          renameSync(saved, target);
+        } catch {
+          try {
+            const { cpSync } = require("node:fs") as typeof import("node:fs");
+            cpSync(saved, target, { recursive: true });
+            wipe(saved);
+          } catch (err) {
+            console.error(`[Deploy probe] Failed to restore ${target} from ${saved}:`, err);
+          }
+        }
+      };
+
+      wipe(savedDir);
+      wipe(savedBuildDir);
+      moveAside(outputDir, savedDir);
+      moveAside(buildDir, savedBuildDir);
 
       let buildOk = false;
       let probeOk = false;
@@ -708,20 +739,19 @@ const BASE_TASKS: TaskSpec[] = [
             timeout: 60_000,
           }) !== false;
       } finally {
-        // Restore the good COMPILE_ALL_ADAPTERS build so subsequent
-        // integration/E2E tests work correctly (--no-build picks this up)
-        try {
-          if (existsSync(outputDir)) rmSync(outputDir, { recursive: true, force: true });
-        } catch {}
-        try {
-          if (existsSync(buildDir)) rmSync(buildDir, { recursive: true, force: true });
-        } catch {}
-        try {
-          if (existsSync(savedDir)) renameSync(savedDir, outputDir);
-        } catch {}
-        try {
-          if (existsSync(savedBuildDir)) renameSync(savedBuildDir, buildDir);
-        } catch {}
+        restore(savedDir, outputDir);
+        restore(savedBuildDir, buildDir);
+        // Never leave orphaned *-saved trees (confuses Windows + next builds)
+        wipe(savedDir);
+        wipe(savedBuildDir);
+      }
+
+      // Fail closed if restore left a broken tree (missing adapter-node entry)
+      if (!existsSync(join(buildDir, "index.js"))) {
+        console.error(
+          "[Deploy probe] build/index.js missing after restore — run COMPILE_ALL_ADAPTERS=true bun run build",
+        );
+        return false;
       }
       return probeOk;
     },

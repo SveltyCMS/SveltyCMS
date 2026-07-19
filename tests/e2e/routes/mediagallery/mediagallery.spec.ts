@@ -119,8 +119,10 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-grid-empty")).toHaveCount(0, { timeout: 25_000 });
     // Gridcell with the uploaded file must be visible
     await expect(page.getByRole("gridcell").first()).toBeVisible({ timeout: 15_000 });
-    // Filename text appears in the grid
-    await expect(page.getByText(path.basename(TEST_IMAGE))).toBeVisible({ timeout: 10_000 });
+    // Filename may appear more than once (grid + list); use first match
+    await expect(page.getByText(path.basename(TEST_IMAGE)).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("can delete an uploaded asset via grid action menu", async ({ page }) => {
@@ -129,7 +131,7 @@ test.describe("Media Gallery", () => {
     // Upload a file to delete
     await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
     await page.waitForLoadState("domcontentloaded");
-    await expect(page.getByText(filename)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(filename).first()).toBeVisible({ timeout: 20_000 });
 
     // Hover the gridcell to reveal the action buttons
     const cell = page.getByRole("gridcell").first();

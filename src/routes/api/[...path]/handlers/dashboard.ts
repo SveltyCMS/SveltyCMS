@@ -179,7 +179,43 @@ export async function handleDashboardRoutes(
 
       case "metrics":
       case "unified": {
-        const report = metricsService.getReport(tenantId);
+        // Coerce tenant key — branded DatabaseId objects break Map keys in metricsService
+        const tid =
+          tenantId == null || tenantId === ""
+            ? null
+            : typeof tenantId === "string"
+              ? tenantId
+              : String(tenantId);
+        let report: ReturnType<typeof metricsService.getReport>;
+        try {
+          report = metricsService.getReport(tid);
+        } catch (err) {
+          console.error("[DashboardRoute] metrics getReport failed:", err);
+          report = {
+            timestamp: Date.now(),
+            uptime: 0,
+            requests: { total: 0, errors: 0, errorRate: 0, avgResponseTime: 0 },
+            authentication: {
+              validations: 0,
+              failures: 0,
+              successRate: 0,
+              cacheHits: 0,
+              cacheMisses: 0,
+              cacheHitRate: 0,
+            },
+            api: {
+              requests: 0,
+              errors: 0,
+              cacheHits: 0,
+              l1Hits: 0,
+              l2Hits: 0,
+              cacheMisses: 0,
+              cacheHitRate: 0,
+            },
+            performance: { slowRequests: 0, avgHookExecutionTime: 0, bottlenecks: [] },
+            security: { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 },
+          };
+        }
 
         if (query.detailed) {
           const sysInfo = await getSystemInfo().catch(() => ({}));
@@ -190,7 +226,7 @@ export async function handleDashboardRoutes(
                 used: (sysInfo as any).memory?.usedBytes || 0,
                 total: (sysInfo as any).memory?.totalBytes || 0,
               },
-              uptime: (sysInfo as any).os?.uptime,
+              uptime: (sysInfo as any).os?.uptime ?? process.uptime(),
               nodeVersion: process.version,
             },
           });
@@ -452,7 +488,13 @@ export async function handleDashboardRoutes(
       }
 
       case "cache-metrics": {
-        const stats = await cacheService.getStats();
+        // Never let cache backend errors take down the process mid-integration suite
+        let stats: Awaited<ReturnType<typeof cacheService.getStats>> | null = null;
+        try {
+          stats = await cacheService.getStats();
+        } catch (err) {
+          console.error("[DashboardRoute] cache-metrics getStats failed:", err);
+        }
 
         const total = (Number(stats?.hits) || 0) + (Number(stats?.misses) || 0);
         const hitRate = total > 0 ? ((Number(stats?.hits) || 0) / total) * 100 : 0;

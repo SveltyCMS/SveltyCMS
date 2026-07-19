@@ -31,14 +31,14 @@ test.describe("Site Starter", () => {
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    // Starter theme may render Welcome as h1, hero copy, or brand title.
+    // Seeded starter, hero, or default SvelteKit marketing shell (CI preview).
+    // Avoid bare h1/h2 matchers that pass on empty chrome without content.
     const welcome = page
       .getByRole("heading", { level: 1 })
-      .filter({ hasText: /welcome|e2e site starter|home/i })
-      .or(page.getByText(/welcome to|e2e site starter/i).first())
-      .or(page.locator("h1, h2, [data-testid='hero-title']").first());
+      .filter({ hasText: /welcome|e2e site starter|home|sveltycms|sveltekit/i })
+      .or(page.getByText(/welcome to|e2e site starter|sveltycms with sveltekit/i).first());
     await expect(welcome.first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator("body")).toContainText(/welcome|starter|home|site/i, {
+    await expect(page.locator("body")).toContainText(/welcome|starter|home|sveltycms|sveltekit/i, {
       timeout: 5_000,
     });
 

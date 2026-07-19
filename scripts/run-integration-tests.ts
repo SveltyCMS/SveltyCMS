@@ -862,6 +862,29 @@ async function main() {
     console.log("⏭️ Skipping build; using existing CI build artifact.");
   }
 
+  // Fail closed: mixed deploy/bench chunk trees cause "Cannot find module …chunks/…"
+  // and look like random socket closes mid-suite.
+  const entryJs = join(ROOT, "build", "index.js");
+  if (!existsSync(entryJs)) {
+    throw new Error(
+      "build/index.js missing. Run: COMPILE_ALL_ADAPTERS=true bun run build\n" +
+        "Also remove leftover build-saved/ or .svelte-kit/output-saved/ from a failed deploy probe.",
+    );
+  }
+  for (const leftover of ["build-saved", join(".svelte-kit", "output-saved")]) {
+    const p = join(ROOT, leftover);
+    if (existsSync(p)) {
+      console.warn(
+        `⚠️ Found leftover ${leftover}/ — removing (corrupt hybrid builds break integration)`,
+      );
+      try {
+        rmSync(p, { recursive: true, force: true });
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+
   const integrationDir = join(ROOT, "tests", "integration");
   let testFiles = findTests(integrationDir);
 
@@ -901,21 +924,20 @@ async function main() {
 
   /** Detect process-level server death from client/server error text. */
   function looksLikeServerCrash(...parts: Array<string | undefined | null>): boolean {
-    // Check each stream separately — do not rely on concatenation order
+    // Process-level crash markers only — NOT client fetch flake strings.
+    // (safeFetch "socket connection closed" previously forced full restarts while
+    // the preview was still healthy → suite thrash and false CI reds.)
     for (const part of parts) {
       if (!part) continue;
       const t = part.toLowerCase();
       if (
-        t.includes("socket connection closed") ||
-        t.includes("connectionrefused") ||
-        t.includes("econnrefused") ||
-        t.includes("econnreset") ||
-        t.includes("fetch failed") ||
-        t.includes("failed to reach server") ||
-        t.includes("server flicker") ||
-        t.includes("undici") ||
-        t.includes("other side closed") ||
-        t.includes("premature close")
+        t.includes("uncaught exception") ||
+        t.includes("fatal:") ||
+        t.includes("cannot find module") ||
+        t.includes("err_module_not_found") ||
+        t.includes("javascript heap out of memory") ||
+        t.includes("segmentation fault") ||
+        t.includes("critical boot failure")
       ) {
         return true;
       }

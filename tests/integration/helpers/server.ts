@@ -74,6 +74,11 @@ export async function waitForServer(timeoutMs = 60_000): Promise<void> {
 /**
  * Safely performs a fetch with retries to handle server re-initialization flickers.
  * Automatically adds the Origin header and x-test-secret to bypass security/CSRF in tests.
+ *
+ * ### Contract
+ * - Non-stream bodies are buffered so callers can `.json()`/`.text()` after retries.
+ * - SSE (`text/event-stream`) is returned live (never arrayBuffer — hangs forever).
+ * - Prefer `Connection: close` to avoid keep-alive races after preview restarts.
  */
 export async function safeFetch(
   url: string,
@@ -90,7 +95,10 @@ export async function safeFetch(
   if (!headers.has("Referer")) {
     headers.set("Referer", `${BASE_URL}/`);
   }
-
+  // Avoid keep-alive races when the preview process restarts mid-suite.
+  if (!headers.has("Connection")) {
+    headers.set("Connection", "close");
+  }
   // Use the testing secret for bootstrap/setup calls, but keep cookie-authenticated
   // requests black-box once we have a real session.
   if (!init?.skipTestSecret && !headers.has("Cookie") && !headers.has("cookie")) {
@@ -99,9 +107,8 @@ export async function safeFetch(
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    // Create a fresh signal per attempt — reusing an already-fired AbortSignal
-    // causes instant failure on retries (especially for FormData uploads).
-    const signal = init?.signal || AbortSignal.timeout(attempt === 0 ? 60000 : 30000);
+    // Fresh signal per attempt — reusing an aborted signal fails immediately.
+    const signal = init?.signal || AbortSignal.timeout(attempt === 0 ? 60_000 : 30_000);
 
     try {
       const cookieHeader = headers.get("Cookie") || "None";
@@ -115,20 +122,19 @@ export async function safeFetch(
         throw new Error(`Server at ${url} returned a response without headers.`);
       }
 
-      // SSE / long-lived streams never end — buffering arrayBuffer() hangs until
-      // abort (broke tests/integration/api/rtc.test.ts on every DB adapter).
-      // Key off response Content-Type only so 401 JSON still buffers for logging.
+      // SSE / long-lived streams never end — buffering arrayBuffer() hangs until abort.
       const contentType = resp.headers.get("Content-Type") || "";
       const isStreaming =
         contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson");
 
       if (isStreaming) {
-        // Return live body so callers can read event chunks / cancel the reader
         return resp;
       }
 
-      // Buffer body immediately — mid-read ECONNRESET after headers is common when
-      // the preview process restarts under load; treat that as transient too.
+      // Capture Set-Cookie before body read (some runtimes drop them after consume)
+      const setCookies =
+        typeof resp.headers.getSetCookie === "function" ? resp.headers.getSetCookie() : [];
+
       const bodyBuf = await resp.arrayBuffer();
       const bodyText = new TextDecoder().decode(bodyBuf);
 
@@ -142,11 +148,25 @@ export async function safeFetch(
         process.stderr.write(logMsg);
       }
 
-      // Rebuild Response so callers can .json()/.text() without re-reading the socket
+      // Rebuild Response so callers can re-read the body; re-attach Set-Cookie
+      const outHeaders = new Headers(resp.headers);
+      for (const c of setCookies) {
+        try {
+          outHeaders.append("set-cookie", c);
+        } catch {
+          /* Headers may forbid set-cookie in some runtimes */
+        }
+      }
+      // Fallback: single set-cookie header string for login cookie parsing
+      if (setCookies.length === 0) {
+        const sc = resp.headers.get("set-cookie");
+        if (sc) outHeaders.set("set-cookie", sc);
+      }
+
       return new Response(bodyBuf, {
         status: resp.status,
         statusText: resp.statusText,
-        headers: resp.headers,
+        headers: outHeaders,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -158,7 +178,8 @@ export async function safeFetch(
         message.includes("socket connection closed") ||
         message.includes("socket connection was closed") ||
         message.includes("Unable to connect") ||
-        message.includes("undici"); // Bun/Node fetch errors
+        message.includes("other side closed") ||
+        message.includes("undici");
 
       if (isTransient && attempt < maxRetries) {
         console.log(
@@ -171,9 +192,10 @@ export async function safeFetch(
       let guidance = "";
       if (isTransient) {
         guidance =
-          "\n\n💡 FIX: The integration server is NOT running or crashed. Please start it using:\n" +
-          "   1. 'bun run test:integration' (Starts server + runs all tests)\n" +
-          "   2. 'bun run preview' (Starts server in high-performance mode)";
+          "\n\n💡 FIX: Preview may be down or build is corrupt (missing chunks).\n" +
+          "   1. COMPILE_ALL_ADAPTERS=true bun run build\n" +
+          "   2. bun run test:integration (starts server + suite)\n" +
+          "   3. Remove leftover build-saved/ / .svelte-kit/output-saved if present";
       }
 
       throw new Error(
