@@ -27,7 +27,8 @@
 	import Portal from "@components/ui/portal.svelte";
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 	import { page } from '$app/state';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
@@ -91,12 +92,6 @@
 	let showMediaLibrary = $state(false);
 	let aspectPreviewFile = $state<MediaFile | null>(null);
 	const focalPointPluginEnabled = $derived(page.data?.pluginStates?.['focal-point'] === true);
-	const dndItems = $derived(
-		selectedFiles.map((file) => ({
-			...file,
-			id: file._id
-		}))
-	);
 	const fieldKey = $derived(getFieldName(field, false));
 
 	function syncCollectionValue(nextValue: string | string[] | null) {
@@ -226,9 +221,9 @@
 
 		const mappedFiles: MediaFile[] = files.map((f) => ({
 			_id: f._id as string,
-			name: f.filename,
-			type: f.mimeType,
-			size: f.size,
+			name: (f as any).filename,
+			type: (f as any).mimeType,
+			size: (f as any).size,
 			url: (f as any).url,
 			thumbnailUrl: (f as any).thumbnails?.md?.url || (f as any).url
 		}));
@@ -255,19 +250,28 @@
 		selectedFiles = selectedFiles.filter((file) => file._id !== fileId);
 	}
 
-	function syncDndItems(items: Array<MediaFile & { id: string }>) {
-		selectedFiles = items.map(({ id, ...rest }) => ({
-			...rest,
-			_id: id
-		}));
+	function handleMediaDrop(state: DragDropState<MediaFile>) {
+		if (!state.item || state.targetIndex < 0) return;
+		const fromIndex = selectedFiles.indexOf(state.item);
+		if (fromIndex === state.targetIndex || fromIndex < 0) return;
+		const newFiles = [...selectedFiles];
+		newFiles.splice(fromIndex, 1);
+		newFiles.splice(state.targetIndex, 0, state.item);
+		selectedFiles = newFiles;
 	}
 </script>
 
 <div class="min-h-30 rounded border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
-		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4" use:dndzone={{ items: dndItems }} onconsider={(e) => syncDndItems(e.detail.items)}>
+		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4"
+			use:droppable={{
+				container: 'media-grid',
+				onDrop: handleMediaDrop,
+				direction: 'grid'
+			}}
+		>
 			{#each selectedFiles as file (file._id)}
-				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
+				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip use:draggable={{ container: 'media-grid', dragData: file }}>
 					<button
 						type="button"
 						class="block w-full cursor-pointer text-start"

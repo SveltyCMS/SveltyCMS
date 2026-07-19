@@ -40,7 +40,8 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import AdminCard from "@components/admin-card.svelte";
 import Badge from "@components/ui/badge.svelte";
 import Button from "@components/ui/button.svelte";
@@ -133,13 +134,12 @@ let displayTableHeaders = $state(
 );
 let selectAllColumns = $state(true);
 
-function handleDndConsider(event: CustomEvent) {
-	displayTableHeaders = event.detail.items;
-}
-
-function handleDndFinalize(event: CustomEvent) {
-	displayTableHeaders = event.detail.items;
-}
+	function handleColumnDrop(state: DragDropState<TableHeader>) {
+		if (!state.item || state.targetIndex < 0) return;
+		const fromIndex = displayTableHeaders.indexOf(state.item);
+		if (fromIndex === state.targetIndex) return;
+		displayTableHeaders = displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(state.targetIndex, 0, state.item);
+	}
 
 const filteredAvailablePermissions = $derived(
 	permissions.filter(
@@ -512,13 +512,15 @@ $effect(() => {
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
 						<section
-							use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300 }}
-							onconsider={handleDndConsider}
-							onfinalize={handleDndFinalize}
+							use:droppable={{
+								container: 'columns',
+								onDrop: handleColumnDrop,
+								direction: 'horizontal'
+							}}
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<div animate:flip={{ duration: 300 }}>
+								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header }}>
 									<Button variant="secondary"
 										onclick={() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));

@@ -126,7 +126,7 @@ const filteredFiles = $derived.by(() => {
 			if (searchCriteria.maxHeight && (!img.height || img.height > searchCriteria.maxHeight)) return false;
 			if (searchCriteria.uploadedAfter && new Date(file.createdAt || 0) < searchCriteria.uploadedAfter) return false;
 			if (searchCriteria.uploadedBefore && new Date(file.createdAt || 0) > searchCriteria.uploadedBefore) return false;
-			if (searchCriteria.fileTypes && searchCriteria.fileTypes.length > 0 && !searchCriteria.fileTypes.some(t => file.mimeType?.includes(t))) return false;
+			if (searchCriteria.fileTypes && searchCriteria.fileTypes.length > 0 && !searchCriteria.fileTypes.some(t => (file as any).mimeType?.includes(t))) return false;
 
 			if (searchCriteria.tags && searchCriteria.tags.length > 0) {
 				const tags = meta?.tags as string[] | undefined;

@@ -95,9 +95,8 @@ bulk actions, and predictive preloading.
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	// Svelte-dnd-action
-	// @ts-ignore - IDE module resolution issue
-	import { dndzone } from 'svelte-dnd-action';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import { browser } from '$app/environment';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -226,7 +225,6 @@ bulk actions, and predictive preloading.
 	const visibleRows = $derived(smartTable.virtual.visibleRows);
 	const spacerTop = $derived(smartTable.virtual.spacerTop);
 	const spacerBottom = $derived(smartTable.virtual.spacerBottom);
-	const virtualStartIndex = $derived(smartTable.virtual.startIndex);
 
 	function onVirtualScroll() {
 		if (scrollContainerEl) {
@@ -498,12 +496,14 @@ bulk actions, and predictive preloading.
 	});
 
 	// DND Logic for Headers
-	function handleDndConsider(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-	}
-
-	function handleDndFinalize(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
+	function handleColumnDrop(state: DragDropState<TableHeader>) {
+		if (!state.item || state.targetIndex < 0) return;
+		const fromIndex = displayTableHeaders.indexOf(state.item);
+		if (fromIndex === state.targetIndex) return;
+		const newItems = [...displayTableHeaders];
+		newItems.splice(fromIndex, 1);
+		newItems.splice(state.targetIndex, 0, state.item);
+		displayTableHeaders = newItems;
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
@@ -1056,13 +1056,16 @@ bulk actions, and predictive preloading.
 					</Button>
 				</div>
 				<section
-					use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300, type: 'columns', dropTargetStyle: { outline: 'none' } }}
-					onconsider={handleDndConsider}
-					onfinalize={handleDndFinalize}
+					use:droppable={{
+						container: 'columns',
+						onDrop: handleColumnDrop,
+						direction: 'horizontal',
+						attributes: { dragOverClass: 'bg-secondary-200' }
+					}}
 					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
 				>
 					{#each displayTableHeaders as header (header.id)}
-						<div animate:flip={{ duration: 300 }}>
+						<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header }}>
 							<Button variant="tertiary"
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}
@@ -1166,7 +1169,7 @@ bulk actions, and predictive preloading.
 						<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
 					{/if}
 					{#if tableData.length > 0}
-						{#each visibleRows as entry, idx (entry._id)}
+						{#each visibleRows as entry (entry._id)}
 							{@const rowId = String(entry._id ?? '')}
 							{@const rowSelected = smartTable.isSelected(rowId)}
 							<tr

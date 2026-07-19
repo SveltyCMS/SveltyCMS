@@ -107,7 +107,8 @@
 	import { untrack } from 'svelte';
 	// @ts-ignore - flip is used in template via animate:flip directive
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 	import { page } from '$app/state';
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
@@ -157,7 +158,7 @@
 		onQueryChange: () => {
 			fetchData().catch((err) => logger.error('AdminArea smartTable query change:', err));
 		}
-	}) as ReturnType<typeof createSmartTable<TableDataType & Record<string, unknown>>>;
+	}) as unknown as ReturnType<typeof createSmartTable<TableDataType & Record<string, unknown>>>;
 
 	// System-wide user count for bulk safety checks (search/pagination must not shrink this).
 	const systemUserCount = $derived(page.data.totalUsers ?? smartTable.pagination.totalItems);
@@ -551,7 +552,7 @@
 				// Optimistic update on current smartTable page
 				smartTable.setRows(
 					smartTable.rows.map((item: Record<string, unknown>) =>
-						isUser(item) && (item as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
+						isUser(item as TableDataType) && (item as unknown as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
 					) as TableDataType[]
 				);
 				toast.success(`User ${actionPastTense} successfully`);
@@ -618,7 +619,7 @@
 			if (result.success) {
 				smartTable.setRows(
 					smartTable.rows.map((item: Record<string, unknown>) =>
-						isToken(item) && (item as Token).token === token.token ? { ...item, blocked: !item.blocked } : item
+						isToken(item as TableDataType) && (item as unknown as Token).token === token.token ? { ...item, blocked: !item.blocked } : item
 					) as TableDataType[]
 				);
 				toast.success(`Token ${actionPastTense} successfully`);
@@ -631,12 +632,14 @@
 		}
 	}
 
-	function handleDndConsider(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-	}
-
-	function handleDndFinalize(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
+	function handleColumnDrop(state: DragDropState<TableHeader>) {
+		if (!state.item || state.targetIndex < 0) return;
+		const fromIndex = displayTableHeaders.indexOf(state.item);
+		if (fromIndex === state.targetIndex) return;
+		const newItems = [...displayTableHeaders];
+		newItems.splice(fromIndex, 1);
+		newItems.splice(state.targetIndex, 0, state.item);
+		displayTableHeaders = newItems;
 		localStorage.setItem('userPaginationSettings', JSON.stringify({ density, displayTableHeaders }));
 	}
 
@@ -791,13 +794,15 @@
 					</label>
 
 					<section
-						use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
-						onconsider={handleDndConsider}
-						onfinalize={handleDndFinalize}
+						use:droppable={{
+							container: 'columns',
+							onDrop: handleColumnDrop,
+							direction: 'horizontal'
+						}}
 						class="flex flex-wrap justify-center gap-1 rounded p-2"
 					>
 						{#each displayTableHeaders as header (header.id)}
-							<span animate:flip={{ duration: flipDurationMs }}>
+							<span animate:flip={{ duration: flipDurationMs }} use:draggable={{ container: 'columns', dragData: header }}>
 								<Button
 									variant="secondary"
 									type="button"

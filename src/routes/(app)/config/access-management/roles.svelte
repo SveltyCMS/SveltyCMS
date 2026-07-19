@@ -22,14 +22,13 @@ import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 import { modalState } from "@utils/modal.svelte";
 import { SvelteSet } from "svelte/reactivity";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import RoleModal from "./role-modal.svelte";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
-
-const flipDurationMs = 100;
 
 interface Props {
 	roleData: any;
@@ -175,31 +174,22 @@ const toggleRoleSelection = (roleId: string) => {
 	}
 };
 
-function handleSort(e: CustomEvent) {
-	roles = [...e.detail.items];
-	const movedItem = e.detail.items.find(
-		(item: any) => item.id === e.detail.info.id,
-	);
-	if (movedItem) modifiedRoles.add(movedItem._id);
+	function handleRoleDrop(state: DragDropState<Role & { id: string }>) {
+		if (!state.item || state.targetIndex < 0) return;
+		const fromIndex = filteredRoles.indexOf(state.item);
+		if (fromIndex === state.targetIndex) return;
+		const newRoles = [...roles];
+		const movedRole = newRoles.splice(fromIndex, 1)[0];
+		newRoles.splice(state.targetIndex, 0, movedRole);
+		roles = newRoles;
+		modifiedRoles.add(movedRole._id);
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
+	}
 
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-	if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
-}
 
-function handleFinalize(e: CustomEvent) {
-	roles = [...e.detail.items];
-	const movedItem = e.detail.items.find(
-		(item: any) => item.id === e.detail.info.id,
-	);
-	if (movedItem) modifiedRoles.add(movedItem._id);
-
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-	if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
-}
 </script>
-
 {#if error}
 	<p class="error">{error}</p>
 {:else}
@@ -254,9 +244,11 @@ function handleFinalize(e: CustomEvent) {
 					</p>
 					<ul
 						class="list-none space-y-2"
-						use:dndzone={{ items: filteredRoles, flipDurationMs, type: 'column' }}
-						onconsider={handleSort}
-						onfinalize={handleFinalize}
+						use:droppable={{
+							container: 'roles',
+							onDrop: handleRoleDrop,
+							direction: 'vertical'
+						}}
 						aria-describedby="roles-dnd-instructions"
 						role="list"
 					>
@@ -264,6 +256,7 @@ function handleFinalize(e: CustomEvent) {
 							<li
 								class="animate-flip flex items-center justify-between rounded border border-surface-200 dark:border-surface-800 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
+								use:draggable={{ container: 'roles', dragData: role }}
 							>
 								<div class="flex items-center gap-2">
 									<div
@@ -311,10 +304,3 @@ function handleFinalize(e: CustomEvent) {
 	</div>
 {/if}
 
-<style>
-	:global([data-is-dnd-shadow-item='true']) {
-		opacity: 0.75 !important;
-		background: var(--color-surface-400) !important;
-		border: 2px dashed var(--color-primary-500) !important;
-	}
-</style>

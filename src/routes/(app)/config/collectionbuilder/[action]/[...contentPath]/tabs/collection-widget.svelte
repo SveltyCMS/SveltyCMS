@@ -18,8 +18,8 @@ import { modalState } from "@utils/modal.svelte";
 import { getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
 import { flip } from "svelte/animate";
-import type { DndEvent } from "svelte-dnd-action";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
 import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
 import Button from "@src/components/ui/button.svelte";
@@ -68,10 +68,14 @@ $effect(() => {
 
 const flipDurationMs = 200;
 
-function handleDndConsider(_e: CustomEvent<DndEvent<WidgetListItem>>) {}
-
-function handleDndFinalize(e: CustomEvent<DndEvent<WidgetListItem>>) {
-	items = e.detail.items;
+function handleFieldDrop(state: DragDropState<WidgetListItem>) {
+	if (!state.item || state.targetIndex < 0) return;
+	const fromIndex = items.indexOf(state.item);
+	if (fromIndex === state.targetIndex) return;
+	const newItems = [...items];
+	newItems.splice(fromIndex, 1);
+	newItems.splice(state.targetIndex, 0, state.item);
+	items = newItems;
 	dragIdsByIndex = items.reduce(
 		(acc, it, i) => {
 			acc[i] = it._dragId;
@@ -327,14 +331,17 @@ const marketplaceWidgets = $derived(
 		<!-- Drag-and-drop Widget List -->
 		<div class="flex-1 overflow-y-auto min-h-0 p-4">
 			<div
-				use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
-				onconsider={handleDndConsider}
-				onfinalize={handleDndFinalize}
+				use:droppable={{
+					container: 'widget-fields',
+					onDrop: handleFieldDrop,
+					direction: 'vertical'
+				}}
 				class="space-y-3 min-h-50"
 				data-testid="widget-fields-list"
 			>
 				{#each items as item (item._dragId)}
 					<div
+						use:draggable={{ container: 'widget-fields', dragData: item }}
 						animate:flip={{ duration: flipDurationMs }}
 						class="group relative"
 						data-testid="widget-field-row"

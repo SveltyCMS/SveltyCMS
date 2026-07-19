@@ -24,7 +24,7 @@ import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
 import { getGuiFields } from "@utils/utils";
-import type { DndEvent, Item } from "svelte-dnd-action";
+import type { DragDropState } from '@thisux/sveltednd';
 // Stores
 import { page } from "$app/state";
 import ModalSelectWidget from "./modal-select-widget.svelte";
@@ -36,7 +36,7 @@ interface Props {
 }
 
 // Field interface
-interface Field extends Item {
+interface Field {
 	db_fieldName?: string;
 	icon?: string;
 	id: number;
@@ -86,15 +86,15 @@ $effect.root(() => {
 // Collection headers
 const headers = ["Id", "Icon", "Name", "DBName", "Widget"];
 
-// svelte-dnd-action
-const flipDurationMs = 300;
-
-const handleDndConsider = (e: CustomEvent<DndEvent>) => {
-	fields = e.detail.items as Field[];
-};
-
-const handleDndFinalize = (e: CustomEvent<DndEvent>) => {
-	fields = e.detail.items as Field[];
+const handleFieldDrop = (state: DragDropState<{ item: Record<string, unknown>; index: number }>) => {
+	if (!state.item) return;
+	const fromIndex = state.item.index;
+	const toIndex = state.targetIndex;
+	if (fromIndex === toIndex || toIndex < 0) return;
+	const newFields = [...fields];
+	newFields.splice(fromIndex, 1);
+	newFields.splice(toIndex, 0, state.item.item as Field);
+	fields = newFields as Field[];
 };
 
 // Modal 2 to Edit a selected widget
@@ -208,26 +208,26 @@ async function handleCollectionSave() {
 		<p class="mb-2">{collection_widgetfield_drag()}</p>
 	</div>
 	<div style="max-height: 55vh !important;">
-		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-			{#each fields as field (field.id)}
+		<VerticalList items={fields} {headers} container="widget-fields" onDrop={handleFieldDrop}>
+			{#snippet children(item)}
 				<div
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
 					role="row"
 				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
+					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{(item as any).id}</div>
 
-					<div role="cell" class="flex justify-center"><iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon></div>
-					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
-					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" " role="cell">{field.widget?.key}</div>
+					<div role="cell" class="flex justify-center"><iconify-icon icon={(item as any).icon} width="24" class="text-tertiary-500"></iconify-icon></div>
+					<div class="font-bold dark:text-primary-500" role="cell">{(item as any).label}</div>
+					<div class=" " role="cell">{(item as any)?.db_fieldName ? (item as any).db_fieldName : '-'}</div>
+					<div class=" " role="cell">{(item as any).widget?.key}</div>
 
 					<div role="cell" class="flex justify-end">
-						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
+						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(item as Field)} aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
 							<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
 						</Button>
 					</div>
 				</div>
-			{/each}
+			{/snippet}
 		</VerticalList>
 	</div>
 	<div>
