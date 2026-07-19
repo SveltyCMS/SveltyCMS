@@ -696,6 +696,17 @@ function isSetupModeTest(filePath: string) {
   );
 }
 
+async function isServerAlive(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/system/health`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function teardown() {
   if (isShuttingDown) return;
   isShuttingDown = true;
@@ -923,6 +934,11 @@ async function main() {
       const entry = await runOneTest(file, false, { progress });
 
       if (!entry.success && !isShuttingDown) {
+        if (entry.serverCrashed) {
+          console.log("  ⚠️ Server crashed — restarting...");
+          await freePort(Number.parseInt(PORT, 10));
+          await startPreviewServer();
+        }
         await testingAction("reset");
         await testingAction("seed");
         const retry = await runOneTest(file, false, { retry: true, progress: `${progress} ↻` });
@@ -940,6 +956,11 @@ async function main() {
 
       // Reset/seed for next test (skip after last)
       if (i < regularTests.length - 1 && !isShuttingDown) {
+        if (!(await isServerAlive())) {
+          console.log("  ⚠️ Server died between tests — restarting...");
+          await freePort(Number.parseInt(PORT, 10));
+          await startPreviewServer();
+        }
         await testingAction("reset");
         await testingAction("seed");
       }
