@@ -16,6 +16,7 @@
 
 import path from "node:path";
 import { sveltyContext, requireTenantId } from "./context";
+import { resolvePrivateConfigFileName } from "./private-config-policy";
 
 /** Always resolve from live process.cwd() so tests/chdir and tooling stay correct. */
 function cwd(): string {
@@ -32,7 +33,7 @@ export const paths = {
     return path.join(cwd(), "config");
   },
 
-  /** Flat collection directory (no tenant) */
+  /** Flat collection directory (no tenant) — live user schemas */
   get collections(): string {
     return path.join(cwd(), "config", "collections");
   },
@@ -83,9 +84,26 @@ export const paths = {
     return path.join(cwd(), "config", "database");
   },
 
-  /** Private config file */
-  get privateConfig(): string {
+  /**
+   * Live developer bootstrap only (`config/private.ts`).
+   * Prefer `activePrivateConfig` for loaders that run under TEST_MODE / precheck.
+   */
+  get privateConfigLive(): string {
     return path.join(cwd(), "config", "private.ts");
+  },
+
+  /** Isolated test bootstrap (`config/private.test.ts`). */
+  get privateConfigTest(): string {
+    return path.join(cwd(), "config", "private.test.ts");
+  },
+
+  /**
+   * Active bootstrap file for this process.
+   * Automated harnesses → private.test.ts (never live private.ts / user DB).
+   * Normal dev/prod → private.ts.
+   */
+  get privateConfig(): string {
+    return path.join(cwd(), "config", resolvePrivateConfigFileName());
   },
 
   /** Benchmark-specific paths (isolated from user live data) */

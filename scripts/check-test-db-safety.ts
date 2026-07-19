@@ -27,12 +27,14 @@ const ROOT = process.cwd();
 const TEST_CONFIG_PATH = join(ROOT, "config", "private.test.ts");
 const LIVE_CONFIG_PATH = join(ROOT, "config", "private.ts");
 
+let liveDbName: string | undefined;
+
 if (existsSync(LIVE_CONFIG_PATH)) {
   const live = readFileSync(LIVE_CONFIG_PATH, "utf8");
-  const liveDb = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
-  if (isUnsafeLiveDeveloperDbName(liveDb)) {
+  liveDbName = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
+  if (isUnsafeLiveDeveloperDbName(liveDbName)) {
     console.error(
-      `❌ config/private.ts uses test DB name '${liveDb}'. ` +
+      `❌ config/private.ts uses test DB name '${liveDbName}'. ` +
         "Live developer config must use a non-test database (e.g. sveltycms.db).",
     );
     process.exit(1);
@@ -59,6 +61,16 @@ if (!safe) {
   console.error(
     `❌ config/private.test.ts has unsafe DB_NAME '${dbName}'. ` +
       "Delete it and let it regenerate with an isolated test DB name.",
+  );
+  process.exit(1);
+}
+
+// Fail-closed: test config must never point at the same DB as live private.ts
+if (liveDbName && dbName === liveDbName) {
+  console.error(
+    `❌ config/private.test.ts DB_NAME '${dbName}' matches live config/private.ts. ` +
+      "Tests/benchmarks must use an isolated database (e.g. sveltycms_test, benchmark_shared) " +
+      "so live user data is never destroyed.",
   );
   process.exit(1);
 }

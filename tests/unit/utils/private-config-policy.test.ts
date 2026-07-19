@@ -61,3 +61,20 @@ describe("private-config-policy", () => {
     ).not.toThrow();
   });
 });
+
+describe("path-resolver privateConfig isolation", () => {
+  it("points at private.test.ts when TEST_MODE is set", async () => {
+    const prev = process.env.TEST_MODE;
+    process.env.TEST_MODE = "true";
+    try {
+      // Re-import after env change is not needed — getter reads process.env via resolvePrivateConfigFileName
+      const { paths } = await import("@utils/path-resolver");
+      expect(paths.privateConfig.replace(/\\/g, "/")).toMatch(/config\/private\.test\.ts$/);
+      expect(paths.privateConfigLive.replace(/\\/g, "/")).toMatch(/config\/private\.ts$/);
+      expect(paths.benchmark.collections.replace(/\\/g, "/")).toMatch(/config\/collections\/test$/);
+    } finally {
+      if (prev === undefined) delete process.env.TEST_MODE;
+      else process.env.TEST_MODE = prev;
+    }
+  });
+});

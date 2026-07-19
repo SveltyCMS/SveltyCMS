@@ -253,10 +253,28 @@ function getEnvOverrides() {
 /** Test isolation enforcement — uses the shared classifier for consistency. */
 async function enforceTestSafety(config: any) {
   if ((env("TEST_MODE") === "true" || env("NODE_ENV") === "test") && config?.DB_NAME) {
-    if (!isIsolatedTestDbName(String(config.DB_NAME))) {
-      const msg = `SAFETY VIOLATION: Test mode DB_NAME '${config.DB_NAME}' does not indicate a test database.`;
+    const dbName = String(config.DB_NAME);
+    if (!isIsolatedTestDbName(dbName)) {
+      const msg = `SAFETY VIOLATION: Test mode DB_NAME '${dbName}' does not indicate a test database.`;
       logger.error(msg);
       throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+    }
+    // Never connect to the same DB as live config/private.ts (user data)
+    try {
+      const fs = await import("node:fs");
+      const livePath = `${process.cwd()}/config/private.ts`;
+      if (fs.existsSync(livePath)) {
+        const live = fs.readFileSync(livePath, "utf8");
+        const liveDb = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
+        if (liveDb && liveDb === dbName) {
+          const msg = `SAFETY VIOLATION: Test mode DB_NAME '${dbName}' matches live config/private.ts. Refusing to use user database for tests.`;
+          logger.error(msg);
+          throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+        }
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      /* ignore read errors */
     }
   }
 }
