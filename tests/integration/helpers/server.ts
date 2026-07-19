@@ -135,7 +135,10 @@ export async function safeFetch(
         message.includes("ConnectionRefused") ||
         message.includes("failed to fetch") ||
         message.includes("ECONNREFUSED") ||
+        message.includes("ECONNRESET") ||
         message.includes("socket connection closed") ||
+        message.includes("socket connection was closed") ||
+        message.includes("Unable to connect") ||
         message.includes("undici"); // Bun/Node fetch errors
 
       if (isTransient && attempt < maxRetries) {

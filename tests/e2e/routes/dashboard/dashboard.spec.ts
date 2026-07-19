@@ -193,17 +193,20 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
       expect(emptyVisible || gridVisible).toBe(true);
     }).toPass({ timeout: ACTION_TIMEOUT });
 
-    const emptyVisible = await empty.isVisible().catch(() => false);
-    const gridVisible = await grid.isVisible().catch(() => false);
+    // Re-check after poll (names prefixed — oxlint no-unused-vars under --deny-warnings)
+    const isEmpty = await empty.isVisible().catch(() => false);
+    const isGrid = await grid.isVisible().catch(() => false);
 
-    if (gridVisible) {
+    if (isGrid) {
       const widgets = page.locator("[data-widget-id]");
       await expect(widgets.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
       // Do not assert specific component names — install-specific
       const count = await widgets.count();
       expect(count).toBeGreaterThan(0);
-    } else {
+    } else if (isEmpty) {
       await expect(empty).toContainText(/empty|add widgets/i);
+    } else {
+      throw new Error("Dashboard shell: neither empty state nor widget grid visible");
     }
   });
 
