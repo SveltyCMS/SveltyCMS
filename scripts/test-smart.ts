@@ -27,7 +27,7 @@
 
 import { join, dirname, resolve, relative, extname } from "node:path";
 import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
-import { getChangedPaths } from "./precheck-shared";
+import { getChangedPaths, resolveDiffBase } from "./precheck-shared";
 
 // ── Failure cache for smart retry across precheck runs ─────────────────
 const CACHE_DIR = join(import.meta.dirname, "..", ".precheck-cache");
@@ -509,13 +509,10 @@ export function expandSyntheticEdges(changedFiles: string[]): string[] {
 }
 
 function getMergeBase(): string {
+  // Prefer upstream (origin/next) — same base as precheck getChangedPaths.
+  // Do NOT compare against origin/main on the next branch (inflates the delta).
   try {
-    const isWindows = process.platform === "win32";
-    const baseCmd = isWindows
-      ? "git merge-base origin/main HEAD 2>nul || git merge-base main HEAD 2>nul || echo HEAD~1"
-      : "git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo HEAD~1";
-    const { execSync } = require("node:child_process");
-    return execSync(baseCmd, { encoding: "utf8" }).trim();
+    return resolveDiffBase();
   } catch {
     return "HEAD~1";
   }

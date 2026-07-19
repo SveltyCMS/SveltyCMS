@@ -265,24 +265,52 @@ function gitOutput(args: string[]): string {
   }
 }
 
+function gitRefExists(ref: string): boolean {
+  const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
+    encoding: "utf8",
+    cwd: ROOT,
+    stdio: ["ignore", "pipe", "ignore"],
+    shell: IS_WINDOWS,
+  });
+  return result.status === 0;
+}
+
+/**
+ * Resolve the git ref that represents "what remote already has" for pre-push
+ * change detection.
+ *
+ * SveltyCMS develops on `next` and merges to `main` for releases. Comparing
+ * against `origin/main` incorrectly treats every unmerged next-only commit as
+ * "changed" (hundreds of files) and turns pre-push into a full CI matrix.
+ *
+ * Priority:
+ *   1. Upstream tracking branch (`@{upstream}` → e.g. origin/next)
+ *   2. origin/next, next (development default)
+ *   3. origin/main, main (release fallback)
+ *   4. HEAD~1
+ */
+export function resolveDiffBase(): string {
+  const upstream = gitOutput(["rev-parse", "--abbrev-ref", "@{upstream}"]).trim();
+  if (upstream && gitRefExists(upstream)) return upstream;
+
+  for (const ref of ["origin/next", "next", "origin/main", "main"]) {
+    if (gitRefExists(ref)) return ref;
+  }
+  return "HEAD~1";
+}
+
+/**
+ * Files changed relative to the push base (upstream / origin/next), plus
+ * working-tree dirt. Uses three-dot range so only commits not on the remote
+ * branch count — not the entire next↔main divergence.
+ */
 export function getChangedPaths(): string[] {
   try {
-    // 1. diff against merge-base
-    let mergeBase = "";
-    try {
-      const baseCmd = IS_WINDOWS
-        ? "git merge-base origin/main HEAD 2>nul || git merge-base main HEAD 2>nul || echo HEAD~1"
-        : "git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo HEAD~1";
-      const proc = require("node:child_process").execSync(baseCmd, { encoding: "utf8" });
-      mergeBase = proc.trim();
-    } catch {
-      mergeBase = "HEAD~1";
-    }
-
+    const base = resolveDiffBase();
     const files = new Set<string>();
 
-    // Merge base diff
-    const baseDiff = gitOutput(["diff", "--name-only", `${mergeBase}..HEAD`]);
+    // Three-dot: commits reachable from HEAD but not from base (push delta)
+    const baseDiff = gitOutput(["diff", "--name-only", `${base}...HEAD`]);
     if (baseDiff) {
       for (const line of baseDiff.split("\n")) {
         if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
@@ -297,7 +325,7 @@ export function getChangedPaths(): string[] {
       }
     }
 
-    // Untracked changes
+    // Staged + untracked (porcelain)
     const statusPorcelain = gitOutput(["status", "--porcelain"]);
     if (statusPorcelain) {
       for (const line of statusPorcelain.split("\n")) {
@@ -313,7 +341,6 @@ export function getChangedPaths(): string[] {
       }
     }
 
-    const { existsSync } = require("node:fs");
     return [...files].filter((f) => existsSync(f));
   } catch {
     return [];
@@ -588,11 +615,14 @@ const BASE_TASKS: TaskSpec[] = [
     run: (ctx) =>
       runCommand(
         "bun",
+        // Push: unit-only (smart + fail-cache). SQLite HTTP integration is the
+        // separate "Integration smoke" task when hasDbInfra — not bundled here.
+        // Full tier keeps the complete unit suite for CI parity.
         ctx.tier === "push"
           ? [
               "run",
               "scripts/test-smart.ts",
-              "--unit+sqlite",
+              "--unit-only",
               "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
             ]
           : ["run", "test:unit"],
@@ -616,7 +646,22 @@ const BASE_TASKS: TaskSpec[] = [
     ciJob: "whitebox",
     remediation:
       "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
-    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    // Second full production build (~1–3 min). On push, only when strip-related
+    // paths change; CI whitebox always covers the full deploy probe.
+    shouldSkip: (ctx) => {
+      if (ctx.tier === "full") return false;
+      if (!ctx.profile.needsCiSmoke) return true;
+      const touchesStripSurface = ctx.profile.paths.some(
+        (f) =>
+          f.includes("vite.config") ||
+          f.includes("verify-prod-build-backdoor") ||
+          f.includes("test-backdoor") ||
+          f.includes("handlers/testing") ||
+          f.includes("testBackdoorStripper") ||
+          f === "svelte.config.js",
+      );
+      return !touchesStripSurface;
+    },
     run: () => {
       // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
       // CRITICAL: save the good build first, then restore it after verification.

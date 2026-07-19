@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/ci/quality-gate-smoke.test.ts
- * @description Ensures pre-push precheck runs CI smoke: build, 4-DB integration, benchmarks.
+ * @description Ensures pre-push precheck is change-scoped to origin/next and CI-parity capable.
  */
 
 import { readFileSync } from "node:fs";
@@ -21,6 +21,12 @@ describe("pre-push precheck CI smoke", () => {
     expect(source).toContain("name: `Integration (${db})`");
     expect(source).toContain("name: `Benchmarks (${db})`");
     expect(source).toContain("run-core-benchmarks.ts");
+    // Push unit gate must stay unit-only (SQLite HTTP is the separate smoke task)
+    expect(source).toContain("--unit-only");
+    // Diff base must prefer upstream / origin/next (not hard-coded origin/main)
+    expect(source).toContain("resolveDiffBase");
+    expect(source).toContain("origin/next");
+    expect(source).not.toMatch(/merge-base origin\/main HEAD.*\|\|.*merge-base main HEAD/);
 
     expect(INTEGRATION_DB_MATRIX).toEqual(["sqlite", "mongodb", "mariadb", "postgresql"]);
   });
@@ -34,8 +40,7 @@ describe("pre-push precheck CI smoke", () => {
   it("pre-push hook invokes precheck.ts push tier", () => {
     const hook = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
     expect(hook).toContain("verify:push");
-    expect(hook).toContain("verify:push");
-    expect(hook).toContain("benchmarks");
+    expect(hook).toContain("origin/next");
   });
 
   it("unit tests always run on push tier (no skip property)", () => {

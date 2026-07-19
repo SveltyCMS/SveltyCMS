@@ -1,13 +1,17 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Push — Fast Gate (~5-10s)
+# SveltyCMS Pre-Push — Fast Gate (change-scoped, ~1–3 min typical)
 # =============================================================================
 # Runs scripts/precheck.ts (push tier) before code reaches GitHub:
-#   • format, lint, slop, imports, unit tests (always)
-#   • production build (always on any change)
+#   • Diff base = upstream tracking (origin/next), NOT origin/main
+#   • format, lint, check, slop, imports — only when relevant files changed
+#   • unit tests (smart selection); SQLite smoke only when DB/plugins/hooks change
+#   • one production build when source/infra changes (deploy double-build is
+#     CI-only unless vite/testing-strip paths changed)
 #   • progress dashboard with ETA, per-task timing, and error remediation
 #
-# 4-DB integration + benchmarks + E2E run in GitHub CI only.
+# 4-DB matrix + benchmarks + E2E run in GitHub CI only.
+# Opt in locally: bun run scripts/precheck.ts --tier=push --include-db-tasks
 #
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push'.
 # =============================================================================

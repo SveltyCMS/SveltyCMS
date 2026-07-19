@@ -31,6 +31,7 @@ import {
   getChangedPaths,
   getPrecheckPlan,
   resolveActiveTasks,
+  resolveDiffBase,
   validateCiParity,
   getLastCommandOutput,
   clearLastCommandOutput,
@@ -532,12 +533,13 @@ function printHeader(options: PrecheckOptions, profile: ReturnType<typeof analyz
 
   if (options.tier === "push") {
     console.log("🔎 Push change profile:");
+    console.log(`   Diff base:          ${resolveDiffBase()}`);
     console.log(`   Source/tests code:  ${profile.hasSourceCode ? "yes" : "no"}`);
     console.log(`   CI/infra scripts:   ${profile.hasInfra ? "yes" : "no"}`);
     console.log(`   Database layer:     ${profile.hasDbInfra ? "yes" : "no"}`);
     console.log(`   Admin theme routes: ${profile.hasAdminTheme ? "yes" : "no"}`);
     console.log(`   Documentation:      ${profile.hasDocs ? "yes" : "no"}`);
-    console.log(`   CI smoke (build): ${profile.needsCiSmoke ? "yes" : "no"}`);
+    console.log(`   CI smoke (build):   ${profile.needsCiSmoke ? "yes" : "no"}`);
     if (options.includeDbTasks) console.log("   DB tasks: included (--include-db-tasks)");
     if (profile.paths.length <= 12) {
       console.log(`   Files: ${profile.paths.join(", ") || "(none — running full gate)"}`);
