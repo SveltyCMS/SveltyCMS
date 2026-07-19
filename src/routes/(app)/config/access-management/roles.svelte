@@ -278,7 +278,9 @@ const toggleRoleSelection = (roleId: string) => {
 								class="animate-flip flex items-center justify-between rounded border border-surface-200 dark:border-surface-800 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
 								use:draggable={{ container: 'roles', dragData: role, keyboard: true }}
-								tabindex="0"
+									use:droppable={{ container: 'roles', callbacks: { onDrop: handleRoleDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
+									data-role-id={role.id}
+									tabindex="0"
 								aria-label="Role: {role.name}. Press Space to grab, arrows to move."
 							>
 								<div class="flex items-center gap-2">

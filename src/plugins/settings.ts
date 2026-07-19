@@ -18,30 +18,21 @@ export class PluginSettingsService {
   constructor(private readonly dbAdapter: IDBAdapter) {}
 
   // Ensure the plugin_settings collection exists (SQL adapters need physical table).
+  // Table provisioning is delegated to SqlAdapterCore.insert() auto-provision —
+  // calling createModel directly on the adapter bypasses the standard
+  // CollectionModule.createModel() path and can cause crashes on certain adapters.
   async initialize(): Promise<void> {
     try {
-      // Prefer explicit schema provisioning when available (MariaDB/Postgres/SQLite).
-      // Without this, SQL adapters map plugin_settings → collection_plugin_settings
-      // and insert fails with "table doesn't exist".
-      if (typeof (this.dbAdapter as any).createModel === "function") {
-        try {
-          await (this.dbAdapter as any).createModel({
-            _id: this.SETTINGS_COLLECTION,
-            name: this.SETTINGS_COLLECTION,
-            fields: [],
-          });
-        } catch (provisionErr) {
-          logger.debug(
-            `createModel for ${this.SETTINGS_COLLECTION} skipped/failed (may already exist)`,
-            { error: provisionErr },
-          );
-        }
-      }
-
+      // Probe: attempt a count to check if the collection has any data.
+      // For SQL adapters on a missing table, count() returns { success: true, data: 0 }
+      // because isMissingTableError is caught internally and returns 0.
+      // We check both !success (genuine error) and data === 0 (empty/missing table)
+      // to ensure the probe insert runs and triggers auto-provision via
+      // SqlAdapterCore.insert().
       const count = await this.dbAdapter.crud.count(this.SETTINGS_COLLECTION, undefined, {
         bypassTenantCheck: true,
       });
-      if (!count.success) {
+      if (!count.success || count.data === 0) {
         logger.info(`Creating ${this.SETTINGS_COLLECTION} collection...`);
         await this.dbAdapter.crud.insert(
           this.SETTINGS_COLLECTION,
@@ -60,6 +51,9 @@ export class PluginSettingsService {
       }
     } catch (error) {
       logger.error(`Failed to initialize ${this.SETTINGS_COLLECTION}`, { error });
+      // Do not rethrow — plugin settings is non-critical; the system
+      // should continue booting. Table auto-provision in insert() will
+      // handle first-write provisioning when settings are later saved.
     }
   }
 
