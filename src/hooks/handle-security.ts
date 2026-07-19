@@ -9,7 +9,7 @@ import { securityResponseService } from "@src/services/security/response-service
 import { error, type Handle } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getTenantIdFromHostname } from "@utils/tenant";
+import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp } from "@utils/hook-utils";
 
@@ -87,7 +87,7 @@ async function getGraphQL() {
   return graphqlModuleCache;
 }
 
-const MULTI_TENANT = getPrivateSettingSync("MULTI_TENANT");
+const MULTI_TENANT = isMultiTenantEnabled();
 const IS_DEMO = getPrivateSettingSync("DEMO");
 
 const MAX_DEPTH = 12;

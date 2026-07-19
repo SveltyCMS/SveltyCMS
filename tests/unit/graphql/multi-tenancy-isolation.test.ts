@@ -12,7 +12,14 @@ vi.mock("$app/environment", () => ({
   building: false,
 }));
 
-// Mocking settings
+// Mock tenant detection — isMultiTenantEnabled() reads from config/private.ts
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn(() => true),
+  isValidTenantId: vi.fn(() => true),
+  getTenantIdFromHostname: vi.fn(() => "test-tenant"),
+}));
+
+// Mocking settings (kept for any direct getPrivateSettingSync calls)
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn((key: string) => {
     if (key === "MULTI_TENANT") return true;
@@ -130,6 +137,82 @@ describe("GraphQL Multi-Tenancy Isolation", () => {
     await expect(resolverFn({}, {}, context)).rejects.toThrow(
       "Forbidden: Tenant isolation mismatch",
     );
+  });
+
+  it("should reject unauthenticated GraphQL collection queries", async () => {
+    const mockDbAdapter = {
+      queryBuilder: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        paginate: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      }),
+    } as any;
+    const resolvers = await collectionsResolvers(mockDbAdapter, null, "tenant-A");
+    const cleanTypeName = createCleanTypeName({
+      _id: "test1",
+      name: "TestCollection",
+    });
+    const resolverFn = resolvers.Query[cleanTypeName] as Function;
+
+    await expect(
+      resolverFn(
+        {},
+        {},
+        {
+          user: null,
+          tenantId: "tenant-A",
+          bypassTenantIsolation: false,
+        },
+      ),
+    ).rejects.toThrow(/auth|forbidden|unauthorized|login/i);
+  });
+
+  it("should scope successful queries to the matching tenant context", async () => {
+    const find = vi.fn().mockResolvedValue({
+      success: true,
+      data: [{ _id: "doc1", tenantId: "tenant-A", createdAt: "2026-01-01T00:00:00.000Z" }],
+    });
+    const mockDbAdapter = {
+      ensureCollections: vi.fn(),
+      queryBuilder: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        paginate: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      }),
+    } as any;
+
+    const resolvers = await collectionsResolvers(mockDbAdapter, null, "tenant-A");
+    const cleanTypeName = createCleanTypeName({
+      _id: "test1",
+      name: "TestCollection",
+    });
+    const resolverFn = resolvers.Query[cleanTypeName] as Function;
+
+    const result = await resolverFn(
+      {},
+      {},
+      {
+        user: {
+          _id: "user1",
+          email: "test@test.com",
+          roleIds: [],
+          tenantId: "tenant-A",
+          isRegistered: true,
+          emailVerified: true,
+          isAdmin: true,
+        },
+        tenantId: "tenant-A",
+        bypassTenantIsolation: false,
+        cms: {
+          collections: { find },
+        },
+      },
+    );
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(find).toHaveBeenCalled();
+    const findOpts = find.mock.calls[0]?.[1];
+    expect(findOpts?.tenantId).toBe("tenant-A");
   });
 
   it("should allow global admin to bypass isolation when bypassTenantIsolation is true", async () => {

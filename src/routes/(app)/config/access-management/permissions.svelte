@@ -149,6 +149,18 @@ $effect(() => {
 	}
 });
 
+// Compute checkbox state (checked, indeterminate) for a role's header checkbox.
+// Uses String() normalization to handle potential mixed ID types across DB adapters.
+const getHeaderCheckboxState = (role: Role): { checked: boolean; indeterminate: boolean } => {
+	if (filteredPermissions.length === 0) {
+		return { checked: false, indeterminate: false };
+	}
+	const rolePermIds = new Set(role.permissions.map(String));
+	const allChecked = filteredPermissions.every((p) => rolePermIds.has(String(p._id)));
+	const someChecked = filteredPermissions.some((p) => rolePermIds.has(String(p._id)));
+	return { checked: allChecked, indeterminate: someChecked && !allChecked };
+};
+
 // Function to filter permissions by group (with sorting applied)
 const filterGroups = (
 	permissions: Permission[],
@@ -207,7 +219,7 @@ const toggleRole = (permission: string, roleId: string) => {
 	const updatedRoles = roles.map((role) => {
 		if (role._id === roleId) {
 			const permissions = [...role.permissions];
-			const pIndex = permissions.indexOf(permission);
+			const pIndex = permissions.findIndex((p) => String(p) === String(permission));
 			if (pIndex === -1) {
 				permissions.push(permission);
 			} else {
@@ -218,7 +230,7 @@ const toggleRole = (permission: string, roleId: string) => {
 		return role;
 	});
 
-	modifiedPermissions.add(permission);
+	modifiedPermissions.add(String(permission));
 	roles = updatedRoles;
 	setRoleData(updatedRoles);
 	updateModifiedCount(modifiedPermissions.size);
@@ -226,21 +238,24 @@ const toggleRole = (permission: string, roleId: string) => {
 
 // Bulk toggle for a role
 const toggleAllForRole = (roleId: string, checked: boolean) => {
+	// Guard: nothing to toggle when there are no filtered permissions
+	if (filteredPermissions.length === 0) return;
+
 	const updatedRoles = roles.map((role) => {
 		if (role._id === roleId) {
 			if (checked) {
-				// Add all filtered permissions
+				// Add all filtered permissions (String-normalized for type-safe deduplication)
 				const newPerms = new Set([
-					...role.permissions,
-					...filteredPermissions.map((p) => p._id),
+					...role.permissions.map(String),
+					...filteredPermissions.map((p) => String(p._id)),
 				]);
 				return { ...role, permissions: Array.from(newPerms) };
 			} else {
-				// Remove all filtered permissions
-				const filteredIds = new Set(filteredPermissions.map((p) => p._id as string));
+				// Remove all filtered permissions (String-normalized for consistent hashing)
+				const filteredIds = new Set(filteredPermissions.map((p) => String(p._id)));
 				return {
 					...role,
-					permissions: role.permissions.filter((p) => !filteredIds.has(p as string)),
+					permissions: role.permissions.filter((p) => !filteredIds.has(String(p))),
 				};
 			}
 		}
@@ -283,10 +298,8 @@ function getActionBadgeClass(action: string) {
 			<div class="absolute inset-y-0 inset-s-0 ps-3.5 flex items-center pointer-events-none text-surface-400">
 				<iconify-icon icon="material-symbols:search-rounded" width="20"></iconify-icon>
 			</div>
-			<input aria-label="Search permissions"
-				type="text"
+			<input type="text" aria-label="Search permissions" placeholder="Search Permissions..."
 				bind:value={searchTerm}
-				placeholder="Search Permissions..."
 				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 				/>
 		</div>
@@ -350,19 +363,16 @@ function getActionBadgeClass(action: string) {
 						<!-- List only non-admin roles -->
 						{#each roles as role (role._id)}
 							{#if !role.isAdmin}
+								{@const headerState = getHeaderCheckboxState(role)}
 								<th class="px-5 py-4 dark:text-surface-50 text-center" scope="col">
 									<div class="flex flex-col items-center gap-1.5">
 										<span class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400">{role.name}</span>
 										<div class="flex items-center gap-1.5 mt-0.5">
-											<input aria-label="Search roles"
-												type="checkbox"
+											<input type="checkbox" aria-label={`Select all filtered permissions for ${role.name}`} title={`Select/Deselect all filtered permissions for ${role.name}`}
 												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
-												checked={filteredPermissions.length > 0 && filteredPermissions.every((p) => role.permissions.includes(p._id))}
-												indeterminate={filteredPermissions.length > 0 &&
-													filteredPermissions.some((p) => role.permissions.includes(p._id)) &&
-													!filteredPermissions.every((p) => role.permissions.includes(p._id))}
+												checked={headerState.checked}
+												indeterminate={headerState.indeterminate}
 												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
-												title={`Select/Deselect all filtered permissions for ${role.name}`}
 											/>
 											<button
 												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
@@ -407,9 +417,8 @@ function getActionBadgeClass(action: string) {
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
 											<td class="px-5 py-3 text-center">
-												<input aria-label="Search users"
-													type="checkbox"
-													checked={role.permissions.includes(permission._id)}
+												<input type="checkbox" aria-label={`Toggle ${role.name} for ${permission.name || permission._id}`}
+													checked={role.permissions.some((p) => String(p) === String(permission._id))}
 													onchange={() => toggleRole(permission._id, role._id)}
 													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
 												/>

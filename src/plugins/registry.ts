@@ -18,10 +18,14 @@ import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { PluginSettingsService } from "./settings";
+import { capabilityRegistry } from "@src/services/security/capability-registry";
+import { registerSugarType } from "@src/widgets/desugar-field";
+import type { PluginCapability } from "./types";
 import type {
   IPluginService,
   Plugin,
   PluginMigrationRecord,
+  PluginPart,
   PluginRegistryEntry,
   PluginSSRHook,
 } from "./types";
@@ -42,6 +46,11 @@ class PluginRegistry implements IPluginService {
         plugin,
         registeredAt: nowISODateString(),
       });
+
+      // Register plugin capabilities into the merged catalog
+      if (plugin.metadata.capabilities && plugin.metadata.capabilities.length > 0) {
+        capabilityRegistry.registerPlugin(plugin.metadata.id, plugin.metadata.capabilities);
+      }
 
       logger.debug(
         `🔌 Plugin registered: ${plugin.metadata.name} (${plugin.metadata.id}) v${plugin.metadata.version}`,
@@ -333,6 +342,210 @@ class PluginRegistry implements IPluginService {
   // Check if registry is initialized
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  // ============================================================================
+  // Plugin Settings (encrypted, per-tenant)
+  // ============================================================================
+
+  /**
+   * Get settings for a plugin (secrets masked, safe for API).
+   */
+  async getPluginSettings(
+    pluginId: string,
+    tenantId: string,
+  ): Promise<Record<string, unknown> | null> {
+    if (!this.settingsService) return null;
+    const plugin = this.get(pluginId);
+    return this.settingsService.getPluginSettings(pluginId, tenantId, plugin?.settings);
+  }
+
+  /**
+   * Get decrypted settings for server-side plugin consumption.
+   * NEVER send this to the browser.
+   */
+  async getDecryptedSettings(
+    pluginId: string,
+    tenantId: string,
+  ): Promise<Record<string, unknown> | null> {
+    if (!this.settingsService) return null;
+    const plugin = this.get(pluginId);
+    return this.settingsService.getDecryptedSettings(pluginId, tenantId, plugin?.settings);
+  }
+
+  /**
+   * Save plugin settings (encrypts secrets, preserves existing).
+   */
+  async savePluginSettings(
+    pluginId: string,
+    tenantId: string,
+    settings: Record<string, unknown>,
+  ): Promise<boolean> {
+    if (!this.settingsService) return false;
+    const plugin = this.get(pluginId);
+    return this.settingsService.savePluginSettings(pluginId, tenantId, settings, plugin?.settings);
+  }
+
+  /**
+   * Delete all settings for a plugin in a tenant.
+   */
+  async deletePluginSettings(pluginId: string, tenantId: string): Promise<boolean> {
+    if (!this.settingsService) return false;
+    return this.settingsService.deletePluginSettings(pluginId, tenantId);
+  }
+
+  // ============================================================================
+  // Capability Reconciliation
+  // ============================================================================
+
+  /**
+   * Reconcile plugin capabilities with the merged catalog.
+   * Called during CMS boot to ensure owners of existing orgs pick up
+   * newly added capabilities from plugins.
+   */
+  async reconcileCapabilities(): Promise<void> {
+    const caps = capabilityRegistry.getAllCapabilities();
+    logger.info(`[PluginRegistry] Capability catalog: ${caps.length} total (core + plugin)`);
+    // The actual role reconciliation happens downstream when roles are loaded.
+    // The capabilityRegistry already has the merged catalog ready.
+  }
+
+  // ============================================================================
+  // Plugin Part Resolution (Discriminated Union Dispatch)
+  // ============================================================================
+
+  /**
+   * Resolve a plugin's structured parts into the appropriate subsystems.
+   *
+   * Dispatches on the `type` discriminant of each PluginPart:
+   * - `schema` → logs collection registration for content system.
+   * - `schemaTransform` → registers sugar type builders via `registerSugarType`.
+   * - `route` → validates `requiredCapabilities` is defined on every route.
+   * - `capability` → registers capabilities in the merged catalog.
+   * - `settings` → merges declaration into the plugin's `settings` field.
+   * - `adminTool` → logs tool registration for UI slot injection.
+   * - `fieldComponent` → logs field component registration.
+   * - `documentAction` → logs document action registration.
+   *
+   * Called during `initializePlugins` in `src/plugins/index.ts`.
+   */
+  resolveParts(plugin: Plugin): void {
+    const parts: PluginPart[] | undefined = plugin.parts;
+    if (!parts || parts.length === 0) return;
+
+    const pluginId = plugin.metadata.id;
+
+    for (const part of parts) {
+      switch (part.type) {
+        case "schema": {
+          const expectedPrefix = `plugin_${pluginId}_`;
+          for (const schema of part.collections) {
+            if (!schema.name.startsWith(expectedPrefix)) {
+              logger.warn(
+                `[PluginRegistry] Schema "${schema.name}" from plugin "${pluginId}" should use "${expectedPrefix}" prefix to avoid collisions with core collections`,
+              );
+            }
+            logger.info(`[PluginRegistry] Plugin "${pluginId}" contributes schema: ${schema.name}`);
+          }
+          break;
+        }
+
+        case "schemaTransform": {
+          for (const transform of part.transforms) {
+            registerSugarType(transform);
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" registered sugar type: ${transform.type}`,
+            );
+          }
+          break;
+        }
+
+        case "route": {
+          for (const route of part.routes) {
+            // Security: requiredCapabilities MUST be defined
+            if (route.requiredCapabilities === undefined) {
+              throw new Error(
+                `[Security Violation] Plugin "${pluginId}" attempted to register route "${route.path}" without requiredCapabilities. Every route must declare requiredCapabilities: use [] for auth-only, "public" for unauthenticated, or a string[] of specific capabilities.`,
+              );
+            } else if (route.requiredCapabilities === "public") {
+              logger.warn(
+                `[PluginRegistry] Plugin "${pluginId}" route "${route.path}" is explicitly public`,
+              );
+            } else {
+              // Validate route capabilities are declared in plugin metadata
+              const declaredCaps = plugin.metadata.capabilities || [];
+              for (const cap of route.requiredCapabilities) {
+                if (!declaredCaps.includes(cap as any) && !cap.startsWith("plugin:")) {
+                  logger.warn(
+                    `[PluginRegistry] Route "${route.path}" requires capability "${cap}" which is not declared in plugin "${pluginId}" metadata.capabilities. Consider adding it.`,
+                  );
+                }
+              }
+              logger.debug(
+                `[PluginRegistry] Plugin "${pluginId}" route "${route.path}" requires caps: [${route.requiredCapabilities.join(", ")}]`,
+              );
+            }
+          }
+          break;
+        }
+
+        case "capability": {
+          if (part.capabilities.length > 0) {
+            capabilityRegistry.registerPlugin(pluginId, part.capabilities as PluginCapability[]);
+          }
+          break;
+        }
+
+        case "settings": {
+          if (part.declaration) {
+            plugin.settings = part.declaration;
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" settings declaration merged (${part.declaration.fields.length} fields)`,
+            );
+          }
+          break;
+        }
+
+        case "adminTool": {
+          for (const tool of part.tools) {
+            // UI parts are lazily loaded — registered in a deferred map,
+            // not resolved during the critical boot path.
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" admin tool "${tool.id}" registered for lazy loading (zone: "${tool.zone}")`,
+            );
+          }
+          break;
+        }
+
+        case "fieldComponent": {
+          for (const comp of part.components) {
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" field component "${comp.type}" registered for lazy loading`,
+            );
+          }
+          break;
+        }
+
+        case "documentAction": {
+          for (const action of part.actions) {
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" document action "${action.id}" registered for lazy loading`,
+            );
+          }
+          break;
+        }
+
+        default: {
+          // Exhaustiveness check — `part` should be `never` here
+          const _exhaustive: never = part;
+          void _exhaustive;
+          logger.warn(
+            `[PluginRegistry] Plugin "${pluginId}" has unknown part type: ${(part as PluginPart).type}`,
+          );
+          break;
+        }
+      }
+    }
   }
 
   // Reset registry (used for shutdown/reinitialization)

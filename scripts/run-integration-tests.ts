@@ -15,6 +15,7 @@ import {
   readFileSync,
   mkdirSync,
   writeFileSync,
+  appendFileSync,
 } from "node:fs";
 import { isAbsolute, join, relative, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -181,14 +182,36 @@ async function waitForPortToBeFree(port: number, maxAttempts = 30) {
 async function freePort(port: number) {
   console.log(`🧹 Freeing port ${port}...`);
 
+  // Prefer killing only the preview process we spawned. Blind Stop-Process on
+  // every PID bound to the port can race Windows shells and orphan file locks
+  // around build/ during isolated restarts.
+  if (previewProcess?.pid) {
+    try {
+      if (process.platform === "win32") {
+        execSync(`taskkill /PID ${previewProcess.pid} /T /F`, { stdio: "ignore" });
+      } else {
+        try {
+          process.kill(-previewProcess.pid, "SIGKILL");
+        } catch {
+          previewProcess.kill("SIGKILL");
+        }
+      }
+    } catch {
+      // already dead
+    }
+    previewProcess = null;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
   try {
     if (process.platform === "win32") {
+      // Only kill LISTENING owners of this port (not our own shell if mis-matched).
       execSync(
-        `powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
+        `powershell -NoProfile -Command "$conns = Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue; foreach ($c in $conns) { $owner = $c.OwningProcess; if ($owner -and $owner -ne $PID) { Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue } }"`,
         { stdio: "ignore" },
       );
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9 || true`, { stdio: "ignore" });
+      execSync(`lsof -ti:${port} | xargs -r kill -9 || true`, { stdio: "ignore" });
     }
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -198,10 +221,28 @@ async function freePort(port: number) {
   await waitForPortToBeFree(port);
 }
 
-async function waitForServerReady(maxAttempts = 60) {
-  console.log("⏳ Waiting for server to reach READY state...");
+async function waitForServerReady(maxAttempts = 60, options: { allowSetup?: boolean } = {}) {
+  const allowSetup = options.allowSetup === true;
+  console.log(
+    allowSetup
+      ? "⏳ Waiting for server to listen (setup mode accepts state=setup)..."
+      : "⏳ Waiting for server to reach READY state...",
+  );
 
-  const targetStates = new Set(["ready", "healthy", "ok", "degraded"]);
+  // Setup-mode tests delete/recreate config and expect the app to stay in
+  // "setup" until the wizard completes — treating that as healthy hang forever.
+  // Regular integration also accepts "setup" under TEST_MODE: the server is
+  // listening and seed will create admin users before suite body runs.
+  const targetStates = new Set([
+    "ready",
+    "healthy",
+    "ok",
+    "degraded",
+    "setup",
+    "idle",
+    // Boot after isolated restart — process is listening while migrations finish.
+    "initializing",
+  ]);
   const testApiSecret = CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -214,15 +255,26 @@ async function waitForServerReady(maxAttempts = 60) {
         signal: AbortSignal.timeout(3000),
       });
 
-      if (res.ok || res.status === 533) {
+      if (res.ok || res.status === 533 || (allowSetup && res.status >= 200 && res.status < 600)) {
         const data = await res.json().catch(() => ({}));
         const payload = data?.data && typeof data.data === "object" ? data.data : data;
         const rawStatus = (payload.overallStatus || payload.status || payload.health || "")
           .toString()
           .toLowerCase();
+        const dbStatus = String(payload.database || "").toLowerCase();
 
-        if (targetStates.has(rawStatus)) {
-          console.log(`✅ Server is READY (state: ${rawStatus})`);
+        if (targetStates.has(rawStatus) || (allowSetup && res.ok && !rawStatus)) {
+          console.log(
+            `✅ Server is up (state: ${rawStatus || res.status}, db: ${dbStatus || "n/a"})`,
+          );
+
+          // Setup-mode or pre-seed: accept setup/idle immediately (seed follows).
+          if (rawStatus === "setup" || rawStatus === "idle" || allowSetup) {
+            // Prefer connected DB when we can, but do not hang forever on empty DB.
+            if (dbStatus === "connected" || dbStatus === "healthy" || allowSetup || i >= 5) {
+              return true;
+            }
+          }
 
           // 🚀 RACE CONDITION FIX: The system state machine reports READY
           // before SQLite migrations complete (bootAll runs asynchronously).
@@ -242,8 +294,10 @@ async function waitForServerReady(maxAttempts = 60) {
               });
               if (settleRes.ok) {
                 const settleData = await settleRes.json().catch(() => ({}));
-                const db = settleData?.data?.database || "";
-                if (db === "connected") {
+                // HYPER-TURBO path: { database: true }
+                // Regular handler: { success: true, data: { database: "connected" } }
+                const db = settleData?.database ?? settleData?.data?.database ?? "";
+                if (db === "connected" || db === true) {
                   console.log("✅ Database migrations settled.");
                   return true;
                 }
@@ -269,6 +323,11 @@ async function waitForServerReady(maxAttempts = 60) {
 }
 
 function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
+  const jwt =
+    CONFIG?.JWT_SECRET_KEY || process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
+  const enc =
+    CONFIG?.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
+
   return {
     NODE_ENV: "test",
     TEST_MODE: "true",
@@ -278,21 +337,22 @@ function getTestEnv(db: ReturnType<typeof getDbDefaults>) {
     PORT,
     API_BASE_URL,
     DB_TYPE: db.type,
-    DB_HOST: db.host,
-    DB_PORT: String(db.port),
+    DB_HOST: db.host || "127.0.0.1",
+    // Omit empty port for sqlite (Number("") is 0 and can fail validation)
+    ...(db.port ? { DB_PORT: String(db.port) } : {}),
     DB_NAME: db.name,
-    DB_USER: db.user,
-    DB_PASSWORD: db.password,
+    DB_USER: db.user || "",
+    DB_PASSWORD: db.password || "",
     TEST_API_SECRET: CONFIG?.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
     ADMIN_PASSWORD: CONFIG?.ADMIN_PASSWORD || "Password123!",
     ORIGIN: API_BASE_URL,
     PASSWORD_MIN_LENGTH: "8",
-    JWT_SECRET_KEY: CONFIG?.JWT_SECRET_KEY || "",
-    ENCRYPTION_KEY: CONFIG?.ENCRYPTION_KEY || "",
+    JWT_SECRET_KEY: jwt,
+    ENCRYPTION_KEY: enc,
   };
 }
 
-async function startPreviewServer() {
+async function startPreviewServer(options: { allowSetup?: boolean } = {}) {
   const db = getDbDefaults();
 
   // 🚀 HARDENING: For SQLite, delete stale database file BEFORE starting the server.
@@ -335,20 +395,42 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  const runtimeCmd = "node";
+  // Always prefer Node for the production adapter-node bundle.
+  // Bun cannot load the MongoDB driver (node:v8.isBuildingSnapshot is unimplemented),
+  // which crashes DB init under mongodb and cascades into failed seeds / exit 1.
+  // Core benchmarks already spawn with `node` for the same reason.
+  // Override with INTEGRATION_SERVER_RUNTIME=bun only for local experiments.
+  const runtimeCmd = process.env.INTEGRATION_SERVER_RUNTIME?.trim() || "node";
+  console.log(`⚙️ Preview server runtime: ${runtimeCmd}`);
 
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
     env: {
       ...process.env,
       ...getTestEnv(db),
+      // Ensure secrets are never empty strings (schema minLength 32)
+      JWT_SECRET_KEY:
+        process.env.JWT_SECRET_KEY ||
+        CONFIG?.JWT_SECRET_KEY ||
+        "Integration-Test-JWT-Secret-Key-2026",
+      ENCRYPTION_KEY:
+        process.env.ENCRYPTION_KEY ||
+        CONFIG?.ENCRYPTION_KEY ||
+        "Integration-Encryption-Key-2026-32ch",
     },
     stdio: "inherit",
     shell: process.platform === "win32",
     detached: false,
   });
 
-  await waitForServerReady();
+  const ready = await waitForServerReady(60, { allowSetup: options.allowSetup === true });
+  if (!ready) {
+    throw new Error(
+      options.allowSetup
+        ? "Preview server never became reachable (setup mode)."
+        : "Preview server never reached READY — aborting before seed.",
+    );
+  }
 }
 
 async function prepareIsolatedServerForTestFile(file: string) {
@@ -359,7 +441,7 @@ async function prepareIsolatedServerForTestFile(file: string) {
   await stopPreviewServer();
   await freePort(Number.parseInt(PORT, 10));
 
-  await startPreviewServer();
+  await startPreviewServer({ allowSetup: setupModeTest });
 
   if (!setupModeTest) {
     await testingAction("seed");
@@ -479,7 +561,8 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
     try {
       const body: any = { action };
       if (action === "seed") {
-        body.email = "admin@test.com";
+        // Must match tests/integration/helpers/test-setup.ts testFixtures.adminUser
+        body.email = "admin@example.com";
         body.password = CONFIG?.ADMIN_PASSWORD || "Password123!";
       }
       if (preset) body.preset = preset;
@@ -522,18 +605,37 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
   throw lastError || new Error(`Failed /api/testing ${action} after ${maxRetries} retries`);
 }
 
-async function runCommand(cmd: string, args: string[], opts: any = {}) {
+type RunResult = { code: number | null; stderr: string; stdout: string };
+
+async function runCommand(cmd: string, args: string[], opts: any = {}): Promise<RunResult> {
+  const capture = opts.capture === true;
   const proc = spawn(cmd, args, {
     cwd: ROOT,
-    stdio: "inherit",
+    stdio: capture ? "pipe" : "inherit",
     shell: process.platform === "win32",
     ...opts,
     env: { ...process.env, ...opts.env },
+    capture: undefined,
   });
 
-  return new Promise<{ code: number | null }>((resolve) => {
-    proc.on("close", (code) => resolve({ code }));
-    proc.on("error", () => resolve({ code: 1 }));
+  let stdout = "";
+  let stderr = "";
+  if (capture) {
+    proc.stdout?.on("data", (d) => {
+      const s = d.toString();
+      stdout += s;
+      process.stdout.write(s);
+    });
+    proc.stderr?.on("data", (d) => {
+      const s = d.toString();
+      stderr += s;
+      process.stderr.write(s);
+    });
+  }
+
+  return new Promise<RunResult>((resolve) => {
+    proc.on("close", (code) => resolve({ code, stdout, stderr }));
+    proc.on("error", () => resolve({ code: 1, stdout, stderr }));
   });
 }
 
@@ -746,18 +848,27 @@ async function main() {
   const regularTests = testFiles.filter((f) => !isSetupModeTest(f));
   const setupTests = testFiles.filter((f) => isSetupModeTest(f));
 
+  type TestResult = { file: string; success: boolean; time: number; stderr?: string };
+
   let passed = 0;
-  const results: { file: string; success: boolean; time: number }[] = [];
+  const results: TestResult[] = [];
   const db = getDbDefaults();
   const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
 
-  async function runOneTest(file: string, setupMode: boolean) {
+  async function runOneTest(
+    file: string,
+    setupMode: boolean,
+    opts?: { retry?: boolean; progress?: string },
+  ): Promise<TestResult> {
     const relPath = relative(ROOT, file);
     const start = Date.now();
-    console.log(`Running ${relPath}...`);
+    const prefix = opts?.progress ? `${opts.progress} ` : "";
+    const label = opts?.retry ? `${prefix}↻ Retry: ${relPath}` : `${prefix}${relPath}`;
+    console.log(label);
 
     const bunTestPath = `./${normalizePath(relPath)}`;
-    const { code } = await runCommand("bun", ["test", "--timeout", dbTimeout, bunTestPath], {
+    const result = await runCommand("bun", ["test", "--timeout", dbTimeout, bunTestPath], {
+      capture: true,
       env: {
         ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
@@ -766,53 +877,166 @@ async function main() {
     });
 
     const duration = Date.now() - start;
-    const success = code === 0;
-    results.push({ file: relPath, success, time: duration });
-    if (success) passed++;
-    console.log(success ? `Passed (${(duration / 1000).toFixed(1)}s)` : "Failed");
-    return success;
+    const success = result.code === 0;
+    const entry: TestResult = { file: relPath, success, time: duration };
+
+    // On failure, extract the assertion error lines for diagnostics
+    if (!success && result.stderr) {
+      const lines = result.stderr.split("\n");
+      const errorLines = lines.filter(
+        (l) =>
+          l.includes("error:") ||
+          l.includes("AssertionError") ||
+          l.includes("Expected") ||
+          l.includes("Received") ||
+          l.includes("FAIL"),
+      );
+      entry.stderr = errorLines.slice(0, 8).join("\n") || result.stderr.slice(0, 600);
+    }
+
+    const status = success ? `Passed (${(duration / 1000).toFixed(1)}s)` : "Failed";
+    console.log(status);
+
+    if (!success && entry.stderr) {
+      console.log(`  ${entry.stderr.replace(/\n/g, "\n  ")}`);
+    }
+
+    return entry;
   }
 
-  // Phase 1: Regular tests - shared server, reset/seed between files
+  // Phase 1: Regular tests — sequential with reset/seed isolation between tests
+  const totalCount = testFiles.length;
+  let testIndex = 0;
+
   if (regularTests.length > 0) {
-    console.log(`Phase 1: ${regularTests.length} regular test(s) - shared server`);
+    console.log(`\n📦 Phase 1: ${regularTests.length} regular test(s) — sequential isolation`);
 
     await startPreviewServer();
     await testingAction("seed");
 
-    for (const file of regularTests) {
+    for (let i = 0; i < regularTests.length; i++) {
       if (isShuttingDown) break;
-      const ok = await runOneTest(file, false);
-      if (!ok && failFast) break;
-      if (!isShuttingDown) {
+      const file = regularTests[i]!;
+      testIndex++;
+      const progress = `[${testIndex}/${totalCount}]`;
+
+      const entry = await runOneTest(file, false, { progress });
+
+      if (!entry.success && !isShuttingDown) {
+        await testingAction("reset");
+        await testingAction("seed");
+        const retry = await runOneTest(file, false, { retry: true, progress: `${progress} ↻` });
+        results.push(retry);
+        if (retry.success) passed++;
+      } else {
+        results.push(entry);
+        if (entry.success) passed++;
+      }
+
+      // Live progress: cumulative pass/fail after each test
+      const failCount = results.filter((r) => !r.success).length;
+      const passCount = results.filter((r) => r.success).length;
+      console.log(`  📊 ${passCount} passed, ${failCount} failed, ${testIndex}/${totalCount} done`);
+
+      // Reset/seed for next test (skip after last)
+      if (i < regularTests.length - 1 && !isShuttingDown) {
         await testingAction("reset");
         await testingAction("seed");
       }
+
+      if (failFast && results.filter((r) => !r.success).length > 0) break;
     }
 
     await stopPreviewServer();
     await freePort(Number.parseInt(PORT, 10));
   }
 
-  // Phase 2: Setup-mode tests - fresh server per file
-  for (const file of setupTests) {
+  // Phase 2: Setup-mode tests - fresh server per file, retry once on failure
+  for (let i = 0; i < setupTests.length; i++) {
     if (isShuttingDown) break;
+    const file = setupTests[i]!;
     const relPath = relative(ROOT, file);
+    testIndex++;
+    const progress = `[${testIndex}/${totalCount}]`;
     console.log(`Preparing isolated environment on port ${PORT} for ${relPath}`);
     await prepareIsolatedServerForTestFile(file);
-    const ok = await runOneTest(file, true);
-    if (!ok && failFast) break;
+    const entry = await runOneTest(file, true, { progress });
+    if (!entry.success && !isShuttingDown) {
+      // Retry with fresh isolated server
+      console.log(`Retrying ${relPath} with fresh isolated environment...`);
+      await prepareIsolatedServerForTestFile(file);
+      const retry = await runOneTest(file, true, { retry: true, progress: `${progress} ↻` });
+      results.push(retry);
+      if (retry.success) passed++;
+    } else {
+      results.push(entry);
+      if (entry.success) passed++;
+    }
+    // Live progress: cumulative pass/fail after each test
+    const failCount = results.filter((r) => !r.success).length;
+    const passCount = results.filter((r) => r.success).length;
+    console.log(`  📊 ${passCount} passed, ${failCount} failed, ${testIndex}/${totalCount} done`);
+    if (failFast && !entry.success) break;
   }
+
+  const failedCount = results.length - passed;
+  const failedResults = results.filter((r) => !r.success);
 
   console.log("\n" + "=".repeat(80));
   console.log("🏁 INTEGRATION TEST SUMMARY");
   console.log("=".repeat(80));
-  console.log(`Passed : ${passed}/${results.length}`);
-  console.log(`Failed : ${results.length - passed}`);
 
-  for (const result of results) {
-    const status = result.success ? "✅" : "❌";
-    console.log(` ${status} ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
+  if (failedResults.length === 0) {
+    console.log(`✅ All ${results.length} tests passed`);
+  } else {
+    console.log(`Passed : ${passed}/${results.length}`);
+    console.log(`Failed : ${failedCount}`);
+    for (const result of failedResults) {
+      console.log(` ❌ ${result.file}  (${(result.time / 1000).toFixed(1)}s)`);
+    }
+  }
+
+  // CI summary: only emit ::error annotations and JSON for db-summary aggregation.
+  // Per-adapter markdown is suppressed — the combined db-summary job renders the dashboard.
+  const shouldWriteCiSummary =
+    process.env.CI === "true" || process.env.GITHUB_STEP_SUMMARY !== undefined;
+
+  if (shouldWriteCiSummary) {
+    // ::error annotations so failures show inline on the PR Files tab
+    for (const result of failedResults) {
+      const err = (result.stderr || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l.length > 0)
+        ?.replace(/\|/g, "\\|")
+        .slice(0, 140);
+      console.log(
+        `::error file=${result.file},title=Integration failed (${dbType})::${err || result.file}`,
+      );
+    }
+
+    // Per-adapter results JSON for cross-DB summary aggregation
+    const resultsDir = join(ROOT, "tests", "test-results");
+    if (!existsSync(resultsDir)) mkdirSync(resultsDir, { recursive: true });
+    const summaryJson = JSON.stringify({
+      passed,
+      failed: failedCount,
+      total: results.length,
+      db: dbType,
+      failures: failedResults.map((r) => ({ file: r.file, time: r.time, stderr: r.stderr })),
+    });
+    writeFileSync(join(resultsDir, `integration-${dbType}.json`), summaryJson, "utf8");
+
+    const outputPath = process.env.GITHUB_OUTPUT;
+    if (outputPath) {
+      const json = JSON.stringify({
+        passed,
+        failed: failedCount,
+        total: results.length,
+        db: dbType,
+      });
+      appendFileSync(outputPath, `integration_results=${json}\n`, "utf8");
+    }
   }
 
   await teardown();

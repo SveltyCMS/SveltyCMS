@@ -21,7 +21,7 @@
 	import LocalUpload from '@src/routes/(app)/mediagallery/upload-media/local-upload.svelte';
 	import RemoteUpload from '@src/routes/(app)/mediagallery/upload-media/remote-upload.svelte';
 	import { logger } from '@utils/logger';
-	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import type { MediaBase, MediaImage, MediaItem } from '@utils/media/media-models';
 	import { mediaUrl } from '@utils/media/media-utils';
 	import { modalState } from '@utils/modal.svelte';
 	import { onMount } from 'svelte';
@@ -57,11 +57,11 @@
 		// Use mediaUrl utility to properly construct the URL with /files/ prefix
 		if ('thumbnails' in file && file.thumbnails) {
 			const thumbs = file.thumbnails as Record<string, { url?: string } | undefined>;
-			if (thumbs.sm?.url) return mediaUrl({ ...file, url: thumbs.sm.url });
-			if (thumbs.md?.url) return mediaUrl({ ...file, url: thumbs.md.url });
-			if (thumbs.thumbnail?.url) return mediaUrl({ ...file, url: thumbs.thumbnail.url });
+			if (thumbs.sm?.url) return mediaUrl({ ...file, url: thumbs.sm.url } as MediaItem);
+			if (thumbs.md?.url) return mediaUrl({ ...file, url: thumbs.md.url } as MediaItem);
+			if (thumbs.thumbnail?.url) return mediaUrl({ ...file, url: thumbs.thumbnail.url } as MediaItem);
 		}
-		return mediaUrl(file);
+		return mediaUrl(file as MediaItem);
 	}
 
 	function getFileType(file: MediaBase | MediaImage) {
@@ -258,7 +258,7 @@
 									<div class="relative flex flex-1 flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-800 dark:bg-surface-900">
 										<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>{file.filename}</div>
 										<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
-											<span class="font-mono">{file.size ? `${Math.round(file.size / 1024)} KB` : '0 KB'}</span>
+											<span class="font-mono">{(file as any).size ? `${Math.round((file as any).size / 1024)} KB` : '0 KB'}</span>
 											<span class="uppercase tracking-wide">{getFileType(file)}</span>
 										</div>
 									</div>

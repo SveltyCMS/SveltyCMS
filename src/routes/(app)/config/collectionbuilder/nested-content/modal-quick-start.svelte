@@ -117,7 +117,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				<!-- Icon & Title -->
 				<div class="mb-3 flex items-center gap-3">
 					<div class="flex h-10 w-10 items-center justify-center rounded bg-surface-100 dark:bg-surface-700">
-						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-600 dark:text-primary-400" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-600 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					</div>
 					<div>
 						<h3 class="text-sm font-semibold text-surface-900 dark:text-white">{preset.title}</h3>

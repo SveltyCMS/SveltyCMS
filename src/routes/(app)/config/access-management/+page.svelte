@@ -64,24 +64,23 @@ const saveAllChanges = async () => {
 		loadingOperations.configSave,
 		async () => {
 			try {
-				// Send the `rolesData` (which includes modifications from children) to the API
-				const response = await fetch("/api/permission/update", {
+				// Shared mutation client — CSRF attached automatically (Testing 2026)
+				const { fetchApi } = await import("@utils/api");
+				const result = await fetchApi("/api/permission/update", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
 					body: JSON.stringify({ roles: rolesData }),
 				});
 
-				if (response.status === 200) {
+				if (result.success) {
 					toast.success("Configuration updated successfully!");
 					hasModifiedChanges = false;
 					modifiedCount = 0;
-				} else if (response.status === 304) {
+				} else if (result.code === "HTTP_304") {
 					toast.info("No changes detected, configuration not updated.");
 				} else {
-					const responseText = await response.text();
-					toast.error(`Error updating configuration: ${responseText}`);
+					toast.error(
+						`Error updating configuration: ${result.message || result.error || "unknown"}`,
+					);
 				}
 			} catch (error) {
 				logger.error("Network error during save:", error);
@@ -121,10 +120,11 @@ beforeNavigate(({ cancel }) => {
 
 <AdminPageShell title="Access Management" icon="mdi:shield-account-outline" showBackButton={true} backUrl="/config">
 	{#snippet actions()}
-		<StickyActions>
+		<StickyActions data-testid="access-mgmt-actions">
 		<Button variant="tertiary"
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
+			data-testid="access-mgmt-save"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		 class="font-semibold shadow-xs">
 			{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
@@ -137,6 +137,7 @@ beforeNavigate(({ cancel }) => {
 		<Button variant="ghost"
 			onclick={resetChanges}
 			aria-label="Reset changes"
+			data-testid="access-mgmt-reset"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		 class="font-semibold shadow-xs">
 			Reset
@@ -144,7 +145,7 @@ beforeNavigate(({ cancel }) => {
 		</StickyActions>
 	{/snippet}
 
-	<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
+	<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs" data-testid="access-mgmt-page">
 		<div class="mb-4">
 			<p class="text-tertiary-500 dark:text-primary-500 text-sm">
 				Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
@@ -153,26 +154,26 @@ beforeNavigate(({ cancel }) => {
 		</div>
 
 		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
-			<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800">
-				<Tabs.Trigger value="0" class="flex-1" aria-current={currentTab === '0' ? 'page' : undefined}>
+			<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800" data-testid="access-mgmt-tabs">
+				<Tabs.Trigger value="0" class="flex-1" data-testid="access-tab-permissions" aria-current={currentTab === '0' ? 'page' : undefined}>
 					<div class="flex items-center justify-center gap-1 py-4">
 						<iconify-icon icon="mdi:shield-lock-outline" width={24}></iconify-icon>
 						<span class={currentTab === '0' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{system_permission()}</span>
 					</div>
 				</Tabs.Trigger>
-				<Tabs.Trigger value="1" class="flex-1" aria-current={currentTab === '1' ? 'page' : undefined}>
+				<Tabs.Trigger value="1" class="flex-1" data-testid="access-tab-roles" aria-current={currentTab === '1' ? 'page' : undefined}>
 					<div class="flex items-center justify-center gap-1 py-4">
 						<iconify-icon icon="mdi:account-group" width={24}></iconify-icon>
 						<span class={currentTab === '1' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>{system_roles()}</span>
 					</div>
 				</Tabs.Trigger>
-				<Tabs.Trigger value="2" class="flex-1" aria-current={currentTab === '2' ? 'page' : undefined}>
+				<Tabs.Trigger value="2" class="flex-1" data-testid="access-tab-admin" aria-current={currentTab === '2' ? 'page' : undefined}>
 					<div class="flex items-center justify-center gap-1 py-4">
 						<iconify-icon icon="mdi:account-cog" width={24}></iconify-icon>
 						<span class={currentTab === '2' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Admin</span>
 					</div>
 				</Tabs.Trigger>
-				<Tabs.Trigger value="3" class="flex-1" aria-current={currentTab === '3' ? 'page' : undefined}>
+				<Tabs.Trigger value="3" class="flex-1" data-testid="access-tab-tokens" aria-current={currentTab === '3' ? 'page' : undefined}>
 					<div class="flex items-center justify-center gap-1 py-4">
 						<iconify-icon icon="mdi:web" width={24}></iconify-icon>
 						<span class={currentTab === '3' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Website Tokens</span>

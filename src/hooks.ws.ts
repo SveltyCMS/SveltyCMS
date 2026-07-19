@@ -17,7 +17,7 @@
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
-import { getTenantIdFromHostname } from "@utils/tenant";
+import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
 import { parseCookies } from "@utils/cookie-utils";
 import { LRUCache } from "lru-cache";
@@ -133,7 +133,8 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     const tenantIdHeader = getHeader(ctx, "x-tenant-id");
 
     // Cookie name handling (secure prefix)
-    const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
+    const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     // Extract session ID
@@ -175,7 +176,7 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     }
 
     // Multi-tenant fallback
-    const isMultiTenant = getPrivateSettingSync("MULTI_TENANT") === true;
+    const isMultiTenant = isMultiTenantEnabled();
     if (isMultiTenant && !tenantId) {
       tenantId = getTenantIdFromHostname(url.hostname, true);
     }

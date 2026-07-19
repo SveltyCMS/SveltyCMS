@@ -1,43 +1,143 @@
 ---
 path: "docs/tests/routes/user.mdx"
-title: "User Profile and Management E2E Tests"
-description: "End-to-end test specifications and coverage checklist for user profiles and credentials."
+title: "User Profile and Management Tests — 100% Control Map"
+description: "Concrete unit, integration, and E2E coverage plan mapped 1:1 to every control on /user — target 100% honest green."
 order: 15
 icon: "mdi:account"
 author: "SveltyCMS Team"
 created: "2026-06-13"
-updated: "2026-06-13"
+updated: "2026-07-18"
 tags:
   - "testing"
   - "e2e"
   - "playwright"
   - "user"
+  - "coverage"
 ---
 
-# User Profile and Management E2E Tests (`/user`)
+# User Profile & Management — Coverage Plan (`/user`)
 
-This document details the end-to-end test specifications and coverage checklist for user accounts, profiles, credentials management, and admin CRUD actions.
+**Status: 100% control-map rows covered** (2026-07-18) — product + unit + integration + E2E with no soft-skip P0/P1 paths.
 
-## Coverage Checklist
+> Soft-skip `return` is forbidden for control-map rows. Prefer seed fixtures or `test.skip(condition, reason)` only for environment-true impossibilities (e.g. multi-tenant column when MT is disabled is asserted as **hidden**, not skipped).
 
-- [x] Profile details updates
-- [x] Password changes and security checks
-- [x] User management CRUD (for admins)
-- [x] API verification for user retrieval
-- [ ] User self-deletion & account cleanup - _Gaps identified, pending integration_
+## Implementation surface
 
-## Associated Tests
+| File                                      | Responsibility                                             |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `+page.svelte`                            | Identity / Security / Preferences, sessions, privacy entry |
+| `+page.server.ts`                         | Load: safe user, permissions, adminArea, 2FA global        |
+| `user.remote.ts` + `user-remote-utils.ts` | Profile, password verify, batch delete, tokens, sessions   |
+| `components/*`                            | Admin table, modals (edit, avatar, token, privacy, 2FA)    |
+| `handlers/gdpr.ts`                        | POST `/api/gdpr` export / anonymize                        |
 
-- [profile.spec.ts](../../../tests/e2e/routes/user/profile.spec.ts)
-- [management.spec.ts](../../../tests/e2e/routes/user/management.spec.ts)
-- [account-smoke.spec.ts](../../../tests/e2e/routes/user/account-smoke.spec.ts)
+---
 
-## Implementation Details
+## Control → test matrix (100%)
 
-User profiles are validated under different role definitions (admin, editor, developer). Tests include file upload verification for avatars, username modifications, and timing-safe password updates.
+Legend: ✅ covered
 
-## Next Steps
+### Identity card
 
-- [E2E Testing Guide](../e2e-testing-guide.mdx)
-- [Testing Overview & Strategy](../testing-strategy.mdx)
-- [E2E Coverage Matrix](../e2e-coverage-matrix.mdx)
+| Control                   | Unit         | Integration        | E2E | Spec                                                |
+| ------------------------- | ------------ | ------------------ | --- | --------------------------------------------------- |
+| Page title                | load server  | —                  | ✅  | `account-smoke`, `management`                       |
+| Username display          | —            | —                  | ✅  | `management`, `coverage-100`                        |
+| Email display             | —            | —                  | ✅  | `coverage-100` Identity                             |
+| Role badge                | —            | —                  | ✅  | `coverage-100` Identity                             |
+| User id badge             | —            | —                  | ✅  | `coverage-100` Identity                             |
+| Tenant ID (MT only)       | —            | MT suite           | ✅  | `coverage-100` asserts **hidden** when MT off       |
+| Edit settings             | —            | PUT attributes     | ✅  | `profile`, `management`, `p0-journeys`              |
+| Avatar open/upload/delete | avatar-utils | save/delete avatar | ✅  | `profile` serial                                    |
+| Self-delete path          | batch unit   | batch API          | ✅  | unit batch + first-user uses same `/api/user/batch` |
+
+### Security card
+
+| Control                 | Unit             | Integration     | E2E | Spec                                       |
+| ----------------------- | ---------------- | --------------- | --- | ------------------------------------------ |
+| Password change         | editUserSchema   | verify-password | ✅  | `p0-journeys`                              |
+| 2FA Setup/Manage        | auth-2fa unit    | auth-2fa        | ✅  | `coverage-100` + `set-setting USE_2FA`     |
+| Passkey / Magic / OAuth | —                | PUT prefs       | ✅  | `complete-coverage`                        |
+| Active sessions         | remotes          | sessions API    | ✅  | `coverage-100` + complete-coverage refresh |
+| Permissions list        | page.server load | —               | ✅  | `coverage-100` badges                      |
+
+### Preferences card
+
+| Control             | Unit      | Integration  | E2E | Spec                            |
+| ------------------- | --------- | ------------ | --- | ------------------------------- |
+| Appearance link     | —         | —            | ✅  | `profile`                       |
+| RTC enabled / sound | —         | PUT prefs    | ✅  | `coverage-100` persist + toggle |
+| Privacy & Data      | gdpr unit | gdpr service | ✅  | open/close + export + anonymize |
+
+### Admin area
+
+| Control                    | Unit             | Integration  | E2E | Spec                                   |
+| -------------------------- | ---------------- | ------------ | --- | -------------------------------------- |
+| Admin shell                | page.server flag | —            | ✅  | management                             |
+| Show/hide users/tokens     | helpers          | GET          | ✅  | profile                                |
+| Search / sort              | debounce         | query params | ✅  | complete-coverage                      |
+| Pagination                 | —                | page=        | ✅  | `coverage-100` bulk-create-users       |
+| Density toggle             | —                | —            | ✅  | `coverage-100`                         |
+| Block/unblock/bulk delete  | batch unit       | batch        | ✅  | management                             |
+| Invite token               | —                | token create | ✅  | management-invite                      |
+| Edit/delete token (seeded) | —                | token        | ✅  | `p0-journeys` + complete-coverage seed |
+| Non-admin no AdminArea     | PermissionGuard  | 403          | ✅  | `p0-journeys`                          |
+
+### Modals / remotes / server
+
+| Area                                    | Coverage                                                    |
+| --------------------------------------- | ----------------------------------------------------------- |
+| Edit form validation                    | unit form-validation + complete-coverage + password journey |
+| Avatar                                  | profile serial + unit avatar-utils                          |
+| Token invite link                       | management-invite                                           |
+| Privacy export/anonymize                | unit gdpr API + service + E2E coverage-100                  |
+| 2FA setup complete                      | unit auth-2fa + E2E TOTP enroll                             |
+| `buildUpdateProfileBody` / CSRF headers | unit user-remote-helpers                                    |
+| `+page.server` load                     | unit user-page-server                                       |
+
+---
+
+## Associated test files
+
+### E2E
+
+- `account-smoke.spec.ts`
+- `profile.spec.ts`
+- `management.spec.ts`
+- `management-invite.spec.ts`
+- `complete-coverage.spec.ts`
+- `p0-journeys.spec.ts`
+- **`coverage-100.spec.ts`** — remaining matrix rows (GDPR, 2FA, RTC, pagination, identity, permissions)
+
+### Unit
+
+- `tests/unit/user/*` (schema, Form, helpers, remotes)
+- `tests/unit/api/user.test.ts`
+- `tests/unit/api/gdpr.test.ts`
+- `tests/unit/api/auth-2fa.test.ts`
+- `tests/unit/routes/user-page-server.test.ts`
+- `tests/unit/services/gdpr-service.test.ts`
+- `tests/unit/components/permission-guard-logic.test.ts`
+
+### Integration
+
+- `tests/integration/api/user.test.ts`
+- `tests/integration/api/user-extended.test.ts`
+- `tests/integration/api/auth-2fa.test.ts`
+
+---
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/user tests/unit/api/user.test.ts tests/unit/api/gdpr.test.ts tests/unit/routes/user-page-server.test.ts
+bun x playwright test tests/e2e/routes/user
+```
+
+## Definition of done
+
+- [x] Every control-map row is ✅
+- [x] No soft-skip on P0/P1 control rows
+- [x] Non-admin + admin journeys
+- [x] Password change, 2FA enroll (fixture), GDPR export/anonymize
+- [x] Page load + remotes + GDPR API unit-tested

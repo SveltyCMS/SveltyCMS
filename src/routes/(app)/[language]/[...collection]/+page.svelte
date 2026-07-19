@@ -48,6 +48,8 @@ interface PageData {
 		pageSize: number;
 	};
 	revisions: any[];
+	statusFacets?: Record<string, number>;
+	listMetrics?: Record<string, unknown> | null;
 }
 
 const { data }: { data: PageData } = $props();
@@ -562,7 +564,13 @@ beforeNavigate(async ({ cancel }) => {
 	{:else if collections.mode === 'view' || collections.mode === 'modify'}
 		<!-- Key block forces EntryList to remount when collection changes -->
 		{#key collectionSchema?._id}
-			<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />
+			<EntryList
+				{entries}
+				{pagination}
+				contentLanguage={serverContentLanguage}
+				statusFacets={data?.statusFacets ?? {}}
+				listMetrics={data?.listMetrics ?? null}
+			/>
 		{/key}
 	{:else if ['edit', 'create'].includes(collections.mode)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6">

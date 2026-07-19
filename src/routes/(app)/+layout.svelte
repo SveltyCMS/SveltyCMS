@@ -216,7 +216,7 @@ $effect(() => {
 					newUserData: { preferences: { theme: { layoutState: diff } } },
 				}),
 			});
-			userThemePrefs.apply({ layoutState: diff });
+			userThemePrefs.apply({ layoutState: diff as unknown as Record<string, "full" | "hidden"> });
 		} catch {
 			/* silent — layout state save is best-effort */
 		}
@@ -424,7 +424,8 @@ afterNavigate(() => {
 			<CommandBar />
 		{/if}
 
-		<div class="flex h-lvh flex-col overflow-hidden">
+		<div class="relative z-0">
+			<div class="flex h-lvh flex-col overflow-hidden">
 			{#if ui.state.header !== 'hidden'}
 				<header class="sticky top-0 z-10" style="height: var(--admin-header-height, 32px); min-height: 4px;">
 					<Slot name="global-toolbar" />
@@ -434,9 +435,7 @@ afterNavigate(() => {
 			<div class="flex flex-1 overflow-hidden">
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh transition-[width] duration-300 ease-in-out {ui.state.leftSidebar === 'full'
-							? ''
-							: 'w-fit'} relative border-e bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900 overflow-visible"
+						class="max-h-dvh border-e bg-surface-50 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-900 overflow-visible {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
@@ -449,9 +448,9 @@ afterNavigate(() => {
 						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}
 
-					<div class="relative flex-1 overflow-visible {screen.isDesktop ? 'mb-2' : 'mb-16'}">
-						{@render children?.()}
-					</div>
+
+					{@render children?.()}
+
 
 					<!-- Sticky action bar (only rendered when content exists) -->
 										{#if theme.features.stickyActionBar && ui.stickyActionContent}
@@ -489,6 +488,7 @@ afterNavigate(() => {
 					<Slot name="global-footer" />
 				</footer>
 			{/if}
+		</div>
 		</div>
 
 		{#if screen.isMobile}

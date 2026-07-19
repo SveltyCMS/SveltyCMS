@@ -5,6 +5,7 @@
 
 import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathAliases } from "./path-aliases";
@@ -14,6 +15,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const resolvedAliases = Object.fromEntries(
   Object.entries(pathAliases).map(([key, value]) => [key, path.resolve(__dirname, value)]),
 );
+
+/** Local runs: cap forks to reduce Windows thrash. CI keeps Vitest defaults. */
+const localMaxWorkers = Math.min(4, Math.max(1, os.cpus().length - 1));
 
 export default defineConfig({
   plugins: [svelte() as any],
@@ -37,7 +41,9 @@ export default defineConfig({
   define: { "import.meta.env.SSR": "true" },
   test: {
     globals: true,
-    testTimeout: 15000,
+    // API dispatcher / GraphQL / media security tests load large modules; under full-suite
+    // fork contention on Windows they routinely need >15s even when ~5s alone.
+    testTimeout: 30000,
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
@@ -48,6 +54,8 @@ export default defineConfig({
       exclude: ["src/paraglide/**", "src/**/*.d.ts"],
     },
     pool: "forks",
+    // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
+    ...(process.env.CI ? {} : { maxWorkers: localMaxWorkers }),
     server: {
       deps: {
         inline: [/@sveltejs\/kit/, /sveltekit-rate-limiter/],

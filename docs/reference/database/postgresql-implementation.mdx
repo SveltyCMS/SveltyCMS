@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-06-22"
+updated: "2026-07-15"
 tags:
   - "database"
   - "postgresql"
@@ -71,11 +71,28 @@ sequenceDiagram
     A-->>S: Ready
 ```
 
-## Connection Configuration
+### Connection Pool Configuration (2026-07 Optimization)
+
+SveltyCMS configures the `postgres.js` driver with production-tuned connection pool settings. These can be overridden via environment variables or connection config object:
+
+| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                          |
+| ----------------------------- | ----------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `max`                         | 200         | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool                                                                                                  |
+| `connect_timeout`             | 10s         | —                          | 3× faster failure detection on unreachable hosts                                                                                 |
+| `idle_timeout`                | 300s        | —                          | Pooled connections stay warm 5× longer; reduces SSL handshake overhead                                                           |
+| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. previous 30 min default                                                                      |
+| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls                                                                |
+| `keepaliveInitialDelayMillis` | 10000       | —                          | Starts keepalive pings after 10s idle                                                                                            |
+| `pipeline`                    | true        | —                          | Postgres.js query pipelining; batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads) |
+| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements; disable for PgBouncer transaction mode                                                          |
+| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries                                                                                              |
+| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`                                                                                         |
+
+### Connection Configuration
 
 PostgreSQL connections are configured in `config/private.ts` or during the setup wizard:
 
-```
+```ts
 // Configuration Object
 {
     type: 'postgresql',
@@ -93,12 +110,13 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 
 ### Key Implementation Details
 
-| Feature           | Implementation                              |
-| ----------------- | ------------------------------------------- |
-| **Primary Key**   | `varchar(36)` (UUID compatible strings)     |
-| **Timestamps**    | `timestamp()` with ISODateString conversion |
-| **JSON fields**   | `jsonb()` for binary JSON with GIN indexing |
-| **Multi-Tenancy** | `tenantId` indexed columns on all tables    |
+| Feature             | Implementation                                                            |
+| ------------------- | ------------------------------------------------------------------------- |
+| **Primary Key**     | `varchar(36)` (UUID compatible strings)                                   |
+| **Timestamps**      | `timestamp()` with ISODateString conversion                               |
+| **JSON fields**     | `jsonb()` for binary JSON with GIN indexing                               |
+| **Multi-Tenancy**   | `tenantId` indexed columns on all tables                                  |
+| **Connection Pool** | Keepalive (10s), pipeline (batch), idle 300s, lifetime 60min, timeout 10s |
 
 ## Current Implementation Status
 
@@ -166,7 +184,7 @@ Key PostgreSQL highlights:
 
 - **JSONB with GIN Indexing**: All 20 metadata columns use PostgreSQL's binary `jsonb` type with 5 GIN indexes for sub-10ms search on complex containment queries.
 - **Partial Indexes**: Only index active sessions and unconsumed tokens — reduces index size and speeds up common auth queries.
-- **Connection Health**: Optimized pooling via `postgres.js` with health checks and reconnection.
+- **Connection Health**: Optimized pooling via `postgres.js` with health checks, reconnection, keepalive, and query pipelining for up to 3× throughput on parallel workloads.
 - **TTL-Equivalent Cleanup**: `cleanupExpiredData()` method purges expired sessions and consumed tokens (equivalent to MongoDB's TTL indexes).
 - **Tamper-Evident Logs**: Relational structure with transactional integrity for cryptographic audit log chaining.
 

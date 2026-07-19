@@ -21,7 +21,6 @@ import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getPrivateSetting } from "@src/services/core/settings-service";
 import { getCollectionOrder } from "@utils/collection-order.server";
@@ -146,11 +145,21 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     const freshUser = await refreshUser(sessionUser, tenantId);
 
     // Get total user count for smart UI logic (like hiding chat for single users)
-    const totalUsers = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
+    let totalUsers = 1;
+    try {
+      totalUsers = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
+    } catch {
+      totalUsers = 1;
+    }
 
     // Check if AI features are enabled for solo user assistant
-    const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
-    const aiEnabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
+    let aiEnabled = !!publicEnv.USE_AI_TAGGING;
+    try {
+      const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
+      aiEnabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
+    } catch {
+      /* settings optional */
+    }
 
     // Plugin enablement states for client-side feature gating
     // (non-blocking — resolves instantly from in-memory registry, fallback to metadata.enabled)
@@ -166,44 +175,114 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       // Plugin state check is non-critical
     }
 
-    return {
-      theme: theme ? JSON.parse(JSON.stringify(theme)) : DEFAULT_THEME,
-      tenantId,
-      isAdmin: locals.isAdmin,
-      // Streamed data (Promises)
-      contentStructure: contentPromise.then(async () => {
-        const nodes = await contentSystem.getContentStructure(tenantId);
-        return (nodes ?? []).map((node: any) => {
-          const sanitized = JSON.parse(JSON.stringify(node));
-          return {
-            ...sanitized,
-            _id: node._id.toString(),
-            ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
-          };
-        });
-      }),
+    let safeTheme = DEFAULT_THEME;
+    try {
+      safeTheme = theme ? JSON.parse(JSON.stringify(theme)) : DEFAULT_THEME;
+    } catch {
+      safeTheme = DEFAULT_THEME;
+    }
 
-      user: freshUser,
+    // Ensure user payload is JSON-serializable (ObjectId/Buffer previously 500'd shells)
+    let safeUser: any = null;
+    try {
+      safeUser = freshUser ? JSON.parse(JSON.stringify(freshUser)) : null;
+    } catch {
+      if (freshUser) {
+        safeUser = {
+          _id: String((freshUser as any)._id ?? ""),
+          email: (freshUser as any).email,
+          role: (freshUser as any).role,
+          username: (freshUser as any).username,
+          avatar:
+            typeof (freshUser as any).avatar === "string" ? (freshUser as any).avatar : undefined,
+        };
+      }
+    }
+
+    return {
+      theme: safeTheme,
+      tenantId,
+      isAdmin: !!locals.isAdmin,
+      // Streamed data (Promises) — always resolve; never reject into error boundary
+      contentStructure: contentPromise
+        .then(async () => {
+          try {
+            const nodes = await contentSystem.getContentStructure(tenantId);
+            return (nodes ?? []).map((node: any) => {
+              const sanitized = JSON.parse(JSON.stringify(node));
+              return {
+                ...sanitized,
+                _id: node._id?.toString?.() ?? String(node._id),
+                ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
+              };
+            });
+          } catch {
+            return [];
+          }
+        })
+        .catch(() => []),
+
+      user: safeUser,
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
-      collectionOrder: await getCollectionOrder(tenantId),
+      collectionOrder: await getCollectionOrder(tenantId).catch((orderErr: unknown) => {
+        logger.warn(
+          `collectionOrder load failed (non-fatal): ${orderErr instanceof Error ? orderErr.message : String(orderErr)}`,
+        );
+        return [] as string[];
+      }),
       cspNonce,
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
       pluginStates,
-      firstCollection: contentPromise.then(([_, first]) =>
-        first ? JSON.parse(JSON.stringify(first)) : null,
-      ),
+      firstCollection: contentPromise
+        .then(([_, first]) => {
+          try {
+            return first ? JSON.parse(JSON.stringify(first)) : null;
+          } catch {
+            return null;
+          }
+        })
+        .catch(() => null),
     };
   } catch (err: any) {
-    logger.error("Failed to load layout data", {
-      error: err.message,
-      stack: err.stack,
+    // NEVER hard-500 the entire admin shell — media/dashboard/config pages all depend on this layout.
+    logger.error("Failed to load layout data — returning minimal shell", {
+      error: err?.message,
+      stack: err?.stack,
       user: sessionUser?._id,
     });
 
-    const layoutError = createLayoutError(err, "Failed to load application data");
-    throw error(500, layoutError);
+    let fallbackUser: any = null;
+    try {
+      fallbackUser = sessionUser ? JSON.parse(JSON.stringify(sessionUser)) : null;
+    } catch {
+      if (sessionUser) {
+        fallbackUser = {
+          _id: String((sessionUser as any)._id ?? ""),
+          email: (sessionUser as any).email,
+          role: (sessionUser as any).role,
+        };
+      }
+    }
+
+    return {
+      theme: DEFAULT_THEME,
+      tenantId,
+      isAdmin: !!locals.isAdmin,
+      contentStructure: Promise.resolve([]),
+      user: fallbackUser,
+      totalUsers: 1,
+      aiEnabled: false,
+      publicSettings: publicEnv,
+      collectionOrder: [] as string[],
+      cspNonce,
+      predictedNextPath: null,
+      streamed: {},
+      pluginStates: {} as Record<string, boolean>,
+      firstCollection: Promise.resolve(null),
+      layoutError: createLayoutError(err, "Failed to load application data"),
+    };
   }
 };

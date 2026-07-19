@@ -17,7 +17,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 - `rounded` (boolean): Full rounded pill shape.
 - `shape` ('round' | 'angle'): Advanced corner-shape option (default: 'round').
 - `color` (string): Custom CSS color override.
-- `aria-label` / `labelledBy` / `describedBy`: ARIA attributes.
+- `aria-label` / `aria-pressed` / `labelledBy` / `describedBy`: ARIA attributes (`aria-pressed` normalized to `"true"`/`"false"`).
 - `children` (Snippet): Button content.
 -->
 
@@ -42,8 +42,11 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     class?: string;
     // A11y
     'aria-label'?: string;
+    'aria-pressed'?: boolean | 'true' | 'false';
     labelledBy?: string;
     describedBy?: string;
+    // Events — declare explicitly so they are not lost when rest is spread
+    onclick?: (e: MouseEvent) => void;
     // Snippets
     children?: import('svelte').Snippet;
     [key: string]: any;
@@ -65,11 +68,22 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
     replaceTextOnLoading = false,
     class: className,
     'aria-label': ariaLabel,
+    'aria-pressed': ariaPressed,
     labelledBy,
     describedBy,
+    onclick,
     children,
     ...rest
   }: Props = $props();
+
+  /** Normalize toggle pressed state so DOM always has a string attribute for E2E/a11y */
+  const ariaPressedAttr = $derived(
+    ariaPressed === undefined || ariaPressed === null
+      ? undefined
+      : ariaPressed === true || ariaPressed === 'true'
+        ? 'true'
+        : 'false'
+  );
 
   const element = $derived(href ? 'a' : 'button');
 
@@ -85,7 +99,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   const variantClass = $derived.by(() => {
     if (isCustomColor) return 'preset-custom';
     switch (variant) {
-      case 'primary': return 'preset-filled-tertiary-500 dark:preset-filled-primary-500 shadow-primary-500/20';
+      case 'primary': return 'preset-filled-primary-500 shadow-primary-500/20';
       case 'secondary': return 'preset-filled-secondary-500 shadow-secondary-500/20';
       case 'tertiary': return 'preset-filled-tertiary-500 shadow-tertiary-500/20';
       case 'success': return 'preset-filled-success-500 shadow-success-500/20';
@@ -191,7 +205,9 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   this={element}
   {...elementProps}
   {...rest}
+  onclick={onclick}
   aria-label={ariaLabel || undefined}
+  aria-pressed={ariaPressedAttr}
   aria-labelledby={labelledBy}
   aria-describedby={describedBy}
   class={cn(

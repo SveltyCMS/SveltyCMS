@@ -80,6 +80,100 @@ export async function handleDashboardRoutes(
         });
       }
 
+      case "tenant-analytics": {
+        const [collectionsRes, usersRes, mediaCountRes] = await Promise.all([
+          (cms.db.crud as any).listCollections(tenantId),
+          cms.auth.listUsers({ tenantId, limit: 1 }),
+          cms.db.crud.count("media", {}, { tenantId }),
+        ]);
+
+        const collections = collectionsRes.success ? collectionsRes.data || [] : [];
+        const collectionCount = collections.length;
+        const userCount = usersRes?.success ? (usersRes.data?.pagination?.totalItems ?? 0) : 0;
+        const mediaCount = mediaCountRes.success ? (mediaCountRes.data ?? 0) : 0;
+
+        // Sample media items to calculate total storage used
+        let totalStorageBytes = 0;
+        try {
+          const mediaListRes = await cms.media.find({ tenantId, limit: 2000 });
+          const mediaItems =
+            mediaListRes.success && mediaListRes.data?.items ? mediaListRes.data.items : [];
+          totalStorageBytes = mediaItems.reduce(
+            (sum: number, item: any) => sum + (item.size || 0),
+            0,
+          );
+
+          // If we got all items (less than limit), the sum is exact;
+          // otherwise estimate by extrapolating from the sample.
+          if (mediaCount > 2000 && mediaItems.length > 0) {
+            const avgSize = totalStorageBytes / mediaItems.length;
+            totalStorageBytes = Math.round(avgSize * mediaCount);
+          }
+        } catch {
+          // Best-effort storage calculation
+        }
+
+        // Count content entries across all collection tables
+        let contentEntryCount = 0;
+        if (collections.length > 0) {
+          const countResults = await Promise.allSettled(
+            collections.map((col: any) => cms.db.crud.count(col._id || col.name, {}, { tenantId })),
+          );
+          for (const r of countResults) {
+            if (r.status === "fulfilled" && r.value.success) {
+              contentEntryCount += r.value.data ?? 0;
+            }
+          }
+        }
+
+        // Query recent audit activity (last 24h) for request count
+        let recentRequestCount = 0;
+        try {
+          const auditResult = await auditLogService.queryLogs({
+            limit: 1000,
+            tenantId: tenantId || undefined,
+          });
+          if (auditResult.success && Array.isArray(auditResult.data)) {
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            recentRequestCount = auditResult.data.filter(
+              (log: any) => log.timestamp >= oneDayAgo,
+            ).length;
+          }
+        } catch {
+          // Best-effort request count
+        }
+
+        // Format storage for display
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        const unitIdx =
+          totalStorageBytes === 0
+            ? 0
+            : Math.min(Math.floor(Math.log(totalStorageBytes) / Math.log(1024)), units.length - 1);
+        const formattedStorage =
+          totalStorageBytes === 0
+            ? "0 B"
+            : `${(totalStorageBytes / 1024 ** unitIdx).toFixed(1)} ${units[unitIdx]}`;
+
+        return rawResponse(event, {
+          storage: {
+            bytes: totalStorageBytes,
+            formatted: formattedStorage,
+          },
+          users: {
+            total: userCount,
+          },
+          media: {
+            total: mediaCount,
+          },
+          collections: collectionCount,
+          contentEntries: contentEntryCount,
+          recentRequests: {
+            last24h: recentRequestCount,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       case "health":
         return rawResponse(event, (await cms.system.getHealth()) || { status: "healthy" });
 

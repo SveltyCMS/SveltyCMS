@@ -15,7 +15,6 @@ import { existsSync } from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { logger } from "@utils/logger";
@@ -29,7 +28,9 @@ export const contentRuntime = {
       process.env.BENCHMARK_STABLE === "true" ||
       process.env.BENCHMARK_MODE === "1" ||
       process.env.BENCHMARK_MODE === "true" ||
-      process.env.SVELTY_BENCHMARK_SUITE === "true"
+      process.env.SVELTY_BENCHMARK_SUITE === "true" ||
+      process.env.BENCHMARK_RECORD === "true" ||
+      process.env.BENCHMARK_RECORD === "1"
     );
   },
   isTest(): boolean {
@@ -182,10 +183,6 @@ export async function loadSchemaNative(
 
 // ─── Worker pool ─────────────────────────────────────────────────────────────
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const WORKER_SCRIPT = path.resolve(__dirname, "module-worker.server.ts");
-
 const TASK_TIMEOUT_MS = 10_000;
 const IDLE_TIMEOUT_MS = 30_000;
 
@@ -220,28 +217,39 @@ class ModuleWorkerPool {
   }
 
   private createWorker(): PooledWorker {
-    const worker = new Worker(WORKER_SCRIPT, { workerData: {} });
+    try {
+      const worker = new Worker(new URL("./module-worker.server.ts", import.meta.url));
 
-    const pooled: PooledWorker = {
-      worker,
-      busy: false,
-      createdAt: Date.now(),
-      lastUsedAt: Date.now(),
-    };
+      const pooled: PooledWorker = {
+        worker,
+        busy: false,
+        createdAt: Date.now(),
+        lastUsedAt: Date.now(),
+      };
 
-    worker.on("error", (err: Error) => {
-      logger.error(`[WorkerPool] Worker error: ${err.message}`);
-      this.replaceWorker(pooled);
-    });
-
-    worker.on("exit", (code) => {
-      if (code !== 0 && pooled.busy) {
-        logger.warn(`[WorkerPool] Worker exited with code ${code}, replacing...`);
+      worker.on("error", (err: Error) => {
+        logger.error(`[WorkerPool] Worker error: ${err.message}`);
         this.replaceWorker(pooled);
-      }
-    });
+      });
 
-    return pooled;
+      worker.on("exit", (code) => {
+        if (code !== 0 && pooled.busy) {
+          logger.warn(`[WorkerPool] Worker exited with code ${code}, replacing...`);
+          this.replaceWorker(pooled);
+        }
+      });
+
+      return pooled;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        `[WorkerPool] Worker script missing — falling back to native schema loading. ${msg}`,
+      );
+      // Return a dead worker that won't be used; pool will shrink to empty.
+      const dead = { worker: null as unknown as Worker, busy: true, createdAt: 0, lastUsedAt: 0 };
+      this.poolSize = 0;
+      return dead;
+    }
   }
 
   private replaceWorker(old: PooledWorker): void {

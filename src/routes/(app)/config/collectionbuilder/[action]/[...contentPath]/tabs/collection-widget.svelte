@@ -1,23 +1,19 @@
 <!--
-@file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/CollectionWidgetOptimized.svelte
-@component
-**This Component handles the optimized collection widget**
--->
+@file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget.svelte
+@component Collection Widgets — Tab 2: 2-column (left: drag/drop widget list, right: searchable sidebar)
+ -->
 <script lang="ts">
 import { SvelteSet } from "svelte/reactivity";
 import type { FieldInstance } from "@src/content/types";
 import type { Role } from "@src/databases/auth/types";
-import BuzzForm from "@src/routes/(app)/config/collectionbuilder/buzz-form/buzz-form.svelte";
 import {
 	collection,
 	setCollection,
 	setTargetWidget,
-	targetWidget,
 } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { getWidgetFunction, widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
-import { sveltyRegistry } from "@src/services/json-render/catalog";
-import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
+import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 import { getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
@@ -25,10 +21,10 @@ import { flip } from "svelte/animate";
 import type { DndEvent } from "svelte-dnd-action";
 import { dndzone } from "svelte-dnd-action";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
-import WidgetInspector from "./collection-widget/widget-inspector.svelte";
+import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
 import Button from "@src/components/ui/button.svelte";
 import Card from "@src/components/ui/card.svelte";
-import SegmentedControl from "@src/components/ui/segmented-control.svelte";
+import FloatingInput from "@components/ui/floating-input.svelte";
 
 type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
@@ -37,7 +33,7 @@ let { fields = [], roles = [] } = $props<{
 	roles?: Role[];
 }>();
 
-// Stable _dragId by index so we can sync items from props without losing drag identity
+// ── Drag and drop state ──
 let dragIdsByIndex = $state<Record<number, string>>({});
 
 let items = $state<WidgetListItem[]>(
@@ -51,7 +47,7 @@ let items = $state<WidgetListItem[]>(
 	),
 );
 
-// Sync items from props when store updates (e.g. after save) so list and inspector show saved data
+// Sync items from props when store updates
 $effect(() => {
 	const nextFields = fields ?? [];
 	const nextDragIds = { ...dragIdsByIndex };
@@ -62,9 +58,7 @@ $effect(() => {
 			added = true;
 		}
 	}
-	if (added) {
-		dragIdsByIndex = nextDragIds;
-	}
+	if (added) dragIdsByIndex = nextDragIds;
 	items = nextFields.map((f: FieldInstance, i: number) => ({
 		id: i + 1,
 		...f,
@@ -91,20 +85,13 @@ function handleDndFinalize(e: CustomEvent<DndEvent<WidgetListItem>>) {
 function updateStore() {
 	if (collection.value) {
 		const nextFields = items.map(
-			({
-				_dragId,
-				id: _id,
-				...rest
-			}: {
-				_dragId?: string;
-				id?: number;
-				[key: string]: any;
-			}) => rest as FieldInstance,
+			({ _dragId, id: _id, ...rest }) => rest as FieldInstance,
 		);
 		setCollection({ ...collection.value, fields: nextFields });
 	}
 }
 
+// ── Widget Actions ──
 function addField() {
 	modalState.trigger(
 		ModalSelectWidget as any,
@@ -131,8 +118,31 @@ function addField() {
 }
 
 function editField(field: any) {
-	const idx = items.findIndex((i: WidgetListItem) => i.id === field.id);
-	setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
+  // Persist current field to store, then open modal
+  const idx = items.findIndex((i: WidgetListItem) => i.id === field.id);
+  setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
+
+  modalState.trigger(
+    ModalWidgetForm as any,
+    {
+      title: "Edit Field",
+      body: "Configure field properties and permissions.",
+      value: { ...field, __fieldIndex: idx >= 0 ? idx : undefined },
+      roles,
+    },
+    (r: any) => {
+      if (!r) return;
+      if (r.__delete) {
+        deleteField(field.id);
+        return;
+      }
+      if (r.__duplicate) {
+        duplicateField(field);
+        return;
+      }
+      handleInspectorSave(r);
+    },
+  );
 }
 
 function handleInspectorSave(updated: any) {
@@ -156,7 +166,6 @@ function handleInspectorSave(updated: any) {
 				.replace(/[^a-zA-Z0-9_]/g, "") || "field";
 		let candidate = base;
 		let n = 0;
-		// If editing, don't count itself as conflict
 		if (idx !== -1 && items[idx].db_fieldName === candidate) return candidate;
 		while (existingNames.has(candidate)) candidate = `${base}_${++n}`;
 		existingNames.add(candidate);
@@ -217,40 +226,7 @@ function duplicateField(field: WidgetListItem) {
 	toast.success("Field duplicated");
 }
 
-let builderView = $state<"list" | "buzz" | "preview">("list");
-let mockData = $state<Record<string, any>>({});
-
-function generatePreviewSpec(fieldsToRender: FieldInstance[]): Spec {
-	const elements: Record<string, any> = {
-		root: {
-			type: "VerticalLayout",
-			elements: fieldsToRender.map((f) => f.db_fieldName || f.label),
-		},
-	};
-	fieldsToRender.forEach((field) => {
-		const widgetName = field.widget?.Name || "Text";
-		const id = field.db_fieldName || field.label;
-		elements[id] = {
-			type: "Control",
-			scope: `#/properties/${id}`,
-			label: field.label,
-			options: { widget: widgetName, ...(field.GuiFields as any) },
-		};
-	});
-	return { root: "root", elements } as unknown as Spec;
-}
-
-const quickWidgets = [
-  { key: "Input", icon: "material-symbols:text-fields", label: "Short Text" },
-  { key: "RichText", icon: "material-symbols:format-list-bulleted-rounded", label: "Rich Text" },
-  { key: "MediaUpload", icon: "material-symbols:image-outline", label: "Image" },
-  { key: "Relation", icon: "material-symbols:account-tree-outline", label: "Relation" },
-];
-
-async function addQuickWidget(key: string) {
-	// Ensure widget store has finished initializing before resolving widget functions.
-	// The page's onMount fires initializeWidgets() without awaiting, so an early
-	// click could otherwise find getWidgetFunction(key) === undefined.
+async function addSidebarWidget(key: string) {
 	await widgetStoreActions.initializeWidgets();
 	const widgetInstance = getWidgetFunction(key);
 	if (widgetInstance) {
@@ -261,6 +237,7 @@ async function addQuickWidget(key: string) {
 			label: `New ${key}`,
 			db_fieldName: `new_${key.toLowerCase()}`,
 			widget: { key, Name: key } as any,
+			icon: (widgetInstance as any).Icon || "mdi:widgets",
 			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
 			permissions: {},
 		};
@@ -277,157 +254,280 @@ async function addQuickWidget(key: string) {
 	}
 }
 
-const viewOptions = [
-	{ value: "list", label: "Standard List", icon: "mdi:format-list-bulleted" },
-	{ value: "buzz", label: "BuzzForm", icon: "fluent:design-ideas-24-filled" },
-	{ value: "preview", label: "Live Preview", icon: "mdi:eye" },
-];
+// ── Sidebar State ──
+let sidebarSearch = $state("");
+
+const availableWidgets = $derived(widgets.widgetFunctions || {});
+
+// Organize widgets into categories
+const coreWidgets = $derived(
+	(widgets.coreWidgets || [])
+		.filter((key: string) =>
+			!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase())
+		)
+		.map((key: string) => ({
+			key,
+			label: key,
+			icon: (availableWidgets[key] as any)?.Icon || "mdi:puzzle",
+			description: (availableWidgets[key] as any)?.Description || "",
+		}))
+);
+
+const customWidgets = $derived(
+	(widgets.customWidgets || [])
+		.filter((key: string) =>
+			!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase())
+		)
+		.map((key: string) => ({
+			key,
+			label: key,
+			icon: (availableWidgets[key] as any)?.Icon || "mdi:puzzle",
+			description: (availableWidgets[key] as any)?.Description || "",
+		}))
+);
+
+const marketplaceWidgets = $derived(
+	(widgets.marketplaceWidgets || [])
+		.filter((key: string) =>
+			!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase())
+		)
+		.map((key: string) => ({
+			key,
+			label: key,
+			icon: (availableWidgets[key] as any)?.Icon || "mdi:store",
+			description: (availableWidgets[key] as any)?.Description || "",
+		}))
+);
 </script>
 
-<div class="flex-1 min-h-0 flex gap-6">
-	<!-- Left Side: View Toggle & List -->
-	<div class="flex-1 flex flex-col gap-6 min-w-0">
-		<div class="flex items-center justify-between gap-4">
-		<SegmentedControl
-			options={viewOptions}
-			bind:value={builderView}
-			class="max-w-md"
-		/>
-		<div class="text-xs font-medium text-surface-500 dark:text-surface-50 bg-surface-100 dark:bg-surface-800 px-3 py-1 rounded-full border border-surface-200 dark:border-surface-700">
-			{items.length} Fields
-		</div>
-	</div>
+<div class="flex h-full gap-0">
+	<!-- ═══ LEFT COLUMN: Widget Canvas / Drag-and-drop List ═══ -->
+	<div class="flex-1 min-w-0 flex flex-col border-e border-surface-200 dark:border-surface-700">
 
-	<div class="flex-1 overflow-y-auto min-h-0 pe-1">
-		{#if builderView === 'buzz'}
-			<BuzzForm />
-		{:else if builderView === 'preview'}
-			<div class="space-y-6">
-				<Card class="p-6 border-t-4 border-t-primary-500">
-					<h3 class="text-lg font-bold text-primary-500 flex items-center gap-2 mb-2">
-						<iconify-icon icon="mdi:magic-staff"></iconify-icon>
-						Live UI Preview
-					</h3>
-					<p class="text-sm text-surface-500 dark:text-surface-50 mb-6">
-						Experience the exact layout rendered by our AI-Native engine. Perfect parity between builder and live CMS.
-					</p>
-
-					<div class="max-w-3xl border border-surface-200 dark:border-surface-700 rounded p-8 bg-surface-50 dark:bg-surface-900 shadow-inner">
-						{#key items}
-							<JSONUIProvider initialState={mockData}>
-								<Renderer registry={sveltyRegistry} spec={generatePreviewSpec(items)} />
-							</JSONUIProvider>
-						{/key}
-					</div>
-				</Card>
-
-				<Card class="p-4 bg-surface-900 overflow-hidden">
-					<h4 class="text-[10px] font-bold uppercase text-surface-400 mb-2 px-2">Live Store Data</h4>
-					<pre class="text-[11px] text-primary-300 overflow-auto max-h-40 font-mono scrollbar-hide">{JSON.stringify(mockData, null, 2)}</pre>
-				</Card>
-			</div>
-		{:else}
-			<div class="space-y-6">
-				<!-- Add Bar -->
-				<Card class="p-4 flex flex-wrap items-center gap-2 bg-surface-50 dark:bg-surface-900 border-dashed">
-					<span class="text-xs font-bold text-surface-500 dark:text-surface-50 me-2 uppercase tracking-tight">Quick Add:</span>
-					{#each quickWidgets as qw (qw.key)}
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={() => addQuickWidget(qw.key)}
-							leadingIcon={qw.icon}
-							class="text-[11px] h-8"
-							data-testid="quick-add-{qw.key.toLowerCase()}"
-						>
-							{qw.label}
-						</Button>
-					{/each}
-					<Button
-						variant="primary"
-						size="sm"
-						onclick={addField}
-						leadingIcon="mdi:plus"
-						class="ml-auto h-8"
-						data-testid="add-field-button"
-					>
-						More Widgets
-					</Button>
-				</Card>
-
-				<!-- Fields List -->
-				<div
-					use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
-					onconsider={handleDndConsider}
-					onfinalize={handleDndFinalize}
-					class="space-y-3 min-h-50"
-					data-testid="widget-fields-list"
-				>
-					{#each items as item (item._dragId)}
-						<div animate:flip={{ duration: flipDurationMs }} class="group relative">
-							<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
-								<!-- Drag Handle -->
-								<div class="cursor-grab text-surface-300 active:cursor-grabbing group-hover:text-primary-500 transition-colors">
-									<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
-								</div>
-
-								<!-- Field Icon & Index -->
-								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
-									<iconify-icon icon={item.icon || 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
-								</div>
-
-								<!-- Field Info -->
-								<div class="flex-1 min-w-0 pe-4">
-									<div class="flex items-center gap-2 mb-0.5">
-										<span class="font-bold truncate text-sm sm:text-base">{item.label}</span>
-										<span class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
-											{(item.widget as { key?: string })?.key || 'Generic'}
-										</span>
-									</div>
-									<div class="flex items-center gap-3">
-										<code class="text-[10px] text-surface-400 dark:text-surface-50 bg-surface-100 dark:bg-surface-900 px-1 rounded truncate">
-											{item.db_fieldName || 'unnamed_field'}
-										</code>
-										{#if item.required}
-											<span class="text-[9px] font-bold text-error-500 flex items-center gap-0.5">
-												<iconify-icon icon="mdi:asterisk" width="8"></iconify-icon> Required
-											</span>
-										{/if}
-									</div>
-								</div>
-
-								<!-- Actions -->
-								<div class="flex gap-1.5 items-center">
-									<Button variant="ghost" size="sm" onclick={() => editField(item)} title="Configure">
-										<iconify-icon icon="mdi:cog" width="18"></iconify-icon>
-									</Button>
-									<Button variant="ghost" size="sm" onclick={() => duplicateField(item)} title="Duplicate">
-										<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-									</Button>
-									<Button variant="ghost" size="sm" onclick={() => deleteField(item.id)} class="text-error-500 hover:bg-error-500/10" title="Remove">
-										<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
-									</Button>
-								</div>
-							</Card>
-						</div>
-					{/each}
-
-					{#if items.length === 0}
-						<div class="flex h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/10 text-surface-400 dark:text-surface-50">
-							<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"></iconify-icon>
-							<p class="text-sm font-medium">Add your first widget to start building</p>
-						</div>
-					{/if}
+		<!-- Quick Add Bar -->
+		<div class="shrink-0 p-4 border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900">
+			<div class="flex items-center gap-3">
+				<div class="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300">
+					<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
+					<span>{items.length} {items.length === 1 ? 'Widget' : 'Widgets'}</span>
 				</div>
+				<div class="flex-1"></div>
+				<Button
+					variant="primary"
+					size="sm"
+					onclick={addField}
+					leadingIcon="mdi:plus"
+					data-testid="add-field-button"
+				>
+					Add Widget
+				</Button>
 			</div>
-		{/if}
+		</div>
+
+		<!-- Drag-and-drop Widget List -->
+		<div class="flex-1 overflow-y-auto min-h-0 p-4">
+			<div
+				use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
+				onconsider={handleDndConsider}
+				onfinalize={handleDndFinalize}
+				class="space-y-3 min-h-50"
+				data-testid="widget-fields-list"
+			>
+				{#each items as item (item._dragId)}
+					<div
+						animate:flip={{ duration: flipDurationMs }}
+						class="group relative"
+						data-testid="widget-field-row"
+						data-field-name={item.db_fieldName || ""}
+					>
+						<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
+							<!-- Drag Handle -->
+							<div class="cursor-grab text-surface-300 active:cursor-grabbing group-hover:text-primary-500 transition-colors">
+								<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
+							</div>
+
+							<!-- Field Icon -->
+							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
+								<iconify-icon icon={item.icon || (item.widget as any)?.key ? (availableWidgets[(item.widget as any)?.key] as any)?.Icon || 'mdi:widgets' : 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
+							</div>
+
+							<!-- Field Info — click opens editor (stable E2E path) -->
+							<button
+								type="button"
+								class="flex-1 min-w-0 pe-4 text-start cursor-pointer bg-transparent border-0 p-0"
+								onclick={() => editField(item)}
+								data-testid="widget-field-open"
+								aria-label={`Edit field ${item.label || "Unnamed Field"}`}
+							>
+								<div class="flex items-center gap-2 mb-0.5">
+									<span class="font-bold truncate text-sm sm:text-base">{item.label || 'Unnamed Field'}</span>
+									<span class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
+										{(item.widget as { key?: string })?.key || 'Generic'}
+									</span>
+								</div>
+								<div class="flex items-center gap-3">
+									<code class="text-[10px] text-surface-400 dark:text-surface-50 bg-surface-100 dark:bg-surface-900 px-1 rounded truncate">
+										{item.db_fieldName || 'unnamed_field'}
+									</code>
+									{#if item.required}
+										<span class="text-[9px] font-bold text-error-500 flex items-center gap-0.5">
+											<iconify-icon icon="mdi:asterisk" width="8"></iconify-icon> Required
+										</span>
+									{/if}
+								</div>
+							</button>
+
+							<!-- Actions -->
+							<div class="flex gap-1.5 items-center">
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => editField(item)}
+									title="Edit"
+									data-testid="widget-field-edit"
+									aria-label="Edit field"
+								>
+									<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
+								</Button>
+								<Button variant="ghost" size="sm" onclick={() => duplicateField(item)} title="Duplicate">
+									<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
+								</Button>
+								<Button variant="ghost" size="sm" onclick={() => deleteField(item.id)} class="text-error-500 hover:bg-error-500/10" title="Remove">
+									<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
+								</Button>
+							</div>
+						</Card>
+					</div>
+				{/each}
+
+				{#if items.length === 0}
+					<div class="flex h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/10 text-surface-400 dark:text-surface-50">
+						<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"></iconify-icon>
+						<p class="text-sm font-medium">Add your first widget to start building</p>
+						<p class="mt-1 text-xs opacity-60">Click a widget from the sidebar or use the Add Widget button</p>
+					</div>
+				{/if}
+			</div>
+		</div>
 	</div>
 
-	<!-- Right Side: Inspector -->
-	{#if targetWidget.value && builderView === 'list'}
-		<div class="shrink-0 flex animate-in slide-in-from-right duration-500">
-			<WidgetInspector roles={roles} onSave={handleInspectorSave} />
+	<!-- ═══ RIGHT COLUMN: Widget Sidebar ═══ -->
+	<div class="w-72 lg:w-80 shrink-0 flex flex-col bg-surface-50/50 dark:bg-surface-900/50 border-s border-surface-200 dark:border-surface-700">
+
+		<!-- Sidebar Header & Search -->
+		<div class="shrink-0 p-4 border-b border-surface-200 dark:border-surface-700">
+			<h3 class="text-sm font-bold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+				<iconify-icon icon="mdi:view-grid-plus-outline" width="16"></iconify-icon>
+				Available Widgets
+			</h3>
+			<FloatingInput
+				bind:value={sidebarSearch}
+				label="Search widgets..."
+				icon="mdi:magnify"
+				aria-label="Search widgets"
+				inputClass="h-9 text-sm rounded"
+			/>
 		</div>
-	{/if}
-</div>
+
+		<!-- Widget Categories -->
+		<div class="flex-1 overflow-y-auto min-h-0 p-3 space-y-5">
+			<!-- Core Widgets -->
+			{#if coreWidgets.length > 0}
+				<div>
+					<h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400 px-1">Core</h4>
+					<div class="grid grid-cols-2 gap-2">
+						{#each coreWidgets as w (w.key)}
+							<button
+								type="button"
+								onclick={() => addSidebarWidget(w.key)}
+								data-testid={`quick-add-${w.key.toLowerCase()}`}
+								aria-label={`Add ${w.label} widget`}
+								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-start"
+							>
+								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-surface-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
+									<iconify-icon icon={w.icon} width="20"></iconify-icon>
+								</div>
+								<div class="text-center">
+									<span class="text-[11px] font-semibold text-surface-700 dark:text-surface-300 block leading-tight">{w.label}</span>
+									{#if w.description}
+										<span class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">{w.description}</span>
+									{/if}
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Custom Widgets -->
+			{#if customWidgets.length > 0}
+				<div>
+					<h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400 px-1">Custom</h4>
+					<div class="grid grid-cols-2 gap-2">
+						{#each customWidgets as w (w.key)}
+							<button
+								type="button"
+								onclick={() => addSidebarWidget(w.key)}
+								data-testid={`quick-add-${w.key.toLowerCase()}`}
+								aria-label={`Add ${w.label} widget`}
+								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-start"
+							>
+								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-surface-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
+									<iconify-icon icon={w.icon} width="20"></iconify-icon>
+								</div>
+								<div class="text-center">
+									<span class="text-[11px] font-semibold text-surface-700 dark:text-surface-300 block leading-tight">{w.label}</span>
+									{#if w.description}
+										<span class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">{w.description}</span>
+									{/if}
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Marketplace Widgets -->
+			{#if marketplaceWidgets.length > 0}
+				<div>
+					<h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400 px-1">Marketplace</h4>
+					<div class="grid grid-cols-2 gap-2">
+						{#each marketplaceWidgets as w (w.key)}
+							<button
+								type="button"
+								onclick={() => addSidebarWidget(w.key)}
+								data-testid={`quick-add-${w.key.toLowerCase()}`}
+								aria-label={`Add ${w.label} widget`}
+								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-warning-500 hover:bg-warning-50 dark:hover:bg-warning-900/20 text-start"
+							>
+								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-warning-500 group-hover:bg-warning-500 group-hover:text-white transition-colors">
+									<iconify-icon icon={w.icon} width="20"></iconify-icon>
+								</div>
+								<div class="text-center">
+									<span class="text-[11px] font-semibold text-surface-700 dark:text-surface-300 block leading-tight">{w.label}</span>
+									{#if w.description}
+										<span class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">{w.description}</span>
+									{/if}
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		</div>
+
+		<!-- Marketplace Link -->
+		<div class="shrink-0 p-3 border-t border-surface-200 dark:border-surface-700">
+			<a
+				href="/config/extension"
+				class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 p-3 text-sm font-semibold text-warning-600 dark:text-warning-400 hover:bg-warning-100 dark:hover:bg-warning-900/40 transition-colors"
+			>
+				<iconify-icon icon="mdi:store-outline" width="18"></iconify-icon>
+				Browse Marketplace
+				<iconify-icon icon="mdi:arrow-right" width="16"></iconify-icon>
+			</a>
+		</div>
+	</div>
+
+
 </div>

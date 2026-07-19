@@ -1,0 +1,148 @@
+---
+path: "docs/tests/headless-test-inventory.mdx"
+title: "Headless-First Test Inventory"
+description: "Agnostic CMS testing tiers — unit + integration own the product core; E2E goldens only."
+order: 4
+icon: "mdi:server-network"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "headless"
+  - "integration"
+  - "unit"
+  - "multi-db"
+---
+
+# Headless-First Test Inventory
+
+> [!IMPORTANT]
+> **SveltyCMS is a database-agnostic headless CMS.**  
+> The product truth is **adapters + auth + RBAC + content APIs**.  
+> Admin UI is a client of that surface. Smart tests protect the core without locking CI to one database or to brittle Playwright matrices.
+
+**Related:** [Three-Layer Completeness](./three-layer-completeness.mdx) · [Test Status](./test-status.mdx) · [Testing Strategy](./testing-strategy.mdx) · [ADR Testing 2026](./adr-testing-2026.mdx)
+
+---
+
+## 1. Placement rules (never endanger the CMS)
+
+| Risk                                      | Layer                                                        | Forbidden                                     |
+| ----------------------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| Adapter parity (SQLite/Mongo/Maria/PG)    | Integration **contract** on all CI DBs                       | SQLite-only “green” as ship gate              |
+| Session cookies / loopback Secure         | Unit (`session-cookies`) + integration (`session-page-load`) | E2E-only discovery of cookie bugs             |
+| RBAC math / fail-closed namespaces        | Unit dispatcher + integration denials                        | Re-running full API matrix in Playwright      |
+| Tenant isolation                          | Integration + unit file-server                               | Shared fixtures across tenants                |
+| `/api/testing` backdoor                   | Unit gate + build strip verify                               | Shipping testing handler in deploy builds     |
+| Admin shell UX                            | One **golden** E2E per domain (ADR)                          | Soft-skip empty install; 50 testid-only specs |
+| Client pulls Node (`node:events`, ollama) | Unit import-boundary                                         | Ignoring 500 shells as “flake”                |
+
+---
+
+## 2. Tiers
+
+### P0 — Core (must stay green on **all** DB adapters)
+
+| Domain                              | Unit                                      | Integration                                                             |
+| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- |
+| Auth login / session                | `tests/unit/auth/session-cookies.test.ts` | `session-page-load.test.ts`, `user.test.ts`, `auth-lockout`, `contract` |
+| User CRUD + batch                   | page-server / permission helpers          | `user.test.ts`, `user-extended`                                         |
+| Collections content                 | content / dispatcher edges                | `collections.test.ts`, contract                                         |
+| Media write/delete                  | media unit + permissions                  | `media.test.ts`                                                         |
+| Setup post-complete gate            | setup hooks                               | `setup-actions.test.ts`                                                 |
+| Fail-closed unknown API             | namespace ownership + dispatcher matrix   | security negatives / contract                                           |
+| Multi-tenant isolation (when MT on) | tenant unit                               | isolation + contract                                                    |
+
+P0 manifest: `tests/p0-manifest.ts` · validate: `bun run scripts/validate-p0-coverage.ts`
+
+### P1 — Admin goldens (unit gate + one E2E journey)
+
+| Route                       | Unit                 | Integration                             | E2E                                         |
+| --------------------------- | -------------------- | --------------------------------------- | ------------------------------------------- |
+| `/user`                     | page.server          | user APIs                               | p0-journeys / coverage-100                  |
+| `/dashboard`                | page.server          | dashboard API + **session-page-load**   | shell golden                                |
+| `/mediagallery`             | page.server          | media                                   | golden + editor                             |
+| `/config/webhooks`          | webhooks-api + CSRF  | **webhooks.test.ts**                    | ADR golden                                  |
+| `/config/automations`       | automations-api      | **automations.test.ts**                 | golden                                      |
+| `/config/system-settings`   | page.server + groups | settings export/import                  | shell + save                                |
+| `/config/collectionbuilder` | page.server + utils  | collection-structure + structure matrix | **shell + golden only** (`builder.spec.ts`) |
+
+### P2 — Config shells (unit + HTTP surface + thin E2E)
+
+queue, monitor, sync, trash, extensions, workflows — **page.server unit** + **`config-admin-surface.test.ts`** HTTP gates; E2E shell only.  
+redirects / queue mutations use **SvelteKit remotes** (no REST) — unit `requireAdmin` remains the mutation gate.
+
+### P3 — Optional / non-blocking for headless
+
+| Surface                 | Notes                                              |
+| ----------------------- | -------------------------------------------------- |
+| `/config/design-system` | Visual only; no control-map gate                   |
+| `/config/migration`     | Plugin-gated; seed via testing API when E2E        |
+| `(site)` starter        | Optional; headless installs may disable            |
+| GraphQL **browser** E2E | **Do not add** — use `graphql.test.ts` integration |
+| Real IdP SSO            | Mock in CI; optional external                      |
+
+---
+
+## 3. Ultra-smart suites shipped (2026-07-18)
+
+| Suite                    | Path                                                      | Proves                                                                                             |
+| ------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Session cookies          | `tests/unit/auth/session-cookies.test.ts`                 | Loopback never Secure/\_\_Host-; name + read order                                                 |
+| Client import boundary   | `tests/unit/live/client-import-boundary.test.ts`          | **Exhaustive** walk of client roots for `node:*` / ollama / event-bus / ai-service static imports  |
+| Testing login dual-write | `tests/unit/api/testing-login-cookie-contract.test.ts`    | `/api/testing` login Set-Cookie + x-test-session-id                                                |
+| Page guards              | `tests/unit/utils/page-guards.test.ts`                    | getAuthenticatedUser / requirePagePermission fail-closed                                           |
+| Collection builder load  | `tests/unit/routes/collectionbuilder-page-server.test.ts` | Admin structure + deny                                                                             |
+| **Session → page load**  | `tests/integration/api/session-page-load.test.ts`         | Cookie unlocks `__data.json` for **18** admin shells (user/dashboard/media + full `/config/*` hub) |
+| **Webhooks HTTP (P1)**   | `tests/integration/api/webhooks.test.ts`                  | ADR reference domain: admin list/create/delete + unauth 401 + editor deny                          |
+| **Automations HTTP**     | `tests/integration/api/automations.test.ts`               | Admin CRUD + unauth/editor deny                                                                    |
+| **Config admin surface** | `tests/integration/api/config-admin-surface.test.ts`      | trash, system-jobs, workflows, config/status, widgets/list, logs — 401 + admin GET + mutation deny |
+| **Collection structure** | `tests/integration/api/collection-structure.test.ts`      | Builder dependency: collections list auth (promotes flake risk out of E2E)                         |
+| Queue remote admin gate  | `tests/unit/routes/queue-remote-admin.test.ts`            | remotes always `requireAdmin` before actions                                                       |
+| Queue actions            | `tests/unit/routes/queue-actions.server.test.ts`          | retry/delete/clear data-path validation                                                            |
+| Redirects remote         | `tests/unit/routes/redirects-remote-admin.test.ts`        | remote delegates to admin-gated server helpers                                                     |
+| Security negative matrix | `tests/integration/api/security-negative.test.ts`         | Unauth deny for webhooks/automations/workflows/trash/jobs/config/widgets/logs                      |
+
+Run unit slice:
+
+```bash
+bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/api/testing-login-cookie-contract.test.ts
+```
+
+Run integration (server must be up via runner):
+
+```bash
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+# bun test tests/integration/api/session-page-load.test.ts tests/integration/api/webhooks.test.ts tests/integration/api/automations.test.ts tests/integration/api/config-admin-surface.test.ts
+```
+
+---
+
+## 4. Route ↔ layer quick map (`src/routes`)
+
+| Group                      | Primary layer                                |
+| -------------------------- | -------------------------------------------- |
+| `api/[...path]/handlers/*` | Integration + unit dispatcher                |
+| `api/graphql`              | Integration only                             |
+| `(app)/**/+page.server.ts` | Unit gates                                   |
+| `(app)/**/*-api.ts`        | Unit CSRF + golden E2E                       |
+| `setup/`                   | E2E wizard (serial) + setup-mode integration |
+| `login/`                   | Unit + E2E smoke; lockout integration        |
+| `files/`                   | Integration tenant isolation + unit          |
+| `(site)/`                  | Optional smoke E2E                           |
+| `(admin)/admin/tenants`    | Unit + isolation integration before browser  |
+
+Full control maps: [docs/tests/routes/webhooks.mdx](./routes/webhooks.mdx) · dashboard: [test-status.mdx](./test-status.mdx)
+
+---
+
+## 5. How to extend without endangering the core
+
+1. **New API namespace** → unit RBAC row + integration happy + deny (not Playwright).
+2. **New admin config page** → `+page.server` unit + `*-api` unit + **one** golden E2E (copy webhooks).
+3. **Adapter change** → contract suite green on all four DBs.
+4. **Touch `src/live/` or collaboration** → import-boundary unit must stay green.
+5. **Touch session cookies** → session-cookies unit + session-page-load integration.
+
+Never: soft-skip control-map E2E for empty install · invent fixtures outside `tests/harness` · assert Mongo-only shapes in unit · add GraphQL browser E2E as a gate.

@@ -29,6 +29,9 @@ export async function checkServer(): Promise<boolean> {
     const payload = data?.data && typeof data.data === "object" ? data.data : data;
 
     const status = payload?.overallStatus || payload?.status || "";
+    // INITIALIZING is a transitional boot state after process restart — the server
+    // is listening and will reach READY/SETUP once migrations finish. Treating it
+    // as dead caused Phase-2 isolated setup tests to fail after 60s of healthy boots.
     const isHealthy = [
       "READY",
       "SETUP",
@@ -37,6 +40,7 @@ export async function checkServer(): Promise<boolean> {
       "DEGRADED",
       "HEALTHY",
       "IDLE",
+      "INITIALIZING",
     ].includes(status.toUpperCase());
 
     if (!isHealthy) {

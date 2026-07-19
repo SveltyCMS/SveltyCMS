@@ -1,9 +1,12 @@
 /**
  * @file tests/unit/api/graphql-security.test.ts
- * @description GraphQL Whitebox Native Security Rules Tests
+ * @description GraphQL whitebox security: depth/aliases/introspection + dispatcher auth gate.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse, validate, buildSchema, NoSchemaIntrospectionCustomRule } from "graphql";
+import { createDepthLimitRule, createMaxAliasesRule } from "@src/routes/api/graphql/rules";
+import { invokeGraphql } from "../utils/mock-event";
+import { createMockUser } from "../utils/mock-factories";
 
 // This simulates the schema we have
 const schemaDefinition = `
@@ -19,12 +22,46 @@ const schemaDefinition = `
 `;
 const schema = buildSchema(schemaDefinition);
 
-// The rules we want to test
-// Depending on how your +server.ts is built, you might import these.
-// We inline them here or import them securely if they are exported.
-import { createDepthLimitRule, createMaxAliasesRule } from "@src/routes/api/graphql/rules";
+vi.mock("@src/databases/db", () => ({
+  dbAdapter: {
+    crud: {},
+    auth: {},
+    media: {},
+    system: {},
+    collection: {},
+  },
+  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  getDb: vi.fn(),
+  isDbConnected: vi.fn().mockReturnValue(true),
+  getAuth: vi.fn().mockReturnValue({}),
+}));
+
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@src/services/core/settings-service", () => ({
+  getPrivateSettingSync: vi.fn().mockReturnValue(false),
+  getPublicSettingSync: vi.fn().mockReturnValue(false),
+  getUntypedSetting: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@utils/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    trace: vi.fn(),
+  },
+}));
 
 describe("GraphQL Whitebox Native Security Rules", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("should allow a normal admin query (depth < limit)", () => {
     const query = `
           query {
@@ -115,5 +152,31 @@ describe("GraphQL Whitebox Native Security Rules", () => {
 
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some((e) => e.message.toLowerCase().includes("introspection"))).toBe(true);
+  });
+});
+
+describe("GraphQL dispatcher auth gate (catch-all /api/graphql)", () => {
+  it("rejects unauthenticated GraphQL POST with 401", async () => {
+    const res = await invokeGraphql(
+      "{ __typename }",
+      {},
+      { user: null, tenantId: "t1", bypass: false },
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("does not return 401 for authenticated admin (may 200/4xx/5xx deeper)", async () => {
+    const admin = createMockUser({ _id: "u1", role: "admin", isAdmin: true } as any);
+    const res = await invokeGraphql(
+      "{ __typename }",
+      {},
+      {
+        user: admin,
+        tenantId: "t1",
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: ["*"] }],
+        bypass: true,
+      },
+    );
+    expect(res.status).not.toBe(401);
   });
 });

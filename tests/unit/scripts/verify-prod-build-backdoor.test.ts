@@ -10,13 +10,19 @@ const FULL_HANDLER_MARKERS = [
   "handleTestingRoutes",
 ];
 
-const STUB_MARKERS = ['new Response("Not Found", { status: 404 })'];
+const STUB_MARKERS = [
+  "SVELTY_TEST_BACKDOOR_STRIPPED",
+  'new Response("Not Found", { status: 404 })',
+  'new Response("Not Found",{status:404})',
+];
 
 function classifyChunk(content: string): "full" | "stub" | "none" {
   const full = FULL_HANDLER_MARKERS.some((m) => content.includes(m));
   const stub = STUB_MARKERS.some((m) => content.includes(m));
-  if (full) return "full";
+  // Mirror deploy gate: full handler without stub is the failure case.
+  if (full && !stub) return "full";
   if (stub) return "stub";
+  if (full) return "full";
   return "none";
 }
 
@@ -27,9 +33,25 @@ describe("verify-prod-build-backdoor classification", () => {
     ).toBe("full");
   });
 
-  it("detects noop stub", () => {
+  it("detects pretty-printed noop stub", () => {
     expect(
       classifyChunk('export const POST = () => new Response("Not Found", { status: 404 })'),
+    ).toBe("stub");
+  });
+
+  it("detects compact noop stub from testBackdoorStripperPlugin", () => {
+    expect(
+      classifyChunk(
+        'export const POST=()=>new Response("Not Found",{status:404});export const SVELTY_TEST_BACKDOOR_STRIPPED=true;',
+      ),
+    ).toBe("stub");
+  });
+
+  it("treats NAMESPACE_CONFIG handleTestingRoutes + strip marker as stub (deploy-safe)", () => {
+    expect(
+      classifyChunk(
+        'testing:{handler:"testing",fn:"handleTestingRoutes"};export const SVELTY_TEST_BACKDOOR_STRIPPED=true;',
+      ),
     ).toBe("stub");
   });
 

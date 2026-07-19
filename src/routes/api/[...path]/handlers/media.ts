@@ -17,13 +17,15 @@ import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { createLink, validateLink, revoke, extend, type ShareLink } from "@src/utils/media/sharing";
 import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
-import { analyze, insights, trends, quota, formatBytes } from "@src/utils/media/storage-analytics";
+import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
+import { formatBytes } from "@utils/utils";
 import { compareVersions, createVersion, getVersionStats } from "@src/utils/media/version-history";
 import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
-import type { MediaBase } from "@utils/media/media-models";
+import type { MediaItem } from "@utils/media/media-models";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -96,6 +98,13 @@ export async function handleMediaRoutes(
   const { user } = locals;
   const method = segments[1];
 
+  // Public share endpoints are token-gated and may run without tenant locals.
+  // All other media operations require tenant isolation when multi-tenant is on.
+  const isSharePath = method === "share";
+  if (!isSharePath && isMultiTenantEnabled() && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
+
   try {
     switch (request.method) {
       case "GET":
@@ -116,8 +125,9 @@ export async function handleMediaRoutes(
         throw new AppError(`HTTP method ${request.method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     }
   } catch (err: any) {
-    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
+    // Expected client/auth errors should not spam stderr as "MediaRoute Error"
     if (err instanceof AppError) throw err;
+    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
     throw new AppError(err.message || "Media route handler transaction failed", 500);
   }
 }
@@ -183,6 +193,7 @@ async function handlePostRoutes(
   if (method === "bulk-download") return handleMediaBulkDownload(event, cms, tenantId);
   if (method === "share") return handleMediaShareCreate(event, cms, tenantId, user, segments);
   if (method === "stream") return handleMediaStreamUpload(event, cms, tenantId, user);
+  if (method === "move") return handleMediaMove(event, cms, tenantId, user);
   if (method === "version") {
     if (segments[3] === "restore")
       return handleMediaVersionRestore(event, cms, tenantId, user, segments);
@@ -240,6 +251,67 @@ export async function handleMediaList(
       prefix: url.searchParams.get("prefix") || undefined,
     }),
   );
+}
+
+/**
+ * Move media assets into a virtual folder (or media root).
+ * POST /api/media/move
+ * Body: { fileIds: string[], targetFolderId?: string | null }
+ *
+ * Virtual move only — updates folderId; does not relocate storage blobs.
+ */
+export async function handleMediaMove(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media move", 403, "FORBIDDEN");
+  }
+
+  let body: { fileIds?: unknown; targetFolderId?: unknown };
+  try {
+    body = await event.request.json();
+  } catch {
+    throw new AppError("Invalid JSON body", 400);
+  }
+
+  const rawIds = body?.fileIds;
+  if (!Array.isArray(rawIds) || rawIds.length === 0) {
+    throw new AppError("fileIds must be a non-empty array", 400);
+  }
+
+  const fileIds = [
+    ...new Set(rawIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)),
+  ];
+  if (fileIds.length === 0) {
+    throw new AppError("fileIds must contain valid media IDs", 400);
+  }
+
+  // null / undefined / "" / "root" / "global" → media root (folderId = null)
+  const rawTarget = body?.targetFolderId;
+  let targetFolderId: string | null = null;
+  if (typeof rawTarget === "string" && rawTarget.trim()) {
+    const t = rawTarget.trim();
+    if (t !== "root" && t !== "global") {
+      targetFolderId = t;
+    }
+  }
+
+  const result = await cms.media.move(fileIds, targetFolderId, { tenantId });
+  if (!result.success) {
+    throw (
+      result.error ||
+      new AppError(result.message || "Failed to move media", 500, "MEDIA_MOVE_FAILED")
+    );
+  }
+
+  return successResponse(event, {
+    movedCount: result.data?.movedCount ?? fileIds.length,
+    fileIds,
+    targetFolderId,
+  });
 }
 
 export async function handleMediaReferences(
@@ -1007,7 +1079,7 @@ export async function handleMediaSearch(
 
   // Fetch all media for client-side filtering
   const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
-  const files: MediaBase[] = listRes.success ? (listRes.data ?? []) : [];
+  const files: MediaItem[] = listRes.success ? (listRes.data ?? []) : [];
 
   const result = advancedSearch(files, criteria);
 

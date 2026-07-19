@@ -1,9 +1,13 @@
 /**
  * @file tests/e2e/helpers/migration-wizard.ts
  * @description Shared helpers for Smart Importer migration wizard E2E tests.
+ *
+ * Policy: do not soft-skip when the wizard is on the control map. Prefer
+ * enable-plugin via /api/testing, then hard-fail if the UI never mounts.
  */
 
 import { expect, type Page } from "@playwright/test";
+import { enablePlugin } from "./seed";
 
 const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
 
@@ -13,17 +17,46 @@ const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
  * layout's "Page actions" sticky bar. Scope interactions to the dialog so
  * role-based lookups don't match both copies.
  */
-function workspace(page: Page) {
+export function workspace(page: Page) {
   return page.getByRole("dialog", { name: "Plugin workspace" });
+}
+
+/**
+ * Ensure smart-importer is enabled and the wizard file input is attached.
+ * Throws on failure (no soft-skip).
+ */
+export async function ensureSmartImporterReady(page: Page, timeoutMs = 25_000) {
+  // Best-effort enable — core package may still be registered but disabled
+  try {
+    await enablePlugin(page, "smart-importer", true);
+  } catch (err) {
+    // Continue to UI probe; throw only if UI also missing
+    console.warn(
+      `[migration-wizard] enable-plugin smart-importer: ${err instanceof Error ? err.message : err}`,
+    );
+  }
+
+  await page.goto("/config?plugin=smart-importer", {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+
+  const fileInput = workspace(page).locator("#migration-file-input");
+  try {
+    await fileInput.waitFor({ state: "attached", timeout: timeoutMs });
+  } catch {
+    throw new Error(
+      "Smart Importer wizard did not mount (#migration-file-input). " +
+        "Ensure the smart-importer plugin is packaged and enable-plugin succeeds in this environment. " +
+        "Control-map migration tests must not soft-skip empty/missing install state.",
+    );
+  }
+  return fileInput;
 }
 
 /** Upload the sample WordPress WXR and wait for detection to finish */
 export async function uploadWordPressFixture(page: Page, fixturePath = WXR_FIXTURE) {
-  await page.goto("/config?plugin=smart-importer");
-  // Wait for the plugin workspace to fully render before interacting
-  await workspace(page)
-    .locator("#migration-file-input")
-    .waitFor({ state: "attached", timeout: 20_000 });
+  await ensureSmartImporterReady(page);
   await workspace(page).locator("#migration-file-input").setInputFiles(fixturePath);
   await expect(
     workspace(page)

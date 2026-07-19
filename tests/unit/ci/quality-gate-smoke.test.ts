@@ -40,10 +40,9 @@ describe("pre-push precheck CI smoke", () => {
 
   it("unit tests always run on push tier (no skip property)", () => {
     const source = readFileSync(join(ROOT, "scripts/precheck-shared.ts"), "utf8");
-    const unitBlock = source.slice(
-      source.indexOf('name: "Full Unit Tests"'),
-      source.indexOf('name: "Production Build"'),
-    );
+    const unitStart = source.indexOf('name: "Full Unit Tests"');
+    const unitEnd = source.indexOf('name: "CI Test Preview"', unitStart);
+    const unitBlock = source.slice(unitStart, unitEnd);
     expect(unitBlock).toContain('name: "Full Unit Tests"');
     expect(unitBlock).not.toContain("skip:");
   });

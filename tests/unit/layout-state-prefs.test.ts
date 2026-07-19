@@ -42,8 +42,6 @@ describe("layout-state-prefs", () => {
         }),
       ),
     ).toEqual({
-      leftSidebar: "full",
-      rightSidebar: "full",
       pageheader: "hidden",
       pagefooter: "hidden",
       header: "hidden",
@@ -61,9 +59,20 @@ describe("layout-state-prefs", () => {
 
   it("diffs only keys that diverge from tenant defaults", () => {
     const current = uiStateToLayoutPrefs(baseUiState({ leftSidebar: "hidden" }));
-    expect(diffLayoutPrefsFromTenant(current, { leftSidebar: "full" })).toEqual({
+    expect(diffLayoutPrefsFromTenant(current, { layoutState: { leftSidebar: "full" } })).toEqual({
       leftSidebar: "hidden",
+      rightSidebar: "hidden",
+      pageheader: "hidden",
+      pagefooter: "hidden",
+      header: "hidden",
+      footer: "hidden",
     });
-    expect(diffLayoutPrefsFromTenant(current, { leftSidebar: "hidden" })).toEqual({});
+    expect(diffLayoutPrefsFromTenant(current, { layoutState: { leftSidebar: "hidden" } })).toEqual({
+      rightSidebar: "hidden",
+      pageheader: "hidden",
+      pagefooter: "hidden",
+      header: "hidden",
+      footer: "hidden",
+    });
   });
 });

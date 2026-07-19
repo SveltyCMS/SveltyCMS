@@ -1,9 +1,9 @@
 /**
- * @file src/utils/media/advancedSearch.ts
+ * @file src/utils/media/advanced-search.ts
  * @description Advanced client-side media search with filtering & suggestions
  */
 
-import type { MediaBase, MediaImage } from "./media-models";
+import { isMediaImage, isStoredMedia, type MediaImage, type MediaItem } from "./media-models";
 
 export interface SearchCriteria {
   aspectRatio?: "landscape" | "portrait" | "square";
@@ -38,21 +38,22 @@ export interface SearchCriteria {
 }
 
 export interface SearchResult {
-  files: MediaBase[];
-  matched: string[];
+  files: MediaItem[];
+  /** Per-file matched-criteria list. One entry per file in `files`, in the same order. */
+  matched: string[][];
   total: number;
 }
 
 /** Advanced search with detailed matched criteria */
-export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): SearchResult {
-  const matched: string[] = [];
-  const result: MediaBase[] = [];
+export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): SearchResult {
+  const result: MediaItem[] = [];
+  const matched: string[][] = [];
 
   // O(N) pre-calculation for duplicates
   const hashCounts = new Map<string, number>();
   if (criteria.showDuplicatesOnly) {
     for (const f of files) {
-      if (f.hash) {
+      if (isStoredMedia(f) && f.hash) {
         hashCounts.set(f.hash, (hashCounts.get(f.hash) ?? 0) + 1);
       }
     }
@@ -60,12 +61,11 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
 
   for (const file of files) {
     let ok = true;
+    const fileMatched: string[] = [];
 
     if (criteria.filename) {
       ok &&= file.filename.toLowerCase().includes(criteria.filename.toLowerCase());
-      if (ok) {
-        matched.push(`Filename: "${criteria.filename}"`);
-      }
+      if (ok) fileMatched.push(`Filename: "${criteria.filename}"`);
     }
 
     if (criteria.tags?.length) {
@@ -73,26 +73,24 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
       ok &&= criteria.tags.every((t) =>
         fileTags.some((ft) => ft.toLowerCase() === t.toLowerCase()),
       );
-      if (ok) {
-        matched.push(`Tags: ${criteria.tags.join(", ")}`);
-      }
+      if (ok) fileMatched.push(`Tags: ${criteria.tags.join(", ")}`);
     }
 
-    // Image-specific
-    if ("width" in file && "height" in file) {
+    // Image-specific — use the proper type guard
+    if (isMediaImage(file)) {
       const img = file as MediaImage;
 
       if (criteria.minWidth !== undefined) {
-        ok &&= img.width! >= criteria.minWidth;
+        ok &&= img.width >= criteria.minWidth;
       }
       if (criteria.maxWidth !== undefined) {
-        ok &&= img.width! <= criteria.maxWidth;
+        ok &&= img.width <= criteria.maxWidth;
       }
       if (criteria.minHeight !== undefined) {
-        ok &&= img.height! >= criteria.minHeight;
+        ok &&= img.height >= criteria.minHeight;
       }
       if (criteria.maxHeight !== undefined) {
-        ok &&= img.height! <= criteria.maxHeight;
+        ok &&= img.height <= criteria.maxHeight;
       }
 
       if (criteria.aspectRatio && img.width && img.height) {
@@ -108,21 +106,23 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
               ? isPortrait
               : isSquare;
 
-        if (ok) {
-          matched.push(`Aspect: ${criteria.aspectRatio}`);
-        }
+        if (ok) fileMatched.push(`Aspect: ${criteria.aspectRatio}`);
       }
     }
 
-    if (criteria.minSize !== undefined) {
-      ok &&= (file.size ?? 0) >= criteria.minSize;
-    }
-    if (criteria.maxSize !== undefined) {
-      ok &&= (file.size ?? 0) <= criteria.maxSize;
+    // Size checks require stored media (has `size` field)
+    if (isStoredMedia(file)) {
+      if (criteria.minSize !== undefined) {
+        ok &&= file.size >= criteria.minSize;
+      }
+      if (criteria.maxSize !== undefined) {
+        ok &&= file.size <= criteria.maxSize;
+      }
     }
 
+    // MIME type check also uses `mimeType` from stored media
     if (criteria.fileTypes?.length) {
-      ok &&= criteria.fileTypes.includes(file.mimeType);
+      ok &&= isStoredMedia(file) && criteria.fileTypes.includes(file.mimeType);
     }
 
     if (criteria.uploadedAfter) {
@@ -150,7 +150,7 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
       ok &&= loc.includes(criteria.location.toLowerCase());
     }
 
-    if (criteria.showDuplicatesOnly) {
+    if (criteria.showDuplicatesOnly && isStoredMedia(file)) {
       const count = hashCounts.get(file.hash) ?? 0;
       ok &&= count > 1;
     }
@@ -164,18 +164,19 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
 
     if (ok) {
       result.push(file);
+      matched.push(fileMatched);
     }
   }
 
   return {
     files: result,
     total: result.length,
-    matched: [...new Set(matched)],
+    matched,
   };
 }
 
 /** Search suggestions from media library */
-export function getSuggestions(files: MediaBase[]) {
+export function getSuggestions(files: MediaItem[]) {
   const tags = new Set<string>();
   const cameras = new Set<string>();
   const dimensions = new Map<string, number>();
@@ -196,7 +197,7 @@ export function getSuggestions(files: MediaBase[]) {
       }
     }
 
-    if ("width" in file && "height" in file) {
+    if (isMediaImage(file)) {
       const key = `${file.width}x${file.height}`;
       dimensions.set(key, (dimensions.get(key) ?? 0) + 1);
     }
@@ -221,5 +222,3 @@ export function getSuggestions(files: MediaBase[]) {
 
 /** Alias for backward compatibility */
 export const getSearchSuggestions = getSuggestions;
-
-// formatBytes — canonical source is ../file.ts

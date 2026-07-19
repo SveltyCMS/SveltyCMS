@@ -23,12 +23,20 @@ This document catalogs every testing-related script in `scripts/`, their purpose
 
 ### `scripts/test-smart.ts` — Smart Test Orchestrator
 
-**Purpose**: Git-diff-aware test selector. Reads changed files from `git diff` and selects only the relevant test suites instead of running everything.
+**Purpose**: High-performance, git-diff-aware test selector. Analyzes changed files and determines the optimal subset of tests to execute.
+
+**Features (Supercharged 2026 Engine)**:
+
+- **Unioned Signal Selection**: Combines static pattern matching (domain knowledge for black-box integration/E2E tests) and transitive dependency-graph tracing (unit tests) as additive signals, ensuring no test coverage is lost.
+- **Synthetic Edges**: Maps non-import codegen relationships (e.g., changes under `config/collections/**` automatically treat `src/content/types.generated.ts` and `src/content/types.ts` as changed).
+- **High-Performance Native Scanning**: Leverages `Bun.Transpiler` to scan TS/JS import dependencies at native speeds, falling back to a comment-stripping regex parser for Svelte files or non-Bun execution contexts.
+- **Surgical Diff-Based Filtering**: Analyzes git diff hunks for modified identifiers (e.g., modified function names) and injects a compiled match pattern (` -t "func1|func2"`) directly into the test command to execute only the matching test blocks.
+- **E2BIG CLI Protection**: Automatically segments long lists of test files (batches of 20) and executes them sequentially to prevent OS-level argument limits from crashing the runner, while preserving trailing options and flags (e.g. `--project=chromium`).
 
 **Invocation**:
 
 ```bash
-bun run scripts/test-smart.ts              # Auto-detect from git diff vs origin/next
+bun run scripts/test-smart.ts              # Auto-detect from git diff (includes unstaged/untracked)
 bun run scripts/test-smart.ts --all        # Run everything
 bun run scripts/test-smart.ts --suite=auth # Run specific suite
 bun run scripts/test-smart.ts --list       # List what would run (dry-run)
@@ -38,7 +46,7 @@ bun run scripts/test-smart.ts --list       # List what would run (dry-run)
 
 **Failure policy**: Fail-closed — if no suite matches changed files, runs the full core suite. Every failure must be root-caused; no "retry until green."
 
-**Remediation**: Fix failing tests. If the smart selector missed relevant tests, update the `SUITE_RULES` patterns in the script.
+**Remediation**: Fix failing tests. If the smart selector missed relevant tests, update the `SUITE_RULES` patterns or add a `SYNTHETIC_EDGES` rule in the script.
 
 ---
 

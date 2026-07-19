@@ -2,6 +2,12 @@
  * @file src/utils/modal.svelte.ts
  * @description Centralized modal state and utility system for SveltyCMS.
  *
+ * ### Hardening (audit 2026-07):
+ * - XSS protection: escapeHtml utility wraps all user-provided strings in HTML interpolation
+ * - Promise-based API: all utility methods return Promise<boolean> or typed result
+ * - Orphaned promise prevention: trigger() and clear() fire existing response(false) before replacement
+ * - close() always fires response (was gated on value !== undefined, dropping falsy signals)
+ *
  * Features:
  * - Unified Svelte 5 state management ($state).
  * - Standardized modal templates (Confirm, Delete, Archive, Schedule).
@@ -13,9 +19,25 @@ import type { Component } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import * as m from "@src/paraglide/messages";
 
-// Dialog Components (Dynamic imports or pre-imported)
+// Dialog Components
 import ConfirmDialog from "@components/system/confirm-dialog.svelte";
 import ScheduleModal from "@components/collection-display/schedule-modal.svelte";
+
+// --- Security ---
+
+/** Lightweight HTML escaper to prevent XSS in dynamically constructed modal strings */
+const escapeHtml = (str: string) =>
+  String(str).replace(
+    /[&<>'"]/g,
+    (tag) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[tag] || tag,
+  );
 
 // --- Types ---
 
@@ -37,7 +59,7 @@ export interface ConfirmModalOptions {
   cancelText?: string;
   theme?: ModalTheme;
   onConfirm?: () => void | Promise<void>;
-  onCancel?: () => void;
+  onCancel?: () => void | Promise<void>;
 }
 
 // --- Constants ---
@@ -62,56 +84,71 @@ class ModalManager {
   }
 
   set isOpen(value: boolean) {
-    if (!value) this.close();
+    if (!value) this.close(false);
   }
 
   /**
    * Triggers a generic component-based modal.
+   * Resolves/cancels any currently open modal to prevent orphaned promises.
    */
   trigger(component: Component<any>, props: Record<string, any> = {}, response?: (r: any) => void) {
+    if (this.active?.response) {
+      this.active.response(false); // Gracefully cancel the previous modal
+    }
     this.active = { component, props, response };
   }
 
   /**
-   * Closes the active modal and optionally sends a response value.
+   * Closes the active modal and fires its response handler.
    */
   close(value?: any) {
-    if (this.active?.response && value !== undefined) {
+    if (this.active?.response) {
       this.active.response(value);
     }
     this.active = null;
   }
 
   clear() {
+    if (this.active?.response) {
+      this.active.response(false);
+    }
     this.active = null;
   }
 
-  // --- Utility Helpers (Merged from modal-utils & modal-config) ---
+  // --- Utility Helpers ---
 
   /**
    * Show a standardized confirmation dialog.
+   * @returns Promise<boolean> resolves to true if confirmed, false if cancelled.
    */
-  showConfirm(options: ConfirmModalOptions) {
-    const theme = options.theme || DEFAULT_THEMES.default;
+  showConfirm(options: ConfirmModalOptions): Promise<boolean> {
+    return new Promise((resolve) => {
+      const theme = options.theme || DEFAULT_THEMES.default;
 
-    this.trigger(
-      ConfirmDialog,
-      {
-        htmlTitle: options.title,
-        body: options.body,
-        buttonTextConfirm: options.confirmText || m.button_confirm?.() || "Confirm",
-        buttonTextCancel: options.cancelText || m.button_cancel?.() || "Cancel",
-        modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
-        meta: {
-          buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
-          buttonCancelClasses: "preset-outlined-surface-500",
+      this.trigger(
+        ConfirmDialog,
+        {
+          htmlTitle: escapeHtml(options.title),
+          body: options.body,
+          buttonTextConfirm: options.confirmText || m.button_confirm?.() || "Confirm",
+          buttonTextCancel: options.cancelText || m.button_cancel?.() || "Cancel",
+          modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
+          meta: {
+            buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
+            buttonCancelClasses: "preset-outlined-surface-500",
+          },
         },
-      },
-      (confirmed: boolean) => {
-        if (confirmed) options.onConfirm?.();
-        else options.onCancel?.();
-      },
-    );
+        async (confirmed: boolean) => {
+          if (confirmed) {
+            await options.onConfirm?.();
+            resolve(true);
+          } else {
+            await options.onCancel?.();
+            resolve(false);
+          }
+        },
+      );
+    });
   }
 
   /**
@@ -123,16 +160,20 @@ class ModalManager {
     onConfirm: () => void | Promise<void>;
     isAdmin?: boolean;
     isArchive?: boolean;
-  }) {
+  }): Promise<boolean> {
     const { itemType, itemName, onConfirm, isAdmin = false, isArchive = false } = options;
+
     const isBatch = Array.isArray(itemName);
     const count = isBatch ? itemName.length : 1;
     const action = isArchive ? "Archive" : "Delete";
     const theme = isArchive ? DEFAULT_THEMES.archive : DEFAULT_THEMES.delete;
 
-    const body = isBatch
-      ? `Are you sure you want to ${action.toLowerCase()} <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${itemType}(s)</span>?`
-      : `Are you sure you want to ${action.toLowerCase()} <span class="text-tertiary-500 dark:text-primary-500 font-bold">${itemName}</span>?`;
+    // 🛡️ XSS Protection: Escape user-provided item names before injecting into HTML
+    const safeTarget = isBatch
+      ? `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${escapeHtml(itemType)}(s)</span>`
+      : `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${escapeHtml(String(itemName))}</span>`;
+
+    const body = `Are you sure you want to ${action.toLowerCase()} ${safeTarget}?`;
 
     const adminWarning =
       isAdmin && !isArchive
@@ -142,7 +183,7 @@ class ModalManager {
          </div>`
         : "";
 
-    this.showConfirm({
+    return this.showConfirm({
       title: `${action} ${count > 1 ? count : ""} ${itemType}`,
       body: body + adminWarning,
       confirmText: action,
@@ -158,11 +199,13 @@ class ModalManager {
     status: string;
     count?: number;
     onConfirm: () => void | Promise<void>;
-  }) {
+  }): Promise<boolean> {
     const { status, count = 1, onConfirm } = options;
-    this.showConfirm({
+    const safeStatus = escapeHtml(status);
+
+    return this.showConfirm({
       title: "Confirm Status Change",
-      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${status}</span>?`,
+      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${safeStatus}</span>?`,
       confirmText: "Change Status",
       theme: DEFAULT_THEMES[status] || DEFAULT_THEMES.default,
       onConfirm,
@@ -175,20 +218,26 @@ class ModalManager {
   showSchedule(options: {
     initialAction?: string;
     onSchedule: (date: Date, action: string) => void | Promise<void>;
-  }) {
-    this.trigger(ScheduleModal, { initialAction: options.initialAction }, (result: any) => {
-      if (result?.confirmed && result.date) {
-        options.onSchedule(result.date, result.action || options.initialAction || "publish");
-      }
+  }): Promise<{ date: Date; action: string } | null> {
+    return new Promise((resolve) => {
+      this.trigger(ScheduleModal, { initialAction: options.initialAction }, async (result: any) => {
+        if (result?.confirmed && result.date) {
+          const action = result.action || options.initialAction || "publish";
+          await options.onSchedule(result.date, action);
+          resolve({ date: result.date, action });
+        } else {
+          resolve(null);
+        }
+      });
     });
   }
 
   /**
    * Show clone confirmation.
    */
-  showClone(options: { count?: number; onConfirm: () => void }) {
+  showClone(options: { count?: number; onConfirm: () => void }): Promise<boolean> {
     const { count = 1, onConfirm } = options;
-    this.showConfirm({
+    return this.showConfirm({
       title: "Clone Items",
       body: `Clone <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span>?`,
       confirmText: "Clone",
@@ -228,21 +277,24 @@ class ModalManager {
 
 export const modalState = new ModalManager();
 
-// For backward compatibility during migration
+// --- Backward Compatibility Wrappers ---
+
 export const showModal = (settings: any) =>
   modalState.trigger(
     settings.component?.ref || settings.component,
     settings.props || settings.meta || {},
     settings.response,
   );
+
 export const showConfirm = (options: ConfirmModalOptions) => modalState.showConfirm(options);
 
 export const showDeleteConfirm = (options: any) => {
   return modalState.showDeleteConfirm({
-    itemType: "item",
-    itemName: Array(options.count || 1).fill("item"),
+    itemType: options.itemType || "item",
+    itemName: options.itemName || Array(options.count || 1).fill("item"),
     onConfirm: options.onConfirm,
     isArchive: options.isArchive,
+    isAdmin: options.isAdmin,
   });
 };
 

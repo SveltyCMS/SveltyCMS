@@ -38,8 +38,10 @@ describe("testing API runtime gate", () => {
 
     const { handleTestingRoutes } = await import("@src/routes/api/[...path]/handlers/testing");
 
+    // Production NODE_ENV hard-closes with 403 (not 401) — fail-closed, no backdoor
     await expect(handleTestingRoutes(event, {} as any, "global" as any, [])).rejects.toMatchObject({
-      status: 401,
+      status: 403,
+      code: "TESTING_DISABLED_PRODUCTION",
     });
   });
 

@@ -73,7 +73,7 @@ const classes = $derived(cn(
 
 <div class={classes} role="img" aria-label={alt || initials || 'Avatar'} {...restProps}>
 	{#if status === 'loaded' && src}
-		<img src={src} alt={alt} class="aspect-square h-full w-full object-cover" />
+		<img src={src} alt={alt} class="aspect-square h-full w-full object-cover" crossorigin="anonymous" />
 	{:else if fallback}
 		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium">
 			{@render fallback()}

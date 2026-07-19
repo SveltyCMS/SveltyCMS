@@ -10,7 +10,7 @@
  * - Error logging to journey_errors.log for failure analysis
  */
 
-import { beforeAll, afterAll, test } from "bun:test";
+import { beforeAll, afterAll, test } from "vitest";
 import fs from "node:fs";
 import "../unit/bun-preload.ts";
 import {

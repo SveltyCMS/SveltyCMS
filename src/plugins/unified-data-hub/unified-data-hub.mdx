@@ -529,23 +529,23 @@ flowchart TB
   E2E --> INT --> UNIT --> BENCH
 ```
 
-| Suite                            | Path                                                                    |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| Unit POC                         | `tests/unit/plugins/unified-data-hub/federation-poc.test.ts`            |
-| Query planner                    | `tests/unit/plugins/unified-data-hub/query-planner.test.ts`             |
-| License gate                     | `tests/unit/plugins/unified-data-hub/license-gate.test.ts`              |
-| WebMCP virtual tools             | `tests/unit/plugins/unified-data-hub/webmcp-virtual-tools.test.ts`      |
-| Tier limits                      | `tests/unit/plugins/unified-data-hub/tier-limits.test.ts`               |
-| v3 decomposition / cursor        | `federated-decomposition.test.ts`, `federated-cursor.test.ts`           |
-| Cross-source alpha               | `tests/unit/plugins/unified-data-hub/cross-source-alpha.test.ts`        |
-| Headless contracts               | `tests/unit/plugins/unified-data-hub/headless-contracts.test.ts`        |
-| Content graph                    | `tests/unit/plugins/unified-data-hub/mcp-content-graph.test.ts`         |
-| GraphQL integration              | `tests/integration/unified-data-hub/federation.test.ts`                 |
-| Live federation (4 CMS adapters) | `tests/integration/unified-data-hub/live-federation.test.ts`            |
-| E2E workspace                    | `tests/e2e/routes/config/unified-hub.spec.ts`                           |
-| E2E enrichment picker            | `tests/e2e/routes/collection-builder/federation-enrichment.spec.ts`     |
-| Security regression              | `tests/unit/plugins/unified-data-hub/unified-data-hub-security.test.ts` |
-| Benchmark scaffold               | `tests/benchmarks/virtual-query-federation.test.ts`                     |
+| Suite                            | Path                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| Unit POC                         | `tests/unit/plugins/unified-data-hub/federation-poc.test.ts`                    |
+| Query planner                    | `tests/unit/plugins/unified-data-hub/query-planner.test.ts`                     |
+| License gate                     | `tests/unit/plugins/unified-data-hub/license-gate.test.ts`                      |
+| WebMCP virtual tools             | `tests/unit/plugins/unified-data-hub/webmcp-virtual-tools.test.ts`              |
+| Tier limits                      | `tests/unit/plugins/unified-data-hub/tier-limits.test.ts`                       |
+| v3 decomposition / cursor        | `federated-decomposition.test.ts`, `federated-cursor.test.ts`                   |
+| Cross-source alpha               | `tests/unit/plugins/unified-data-hub/cross-source-alpha.test.ts`                |
+| Headless contracts               | `tests/unit/plugins/unified-data-hub/headless-contracts.test.ts`                |
+| Content graph                    | `tests/unit/plugins/unified-data-hub/mcp-content-graph.test.ts`                 |
+| GraphQL integration              | `tests/integration/unified-data-hub/federation.test.ts`                         |
+| Live federation (4 CMS adapters) | `tests/integration/unified-data-hub/live-federation.test.ts`                    |
+| E2E workspace                    | `tests/e2e/routes/config/unified-hub.spec.ts`                                   |
+| E2E enrichment picker            | _Removed from core builder suite (2026-07); re-home under plugin E2E if needed_ |
+| Security regression              | `tests/unit/plugins/unified-data-hub/unified-data-hub-security.test.ts`         |
+| Benchmark scaffold               | `tests/benchmarks/virtual-query-federation.test.ts`                             |
 
 ### Benchmark targets (single-source, cache-warm)
 

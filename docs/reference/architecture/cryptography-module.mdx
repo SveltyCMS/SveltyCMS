@@ -933,5 +933,80 @@ describe("Cryptography Module", () => {
 
 ---
 
-_Last Updated: October 3, 2025_
+## Plugin Settings Encryption (Static-Key AES-256-GCM)
+
+In addition to password-based encryption (`encryptData`/`decryptData`), SveltyCMS provides a **static-key encryption** system for plugin settings via `@src/plugins/settings-crypto.ts`.
+
+### Use Case
+
+Plugin settings (API keys, webhook secrets, SMTP credentials) need to be encrypted at rest but decrypted transparently when the plugin runs — **without requiring a user password each time**. The static-key system uses an environment variable (`SECRET_ENCRYPTION_KEY`) as the encryption key.
+
+### Key Differences from `encryptData`
+
+| Feature         | `encryptData` (Password-based)    | `encryptSecret` (Static-key)              |
+| :-------------- | :-------------------------------- | :---------------------------------------- |
+| Key source      | User-provided password + Argon2id | `SECRET_ENCRYPTION_KEY` env var           |
+| Key derivation  | Argon2id (64 MB, 3 iterations)    | Direct hex/base64 key (or SHA-256 derive) |
+| Use case        | User data export/import           | Automated plugin settings                 |
+| Interactive     | Yes (user enters password)        | No (fully automated)                      |
+| Envelope format | `salt:iv:authTag:ciphertext`      | `version:iv:authTag:ciphertext`           |
+
+### API Reference
+
+#### encryptSecret()
+
+Encrypts a plaintext value for plugin settings storage.
+
+```typescript
+async function encryptSecret(plaintext: string): Promise<string | null>;
+```
+
+**Throws** if `SECRET_ENCRYPTION_KEY` is not configured.
+
+**Returns:** Base64-encoded `v1:iv:authTag:ciphertext` envelope.
+
+#### decryptSecret()
+
+Decrypts a value from plugin settings storage. **Server-only** — never call from client code.
+
+```typescript
+async function decryptSecret(envelope: string): Promise<string | null>;
+```
+
+Returns `null` if no encryption key is configured or decryption fails.
+
+### Configuration
+
+Generate a 256-bit hex key:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Set in environment:
+
+```bash
+export SECRET_ENCRYPTION_KEY="a1b2c3d4e5f6..." # 64 hex characters
+```
+
+### Envelope Format (version 1)
+
+```
+Byte 0:    Version (0x01)
+Bytes 1-16: IV (128 bits)
+Bytes 17-32: Auth Tag (128 bits)
+Bytes 33+:  Ciphertext (variable length)
+
+All base64-encoded as a single string.
+```
+
+### Masking in API Responses
+
+Secrets are **never** sent to the browser. API responses replace encrypted values with `••••••••`. The decryption accessor (`decryptSecret`) is server-only and should only be used in `.server.ts` files or server-side plugin code.
+
+See [Plugin Settings Crypto](/src/plugins/settings-crypto.ts) and [Plugin Settings Declaration](/src/plugins/settings-declaration.ts) for implementation details.
+
+---
+
+_Last Updated: July 2026_
 _Security Audit: Annual review recommended_

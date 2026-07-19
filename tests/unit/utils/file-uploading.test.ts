@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { uploadFile, createDirectory, deleteDirectory } from "@src/utils/file-uploading";
 import * as fs from "node:fs/promises";
+import * as nodeFs from "node:fs";
 import path from "node:path";
 
 // Mock fs/promises
@@ -10,6 +11,16 @@ vi.mock("node:fs/promises", () => ({
   writeFile: vi.fn(),
   rm: vi.fn(),
   readFile: vi.fn(),
+}));
+
+// Mock node:fs for createWriteStream (used by uploadFile streaming path)
+vi.mock("node:fs", () => ({
+  createWriteStream: vi.fn(() => ({
+    write: vi.fn((chunk, cb) => cb?.()),
+    end: vi.fn((cb) => cb?.()),
+    on: vi.fn(),
+    once: vi.fn(),
+  })),
 }));
 
 // Mock global-settings
@@ -34,7 +45,6 @@ describe("File Uploading Utilities", () => {
       const mockFile = new File(["content"], "test.png", { type: "image/png" });
       (fs.access as any).mockRejectedValue({ code: "ENOENT" }); // File doesn't exist
       (fs.mkdir as any).mockResolvedValue(undefined);
-      (fs.writeFile as any).mockResolvedValue(undefined);
 
       const onProgress = vi.fn();
       const result = await uploadFile(mockFile, "uploads", onProgress);
@@ -42,7 +52,7 @@ describe("File Uploading Utilities", () => {
       expect(result.success).toBe(true);
       expect(result.filename).toBe("test.png");
       expect(fs.mkdir).toHaveBeenCalled();
-      expect(fs.writeFile).toHaveBeenCalled();
+      expect(nodeFs.createWriteStream).toHaveBeenCalled();
       expect(onProgress).toHaveBeenCalledWith(100);
     });
 
@@ -69,13 +79,9 @@ describe("File Uploading Utilities", () => {
       const mockFile = new File(["content"], "test.png", { type: "image/png" });
       (fs.access as any).mockRejectedValue({ code: "ENOENT" });
 
-      await uploadFile(mockFile, "../../../etc/passwd");
-
-      // The path should be sanitized. normalize and replace ..
-      // Expected directory should not contain the .. prefix
-      expect(fs.mkdir).toHaveBeenCalledWith(
-        expect.stringContaining(path.join("mediaFolder", "etc", "passwd")),
-        expect.any(Object),
+      // 🛡️ Hardened: Path traversal now throws before any fs operation
+      await expect(uploadFile(mockFile, "../../../etc/passwd")).rejects.toThrow(
+        "Security Violation",
       );
     });
 

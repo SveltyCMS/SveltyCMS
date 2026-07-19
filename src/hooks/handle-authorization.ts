@@ -20,7 +20,7 @@ import { auth } from "@src/databases/db";
 import { error, type Handle, redirect, type RequestEvent } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { testWorkerContext } from "@utils/test-worker-context";
 import { setTurboAuthContext } from "./handle-turbo-get";
 import { getRoleBitset } from "@src/databases/auth/permissions";
@@ -50,7 +50,7 @@ async function getDefaultRoles() {
 }
 
 function getCachedMultiTenant() {
-  if (multiTenantCached === null) multiTenantCached = !!getPrivateSettingSync("MULTI_TENANT");
+  if (multiTenantCached === null) multiTenantCached = isMultiTenantEnabled();
   return multiTenantCached;
 }
 
@@ -220,7 +220,16 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     locals.isAdmin = true;
     locals.hasAdminPermission = true;
     locals.hasManageUsersPermission = true;
-    _populateTurboAuth(event, user, []);
+    // Still hydrate roles for page loaders that inspect locals.roles (media, dashboard,
+    // access-management). Leaving roles undefined previously caused Object.values(undefined)
+    // 500s on /mediagallery under the admin short-circuit.
+    try {
+      const roles = await getCachedRoles(event.locals.tenantId as DatabaseId);
+      event.locals.roles = roles.length > 0 ? roles : event.locals.roles || [];
+    } catch {
+      event.locals.roles = event.locals.roles || [];
+    }
+    _populateTurboAuth(event, user, event.locals.roles || []);
     return await resolve(event);
   }
 

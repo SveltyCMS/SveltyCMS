@@ -14,6 +14,7 @@ This file provides comprehensive guidance to **AI Coding Assistants (Agents)** (
 - [Security Policy](#security-policy)
 - [Security Hardening (Audit Remediation)](#security-hardening-audit-remediation)
 - [AI Agent Best Practices](#ai-agent-best-practices)
+- [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy)
 - [Roadmap (Missing Features)](#roadmap-missing-features)
 - [Project Structure](#project-structure)
 - [Development Commands](#development-commands)
@@ -275,26 +276,35 @@ When generating/modifying code:
     - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, or `src/routes/(app)/`, run the fast security regression suite:
+14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, `src/routes/files/`, or `src/routes/(app)/`, run the fast security regression suite:
     `bash
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/role-permission-access.test.ts
+bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/file-server-tenant.test.ts
 `
-    This validates all 4 security layers (Middleware → Dispatcher → Handler → Page Action) in under 1 second.
-    n15. **Predictive Preloading (Anchor-First)**: - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading. - **Strategy Selection**: - Table rows / collection entries → `data-preload="smart"` (physics cone + behavioral priority) - Dashboard widget links → `data-preload="predict"` (cursor trajectory prediction) - Sidebar / config nav → `data-preload="hover"` (150ms intent detection) - Media gallery thumbnails → `data-preload="viewport"` (IntersectionObserver) - **Implementation**: `src/utils/predictive-preload.ts` — MutationObserver-based, initialized once in `+layout.svelte`. - **goto() escape hatch**: Only use `goto()` for non-navigation URL updates (filters, sorting, pagination). - **Reference**: `docs/reference/architecture/hover-preloading.mdx`
-15. **Behavioral Learning Integration**:
+    This validates all 5 security layers (Middleware → Dispatcher → Handler → Page Action → File Server) in under 2 seconds.
+15. **Predictive Preloading (Anchor-First)**:
+    - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading.
+    - **Strategy Selection**:
+      - Table rows / collection entries → `data-preload="smart"` (physics cone + behavioral priority)
+      - Dashboard widget links → `data-preload="predict"` (cursor trajectory prediction)
+      - Sidebar / config nav → `data-preload="hover"` (150ms intent detection)
+      - Media gallery thumbnails → `data-preload="viewport"` (IntersectionObserver)
+    - **Implementation**: `src/utils/predictive-preload.ts` — MutationObserver-based, initialized once in `+layout.svelte`.
+    - **goto() escape hatch**: Only use `goto()` for non-navigation URL updates (filters, sorting, pagination).
+    - **Reference**: `docs/reference/architecture/hover-preloading.mdx`
+16. **Behavioral Learning Integration**:
     - Every `+layout.server.ts` MUST call `recordCollectionAccess()` and `recordNavigation()` (already wired — do not remove).
     - Collection detail `+page.server.ts` SHOULD call `recordEntryAccess()`.
     - Query `getHotCollections()` before cache-warming decisions.
     - Use `predictNextPath()` for prefetch hints.
     - **Reference**: `docs/reference/architecture/behavioral-learning.mdx`
-16. **Reactive Search Params**:
+17. **Reactive Search Params**:
     - Use `useReactiveSearchParams()` from `src/utils/reactive-search-params.svelte.ts` for client-side table filtering/sorting/pagination without SSR round-trips.
     - Wraps Svelte 5 SvelteURLSearchParams — reactive, type-safe, URL-synced.
-17. **Link Validation (Build-Time)**:
+18. **Link Validation (Build-Time)**:
     - Run `bun run scripts/validate-links.ts` before shipping to catch broken internal links.
     - Flags missing `data-preload` attributes on collection entry links.
     - **Reference**: `src/utils/link-validator.ts`
-18. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
+19. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
     - **Common patterns to watch for**:
       - **`bun:test` imports** → Always use `vi.fn()` from `vitest`, never `mock` from `bun:test`. Vitest is the canonical test runner.
       - **`vi.mock` module-scope leakage** → `vi.mock` calls in one test file pollute subsequent files. When adding a `vi.mock`, add a matching one in affected test files to restore the real module.
@@ -304,6 +314,85 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
       - **MongoDB `$setOnInsert` missing `tenantId`** → `bulkUpdateNodes` in `src/databases/mongodb/content-methods.ts` constructs `$setOnInsert` without `tenantId`. Documents created via upsert land without tenant isolation, causing `safeQuery` tenant-scoped lookups to miss them. Always include `tenantId` in `$setOnInsert` when `options.tenantId` is present.
       - **CI `db-tests` missing `TEST_API_SECRET`** → The `db-tests` job in `.github/workflows/ci.yml` passes env vars to `run-integration-tests.ts`, which calls `loadHardenedConfig()`. Without `TEST_API_SECRET` in CI, it throws `"CRITICAL: TEST_API_SECRET is missing in CI environment"` at startup. Always add `TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}` alongside `JWT_SECRET_KEY` and `ENCRYPTION_KEY`.
       - **`config/collections/` directory missing in e2e-prep** → The collection builder save action calls `fs.writeFileSync(collectionPath, content)` which throws if the parent directory doesn't exist (Node.js `writeFileSync` does NOT auto-create parents). The e2e-prep job must `mkdir -p config/collections` and include it in the E2E environment archive.
+      - **E2E soft-skips for empty lists** → Never `test.skip` because a control-map route has no data. Seed via `/api/testing` (`tests/e2e/helpers/seed.ts`) so happy paths always run.
+20. **E2E Control-Map Policy (CRITICAL)**: See [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy). Soft-skips on control rows are banned; seed fixtures instead.
+
+## E2E & Control-Map Testing Policy
+
+> [!IMPORTANT]
+> **Soft-skip is banned for control-map rows.** Conditional `test.skip(true, "no items yet")` (or empty-install skip) hides regressions and makes CI look green while real UX is broken. Prefer **seed-first** happy paths.
+
+### Rules
+
+1. **Control map = must run**: If a route/control is documented in `docs/tests/routes/*.mdx` (or `docs/tests/test-status.mdx` hot areas), its E2E **must not soft-skip** for empty install state, missing list rows, or “no sample data.”
+2. **Seed via Testing API**: Use `POST /api/testing` with `TEST_API_HEADERS` from `tests/e2e/helpers/test-api.ts`. Prefer helpers in `tests/e2e/helpers/seed.ts`:
+   - `seedWebhook` / `deleteWebhook`
+   - `seedAutomation` / `deleteAutomation`
+   - `enablePlugin` (core plugins expected in CI)
+   - Existing: `seedTestUsers`, `prepareTestUser`, `setTestSetting`, `seedInviteToken`, …
+   - Handler actions live in `src/routes/api/[...path]/handlers/testing.ts` (`seed-webhook`, `seed-automation`, `enable-plugin`, …). Add new seed actions there when a control map needs deterministic state.
+3. **Outcome assertions over shell-only**: Prefer create → reload → assert persistence → cleanup over “button is visible.” Shell testids are fine as **guards**, not as the only coverage for mutating controls.
+4. **No fixed sleeps for readiness**: Avoid `page.waitForTimeout` for load completion. Wait on testids (`webhooks-loading` count 0) or network/URL outcomes.
+5. **Hard fail vs optional infrastructure**:
+   - **Empty product state** (no webhooks, no automations) → **seed**, never skip.
+   - **External fixtures** (Docker Postgres for Unified Data Hub, real IdP) → may fail with a clear error or return `503` + code from testing API; document as optional in the control map. Do **not** soft-skip core admin CRUD for the same reason.
+   - **Optional plugins in control map** (e.g. Smart Importer): call `enablePlugin`, then **hard-fail** if the wizard UI never mounts (`ensureSmartImporterReady`). Soft-skip is still forbidden.
+6. **Pyramid guidance**: Unit pure helpers + page.server gates; integration for API/DB; few deep E2E journeys per domain. Do not grow brittle “every testid exists” rows without a seed-backed happy path for mutations.
+7. **Cleanup**: Seeded entities should be deleted in `finally` (or after assert) so serial suites stay isolated.
+
+### Anti-patterns
+
+```typescript
+// ❌ Soft-skip hides regressions when list is empty
+if (!(await list.isVisible())) {
+  test.skip(true, "No items — empty install");
+  return;
+}
+
+// ✅ Seed so the control always has state
+const seeded = await seedAutomation(page, { name: `E2E ${Date.now()}` });
+try {
+  await page.goto("/config/automations");
+  await expect(page.getByText(seeded.name)).toBeVisible();
+} finally {
+  await deleteAutomation(page, seeded.id);
+}
+```
+
+### Docs to update when adding control-map E2E
+
+- Route control map under `docs/tests/routes/`
+- `docs/tests/test-status.mdx` hot-area row
+- This policy section if you introduce a new seed action category
+
+### Architecture (product + tests)
+
+Full decision record: **[docs/tests/adr-testing-2026.mdx](docs/tests/adr-testing-2026.mdx)**.
+
+### Testing API security (fail-closed — no production backdoors)
+
+`/api/testing` seed/reset actions (`seed-webhook`, `seed-automation`, `enable-plugin`, …) are **not** production features.
+
+| Requirement         | Enforcement                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Never in production | `NODE_ENV=production` → **403** (`assertTestingApiAllowed`)                                                   |
+| Explicit env flag   | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` / `SVELTY_BENCHMARK_SUITE` only — **not** bare `NODE_ENV=test`  |
+| Shared secret       | `x-test-secret` must match `TEST_API_SECRET` (timing-safe)                                                    |
+| Build strip         | `testBackdoorStripperPlugin` + `scripts/verify-prod-build-backdoor.ts` remove handler from production bundles |
+
+**Do not** add alternate entry points that skip this gate. Prefer UI golden journeys + seeds only behind `/api/testing`. Never hardcode production-usable secrets. Unit proof: `tests/unit/utils/testing-api-gate.test.ts`, `tests/unit/hooks/route-access-audit.test.ts`.
+
+Reference implementation to copy for new admin routes:
+
+| Layer       | Webhooks files                                                               |
+| ----------- | ---------------------------------------------------------------------------- |
+| Gate        | `webhooks/+page.server.ts`                                                   |
+| Pure utils  | `webhooks/webhooks-utils.ts`                                                 |
+| Browser API | `webhooks/webhooks-api.ts` → `fetchApi` (CSRF on mutations)                  |
+| UI          | `webhooks/+page.svelte` (no raw `fetch` / manual CSRF)                       |
+| Golden E2E  | `tests/e2e/routes/config/webhooks.spec.ts` — create → list → reload → delete |
+
+**Do not** grow brittle “every testid exists” E2E rows unless they map to a control-map risk. Prefer one golden journey per domain.
 
 ### Mandatory Documentation Updates
 
@@ -348,40 +437,15 @@ bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authenticati
 
 ## Roadmap (Missing Features)
 
-From the 2026 roadmap, prioritize these for parity/leadership (implemented features marked [x]; harden for production):
+See [Roadmap 2026](docs/project/roadmap-2026.mdx) for in-progress and planned work.
+See [Technical Evaluation 2026](docs/project/technical-evaluation-2026.mdx) for completed achievements.
 
-- [x] **PostgreSQL Support**: Full adapter implementation with Drizzle ORM migrations and native tenant management.
-- [x] **SQLite Support**: Lightweight adapter via Bun native driver for edge and local deployments.
-- [x] **SCIM 2.0 (v1.1)**: Native endpoints (/scim/v2/Users, Groups, Bulk); support filters (eq, co), PATCH ops; integration ready for Okta/Azure.
-- [x] **SAML 2.0 / Enterprise SSO**: Lightweight integration via @node-saml/node-saml (zero DB dependencies) for enterprise identity providers (Okta, Azure).
-- [x] **Edge Computing & Multi-Region**: Native support for edge-optimized data fetching and multi-region replication.
-- [x] **BuzzForm Visual Builder (v1.5)**: Production-ready drag-and-drop form/collection builder with real-time preview.
-- [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), hardened directory traversal, and **published-reference gating** (409 Conflict on mutation of assets used by published content, with batched pre-check across all collection schemas).
-- [x] **OpenAPI 3.1.0**: Dynamic specification export for automated SDK generation and documentation.
-- [x] **99.9% Self-Healing Cache**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
-- [x] **High-Performance Local API**: Zero-latency server-side CRUD bridge with full widget logic parity. **Achieved <0.05ms average latency for core operations.**
-- [x] **Enterprise Performance Auditing**: 20+ standardized benchmarks with high-fidelity ASCII telemetry. **Includes 1,000-collection stress audits.**
-- [x] **4-Layer Defense-in-Depth Security**: Cookie prefix hardening, setup completion gating, handler-level admin verification, media permission checks, centralized permission guards, timing-safe test secret comparison (`crypto.subtle.timingSafeEqual`), per-IP rate limiter wired into middleware pipeline (adaptive cost 0.8x–2.0x), API CSP tightened (`style-src 'unsafe-inline'` removed), silent honeypot tarpit (empty `200 OK`, no JSON leak). **849 unit tests, 51 new security tests, 0 regressions.**
-- [x] **Hardened Relation Token Engine**: Resolved field property access bugs and implemented high-performance Bearer token validation with multi-tenant isolation.
-- [x] **Sub-Millisecond Content Scanner**: Implemented Persistent Mtime Tree (Dirty Bits), Batch Cache Retrieval (`getMany`), and Worker Thread Pooling.
-- [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
-- [x] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
-- [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.
-- [x] **Native Svelte 5 Component Library**: 37 native UI components replacing all third-party dependencies with Tailwind v4 theming.
-- [x] **Automated Upgrade CLI**: Integrated `scripts/upgrade.ts` for safe, automated core updates.
-- [x] **Enterprise SEO Suite**: High-performance multi-tenant Redirect Manager and Dynamic Sitemap.xml with i18n/hreflang support.
-- [x] **Negative Caching Engine**: Implemented Bloom-filter style missing-key cache achieving a verified **2392x speedup** for repeated misses.
-- [x] **Zero-Tax SDK Dispatcher**: Refactored `LocalCMS` with Hot-Swap self-overwriting getters, achieving **0% middleware overhead**.
-- [x] **Universal Accessibility Auditing**: Implemented automated Axe-Core E2E test suites, RTL directionality layout mirroring audits, build-time Widget Accessibility Static Analysis Validator, and documented State-Bound Focus Restoration.
-- [x] **Adaptive Job Scheduler**: Background job runner executing scheduled publishing, status transitions with exponential retries and audit integration.
-- [x] **Per-Field Content Localization**: Record<Locale, string> field storage with inline locale switchers and one-click AI translation.
-- [x] **Crypto-Chained Audit Logs**: SHA-256 hash chain across audit entries with chain verification and per-content viewer.
-- [x] **CI Audit Blocking**: `bun audit --severity=high` now blocks PRs on high-severity CVEs (removed `|| true` fallback).
-- [x] **Zero-Dependency Full-Text Search**: DB-native FTS (PostgreSQL tsvector, MariaDB FULLTEXT, SQLite FTS5, MongoDB $text) — zero npm dependencies.
-- [x] **AI-Smart CMS Importer**: 5-format auto-detection (WordPress, Strapi, Directus, Drupal, SveltyCMS), heuristic field mapping, ACF detection.
-- [x] **Quick-Start Collection Templates**: 5 pre-built schemas (Blog, Agency, SaaS, Corporate, E-commerce) with full field definitions.
-- [x] **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
-- [x] **Enterprise Admin Theme Migration (Phases A–F)**: Complete Gin-inspired structural theme system — `AdminPageShell` on all 22 `(app)` routes, `AdminCard` across all config pages, 600+ `<button>` → `<Button>`, 20+ `<span class="badge">` → `<Badge>`, 0 `class="input"` in `src/`, image editor toolbars on native `<Button>`, tenant-branded login (`brandedLogin`), 3 theme presets, motion tokens, per-user theme overrides.
+Key areas to prioritize:
+
+- Features marked as "Planned" in the roadmap
+- Marketplace Phase 2 (in-app catalog/browse UI)
+- Published DB adapters as separate npm packages
+- Enterprise infrastructure scaling (Docker, Terraform)
 
 ## Upgrading SveltyCMS
 
@@ -517,24 +581,24 @@ it("uses bun:sqlite", async () => {
 
 ## Development Commands
 
-| Category      | Command                                                                                                                             | Description                                                       |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Daily Dev     | `bun run dev`                                                                                                                       | Dev server (auto-setup wizard)                                    |
-|               | `bun run build`                                                                                                                     | Production build                                                  |
-|               | `bun run preview`                                                                                                                   | Preview on 127.0.0.1:4173                                         |
-| Code Quality  | `bun run check`                                                                                                                     | Type checking                                                     |
-|               | `bun run lint`                                                                                                                      | Fast Lint (oxlint)                                                |
-|               | `bun run format`                                                                                                                    | Fast Format (oxfmt)                                               |
-| Testing       | `bun run test:unit`                                                                                                                 | Unit tests (Vitest/jsdom) — 1,516 tests                           |
-|               | `bun run test:integration`                                                                                                          | Integration (DB required)                                         |
-|               | `bun run test:e2e`                                                                                                                  | E2E (Playwright)                                                  |
-| **Git**       | `bun run git commit -m "msg"`                                                                                                       | Hardened commit (blocks --no-verify)                              |
-|               | `bun run git push`                                                                                                                  | Hardened push (blocks --no-verify)                                |
-| **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts` | Fast security regression check (69 tests)                         |
-| DB Operations | `bun run db:push`                                                                                                                   | Push schema changes (Drizzle)                                     |
-| i18n          | `bun run paraglide`                                                                                                                 | Compile messages                                                  |
-| Diagnostics   | `bun run check`                                                                                                                     | Type checking & validation (use `bun test` for isolated DB tests) |
-| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit`                                                              | **Mandatory before commit** (performs full local CI check)        |
+| Category      | Command                                                                                                                                                                         | Description                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Daily Dev     | `bun run dev`                                                                                                                                                                   | Dev server (auto-setup wizard)                                    |
+|               | `bun run build`                                                                                                                                                                 | Production build                                                  |
+|               | `bun run preview`                                                                                                                                                               | Preview on 127.0.0.1:4173                                         |
+| Code Quality  | `bun run check`                                                                                                                                                                 | Type checking                                                     |
+|               | `bun run lint`                                                                                                                                                                  | Fast Lint (oxlint)                                                |
+|               | `bun run format`                                                                                                                                                                | Fast Format (oxfmt)                                               |
+| Testing       | `bun run test:unit`                                                                                                                                                             | Unit tests (Vitest/jsdom) — 1,516 tests                           |
+|               | `bun run test:integration`                                                                                                                                                      | Integration (DB required)                                         |
+|               | `bun run test:e2e`                                                                                                                                                              | E2E (Playwright)                                                  |
+| **Git**       | `bun run git commit -m "msg"`                                                                                                                                                   | Hardened commit (blocks --no-verify)                              |
+|               | `bun run git push`                                                                                                                                                              | Hardened push (blocks --no-verify)                                |
+| **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/hooks/file-server-tenant.test.ts` | Fast security regression check (95 tests)                         |
+| DB Operations | `bun run db:push`                                                                                                                                                               | Push schema changes (Drizzle)                                     |
+| i18n          | `bun run paraglide`                                                                                                                                                             | Compile messages                                                  |
+| Diagnostics   | `bun run check`                                                                                                                                                                 | Type checking & validation (use `bun test` for isolated DB tests) |
+| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit`                                                                                                          | **Mandatory before commit** (performs full local CI check)        |
 
 ## Architecture Overview
 
@@ -633,7 +697,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 1.  **Circular Dependencies**: Use dynamic imports for service initialization.
 2.  **HMR Reloads**: Expected for collections/widgets. Full page reload is normal.
 3.  **Setup Wizard**: Let it generate `config/private.ts`. Do NOT create manually.
-4.  **Black-Box Testing (CI/CD)**: In E2E and integration test workflows, DO NOT manually create or bypass the configuration logic with fake `private.test.ts` files. Always orchestrate the tests to hit the Setup Wizard natively using Playwright, thereby letting the CMS naturally generate `config/private.ts` just like a real user. This ensures the entire system lifecycle is validated.
+4.  **Black-Box Testing (CI/CD)**: In E2E and integration test workflows, DO NOT manually create or bypass the configuration logic with fake `private.test.ts` files. Always orchestrate the tests to hit the Setup Wizard natively using Playwright, thereby letting the CMS naturally generate `config/private.ts` just like a real user. This ensures the entire system lifecycle is validated. **Do not soft-skip control-map E2E for empty install state** — seed via `/api/testing` (see [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy)).
 5.  **White-Box Unit Testing**: Use purely in-memory mocks (configured in `tests/unit/bun-preload.ts`) for configuration and database adapters. Unit tests must remain decoupled from the physical filesystem and should not depend on a pre-existing `config/private.ts`.
 6.  **Strict Case-Sensitivity (Linux/CI)**: ALL `.svelte` files and ALL widget folders MUST be strictly lowercase (kebab-case). Linux-based CI runners will fail with "Module not found" or "404" errors if imports or glob patterns do not match the exact casing on disk. Standardize all imports to lowercase.
 7.  **Robust Path Aliases**: Always use standard path aliases (`@src`, `@widgets`, `@utils`, etc.) instead of fragile relative paths like `../../../src/...`. Ensure aliases are synchronized via `bun x svelte-kit sync` before running checks.
@@ -657,7 +721,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
 | `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
 | `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/role-permission-access.test.ts`        | `docs/tests/rbac-testing.mdx`                                                                       |
+| `tests/unit/auth/role-permission-access.test.ts`   | `docs/tests/rbac-testing.mdx`                                                                       |
 | `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
 | `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
 | `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |
@@ -728,8 +792,14 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - [x] **Smart Benchmark Regression Detection**: Statistical slope analysis, flapping detection, cross-DB correlation, budget forecasting. See `docs/tests/benchmark-matrix.mdx`.
 - [x] **Progress Dashboard on Pre-Push**: Enhanced git hooks with live progress bar, ETA, per-task timing, and error remediation hints.
 - [x] **CI Build Hardening**: Production build job gated to main/PR only; depends on check + unit passing first.
+- [x] **Plugin Capability Reconciliation**: Merged core + plugin catalog, owner auto-inheritance, boot reconcile, hasCapability(string & {}). See `src/services/security/capability-registry.ts`.
+- [x] **Encrypted Plugin Settings**: AES-256-GCM secret fields, versioned envelope, server-only decryption, masked API responses, validation on save. See `src/plugins/settings-crypto.ts`.
+- [x] **Schema Desugaring (Sugar Types)**: Shortcut field types expand to full objects while preserving access/validation/groups. Extensible registry. See `src/widgets/desugar-field.ts`.
+- [x] **Plugin Part System (definePlugin)**: Discriminated union, mandatory requiredCapabilities on routes, part resolution at boot. See `src/plugins/define-plugin.ts`.
+- [x] **AdminArea Shell Extensions**: Typed admin chrome extensions for plugins. See `src/plugins/admin-area.ts`.
+- [x] **Visual Editing Bridge Fix**: preview-bridge.ts only cancels navigation clicks (not checkboxes/details). stegaClean + usePreview() rune.
 - [ ] **Benchmark MDX reports show full truth tables (borders, titles, all data) matching single-test console output**
 
 ---
 
-_Last Updated: 2026-07-08_
+_Last Updated: 2026-07-18_

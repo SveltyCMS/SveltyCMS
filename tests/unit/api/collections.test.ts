@@ -101,6 +101,11 @@ vi.mock("@src/content/index.server", () => ({
   },
 }));
 
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn().mockReturnValue(false),
+  getTenantIdFromHostname: vi.fn().mockReturnValue(null),
+}));
+
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(false),
@@ -133,18 +138,14 @@ vi.mock("node:crypto", () => ({
   },
 }));
 
-// Import dispatcher handler (raw logic for testing)
-// In collections.test.ts, we use the _handler directly for various actions
-const GET_LIST = (event: any) => dispatcher(event);
-const POST_CREATE = (event: any) => dispatcher(event);
-const PATCH_ENTRY = (event: any) => dispatcher(event);
-const DELETE_ENTRY = (event: any) => dispatcher(event);
-
 import { createMockRequestEvent } from "../utils/mock-event";
+
+// apiHandler is mocked to unwrap — AppError throws instead of becoming Response.
+const dispatch = (event: any) => dispatcher(event);
 
 describe("Collections API Unit Tests", () => {
   let mockContentSystem: any;
-  let mockGetPrivateSettingSync: any;
+  let mockIsMultiTenantEnabled: any;
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -162,20 +163,20 @@ describe("Collections API Unit Tests", () => {
       .mockResolvedValue({ success: true, data: { _id: "updated-id" } });
     (mockDbAdapter as any).crud.delete = vi.fn().mockResolvedValue({ success: true });
 
-    const settingsModule = await import("@src/services/core/settings-service");
-    mockGetPrivateSettingSync = settingsModule.getPrivateSettingSync;
+    const tenantModule = await import("@utils/tenant");
+    mockIsMultiTenantEnabled = tenantModule.isMultiTenantEnabled;
   });
 
-  const createMockEvent = (
+  function event(
     method: string,
     path: string,
     body: any = {},
     user: any = createMockUser({ _id: "user-123", email: "test@example.com" }),
-    tenantId: any = "t1",
-  ) => {
-    const event = createMockRequestEvent({
+    tenantId: string | null = "t1",
+  ) {
+    return createMockRequestEvent({
       method,
-      url: `http://localhost/api/${path}`,
+      path,
       body,
       user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
       tenantId,
@@ -192,20 +193,12 @@ describe("Collections API Unit Tests", () => {
             ],
       dbAdapter: mockDbAdapter,
     });
-
-    (event.locals as any).dbAdapter = mockDbAdapter;
-
-    return {
-      ...event,
-      params: { path },
-    };
-  };
+  }
 
   describe("GET /api/collections - List Collections", () => {
     it("should return list of collections", async () => {
       mockContentSystem.getCollections.mockResolvedValue([{ _id: "col-1", name: "posts" }]);
-      const event = createMockEvent("GET", "collections", {});
-      const response = await GET_LIST(event);
+      const response = await dispatch(event("GET", "collections"));
       const data = await response!.json();
       expect(data.success).toBe(true);
       expect(Array.isArray(data.data)).toBe(true);
@@ -213,16 +206,18 @@ describe("Collections API Unit Tests", () => {
     });
 
     it("should throw TENANT_MISSING in multi-tenant mode without tenantId", async () => {
-      mockGetPrivateSettingSync.mockReturnValue(true);
-      const event = createMockEvent("GET", "collections", {}, { _id: "u1" }, null);
-      await expect(GET_LIST(event)).rejects.toThrow("Tenant ID required");
+      mockIsMultiTenantEnabled.mockReturnValue(true);
+      await expect(dispatch(event("GET", "collections", {}, { _id: "u1" }, null))).rejects.toThrow(
+        "Tenant ID required",
+      );
     });
   });
 
   describe("POST /api/collections/[collectionId] - Create Entry", () => {
     it("should reject if user is not authenticated", async () => {
-      const event = createMockEvent("POST", "collections/col-1", {}, null);
-      await expect(POST_CREATE(event)).rejects.toThrow("Authentication required");
+      await expect(dispatch(event("POST", "collections/col-1", {}, null))).rejects.toThrow(
+        "Authentication required",
+      );
     });
   });
 
@@ -237,12 +232,10 @@ describe("Collections API Unit Tests", () => {
         success: true,
         data: { _id: "updated-id" },
       });
-      const event = createMockEvent("PATCH", "collections/col-1/entry-1", {
-        title: "Updated",
-      });
-      const response = await PATCH_ENTRY(event);
+      const response = await dispatch(
+        event("PATCH", "collections/col-1/entry-1", { title: "Updated" }),
+      );
       const data = await response!.json();
-      // No-op
       expect(data.success).toBe(true);
       expect(data.data._id).toBe("updated-id");
     });
@@ -255,8 +248,7 @@ describe("Collections API Unit Tests", () => {
         name: "posts",
         fields: [],
       });
-      const event = createMockEvent("DELETE", "collections/col-1/entry-1");
-      const response = await DELETE_ENTRY(event);
+      const response = await dispatch(event("DELETE", "collections/col-1/entry-1"));
       const data = await response!.json();
       expect(data.success).toBe(true);
     });

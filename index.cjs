@@ -10,7 +10,22 @@ async function loadApp() {
 
   // Production configuration
   process.env.BODY_SIZE_LIMIT = "104857600"; // 100MB
-  process.env.ORIGIN = process.env.ORIGIN || "https://demo.sveltycms.com";
+  // Prefer explicit ORIGIN. For local/CI preview (127.0.0.1 / localhost) default to
+  // the listening URL so SvelteKit remote CSRF (completeSetup) is not rejected as
+  // cross-site against the demo production host.
+  if (!process.env.ORIGIN) {
+    const host = process.env.HOST || "127.0.0.1";
+    const port = process.env.PORT || "4173";
+    const isLocal =
+      host === "127.0.0.1" ||
+      host === "localhost" ||
+      host === "0.0.0.0" ||
+      host === "::" ||
+      process.env.TEST_MODE === "true";
+    process.env.ORIGIN = isLocal
+      ? `http://${host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host}:${port}`
+      : "https://demo.sveltycms.com";
+  }
   process.env.NODE_ENV = "production";
 
   // PROXY HEADERS: Fix for "Too Many Requests" issue & Header mismatches
@@ -30,33 +45,29 @@ async function loadApp() {
     handler(req, res);
   });
 
-  // Conditional WebSocket upgrade handler — works on VPS/dedicated servers,
-  // degrades gracefully on shared Plesk hosting where proxies strip Upgrade headers.
-  // Enable with: ENABLE_WEBSOCKET=true (or re-add websocket: true in adapter config)
-  const enableWebSocket = process.env.ENABLE_WEBSOCKET === "true";
-
-  if (enableWebSocket) {
-    console.log("[SveltyCMS] WebSocket upgrades enabled");
-    server.on("upgrade", (req, socket, head) => {
-      try {
-        // Delegate to the adapter's upgrade handler (svelte-adapter-uws)
-        handler(req, socket, head);
-      } catch (err) {
-        console.warn("[SveltyCMS] WebSocket upgrade failed (shared hosting?):", err.message);
-        socket.destroy();
-      }
-    });
+  // Start standard Yjs collaboration WebSocket server
+  console.log("[SveltyCMS] Initializing Yjs WebSocket collaboration server on /ws...");
+  let stopYjs;
+  try {
+    const { startYjsSyncServer } = await import("./build/yjs-sync-server.js");
+    stopYjs = startYjsSyncServer({ server, path: "/ws" });
+  } catch (err) {
+    console.warn("[SveltyCMS] Failed to initialize Yjs collaboration server:", err.message);
   }
 
   server.listen(port, () => {
-    console.log(
-      `[SveltyCMS] Server listening on port ${port}${enableWebSocket ? " (WS enabled)" : ""}`,
-    );
+    console.log(`[SveltyCMS] Server listening on port ${port} (WS enabled)`);
   });
 
   // Handle signals for graceful shutdown
-  process.on("SIGTERM", () => server.close());
-  process.on("SIGINT", () => server.close());
+  process.on("SIGTERM", () => {
+    if (stopYjs) stopYjs();
+    server.close();
+  });
+  process.on("SIGINT", () => {
+    if (stopYjs) stopYjs();
+    server.close();
+  });
 }
 
 loadApp().catch((err) => {

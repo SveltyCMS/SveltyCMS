@@ -45,6 +45,12 @@ import { goto } from "$app/navigation";
 import { page } from "$app/state";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+import {
+	getAutomation,
+	saveAutomation,
+	testAutomation,
+	unwrapFlow,
+} from "../automations-api";
 
 // ── State ──
 
@@ -80,10 +86,10 @@ let flow: AutomationFlow = $state({
 onMount(async () => {
 	if (!isNew) {
 		try {
-			const res = await fetch(`/api/automations/${page.params.id}`);
-			const result = await res.json();
-			if (result.success) {
-				flow = result.data;
+			const result = await getAutomation(page.params.id);
+			const loaded = unwrapFlow(result);
+			if (result.success && loaded) {
+				flow = loaded;
 			} else {
 				toast.error("Automation not found");
 				goto("/config/automations");
@@ -109,21 +115,13 @@ async function save() {
 
 	isSaving = true;
 	try {
-		const method = isNew ? "POST" : "PATCH";
-		const url = isNew ? "/api/automations" : `/api/automations/${flow.id}`;
-
-		const res = await fetch(url, {
-			method,
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(flow),
-		});
-		const result = await res.json();
+		const result = await saveAutomation(flow, isNew);
 
 		if (result.success) {
 			toast.success(`Automation ${isNew ? "created" : "updated"}`);
 			goto("/config/automations");
 		} else {
-			toast.error(result.error || "Save failed");
+			toast.error(result.error || result.message || "Save failed");
 		}
 	} catch (_err) {
 		toast.error("Error saving automation");
@@ -141,17 +139,17 @@ async function testFlow() {
 	isTesting = true;
 	testResult = null;
 	try {
-		const res = await fetch(`/api/automations/${flow.id}/test`, {
-			method: "POST",
-		});
-		const result = await res.json();
+		const result = await testAutomation(flow.id);
 		if (result.success) {
-			testResult = result.data;
-			toast[result.data.status === "success" ? "success" : "warning"](
-				`Test ${result.data.status} in ${result.data.duration}ms`,
-			);
+			const data = (result as { data?: typeof testResult }).data as typeof testResult;
+			testResult = data;
+			if (data) {
+				toast[data.status === "success" ? "success" : "warning"](
+					`Test ${data.status} in ${data.duration}ms`,
+				);
+			}
 		} else {
-			toast.error(result.error || "Test failed");
+			toast.error(result.error || result.message || "Test failed");
 		}
 	} catch (_err) {
 		toast.error("Test error");
@@ -336,13 +334,13 @@ const conditionOperatorOptions = [
 	backUrl="/config/automations"
 >
 {#if isLoading}
-	<AdminCard class="flex items-center justify-center border border-surface-200 py-20 dark:border-surface-800">
+	<AdminCard class="flex items-center justify-center border border-surface-200 py-20 dark:border-surface-800" data-testid="automation-editor-loading">
 		<Loader variant="circle" width="size-12" height="size-12" ariaLabel="Loading automation" />
 	</AdminCard>
 {:else}
-	<div class="mx-auto max-w-225 space-y-6">
+	<div class="mx-auto max-w-225 space-y-6" data-testid="automation-editor">
 		<!-- Stepper Header -->
-		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8">
+		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8" data-testid="automation-stepper">
 			{#each steps as step (step.number)}
 				<div class="flex items-center gap-2">
 					<Button
@@ -353,6 +351,7 @@ const conditionOperatorOptions = [
 						disabled={step.number > activeStep + 1}
 						aria-current={activeStep === step.number ? 'step' : undefined}
 						aria-label={step.label}
+						data-testid={`automation-step-${step.number}`}
 						rounded
 						class="w-full sm:w-auto justify-center {step.number > activeStep + 1 ? 'opacity-50' : ''}"
 					>
@@ -385,6 +384,7 @@ const conditionOperatorOptions = [
 								label="Automation Name *"
 								placeholder="e.g. Notify editors on publish"
 								aria-label="Automation name"
+								data-testid="automation-name"
 								required
 							/>
 							<Input
@@ -392,6 +392,7 @@ const conditionOperatorOptions = [
 								label="Description"
 								placeholder="What does this automation do?"
 								aria-label="Automation description"
+								data-testid="automation-description"
 							/>
 						</div>
 
@@ -400,7 +401,7 @@ const conditionOperatorOptions = [
 						<!-- Trigger Type Selector -->
 						<div>
 							<span class="block font-medium mb-2">Trigger Type</span>
-							<div class="grid grid-cols-3 gap-3">
+							<div class="grid grid-cols-3 gap-3" data-testid="automation-trigger-types">
 								{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 									{const isSelected = flow.trigger.type === triggerOption.type}
 									<Button
@@ -408,6 +409,7 @@ const conditionOperatorOptions = [
 										class="p-3 text-center border-2 transition-all duration-200 rounded {isSelected ? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-surface-200 dark:border-surface-700'}"
 										onclick={() => setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
 										aria-label="Select {triggerOption.label} trigger"
+										data-testid={`automation-trigger-${triggerOption.type}`}
 									>
 										<iconify-icon icon={triggerOption.icon} class="text-2xl mb-1"></iconify-icon>
 										<p class="font-medium text-sm">{triggerOption.label}</p>
@@ -781,7 +783,7 @@ const conditionOperatorOptions = [
 					{/if}
 
 					<!-- Add Operation Buttons -->
-					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded p-4">
+					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded p-4" data-testid="automation-add-ops">
 						<p class="text-sm font-medium mb-3 opacity-70">Add Operation</p>
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 							{#each OPERATION_TYPES as opType (opType.type)}
@@ -790,6 +792,7 @@ const conditionOperatorOptions = [
 									class="p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
 									onclick={() => addOperation(opType.type)}
 									aria-label="Add {opType.label} operation"
+									data-testid={`automation-add-op-${opType.type}`}
 								>
 									<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>
 									<p class="text-xs font-medium">{opType.label}</p>
@@ -995,27 +998,27 @@ const conditionOperatorOptions = [
 		</AdminCard>
 
 		<!-- Footer Navigation -->
-		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-200 dark:border-surface-700">
+		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-200 dark:border-surface-700" data-testid="automation-footer">
 			<div>
 				{#if activeStep > 1}
-					<Button variant="surface" onclick={() => (activeStep -= 1)} aria-label="Go back">
+					<Button variant="surface" onclick={() => (activeStep -= 1)} aria-label="Go back" data-testid="automation-back">
 						<iconify-icon icon="mdi:chevron-left"></iconify-icon>
 						Back
 					</Button>
 				{:else}
-					<Button variant="surface" onclick={() => goto('/config/automations')} aria-label="Cancel and go back">Cancel</Button>
+					<Button variant="surface" onclick={() => goto('/config/automations')} aria-label="Cancel and go back" data-testid="automation-cancel">Cancel</Button>
 				{/if}
 			</div>
 
 			<div class="flex items-center gap-2">
 				{#if activeStep < 3}
-					<Button variant="tertiary" onclick={() => (activeStep += 1)} disabled={!canProceed} aria-label="Go to next step" class="dark:">
+					<Button variant="tertiary" onclick={() => (activeStep += 1)} disabled={!canProceed} aria-label="Go to next step" data-testid="automation-next">
 						Next
 						<iconify-icon icon="mdi:chevron-right"></iconify-icon>
 					</Button>
 				{:else}
 					<StickyActions>
-					<Button variant="tertiary" onclick={save} disabled={isSaving} aria-label="Save automation" class="dark:">
+					<Button variant="tertiary" onclick={save} disabled={isSaving} aria-label="Save automation" data-testid="automation-save">
 						{#if isSaving}
 							<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 							Saving...

@@ -9,6 +9,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 import type { AutomationFlow } from "@src/services/background/automation/types";
 import { AUTOMATION_EVENTS } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
+import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import { slide } from "svelte/transition";
 	import Badge from '@components/ui/badge.svelte';
@@ -18,6 +19,13 @@ import { slide } from "svelte/transition";
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+import {
+	deleteAutomation,
+	listAutomations,
+	testAutomation,
+	unwrapFlowList,
+	updateAutomation,
+} from "./automations-api";
 
 let flows: AutomationFlow[] = $state([]);
 let isLoading = $state(true);
@@ -37,12 +45,11 @@ let someSelected = $derived(selectedIds.length > 0 && selectedIds.length < filte
 async function loadFlows() {
 	isLoading = true;
 	try {
-		const res = await fetch("/api/automations");
-		const result = await res.json();
+		const result = await listAutomations();
 		if (result.success) {
-			flows = result.data ?? [];
+			flows = unwrapFlowList(result);
 		} else {
-			toast.error(result.error || "Failed to load automations");
+			toast.error(result.error || result.message || "Failed to load automations");
 		}
 	} catch (_err) {
 		toast.error("Error loading automations");
@@ -53,12 +60,7 @@ async function loadFlows() {
 
 async function toggleFlow(flow: AutomationFlow) {
 	try {
-		const res = await fetch(`/api/automations/${flow.id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ active: !flow.active }),
-		});
-		const result = await res.json();
+		const result = await updateAutomation(flow.id, { active: !flow.active });
 		if (result.success) {
 			toast.success(`Automation ${!flow.active ? "activated" : "paused"}`);
 			await loadFlows();
@@ -68,30 +70,33 @@ async function toggleFlow(flow: AutomationFlow) {
 	}
 }
 
-async function deleteFlow(flow: AutomationFlow) {
-	if (!confirm(`Are you sure you want to delete "${flow.name}"?`)) return;
-	try {
-		const res = await fetch(`/api/automations/${flow.id}`, { method: "DELETE" });
-		const result = await res.json();
-		if (result.success) {
-			toast.success("Automation deleted");
-			await loadFlows();
-		}
-	} catch (_err) {
-		toast.error("Error deleting automation");
-	}
+function deleteFlow(flow: AutomationFlow) {
+	showConfirm({
+		title: "Delete Automation",
+		body: `Are you sure you want to delete <strong>${flow.name}</strong>?`,
+		onConfirm: async () => {
+			try {
+				const result = await deleteAutomation(flow.id);
+				if (result.success) {
+					toast.success("Automation deleted");
+					await loadFlows();
+				}
+			} catch {
+				toast.error("Error deleting automation");
+			}
+		},
+	});
 }
-
 
 async function testFlow(flow: AutomationFlow) {
 	toast.info(`Executing test run for "${flow.name}"...`);
 	try {
-		const res = await fetch(`/api/automations/${flow.id}/test`, { method: "POST" });
-		const result = await res.json();
-		if (result.success && result.data.status === "success") {
-			toast.success(`Test successful (${result.data.duration}ms)`);
+		const result = await testAutomation(flow.id);
+		const data = (result as { data?: { status?: string; duration?: number } }).data;
+		if (result.success && data?.status === "success") {
+			toast.success(`Test successful (${data.duration}ms)`);
 		} else {
-			toast.error(result.error || "Test failed");
+			toast.error(result.error || result.message || "Test failed");
 		}
 	} catch (_err) {
 		toast.error("Error testing automation");
@@ -140,27 +145,28 @@ function toggleSelectAll() {
 
 async function bulkToggle(active: boolean) {
 	toast.info(`${active ? 'Activating' : 'Pausing'} ${selectedIds.length} automations...`);
-	// Simple sequential for now, can be optimized later
 	for (const id of selectedIds) {
-		await fetch(`/api/automations/${id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ active }),
-		});
+		await updateAutomation(id, { active });
 	}
 	toast.success("Bulk update complete");
 	selectedIds = [];
 	await loadFlows();
 }
 
-async function bulkDelete() {
-	if (!confirm(`Delete ${selectedIds.length} automations?`)) return;
-	for (const id of selectedIds) {
-		await fetch(`/api/automations/${id}`, { method: "DELETE" });
-	}
-	toast.success("Bulk delete complete");
-	selectedIds = [];
-	await loadFlows();
+function bulkDelete() {
+	const count = selectedIds.length;
+	showConfirm({
+		title: "Delete Automations",
+		body: `Delete <strong>${count}</strong> selected automation${count === 1 ? "" : "s"}? This cannot be undone.`,
+		onConfirm: async () => {
+			for (const id of selectedIds) {
+				await deleteAutomation(id);
+			}
+			toast.success("Bulk delete complete");
+			selectedIds = [];
+			await loadFlows();
+		},
+	});
 }
 
 function timeAgo(dateStr: string | undefined) {
@@ -186,11 +192,19 @@ onMount(loadFlows);
 		backUrl="/config"
 	>
 	{#snippet actions()}
-		<Button variant="primary" href="/config/automations/new" leadingIcon="mdi:plus" data-sveltekit-preload-data="hover">
+		<Button
+			variant="primary"
+			href="/config/automations/new"
+			leadingIcon="mdi:plus"
+			data-sveltekit-preload-data="hover"
+			data-preload="hover"
+			data-testid="automations-new"
+		>
 			New Automation
 		</Button>
 	{/snippet}
 
+	<div data-testid="automations-page" class="contents">
 	<!-- Search & Bulk Actions -->
 	<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
 		<div class="flex flex-col md:flex-row items-center gap-4">
@@ -202,11 +216,12 @@ onMount(loadFlows);
 					placeholder="Search automations..."
 					aria-label="Search automations"
 					class="ps-10 w-full"
+					data-testid="automations-search"
 				/>
 			</div>
 
 			<div class="flex items-center gap-2 w-full md:w-auto">
-				<div class="flex items-center gap-2 px-3 py-2 mr-auto">
+				<div class="flex items-center gap-2 px-3 py-2 mr-auto" data-testid="automations-select-all">
 					<Checkbox
 						checked={allSelected ? true : someSelected ? 'indeterminate' : false}
 						onchange={toggleSelectAll}
@@ -216,15 +231,15 @@ onMount(loadFlows);
 				</div>
 
 				{#if selectedIds.length > 0}
-					<div class="flex items-center gap-1" transition:slide={{ axis: 'x' }}>
+					<div class="flex items-center gap-1" transition:slide={{ axis: 'x' }} data-testid="automations-bulk-actions">
 						<span class="text-xs font-bold me-2">{selectedIds.length} Selected</span>
-						<Button variant="surface" onclick={() => bulkToggle(true)} title="Activate Selected" aria-label="Activate selected" size="sm">
+						<Button variant="surface" onclick={() => bulkToggle(true)} title="Activate Selected" aria-label="Activate selected" size="sm" data-testid="automations-bulk-activate">
 							<iconify-icon icon="mdi:play" class="text-success-600"></iconify-icon>
 						</Button>
-						<Button variant="surface" onclick={() => bulkToggle(false)} title="Pause Selected" aria-label="Pause selected" size="sm">
+						<Button variant="surface" onclick={() => bulkToggle(false)} title="Pause Selected" aria-label="Pause selected" size="sm" data-testid="automations-bulk-pause">
 							<iconify-icon icon="mdi:pause" class="text-warning-600"></iconify-icon>
 						</Button>
-						<Button variant="error" onclick={bulkDelete} title="Delete Selected" aria-label="Delete selected" size="sm">
+						<Button variant="error" onclick={bulkDelete} title="Delete Selected" aria-label="Delete selected" size="sm" data-testid="automations-bulk-delete">
 							<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 						</Button>
 					</div>
@@ -234,28 +249,28 @@ onMount(loadFlows);
 	</AdminCard>
 
 	{#if isLoading}
-		<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+		<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="automations-loading">
 			<div class="flex flex-col items-center justify-center gap-4 py-20 grayscale opacity-50">
 				<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Loading automations" />
 				<p>Loading automations...</p>
 			</div>
 		</AdminCard>
 	{:else if flows.length === 0}
-		<AdminCard class="border-2 border-dashed border-surface-300 bg-white p-12 text-center shadow-sm backdrop-blur-md dark:border-surface-700 dark:bg-surface-900/50">
+		<AdminCard class="border-2 border-dashed border-surface-300 bg-white p-12 text-center shadow-sm backdrop-blur-md dark:border-surface-700 dark:bg-surface-900/50" data-testid="automations-empty">
 			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>
-			<Button variant="primary" href="/config/automations/new" data-sveltekit-preload-data="hover">
+			<Button variant="primary" href="/config/automations/new" data-sveltekit-preload-data="hover" data-preload="hover" data-testid="automations-empty-cta">
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				Get Started
 			</Button>
 		</AdminCard>
 	{:else}
-		<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+		<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="automations-list">
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
-					<div class:opacity-50={!flow.active} transition:slide>
+					<div class:opacity-50={!flow.active} transition:slide data-testid={`automation-card-${flow.id}`} data-automation-name={flow.name}>
 					<AdminCard
 						class="flex items-center gap-4 border border-surface-200 bg-surface-100 p-4 transition-all duration-200 hover:border-tertiary-500 dark:border-primary-600 dark:bg-surface-800"
 					>
@@ -360,7 +375,7 @@ onMount(loadFlows);
 									>
 										<iconify-icon icon="mdi:content-copy"></iconify-icon>
 									</Button>
-									<Button variant="error" onclick={() => deleteFlow(flow)} title="Delete" aria-label="Delete Automation" size="sm">
+									<Button variant="error" onclick={() => deleteFlow(flow)} title="Delete" aria-label="Delete Automation" size="sm" data-testid="automation-delete">
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 									</Button>
 								</div>
@@ -368,8 +383,11 @@ onMount(loadFlows);
 						</div>
 					</AdminCard>
 					</div>
+				{:else}
+					<p class="text-center opacity-50 py-8" data-testid="automations-search-empty">No automations match your search.</p>
 				{/each}
 			</div>
 		</AdminCard>
 	{/if}
+	</div>
 </AdminPageShell>

@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:api-check"
 author: "SveltyCMS Team"
 created: "2026-02-17"
-updated: "2026-06-17"
+updated: "2026-07-15"
 tags:
   - "testing"
   - "api"
@@ -16,10 +16,12 @@ tags:
 
 # API Testing & Coverage Report
 
-SveltyCMS validates its API layer with **black-box integration tests**. The suite talks to a live server over HTTP, verifies the full middleware chain, and runs the same contracts across SQLite, MongoDB, MariaDB, and PostgreSQL.
+SveltyCMS validates its API layer primarily with **black-box integration tests**. The suite talks to a live server over HTTP, verifies the full middleware chain, and runs the same contracts across SQLite, MongoDB, MariaDB, and PostgreSQL.
+
+Unit-level dispatcher checks use thin shared helpers (`invokeApi` in `tests/unit/utils/mock-event.ts`) — not a separate HTTP-style client. See [API Unit Helpers](./api-unit-helpers.mdx).
 
 > [!NOTE]
-> The source of truth for the latest pass/fail state is GitHub Actions. This guide explains the contract the API suite is expected to enforce.
+> The source of truth for the latest pass/fail state is GitHub Actions. This guide explains the contract the black-box API suite is expected to enforce.
 
 ## 🛡️ Test Isolation & Safety
 
@@ -103,16 +105,39 @@ Each job reuses the shared test secret, provisions an isolated database, boots t
 bun run test:integration
 ```text
 
-### Targeted Testing
+### Targeted Testing (day-to-day loop)
 
-```
-# Explicitly select a database
-bun run scripts/run-integration-tests.ts --db=sqlite
+Prefer **SQLite + skip rebuild** when the production bundle is already current:
 
-# CI parity for SQL adapters
+```bash
+# Fast local loop (~1 min SQLite once preview artifacts exist)
+bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+
+# API suite only (when runner supports --suite)
+bun run scripts/run-integration-tests.ts --db=sqlite --suite=api --no-build
+
+# Full matrix parity (slower; use before PR that touches adapters/auth)
 bun run scripts/run-integration-tests.ts --db=postgresql
 bun run scripts/run-integration-tests.ts --db=mariadb
-```text
+bun run scripts/run-integration-tests.ts --db=mongodb
+```
+
+> [!TIP]
+> First run after a clean checkout needs `bun run build` (or omit `--no-build`). Day-to-day, `--db=sqlite --no-build` is the short path.
+
+### Bulk user HTTP path
+
+Bulk user actions are covered by black-box integration:
+
+- `tests/integration/api/user-extended.test.ts` → `POST /api/user/batch` (block/unblock/delete + negatives)
+
+Keep bulk **HTTP** coverage there; use unit tests for pure batch helpers only.
+
+### Session → page load (P0, 2026-07-18)
+
+`tests/integration/api/session-page-load.test.ts` proves a login cookie unlocks SvelteKit `__data.json` for admin pages (`/user`, `/dashboard`, `/config/collectionbuilder`, …) — not only `/api/user`.
+Unit companions: `tests/unit/auth/session-cookies.test.ts`, `tests/unit/api/testing-login-cookie-contract.test.ts`.
+See [Headless-First Test Inventory](./headless-test-inventory.mdx).
 
 ---
 
@@ -124,7 +149,7 @@ bun run scripts/run-integration-tests.ts --db=mariadb
 
 ---
 
-_Last Updated: June 17, 2026_
+_Last Updated: July 15, 2026_
 ````
 
 ---
@@ -132,5 +157,6 @@ _Last Updated: June 17, 2026_
 ## Related
 
 - [Test Documentation](./index.mdx)
+- [API Unit Helpers](./api-unit-helpers.mdx)
 - [Security Testing](./security-testing.mdx)
 - [Architecture Overview](../reference/architecture/index.mdx)

@@ -24,6 +24,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 
 ### Features:
 - admin-theme-container shell with --admin-* token fallbacks
+- sticky PageTitle flush to top (no top padding gap)
 - integrates PageTitle with actions slot
 - optional adminFade entry transition
 - full Svelte 5 runes
@@ -51,7 +52,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 	let {
 		title,
 		icon,
-		description = '',
+		description,
 		showBackButton = false,
 		backUrl = '',
 		highlight = '',
@@ -63,17 +64,15 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		actions
 	}: Props = $props();
 
-	const spaceClass = $derived(
-		spaceY === '4' ? 'space-y-4' : spaceY === '8' ? 'space-y-8' : 'space-y-6'
-	);
+	const spaceClass = $derived(`space-y-${spaceY}`);
 
 </script>
 
 <div
-	class="admin-theme-container absolute inset-0 bg-surface-50 p-2 dark:bg-surface-950 {spaceClass} {fullHeight
+	class="admin-theme-container absolute inset-0 bg-surface-50 {fullHeight
 		? 'flex flex-col overflow-hidden'
 		: 'overflow-y-auto'}"
-	in:adminFade={animate ? { duration: 200 } : { duration: 0 }}
+	in:adminFade={animate ? { duration: 200 } : undefined}
 >
 	<PageTitle
 		name={title}
@@ -89,7 +88,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{/if}
 	</PageTitle>
 
-	<div class={fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}>
+	<div class="px-2 pb-2 pt-4 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
 		{@render children?.()}
 	</div>
 </div>

@@ -29,7 +29,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   import Textarea from "@components/ui/textarea.svelte";
   import Toggle from "@components/ui/toggle.svelte";
   import { fade, fly } from "svelte/transition";
-  import { toast } from "@src/stores/toast.svelte";
+  import { toast } from "@src/stores/toast.svelte.ts";
   import type { StoredAdminTheme, ThemeSummary } from "@src/services/core/admin-theme-service";
   import type { MarketplaceItem } from "@src/services/core/marketplace-service";
   import {
@@ -39,8 +39,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   } from "@utils/theme-merge";
   import { getThemeContext } from "@components/ui/theme-context.svelte";
   import type { AdminTheme } from "@components/ui/theme-context.svelte";
-  import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
-  import { ui } from "@src/stores/ui-store.svelte";
+  import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte.ts";
+    import { ui } from "@src/stores/ui-store.svelte.ts";
   import {
     USER_LAYOUT_PREF_KEYS,
     applyLayoutPrefsToUiState,
@@ -51,6 +51,19 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   import { untrack, onMount } from "svelte";
   import { invalidate } from "$app/navigation";
   import { browser } from "$app/environment";
+  import {
+    listThemes as apiListThemes,
+    listMarketplaceThemes as apiListMarketplaceThemes,
+    installMarketplaceTheme as apiInstallMarketplaceTheme,
+    activateTheme as apiActivateTheme,
+    createTheme as apiCreateTheme,
+    cloneTheme as apiCloneTheme,
+    deleteTheme as apiDeleteTheme,
+    saveAdminTheme as apiSaveAdminTheme,
+    resetAdminTheme as apiResetAdminTheme,
+    importThemePreset as apiImportThemePreset,
+    updateUserThemePrefs as apiUpdateUserThemePrefs,
+  } from "./appearance-api";
 
   const layoutVisibilityOptions = [
     { value: "", label: "Use theme default" },
@@ -136,14 +149,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function saveMyOverrides() {
     try {
       const themePrefs = buildMyThemePrefs();
-      const payload: Record<string, any> = { preferences: { theme: { ...themePrefs } } };
-
-      const res = await fetch("/api/user/update-user-attributes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: "self", newUserData: payload }),
-      });
-      if (!res.ok) throw new Error("Save failed");
+      const res = await apiUpdateUserThemePrefs({ ...themePrefs });
+      if (!res.success) throw new Error(res.message || "Save failed");
 
       if (browser) localStorage.setItem(LOCAL_PREFS_KEY, JSON.stringify(themePrefs));
       userThemePrefs.apply(themePrefs);
@@ -165,11 +172,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
 
   async function clearMyOverrides() {
     try {
-      await fetch("/api/user/update-user-attributes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: "self", newUserData: { preferences: { theme: {} } } }),
-      });
+      await apiUpdateUserThemePrefs({});
       myDensity = "";
       myVariant = "";
       myReducedMotion = false;
@@ -196,8 +199,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function loadThemes() {
     loadingThemes = true;
     try {
-      const res = await fetch("/api/theme/list");
-      if (res.ok) themes = await res.json();
+      themes = await apiListThemes();
     } catch { /* ignore */ }
     loadingThemes = false;
   }
@@ -209,12 +211,9 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function loadMarketplaceThemes() {
     loadingMarketplace = true;
     try {
-      const res = await fetch("/api/marketplace?type=theme");
-      if (!res.ok) return;
-      const body = await res.json();
-      const data = body?.data ?? body;
-      marketplaceThemes = data?.items ?? [];
-      marketplaceSource = data?.source ?? "local";
+      const result = await apiListMarketplaceThemes();
+      marketplaceThemes = result.items;
+      marketplaceSource = result.source;
     } catch { /* ignore */ }
     finally { loadingMarketplace = false; }
   }
@@ -222,12 +221,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function installMarketplaceTheme(itemId: string) {
     saving = true;
     try {
-      const res = await fetch("/api/marketplace/install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId }),
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Install failed");
+      const res = await apiInstallMarketplaceTheme(itemId);
+      if (!res.success) throw new Error(res.message || res.error || "Install failed");
       toast.success("Theme installed from marketplace");
       await loadThemes();
       await loadMarketplaceThemes();
@@ -337,15 +332,11 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     { value: "both", label: "Both Sidebars" },
   ];
 
-  // ── Theme CRUD ──
+  // ── Theme CRUD (appearance-api → fetchApi CSRF) ──
   async function handleActivate(id: string) {
     try {
-      const res = await fetch("/api/theme/activate", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ themeId: id }),
-      });
-      if (!res.ok) throw new Error("Activation failed");
-      const result = await res.json();
+      const result = await apiActivateTheme(id);
+      if (!result.success || !result.data) throw new Error(result.message || "Activation failed");
       const a = result.data as StoredAdminTheme;
       if (a.density) density = a.density;
       if (a.variant) variant = a.variant;
@@ -370,11 +361,23 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     const n = newThemeName.trim();
     if (!n) { toast.warning("Enter a name"); return; }
     try {
-      const res = await fetch("/api/theme/create", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: n, settings: { density, variant, features: { stickyActionBar, collapsibleSidebar, brandedLogin, highContrastMode, reducedMotion, layoutRegions: { collections: collectionsLayout, mediaGalleries: 'left' } }, customCss: customCss || undefined } }),
+      const res = await apiCreateTheme({
+        name: n,
+        settings: {
+          density,
+          variant,
+          features: {
+            stickyActionBar,
+            collapsibleSidebar,
+            brandedLogin,
+            highContrastMode,
+            reducedMotion,
+            layoutRegions: { collections: collectionsLayout, mediaGalleries: "left" },
+          },
+          customCss: customCss || undefined,
+        },
       });
-      if (!res.ok) throw new Error("Creation failed");
+      if (!res.success) throw new Error(res.message || "Creation failed");
       newThemeName = "";
       await loadThemes();
       toast.success(`"${n}" created`);
@@ -385,11 +388,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     const src = themes.find((t) => t.id === id);
     const n = cloneName.trim() || `Copy of ${src?.name || "theme"}`;
     try {
-      const res = await fetch("/api/theme/clone", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId: id, name: n }),
-      });
-      if (!res.ok) throw new Error("Clone failed");
+      const res = await apiCloneTheme(id, n);
+      if (!res.success) throw new Error(res.message || "Clone failed");
       cloneName = "";
       await loadThemes();
       toast.success(`"${n}" cloned`);
@@ -400,14 +400,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     const t = themes.find((x) => x.id === id);
     if (!confirm(`Delete "${t?.name}" permanently?`)) return;
     try {
-      const res = await fetch("/api/theme/delete", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ themeId: id }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || "Delete failed");
-      }
+      const res = await apiDeleteTheme(id);
+      if (!res.success) throw new Error(res.message || res.error || "Delete failed");
       await loadThemes();
       toast.success("Theme deleted");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
@@ -423,11 +417,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
         customCss: customCss || undefined,
         lockedSettings,
       };
-      const res = await fetch("/api/theme/admin-theme", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Save failed");
+      const res = await apiSaveAdminTheme(payload);
+      if (!res.success) throw new Error(res.message || "Save failed");
       toast.success("Theme saved");
       hasChanges = false;
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
@@ -437,7 +428,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   async function resetToDefaults() {
     if (!confirm("Reset to defaults?")) return;
     try {
-      await fetch("/api/theme/admin-theme", { method: "DELETE" });
+      await apiResetAdminTheme();
       density = "cozy"; variant = "bordered";
       stickyActionBar = collapsibleSidebar = brandedLogin = highContrastMode = reducedMotion = false;
       customCss = "";
@@ -450,12 +441,10 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
     if (!importPresetJson.trim()) { toast.warning("Paste JSON first"); return; }
     saving = true;
     try {
-      const res = await fetch("/api/theme/import-preset", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ presetJson: importPresetJson.trim() }),
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Import failed");
-      const body = await res.json();
+      const body = await apiImportThemePreset(importPresetJson.trim());
+      if (!body.success || !body.data) {
+        throw new Error(body.message || body.error || "Import failed");
+      }
       const imported = body.data as StoredAdminTheme;
       const warnings = (body.warnings ?? []) as Array<{ pair: string; ratio: number; required: number }>;
       if (imported.density) density = imported.density;
@@ -586,6 +575,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {#each USER_LAYOUT_PREF_KEYS as key (key)}
           <Select
+            id={`layout-pref-${key}`}
             bind:value={myLayoutPrefs[key]}
             label={getLayoutPrefLabel(key)}
             disabled={layoutLocked}
@@ -606,12 +596,13 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
   <AdminCard
     class="border border-surface-200 bg-white shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
   >
-    <div class="flex flex-wrap gap-1 p-2 border-b border-surface-200 dark:border-surface-700">
+    <div class="flex flex-wrap gap-1 p-2 border-b border-surface-200 dark:border-surface-700" data-testid="appearance-tabs">
       {#each tabs as tab (tab.id)}
         <Button variant="tertiary"
           onclick={() => activeTab = tab.id}
           size="sm"
-          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-400' : ''}>
+          data-testid={`appearance-tab-${tab.id}`}
+          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500' : ''}>
           <iconify-icon icon={tab.icon} width="16"></iconify-icon>
           <span>{tab.label}</span>
         </Button>
@@ -624,7 +615,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
 
         <!-- ═══ THEMES (MULTI-THEME MANAGEMENT) ═══ -->
         {#if activeTab === "themes"}
-          <div class="space-y-6" in:fly={{ y: 10, duration: 200 }}>
+          <div class="space-y-6" data-testid="appearance-themes-panel" in:fly={{ y: 10, duration: 200 }}>
             <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
               <iconify-icon icon="mdi:theme-light-dark" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
               Installed Themes
@@ -637,9 +628,12 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
             {#if loadingThemes}
               <div class="text-center py-8 text-surface-400">Loading themes...</div>
             {:else}
-              <div class="space-y-3 max-w-2xl">
+              <div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
                 {#each themes as t (t.id)}
-                  <AdminCard class="p-4 border-2 {t.isActive
+                  <AdminCard
+                    data-testid={`appearance-theme-card-${t.id}`}
+                    data-theme-name={t.name}
+                    class="p-4 border-2 {t.isActive
                     ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-50/30 dark:bg-primary-900/10'
                     : 'border-surface-200 dark:border-surface-700'} flex items-center gap-3 flex-wrap">
                     <iconify-icon icon={t.isActive ? "mdi:checkbox-marked-circle" : "mdi:theme-light-dark"}
@@ -647,7 +641,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-sm flex items-center gap-2">
                         {t.name}
-                        {#if t.isActive}<Badge preset="tonal" color="success" size="sm">Active</Badge>{/if}
+                        {#if t.isActive}<Badge preset="tonal" color="success" size="sm" data-testid="appearance-theme-active-badge">Active</Badge>{/if}
                         {#if t.isDefault}<Badge preset="tonal" color="surface" size="sm">Default</Badge>{/if}
                       </div>
                       <div class="text-xs text-surface-500 dark:text-surface-400">
@@ -656,15 +650,17 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     </div>
                     <div class="flex items-center gap-1">
                       {#if !t.isActive}
-                        <Button variant="primary" size="sm" onclick={() => handleActivate(t.id)}>Activate</Button>
+                        <Button variant="primary" size="sm" onclick={() => handleActivate(t.id)} data-testid={`appearance-theme-activate-${t.id}`}>Activate</Button>
                       {/if}
                       <Button variant="ghost" size="sm" leadingIcon="mdi:content-copy"
                         onclick={() => { cloneName = ""; handleClone(t.id); }}
-                        aria-label="Clone {t.name}"></Button>
+                        aria-label="Clone {t.name}"
+                        data-testid={`appearance-theme-clone-${t.id}`}></Button>
                       {#if !t.isActive && !t.isDefault}
                         <Button variant="ghost" size="sm" leadingIcon="mdi:delete"
                           onclick={() => handleDelete(t.id)}
-                          aria-label="Delete {t.name}"></Button>
+                          aria-label="Delete {t.name}"
+                          data-testid={`appearance-theme-delete-${t.id}`}></Button>
                       {/if}
                     </div>
                   </AdminCard>
@@ -674,6 +670,7 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
               <!-- Create new theme -->
               <AdminCard
                 class="mt-6 max-w-2xl border border-surface-200 p-4 dark:border-surface-700"
+                data-testid="appearance-theme-create"
               >
                 <h4 class="font-bold text-sm mb-3">Create New Theme</h4>
                 <div class="flex gap-2">
@@ -682,9 +679,10 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
                     class="flex-1"
                     placeholder="Theme name (e.g. Midnight Blue, High Contrast)"
                     aria-label="New theme name"
+                    data-testid="appearance-theme-name"
                     onkeydown={(e) => { if (e.key === 'Enter') handleCreate(); }}
                   />
-                  <Button variant="tertiary" onclick={handleCreate} leadingIcon="mdi:plus">Create</Button>
+                  <Button variant="tertiary" onclick={handleCreate} leadingIcon="mdi:plus" data-testid="appearance-theme-create-btn">Create</Button>
                 </div>
                 <p class="text-xs text-surface-400 mt-2">
                   New themes start with current density/variant/features as defaults.
@@ -989,8 +987,8 @@ Tabs: Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
         Unsaved changes — live preview active
       </p>
       <div class="flex gap-2">
-        <Button variant="ghost" onclick={() => hasChanges = false}>Discard</Button>
-        <Button variant="primary" onclick={saveTheme} loading={saving}>Save Theme</Button>
+        <Button variant="ghost" onclick={() => hasChanges = false} data-testid="appearance-theme-discard">Discard</Button>
+        <Button variant="primary" onclick={saveTheme} loading={saving} data-testid="appearance-theme-save">Save Theme</Button>
       </div>
     </div>
   {/if}

@@ -6,10 +6,177 @@ order: 3
 icon: "mdi:human-wheelchair"
 author: "SveltyCMS Team"
 created: "2026-01-27"
-updated: "2026-07-13"
+updated: "2026-07-15"
 tags:
   - "accessibility"
   - "wcag"
   - "atag"
   - "guide"
+  - "css-ui"
+  - "cursor"
 ---
+
+## Standards Compliance
+
+SveltyCMS targets **WCAG 2.2 AA** and **ATAG 2.0** compliance, with
+forward-looking alignment to **WCAG 3.0 Functional Performance** standards.
+All interactive components must be keyboard-navigable, ARIA-compliant, and
+respect user preferences for motion and contrast.
+
+## Cursor Semantics (CSS3-UI)
+
+Per the [CSS Basic User Interface Module Level 3 (CSS3-UI)](https://www.w3.org/TR/css-ui-3/#cursor),
+the `cursor` property defines visual pointers for pointing devices. The
+predefined cursor values have specific semantic meanings that must be
+respected:
+
+| Cursor value        | Meaning (per spec)                         | Correct usage                                        |
+| ------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| `pointer`           | Indicates a **link**                       | `<a>` elements, navigation items that act as links   |
+| `default`           | Platform-dependent default (arrow)         | Buttons, form controls, generic interactive elements |
+| `auto`              | UA determines context (text over editable) | All other elements (browser default)                 |
+| `text`              | Indicates selectable text                  | Text nodes, content areas                            |
+| `not-allowed`       | Action will not be carried out             | Disabled controls                                    |
+| `wait`              | Program is busy, user should wait          | Loading states                                       |
+| `grab` / `grabbing` | Something can be / is being dragged        | Drag handles, reorderable items                      |
+
+### Implementation rules
+
+- **Never** use `cursor: pointer` on `<button>` elements. The CSS3-UI spec
+  defines `pointer` exclusively for links. Buttons use the default cursor.
+  The browser already applies `cursor: pointer` to `<a>` elements via its
+  default UA stylesheet — the `btn` class should not override this.
+- **Only** use `cursor: pointer` on `<a>` elements or elements styled to
+  behave as navigation links.
+- Use `cursor: grab` / `cursor: grabbing` for draggable items (e.g. widget
+  field reordering in the Collection Builder).
+- Disabled controls must use `cursor: not-allowed` to signal non-interactivity.
+
+### Rationale
+
+Screen reader and switch-device users do not see the cursor, so the
+distinction primarily affects sighted mouse users. However, using the
+correct cursor provides consistent affordances:
+
+- Sighted users learn that `pointer` means "this navigates somewhere"
+  (a link), while `default` means "this performs an action" (a button).
+- Misusing `pointer` on buttons erodes this learned distinction and
+  creates a poor UX for users who rely on visual cues.
+
+## Focus Indicators
+
+Every interactive element must show a visible focus indicator when focused
+via keyboard (`:focus-visible`). The project standard is a 2px ring with
+2px offset:
+
+```css
+/* Applied via Tailwind in component classes */
+focus-visible:outline-none
+focus-visible:ring-2
+focus-visible:ring-offset-2
+focus-visible:ring-surface-500
+dark:focus-visible:ring-surface-300
+```
+
+### Requirements
+
+- **Never** use `outline: none` or `outline: 0` without providing an
+  alternative focus indicator (violates WCAG 2.4.7 Focus Visible).
+- Use `:focus-visible` rather than `:focus` to avoid showing the ring on
+  mouse click, which reduces visual noise for pointing-device users while
+  preserving it for keyboard users.
+- The focus ring must have a contrast ratio of at least **3:1** against
+  the adjacent background (WCAG 2.4.13 Focus Appearance, Level AA).
+- Ensure focus indicators are visible in both light and dark themes.
+
+## Interactive States
+
+All interactive components should provide visual feedback for the
+following states, using only compositor-friendly properties (transform,
+opacity, filter) to avoid layout thrash:
+
+| State            | Effect                                 | Example                                    |
+| ---------------- | -------------------------------------- | ------------------------------------------ |
+| `:hover`         | `brightness(1.10)` or equivalent lift  | `hover:brightness-110`                     |
+| `:active`        | `scale(0.98)` + slight dim             | `active:scale-[0.98] active:brightness-95` |
+| `:focus-visible` | 2px ring                               | `focus-visible:ring-2`                     |
+| `:disabled`      | `opacity(0.6)` + `cursor: not-allowed` | `opacity-60 cursor-not-allowed`            |
+
+## Motion & Animation
+
+Respect user preferences for reduced motion:
+
+```svelte
+<!-- Use Svelte transitions conditionally -->
+{#if !$prefersReducedMotion}
+  <div in:fly={{ x: 20 }}>
+{/if}
+```
+
+- Wrap animated elements with a `prefers-reduced-motion` media query or
+  use Tailwind's `motion-reduce:` prefix to disable non-essential animation.
+- Progress bars and loading spinners are considered essential and should
+  continue regardless of motion preference.
+- Toast animations should degrade gracefully (fade instead of fly).
+
+## Color & Contrast
+
+- All text must meet **4.5:1** contrast ratio (WCAG 1.4.3, Level AA).
+- Large text (≥18px bold or ≥24px regular) must meet **3:1**.
+- Focus indicators must meet **3:1** against adjacent background.
+- Use `dark:` variants for all color tokens to ensure dark mode compliance.
+- Interactive states (hover, active) using `brightness()` or `opacity`
+  must not reduce contrast below the minimum thresholds.
+
+## Keyboard Navigation
+
+- All interactive elements must be reachable and operable via keyboard.
+- Use native `<button>`, `<a>`, `<input>`, and `<select>` elements
+  wherever possible — they provide keyboard semantics for free.
+- Custom interactive components must include `role`, `tabindex`, and
+  keyboard event handlers (Enter/Space for activation, Arrow keys for
+  directional navigation).
+- Tab order must follow a logical DOM sequence (`tabindex` should only
+  be 0 or -1; never use positive values).
+
+## ARIA
+
+- Every interactive element must have an accessible name via
+  `aria-label`, `aria-labelledby`, or visible text content.
+- Use `aria-live="polite"` for dynamic content updates (toasts, loading
+  states).
+- Use `aria-atomic="true"` when the entire region should be read on
+  update.
+- Use `role="alert"` for time-sensitive messages that should interrupt
+  the screen reader.
+- Landmarks (`role="region"`, `role="navigation"`, etc.) must have
+  descriptive `aria-label` values.
+
+## Testing
+
+Run the accessibility audit suite before shipping:
+
+```bash
+# Playwright accessibility tests
+bun run test:e2e -- --grep accessibility
+
+# Visual regression tests (catches contrast/positioning regressions)
+bun run test:e2e -- --grep visual-regression
+```
+
+Reference files:
+
+- `tests/e2e/accessibility.spec.ts` — WCAG audit
+- `tests/e2e/visual-regression.spec.ts` — Visual regression
+- `tests/e2e/branding.spec.ts` — Multi-tenancy contrast checks
+- `docs/tests/accessibility-audit.mdx` — Audit methodology
+
+## References
+
+| Specification                           | Link                             |
+| --------------------------------------- | -------------------------------- |
+| CSS Basic User Interface Module Level 3 | https://www.w3.org/TR/css-ui-3/  |
+| WCAG 2.2                                | https://www.w3.org/TR/WCAG22/    |
+| WCAG 3.0 (draft)                        | https://www.w3.org/TR/wcag-3.0/  |
+| ATAG 2.0                                | https://www.w3.org/TR/ATAG20/    |
+| ARIA Authoring Practices                | https://www.w3.org/WAI/ARIA/apg/ |

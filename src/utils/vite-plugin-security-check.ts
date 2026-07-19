@@ -82,12 +82,11 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
       normalizedId.includes("/hooks.server.") ||
       normalizedId.includes("/hooks/") ||
       normalizedId.includes("/routes/api/") ||
-      normalizedId.includes("/auth/") ||
       normalizedId.includes("/databases/") ||
-      normalizedId.includes("/src/stores/global-settings.ts") ||
-      (normalizedId.includes("/src/widgets/") &&
+      normalizedId.includes("/services/") ||
+      (normalizedId.includes("/stores/") &&
         normalizedId.endsWith(".ts") &&
-        !normalizedId.endsWith(".svelte"))
+        !normalizedId.endsWith(".svelte.ts"))
     ) {
       return;
     }

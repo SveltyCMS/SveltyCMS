@@ -49,6 +49,7 @@ jobs:
     timeout-minutes: 8
     outputs:
       pw-version: ${{ steps.pw.outputs.version }}
+      test-secret: ${{ steps.secret-gen.outputs.secret }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -65,10 +66,18 @@ jobs:
           bun run paraglide
           bun x svelte-kit sync
 
-      - name: Generate E2E Test Secret
+      - name: Generate Test Secret
+        id: secret-gen
         run: |
           mkdir -p tests/e2e/.auth
-          echo "SVELTYCMS_E2E_MASTER_SECRET_$(date +%s)" > tests/e2e/.auth/test-secret.txt
+          if [ -n "${{ secrets.TEST_API_SECRET }}" ]; then
+            SECRET_VAL="${{ secrets.TEST_API_SECRET }}"
+          else
+            SECRET_VAL="SVELTYCMS_CI_FALLBACK_$(date +%s)_${RANDOM}"
+            echo "⚠️ Using CI fallback secret (fork PR or missing repo secret)"
+          fi
+          echo "$SECRET_VAL" > tests/e2e/.auth/test-secret.txt
+          echo "secret=$SECRET_VAL" >> $GITHUB_OUTPUT
 
       - id: pw
         run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
@@ -105,7 +114,7 @@ jobs:
             name: ✅ Quality Gate (check)
             run: bun run check
           - task: 04-unit
-            name: ⚡ Unit Tests (206 files)
+            name: ⚡ Unit Tests
             run: bun run test:unit
           - task: 05-cve-audit
             name: 🔒 CVE Dependency Audit
@@ -164,11 +173,18 @@ jobs:
           node-version: "24"
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
+      - name: Clean stale build output
+        run: rm -rf build .svelte-kit/output
       - run: bun run build
         env:
           COMPILE_ALL_ADAPTERS: "true"
       - name: Verify benchmark build includes testing harness
         run: bun run scripts/verify-prod-build-backdoor.ts --mode=bench
+      - name: Verify bundle size (no TipTap leak, entry < 80KB)
+        run: bun run scripts/check-bundle-size.ts
+      - name: Compute build artifact checksum
+        run: |
+          find build/ .svelte-kit/output/ -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1 > build-checksum.txt
       - uses: actions/upload-artifact@v7
         with:
           name: build-output
@@ -176,6 +192,7 @@ jobs:
           path: |
             build/
             .svelte-kit/output/
+            build-checksum.txt
           retention-days: 1
 
   # ------------------------------------------------
@@ -221,6 +238,18 @@ jobs:
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
 
+      - name: Verify build artifact checksum
+        run: |
+          COMPUTED=$(find build/ .svelte-kit/output/ -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+          EXPECTED=$(cat build-checksum.txt)
+          if [ "$COMPUTED" != "$EXPECTED" ]; then
+            echo "❌ Build artifact checksum mismatch!"
+            echo "  Computed: $COMPUTED"
+            echo "  Expected: $EXPECTED"
+            exit 1
+          fi
+          echo "✅ Build artifact checksum verified"
+
       - name: Start Database (Docker Compose)
         if: matrix.db != 'sqlite'
         run: |
@@ -243,7 +272,7 @@ jobs:
           DB_PASSWORD: ${{ matrix.db_password }}
           JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
           ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -263,6 +292,76 @@ jobs:
           path: preview.log
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload Integration Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: db-results-${{ matrix.db }}
+          path: tests/test-results/integration-${{ matrix.db }}.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ------------------------------------------------
+  # 8. DB Summary — cross-adapter results dashboard
+  # ------------------------------------------------
+  db-summary:
+    name: 📋 DB Summary
+    needs: [db-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: db-results-*
+          path: tests/test-results
+          merge-multiple: true
+
+      - name: Generate DB Summary
+        run: |
+          echo "## Multi-DB Integration Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Adapter | Passed | Failed | Total |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          ANY_FAIL=0
+          for f in tests/test-results/integration-*.json; do
+            if [ -f "$f" ]; then
+              db=$(echo "$f" | sed 's/.*integration-\(.*\)\.json/\1/')
+              passed=$(node -e "const j=require('./$f'); process.stdout.write(String(j.passed??0))")
+              failed=$(node -e "const j=require('./$f'); process.stdout.write(String(j.failed??0))")
+              total=$(node -e "const j=require('./$f'); process.stdout.write(String(j.total??0))")
+              if [ "$failed" = "0" ]; then
+                icon="✅"
+              else
+                icon="❌"
+                ANY_FAIL=1
+              fi
+              echo "| $icon $db | $passed | $failed | $total |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Expand per-adapter failure snippets for faster triage
+          for f in tests/test-results/integration-*.json; do
+            if [ -f "$f" ]; then
+              node -e '
+                const fs = require("fs");
+                const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+                if (!j.failed || !j.failures?.length) process.exit(0);
+                let md = "\n<details open><summary>❌ " + j.db + " failures</summary>\n\n";
+                md += "| File | Error |\n|------|-------|\n";
+                for (const x of j.failures.slice(0, 20)) {
+                  const err = (x.stderr || "").split("\n").map(s => s.trim()).find(Boolean) || "";
+                  md += "| `" + x.file + "` | " + err.replace(/\|/g, "\\|").slice(0, 140) + " |\n";
+                }
+                md += "\n</details>\n";
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+              ' "$f" || true
+            fi
+          done
+          if [ "$ANY_FAIL" = "1" ]; then
+            echo "::error::One or more DB adapters failed integration tests — see Multi-DB Integration Results above"
+          fi
 
   # ------------------------------------------------
   # 9. Core Benchmarks (fast perf gate per DB adapter)
@@ -316,7 +415,7 @@ jobs:
           BENCHMARK_PROFILE: "ci-fresh"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
           UDH_PG_DATABASE: ${{ matrix.db == 'postgresql' && 'sveltycms_udh_fixture' || 'sveltycms_test' }}
         run: |
           mkdir -p tests/e2e/.auth
@@ -385,7 +484,7 @@ jobs:
   # ------------------------------------------------
   e2e-prep:
     name: 🧪 E2E Prep
-    needs: build
+    needs: [bootstrap, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -400,9 +499,12 @@ jobs:
       ADMIN_PASSWORD: Password123!
       JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
       ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
-      TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+      TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
       HOST: 127.0.0.1
       PORT: 4173
+      # index.cjs defaults ORIGIN to https://demo.sveltycms.com which breaks SvelteKit
+      # remote CSRF (Origin header must match request URL origin for completeSetup).
+      ORIGIN: http://127.0.0.1:4173
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -464,10 +566,20 @@ jobs:
             echo "TEST_API_SECRET=${TEST_API_SECRET}" >> $GITHUB_ENV
           fi
 
-          # Start the built server
-          node build/index.js > preview.log 2>&1 &
+          # Prefer adapter-node entry (build/index.js) with correct ORIGIN for remotes.
+          # Fall back to index.cjs (Plesk entry) only if needed — always pin ORIGIN.
+          export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          if [ -f build/index.js ]; then
+            node build/index.js > preview.log 2>&1 &
+          else
+            node index.cjs > preview.log 2>&1 &
+          fi
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          trap "kill $SERVER_PID 2>/dev/null || true" INT TERM
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
           echo "PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173" >> $GITHUB_ENV
+          echo "ORIGIN=${ORIGIN}" >> $GITHUB_ENV
 
       - name: Run E2E Wizard Setup
         run: bun x playwright test --project=wizard
@@ -475,10 +587,34 @@ jobs:
       - name: Run E2E Auth Setup
         run: bun x playwright test --project=auth-setup
 
+      # Fail closed: empty admin.json (CSRF-only / no auth_sessions) poisons every chromium shard
+      # with missing page-title and 401s. Catch it here instead of after 15 min of flaky retries.
+      - name: Verify auth storageState has session cookie
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "tests/e2e/.auth/admin.json";
+            if (!fs.existsSync(p)) { console.error("missing", p); process.exit(1); }
+            const s = JSON.parse(fs.readFileSync(p, "utf8"));
+            const names = (s.cookies || []).map((c) => c.name);
+            const ok = names.some((n) => /auth_sessions/i.test(n));
+            console.log("admin.json cookies:", names.join(", ") || "(none)");
+            if (!ok) {
+              console.error("FAIL: no auth_sessions cookie in admin.json — auth-setup did not establish a session");
+              process.exit(1);
+            }
+            console.log("OK: session cookie present");
+          '
+
+      - name: Smart Playwright summary (wizard + auth-setup)
+        if: always()
+        run: bun run scripts/ci-report-playwright.ts --label="E2E Prep (wizard + auth-setup)" --json=tests/playwright-results.json --preview=preview.log
+
       - name: Shutdown Preview Server
         if: always()
         run: |
           pkill -f "node build/index.js" || true
+          pkill -f "node index.cjs" || true
           sleep 2
 
       - name: Archive E2E Environment (single artifact)
@@ -496,7 +632,9 @@ jobs:
         continue-on-error: true
         with:
           name: playwright-report-Wizard-Auth
-          path: tests/playwright-report
+          path: |
+            tests/playwright-report
+            tests/playwright-results.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -597,9 +735,10 @@ jobs:
           ADMIN_PASSWORD: Password123!
           JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
           ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
           HOST: 127.0.0.1
           PORT: 4173
+          ORIGIN: http://127.0.0.1:4173
           SKIP_E2E_DEPS: "true"
         run: |
           if [ -z "${TEST_API_SECRET}" ]; then
@@ -607,18 +746,31 @@ jobs:
           fi
           export TEST_API_SECRET
           export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
-          node build/index.js > preview.log 2>&1 &
+          export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          if [ -f build/index.js ]; then
+            node build/index.js > preview.log 2>&1 &
+          else
+            node index.cjs > preview.log 2>&1 &
+          fi
+          SERVER_PID=$!
+          trap "kill $SERVER_PID 2>/dev/null || true" EXIT INT TERM
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           bun x playwright test \
             --project=chromium \
             --grep="${{ matrix.grep }}" \
             --shard=${{ matrix.shard }}
 
+      - name: Smart Playwright summary
+        if: always()
+        run: bun run scripts/ci-report-playwright.ts --label="E2E — ${{ matrix.name }}" --json=tests/playwright-results.json --preview=preview.log
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-${{ matrix.name }}
-          path: tests/playwright-report
+          path: |
+            tests/playwright-report
+            tests/playwright-results.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -646,9 +798,27 @@ jobs:
       - e2e
       - db-tests
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/ci-report-all-green.ts
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - name: Job results dashboard
+        if: always()
+        env:
+          RESULT_BOOTSTRAP: ${{ needs.bootstrap.result }}
+          RESULT_BUILD: ${{ needs.build.result }}
+          RESULT_WHITEBOX: ${{ needs.whitebox.result }}
+          RESULT_E2E_PREP: ${{ needs.e2e-prep.result }}
+          RESULT_E2E_MATRIX: ${{ needs.e2e-matrix.result }}
+          RESULT_E2E: ${{ needs.e2e.result }}
+          RESULT_DB_TESTS: ${{ needs.db-tests.result }}
+        run: bun run scripts/ci-report-all-green.ts
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |
-          echo "::error::One or more required jobs failed or were cancelled"
+          echo "::error::One or more required jobs failed or were cancelled — see All-Green Gate summary for fix order"
           exit 1
       - if: ${{ !cancelled() && !failure() }}
         run: echo "✅ All checks passed"

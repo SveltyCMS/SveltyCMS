@@ -25,9 +25,19 @@
 	// Ensure roles is an array
 	const { value, roles = [] } = $props();
 
+	const findRole = (roleId: string): Role | undefined => {
+		// Exact _id match first
+		let role = roles.find((r: Role) => r._id === roleId);
+		// Fallback: case-insensitive name match
+		if (!role) role = roles.find((r: Role) => r.name?.toLowerCase() === roleId?.toLowerCase());
+		// Fallback: partial name match (e.g. "admin" → "Administrator")
+		if (!role) role = roles.find((r: Role) => r.name?.toLowerCase().includes(roleId?.toLowerCase()));
+		return role;
+	};
+
 	const roleVariant = (roleId: string): 'primary' | 'secondary' | 'tertiary' | 'surface' => {
-		const role = roles.find((r: Role) => r._id === roleId);
-		const color = role?.color ?? roles.find((r: Role) => r._id === 'user')?.color;
+		const role = findRole(roleId);
+		const color = role?.color ?? findRole('user')?.color;
 		switch (color) {
 			case 'gradient-primary':
 				return 'primary';
@@ -41,18 +51,18 @@
 	};
 
 	const iconForRole = (roleId: string) => {
-		const role = roles.find((r: Role) => r._id === roleId);
+		const role = findRole(roleId);
 		if (!role) {
-			const defaultRole = roles.find((r: Role) => r._id === 'user');
+			const defaultRole = findRole('user');
 			return defaultRole?.icon || 'material-symbols:person';
 		}
 		return role.icon || 'material-symbols:person';
 	};
 
 	const roleName = (roleId: string) => {
-		const role = roles.find((r: Role) => r._id === roleId);
+		const role = findRole(roleId);
 		if (!role) {
-			const defaultRole = roles.find((r: Role) => r._id === 'user');
+			const defaultRole = findRole('user');
 			return defaultRole?.name || 'User';
 		}
 		return role.name || 'User';

@@ -7,7 +7,7 @@ import { safeFetch } from "../helpers/server";
  * These tests require a running server at API_BASE_URL.
  * They will be skipped if the server is not reachable.
  */
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
 

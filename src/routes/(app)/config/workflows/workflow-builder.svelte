@@ -15,6 +15,12 @@ import type { WorkflowDefinition, WorkflowState, WorkflowTransition } from "@src
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import StickyActions from '@components/ui/sticky-actions.svelte';
+import {
+	listWorkflowCollections,
+	listWorkflowRoles,
+	loadWorkflow as loadWorkflowApi,
+	saveWorkflowDefinition,
+} from "./workflows-api";
 
 let states = $state<WorkflowState[]>([
 	{ id: "draft", label: "Draft", color: "#94a3b8", isInitial: true },
@@ -40,59 +46,45 @@ let selectedCollectionId = $state<string>("");
 let workflowId = $state<string | null>(null);
 
 onMount(async () => {
-    // Load collections
-    const colRes = await fetch('/api/collections');
-    const colData = await colRes.json();
-    if (colData.success) collections = colData.data;
-
-    // Load roles (using a common endpoint if available or dedicated one)
-    const roleRes = await fetch('/api/user/roles'); // Assuming this endpoint exists based on standard patterns
-    const roleData = await roleRes.json();
-    if (roleData.success) roles = roleData.data;
+	// Load collections + roles via workflows-api (CSRF-safe fetchApi)
+	collections = await listWorkflowCollections();
+	roles = await listWorkflowRoles();
 });
 
 async function loadWorkflow(collectionId: string) {
-    if (!collectionId) return;
-    const res = await fetch(`/api/workflows?collectionId=${collectionId}`);
-    const data = await res.json();
-    if (data.success && data.data) {
-        const wf = data.data as WorkflowDefinition;
-        workflowId = wf._id || null;
-        states = wf.states;
-        transitions = wf.transitions;
-        toast.success(`Workflow loaded for ${collectionId}`);
-    } else {
-        workflowId = null;
-        // Reset to default or keep current as template
-    }
+	if (!collectionId) return;
+	const data = await loadWorkflowApi(collectionId);
+	if (data.success && data.data) {
+		const wf = data.data as WorkflowDefinition;
+		workflowId = wf._id || null;
+		states = wf.states;
+		transitions = wf.transitions;
+		toast.success(`Workflow loaded for ${collectionId}`);
+	} else {
+		workflowId = null;
+	}
 }
 
 async function saveWorkflow() {
-    if (!selectedCollectionId) {
-        toast.error("Please select a collection first");
-        return;
-    }
+	if (!selectedCollectionId) {
+		toast.error("Please select a collection first");
+		return;
+	}
 
-    const definition: WorkflowDefinition = {
-        _id: workflowId || undefined,
-        collectionId: selectedCollectionId,
-        states: $state.snapshot(states),
-        transitions: $state.snapshot(transitions)
-    };
+	const definition: WorkflowDefinition = {
+		_id: workflowId || undefined,
+		collectionId: selectedCollectionId,
+		states: $state.snapshot(states),
+		transitions: $state.snapshot(transitions)
+	};
 
-    const res = await fetch('/api/workflows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(definition)
-    });
-
-    const data = await res.json();
-    if (data.success) {
-        workflowId = data.data._id;
-        toast.success("Workflow saved successfully");
-    } else {
-        toast.error(data.message || "Failed to save workflow");
-    }
+	const data = await saveWorkflowDefinition(definition);
+	if (data.success && data.data) {
+		workflowId = data.data._id || null;
+		toast.success("Workflow saved successfully");
+	} else {
+		toast.error(data.message || "Failed to save workflow");
+	}
 }
 
 function addState() {
@@ -139,33 +131,39 @@ function selectNode(id: string) {
 	spaceY="4"
 >
 	{#snippet actions()}
-		<Button variant="surface" onclick={addState}>+ Add State</Button>
-		<Button variant="surface" onclick={addTransition}>+ Add Transition</Button>
+		<Button variant="surface" onclick={addState} data-testid="workflow-add-state">+ Add State</Button>
+		<Button variant="surface" onclick={addTransition} data-testid="workflow-add-transition">+ Add Transition</Button>
 		<StickyActions>
-			<Button variant="tertiary" onclick={saveWorkflow} class="dark:">Save Workflow</Button>
+			<Button variant="tertiary" onclick={saveWorkflow} class="dark:" data-testid="workflow-save">Save Workflow</Button>
 		</StickyActions>
 	{/snippet}
 
-	<AdminCard class="flex flex-wrap items-center justify-between gap-4 border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-800 dark:bg-surface-900">
-		<Select
-			bind:value={selectedCollectionId}
-			label="Target Collection"
-			options={collectionOptions}
-			placeholder="Select Collection..."
-			size="sm"
-			onchange={() => loadWorkflow(selectedCollectionId)}
-			class="min-w-48"
-		/>
+	<AdminCard class="flex flex-wrap items-center justify-between gap-4 border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-800 dark:bg-surface-900" data-testid="workflow-toolbar">
+		<div data-testid="workflow-collection-select">
+			<Select
+				bind:value={selectedCollectionId}
+				label="Target Collection"
+				options={collectionOptions}
+				placeholder="Select Collection..."
+				size="sm"
+				onchange={() => loadWorkflow(selectedCollectionId)}
+				class="min-w-48"
+			/>
+		</div>
+		{#if workflowId}
+			<span class="text-xs opacity-50" data-testid="workflow-id">id: {workflowId}</span>
+		{/if}
 	</AdminCard>
 
-	<div class="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-4">
+	<div class="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-4" data-testid="workflow-builder">
 		<!-- Canvas Area -->
-		<div class="relative overflow-hidden rounded-2xl border-2 border-dashed border-surface-200 bg-surface-100 p-12 lg:col-span-3 dark:border-surface-800 dark:bg-surface-900/50">
+		<div class="relative overflow-hidden rounded-2xl border-2 border-dashed border-surface-200 bg-surface-100 p-12 lg:col-span-3 dark:border-surface-800 dark:bg-surface-900/50" data-testid="workflow-canvas">
 			<div class="flex flex-wrap items-start justify-center gap-12">
 				{#each states as state (state.id)}
 					<div
 						role="button"
 						tabindex="0"
+						data-testid={`workflow-state-${state.id}`}
 						class="relative w-48 rounded border-2 bg-white p-4 shadow-lg transition-all dark:bg-surface-800
                             {selectedNodeId === state.id ? 'border-primary-500 ring-4 ring-primary-500/10 scale-105' : 'border-surface-200 dark:border-surface-700'}"
 						onclick={() => selectNode(state.id)}

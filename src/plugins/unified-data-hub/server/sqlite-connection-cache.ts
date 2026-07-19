@@ -6,6 +6,8 @@
  * - Lazy connection per connector file path
  * - Explicit invalidation on path/credential updates
  * - Test-only clearAll for isolation
+ * - Statement cache on Node.js (matches Bun's built-in query caching)
+ * - Boolean-to-integer normalization for cross-runtime parity
  */
 
 export interface SqliteHandle {
@@ -13,17 +15,26 @@ export interface SqliteHandle {
   close(): void;
 }
 
+/** Union of SQLite bindable types shared by Bun (`bun:sqlite`) and Node (`node:sqlite`) drivers. */
+type SqliteBinding = string | number | bigint | Uint8Array | Buffer | null;
+
 const connections = new Map<string, SqliteHandle>();
 
 async function openSqlite(filePath: string): Promise<SqliteHandle> {
+  // ── Bun native ────────────────────────────────────────────────────────
   if (typeof Bun !== "undefined") {
-    const { Database } = await new Function('return import("bun:sqlite")')();
+    // Standard dynamic import — "bun:sqlite" is in Vite's external config
+    const { Database } = await import("bun:sqlite");
     const db = new Database(filePath, { readonly: false });
+
     return {
       query(sql: string, params: unknown[] = []) {
+        // Normalize booleans for cross-runtime parity (Bun binds 1/0, Node throws)
+        const safe = params.map((p) => (typeof p === "boolean" ? (p ? 1 : 0) : p));
         return {
           all() {
-            return db.query(sql).all(...params) as Record<string, unknown>[];
+            // Bun's .query() handles its own statement caching internally
+            return db.query(sql).all(...(safe as SqliteBinding[])) as Record<string, unknown>[];
           },
         };
       },
@@ -33,21 +44,35 @@ async function openSqlite(filePath: string): Promise<SqliteHandle> {
     };
   }
 
+  // ── Node.js native ────────────────────────────────────────────────────
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(filePath);
+
+  // Statement cache to match Bun's db.query() performance characteristics.
+  // Without this, every call creates, compiles, executes, and discards a new
+  // StatementSync — catastrophic under heavy CMS read/write load.
+  const statementCache = new Map<string, ReturnType<typeof db.prepare>>();
+
   return {
     query(sql: string, params: unknown[] = []) {
       return {
         all() {
-          const stmt = db.prepare(sql);
-          return stmt.all(...(params as (string | number | bigint | Buffer | null)[])) as Record<
-            string,
-            unknown
-          >[];
+          let stmt = statementCache.get(sql);
+          if (!stmt) {
+            stmt = db.prepare(sql);
+            statementCache.set(sql, stmt);
+          }
+
+          // Node.js SQLite throws TypeError on booleans; Bun binds them as 1/0.
+          // Normalize for cross-runtime parity so queries behave identically.
+          const safeParams = params.map((p) => (typeof p === "boolean" ? (p ? 1 : 0) : p));
+
+          return stmt.all(...(safeParams as SqliteBinding[])) as Record<string, unknown>[];
         },
       };
     },
     close() {
+      statementCache.clear();
       db.close();
     },
   };

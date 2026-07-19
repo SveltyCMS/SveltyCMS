@@ -497,7 +497,7 @@
 				aria-busy={isProcessing}
 			>
 				{#if isProcessing}
-					<iconify-icon icon="svg-spinners:ring-resize" width="24" class="animate-spin"></iconify-icon>
+					<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
 				{:else}
 					<iconify-icon icon={currentConfig.icon} width="24"></iconify-icon>
 				{/if}

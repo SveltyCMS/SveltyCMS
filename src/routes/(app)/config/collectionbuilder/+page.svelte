@@ -106,6 +106,7 @@ interface NodeOperation {
 interface CategoryModalResponse {
     newCategoryIcon: string;
     newCategoryName: string;
+    newCategoryDescription?: string;
 }
 
 const { data } = $props();
@@ -373,13 +374,7 @@ async function handleSave() {
         const result = await saveContentStructure(items as any);
 
         if ("success" in result && result.success && result.contentStructure) {
-            const types = new Set(items.map((i: any) => i.type));
-            const msg =
-                types.size === 1 && types.has("create") ? "Category created successfully" :
-                types.size === 1 && types.has("rename") ? "Category renamed successfully" :
-                types.size === 1 && types.has("move") ? "Order updated successfully" :
-                "Organization updated successfully";
-            toast.success(msg);
+            toast.success("Organization updated successfully");
             currentConfig = result.contentStructure as unknown as ContentNode[];
             setContentStructure(currentConfig);
             treeVersion++;
@@ -466,7 +461,8 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
             title: existingCategory ? "Edit Category" : "Add New Category",
             body: existingCategory
                 ? "Modify Category Details"
-                : "Enter Unique Name and an Icon for your new category",
+: "Enter a name and icon for your new category",
+            size: "lg",
         },
         async (
             response:
@@ -474,68 +470,117 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
                 | boolean
                 | { __categoryDeleted: true; contentStructure: ContentNode[] },
         ) => {
+            // User cancelled
             if (!response || typeof response === "boolean") {
                 return;
             }
+
+            // Handle deletion result
             if (
                 typeof response === "object" &&
                 "__categoryDeleted" in response &&
                 response.contentStructure
             ) {
                 currentConfig = response.contentStructure;
+                toast.success("Category deleted successfully");
                 return;
             }
+
             const form = response as CategoryModalResponse;
             const nameTrimmed = form.newCategoryName.trim();
+            const icon = form.newCategoryIcon || "mdi:folder-outline";
 
-            if (existingCategory?._id) {
-                if (
-                    hasDuplicateSiblingName(
-                        currentConfig,
-                        existingCategory.parentId ?? undefined,
-                        nameTrimmed,
-                        existingCategory._id?.toString(),
-                    )
-                ) {
-                    toast.warning(
-                        "A category with this name already exists at this level. Please choose another name.",
-                    );
-                    return;
+            // --- Immediate save via remote function (no staging) ---
+            isLoading = true;
+            try {
+                const { saveContentStructure } = await import("./collectionbuilder.remote");
+
+                if (existingCategory?._id) {
+                    // Edit existing category
+                    const updated = {
+                        ...existingCategory,
+                        name: form.newCategoryName,
+                        icon,
+                        description: form.newCategoryDescription ?? (existingCategory as any)?.description ?? "",
+                        updatedAt: new Date().toISOString() as ISODateString,
+                    } as ContentNode;
+
+                    const result = await saveContentStructure([
+                        { type: "rename", node: updated },
+                    ] as any);
+
+                    if ("success" in result && result.success && result.contentStructure) {
+                        currentConfig = result.contentStructure as unknown as ContentNode[];
+                        setContentStructure(currentConfig);
+                        treeVersion++;
+                        skipNextSyncFromData = true;
+                        toast.success(`Category "${nameTrimmed}" updated successfully`);
+                        await invalidate("app:content");
+                    } else {
+                        const message = (result as any).message ?? "Failed to update category";
+                        // Check if it's a duplicate name error
+                        if (
+                            typeof message === "string" &&
+                            (message.includes("already exists") ||
+                                message.includes("duplicate"))
+                        ) {
+                            toast.warning(message);
+                        } else {
+                            logger.error("Error updating category:", message);
+                            toast.error(message);
+                        }
+                    }
+                } else {
+                    // Create new category — immediate save
+                    const newId = crypto.randomUUID() as unknown as DatabaseId;
+                    const path = uniquePathForCategory(form.newCategoryName);
+                    const newCategory: ContentNode = {
+                        _id: newId,
+                        name: form.newCategoryName,
+                        icon,
+                        path,
+                        order: currentConfig.length,
+                        translations: [],
+                        description: form.newCategoryDescription ?? "",
+                        updatedAt: new Date().toISOString() as ISODateString,
+                        createdAt: new Date().toISOString() as ISODateString,
+                        parentId: undefined,
+                        nodeType: "category",
+                        source: "builder",
+                    };
+
+                    const result = await saveContentStructure([
+                        { type: "create", node: newCategory },
+                    ] as any);
+
+                    if ("success" in result && result.success && result.contentStructure) {
+                        currentConfig = result.contentStructure as unknown as ContentNode[];
+                        setContentStructure(currentConfig);
+                        treeVersion++;
+                        skipNextSyncFromData = true;
+                        toast.success(`Category "${nameTrimmed}" created successfully`);
+                        await invalidate("app:content");
+                    } else {
+                        const message = (result as any).message ?? "Failed to create category";
+                        // Check if it's a duplicate name error
+                        if (
+                            typeof message === "string" &&
+                            (message.includes("already exists") ||
+                                message.includes("duplicate"))
+                        ) {
+                            toast.warning(message);
+                        } else {
+                            logger.error("Error creating category:", message);
+                            toast.error(message);
+                        }
+                    }
                 }
-                const updated = {
-                    ...existingCategory,
-                    name: form.newCategoryName,
-                    icon: form.newCategoryIcon,
-                    updatedAt: new Date().toISOString() as ISODateString,
-                } as ContentNode;
-                currentConfig = currentConfig.map((n) =>
-                    n._id === updated._id ? updated : n,
-                );
-                nodesToSave[updated._id.toString()] = { type: "rename", node: updated };
-            } else {
-                if (hasDuplicateSiblingName(currentConfig, undefined, nameTrimmed)) {
-                    toast.warning(
-                        "A category with this name already exists at this level. Please choose another name.",
-                    );
-                    return;
-                }
-                const newId = crypto.randomUUID() as unknown as DatabaseId;
-                const path = uniquePathForCategory(form.newCategoryName);
-                const newCategory: ContentNode = {
-                    _id: newId,
-                    name: form.newCategoryName,
-                    icon: form.newCategoryIcon,
-                    path,
-                    order: currentConfig.length,
-                    translations: [],
-                    updatedAt: new Date().toISOString() as ISODateString,
-                    createdAt: new Date().toISOString() as ISODateString,
-                    parentId: undefined,
-                    nodeType: "category",
-                    source: "builder",
-                };
-                currentConfig = [...currentConfig, newCategory];
-                nodesToSave[newId.toString()] = { type: "create", node: newCategory };
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                logger.error("Error saving category:", msg);
+                toast.error(msg || "Failed to save category");
+            } finally {
+                isLoading = false;
             }
         },
     );
@@ -607,27 +652,23 @@ function modalLoadPreset(): void {
     });
 </script>
 
-{#snippet saveButton(isHeader = false)}
-    <Button variant="tertiary"
-        data-testid="save-structure-button"
-        onclick={handleSave}
-        disabled={isLoading || Object.keys(nodesToSave).length === 0}
-        title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
-        aria-keyshortcuts="mod+s"
-     size={isHeader ? 'md' : 'lg'} class="flex items-center gap-1.5 px-4">
-        {#if isLoading}
-            <iconify-icon icon="mdi:loading" width={isHeader ? '20' : '24'} class="animate-spin"></iconify-icon>
-        {:else}
-            <iconify-icon icon="mdi:content-save" width={isHeader ? '20' : '24'}></iconify-icon>
-        {/if}
-        <span>{button_save()}</span>
-    </Button>
-{/snippet}
-
 <AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
     {#snippet actions()}
         {#if currentConfig.length > 0}
-            {@render saveButton(true)}
+            <Button variant="tertiary"
+                data-testid="save-structure-button"
+                onclick={handleSave}
+                disabled={isLoading || Object.keys(nodesToSave).length === 0}
+                title={Object.keys(nodesToSave).length === 0 ? 'No changes to save' : 'Save changes'}
+                aria-keyshortcuts="mod+s"
+             size="md" class="flex items-center gap-1.5 px-4">
+                {#if isLoading}
+                    <iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+                {:else}
+                    <iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+                {/if}
+                <span>{button_save()}</span>
+            </Button>
         {/if}
     {/snippet}
 
@@ -656,7 +697,7 @@ function modalLoadPreset(): void {
             href={newCollectionHref}
             data-preload="hover"
             onclick={setupNewCollection}
-            variant="primary"
+            variant="error"
             rounded={true}
             size="lg"
             class="group w-52 justify-center"
@@ -684,7 +725,7 @@ function modalLoadPreset(): void {
     </div>
 
     <p class="mb-4 text-center text-sm text-surface-600 dark:text-surface-300" role="note">
-        Templates apply immediately. Categories and layout changes require <strong>Save</strong>.
+        Templates apply immediately. Category changes are saved instantly. Layout changes require <strong>Save</strong>.
     </p>
 
     <div class="max-h-[calc(100vh-120px)] overflow-auto p-4" data-testid="collection-builder-board">

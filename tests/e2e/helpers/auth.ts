@@ -358,12 +358,137 @@ async function attemptLogin(
 }
 
 /**
- * Login as admin user (uses default ADMIN_CREDENTIALS)
- * @param page - Playwright page object
- * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
+ * Login as a non-admin test user (editor by default) via testing API when possible.
+ * Always clears prior admin storageState so role-gated UI is honest.
+ */
+export async function loginAsEditor(
+  page: Page,
+  waitForUrl?: string | RegExp,
+  credentials: { email: string; password: string } = {
+    email: "editor@example.com",
+    password: "Editor123!",
+  },
+) {
+  await page.context().clearCookies();
+  await page
+    .evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    })
+    .catch(() => {});
+
+  try {
+    let loginRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "login", email: credentials.email, password: credentials.password },
+    });
+    if (!loginRes.ok()) {
+      // Ensure user exists then retry
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "prepare-test-user",
+          email: credentials.email,
+          password: credentials.password,
+          role: "editor",
+          username: "Editor",
+        },
+      });
+      loginRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email: credentials.email, password: credentials.password },
+      });
+    }
+    if (loginRes.ok()) {
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/user";
+      await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      if (!page.url().includes("/login")) {
+        return;
+      }
+    }
+  } catch {
+    /* fall through to UI login */
+  }
+
+  await loginAs(page, credentials.email, credentials.password, waitForUrl);
+}
+
+/**
+ * Login as admin user (uses default ADMIN_CREDENTIALS).
+ * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
+ * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
+ * Falls back to UI loginAs if the testing API is unavailable.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
-  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+  const email = ADMIN_CREDENTIALS.email;
+  const password = ADMIN_CREDENTIALS.password;
+
+  // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
+  try {
+    await page.goto("/config/collectionbuilder", {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
+    if (!page.url().includes("/login") && !page.url().includes("/setup")) {
+      console.log("[Auth] ✓ Existing session still valid (storageState)");
+      if (waitForUrl instanceof RegExp) {
+        await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+      } else if (typeof waitForUrl === "string") {
+        await page.goto(waitForUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      }
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    // Login first; seed only if admin missing. Seed must NOT wipe users.
+    const { applySessionCookie } = await import("./test-auth");
+    let loginRes = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "login", email, password },
+    });
+    if (!loginRes.ok()) {
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "seed", email, password },
+      });
+      loginRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email, password },
+      });
+    }
+    if (loginRes.ok()) {
+      // Force cookie into browser context with port-aware origin (page.request jar
+      // alone is not always enough when storageState was cleared).
+      await applySessionCookie(page, loginRes);
+      console.log("[Auth] ✓ Admin session via testing API");
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+      await page.goto(target, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      if (page.url().includes("/login")) {
+        console.log("[Auth] API session did not stick — falling back to UI login");
+      } else {
+        if (waitForUrl instanceof RegExp) {
+          await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
+        }
+        if (!page.url().includes("/login")) {
+          return;
+        }
+      }
+    } else {
+      console.log(
+        `[Auth] testing API login status=${loginRes.status()} — falling back to UI login`,
+      );
+    }
+  } catch (err) {
+    console.log("[Auth] testing API login failed — falling back to UI login:", err);
+  }
+
+  await loginAs(page, email, password, waitForUrl);
 }
 
 /**
@@ -479,4 +604,40 @@ export async function ensureSidebarVisible(page: Page) {
     }
   }
   return false;
+}
+
+/**
+ * Dismiss the cookie consent banner without a full login flow.
+ *
+ * Use this at the start of tests that:
+ * - Use `storageState: { cookies: [], origins: [] }` (blank context)
+ * - Navigate directly to app pages (not through loginAsAdmin)
+ * - Subsequently call `getByRole("dialog")` for application dialogs
+ *
+ * The banner is rendered as `div[role="dialog"]` and causes strict-mode
+ * violations when mixed with native `<dialog>` elements.
+ */
+export async function dismissCookieBanner(page: Page): Promise<void> {
+  // Stamp localStorage so the banner never appears on the next navigation
+  await page
+    .evaluate(() => {
+      try {
+        window.localStorage.setItem(
+          "sveltycms_consent",
+          JSON.stringify({ responded: true, necessary: true }),
+        );
+        window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+        window.localStorage.setItem("sveltycms-welcome-seen", "true");
+      } catch {
+        // Ignore if storage is restricted
+      }
+    })
+    .catch(() => {});
+
+  // Defense-in-depth: click the accept button if the banner already rendered
+  const acceptBtn = page.getByTestId("cookie-accept-all");
+  if (await acceptBtn.isVisible({ timeout: 1_500 }).catch(() => false)) {
+    await acceptBtn.click();
+    await page.waitForTimeout(200);
+  }
 }

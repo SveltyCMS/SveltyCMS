@@ -19,6 +19,7 @@ import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.ser
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
@@ -29,10 +30,10 @@ import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
 
 function isSecureConnection(event: RequestEvent): boolean {
-  const isProd = process.env.NODE_ENV !== "development" && process.env.TEST_MODE !== "true";
-  return event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+  return isSecureCookieContext(event.url.protocol, event.url.hostname);
 }
 
 const limiter = new RateLimiter({
@@ -472,7 +473,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
   if (!result.success) return { success: false, errors: flatten(result.issues).nested };
   const { email: e, username: u, password: p, token: t } = result.output;
 
-  const mt = getPrivateSettingSync("MULTI_TENANT");
+  const mt = isMultiTenantEnabled();
   const dm = getPrivateSettingSync("DEMO");
   const open = !!(mt && dm);
   let role = "user",

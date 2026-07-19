@@ -1,0 +1,38 @@
+---
+path: "docs/tests/routes/extensions.mdx"
+title: "Extensions Tests — Control Map"
+description: "Coverage for /config/extensions: admin gate, tabs, plugins grid."
+order: 24
+icon: "mdi:puzzle"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags: ["testing", "e2e", "extensions"]
+---
+
+# Extension Management (`/config/extensions`)
+
+## Surface
+
+| Piece                 | Role                                        |
+| --------------------- | ------------------------------------------- |
+| `+page.server.ts`     | Admin via `locals.isAdmin`; plugin registry |
+| `+page.svelte`        | Plugins / Widgets / Themes tabs             |
+| `plugins-view.svelte` | Toggle enable (CSRF + toast)                |
+
+Plugin catalogs **vary by install**.
+
+## Control → test matrix
+
+| Control              | Unit | E2E |
+| -------------------- | ---- | --- |
+| Admin gate           | ✅   | —   |
+| Three tabs + panels  | —    | ✅  |
+| Plugins grid / empty | —    | ✅  |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/extensions-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/extensions.spec.ts
+```

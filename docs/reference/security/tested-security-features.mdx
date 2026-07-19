@@ -196,13 +196,13 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 
 ## Authorization & Access Control
 
-| Feature                          | Test Location                               | Status |
-| -------------------------------- | ------------------------------------------- | ------ |
-| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`    | ✅     |
-| Permission checking              | `tests/unit/role-permission-access.test.ts` | ✅     |
-| Public route access              | `tests/unit/hooks/authorization.test.ts`    | ✅     |
-| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`    | ✅     |
-| Admin-only endpoints             | `tests/integration/api/token.test.ts`       | ✅     |
+| Feature                          | Test Location                                    | Status |
+| -------------------------------- | ------------------------------------------------ | ------ |
+| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`         | ✅     |
+| Permission checking              | `tests/unit/auth/role-permission-access.test.ts` | ✅     |
+| Public route access              | `tests/unit/hooks/authorization.test.ts`         | ✅     |
+| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`         | ✅     |
+| Admin-only endpoints             | `tests/integration/api/token.test.ts`            | ✅     |
 
 | Unauthorized access blocked | `tests/integration/api/collections.test.ts` | ✅ |
 | Plugin sandbox isolation | `tests/unit/plugins/sandbox.test.ts` | ✅ |

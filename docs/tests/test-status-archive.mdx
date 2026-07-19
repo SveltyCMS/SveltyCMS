@@ -1,0 +1,663 @@
+---
+path: "docs/tests/test-status-archive.mdx"
+title: "Test Status Archive (Detail & History)"
+description: "Historical inventory, completed initiatives, and deep suite catalogs. Live snapshot: test-status.mdx."
+order: 3
+icon: "mdi:archive"
+author: "SveltyCMS Team"
+created: "2025-11-08"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "archive"
+  - "coverage"
+  - "history"
+---
+
+> [!NOTE]
+> **This is the archive.** For the human-readable live dashboard, see **[Test Status](./test-status.mdx)**.  
+> Exact pass counts and CI health: **GitHub Actions** on the current branch/PR.  
+> Content below is a historical detail dump (integration/unit inventories, resolved gaps, completed initiatives).
+
+# SveltyCMS Test Coverage — Archive & Detail
+
+## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
+
+| Metric                      | Value                                                   |
+| --------------------------- | ------------------------------------------------------- |
+| Execution time (SQLite)     | ~70 sec (with `--no-build` on Windows; CI builds fresh) |
+| Server starts/stops per run | 2 (mode switches only)                                  |
+| Pass rate                   | 61/61 (all pass on SQLite; +26 from multi-DB contract)  |
+
+**Note**: Integration test pass rate varies by database adapter. SQLite passes the majority; MariaDB/Mongo/Postgres expose auth/permission differences tracked as separate bugs. The test config safety guard (`scripts/check-test-db-safety.ts`) prevents the most common failure mode: running tests against a non-isolated (production) database.
+
+**Coverage**: 54 spec files across 6 domains (+1 multi-DB contract)
+
+| Domain              | Files  | What's Tested                                                                                                              |
+| ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Auth & Users        | 5      | Login, 2FA, lockout, tokens, website-tokens, user CRUD                                                                     |
+| Content & Media     | 6      | Collections, content CRUD, media upload/delete, search, GraphQL                                                            |
+| System & Config     | 12     | Settings, themes, dashboard, cache, permissions, RBAC, i18n                                                                |
+| Security            | 4      | Defense-in-depth, negative scenarios, rate-limiting, XSS/SQLi                                                              |
+| Database (existing) | 7      | Contract tests, adapter-specific (SQLite/Mongo/Maria/Postgres), resilience                                                 |
+| **Database (new)**  | **10** | **Parity matrix, error contract, cache contract, transactions, bulk ops, advanced CRUD, health, `content-nodes-contract`** |
+| Setup & SDK         | 2      | Setup wizard, preset file generation (blog + **website**), LocalCMS SDK                                                    |
+
+**Hardening applied**:
+
+- Security rate-limiter reset between tests → zero cross-test leakage
+- `IDLE` state accepted in health checks → eliminates 10s settle delay
+- Widget auto-registration → fixes 404 for valid widgets in fresh DB
+- All caches + state stores cleared per-test → true isolation
+- **Test DB safety guard** (`scripts/check-test-db-safety.ts`) runs in pre-commit and pre-push hooks → blocks unsafe `config/private.test.ts` before tests start
+- **Shared classifier** (`src/utils/test-db-safety.ts`) used by server, integration runner, and git hooks → single source of truth for isolated DB name validation
+- **Secret synchronization** — integration runner writes `TEST_API_SECRET` to `tests/e2e/.auth/test-secret.txt` before server start → eliminates 401 mismatch
+- **`SKIP_COLLECTION_COMPILE`** flag prevents @src alias resolution failures during integration test builds on Windows
+- **Multi-DB contract test** (`contract.test.ts`) — 25 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters
+- **CI scorecard** — per-DB markdown table + JSON summary written to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; each adapter run emits pass/fail/failures for every spec
+
+These measures ensure zero cross-test contamination and deterministic test results.
+
+## 2. Playwright E2E Tests (`tests/e2e/`)
+
+| Status                    | Count | Notes                                                                                            |
+| ------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
+| 🟢 **In CI**              | ~43   | Spec files under `tests/e2e/` across Playwright projects (wizard + firstuser + auth-setup + app) |
+| 🟢 **Visual regression**  | 7     | Screenshot baselines in `admin-theme/visual-regression.spec.ts`                                  |
+| 🟡 **Fragile selectors**  | 1     | `builder.spec.ts` (consolidated to shell + golden per ADR 2026)                                  |
+| ⚠️ **Auth Resilience**    | 1     | `auth.setup.ts` — 3-layer fallback (cookie→navigation→direct API login)                          |
+| ⚠️ **Pre-existing known** | 3     | OAuth (no real creds in CI), language (Paraglide), signup (DB provisioning)                      |
+
+**CI matrix projects** (20 total): `wizard`, `firstuser`, `auth-setup`, `signup`, `content`, `system`, `a11y`, `rbac`, `language`, `branding`, `visual-regression`, `users`, `builder`, `permissions`, `config-routes`, `admin`, `dashboard`, `appearance`, `media`, `chromium`
+
+**Config & admin specs**: `config/access-management`, `config/webhooks`, `config/automations`, `config/data-management`, `config/operations`, `admin/tenants`
+
+**Specs**: `dashboard/dashboard.spec.ts`, `config/appearance.spec.ts`, `config/design-system.spec.ts`, `mediagallery/mediagallery.spec.ts`, `mediagallery/image-editor.spec.ts`, `site/site-starter.spec.ts`
+
+### User profile & management (`/user`) — hardened 2026-07-18
+
+Control map: [routes/user.mdx](./routes/user.mdx). Matrix: [e2e-coverage-matrix.mdx](./e2e-coverage-matrix.mdx) §3.
+
+| Layer                    | Before (early /user)                                                                                                     | After (2026-07-18)                                                                                 | Delta                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **Product bugs**         | Dead self-delete endpoint; CSRF gaps; permissions always `[]`; sessions remotes unused; PermissionGuard ignored `config` | Batch delete + CSRF; permissions from load; sessions UI; PermissionGuard fail-closed for non-admin | Stability ↑                  |
+| **Unit**                 | Utils only (schema/Form/helpers); thin API (2 tests)                                                                     | + remote helpers, +page.server load, PermissionGuard rules, expanded user API unit                 | ~+25 focused cases           |
+| **Integration**          | Already strong (CRUD, avatar, sessions, batch)                                                                           | Unchanged backbone                                                                                 | Still primary API confidence |
+| **E2E specs**            | 5 (`smoke`, `profile`, `management`, `invite`, `complete-coverage`)                                                      | **6** (+ `p0-journeys.spec.ts`)                                                                    | +1 critical file             |
+| **Honest journeys**      | Password modal-only; no non-admin; token tests soft-skipped empty tables                                                 | Password change → re-login; editor AdminArea hidden; seeded token edit/delete                      | False-green ↓                |
+| **Control-map estimate** | ~60% features / many ⚠️ soft paths                                                                                       | **~77%** control rows; P0 closed                                                                   | **+~17 pts** behavioral      |
+
+**User E2E files**:
+
+| Spec                             | Role                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `user/account-smoke.spec.ts`     | Load profile + logout                                                    |
+| `user/profile.spec.ts`           | Avatar, edit details, tokens toggle, appearance link                     |
+| `user/management.spec.ts`        | Admin block/unblock/bulk delete                                          |
+| `user/management-invite.spec.ts` | Invite token → signup                                                    |
+| `user/complete-coverage.spec.ts` | Toggles, table, GDPR open, sessions refresh; token suite **seeds** first |
+| `user/p0-journeys.spec.ts`       | **P0**: password change, non-admin, seeded token CRUD                    |
+
+**Still open on `/user` (P1 — not status-blocking)**: GDPR export/anonymize journeys, full 2FA with `USE_2FA` fixture, RTC pref persistence, permissions badge E2E.
+
+**Site Starter E2E** (`tests/e2e/routes/site/site-starter.spec.ts` — 3 tests, `chromium` project):
+
+| Test              | Covers                                                                    |
+| ----------------- | ------------------------------------------------------------------------- |
+| Guest homepage    | Public SSR at `/` after `seed-website-starter` testing API                |
+| Live Preview tab  | Admin opens **Pages → Home**, Live Preview tab renders (license/trial UI) |
+| Preview authorize | `POST /api/preview/authorize` gated (200 trial / 403 expired)             |
+
+Setup wizard E2E selects **Website Starter** preset in Step 3 (`setup-wizard.spec.ts`).
+
+**Builder hardening**: `data-testid` on collection builder + widget editor; studio stepper wired on all breakpoints
+
+**Selectors hardened across all 33 spec files**:
+
+| Hardening        | Old Pattern               | New Pattern                                                                          |
+| ---------------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| Text matching    | `"exact text"`            | `/regex pattern/i`                                                                   |
+| CSS selectors    | `.class-name`, `#id-name` | `getByRole()`, `getByPlaceholder()`                                                  |
+| Button clicks    | `button[aria-label="X"]`  | `getByRole("button", { name: /x/i })`                                                |
+| Deprecated API   | `page.waitForSelector()`  | `locator.waitFor({ state: "visible" })`                                              |
+| Fragile IDs      | `#usernamesignUp`         | `getByPlaceholder(/sign up/i)`                                                       |
+| Hardcoded ports  | `localhost:5173`          | `baseURL`-relative (Playwright config); `bun run preview` → **3000**, dev → **5173** |
+| Environment deps | Assertion fails hard      | `try/catch` with graceful skip                                                       |
+
+## 3. Unit Tests
+
+| Metric                                 | Value                                                                                                                                                           |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Total tests                            | **2,264** (254 files, 2,264 passing, 5 skipped)                                                                                                                 |
+| Pass rate                              | 100%                                                                                                                                                            |
+| Test files                             | 254 (252 passing, 2 skipped)                                                                                                                                    |
+| Security-specific                      | 155 (defense-in-depth, auth, RBAC, namespace-ownership, cache-integrity, audit-chain, route-access-audit, SVG sanitization, capability-registry)                |
+| **Permissions**                        | **41** (permissions-setting 23, collection-permissions 18)                                                                                                      |
+| **Capability registry**                | **25** (core catalog, plugin registration, hasCapability, owner reconciliation, built-in roles)                                                                 |
+| Collection builder                     | **39** (utils 10, compilation 11, structure-persistence 3, save-content-structure 2, delete-content-nodes 2, code-gui parity 8 integration, structure-matrix 2) |
+| **Widgets (desugar-field)**            | **20** (sugar expansion, metadata preservation, sugar key stripping, nested recursion, custom registration)                                                     |
+| Content-specific                       | **57** (reconciliation 23, upsert 4, sync-state 11, sync-security 4, compile-manifest 4, content-refresh-sidebar 1, API surface)                                |
+| **Collection builder utils**           | **10**                                                                                                                                                          | `getDescendantIds`, `uniquePathForCategory` — tree traversal + slug dedup              |
+| **Collection builder compilation**     | **11**                                                                                                                                                          | AST generation, TypeScript compiler pipeline, code↔GUI parity validation               |
+| **Collection builder code-gui parity** | **8**                                                                                                                                                           | Integration tests validating GUI-generated files match hand-written TypeScript schemas |
+| Media-specific                         | 81 (sharing, MIME utils, binary sniffer, SVG sanitization, storage contract, service dedup)                                                                     |
+| Image editor                           | 35 (widget registry validation, plugin slot rendering, defaults + sorting)                                                                                      |
+| Utils integrity                        | 4 (circular import detection, barrel health)                                                                                                                    |
+| **Bulk delete guard**                  | 6 (API handler, SDK layer, 403 status, error code)                                                                                                              |
+| **Cache service**                      | 17 (key generation, LRU eviction, L1/L2 round-trip, negative caching, SWR refresh)                                                                              |
+| **Test DB safety**                     | 11 (DB_NAME classifier, config source extraction, incident-shape regression)                                                                                    |
+| **Route access audit**                 | 7 (bootstrap isolation, production backdoor closure, env-gated bypass)                                                                                          |
+| **Benchmark harness**                  | 11 (assertSuccess, warmup isolation, error visibility, >50% warmup guard)                                                                                       |
+| **Cache integrity**                    | **6** (HMAC signing, tamper detection, signed entry contract)                                                                                                   |
+| **Plugins (settings-crypto)**          | **25** (masking, secret processing, declaration validation, encryption)                                                                                         |
+| **Audit chain**                        | **7** (SHA-256 chaining, breakage detection, replay detection)                                                                                                  |
+| **Site starter & live preview**        | **12** (Svedit helpers 3, homepage seed 3, preview utils 3, protocol 3)                                                                                         |
+| **Editable Website license gate**      | **3** (client + server trial/expired checks)                                                                                                                    |
+
+**Data Operations & Config Promotion (2026-07)**:
+
+`tests/unit/services/` + `tests/unit/api/` — Data operations and configuration promotion unit tests:
+
+| Test file                  | Tests | Covers                                                                                                                                                                                            |
+| -------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| config-service.test.ts     | 20    | getStatus (sync/drift), performExport (manifest.json + 8 resource types), performImport (upsert/delete all types), checksum stability, tenant isolation, `content_nodes` tenant-scoped upsert fix |
+| config-permissions.test.ts | 24    | config:read/write/apply permission gating, admin fast-path, non-admin fail-closed (403), deprecated config_sync alias mapping, unmapped namespace rejection                                       |
+| operation-plan.test.ts     | 26    | add/merge/mirror/replace safety modes, risk level classification, blockedReasons from unmet requirements, requiresConfirmation for destructive operations                                         |
+| identity-matching.test.ts  | 19    | syncId priority, external ID fallback, natural key resolution, name-matching rejection, filename-as-identity exclusion, ambiguous key fail-closed                                                 |
+
+> **Why**: Configuration promotion, content packages, data migrations, external importers, backups, and content sync are six separate operational domains — but had **zero** unit test coverage. The `config-service.ts` only handled collections; it now covers 8 resource types (collections, roles, permissions, settings, widgets, themes, webhooks, automations). These 89 tests validate safety modes, identity matching, permission fail-closed behavior, and checksum determinism before any production data is moved.
+
+**Website Starter & Live Preview (2026-07)**:
+
+`tests/unit/services/` + `tests/unit/plugins/` — Website Starter and Editable Website unit tests:
+
+| Test file                             | Tests | Covers                                                                                    |
+| ------------------------------------- | ----- | ----------------------------------------------------------------------------------------- |
+| site-svedit.test.ts                   | 3     | Default Svedit homepage document, serialize/parse round-trip, legacy block JSON rejection |
+| website-starter-seed.test.ts          | 3     | `seedWebsiteStarterPages` idempotency, published insert, CRUD-unavailable no-op           |
+| preview.test.ts                       | 3     | Preview URL building, `collectionHasLivePreview` slot patterns (`/{slug}?lang={lang}`)    |
+| editable-website-protocol.test.ts     | 3     | `postMessage` protocol types, bridge message validation                                   |
+| editable-website/license-gate.test.ts | 3     | Trial active, expired, and missing-license paths for Live Preview authorize               |
+
+`tests/integration/setup-presets.test.ts` — website preset integration (2 tests total in file):
+
+| Test           | Covers                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| Blog preset    | Isolated tenant file write + compile                                                          |
+| Website preset | `pages.ts` with `livePreview`, `plugins: ["editable-website"]`, `recommended: true` on preset |
+
+**Additions**:
+
+`tests/unit/core/` — 23 dedicated tests for database proxy and tenant filter logic:
+
+| Test file                | Tests | Covers                                                     |
+| ------------------------ | ----- | ---------------------------------------------------------- |
+| proxy-utils.test.ts      | 16    | Self-healing HMR, hot-swap getters, tenant auto-injection  |
+| relational-utils.test.ts | 7     | Tenant filter, bypass flags, null handling, Mongo symmetry |
+
+`tests/unit/stores/` — 32 store architecture and reactivity tests:
+
+| Test file                         | Tests | Covers                                                                         |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------ |
+| mode-transition-guard.test.ts     | 12    | Validated mode transitions, unsaved changes blocking, force-reset, idempotency |
+| content-registry.test.ts          | 11    | `$state` reactivity, event-driven `waitForReload`, multi-tenant support        |
+| collection-store-reactive.test.ts | 9     | Reactive getter snapshot fix, selection management, content structure dedup    |
+| ui-store.test.ts                  | 6     | Toggle visibility, screen-size reactivity, singleton                           |
+
+`tests/unit/content/` — 40+ reconciliation, sync, and API surface tests:
+
+| Test file                     | Tests | Covers                                                                                                                                |
+| ----------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| content-reconcile.test.ts     | 23    | FS-DB reconciliation (merge, prune, preserve), builder category retention, manifestOrder, API node preservation, refreshContent modes |
+| sync-content-state.test.ts    | 5     | `detectCompilationDrift`, `ensureCompiledCollectionsFresh`, `syncContentState` boot/gui-save dispatch, fail-closed empty ops          |
+| sync-content-security.test.ts | 4     | No client-only imports, builder permission gate, tenant manifest isolation, forbidden secret literals                                 |
+| upsert-content-nodes.test.ts  | 4     | move/rename/create → `bulkUpdate`, delete → `deleteMany`, mixed batches                                                               |
+
+`tests/unit/compilation/` — compile manifest integrity:
+
+| Test file                | Tests | Covers                                                                                                                |
+| ------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| compile-manifest.test.ts | 4     | Path normalization, orphan prevention, recompile on missing output, `collectionOrder` + `structureNodes` preservation |
+
+| **Multi-Tenancy Tests (2026-07-15)** — `tests/unit/multi-tenancy/` (25 tests, all passing):
+
+| Test file                       | Tests | Covers                                                                                                                                                     |
+| ------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `00-tenant-utils.test.ts`       | 6     | `isMultiTenantEnabled()` truthy/falsy/error handling, `isValidTenantId()` path traversal check, `detectFullStructure()` shape validation                   |
+| `crud-tenant-guard.test.ts`     | 14    | Read auto-inject (find/findMany/findOne), write auto-inject (insert/insertMany/update/updateMany), bypass mode, reject mode, multi-tenant disabled (P0/P1) |
+| `collections-migration.test.ts` | 5     | File move to tenant dir, skip existing, non-.ts ignore, `runFullMigration()` shape & orchestration                                                         |
+
+> All 25 tests pass together in sequence. Mock pollution from `vi.mock` in CRUD guard tests is mitigated by ordering (00- prefix) and `afterEach` global state cleanup.
+
+**E2E Multi-Tenancy Isolation Tests (2026-07-15)** — `tests/e2e/multi-tenancy/isolation.spec.ts` (5 tests):
+
+| Test                           | What it verifies                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| Cross-tenant collection access | Tenant A's collections are invisible to Tenant B via SDK queries             |
+| Cross-tenant file access       | Tenant B receives 403 when accessing Tenant A's file URLs                    |
+| Cross-tenant content isolation | Content entries tagged with Tenant A's ID don't appear in Tenant B's queries |
+| Global resource sharing        | Resources with `tenantId: null` are readable by all tenants                  |
+| Schema scope verification      | `tenantId` field on each record correctly reflects its owning tenant         |
+
+`tests/unit/collectionbuilder/` — organizational persistence:
+
+| Test file                      | Tests | Covers                                                                     |
+| ------------------------------ | ----- | -------------------------------------------------------------------------- |
+| structure-persistence.test.ts  | 3     | `buildOrganizationalManifestFromNodes`, `setOrganizationalManifest`, merge |
+| save-content-structure.test.ts | 2     | Delegates to `syncContentState({ reason: "gui-save" })`, invalid payload   |
+
+`tests/integration/collectionbuilder/` — structure + parity:
+
+| Test file                     | Tests | Covers                                                             |
+| ----------------------------- | ----- | ------------------------------------------------------------------ |
+| structure-persistence.test.ts | 3     | DB upsert roundtrip, manifest `structureNodes` + `collectionOrder` |
+| code-gui-parity.test.ts       | 10    | Collection load parity, manifest readability after init            |
+
+**Collection Builder golden E2E** (`tests/e2e/routes/collection-builder/builder.spec.ts` — 2 tests):
+
+| Test           | Covers                                    |
+| -------------- | ----------------------------------------- |
+| Shell + golden | Board chrome + schema→entry→API lifecycle |
+
+**Content Sync & Benchmarks (2026-07-12)** — measured on Windows 10, Bun 1.3.14, Intel-class CPU:
+
+| Benchmark file                       | Metric                         | Verified result (2026-07-12)                                                     |
+| ------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------- |
+| `content-gui-save.test.ts`           | GUI save vs legacy fullReload  | **1.080 ms** vs **13.875 ms** — **12.8×** speedup, **92.2%** reconcile reduction |
+| `content-incremental-reload.test.ts` | Incremental vs full (1k files) | **0.425 ms** vs **14.323 ms** — **33.7×** speedup                                |
+| `content-boot-compile-drift.test.ts` | Drift detect / compile / boot  | **0.109 ms** detect, **18.9 ms** compile (1 file), **1.034 ms** boot sync        |
+
+Reproduce:
+
+```bash
+BENCHMARK_RECORD=1 bun test tests/benchmarks/content-gui-save.test.ts
+BENCHMARK_RECORD=1 bun test tests/benchmarks/content-incremental-reload.test.ts
+BENCHMARK_RECORD=1 bun test tests/benchmarks/content-boot-compile-drift.test.ts
+```
+
+**Content sync security verification (2026-07-12)**:
+
+| Check                                        | Result                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------ |
+| `scripts/scan-secret-misuse.ts` (2404 files) | ✅ **0 findings** — no secret misuse in scanned tree                     |
+| Fast security regression (67 tests)          | ✅ **67/67 pass** — defense-in-depth, auth, authorization, builder RBAC  |
+| `sync-content-security.test.ts`              | ✅ Tenant manifest isolation, no `fullReload` in builder save path       |
+| `collectionbuilder` permission gate          | ✅ `hasCollectionBuilderPermission` unchanged (defense-in-depth layer 4) |
+
+> **Authenticated audit**: `bun run audit:security:auth` starts `bun run dev` with `TEST_MODE=true` and runs `security-audit.ts --auth` (full CSRF/cookie/testing-API coverage). Unauthenticated preview scans: `bun run audit:security -- --base=http://127.0.0.1:4173`.
+
+`tests/unit/media/` — 40 media utility and security tests:
+
+| Test file            | Tests | Covers                                                                                                      |
+| -------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| sharing.test.ts      | 13    | Share link generation, validation, revocation, expiry, download limits, IP checks                           |
+| media-utils.test.ts  | 15    | MIME lookup, reverse extension mapping, filename sanitization, file/buffer validation, hash-path resolution |
+| slim-sniffer.test.ts | 12    | Binary MIME detection for JPEG, PNG, GIF, WebP, SVG, PDF, DOCX, MP4, WebM                                   |
+
+`tests/unit/media/processing/` — 41 media pipeline unit tests:
+
+| Test file                | Tests | Covers                                                                                                                    |
+| ------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------- |
+| svg-sanitization.test.ts | 27    | SVG XSS defense: dangerous tag stripping, event handler removal, protocol blocking (javascript:/data:), CDATA/XXE/DOCTYPE |
+| media-storage.test.ts    | 10    | `saveResized` contract: size enumeration, parallel dispatch, aspect ratio calculation, format selection (jpg/webp/avif)   |
+| media-service.test.ts    | 6     | `ensureOriginalOnDisk` pattern: dedup check, write + verify, concurrency safety, path building                            |
+
+`tests/unit/components/image-editor/` — 35 image editor widget and plugin slot tests:
+
+| Test file                | Tests | Covers                                                                                                                                                    |
+| ------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| widget-registry.test.ts  | 27    | isValidWidget validation (12 cases), default value application (8), sorting by order/title (3), disabled filtering (2), category + key lookup (2)         |
+| plugin-tool-slot.test.ts | 8     | image_editor_tool InjectionZone acceptance, slot registration/deduplication, zone isolation, server actions, prop passthrough, condition filtering, clear |
+
+`tests/unit/utils/` — 4 barrel integrity tests:
+
+| Test file                | Tests | Covers                                                                                   |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------- |
+| circular-imports.test.ts | 4     | No `@utils/utils` barrel imports from utils files, barrel export existence, dead exports |
+
+> **Why**: Rolldown (Vite 8 config bundler) traces static imports. A circular reference `utils.ts → file.ts → @utils/utils` causes Rolldown to expand the entire dependency graph into `.svelte` files, which it cannot parse. This test prevents regressions.
+
+**Additions**:
+
+`tests/unit/utils/test-db-safety.test.ts` — 11 test DB safety classifier tests:
+
+| Test file              | Tests | Covers                                                                                                                                                                                     |
+| ---------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| test-db-safety.test.ts | 11    | `isIsolatedTestDbName` (6 cases), `extractDbNameFromConfigSource` (3), `isConfigSourceSafeForTesting` (2 incl. incident shape: DB_NAME 'sveltycms' copied verbatim from production config) |
+
+> **Why**: The shared classifier (`src/utils/test-db-safety.ts`) is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks (`check-test-db-safety.ts`). A regression in the classifier would silently allow tests to run against production databases. These tests catch that at the pre-push unit test gate.
+
+**Security hardening**:
+
+`tests/unit/hooks/route-access-audit.test.ts` — 7 route access and bypass security tests:
+
+| Test file                  | Tests | Covers                                                                             |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------- |
+| route-access-audit.test.ts | 7     | Bootstrap route isolation, production backdoor closure (4 cases), env-gated bypass |
+
+`tests/unit/hooks/namespace-ownership.test.ts` — 6 namespace ownership depth tests:
+
+| Test file                   | Tests | Covers                                                                                       |
+| --------------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| namespace-ownership.test.ts | 6     | Namespace depth checks (verifies test files actually contain tests), multi-DB contract gates |
+
+`src/utils/test-bypass.server.ts` — Centralized test bypass gate with `timingSafeEqual`:
+
+- Only active when `TEST_MODE`, `PLAYWRIGHT`, or `BENCHMARK` env flags are explicitly set
+- No hardcoded fallback secrets — uses `getTestSecret()` from `setup-check.ts`
+- `handleHyperTurbo` no longer short-circuits benchmarks (`setBypassFlag: false`)
+
+`src/utils/page-guards.server.ts` — Route access layer 4 guards:
+
+- `getAuthenticatedUser()` — unified auth check replacing ad-hoc login redirects
+- `requirePagePermission()` — permission-gated page access
+- Applied across all `(app)` `+page.server.ts` loaders
+
+**Middleware performance**:
+
+- Request classifier cache (`classifyRequest` → `locals.__flags`)
+- Turbo GET / content-negotiation early exits
+- Tenant-scoped rate-limit keys; security headers on 429/503
+- Global try/catch applies `applyAllSecurityHeaders` on hook errors
+
+**Benchmarks (SQLite)**:
+
+- Full auth pipeline: 0.960ms → 0.780ms avg (−19%), p95 −28%
+- Turbo pipeline: 0.592ms → 0.527ms (−11%)
+- Warmed matrix peak: 0.555ms full-auth avg
+- 53/57 matrix tests pass; stress tests pass standalone
+
+**Hardening — Benchmark & Integration Infrastructure**:
+
+`tests/unit/benchmarks/benchmark-harness.test.ts` — 11 harness self-tests:
+
+| Test file                 | Tests | Covers                                                                           |
+| ------------------------- | ----- | -------------------------------------------------------------------------------- |
+| benchmark-harness.test.ts | 11    | `assertSuccess` (7 cases), warmup isolation regression (2), error visibility (2) |
+
+> **Why**: A MongoDB E11000 duplicate-key bug survived 3,600 silently-failed benchmark iterations because: (a) warmup errors were swallowed by an empty `catch {}`, (b) benchmark callbacks never checked `result.success`, and (c) no unit tests existed for the benchmark harness itself. These 11 tests validate that the framework correctly detects and reports failures at every layer.
+
+`tests/integration/databases/adapter-parity.test.ts` — 15 cross-adapter CRUD parity tests:
+
+| Test file              | Tests | Covers                                                                                      |
+| ---------------------- | ----- | ------------------------------------------------------------------------------------------- |
+| adapter-parity.test.ts | 15    | Insert, findOne, findMany, update, delete, count, upsert — identical assertions per adapter |
+
+> **Why**: Each adapter had its own integration test file testing _different_ things. No unified suite ran the identical operation against all 4 adapters and asserted identical results. This test catches adapters that silently upsert where others throw, return different data shapes, or violate the `DatabaseResult` contract.
+
+`tests/integration/databases/error-contract.test.ts` — 11 error handling contract tests:
+
+| Test file              | Tests | Covers                                                                               |
+| ---------------------- | ----- | ------------------------------------------------------------------------------------ |
+| error-contract.test.ts | 11    | Duplicate keys, missing records, invalid inputs, error shape consistency per adapter |
+
+> **Why**: SQL adapters silently wrap errors via `BaseAdapter.wrap()` (returning `{ success: false }`), while MongoDB catches `E11000` in `crud-methods.ts`. Both return `{ success: false }` but with different shapes and logging behavior. This test enforces consistent error handling across all 4 adapters.
+
+`tests/integration/databases/cache-contract.test.ts` — 9 cache behavior contract tests:
+
+| Test file              | Tests | Covers                                                            |
+| ---------------------- | ----- | ----------------------------------------------------------------- |
+| cache-contract.test.ts | 9     | L1 set/get/delete, TTL expiry, tenant isolation, negative caching |
+
+> **Why**: Most of the 9 upcoming performance improvements touch the cache layer. Without integration-level cache contract tests, TTL changes, tenant-scoped tags, pipeline batching, and Bloom filter optimizations could silently regress.
+
+`tests/helpers/result-validator.ts` — Runtime `DatabaseResult<T>` contract validator:
+
+- `validateDatabaseResult()` — structural validation (`.success` boolean, `.error.code` on failure, `.data` property presence)
+- `assertDatabaseSuccess()` / `assertDatabaseFailure()` — convenience wrappers for test assertions
+- Used by all new integration and benchmark tests
+
+`tests/benchmarks/modules/benchmark-sanitizer.ts` — Pre-flight benchmark validation:
+
+- Collection emptiness check before seeding
+- Single-operation sanity check (insert → findOne → update → delete)
+- Warmup isolation check (catches shared-key-pool bugs before the benchmark loop)
+- Bulk operation validation
+- Wired into `database-performance.test.ts` — found 382,751 stale records on first run
+
+**Benchmark harness hardening**:
+
+| Fix                         | File                           | Before                                  | After                                               |
+| --------------------------- | ------------------------------ | --------------------------------------- | --------------------------------------------------- |
+| Warmup error visibility     | `benchmark-utils.ts`           | Empty `catch {}` — 100% silent          | Logs, `onWarmupError` callback, >50% guard throws   |
+| Result assertion helper     | `benchmark-utils.ts`           | `await db.crud.insert(...)` — ignored   | `assertSuccess(result, "insert")` throws on failure |
+| ID uniqueness (INSERT)      | `database-performance.test.ts` | Pre-allocated pool shared warmup↔actual | `crypto.randomUUID()` per iteration                 |
+| ID uniqueness (BULK INSERT) | `database-performance.test.ts` | Pre-allocated batch pool                | Fresh `crypto.randomUUID()` per iteration           |
+| Adapter error parity        | `database-performance.test.ts` | Only MongoDB errors visible via logger  | All adapters fail-fast on `{ success: false }`      |
+
+**Full Contract Coverage**:
+
+`tests/integration/databases/transaction-contract.test.ts` — 5 transaction & rollback tests:
+
+| Test file                    | Tests | Covers                                                                           |
+| ---------------------------- | ----- | -------------------------------------------------------------------------------- |
+| transaction-contract.test.ts | 5     | Commit persistence, rollback discard, orphan prevention, error shape consistency |
+
+> **Why**: No adapter had `transaction()` tested. A partial failure during a multi-document write could silently commit or roll back differently per adapter.
+
+`tests/integration/databases/bulk-operations-contract.test.ts` — 10 bulk & atomic operation tests:
+
+| Test file                        | Tests | Covers                                                                                |
+| -------------------------------- | ----- | ------------------------------------------------------------------------------------- |
+| bulk-operations-contract.test.ts | 10    | insertMany, updateMany, deleteMany, upsertMany, atomicIncrement (race-condition safe) |
+
+> **Why**: Bulk operations (`insertMany`, `upsertMany`) and `atomicIncrement` had zero contract coverage. A lost-update race under concurrent writes would go undetected.
+
+`tests/integration/databases/advanced-crud-contract.test.ts` — 9 advanced CRUD tests:
+
+| Test file                      | Tests | Covers                                            |
+| ------------------------------ | ----- | ------------------------------------------------- |
+| advanced-crud-contract.test.ts | 9     | streamMany, findByIds, aggregate, restore, exists |
+
+> **Why**: Streaming reads, batch lookups, aggregation pipelines, and soft-delete reversal (`restore`) were untested across adapters.
+
+`tests/integration/databases/health-contract.test.ts` — 12 infrastructure tests:
+
+| Test file               | Tests | Covers                                                                                    |
+| ----------------------- | ----- | ----------------------------------------------------------------------------------------- |
+| health-contract.test.ts | 12    | Connection health, pool diagnostics, version, capabilities, queryBuilder, tenant policies |
+
+> **Why**: Root-level `IDBAdapter` methods (`getVersion`, `getCapabilities`, `isEmpty`, `queryBuilder`, `getConnectionHealth`) were inaccessible through the self-healing proxy. These tests validate the underlying adapter directly.
+
+`tests/unit/security/cache-integrity.test.ts` — 6 cache poisoning detection tests:
+
+| Test file               | Tests | Covers                                                |
+| ----------------------- | ----- | ----------------------------------------------------- |
+| cache-integrity.test.ts | 6     | HMAC-SHA256 signing, tamper detection, entry contract |
+
+> **Why**: If Redis is compromised, cached values can be swapped. HMAC integrity signing makes cache poisoning detectable.
+
+`tests/unit/security/audit-chain-verification.test.ts` — 7 audit log chain tests:
+
+| Test file                        | Tests | Covers                                                 |
+| -------------------------------- | ----- | ------------------------------------------------------ |
+| audit-chain-verification.test.ts | 7     | SHA-256 chaining, breakage detection, replay detection |
+
+> **Why**: Crypto-chained audit logs (SHA-256) must detect tampering, chain breaks, and timestamp-based replay attacks.
+
+**Additions**:
+
+`tests/unit/permissions/` — 41 permissions logic tests:
+
+| Test file                      | Tests | Covers                                                                                                                                |
+| ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| permissions-setting.test.ts    | 23    | Presets (3), initialization (3), toggle immutability (4), bulk actions (4), preset apply (3), clean/export (3), undo/redo history (3) |
+| collection-permissions.test.ts | 18    | Status types (4), sort fields (4), pagination clamping incl. zero/NaN edge (5), debounced auto-save timing (5)                        |
+
+> **Why**: `permissions-setting.svelte` had a critical bug — `$derived` (read-only) was used for mutable state, making permission toggles silently fail. The toggle buttons used `variant="error"` for all states and showed identical ✓ icons for on/off. `collection-permissions.svelte` lacked reactive hydration, debounce, and had a `|| 20` falsy bug where `0` would incorrectly clamp to 20 instead of 5.
+
+**Plugin Capability System & Schema Desugaring (2026-07-17)**:
+
+`tests/unit/security/capability-registry.test.ts` — 25 capability registry and role reconciliation tests:
+
+| Test file                   | Tests | Covers                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| capability-registry.test.ts | 25    | Core catalog (33 caps), plugin registration/deregistration, merged catalog dedup, owner auto-inheritance, `hasCapability()` with core + plugin IDs, admin fast-path, `canManagePluginSettings`/`canExecutePlugins`, owner role reconciliation, built-in role reconciliation (owner-only invariant), `isOwnerRole`/`findOwnerRole` |
+
+> **Why**: Plugins declare capabilities in `metadata.capabilities` but there was no merged catalog, no boot reconciliation, and no `hasCapability()` supporting plugin-declared IDs. Owners of existing orgs wouldn't receive new plugin capabilities until a manual role update. The merged catalog now reconciles on boot — owner always gets ALL capabilities (core + plugin).
+
+`tests/unit/plugins/settings-crypto.test.ts` — 25 plugin settings encryption and validation tests:
+
+| Test file               | Tests          | Covers                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| settings-crypto.test.ts | 25 (1 skipped) | Masked value detection (6), `maskSecretFields` (5), `processSecretFields` (4: preserve existing, encrypt new, blank handling), `decryptSecretFields` (3), settings validation (8: valid/invalid currency, out-of-range numbers, required non-secret, secret blank-tolerant), `getSecretFieldNames` (2), `hasSecretFields` (2), `requiredCapabilities` (2) |
+
+> **Why**: Plugin settings had no encryption, no validation against a declaration, and no secret field type. The 1 skipped test is the live AES-256-GCM encryption test — it requires `SECRET_ENCRYPTION_KEY` in the environment, enforcing the fail-loudly-on-missing-key policy.
+
+`tests/unit/widgets/desugar-field.test.ts` — 20 schema desugaring tests:
+
+| Test file             | Tests | Covers                                                                                                                                                                                                                                                                     |
+| --------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| desugar-field.test.ts | 20    | Color expansion (3), SEO expansion (2), metadata preservation (4: access, validation, groups, custom), non-sugar pass-through (3), nested field recursion (2), schema-level desugaring (1), sugar type registry (4: recognition, listing, custom registration, sugar keys) |
+
+> **Why**: Shortcut field types (`{ type: 'color' }`) expand into full objects but previously had no way to guarantee that authored metadata (access control, validation, groups) survived the transform. The desugaring engine now layers authored over built — preservation is the default.
+
+## 4. CI Pipeline Gates
+
+| Gate                      | Runtime         | What it catches                                                                                                            |
+| ------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Bootstrap                 | ~30s            | Dep install, codegen                                                                                                       |
+| Lint + Type Check         | ~40s            | oxlint, svelte-check, tsc                                                                                                  |
+| Unit Tests                | ~17s            | 2,194 Vitest specs (251 files)                                                                                             |
+| Security Regression Tests | ~5s             | 130 tests — defense-in-depth, auth, authorization, RBAC, builder RBAC, namespace-ownership, setup gating, security headers |
+| Build                     | ~30s            | Production build integrity                                                                                                 |
+| Integration (×4)          | ~3min each      | SQLite, MongoDB, MariaDB, PostgreSQL — 54 spec files incl. full contract coverage + multi-DB contract test                 |
+| Benchmarks (×64)          | ~10h full suite | 64 tests × 8 DB variants via `runOnAllDatabases()` — run selectively per PR                                                |
+| E2E Wizard                | ~30s            | Setup wizard flow                                                                                                          |
+| E2E Auth                  | ~20s            | Login + session creation                                                                                                   |
+| E2E App (×20)             | ~15s each       | Full admin surface (signup through media gallery)                                                                          |
+
+### Local Quality Gates (pre-commit / pre-push)
+
+Manifest: `scripts/precheck-shared.ts` · Orchestrator: `scripts/precheck.ts`
+
+| Gate                      | Tier                               | Runtime       | What it catches                                                                               |
+| :------------------------ | :--------------------------------- | :------------ | :-------------------------------------------------------------------------------------------- |
+| Test Config Safety        | pre-commit + pre-push              | <100ms        | Unsafe `config/private.test.ts` (non-isolated `DB_NAME`)                                      |
+| Format + Lint (staged)    | pre-commit                         | ~2–3s         | oxfmt, oxlint, slop on staged `src/`; lint-docs on staged `docs/`                             |
+| Format + Lint (full tree) | pre-push                           | ~5s           | Full-repo format verification + oxlint via `bun run check`                                    |
+| Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                                              |
+| Full Unit Tests           | pre-push (**always**)              | ~17s          | All 2,194 Vitest specs (251 files)                                                            |
+| Security Regression Tests | pre-commit + pre-push              | ~250ms        | 130 tests from hooks + permissions + RBAC suites (deduplicated via `--exclude` between tiers) |
+| P0 Coverage Validation    | pre-push (when code changed)       | ~1.5s         | Validates all 14 P0 items have passing tests via `validate-p0-coverage.ts`                    |
+| Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity + SHA256 checksum verification                         |
+| Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL — 54 spec files incl. multi-DB contract test             |
+| Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`) — with sanitizer                               |
+| Playwright E2E            | CI / `ci:local` only               | ~15–30 min    | Browser validation across 17+ projects                                                        |
+
+Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier), `bun run ci:local` (+ E2E).
+
+## 5. Gaps — What's NOT Tested
+
+| Gap                                            | Risk                                                                                                                                             | Priority                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| **GraphQL E2E**                                | Only integration-tested; no browser-level GQL query test                                                                                         | 🟡 Medium                                       |
+| **SSO/OAuth integration**                      | Mock-only test; no real IdP flow validation                                                                                                      | 🟡 Medium                                       |
+| **Dashboard drag-reorder E2E**                 | Widget grid smoke covered; drag-and-drop reorder not browser-tested                                                                              | 🟢 Low                                          |
+| ✅ **Config sync tests** (resolved)            | Now covered by `config-sync.test.ts` (3 tests: response shape, auth gate, POST import) + `config-service.test.ts` (20 unit)                      | —                                               |
+| ✅ **Config permissions** (resolved)           | Now covered by `config-permissions.test.ts` (24 tests: read/write/apply gating, admin fast-path, deprecated aliases)                             | —                                               |
+| ✅ **Data operations safety modes** (resolved) | Now covered by `operation-plan.test.ts` (26 tests: add/merge/mirror/replace, risk classification, destructive confirmation)                      | —                                               |
+| ✅ **Identity matching** (resolved)            | Now covered by `identity-matching.test.ts` (19 tests: syncId priority, external ID fallback, natural key, name rejection, ambiguous fail-closed) | —                                               |
+| - **Performance regression**                   | Benchmarks now using per-test multi-DB runner; 61 tests × 8 DB variants                                                                          | 🟡 Medium — see database-tests.mdx for strategy |
+| **Image editor E2E save**                      | Editor open + crop/focal tools covered; manipulate save not browser-tested                                                                       | 🟢 Low                                          |
+
+| Gap                                                          | Risk                                                                                                                                                                                                                                                                                                       | Priority  |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| **Plugin/extension E2E (deep)**                              | Stripe, cookie-consent untested; editable-website has smoke E2E only (no full iframe bidirectional sync)                                                                                                                                                                                                   | 🟢 Low    |
+| **Site starter Svedit inline edit E2E**                      | Guest homepage + Live Preview tab covered; click-to-edit in iframe not browser-tested                                                                                                                                                                                                                      | 🟢 Low    |
+| **Mobile viewport**                                          | All tests run Desktop Chrome only                                                                                                                                                                                                                                                                          | 🟢 Low    |
+| **Multi-tenant E2E**                                         | Unit tests exist for CRUD guard, tenant utils, and migration (26 tests). No browser-level cross-tenant isolation test yet                                                                                                                                                                                  | 🟡 Medium |
+| **Data operations integration**                              | Config promotion has unit + integration tests; content export/import, backup/restore, migration apply/verify, and content sync have no integration test coverage                                                                                                                                           | 🟡 Medium |
+| **Data operations benchmarks**                               | Zero benchmarks for config promotion throughput, content package streaming, backup create/restore timing, or importer format comparison; only `migration-scale.test.ts` exists                                                                                                                             | 🟡 Medium |
+| **Data operations E2E**                                      | No browser-level tests for configuration promotion page, content transfer page, backup management, or migration workflow                                                                                                                                                                                   | 🟡 Medium |
+| **Cache L2 (Redis) integration**                             | Cache contract tests cover L1 only; Redis read-through, pub/sub invalidation, stampede protection not integration-tested                                                                                                                                                                                   | 🟡 Medium |
+| **Cross-adapter concurrency**                                | Concurrent CRUD operations tested per-adapter but no cross-adapter race condition contract                                                                                                                                                                                                                 | 🟡 Medium |
+| **✅ Production test-secret backdoor** (resolved)            | Closed: `x-test-secret` now requires `TEST_MODE`/`BENCHMARK` env + `timingSafeEqual`                                                                                                                                                                                                                       | —         |
+| **✅ Media sharing & MIME** (resolved)                       | Now covered by `tests/unit/media/` (40 tests: sharing, MIME utils, binary sniffer)                                                                                                                                                                                                                         | —         |
+| **✅ Content reconciliation** (resolved)                     | Now covered by `tests/unit/content/content-reconcile.test.ts` (23 tests) + `sync-content-state.test.ts` (5 tests)                                                                                                                                                                                          | —         |
+| **✅ Proxy & tenant filter** (resolved)                      | Now covered by `tests/unit/core/proxy-utils.test.ts` + `relational-utils.test.ts` (23 tests)                                                                                                                                                                                                               | —         |
+| **✅ Image editor widget registry + plugin slot** (resolved) | Now covered by `tests/unit/components/image-editor/` (35 tests: registry validation, plugin tool slots)                                                                                                                                                                                                    | —         |
+| ✅ **Benchmark correctness validation** (resolved)           | Now covered by `benchmark-harness.test.ts` (11 tests) + `benchmark-sanitizer.ts` + `assertSuccess()` in all CRUD factories                                                                                                                                                                                 | —         |
+| ✅ **Adapter behavioral parity** (resolved)                  | Now covered by `adapter-parity.test.ts` (15 tests) + `error-contract.test.ts` (11 tests) running identical ops per adapter                                                                                                                                                                                 | —         |
+| ✅ **Warmup error visibility** (resolved)                    | Closed: empty `catch {}` replaced with `console.warn`, `onWarmupError` callback, >50% failure guard                                                                                                                                                                                                        | —         |
+| ✅ **Transaction rollback contract** (resolved)              | Now covered by `transaction-contract.test.ts` (5 tests: commit, rollback, orphan prevention)                                                                                                                                                                                                               | —         |
+| ✅ **Bulk operations contract** (resolved)                   | Now covered by `bulk-operations-contract.test.ts` (10 tests: insertMany, updateMany, deleteMany, upsertMany, atomicIncrement)                                                                                                                                                                              | —         |
+| ✅ **Advanced CRUD contract** (resolved)                     | Now covered by `advanced-crud-contract.test.ts` (9 tests: streamMany, findByIds, aggregate, restore, exists)                                                                                                                                                                                               | —         |
+| ✅ **Connection health contract** (resolved)                 | Now covered by `health-contract.test.ts` (12 tests: health, pool, version, capabilities, queryBuilder, tenant policy)                                                                                                                                                                                      | —         |
+| ✅ **Cache poisoning detection** (resolved)                  | Now covered by `cache-integrity.test.ts` (6 tests: HMAC signing, tamper detection)                                                                                                                                                                                                                         | —         |
+| ✅ **Audit log chain verification** (resolved)               | Now covered by `audit-chain-verification.test.ts` (7 tests: SHA-256 chaining, breakage, replay detection)                                                                                                                                                                                                  | —         |
+| ✅ **Performance improvements** (resolved)                   | 8/9 implemented: adaptive TTL, Redis batching, Bloom bitmask, regex cache, tenant tags, pool pre-warm, schema registration, ETag helper                                                                                                                                                                    | —         |
+| ✅ **Multi-DB contract tests** (resolved)                    | Now covered by `contract.test.ts` (25 tests, 6 gates: Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions)                                                                                                                                                                     | —         |
+| ✅ **Namespace ownership depth** (resolved)                  | Now covered by namespace-ownership.test.ts (6 tests: verifies test files actually contain tests, not just file existence; contract gates)                                                                                                                                                                  | —         |
+| ✅ **Security tests surfaced in CI** (resolved)              | Now a standalone Security Regression Tests task (123 tests) running in pre-commit AND pre-push via `precheck-shared.ts`, deduplicated across tiers with `--exclude`                                                                                                                                        | —         |
+| ✅ **CI scorecard** (resolved)                               | Per-DB markdown table + JSON summary emitted to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; visible in every CI run's annotations                                                                                                                                                                 | —         |
+| ✅ **P0 journey tracking** (resolved)                        | Now covered by `p0-manifest.ts` (14 P0 items across 20 test files) + `validate-p0-coverage.ts` automated validation in pre-push (`~1.5s`)                                                                                                                                                                  | —         |
+| ✅ **Build artifact integrity verification** (resolved)      | SHA256 checksum generated on build artifact upload and verified on download in `ci.yml`; mismatch fails the job with checksum diff logged                                                                                                                                                                  | —         |
+| ✅ **`bun:test` imports** (resolved)                         | All 43 affected files migrated from `bun:test` to `vitest` imports; `bun-preload.ts` shim retained for `bun test` compatibility                                                                                                                                                                            | —         |
+| ✅ **Website Starter test coverage** (resolved)              | Unit: Svedit helpers, homepage seed, preview utils, license gate, protocol (12 tests). Integration: website preset files. E2E: `site-starter.spec.ts` (3 tests)                                                                                                                                            | —         |
+| ✅ **`/user` profile stability + P0 journeys** (resolved)    | Product: batch delete, CSRF remotes/GDPR, permissions display, sessions UI, PermissionGuard RBAC. Unit: remote helpers, page.server load, PermissionGuard rules, expanded user API. E2E: `p0-journeys.spec.ts` + seeded tokens (no soft-skip). Control map ~77% — see [routes/user.mdx](./routes/user.mdx) | —         |
+| **`/user` P1 remaining**                                     | GDPR export/anonymize E2E, 2FA enroll fixture, RTC prefs reload, permissions badge E2E, pagination seed volume                                                                                                                                                                                             | 🟡 Medium |
+| ✅ **Plugin capability reconciliation** (resolved)           | Merged core + plugin catalog (25 tests): `capability-registry.test.ts` — core catalog, registration, owner auto-inheritance, boot reconciliation, `hasCapability(string & {})`                                                                                                                             | —         |
+| ✅ **Encrypted plugin settings** (resolved)                  | AES-256-GCM `secret` fields (25 tests): `settings-crypto.test.ts` — masking, encryption, validation against declaration, preservation on blank submit                                                                                                                                                      | —         |
+| ✅ **Schema desugaring sugar types** (resolved)              | Shortcut field expansion (20 tests): `desugar-field.test.ts` — color/seo expansion, metadata preservation, nested recursion, extensible registry                                                                                                                                                           | —         |
+
+## 6. Recommended Next Actions
+
+### ✅ Completed
+
+1. ✅ **Multi-DB contract test** — 26 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters; single `contract.test.ts` file
+2. ✅ **CI scorecard** — per-DB markdown table + JSON summary written to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; each adapter run emits pass/fail/failures for every spec
+3. ✅ **P0 tracking** — 14 P0 items across 20 test files with automated validation via `validate-p0-coverage.ts` in pre-push (`~1.5s`); manifest in `p0-manifest.ts`
+4. ✅ **Namespace ownership depth checks** — `namespace-ownership.test.ts` (6 tests) verifies test files actually contain tests, not just file existence; validates multi-DB contract gates
+5. ✅ **Security regression tests** — 123 tests (defense-in-depth, auth, authorization, builder RBAC, namespace-ownership) running in pre-commit AND pre-push; deduplicated across tiers via `--exclude` flag
+6. ✅ **Build artifact integrity** — SHA256 checksum generated on upload and verified on download in `ci.yml`; checksum mismatch fails the job with diff logged
+7. ✅ **BackupService** — 1,770-line service with full disaster recovery pipeline: backup create (NDJSON + manifest + SHA-256 checksums), validate (integrity + compatibility), restore-plan (dry-run), restore (maintenance-lock-gated with confirmed gate), AES-256-GCM encryption, job queue integration, tenant isolation
+8. ✅ **Backup handler wired** — 168-line handler with all 6 endpoints fully functional (list, create, validate, restore-plan, restore, jobs)
+9. ✅ **Config promotion benchmarks** — config-promotion.test.ts (297 lines): export/plan/apply throughput at 10/50/100 collections, memory footprint per tier
+10. ✅ **Content package benchmarks** — content-package.test.ts (464 lines): NDJSON export/import at 100/1k/10k entries, relation remapping depth, duplicate strategy resolution, manifest checksum timing
+11. ✅ **ContentPackageService** — 1,133-line service with export/import pipeline: NDJSON streaming, duplicate strategies (skip/update/create-copy/fail), relation remapping, media reference maps, manifest validation, background job support, tenant isolation
+12. ✅ **MigrationEngine extended** — 984-line service with migration ledger, idempotent apply (planHash dedup), cross-adapter locking, postcondition verification, risk scoring (safe/warning/destructive), rollback support, status/history queries
+13. ✅ **Content transfer handler wired** — 315-line handler replacing all 501 stubs with real ContentPackageService integration for all 9 endpoints
+14. ✅ **Migration handler wired** — 172-line handler with real MigrationEngine integration: status, history, plan, apply, verify
+15. ✅ **Data operations architecture** — 6-domain API namespace separation (config, content-export, content-import, migrations, importers, backups, content-sync) with fail-closed permission mappings; 6 new handler files; deprecated alias backward compatibility
+16. ✅ **ConfigService extended to 8 resource types** — collections, roles, permissions, settings, widgets, themes, webhooks, automations (was collections-only); 1,066-line service with manifest.json export and secret key filtering
+17. ✅ **Config promotion API** — GET /api/config/status with real drift detection; POST /api/config/export|plan|apply with safety modes; GET /api/config/resources
+18. ✅ **89 new data operations unit tests** — config-service (20), config-permissions (24), operation-plan (26), identity-matching (19)
+19. ✅ **Fixed broken sync UI** — removed non-existent ImportExportManager import; wired real configService.getStatus() into GET /api/config_sync
+20. ✅ **Fixed config-sync integration test** — bun:test → vitest imports; response shape validation; POST import action test
+21. ✅ **Data operations documentation** — configuration-promotion.mdx (362 lines), data-operations.mdx (352 lines); updated utility.mdx deprecation notice
+22. ✅ **Collection Builder Tabs UX** — 3-tab editor (Basic Setup → Widgets & Fields → Settings & Permissions) replaces linear stepper; keyboard-navigable, ARIA-compliant
+23. ✅ **Code ↔ GUI Parity** — AST-based TypeScript generation from visual editor; both paths produce identical output
+24. ✅ **Diagnostic warnings fixed** — 15 unused imports/variables cleaned across 6 integration test files + result-validator.ts
+25. ✅ **Auth E2E resilience** — auth.setup.ts now has multi-layer fallback for session establishment
+26. ✅ **Permission components hardened** — Fixed derived→state bug in permissions-setting.svelte; 41 unit tests covering presets, bulk, undo/redo, debounce
+27. ✅ **Collection permissions tab** — Reactive hydration from store, 300ms debounced auto-save, unsaved-changes aria-live indicator
+28. ✅ **Website Starter test suite** — seedWebsiteStarterBlueprint testing API, 12 unit tests, website preset integration, site-starter.spec.ts E2E smoke
+29. ✅ **Plugin Capability Reconciliation** — merged core + plugin catalog (capability-registry.ts), owner auto-inheritance, boot reconcile, `hasCapability(string & {})` (25 tests)
+30. ✅ **Encrypted Plugin Settings** — AES-256-GCM secret fields with versioned envelope (`v1:iv:authTag:ciphertext`), server-only decryption, masked API responses, validation against SettingsPart declaration (25 tests)
+31. ✅ **Schema Desugaring (Sugar Types)** — `desugarFieldType` engine for color/seo shortcut types, extensible `registerSugarType()` registry, metadata preservation (access/validation/groups), nested recursion (20 tests)
+32. ✅ **Plugin Part System (definePlugin)** — Discriminated union of 8 PluginPart types, mandatory RoutePart.requiredCapabilities, boot-time part resolution in PluginRegistry
+33. ✅ **AdminArea Shell Extensions** — Typed extensions for admin chrome zones (sidebar, header, footer, content-header, content-footer) with capability gating
+34. ✅ **`/user` stability pack (2026-07-18)** — Fixed self-delete/CSRF/permissions/sessions/PermissionGuard; unit load+remote helpers; E2E `p0-journeys` (password, non-admin, seeded tokens); docs control map + matrix updated
+35. ✅ **Visual Editing Preview Bridge** — Fixed preventDefault() bug (only cancels anchors/submit, not checkboxes/details), stegaClean(), usePreview() Svelte 5 rune
+
+### Ongoing
+
+1. **`/user` P1** — GDPR export/anonymize, 2FA fixture journey, RTC prefs persistence (see [routes/user.mdx](./routes/user.mdx))
+2. **Multi-tenant E2E isolation tests** — browser-level cross-tenant access check
+3. **CRUD tenant guard mock cleanup** — fix Vitest module leakage across test files
+4. **File server tenant access control** — verify `locals.tenantId` in `/files/[...path]` route
+5. **Multi-tenant benchmark** — CRUD guard throughput overhead under load (sub-µs target)
+6. **Data operations E2E tests** — configuration promotion page, content transfer page, backup management, migration workflow
+7. **Harden builder selectors** — add data-testid to collection builder critical paths
+8. **Image editor save E2E** — save via /api/media/manipulate after crop
+9. **Visual regression baseline** — run Playwright visual regression in CI
+10. **Dashboard drag-reorder E2E** — keyboard/grid reorder regression test
+11. **Enable benchmark gate on PR** — add run-benchmarks label auto-detection
+12. **Cache L2 (Redis) integration tests** — Redis read-through, pub/sub invalidation, stampede protection
+13. **Cross-adapter concurrency contract** — race-condition tests across all 4 adapters
+14. **PostgreSQL clean baseline** — restart Docker + fresh DB for fair comparison
+15. **MongoDB COUNT index** — add status field index and re-benchmark
+16. **Code → GUI import** — parse existing .ts collection file and populate visual editor
+17. **Field validator visual editor** — visual Valibot schema builder per widget field
+18. **Widget Factory integration** — visual widget creation tool; marketplace browse/install

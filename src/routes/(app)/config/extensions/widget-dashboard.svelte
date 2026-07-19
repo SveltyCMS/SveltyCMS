@@ -18,6 +18,12 @@ import { onMount } from "svelte";
 import WidgetCard from "./widget-card.svelte";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+import {
+	listWidgets,
+	unwrapWidgetList,
+	setWidgetStatus,
+	uninstallWidget as apiUninstallWidget,
+} from "./widgets-api";
 
 // Props
 const { data }: { data: any } = $props();
@@ -132,19 +138,11 @@ async function loadWidgets() {
 	error = null;
 
 	try {
-		const response = await fetch(`/api/widgets/list`);
-
-		if (!response.ok) {
-			throw new Error(`Failed to load widgets: ${response.statusText}`);
+		const result = await listWidgets();
+		if (!result.success) {
+			throw new Error(result.message || "Failed to load widgets");
 		}
-
-		const result = await response.json();
-		console.log("[WidgetDashboard] Full API response:", result);
-		console.log("[WidgetDashboard] result.widgets:", result.widgets);
-		console.log("[WidgetDashboard] result.data:", result.data);
-
-		// Try both result.widgets and result.data.widgets
-		widgets = result.widgets || result.data?.widgets || [];
+		widgets = unwrapWidgetList(result);
 
 		console.info("Loaded widgets:", {
 			total: widgets.length,
@@ -174,25 +172,12 @@ async function toggleWidget(widgetName: string) {
 		}
 
 		const newStatus = !widget.isActive;
-
-		const response = await fetch("/api/widgets/status", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-Tenant-ID": tenantId,
-			},
-			body: JSON.stringify({
-				widgetName,
-				isActive: newStatus,
-			}),
-		});
-
-		if (!response.ok) {
-			throw new Error(`Failed to update widget status: ${response.statusText}`);
+		const response = await setWidgetStatus(widgetName, newStatus, tenantId);
+		if (!response.success) {
+			throw new Error(response.message || "Failed to update widget status");
 		}
 
 		// Force refresh: Clear cache and reload widget store + widget list
-		// This ensures the UI is perfectly in sync with database
 		await widgetStoreActions.initializeWidgets(tenantId);
 		await loadWidgets();
 
@@ -222,20 +207,11 @@ async function uninstallWidget(widgetName: string) {
 	}
 
 	try {
-		const response = await fetch("/api/widgets/uninstall", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-Tenant-ID": tenantId,
-			},
-			body: JSON.stringify({ widgetName }),
-		});
-
-		if (!response.ok) {
-			throw new Error(`Failed to uninstall widget: ${response.statusText}`);
+		const response = await apiUninstallWidget(widgetName, tenantId);
+		if (!response.success) {
+			throw new Error(response.message || "Failed to uninstall widget");
 		}
 
-		// Reload widgets after uninstallation
 		await loadWidgets();
 		console.info(`Widget ${widgetName} uninstalled`);
 	} catch (err) {

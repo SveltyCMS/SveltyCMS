@@ -6,7 +6,7 @@
 import { contentSystem } from "@src/content/index.server";
 import { localizeSitePage, resolveSitePage } from "@src/services/site/page-resolver.server";
 import { isSiteStarterEnabled } from "@src/services/site/site-config.server";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
@@ -17,7 +17,7 @@ async function redirectAuthenticatedUserToCms(locals: App.Locals, url: URL): Pro
   const { tenantId } = locals as { tenantId?: string };
 
   const isGlobalAdmin = user.tenantId === null || user.tenantId === undefined;
-  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId && !isGlobalAdmin) {
+  if (isMultiTenantEnabled() && !tenantId && !isGlobalAdmin) {
     throw error(400, "Tenant could not be identified for this operation.");
   }
 

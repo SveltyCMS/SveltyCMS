@@ -35,16 +35,16 @@ function handleUploadComplete() {
 </script>
 
 <AdminPageShell title={uploadMedia_title()} icon="bi:images" showBackButton={true} backUrl="/mediagallery">
-<div class="wrapper">
+<div class="wrapper" data-testid="upload-media-page">
 	<Tabs value={tabSet} onValueChange={(e) => (tabSet = e.value)}>
-		<Tabs.List class="flex border-b border-surface-200-800 font-bold">
-			<Tabs.Trigger value="0" class="flex-1">
+		<Tabs.List class="flex border-b border-surface-200-800 font-bold" data-testid="upload-media-tabs">
+			<Tabs.Trigger value="0" class="flex-1" data-testid="upload-tab-local">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:database" width="24"></iconify-icon>
 					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
 				</div>
 			</Tabs.Trigger>
-			<Tabs.Trigger value="1" class="flex-1">
+			<Tabs.Trigger value="1" class="flex-1" data-testid="upload-tab-remote">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
 					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>

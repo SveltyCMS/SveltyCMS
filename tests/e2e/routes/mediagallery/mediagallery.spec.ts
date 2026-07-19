@@ -11,23 +11,53 @@ import { loginAsAdmin } from "../../helpers/auth";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 
+async function openMediaGallery(page: import("@playwright/test").Page) {
+  await loginAsAdmin(page);
+  await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/mediagallery");
+  }
+  await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
+  await expect(page).not.toHaveURL(/\/login/);
+
+  // Shell may use page-title testid, heading, or toolbar-only layout
+  const markers = [
+    page.getByTestId("page-title"),
+    page.getByTestId("media-gallery-toolbar"),
+    page.getByTestId("media-gallery-content"),
+    page.getByRole("heading", { name: /media gallery/i }).first(),
+  ];
+  let ok = false;
+  for (const m of markers) {
+    if (await m.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      ok = true;
+      break;
+    }
+  }
+  if (!ok) {
+    throw new Error(
+      `Media gallery shell not visible at ${page.url()} body=${(
+        await page
+          .locator("body")
+          .innerText()
+          .catch(() => "")
+      ).slice(0, 400)}`,
+    );
+  }
+}
+
 test.describe("Media Gallery", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/mediagallery");
-    await expect(page.getByRole("heading", { level: 1, name: /media gallery/i })).toBeVisible({
-      timeout: 15_000,
-    });
+    await openMediaGallery(page);
   });
 
   test("loads with toolbar, content area and default grid view", async ({ page }) => {
+    const content = page.getByTestId("media-gallery-content");
     await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible();
-    await expect(page.getByTestId("media-gallery-content")).toBeVisible();
+    await expect(content).toBeVisible();
+    await expect(content).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
-    await expect(page.getByRole("button", { name: /grid view/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(page.getByTestId("media-view-grid")).toHaveAttribute("aria-pressed", "true");
   });
 
   test("supports search and type filtering", async ({ page }) => {
@@ -42,30 +72,37 @@ test.describe("Media Gallery", () => {
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Filter by type persists selection (option values are lowercase)
-    await page.locator("#media-type-filter").selectOption("IMAGE");
+    // Filter by type persists selection (option values are lowercase; labels are UPPER)
+    await page.locator("#media-type-filter").selectOption({ label: "IMAGE" });
     await expect(page.locator("#media-type-filter")).toHaveValue("image");
     await expect(page.getByTestId("media-grid")).toBeVisible();
   });
 
   test("can switch between grid and table views", async ({ page }) => {
-    const gridBtn = page.getByRole("button", { name: /grid view/i });
-    const tableBtn = page.getByRole("button", { name: /table view/i });
+    // Assertions use data-view + testids — never role/name (Button a11y forwarding flaked in CI)
+    const content = page.getByTestId("media-gallery-content");
+    const gridBtn = page.getByTestId("media-view-grid");
+    const tableBtn = page.getByTestId("media-view-table");
 
-    // Default is grid
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(gridBtn).toBeVisible({ timeout: 15_000 });
+    await expect(tableBtn).toBeVisible();
+    await expect(content).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Switch to table — when gallery is empty, the table component shows "No media found"
-    // instead of rendering <table>, so only verify the button state switched
-    await tableBtn.click();
+    // Native button — Playwright click is enough; evaluate as belt-and-suspenders
+    await tableBtn.click({ force: true });
+    // Table view may unmount/remount the content container — wait for re-attach
+    await content.waitFor({ state: "attached", timeout: 15_000 });
+    await expect(content).toHaveAttribute("data-view", "table", { timeout: 10_000 });
+    await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
     await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
     await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
 
-    // Switch back to grid
-    await gridBtn.click();
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await gridBtn.click({ force: true });
+    await content.waitFor({ state: "attached", timeout: 15_000 });
+    await expect(content).toHaveAttribute("data-view", "grid", { timeout: 10_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
   });
 
   test("can upload an image and verify it appears", async ({ page }) => {

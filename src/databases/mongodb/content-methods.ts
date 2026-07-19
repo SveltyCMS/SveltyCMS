@@ -281,8 +281,12 @@ export class MongoContentMethods {
 
         const targetId = id || _id;
 
-        // Prepare base filter: match by targetId (_id) if available, otherwise by path
-        const baseFilter: Record<string, unknown> = targetId ? { _id: targetId } : { path };
+        // Prepare base filter: match by path+tenantId for upserts to avoid
+        // duplicate key errors when a different _id targets the same path.
+        const baseFilter: Record<string, unknown> = { path };
+        if (tenantId != null && tenantId !== undefined) {
+          baseFilter.tenantId = tenantId;
+        }
 
         // Wrap filter with safeQuery to enforce tenant context
         const secureFilter = safeQuery(baseFilter as any, tenantId, {
@@ -294,8 +298,9 @@ export class MongoContentMethods {
         const setOnInsert: Record<string, unknown> = {
           createdAt: new Date().toISOString() as unknown as ISODateString,
         };
-
-        if (!targetId) {
+        if (targetId) {
+          setOnInsert._id = targetId;
+        } else {
           setOnInsert._id = generateId();
         }
 
@@ -305,10 +310,7 @@ export class MongoContentMethods {
           setOnInsert.tenantId = tenantId;
         }
 
-        // Strip path only if we matched by path (otherwise we want to update the path)
-        if (!targetId) {
-          delete (normalizedChanges as any).path;
-        }
+        // Never strip path or tenantId from normalized changes — they're valid update fields
         delete (normalizedChanges as any).tenantId;
 
         return {

@@ -190,12 +190,12 @@ function onVirtualScroll() {
                         <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                             {#if selectable}
                                 <th class="w-12 p-4">
-                                    <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
+                                    <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 transition-all"
                                         checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                                 </th>
                             {/if}
                             {#each columns as col (col.key)}
-                                <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-tertiary-500 dark:text-primary-500', col.class)}
+                                <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                     style={col.width ? `width: ${col.width}` : ''}
                                     aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                                     onclick={() => col.sortable && handleSort(col.key)}>
@@ -220,7 +220,7 @@ function onVirtualScroll() {
                                 {@render rowSnippet({ row, index })}
                             {:else}
                                 <tr class={cn('group transition-all duration-200 hover:bg-tertiary-500  dark:hover:bg-tertiary-500 dark:bg-primary-500',
-                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick && 'cursor-pointer')}
+                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick)}
                                     onclick={() => onrowclick?.(row)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter') onrowclick?.(row);
@@ -228,7 +228,7 @@ function onVirtualScroll() {
                                     }}>
                                     {#if selectable}
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
+                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)} />
                                         </td>
@@ -259,12 +259,12 @@ function onVirtualScroll() {
                     <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                         {#if selectable}
                             <th class="w-12 p-4">
-                                <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
+                                <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 transition-all"
                                     checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                             </th>
                         {/if}
                         {#each columns as col (col.key)}
-                            <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'cursor-pointer hover:text-tertiary-500 dark:text-primary-500', col.class)}
+                            <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                 style={col.width ? `width: ${col.width}` : ''}
                                 aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                                 onclick={() => col.sortable && handleSort(col.key)}>
@@ -303,7 +303,7 @@ function onVirtualScroll() {
                                 {@render rowSnippet({ row, index })}
                             {:else}
                                 <tr class={cn('group transition-all duration-200 hover:bg-tertiary-500 dark:bg-primary-500 dark:hover:bg-tertiary-500 ',
-                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick && 'cursor-pointer')}
+                                    selectedIds.has(row._id || row.id) && 'bg-tertiary-500 dark:bg-primary-500', onrowclick)}
                                     onclick={() => onrowclick?.(row)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter') onrowclick?.(row);
@@ -311,7 +311,7 @@ function onVirtualScroll() {
                                     }}>
                                     {#if selectable}
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
+                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)} />
                                         </td>

@@ -33,6 +33,15 @@ import StickyActions from "@components/ui/sticky-actions.svelte";
 
 // Types and Utilities
 import type { SettingField, SettingGroup } from "./settings-groups";
+import {
+	initializeGroupValues,
+	validateSettingField,
+	validateAllSettingFields,
+	hasEmptyConfigFields,
+	hasUnsavedSettingChanges,
+	parseImportedGroupJson,
+	mergeImportedGroupValues,
+} from "./settings-utils";
 
 // Log levels from logger.svelte.ts
 const LOG_LEVELS = [
@@ -50,7 +59,8 @@ interface Props {
 	group: SettingGroup;
 	groupsNeedingConfig: SvelteSet<string>;
 	onUnsavedChanges?: (hasChanges: boolean) => void;
-	saveTrigger?: { fire: () => void };
+	/** Parent may call fire() to save; discard() reverts local edits */
+	saveTrigger?: { fire: () => void; discard?: () => void };
 	saving?: boolean;
 	children?: import("svelte").Snippet;
 }
@@ -70,17 +80,14 @@ let values = $state<Record<string, unknown>>({});
 let originalValues = $state<Record<string, unknown>>({}); // Track original values
 let errors = $state<Record<string, string>>({});
 let hasEmptyRequiredFields = $state(false);
+let importInputEl = $state<HTMLInputElement | null>(null);
 
 // Optimize: Use $derived instead of $effect for unsaved changes.
 // Guard on !loading && !error: while loading or after a failed load, `originalValues` is not
 // populated, yet `bind:value` inputs (e.g. <select aria-label="Select">) auto-fill defaults into `values` — which
 // would otherwise look like unsaved edits and trigger a false "unsaved changes" navigation prompt.
 let hasUnsavedChanges = $derived(
-	!loading &&
-		!error &&
-		Object.keys(values).some((key) => {
-			return JSON.stringify(values[key]) !== JSON.stringify(originalValues[key]);
-		}),
+	!loading && !error && hasUnsavedSettingChanges(values, originalValues),
 );
 
 // Notify parent component when hasUnsavedChanges changes
@@ -90,10 +97,11 @@ $effect(() => {
 	}
 });
 
-// Wire up saveTrigger to expose saveSettings function to parent
+// Wire up saveTrigger / discard for parent shell actions
 $effect(() => {
 	if (saveTrigger) {
 		saveTrigger.fire = saveSettings;
+		saveTrigger.discard = discardChanges;
 	}
 });
 
@@ -135,27 +143,50 @@ async function loadAllowedLocales() {
 
 // Check if there are empty or placeholder values that need configuration
 function checkForEmptyFields() {
-	hasEmptyRequiredFields = group.fields.some((field) => {
-		const value = values[field.key];
-
-		// Check for empty strings, especially in critical fields like email, host, etc.
-		if (typeof value === "string") {
-			return (
-				value === "" &&
-				(field.required ||
-					field.key.includes("HOST") ||
-					field.key.includes("EMAIL"))
-			);
-		}
-
-		return false;
-	});
+	hasEmptyRequiredFields = hasEmptyConfigFields(group.fields, values);
 
 	// Update the store
 	if (hasEmptyRequiredFields) {
 		groupsNeedingConfig.add(group.id);
 	} else {
 		groupsNeedingConfig.delete(group.id);
+	}
+}
+
+/** Revert local edits to last loaded/saved originals */
+function discardChanges() {
+	values = JSON.parse(JSON.stringify(originalValues));
+	errors = {};
+	error = null;
+	checkForEmptyFields();
+	toast.info({ description: "Discarded unsaved changes" });
+}
+
+/** Import a previously exported group JSON file into the form (does not auto-save) */
+async function handleImportFile(event: Event) {
+	const input = event.target as HTMLInputElement;
+	const file = input.files?.[0];
+	if (!file) return;
+
+	try {
+		const text = await file.text();
+		const result = parseImportedGroupJson(text, group);
+		if (!result.ok) {
+			toast.error({ description: result.error });
+			return;
+		}
+		values = mergeImportedGroupValues(group.fields, values, result.values);
+		errors = {};
+		checkForEmptyFields();
+		toast.success({
+			description: `Imported ${Object.keys(result.values).length} field(s) into ${group.name}. Review and save.`,
+		});
+	} catch (err) {
+		toast.error({
+			description: err instanceof Error ? err.message : "Failed to import settings file",
+		});
+	} finally {
+		input.value = "";
 	}
 }
 
@@ -170,29 +201,7 @@ async function loadSettings(bypassCache = false) {
 		const data = await loadSettingsGroup({ groupId: group.id, bypassCache });
 
 		if (data.success && data.values) {
-			const loadedValues = data.values || {};
-			const initializedValues: Record<string, unknown> = {};
-
-			// Initialize every field in this group to prevent Svelte binding mutations on load
-			for (const field of group.fields) {
-				if (loadedValues[field.key] !== undefined && loadedValues[field.key] !== null) {
-					initializedValues[field.key] = loadedValues[field.key];
-				} else {
-					if (field.type === 'boolean') {
-						initializedValues[field.key] = false;
-					} else if (
-						field.type === 'array' ||
-						field.type === 'language-multi' ||
-						field.type === 'loglevel-multi'
-					) {
-						initializedValues[field.key] = [];
-					} else if (field.type === 'number') {
-						initializedValues[field.key] = null;
-					} else {
-						initializedValues[field.key] = '';
-					}
-				}
-			}
+			const initializedValues = initializeGroupValues(group.fields, data.values || {});
 
 			if (group.id === 'site' && (!initializedValues.TIMEZONE || initializedValues.TIMEZONE === '')) {
 				try {
@@ -213,13 +222,7 @@ async function loadSettings(bypassCache = false) {
 		logger.error(`[${group.id}] Load error:`, err);
 		error = err instanceof Error ? err.message : "Failed to load settings";
 		// Initialize all fields to safe defaults so the UI doesn't crash
-		const fallback: Record<string, unknown> = {};
-		for (const field of group.fields) {
-			if (field.type === 'boolean') fallback[field.key] = false;
-			else if (field.type === 'array' || field.type === 'language-multi' || field.type === 'loglevel-multi') fallback[field.key] = [];
-			else if (field.type === 'number') fallback[field.key] = null;
-			else fallback[field.key] = '';
-		}
+		const fallback = initializeGroupValues(group.fields, {});
 		values = fallback;
 		originalValues = JSON.parse(JSON.stringify(fallback));
 	} finally {
@@ -401,62 +404,15 @@ function removeLogLevel(fieldKey: string, level: LogLevel) {
 	}
 }
 
-// Validate a single field
+// Validate a single field (shared pure helper)
 function validateField(field: SettingField, value: unknown): string | null {
-	// Required check
-	if (
-		field.required &&
-		(value === undefined || value === null || value === "")
-	) {
-		return `${field.label} is required`;
-	}
-
-	// Email validation for email-related fields
-	if (
-		typeof value === "string" &&
-		value &&
-		(field.key.toLowerCase().includes("email") ||
-			field.key === "SMTP_USER" ||
-			field.label.toLowerCase().includes("email"))
-	) {
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(value)) {
-			return `${field.label} must be a valid email address`;
-		}
-	}
-
-	// Type-specific validation
-	if (field.type === "number" && typeof value === "number") {
-		if (field.min !== undefined && value < field.min) {
-			return `${field.label} must be at least ${field.min}`;
-		}
-		if (field.max !== undefined && value > field.max) {
-			return `${field.label} must be at most ${field.max}`;
-		}
-	}
-
-	// Custom validation
-	if (field.validation) {
-		return field.validation(value);
-	}
-
-	return null;
+	return validateSettingField(field, value);
 }
 
 // Validate all fields
 function validateAll(): boolean {
-	errors = {};
-	let isValid = true;
-
-	group.fields.forEach((field) => {
-		const err = validateField(field, values[field.key]);
-		if (err) {
-			errors[field.key] = err;
-			isValid = false;
-		}
-	});
-
-	return isValid;
+	errors = validateAllSettingFields(group.fields, values);
+	return Object.keys(errors).length === 0;
 }
 
 import { modalState } from "@utils/modal.svelte";
@@ -1080,6 +1036,7 @@ onMount(() => {
 				<div class="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2">
 					{#each group.fields as field (field.key)}
 						<div
+							data-testid={`settings-field-${field.key}`}
 							class="space-y-2 overflow-visible max-w-full {field.type === 'array' ||
 							['security', 'language-multi', 'loglevel-multi', 'textarea'].includes(field.type as any)
 								? 'md:col-span-2'
@@ -1412,6 +1369,7 @@ onMount(() => {
 								type="button"
 								onclick={resetToDefaults}
 								disabled={saving}
+								data-testid="settings-group-reset"
 							 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
 								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
 								<span>Reset to Defaults</span>
@@ -1421,9 +1379,31 @@ onMount(() => {
 								type="button"
 								onclick={exportGroup}
 								disabled={loading}
+								data-testid="settings-group-export"
 							 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
 								<iconify-icon icon="mdi:export" width="16"></iconify-icon>
 								<span>Export Group JSON</span>
+							</Button>
+
+							<input bind:this={importInputEl} type="file" accept="application/json,.json" class="sr-only" id="settings-group-import-input" name="settings-group-import" aria-label="Import settings group JSON file" title="Import settings group JSON file" data-testid="settings-group-import-input" onchange={handleImportFile} />
+							<Button variant="surface"
+								type="button"
+								disabled={loading || saving}
+								data-testid="settings-group-import"
+								onclick={() => importInputEl?.click()}
+							 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
+								<iconify-icon icon="mdi:import" width="16"></iconify-icon>
+								<span>Import JSON</span>
+							</Button>
+
+							<Button variant="ghost"
+								type="button"
+								disabled={saving || !hasUnsavedChanges}
+								data-testid="settings-group-discard"
+								onclick={discardChanges}
+							 class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto">
+								<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
+								<span>Discard</span>
 							</Button>
 						</div>
 
@@ -1454,6 +1434,7 @@ onMount(() => {
 						<Button variant="tertiary"
 							type="submit"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
+							data-testid="settings-group-save"
 						 class="dark: items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold w-full sm:w-auto">
 							{#if saving}
 								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>

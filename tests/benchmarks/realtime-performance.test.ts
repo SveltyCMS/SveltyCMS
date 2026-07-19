@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/realtime-performance.test.ts
  * @description Real-Time Event Processing Benchmark (Optimized)
- * @summary Measures EventBus prefix filter function and Chat RPC handler overhead for svelte-realtime WebSocket events.
+ * @summary Measures EventBus prefix filter function and Chat RPC handler overhead for SveltyCMS real-time event pipeline.
  *
  * ### Features:
  * - EventBus prefix filter micro-benchmark (bridged vs filtered events)

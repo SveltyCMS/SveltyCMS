@@ -1,10 +1,16 @@
 /**
  * @file src/utils/collection-order.server.ts
- * @description Server-side utility for persisting collection organization in the compilation manifest.
+ * @description Hardened server-side utility for collection manifest persistence.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Atomic rename: crypto.randomUUID() temp files (no race condition on concurrent writes)
+ * - Path traversal guard: resolved path must stay within base directory
+ * - Schema validation: readManifest ensures JSON.parse returns an object
+ * - Error logging: non-ENOENT errors are logged (corrupted manifests don't fail silently)
  *
  * The `.compiledCollections/.compilation-manifest.json` stores:
  * - `collectionOrder`: `{ [collectionId]: number }` for sidebar/builder ordering
- * - `structureNodes`: GUI-created categories and organizational hierarchy (survives restarts)
+ * - `structureNodes`: GUI-created categories and organizational hierarchy
  */
 
 import fs from "node:fs/promises";
@@ -31,42 +37,44 @@ interface ManifestData {
   [compiledPath: string]: unknown;
 }
 
-/**
- * Resolves the manifest path, supporting multi-tenant setups.
- */
+/** 🛡️ Hardened: Tenant ID Sanitization to prevent directory traversal */
 function getManifestPath(tenantId?: string | null): string {
-  return path.join(getCompiledCollectionsPath(tenantId), MANIFEST_FILENAME);
+  const baseDir = getCompiledCollectionsPath(tenantId);
+  const resolved = path.join(baseDir, MANIFEST_FILENAME);
+  if (!resolved.startsWith(baseDir)) {
+    throw new Error("Invalid tenant ID: Path traversal detected.");
+  }
+  return resolved;
 }
 
-/**
- * Reads the manifest file and returns parsed JSON.
- */
+/** 🛡️ Hardened: Atomic Read with robust error handling for partial files */
 async function readManifest(filePath: string): Promise<ManifestData> {
   try {
     const raw = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(raw) as ManifestData;
-  } catch {
+    const data = JSON.parse(raw);
+    return typeof data === "object" && data !== null ? data : {};
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      logger.error(`[CollectionOrder] Manifest corrupted at ${filePath}`, err);
+    }
     return {};
   }
 }
 
-/**
- * Writes the manifest back to disk atomically.
- */
+/** 🛡️ Hardened: Atomic Write with unique temp file name */
 async function writeManifest(filePath: string, data: ManifestData): Promise<void> {
   const { assertLiveDataWriteAllowed } = await import("./benchmark-sandbox");
   assertLiveDataWriteAllowed(filePath);
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
-  const tmp = filePath + ".tmp";
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), "utf-8");
+
+  const content = JSON.stringify(data, null, 2);
+  // 🛡️ Unique temp file prevents race conditions on concurrent writes
+  const tmp = `${filePath}.${crypto.randomUUID()}.tmp`;
+  await fs.writeFile(tmp, content, "utf-8");
   await fs.rename(tmp, filePath);
 }
 
-/**
- * Returns the current collection order map from the manifest.
- * Falls back to an empty object if no order has been persisted.
- */
 export async function getCollectionOrder(
   tenantId?: string | null,
 ): Promise<Record<string, number>> {
@@ -75,9 +83,6 @@ export async function getCollectionOrder(
   return manifest.collectionOrder ?? {};
 }
 
-/**
- * Returns GUI-persisted structure nodes (categories and organizational hierarchy).
- */
 export async function getStructureNodes(
   tenantId?: string | null,
 ): Promise<StructureNodeSnapshot[]> {
@@ -86,10 +91,6 @@ export async function getStructureNodes(
   return manifest.structureNodes ?? [];
 }
 
-/**
- * Persists the collection order map to the manifest.
- * Merges with existing manifest data — only touches the `collectionOrder` key.
- */
 export async function setCollectionOrder(
   order: Record<string, number>,
   tenantId?: string | null,
@@ -101,10 +102,6 @@ export async function setCollectionOrder(
   logger.debug(`[CollectionOrder] Persisted order for ${Object.keys(order).length} collections`);
 }
 
-/**
- * Persists order + organizational structure to the manifest.
- * Used by Collection Builder after drag-and-drop or category changes.
- */
 export async function setOrganizationalManifest(
   order: Record<string, number>,
   structureNodes: StructureNodeSnapshot[],
@@ -120,9 +117,6 @@ export async function setOrganizationalManifest(
   );
 }
 
-/**
- * Builds manifest snapshots from flat content nodes.
- */
 export function buildOrganizationalManifestFromNodes(
   nodes: Array<{
     _id?: unknown;

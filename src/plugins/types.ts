@@ -11,6 +11,7 @@ import type {
   IDBAdapter,
   ISODateString,
 } from "@databases/db-interface";
+import type { PluginPart } from "./define-plugin";
 
 /** All possible capabilities a plugin can request */
 export type PluginCapability =
@@ -273,6 +274,23 @@ export interface Plugin {
 
   /** Plugin migrations (executed in version order) */
   migrations?: PluginMigration[];
+
+  /**
+   * Structured parts contributed by definePlugin. Resolved at boot.
+   *
+   * Each part is a discriminated union variant — the registry dispatches
+   * on `type` to route schemas, routes, capabilities, settings, admin
+   * tools, field components, and document actions into the right subsystem.
+   */
+  parts?: PluginPart[];
+
+  /**
+   * Plugin settings declaration (aphexcms-style SettingsPart).
+   * Defines the settings shape this plugin accepts — core renders the form,
+   * stores values per tenant, and injects them into the plugin's server code.
+   * Supports `secret` field type for AES-256-GCM encrypted values.
+   */
+  settings?: import("./settings-declaration").SettingsPart;
 
   /** SSR hook for data enrichment (optional) */
   ssrHook?: PluginSSRHook;

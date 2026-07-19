@@ -8,7 +8,7 @@ import { safeFetch } from "../helpers/server";
  * and ensures proper handling of the SVELTYCMS_TELEMETRY setting.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { checkServer, getApiBaseUrl } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 

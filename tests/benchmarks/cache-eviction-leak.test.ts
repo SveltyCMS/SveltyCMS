@@ -11,7 +11,7 @@ import {
   getMemorySnapshot,
 } from "./benchmark-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { expect } from "bun:test";
+import { expect } from "vitest";
 
 test("L1 Cache Eviction and Memory Pressure Leak Audit", async () => {
   console.log("🚀 Starting L1 Cache Eviction under Memory Pressure Audit...\n");

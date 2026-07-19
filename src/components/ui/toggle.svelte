@@ -83,7 +83,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	const id = generateId('toggle');
 </script>
 
-<div class={cn('flex items-start gap-3', className)} {...rest}>
+<div class={cn('flex gap-3 items-start md:items-center', className)} {...rest}>
 	<div class="relative flex h-full items-center">
 		<input aria-label="Input"
 			type="checkbox"
@@ -96,7 +96,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		<button
 			type="button"
 			class={cn(
-				'pointer-events-auto relative inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-surface-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-surface-300 dark:ring-offset-surface-950',
+				'pointer-events-auto relative inline-flex shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-surface-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-surface-300 dark:ring-offset-surface-950',
 				sizes[size].track,
 				value ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-error-500 transition-colors'
 			)}

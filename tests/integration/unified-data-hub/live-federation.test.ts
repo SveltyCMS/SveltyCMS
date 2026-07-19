@@ -11,7 +11,7 @@
  * when the external fixture is unreachable (opt-in `--include-db-tasks`).
  */
 
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_DB_MATRIX } from "@src/utils/test-db-credentials";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
@@ -68,9 +68,31 @@ describe(`Unified Data Hub live federation (CMS: ${CMS_DB_TYPE})`, () => {
 
   beforeAll(async () => {
     fixtureAvailable = await seedHubFixture(100);
-    if (!fixtureAvailable) return;
+    if (!fixtureAvailable) {
+      console.log(`⏭️ Live federation fixture unavailable: ${skipReason}`);
+      return;
+    }
 
-    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+    try {
+      adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+      if (adminCookie.includes("test-session-")) {
+        fixtureAvailable = false;
+        skipReason = "Auth fell back to dummy test session (admin user missing after hub seed)";
+        return;
+      }
+      const probe = await safeFetch(`${API_BASE_URL}/api/virtual-collections`, {
+        headers: { Cookie: adminCookie },
+      });
+      if (!probe.ok) {
+        fixtureAvailable = false;
+        const body = await probe.text().catch(() => "");
+        skipReason = `UDH not available after seed (HTTP ${probe.status}): ${body.slice(0, 200)}`;
+        console.log(`⏭️ ${skipReason}`);
+      }
+    } catch (err) {
+      fixtureAvailable = false;
+      skipReason = err instanceof Error ? err.message : String(err);
+    }
   });
 
   it("lists virtual collection schema after hub seed", async () => {

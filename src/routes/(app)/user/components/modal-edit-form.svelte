@@ -126,7 +126,11 @@ Efficiently manages user data updates with validation, role selection, and delet
 		}
 
 		try {
-			const result = await updateProfile(submitData);
+			// Always pass user_id separately so the remote can build { user_id, newUserData }
+			const result = await updateProfile({
+				user_id: editForm.data.user_id,
+				...submitData
+			});
 
 			if (!result.success) {
 				throw new Error(result.error || result.message || 'Failed to update user.');

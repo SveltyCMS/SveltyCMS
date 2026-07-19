@@ -1,0 +1,9 @@
+# LiteRT.js WASM Runtime
+
+Place LiteRT.js WASM binaries here.
+
+Expected files (downloaded from LiteRT.js release):
+- @litertjs-core.js
+- @litertjs-core.wasm
+
+These are served from /ai/wasm/ by the AI Worker.

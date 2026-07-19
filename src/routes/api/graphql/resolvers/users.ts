@@ -5,7 +5,7 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, ISODateString, DatabaseId } from "@src/databases/db-interface";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { logger } from "@utils/logger";
 
 // GraphQL types
@@ -95,7 +95,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
       try {
         // Build filter for multi-tenant support
         const filter: Record<string, unknown> = {};
-        if (getPrivateSettingSync("MULTI_TENANT") && context.tenantId) {
+        if (isMultiTenantEnabled() && context.tenantId) {
           filter.tenantId = context.tenantId;
         }
 

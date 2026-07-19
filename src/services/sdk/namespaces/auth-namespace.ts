@@ -6,7 +6,7 @@ import { AppError, getErrorMessage } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security/crypto";
 import { parseSessionDuration } from "@utils/security/auth-utils";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
@@ -275,15 +275,14 @@ export class AuthNamespace {
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-      if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
+      if (isMultiTenantEnabled() && !tenantId) {
         throw new AppError("Tenant ID required for login", 400);
       }
 
       const userLookup: { email: string; tenantId?: DatabaseId | null } = {
         email,
       };
-      if (getPrivateSettingSync("MULTI_TENANT") === true)
-        userLookup.tenantId = tenantId as DatabaseId;
+      if (isMultiTenantEnabled()) userLookup.tenantId = tenantId as DatabaseId;
 
       const result = await auth.getUserByEmail(userLookup);
       if (!result.success || !result.data) {

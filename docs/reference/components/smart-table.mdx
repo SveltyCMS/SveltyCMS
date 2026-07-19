@@ -1,0 +1,201 @@
+---
+path: "docs/reference/components/smart-table.mdx"
+title: "Smart Table (Unified)"
+description: "One Smart Table platform for design-system UI tables and CMS admin tables — headless controller, shared pagination, schema filters, and server/client modes."
+order: 0
+icon: "mdi:table-large"
+author: "SveltyCMS Team"
+created: "2026-07-15"
+updated: "2026-07-15"
+tags:
+  - "components"
+  - "table"
+  - "smart-table"
+  - "entry-list"
+  - "ui"
+---
+
+# Smart Table Platform
+
+**Goal**: one table stack for backend CMS surfaces (`entry-list`, media, users) and frontend design-system tables (`ui/table`) — less duplication, more flexibility, performance, features, and security.
+
+## P0 building blocks (implemented)
+
+| Piece               | Location                                        | Role                                                                 |
+| ------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| **Controller**      | `createSmartTable`                              | Selection, sort, page, density, virtual, **pin order**, layout prefs |
+| **Shell**           | `smart-table-shell.svelte`                      | Toolbar slot, empty/loading, scroll body, CMS pagination             |
+| **Empty / loading** | `smart-table-empty` / `smart-table-loading`     | Shared WCAG states                                                   |
+| **Chrome**          | `chrome.ts`                                     | Class tokens + `pinCellClass` / `alignCellClass`                     |
+| **Layout prefs**    | `layout-prefs.ts`                               | localStorage density / order / visibility (`layoutKey`)              |
+| **Column meta**     | `SmartTableColumn.pin`, `.align`, `.meta`       | TanStack-style defs without TanStack dependency                      |
+| **Column resize**   | `setColumnWidth` + `column-resize-handle`       | Drag widths, persisted with `layoutKey`                              |
+| **Saved views**     | `@utils/smart-table-saved-views` + menu UI      | Named filter/sort/layout presets (localStorage)                      |
+| **Status facets**   | `smart-table-status-facets` + `getStatusFacets` | Server status counts as filter chips                                 |
+| **List metrics**    | `@utils/list-query-metrics` + metrics badge     | Latency + cache hit; UI via `?debug=table` (SSR snapshot)            |
+
+### Entry-list UX (P1 wired)
+
+| Control           | Where                             | Behavior                                                                 |
+| ----------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| **Views menu**    | Toolbar (desktop + mobile expand) | Save/apply/delete named views (filters, search, sort, pageSize, layout)  |
+| **Status facets** | Above table                       | Chip filters → `?filter_status=` via `createSmartFilter` (server FLAC)   |
+| **Metrics badge** | Toolbar when `?debug=table`       | p50/p95/hit% from SSR `listMetrics` (server ring buffer)                 |
+| **Column resize** | Header drag handles               | `setColumnWidth` + per-collection `layoutKey: entry-list:{collectionId}` |
+
+```svelte
+<SmartTableShell
+  empty={rows.length === 0}
+  emptyTitle="No results"
+  {currentPage} {rowsPerPage} {pagesCount} {totalItems}
+  onUpdatePage={(p) => table.setPage(p)}
+  onUpdateRowsPerPage={(n) => table.setPageSize(n)}
+>
+  <table class={SMART_TABLE}>…</table>
+</SmartTableShell>
+```
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Headless["Headless (shared)"]
+    CST[createSmartTable]
+    CSF[createSmartFilter]
+    CFE[collection-filter-engine]
+  end
+
+  subgraph UI["Presentation"]
+    Shell[smart-table-shell]
+    UItable[ui/table.svelte]
+    Pag[ui/table/pagination]
+    Toolbar[system/table-filter + ui/table/filter]
+  end
+
+  subgraph Adapters["Domain adapters"]
+    EL[entry-list]
+    Media[media-table]
+    Users[admin-area users]
+    Generic[any ui/table consumer]
+  end
+
+  CST --> UItable
+  CST --> EL
+  CSF --> EL
+  CFE --> EL
+  Pag --> EL
+  Pag --> UItable
+  Pag --> Media
+  Toolbar --> EL
+```
+
+| Layer                   | Location                                         | Owns                                              |
+| ----------------------- | ------------------------------------------------ | ------------------------------------------------- |
+| **Headless table**      | `@components/ui/smart-table`                     | Selection, sort, density, page, virtualization    |
+| **Headless filters**    | `createSmartFilter` + `collection-filter-engine` | Schema widgets, FLAC, QueryBuilder IR, cache hash |
+| **Pagination**          | `@components/ui/table/pagination`                | One primitive (`variant="simple" \| "cms"`)       |
+| **CMS shell**           | `entry-list.svelte`                              | Collection actions, preload, multibutton, plugins |
+| **Design-system shell** | `ui/table.svelte`                                | Generic data grid, client or server props         |
+
+## Modes
+
+| Mode         | Use when                                         | Sort / page / filter                     |
+| ------------ | ------------------------------------------------ | ---------------------------------------- |
+| **`server`** | Collection lists, media, large multi-tenant data | URL + SSR + `CollectionService` (secure) |
+| **`client`** | Small admin widgets, settings tables             | In-memory in `createSmartTable`          |
+
+```typescript
+// CMS / entry-list (server mode)
+const table = createSmartTable({
+  mode: "server",
+  onQueryChange: (updates) => updateURL(updates),
+  getRowId: (row) => String(row._id),
+});
+table.setRows(serverEntries);
+table.setPaginationMeta(serverPagination);
+
+// Design system (client mode)
+const table = createSmartTable({ mode: "client", pageSize: 10 });
+table.setRows(localRows);
+```
+
+## What was unified
+
+| Before                                            | After                                                |
+| ------------------------------------------------- | ---------------------------------------------------- |
+| `system/table/table-pagination` full copy         | Thin wrapper → `ui/table/pagination` `variant="cms"` |
+| Duplicate virtualization in entry-list + ui/table | `createSmartTable.virtual`                           |
+| Index-based selection in entry-list               | **Id-based** selection (safe with virtual rows)      |
+| Weak `TableController` class ×2                   | `createSmartTable` + legacy re-export                |
+| Filters only in entry-list                        | Platform filter engine reusable by any server table  |
+
+## Security (CMS tables)
+
+Filtering/sorting **must not** be trusted from the client alone:
+
+1. UI sends `?filter_*` / `sort` / `page`
+2. `parseCollectionListQuery` + **schema whitelist**
+3. `compileSecureFilters` + **FLAC**
+4. `applyFiltersToQueryBuilder` portable IR
+5. Cache key uses **compiled** hash + **user id**
+
+See [Collection Filtering Platform](../architecture/collection-filtering.mdx).
+
+## Migration guide
+
+| Consumer                     | Action                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| **New tables**               | `createSmartTable` + shared chrome tokens                                   |
+| **entry-list**               | `createSmartTable` (server) + `createSmartFilter` + chrome                  |
+| **media-table**              | `createSmartTable` (client) + chrome + column sort                          |
+| **admin-area**               | `createSmartTable` (server) + `onQueryChange` → `/api/user` \| `/api/token` |
+| **website-tokens**           | `createSmartTable` (server) + `onQueryChange` → `/api/website-tokens`       |
+| **tenants admin**            | Shared chrome (SSR list)                                                    |
+| **Legacy `TableController`** | Deprecated; re-exported for compatibility                                   |
+
+**Other `<table>` UIs (not full smart-table yet):** permissions matrix, media details mini-tables, migration wizard field map, accessibility help, `ui/table.svelte` design shell.
+
+### Shared visual chrome
+
+```ts
+import {
+  createSmartTable,
+  SMART_TABLE,
+  SMART_TABLE_THEAD,
+  SMART_TABLE_TH,
+  SMART_TABLE_TD,
+  SMART_TABLE_SCROLL,
+  SMART_TABLE_PAGINATION_BAR,
+  SMART_TABLE_TOOLBAR,
+  SMART_TABLE_ROW_SELECTED,
+  SMART_TABLE_ROW_HOVER,
+} from "@components/ui/smart-table";
+```
+
+### Import map
+
+```ts
+// Preferred
+import { createSmartTable } from "@components/ui/smart-table";
+import Pagination from "@components/ui/table/pagination.svelte";
+
+// CMS-stable aliases (still valid)
+import TablePagination from "@components/system/table/table-pagination.svelte"; // → ui pagination cms
+```
+
+## Performance
+
+- Virtualization threshold: `VIRTUALIZATION_THRESHOLD` (25) via `@utils/table-constants`
+- Server mode: only current page in memory; SWR on service layer
+- Client mode: local sort/page without network
+- Id selection avoids virtual-index desync bugs
+
+## Related
+
+- [entry-list](./entry-list.mdx)
+- [Collection Filtering](../architecture/collection-filtering.mdx)
+- [Cache System](../architecture/cache-system.mdx)
+
+---
+
+**Last Updated**: 2026-07-15

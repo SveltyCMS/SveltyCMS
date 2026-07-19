@@ -1,0 +1,57 @@
+---
+path: "docs/tests/routes/webhooks.mdx"
+title: "Webhooks Tests — Control Map (Reference Route)"
+description: "Testing 2026 reference: webhooks-api + utils + golden E2E create→list→delete."
+order: 23
+icon: "mdi:webhook"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags: ["testing", "e2e", "webhooks", "adr"]
+---
+
+# Webhooks (`/config/webhooks`) — Reference Implementation
+
+See **[ADR: Testing 2026](../adr-testing-2026.mdx)** for pyramid, soft-skip ban, and testid policy.
+
+## Surface
+
+| Piece               | Role                                                  |
+| ------------------- | ----------------------------------------------------- |
+| `+page.server.ts`   | Admin-only gate                                       |
+| `webhooks-utils.ts` | Name/URL/event validation, search filter (unit)       |
+| `webhooks-api.ts`   | Browser client via `fetchApi` — CSRF automatic (unit) |
+| `+page.svelte`      | Thin UI + `showConfirm`                               |
+| `logs/+page.*`      | Delivery logs shell (optional thin E2E elsewhere)     |
+
+## Control → test matrix
+
+| Control                                     | Unit                       | Integration (HTTP)    | E2E                          |
+| ------------------------------------------- | -------------------------- | --------------------- | ---------------------------- |
+| Admin gate                                  | ✅ page.server             | —                     | —                            |
+| Validation + filter                         | ✅ webhooks-utils          | —                     | golden empty-save stays open |
+| API client + CSRF                           | ✅ webhooks-api + fetchApi | —                     | —                            |
+| **List / create / delete**                  | —                          | ✅ `webhooks.test.ts` | —                            |
+| Unauth / editor deny                        | —                          | ✅ 401 + 403          | —                            |
+| **Golden: create → list → reload → delete** | —                          | —                     | ✅ **required**              |
+| Shell add button                            | —                          | —                     | ✅ minimal guard only        |
+
+Deprecated: many decorative testid-only rows without outcome assertions.
+
+## Seeds
+
+```ts
+import { seedWebhook, deleteWebhook } from "../../helpers/seed";
+// Prefer golden UI create; seed when a fixture list is required without going through the form.
+```
+
+Testing API: `seed-webhook`, `delete-webhook`.
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/config/webhooks-utils.test.ts tests/unit/config/webhooks-api.test.ts tests/unit/routes/webhooks-page-server.test.ts tests/unit/utils/api.test.ts
+# Integration (via runner / preview server):
+# bun test tests/integration/api/webhooks.test.ts
+bun x playwright test tests/e2e/routes/config/webhooks.spec.ts
+```

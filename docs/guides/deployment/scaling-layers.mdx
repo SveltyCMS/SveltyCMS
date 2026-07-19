@@ -143,106 +143,6 @@ See `src/databases/cache/cache-service.ts` (L1 always, L2 lazy) and `redis-store
 
 In `reconfigure()` / startup we cleanly skip or cleanup if `!USE_REDIS`.
 
-## 3. Smart Entropy Compression — Trained Dictionary + Pre-compressed Cache (Runtime Freshness)
-
-SveltyCMS includes **smart, domain-specific compression** that goes beyond generic Brotli/gzip:
-
-- A **build-time trained dictionary** (`static/dictionaries/cms-payloads.dict`, ~110 KB) optimized for repetitive CMS JSON structures (widget wrappers, field names like `tenantId`/`published`/`widgets`, JSON tokens, audit patterns, etc.).
-- **Pre-compression on every cache MISS**: Responses are compressed (br + gzip today, zstd when the optional binding is present) using the dictionary.
-- **Zero-CPU serving on cache HITs** (especially the Turbo path): Pre-made compressed bytes are served directly for clients that advertise support.
-- Full observability via `X-Original-Size`, `X-Compressed-Size`, `X-Compression-Ratio`, and `X-Compression-Algorithm` headers.
-
-This is **not** a static build-time compression of user content. User data is always compressed fresh at runtime when needed.
-
-### How Compression Stays Fresh with Changing Tables & Data
-
-A CMS constantly mutates data (content edits, publishes, new collections, schema changes). The system handles this without manual intervention:
-
-```mermaid
-flowchart TD
-    subgraph Build["Build Time — Dictionary Training<br/>(one-time, when you change core structures)"]
-        direction TB
-        A[Scan src/widgets/core/<br/>+ config/collections/] --> B[Extract tokens +<br/>generate representative CMS corpus]
-        B --> C[Boundary-aware n-gram training<br/>+ 344+ high-value seeds]
-        C --> D[Write static/dictionaries/cms-payloads.dict<br/>(zstd magic + deterministic ID)]
-    end
-
-    subgraph Runtime["Runtime — Data Changes Are Always Fresh"]
-        direction TB
-        E[Client Request<br/>Accept-Encoding: zstd,br,gzip] --> F{Cache HIT?}
-        F -->|Yes - Turbo / API HIT| G[Serve pre-made bytes<br/>entry.compressed[algo]<br/>+ dict-enhanced<br/>Zero CPU]
-        F -->|No - MISS| H[Generate response<br/>from *current* DB state]
-        H --> I[Compress with current dict<br/>Brotli (always) + zstd (if binding)]
-        I --> J[Store in cache entry:<br/>{ data, body, compressed: {br, gzip, zstd?} }]
-        J --> K[Return with Content-Encoding<br/>+ X-*-Size headers]
-    end
-
-    subgraph Change["Data / Table / Schema Change"]
-        direction TB
-        L[Content edit, publish,<br/>new collection, schema update] --> M[Invalidate by tags / patterns<br/>+ Redis pub/sub + optional CDN purge]
-        M --> N[Next request for the path<br/>becomes a MISS]
-    end
-
-    Runtime --> Change
-    Change -.-> Runtime
-```
-
-**For Users / Operators**:
-
-- **Normal content changes** (edits, publishes, new entries): Nothing to do. Cache invalidation automatically turns the next access into a MISS. The fresh response is generated from the database and **re-compressed on the spot** using the dictionary that shipped with your build.
-- The pre-compressed variants for all supported algorithms are stored, so future Turbo HITs and API cache HITs are instantaneous with the best encoding the client supports.
-- **When the dictionary can become less optimal**: Only after you add many new custom widgets or radically different collection schemas in source code. In that case, re-run the trainer and redeploy:
-  ```bash
-  bun run scripts/build-zstd-dict.ts
-  # then rebuild & deploy
-  ```
-
-**For Developers**:
-
-- The dictionary captures _structural_ redundancy (keys, nesting, common CMS tokens) from your widget factory and collection definitions — not the variable user text/content.
-- Because pre-compression happens at MISS time (`handle-api-requests.ts` background + main `handleCompression`), every new or changed piece of data gets a fresh compression pass against the current dictionary.
-- Turbo path (`handle-turbo-get.ts`) prefers `entry.compressed[algo]` when available → zero re-stringify / re-compress for hot repeated traffic.
-
-- The `getCmsDict()` loader in `handle-compression.ts` reads the artifact at runtime (graceful fallback if missing).
-- To improve the dictionary after source changes: the script re-scans `src/widgets/core` and `config/collections` at build time.
-- Compression metrics (avg sizes + ratios) are exported during benchmarks so you can measure the real gain.
-
-This design gives you the best of both worlds:
-
-- Excellent compression ratios on typical CMS payloads (extra 10-25% from the dictionary on top of generic Brotli).
-- Correctness and freshness for a highly mutable system (invalidation + on-MISS compression).
-- Zero runtime cost for the common case of repeated reads (pre-compressed bytes served directly).
-
-See also:
-
-- `scripts/build-zstd-dict.ts` (the 5-phase trainer + CLI)
-- `src/hooks/handle-compression.ts` (dict loading + `compressSync`/`compressZstd` + `setCompressionHeaders`)
-- `src/hooks/handle-turbo-get.ts` and `handle-api-requests.ts` (pre-compress on MISS, serve on HIT)
-- `src/databases/cache/cache-service.ts` (invalidation by tags/patterns)
-
-### Phase 4 — Dictionary Transport (Browser-Native Delta Compression)
-
-Beyond server-side compression, SveltyCMS supports **Compression Dictionary Transport** — a web standard (RFC for Shared Brotli/Zstd) that enables browsers to cache the CMS dictionary and request delta-compressed payloads.
-
-**How it works:**
-
-1. **First request**: The server attaches `Use-As-Dictionary: /dictionaries/cms-payloads.dict` to compressed responses. The browser downloads and caches the 110KB dictionary.
-2. **Subsequent requests**: The browser sends `Available-Dictionary: <dict>` and `Accept-Encoding: dcb, dcz` (delta-Brotli, delta-zstd).
-3. **Delta compression**: Our `negotiateEncoding()` selects `dcz` or `dcb`. The compression uses the same dictionary the browser already has — only the "diff" is transmitted.
-4. **Result**: 90-97% smaller payloads vs standard gzip on repeated CMS JSON (same field names, widget structures, status enums).
-
-**Current status:**
-
-- `Use-As-Dictionary` header is live on every compressed response.
-- `Available-Dictionary` detection via `hasAvailableDictionary()`.
-- `dcb`/`dcz` negotiated in priority order via `negotiateEncoding()`.
-- Delta decode requires browser support (Chrome/Edge 123+ with Dictionary Transport flag enabled).
-- The server-side dictionary is the same 110KB artifact from Phase 3b — no separate delta dictionary needed.
-
-**No action needed** — headers are automatic. As browser support matures, SveltyCMS is protocol-ready with zero code changes.
-
-See also: `src/hooks/handle-compression.ts` (`advertiseDictionary`, `hasAvailableDictionary`, `negotiateEncoding`).
-
 ## 4. Reverse Proxy (Nginx / Caddy / Traefik) — Optional but Recommended for Prod
 
 The CMS can run directly exposed, but a reverse proxy adds:
@@ -257,7 +157,7 @@ The CMS can run directly exposed, but a reverse proxy adds:
 **Our internal stack already does a lot**:
 
 - Strong security headers (handle-security-headers).
-- Smart pre-compression (see section 3) for turbo/API cache hits (br/gzip/zstd with trained dictionary) + on-the-fly.
+- Smart pre-compression (see section 3) for turbo/API cache hits (br/gzip) + on-the-fly.
 - ETag, Vary, cache-control via our layers.
 - Proxy header hardening (see `index.cjs` and `setup-proxy.test.ts`).
 

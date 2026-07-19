@@ -1,14 +1,16 @@
 /**
  * @file tests/harness/index.ts
- * @description Canonical test harness — single import for all test infrastructure.
+ * @description Canonical test harness — single import for fixtures and contracts.
  *
  * Usage:
  * ```ts
- * import { fixture, contract, cloneFixture } from "@tests/harness";
+ * import { PRIMARY_TENANT, USERS, ROLES } from "@tests/harness";
  * ```
  *
- * This is the ONLY import test files should need for fixtures and contracts.
- * No test file should define its own tenant IDs, user fixtures, or mock data.
+ * For API unit tests, prefer `createMockRequestEvent` / `invokeApi` from
+ * `tests/unit/utils/mock-event.ts` (shared event + thin dispatcher helper).
+ *
+ * No test file should invent its own tenant IDs, user fixtures, or mock data.
  */
 
 export * from "./fixtures";

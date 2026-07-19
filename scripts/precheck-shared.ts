@@ -19,8 +19,8 @@
  * - `getPrecheckPlan()` for debugging task selection before execution
  */
 
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync, spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -43,7 +43,7 @@ export type PrecheckTier = "push" | "full";
 export interface Task {
   name: string;
   skip?: boolean | (() => boolean);
-  run: () => boolean | Promise<boolean>;
+  run: (onProgress?: (text: string) => void) => boolean | Promise<boolean>;
   ciJob?: string;
   timeout?: number;
   /** Estimated duration in ms for ETA calculation */
@@ -80,6 +80,12 @@ export interface PrecheckOptions {
    * Default: false for "push" (keeps pre-push fast), true for "full".
    */
   includeDbTasks?: boolean;
+  /**
+   * Push tier only — run SQLite integration tests (zero infra cost).
+   * Default: false for "push" (keeps pre-push fast), automatically
+   * enabled when includeDbTasks is set.
+   */
+  includeSqliteOnPush?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +114,7 @@ export interface TaskSpec {
   blocking?: boolean;
   shouldInclude?: (ctx: RunContext) => boolean;
   shouldSkip?: (ctx: RunContext) => boolean;
-  run: (ctx: RunContext) => boolean | Promise<boolean>;
+  run: (ctx: RunContext, onProgress?: (text: string) => void) => boolean | Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +174,83 @@ export function runCommand(
   return true;
 }
 
+export function runCommandAsync(
+  cmd: string,
+  args: string[] = [],
+  options: {
+    silent?: boolean;
+    env?: Record<string, string>;
+    timeout?: number;
+    onLine?: (line: string) => void;
+  } = {},
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn(cmd, args, {
+      stdio: "pipe",
+      shell: IS_WINDOWS,
+      env: options.env ? { ...process.env, ...options.env } : process.env,
+      cwd: ROOT,
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    let timer: NodeJS.Timeout | undefined;
+    if (options.timeout) {
+      timer = setTimeout(() => {
+        try {
+          proc.kill("SIGKILL");
+        } catch {
+          // ignore
+        }
+      }, options.timeout);
+    }
+
+    let stdoutBuffer = "";
+    proc.stdout?.on("data", (data) => {
+      const chunk = data.toString("utf8");
+      stdout += chunk;
+      stdoutBuffer += chunk;
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.trim() && options.onLine) {
+          options.onLine(line.trim());
+        }
+      }
+    });
+
+    proc.stderr?.on("data", (data) => {
+      stderr += data.toString("utf8");
+    });
+
+    proc.on("close", (code) => {
+      if (timer) clearTimeout(timer);
+      if (stdoutBuffer.trim() && options.onLine) {
+        options.onLine(stdoutBuffer.trim());
+      }
+      lastCommandOutput = {
+        cmd: `${cmd} ${args.join(" ")}`,
+        stdout,
+        stderr,
+        code,
+      };
+      resolve(code === 0);
+    });
+
+    proc.on("error", (err) => {
+      if (timer) clearTimeout(timer);
+      lastCommandOutput = {
+        cmd: `${cmd} ${args.join(" ")}`,
+        stdout,
+        stderr: stderr + `\nCommand failed to start: ${err.message}`,
+        code: 1,
+      };
+      resolve(false);
+    });
+  });
+}
+
 function gitOutput(args: string[]): string {
   try {
     const result = spawnSync("git", args, {
@@ -183,13 +266,58 @@ function gitOutput(args: string[]): string {
 }
 
 export function getChangedPaths(): string[] {
-  const output =
-    gitOutput(["diff", "--name-only", "@{u}..HEAD"]) ||
-    gitOutput(["diff", "--name-only", "HEAD~1..HEAD"]);
-  return output
-    .split("\n")
-    .map((f) => f.trim().replace(/\\/g, "/"))
-    .filter(Boolean);
+  try {
+    // 1. diff against merge-base
+    let mergeBase = "";
+    try {
+      const baseCmd = IS_WINDOWS
+        ? "git merge-base origin/main HEAD 2>nul || git merge-base main HEAD 2>nul || echo HEAD~1"
+        : "git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo HEAD~1";
+      const proc = require("node:child_process").execSync(baseCmd, { encoding: "utf8" });
+      mergeBase = proc.trim();
+    } catch {
+      mergeBase = "HEAD~1";
+    }
+
+    const files = new Set<string>();
+
+    // Merge base diff
+    const baseDiff = gitOutput(["diff", "--name-only", `${mergeBase}..HEAD`]);
+    if (baseDiff) {
+      for (const line of baseDiff.split("\n")) {
+        if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
+      }
+    }
+
+    // Working directory unstaged changes
+    const unstagedDiff = gitOutput(["diff", "--name-only"]);
+    if (unstagedDiff) {
+      for (const line of unstagedDiff.split("\n")) {
+        if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
+      }
+    }
+
+    // Untracked changes
+    const statusPorcelain = gitOutput(["status", "--porcelain"]);
+    if (statusPorcelain) {
+      for (const line of statusPorcelain.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("?? ")) {
+          files.add(trimmed.slice(3).replace(/\\/g, "/"));
+        } else if (trimmed && !trimmed.includes("->")) {
+          const parts = trimmed.split(/\s+/);
+          if (parts.length >= 2) {
+            files.add(parts[parts.length - 1].replace(/\\/g, "/"));
+          }
+        }
+      }
+    }
+
+    const { existsSync } = require("node:fs");
+    return [...files].filter((f) => existsSync(f));
+  } catch {
+    return [];
+  }
 }
 
 export function analyzeChanges(paths: string[]): ChangeProfile {
@@ -300,15 +428,28 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/check-test-db-safety.ts"]),
   },
   {
-    name: "Format, Lint & Check",
+    name: "Auto-Format Check",
     ciJob: "whitebox",
-    estimatedMs: 20000,
-    remediation: "bun run format && bun run lint && bun run check",
+    estimatedMs: 3000,
+    remediation: "bun run format",
     shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
-    run: () =>
-      runCommand("bun", ["run", "format"], {}) &&
-      runCommand("bun", ["run", "lint"], {}) &&
-      runCommand("bun", ["run", "check"], {}),
+    run: () => runCommand("bun", ["run", "format"], {}),
+  },
+  {
+    name: "Linter (oxlint) Check",
+    ciJob: "whitebox",
+    estimatedMs: 5000,
+    remediation: "bun run lint",
+    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
+    run: () => runCommand("bun", ["run", "lint"], {}),
+  },
+  {
+    name: "Svelte Compiler Check",
+    ciJob: "whitebox",
+    estimatedMs: 12000,
+    remediation: "bun run check",
+    shouldSkip: (ctx) => ctx.tier === "push" && ctx.profile.paths.length === 0,
+    run: () => runCommand("bun", ["run", "check"], {}),
   },
   {
     name: "Slop Scanner",
@@ -326,12 +467,42 @@ const BASE_TASKS: TaskSpec[] = [
     run: () => runCommand("bun", ["run", "scripts/validate-imports.ts"]),
   },
   {
+    name: "P0 Coverage Validation",
+    ciJob: "whitebox",
+    estimatedMs: 1500,
+    remediation: "bun run scripts/validate-p0-coverage.ts --verbose",
+    shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () =>
+      runCommand("bun", ["run", "scripts/validate-p0-coverage.ts"], {
+        silent: true,
+        timeout: 30_000,
+      }),
+  },
+  {
     name: "Secret Misuse Scan",
     ciJob: "whitebox",
     estimatedMs: 1500,
     remediation: "bun run scripts/scan-secret-misuse.ts",
     shouldSkip: (ctx) => ctx.tier !== "full" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
     run: () => runCommand("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"]),
+  },
+  {
+    name: "Security Regression Tests",
+    ciJob: "whitebox",
+    estimatedMs: 1000,
+    remediation:
+      "bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
+    run: () =>
+      runCommand("bun", [
+        "test",
+        "tests/unit/hooks/defense-in-depth.test.ts",
+        "tests/unit/hooks/authentication.test.ts",
+        "tests/unit/hooks/authorization.test.ts",
+        "tests/unit/auth/role-permission-access.test.ts",
+        "tests/unit/hooks/setup.test.ts",
+        "tests/unit/hooks/security-headers.test.ts",
+      ]),
   },
   {
     name: "Docs Lint",
@@ -361,34 +532,20 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
-    name: "Full Unit Tests",
-    ciJob: "whitebox",
-    estimatedMs: 60000,
-    remediation: "bun test --reporter=verbose",
-    shouldSkip: (ctx) =>
-      ctx.tier === "push" &&
-      !ctx.profile.hasSourceCode &&
-      !ctx.profile.hasInfra &&
-      !ctx.profile.hasDbInfra,
-    run: (ctx) =>
-      runCommand(
-        "bun",
-        ctx.tier === "push"
-          ? ["run", "scripts/test-smart.ts", "--unit-only"]
-          : ["run", "test:unit"],
-        { silent: true, timeout: 600_000 },
-      ),
-  },
-  {
     name: "Production Build",
     ciJob: "build",
     estimatedMs: 120000,
-    remediation: "bun run build",
+    // Match CI build job: COMPILE_ALL_ADAPTERS=true so testing harness stays in the
+    // artifact used by benchmarks / db-tests. Deploy strip is verified separately.
+    // MUST run before Full Unit Tests so the integration gate (--no-build) picks up
+    // a build with /api/testing available.
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () =>
       runCommand("bun", ["run", "build"], {
         silent: true,
         timeout: 600_000,
+        env: { ...process.env, COMPILE_ALL_ADAPTERS: "true" },
       }),
   },
   {
@@ -403,6 +560,53 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
+    name: "Bundle Size Check (no TipTap leak)",
+    estimatedMs: 2000,
+    remediation:
+      "Check scripts/check-bundle-size.ts thresholds; ensure TipTap is lazy-loaded in rich-text widget only",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "scripts/check-bundle-size.ts"], {
+        silent: true,
+        timeout: 30_000,
+      }),
+  },
+  {
+    name: "Full Unit Tests",
+    ciJob: "whitebox",
+    estimatedMs: 60000,
+    remediation: "bun test --reporter=verbose",
+    shouldSkip: (ctx) =>
+      ctx.tier === "push" &&
+      !ctx.profile.hasSourceCode &&
+      !ctx.profile.hasInfra &&
+      !ctx.profile.hasDbInfra,
+    run: (ctx) =>
+      runCommand(
+        "bun",
+        ctx.tier === "push"
+          ? [
+              "run",
+              "scripts/test-smart.ts",
+              "--unit+sqlite",
+              "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
+            ]
+          : ["run", "test:unit"],
+        { silent: true, timeout: 600_000 },
+      ),
+  },
+  {
+    name: "CI Test Preview",
+    ciJob: undefined,
+    estimatedMs: 2000,
+    shouldSkip: (ctx) => ctx.tier !== "push",
+    run: () =>
+      runCommand("bun", ["run", "scripts/test-smart.ts", "--list"], {
+        silent: false,
+        timeout: 10_000,
+      }),
+  },
+  {
     name: "Deploy Build Backdoor Probe",
     estimatedMs: 35000,
     ciJob: "whitebox",
@@ -410,20 +614,62 @@ const BASE_TASKS: TaskSpec[] = [
       "Ensure testBackdoorStripperPlugin patterns match all testing handler import paths (check vite.config.ts and scripts/verify-prod-build-backdoor.ts markers)",
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () => {
-      // Rebuild to verify the deploy build strips the testing backdoor.
-      // Isolated from the main production build task above.
-      const buildOk =
-        runCommand("bun", ["run", "build"], {
-          silent: true,
-          timeout: 300_000,
-        }) !== false;
-      if (!buildOk) return false;
-      return (
-        runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=deploy"], {
-          silent: true,
-          timeout: 60_000,
-        }) !== false
-      );
+      // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
+      // CRITICAL: save the good build first, then restore it after verification.
+      // Without this, the deploy build overwrites the COMPILE_ALL_ADAPTERS build
+      // and all subsequent --no-build integration/E2E tests pick up the stripped build.
+      const deployEnv = { ...process.env } as Record<string, string>;
+      delete deployEnv.COMPILE_ALL_ADAPTERS;
+
+      const outputDir = join(ROOT, ".svelte-kit", "output");
+      const savedDir = join(ROOT, ".svelte-kit", "output-saved");
+      const buildDir = join(ROOT, "build");
+      const savedBuildDir = join(ROOT, "build-saved");
+      try {
+        if (existsSync(savedDir)) rmSync(savedDir, { recursive: true, force: true });
+      } catch {}
+      try {
+        if (existsSync(savedBuildDir)) rmSync(savedBuildDir, { recursive: true, force: true });
+      } catch {}
+      try {
+        if (existsSync(outputDir)) renameSync(outputDir, savedDir);
+      } catch {}
+      try {
+        if (existsSync(buildDir)) renameSync(buildDir, savedBuildDir);
+      } catch {}
+
+      let buildOk = false;
+      let probeOk = false;
+      try {
+        buildOk =
+          runCommand("bun", ["run", "build"], {
+            silent: true,
+            timeout: 300_000,
+            env: deployEnv,
+          }) !== false;
+        if (!buildOk) return false;
+        probeOk =
+          runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=deploy"], {
+            silent: true,
+            timeout: 60_000,
+          }) !== false;
+      } finally {
+        // Restore the good COMPILE_ALL_ADAPTERS build so subsequent
+        // integration/E2E tests work correctly (--no-build picks this up)
+        try {
+          if (existsSync(outputDir)) rmSync(outputDir, { recursive: true, force: true });
+        } catch {}
+        try {
+          if (existsSync(buildDir)) rmSync(buildDir, { recursive: true, force: true });
+        } catch {}
+        try {
+          if (existsSync(savedDir)) renameSync(savedDir, outputDir);
+        } catch {}
+        try {
+          if (existsSync(savedBuildDir)) renameSync(savedBuildDir, buildDir);
+        } catch {}
+      }
+      return probeOk;
     },
   },
   {
@@ -453,6 +699,7 @@ function runDbTask(
   db: IntegrationDbType,
   kind: "integration" | "benchmark",
   ctx: RunContext,
+  onProgress?: (text: string) => void,
 ): boolean | Promise<boolean> {
   if (db !== "sqlite" && !checkNetworkDbReachable(db)) {
     const port = getDefaultDbPort(db);
@@ -496,7 +743,7 @@ function runDbTask(
   const timeout = db === "mongodb" || db === "mariadb" ? 900_000 : 600_000;
 
   if (kind === "integration") {
-    return runCommand(
+    return runCommandAsync(
       "bun",
       ["run", "scripts/run-integration-tests.ts", `--db=${db}`, "--no-build"],
       {
@@ -506,13 +753,26 @@ function runDbTask(
           ADMIN_PASSWORD: "Password123!",
         },
         timeout,
+        onLine: (line) => {
+          const match = line.match(/\[(\d+\/\d+)\]/);
+          if (match && onProgress) {
+            onProgress(match[0]);
+          } else if (line.includes("Phase") && onProgress) {
+            onProgress(line.trim());
+          }
+        },
       },
     );
   }
 
-  return runCommand("bun", ["run", "scripts/run-core-benchmarks.ts", `--db=${db}`], {
+  return runCommandAsync("bun", ["run", "scripts/run-core-benchmarks.ts", `--db=${db}`], {
     env: getBenchmarkTestEnv(db, { TEST_API_SECRET: ctx.testSecret }),
     timeout,
+    onLine: (line) => {
+      if (line.includes("benchmark") && onProgress) {
+        onProgress(line.trim());
+      }
+    },
   });
 }
 
@@ -527,16 +787,26 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
     estimatedMs: 120000,
     shouldSkip: (ctx) => {
       const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
-      return !includeDb || db !== "sqlite";
+      const includeSqlite =
+        includeDb || (ctx.tier === "push" && ctx.options.includeSqliteOnPush === true);
+      return !includeSqlite || db !== "sqlite";
     },
     run: (ctx) =>
-      runCommand("bun", ["test", "tests/integration/databases/content-nodes-contract.test.ts"], {
-        env: {
-          ...getIntegrationTestEnv("sqlite"),
-          TEST_API_SECRET: ctx.testSecret,
+      runCommand(
+        "bun",
+        [
+          "test",
+          "tests/integration/databases/content-nodes-contract.test.ts",
+          "tests/integration/databases/contract.test.ts",
+        ],
+        {
+          env: {
+            ...getIntegrationTestEnv("sqlite"),
+            TEST_API_SECRET: ctx.testSecret,
+          },
+          timeout: 300_000,
         },
-        timeout: 300_000,
-      }),
+      ),
   };
 
   return [
@@ -549,7 +819,7 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
         const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
         return !includeDb;
       },
-      run: (ctx) => runDbTask(db, "integration", ctx),
+      run: (ctx, onProgress) => runDbTask(db, "integration", ctx, onProgress),
     },
     {
       name: `Benchmarks (${db})`,
@@ -560,7 +830,7 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
         const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
         return !includeDb;
       },
-      run: (ctx) => runDbTask(db, "benchmark", ctx),
+      run: (ctx, onProgress) => runDbTask(db, "benchmark", ctx, onProgress),
     },
   ];
 }
@@ -607,7 +877,7 @@ export function buildPrecheckTasks(
         remediation: spec.remediation,
         blocking: spec.blocking ?? true,
         skip: spec.shouldSkip ? spec.shouldSkip(ctx) : false,
-        run: () => spec.run(ctx),
+        run: (onProgress) => spec.run(ctx, onProgress),
       }),
     );
 }

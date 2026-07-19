@@ -20,12 +20,19 @@
 	// Get data from page store for additional context
 	const { totalUsers, isAdmin } = page.data;
 
+	function csrfHeaders(): Record<string, string> {
+		return {
+			'Content-Type': 'application/json',
+			'X-CSRF-Token': (page.data as { csrfToken?: string }).csrfToken || ''
+		};
+	}
+
 	// GDPR: Data Portability
 	async function handleExportData() {
 		try {
 			const res = await fetch('/api/gdpr', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: csrfHeaders(),
 				body: JSON.stringify({ action: 'export', userId: user._id })
 			});
 			const result = await res.json();
@@ -57,7 +64,7 @@
 				try {
 					const res = await fetch('/api/gdpr', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
+						headers: csrfHeaders(),
 						body: JSON.stringify({
 							action: 'anonymize',
 							userId: user._id,
@@ -70,10 +77,7 @@
 						// Force logout by calling API with POST
 						await fetch('/api/user/logout', {
 							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								'X-CSRF-Token': page.data.csrfToken
-							}
+							headers: csrfHeaders()
 						});
 						window.location.href = '/login';
 					} else {

@@ -4,7 +4,9 @@
 Test wrapper to inject AdminTheme context and render Svelte primitives.
 -->
 <script lang="ts">
+  import { untrack } from "svelte";
   import { setThemeContext } from "@src/components/ui/theme-context.svelte";
+  import { initIdGenerator } from "@utils/id-generator";
   import Button from "@src/components/ui/button.svelte";
   import Card from "@src/components/ui/card.svelte";
   import Input from "@src/components/ui/input.svelte";
@@ -17,7 +19,8 @@ Test wrapper to inject AdminTheme context and render Svelte primitives.
 
   let props: Props = $props();
 
-  import { untrack } from "svelte";
+  // Request-scoped ID map for SSR render() — matches production +layout contract.
+  initIdGenerator();
   setThemeContext(untrack(() => ({
     density: props.density || "cozy",
     role: props.role || "editor"

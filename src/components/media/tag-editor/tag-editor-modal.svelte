@@ -266,7 +266,7 @@ Features:
 				<div
 					class="media-checkerboard flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-200 md:h-12 md:w-12 dark:border-surface-700"
 				>
-					<img src={getImageUrl(activeFile)} alt="" class="h-full w-full object-cover" />
+					<img src={getImageUrl(activeFile)} alt="" class="h-full w-full object-cover" crossorigin="anonymous" />
 				</div>
 				<div class="min-w-0 flex-1">
 					<p class="text-[10px] font-bold uppercase tracking-[0.08em] text-surface-500 dark:text-surface-400">

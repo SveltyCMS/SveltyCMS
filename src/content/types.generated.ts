@@ -7,10 +7,11 @@
 import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "pages" | (string & {});
+export type ContentTypes = "OpenApiTarget" | "pages" | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
+  OpenApiTarget: CollectionEntry & { title: string };
   pages: CollectionEntry & {
     title: string;
     slug: string;

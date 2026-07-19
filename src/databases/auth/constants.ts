@@ -9,6 +9,40 @@
 export const SESSION_COOKIE_NAME = "auth_sessions";
 
 /**
+ * Whether the request should use Secure / __Host- session cookies.
+ *
+ * IMPORTANT: CI and local E2E use http://127.0.0.1:4173. The old check
+ * `hostname !== "localhost"` treated 127.0.0.1 as secure, which set
+ * `Secure; __Host-auth_sessions` over plain HTTP. Browsers then drop the
+ * cookie → empty storageState and 401s on authenticated routes.
+ *
+ * Secure only when:
+ * - protocol is https:, OR
+ * - production AND host is not a loopback name
+ */
+export function isSecureCookieContext(
+  protocol: string,
+  hostname: string,
+  opts?: { forceInsecure?: boolean },
+): boolean {
+  if (opts?.forceInsecure) return false;
+  if (protocol === "https:") return true;
+  const host = (hostname || "").toLowerCase();
+  const isLoopback =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    host === "[::1]" ||
+    host.endsWith(".localhost");
+  if (isLoopback) return false;
+  // TEST_MODE / non-production: never force Secure cookies on http
+  if (process.env.TEST_MODE === "true" || process.env.NODE_ENV !== "production") {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Returns the session cookie name with the correct security prefix.
  *
  * - On secure connections (HTTPS or production non-localhost), uses the
@@ -40,10 +74,18 @@ export function readSessionCookie(
   cookies: { get: (name: string) => string | undefined },
   isSecure: boolean,
 ): string | undefined {
+  const hostPrefixed = `__Host-${SESSION_COOKIE_NAME}`;
+  const securePrefixed = `__Secure-${SESSION_COOKIE_NAME}`;
   if (isSecure) {
-    return cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
+    // Prefer __Host-; fall back for transitional deploys
+    return (
+      cookies.get(hostPrefixed) || cookies.get(SESSION_COOKIE_NAME) || cookies.get(securePrefixed)
+    );
   }
-  return cookies.get(SESSION_COOKIE_NAME);
+  // Loopback/http: prefer plain name; accept accidental secure leftovers
+  return (
+    cookies.get(SESSION_COOKIE_NAME) || cookies.get(hostPrefixed) || cookies.get(securePrefixed)
+  );
 }
 
 /**

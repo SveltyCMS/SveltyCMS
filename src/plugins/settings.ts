@@ -1,49 +1,223 @@
 /**
  * @file src/plugins/settings.ts
- * @description Service for managing persistent plugin settings and states
+ * @description Service for managing persistent plugin settings and states,
+ * including encrypted secret fields via AES-256-GCM.
  */
 
 import type { IDBAdapter } from "@databases/db-interface";
 import { logger } from "@utils/logger";
 import type { PluginState } from "./types";
+import type { SettingsPart } from "./settings-declaration";
+import { processSecretFields, decryptSecretFields, maskSecretFields } from "./settings-crypto";
+import type { EncryptionContext } from "./settings-crypto";
+import { getSecretFieldNames } from "./settings-declaration";
 
 export class PluginSettingsService {
-  private readonly COLLECTION = "pluginStates";
+  private readonly SETTINGS_COLLECTION = "plugin_settings";
 
   constructor(private readonly dbAdapter: IDBAdapter) {}
 
-  // Ensure the plugin_states collection exists
+  // Ensure the plugin_settings collection exists
   async initialize(): Promise<void> {
     try {
-      const count = await this.dbAdapter.crud.count(this.COLLECTION, undefined, {
+      const count = await this.dbAdapter.crud.count(this.SETTINGS_COLLECTION, undefined, {
         bypassTenantCheck: true,
       });
       if (!count.success) {
-        logger.info(`Creating ${this.COLLECTION} collection...`);
-        // Create by inserting and deleting a dummy record if createCollection not explicitly available
+        logger.info(`Creating ${this.SETTINGS_COLLECTION} collection...`);
         await this.dbAdapter.crud.insert(
-          this.COLLECTION,
+          this.SETTINGS_COLLECTION,
           {
             pluginId: "__INIT__",
             tenantId: "system",
-            enabled: false,
+            settings: {},
           } as any,
           { bypassTenantCheck: true },
         );
-        await this.dbAdapter.crud.deleteMany(this.COLLECTION, { pluginId: "__INIT__" } as any, {
-          bypassTenantCheck: true,
-        });
+        await this.dbAdapter.crud.deleteMany(
+          this.SETTINGS_COLLECTION,
+          { pluginId: "__INIT__" } as any,
+          { bypassTenantCheck: true },
+        );
       }
     } catch (error) {
-      logger.error(`Failed to initialize ${this.COLLECTION}`, { error });
+      logger.error(`Failed to initialize ${this.SETTINGS_COLLECTION}`, { error });
     }
   }
+
+  // ============================================================================
+  // Plugin Settings (per tenant, per plugin)
+  // ============================================================================
+
+  /**
+   * Get stored settings for a plugin in a tenant.
+   * Secret fields are masked in the returned value (safe for API responses).
+   *
+   * @param pluginId - Plugin identifier
+   * @param tenantId - Tenant identifier
+   * @param declaration - Optional settings declaration for masking secrets
+   */
+  async getPluginSettings(
+    pluginId: string,
+    tenantId: string,
+    declaration?: SettingsPart,
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const result = await this.dbAdapter.crud.findOne<{ settings: Record<string, unknown> }>(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+
+      if (!result.success || !result.data?.settings) return null;
+
+      const stored = result.data.settings;
+
+      // Mask secrets if declaration is provided
+      if (declaration) {
+        const secretFields = getSecretFieldNames(declaration);
+        if (secretFields.length > 0) {
+          return maskSecretFields(stored, secretFields);
+        }
+      }
+
+      return stored;
+    } catch (error) {
+      logger.error(`Failed to get plugin settings for ${pluginId}`, { error });
+      return null;
+    }
+  }
+
+  /**
+   * Get decrypted settings for server-side plugin consumption.
+   * Secret fields are decrypted — NEVER send this to the browser.
+   *
+   * @param pluginId - Plugin identifier
+   * @param tenantId - Tenant identifier
+   * @param declaration - Settings declaration for identifying secret fields
+   */
+  async getDecryptedSettings(
+    pluginId: string,
+    tenantId: string,
+    declaration?: SettingsPart,
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const result = await this.dbAdapter.crud.findOne<{ settings: Record<string, unknown> }>(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+
+      if (!result.success || !result.data?.settings) return null;
+
+      const stored = result.data.settings;
+
+      // Decrypt secrets if declaration is provided
+      if (declaration) {
+        const secretFields = getSecretFieldNames(declaration);
+        if (secretFields.length > 0) {
+          const context: EncryptionContext = { tenantId, pluginId };
+          return decryptSecretFields(stored, secretFields, context);
+        }
+      }
+
+      return stored;
+    } catch (error) {
+      logger.error(`Failed to get decrypted settings for ${pluginId}`, { error });
+      return null;
+    }
+  }
+
+  /**
+   * Save plugin settings for a tenant.
+   * Secret fields are encrypted before storage.
+   * Existing secret values are preserved if the submitted value is blank/masked.
+   *
+   * @param pluginId - Plugin identifier
+   * @param tenantId - Tenant identifier
+   * @param settings - The settings values to store
+   * @param declaration - Settings declaration for identifying and processing secret fields
+   */
+  async savePluginSettings(
+    pluginId: string,
+    tenantId: string,
+    settings: Record<string, unknown>,
+    declaration?: SettingsPart,
+  ): Promise<boolean> {
+    try {
+      let toStore = { ...settings };
+
+      // Process secret fields: encrypt new values, preserve existing
+      if (declaration) {
+        const secretFields = getSecretFieldNames(declaration);
+        if (secretFields.length > 0) {
+          const existing = await this.getPluginSettings(pluginId, tenantId);
+          const context: EncryptionContext = { tenantId, pluginId };
+          toStore = await processSecretFields(toStore, existing, secretFields, context);
+        }
+      }
+
+      const existing = await this.dbAdapter.crud.findOne<{
+        _id: unknown;
+        settings: Record<string, unknown>;
+      }>(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
+
+      if (existing.success && existing.data?._id) {
+        const updateResult = await this.dbAdapter.crud.update(
+          this.SETTINGS_COLLECTION,
+          existing.data._id,
+          {
+            settings: toStore,
+            updatedAt: new Date(),
+          } as any,
+          { bypassTenantCheck: true },
+        );
+        return updateResult.success;
+      }
+
+      // Insert new
+      const insertResult = await this.dbAdapter.crud.insert(
+        this.SETTINGS_COLLECTION,
+        {
+          pluginId,
+          tenantId,
+          settings: toStore,
+        } as any,
+        { bypassTenantCheck: true },
+      );
+      return insertResult.success;
+    } catch (error) {
+      logger.error(`Failed to save plugin settings for ${pluginId}`, { error });
+      return false;
+    }
+  }
+
+  /**
+   * Delete all settings for a plugin in a tenant.
+   */
+  async deletePluginSettings(pluginId: string, tenantId: string): Promise<boolean> {
+    try {
+      const result = await this.dbAdapter.crud.deleteMany(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+      return result.success;
+    } catch (error) {
+      logger.error(`Failed to delete plugin settings for ${pluginId}`, { error });
+      return false;
+    }
+  }
+
+  // ============================================================================
+  // Plugin State (backward compatible)
+  // ============================================================================
 
   // Get state for a specific plugin and tenant
   async getPluginState(pluginId: string, tenantId: string): Promise<PluginState | null> {
     try {
       const result = await this.dbAdapter.crud.findOne<PluginState>(
-        this.COLLECTION,
+        "pluginStates",
         {
           pluginId,
           tenantId,
@@ -65,7 +239,7 @@ export class PluginSettingsService {
   async getAllPluginStates(tenantId: string): Promise<PluginState[]> {
     try {
       const result = await this.dbAdapter.crud.findMany<PluginState>(
-        this.COLLECTION,
+        "pluginStates",
         {
           tenantId,
         } as any,
@@ -91,9 +265,8 @@ export class PluginSettingsService {
       const existing = await this.getPluginState(pluginId, tenantId);
 
       if (existing?._id) {
-        // Update
         const updateResult = await this.dbAdapter.crud.update<PluginState>(
-          this.COLLECTION,
+          "pluginStates",
           existing._id,
           {
             enabled,
@@ -104,9 +277,8 @@ export class PluginSettingsService {
         );
         return updateResult.success;
       }
-      // Insert
       const insertResult = await this.dbAdapter.crud.insert<PluginState>(
-        this.COLLECTION,
+        "pluginStates",
         {
           pluginId,
           tenantId,

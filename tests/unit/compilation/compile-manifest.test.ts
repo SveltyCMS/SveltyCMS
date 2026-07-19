@@ -9,6 +9,14 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compile } from "@src/utils/compilation/compile";
 
+/** Suppress [Compile] progress noise in this suite (still surfaces errors). */
+const quietLogger = {
+  info: () => {},
+  success: () => {},
+  warn: () => {},
+  error: (msg: string, err?: unknown) => console.error(`[Compile] ${msg}`, err),
+};
+
 const tempRoots: string[] = [];
 
 async function createTempCompileFixture() {
@@ -75,6 +83,7 @@ describe("compile() manifest integrity", () => {
       userCollections,
       compiledCollections,
       concurrency: 1,
+      logger: quietLogger,
     });
 
     expect(result.errors).toHaveLength(0);
@@ -98,12 +107,17 @@ describe("compile() manifest integrity", () => {
   it("recompiles when manifest hash matches but compiled output file is missing", async () => {
     const { userCollections, compiledCollections } = await createTempCompileFixture();
 
-    await compile({ userCollections, compiledCollections, concurrency: 1 });
+    await compile({ userCollections, compiledCollections, concurrency: 1, logger: quietLogger });
 
     const compiledPath = path.join(compiledCollections, "demo.js");
     await fs.unlink(compiledPath);
 
-    const result = await compile({ userCollections, compiledCollections, concurrency: 1 });
+    const result = await compile({
+      userCollections,
+      compiledCollections,
+      concurrency: 1,
+      logger: quietLogger,
+    });
 
     expect(result.processed).toBe(1);
     expect(result.orphanedFiles).toHaveLength(0);
@@ -117,14 +131,14 @@ describe("compile() manifest integrity", () => {
   it("preserves collectionOrder across subsequent compiles", async () => {
     const { userCollections, compiledCollections } = await createTempCompileFixture();
 
-    await compile({ userCollections, compiledCollections, concurrency: 1 });
+    await compile({ userCollections, compiledCollections, concurrency: 1, logger: quietLogger });
 
     const manifestPath = path.join(compiledCollections, ".compilation-manifest.json");
     const first = JSON.parse(await fs.readFile(manifestPath, "utf-8")) as Record<string, unknown>;
     first.collectionOrder = { demo: 5 };
     await fs.writeFile(manifestPath, JSON.stringify(first, null, 2), "utf-8");
 
-    await compile({ userCollections, compiledCollections, concurrency: 1 });
+    await compile({ userCollections, compiledCollections, concurrency: 1, logger: quietLogger });
 
     const second = JSON.parse(await fs.readFile(manifestPath, "utf-8")) as Record<string, unknown>;
     expect(second.collectionOrder).toEqual({ demo: 5 });
@@ -133,7 +147,7 @@ describe("compile() manifest integrity", () => {
   it("preserves structureNodes across subsequent compiles", async () => {
     const { userCollections, compiledCollections } = await createTempCompileFixture();
 
-    await compile({ userCollections, compiledCollections, concurrency: 1 });
+    await compile({ userCollections, compiledCollections, concurrency: 1, logger: quietLogger });
 
     const manifestPath = path.join(compiledCollections, ".compilation-manifest.json");
     const guiCategories = [
@@ -150,7 +164,7 @@ describe("compile() manifest integrity", () => {
     first.structureNodes = guiCategories;
     await fs.writeFile(manifestPath, JSON.stringify(first, null, 2), "utf-8");
 
-    await compile({ userCollections, compiledCollections, concurrency: 1 });
+    await compile({ userCollections, compiledCollections, concurrency: 1, logger: quietLogger });
 
     const second = JSON.parse(await fs.readFile(manifestPath, "utf-8")) as Record<string, unknown>;
     expect(second.structureNodes).toEqual(guiCategories);

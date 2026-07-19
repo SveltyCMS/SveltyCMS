@@ -520,7 +520,26 @@ The dashboard handler (`src/routes/api/[...path]/handlers/dashboard.ts`) exposes
 
 ### Authentication & Multi-tenancy
 
-Requests pass through the API dispatcher (`+server.ts`) which enforces authentication and `checkEndpointPermission` before reaching the dashboard handler. Tenant-scoped queries use `locals.tenantId`.
+Requests pass through the API dispatcher (`+server.ts`) which enforces authentication and `checkEndpointPermission` before reaching the dashboard handler. All dashboard widgets respect multi-tenancy:
+
+- **Tenant-scoped queries** use `locals.tenantId` for every database operation
+- **System-wide widgets** (health, metrics, system-info) return global data visible to all tenants
+- **Per-tenant widgets** (last5-content, audit, security) filter results by `locals.tenantId`
+- **Dashboard layout preferences** are stored per-user per-tenant (compound key `tenantId:userId`)
+- **Cache keys** include `tenantId` to prevent cross-tenant cache leakage
+
+Widget developers adding new dashboard endpoints **must** include `tenantId` in all database queries:
+
+```typescript
+// ✅ Correct: dashboard handler passes tenantId
+const result = await dbAdapter.crud.findMany("collection", {
+  tenantId: event.locals.tenantId, // ← Required for tenant isolation
+  ...otherFilters,
+});
+
+// ❌ Wrong: missing tenantId — returns ALL tenants' data
+const result = await dbAdapter.crud.findMany("collection", otherFilters);
+```
 
 ### Endpoint Reference
 

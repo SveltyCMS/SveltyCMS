@@ -1,0 +1,126 @@
+---
+path: "docs/tests/routes/dashboard.mdx"
+title: "Dashboard Tests — Control Map (Widget-Agnostic)"
+description: "100% coverage plan for /dashboard shell. Widget catalogs vary per install — never hard-code a fixed widget list."
+order: 16
+icon: "mdi:view-dashboard"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "dashboard"
+  - "widgets"
+---
+
+# Dashboard (`/dashboard`) — Control Map
+
+> [!IMPORTANT]
+> **Widgets are install-specific.** Core ships a default set under `src/routes/(app)/dashboard/widgets/`; plugins may inject more via slots or additional files.  
+> Tests and docs assert **shell contracts** and **API shapes**, never “must show CPU + Memory + Logs”.
+
+## Architecture (brief)
+
+| Piece                             | Role                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| `+page.server.ts`                 | Auth, `dashboard:read` gate, compile-time widget discovery (`import.meta.glob`) |
+| `+page.svelte`                    | Toolbar, add/search/reset, grid, DnD reorder, lazy load, AI generative mode     |
+| `base-widget.svelte`              | Shared fetch/poll/cache/refresh chrome for individual widgets                   |
+| `dashboard-preferences.svelte.ts` | Persist layout to `/api/system-preferences`                                     |
+| `widgets/*.svelte`                | **Per-install catalog** — each exports `widgetMeta`                             |
+| `Slot name="dashboard"`           | Plugin injection zone                                                           |
+
+---
+
+## Control → test matrix (shell = 100%)
+
+### Page shell
+
+| Control               | Unit            | Integration | E2E                 | Notes                        |
+| --------------------- | --------------- | ----------- | ------------------- | ---------------------------- |
+| Load + title          | page.server     | —           | ✅ `dashboard.spec` | AdminPageShell               |
+| `dashboard:read` deny | page.server 403 | —           | RBAC suite          | Non-admin without perm       |
+| Empty state           | —               | —           | ✅                  | Install with no saved layout |
+| Widget grid           | —               | —           | ✅                  | When preferences non-empty   |
+| Plugin slot attached  | —               | —           | ✅                  | May be empty                 |
+
+### Toolbar (install-agnostic)
+
+| Control                           | Unit | E2E                                         |
+| --------------------------------- | ---- | ------------------------------------------- |
+| Add Widget button / menu          | —    | ✅ opens menu when catalog has free widgets |
+| Widget search                     | —    | ✅ nonsense query → “No widgets found”      |
+| Reset all                         | —    | ✅ after add → empty state                  |
+| AI toggle present                 | —    | ✅ does not require live MCP                |
+| Pointer drag-reorder (≥2 widgets) | —    | ✅ header-band mouse drag                   |
+| Keyboard Ctrl+Arrow reorder       | —    | ✅ accessibility path                       |
+
+### Layout persistence
+
+| Control           | Unit / integration                             | E2E                       |
+| ----------------- | ---------------------------------------------- | ------------------------- |
+| Save layout POST  | system-preferences API (integration elsewhere) | add+reset exercises store |
+| CSRF on save      | preferences store sends header                 | covered by store code     |
+| Secure widget ids | `generateUUID` (no Math.random)                | code review + unit path   |
+
+### Per-widget content
+
+| Policy                         | How we test                                                          |
+| ------------------------------ | -------------------------------------------------------------------- |
+| **Do not** assert widget names | E2E only counts `[data-widget-id]`                                   |
+| **Do** test APIs widgets call  | `tests/integration/api/dashboard.test.ts` (health, metrics, logs, …) |
+| Optional deep unit per widget  | Opt-in; not required for shell 100%                                  |
+
+### Dashboard API (shared by many widgets)
+
+Covered by `tests/integration/api/dashboard.test.ts`:
+
+- `GET /api/dashboard/health`
+- `GET /api/dashboard/metrics` (+ detailed)
+- system-info, logs, last5-content/media, online-user, system-messages, cache-metrics
+
+---
+
+## Product hardening (2026-07-18)
+
+- [x] Replace `Math.random` widget ids with `generateUUID`
+- [x] CSRF headers on layout save + AI generate-layout
+- [x] Empty-state copy notes install-varying widgets
+- [x] Stable `data-testid`s for shell automation
+- [x] Replace skipped “not implemented” E2E with real shell suite
+- [x] Pointer drag-reorder + keyboard Ctrl+Arrow E2E (widget-agnostic, ≥2 widgets)
+
+---
+
+## Associated files
+
+### E2E
+
+- [dashboard.spec.ts](../../../tests/e2e/routes/dashboard/dashboard.spec.ts)
+
+### Unit
+
+- [widget-defaults.test.ts](../../../tests/unit/dashboard/widget-defaults.test.ts)
+- [dashboard-page-server.test.ts](../../../tests/unit/routes/dashboard-page-server.test.ts)
+
+### Integration
+
+- [dashboard.test.ts](../../../tests/integration/api/dashboard.test.ts)
+
+---
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/dashboard tests/unit/routes/dashboard-page-server.test.ts
+bun x playwright test tests/e2e/routes/dashboard
+```
+
+## Definition of done (shell 100%)
+
+- [x] Shell loads; empty **or** grid
+- [x] Add / search / reset without fixed widget list
+- [x] Permission gate unit-tested
+- [x] Dashboard APIs integration-tested
+- [x] Docs state install-varying widget policy

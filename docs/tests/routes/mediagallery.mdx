@@ -1,0 +1,67 @@
+---
+path: "docs/tests/routes/mediagallery.mdx"
+title: "Media Gallery Tests — Control Map"
+description: "E2E and unit coverage for /mediagallery: grid/table, upload, delete, folders, bulk actions, image editor save."
+order: 17
+icon: "mdi:image-multiple"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "media"
+---
+
+# Media Gallery (`/mediagallery`) — Control Map
+
+## Surface
+
+| Area   | Files                                                                  |
+| ------ | ---------------------------------------------------------------------- |
+| Shell  | `+page.svelte`, `+page.server.ts`                                      |
+| Views  | `media-grid.svelte`, `media-table.svelte`, `virtual-media-grid.svelte` |
+| Upload | `upload-media/*` (local + remote)                                      |
+| Modals | advanced search, focal, transcode, image editor                        |
+
+Media content is environment-specific; tests seed via upload.
+
+---
+
+## Control → test matrix
+
+| Control                              | Unit              | Integration           | E2E   | Spec                            |
+| ------------------------------------ | ----------------- | --------------------- | ----- | ------------------------------- |
+| Load + `media:read` gate             | page.server       | media API             | shell | unit + gallery                  |
+| Toolbar                              | —                 | —                     | ✅    | `media-gallery-toolbar`         |
+| Search / type filter                 | —                 | —                     | ✅    | `mediagallery.spec`             |
+| Grid / table toggle                  | —                 | —                     | ✅    | `media-view-*`                  |
+| Upload image                         | —                 | media upload          | ✅    | `media-upload-input`            |
+| Delete single                        | —                 | media delete          | ✅    | grid actions                    |
+| **Image editor open / crop / focal** | image-editor unit | —                     | ✅    | `image-editor.spec`             |
+| **Image editor save (manipulate)**   | —                 | manipulate API        | ✅    | `image-editor.spec` save        |
+| **Create virtual folder**            | —                 | system-virtual-folder | ✅    | `folders-bulk.spec`             |
+| **Folder appear / navigate**         | —                 | —                     | ✅    | same                            |
+| **Selection mode + bulk bar**        | —                 | —                     | ✅    | `folders-bulk.spec`             |
+| **Bulk download**                    | —                 | bulk-download         | ✅    | hits `/api/media/bulk-download` |
+| **Bulk delete (Del key)**            | —                 | deleteMedia           | ✅    | confirm + batch toast           |
+| **Remote URL upload page**           | —                 | remoteUpload action   | ✅    | `move-remote.spec`              |
+| **Selection + breadcrumb move**      | —                 | `/api/media/move`     | ✅    | `move-remote.spec`              |
+| **HTML5 drop to folder**             | media-dnd unit    | move API              | 🟡    | synthetic DnD best-effort       |
+
+---
+
+## Associated tests
+
+- [mediagallery.spec.ts](../../../tests/e2e/routes/mediagallery/mediagallery.spec.ts) — shell, search, views, upload, single delete
+- [image-editor.spec.ts](../../../tests/e2e/routes/mediagallery/image-editor.spec.ts) — open, tools, **save**
+- [folders-bulk.spec.ts](../../../tests/e2e/routes/mediagallery/folders-bulk.spec.ts) — folders + multi-select bulk
+- [mediagallery-page-server.test.ts](../../../tests/unit/routes/mediagallery-page-server.test.ts)
+- Integration: `tests/integration/api/media.test.ts`
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/mediagallery-page-server.test.ts
+bun x playwright test tests/e2e/routes/mediagallery
+```

@@ -1,14 +1,13 @@
 /**
  * @file src/utils/benchmark-db-purge.ts
- * @description Purges stale mock/benchmark collection tables and content_nodes from SQLite databases.
+ * @description Hardened purge for benchmark artifacts in SQLite.
  *
- * Filesystem purge (`purgeBenchmarkCollectionArtifacts`) does not remove DB tables or
- * `content_nodes` rows — this module closes that gap.
+ * ### Hardening (audit 2026-07):
+ * - Transactional safety: BEGIN/COMMIT/ROLLBACK prevents partial purges
+ * - SQL escaping: double-quote escaping on table names prevents injection
+ * - Graceful error recovery: logs filename on failure, rolls back transaction
  *
- * ### Features:
- * - scope-aware drops (user vs benchmark_shared vs ephemeral test DBs)
- * - mock scan debris always removed
- * - bench_tmp_*.sqlite file deletion
+ * Purges stale mock/benchmark collection tables and content_nodes from SQLite databases.
  */
 
 import path from "node:path";
@@ -25,20 +24,17 @@ export const DEFAULT_DATABASE_DIR = path.resolve(process.cwd(), "config", "datab
 
 export type BenchmarkDbScope = "user" | "benchmark-shared" | "test-ephemeral";
 
-/** Intentional demo/benchmark presets kept in benchmark_shared.sqlite. */
 const BENCHMARK_SHARED_KEEP_IDS = new Set([
   "benchmarkstable",
   "benchmarkauthors",
   "benchmarkposts",
 ]);
 
-/** Normalizes a `collection_*` table name to a collection id. */
 export function collectionTableToId(tableName: string): string {
   const prefix = "collection_";
   return tableName.startsWith(prefix) ? tableName.slice(prefix.length) : tableName;
 }
 
-/** Resolves purge scope from a database filename. */
 export function resolveBenchmarkDbScope(fileName: string): BenchmarkDbScope {
   const lower = fileName.toLowerCase();
   if (lower.startsWith("bench_tmp_")) return "test-ephemeral";
@@ -47,7 +43,6 @@ export function resolveBenchmarkDbScope(fileName: string): BenchmarkDbScope {
   return "user";
 }
 
-/** True when a legacy sanitized table id looks benchmark-only (e.g. benchacid, benchmarkauthors). */
 export function isLegacyBenchmarkTableId(collectionId: string): boolean {
   const norm = normalizeCollectionId(collectionId);
   if (norm.startsWith("mockcollection")) return true;
@@ -56,7 +51,6 @@ export function isLegacyBenchmarkTableId(collectionId: string): boolean {
   return isBenchmarkArtifact(`${collectionId}.ts`);
 }
 
-/** True when a collection id should be dropped for the given DB scope. */
 export function shouldPurgeDatabaseCollection(
   collectionId: string,
   scope: BenchmarkDbScope,
@@ -73,7 +67,6 @@ export function shouldPurgeDatabaseCollection(
   return isLegacyBenchmarkTableId(collectionId);
 }
 
-/** True when a content_nodes row represents stale benchmark/mock debris. */
 export function isStaleCollectionContentNode(
   nodePath: string,
   slug: string,
@@ -102,9 +95,6 @@ export interface PurgeBenchmarkDatabaseResult {
   tempDbsRemoved: number;
 }
 
-/**
- * Purges stale mock/benchmark collection data from SQLite files in config/database.
- */
 export async function purgeBenchmarkDatabaseArtifacts(options?: {
   databaseDir?: string;
   dbPaths?: string[];
@@ -124,6 +114,15 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
     dbPaths = entries.filter(isSqliteDatabaseFile).map((f) => path.join(databaseDir, f));
   }
 
+  // 🛡️ Ensure Bun is available before attempting SQLite operations
+  if (typeof Bun === "undefined") return result;
+  let Database: any;
+  try {
+    ({ Database } = await import("bun:sqlite"));
+  } catch {
+    return result;
+  }
+
   for (const dbPath of dbPaths) {
     const fileName = path.basename(dbPath);
     const scope = resolveBenchmarkDbScope(fileName);
@@ -136,16 +135,10 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
 
     if (!existsSync(dbPath)) continue;
 
-    if (typeof Bun === "undefined") return result;
-    let Database: any;
-    try {
-      ({ Database } = await import("bun:sqlite"));
-    } catch {
-      return result;
-    }
-
     const db = new Database(dbPath);
     try {
+      db.exec("BEGIN TRANSACTION");
+
       const tables = db
         .query(
           `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%' ORDER BY name`,
@@ -161,7 +154,8 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
       }
 
       for (const tableName of tablesToDrop) {
-        db.exec(`DROP TABLE IF EXISTS "${tableName}"`);
+        // 🛡️ Escape table name to prevent SQL injection
+        db.exec(`DROP TABLE IF EXISTS "${tableName.replace(/"/g, '""')}"`);
         result.tablesDropped++;
       }
 
@@ -183,8 +177,11 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
         /* content_nodes may not exist */
       }
 
-      db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+      db.exec("COMMIT");
       result.databasesProcessed++;
+    } catch (err) {
+      db.exec("ROLLBACK");
+      logger.error(`[DB Purge] Failed to purge ${fileName}, transaction rolled back:`, err);
     } finally {
       db.close();
     }

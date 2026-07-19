@@ -203,15 +203,13 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 
 	try {
 		const { signIn: remoteSignIn } = await import("../auth.remote");
-			const result = (await remoteSignIn({
-				email: loginForm.data.email,
-				password: loginForm.data.password,
-				isToken: loginForm.data.isToken,
-				redirect: redirectTo || undefined,
-			})) as any;
-
-		isSubmitting = false;
-
+		const result = (await remoteSignIn({
+			email: loginForm.data.email,
+			password: loginForm.data.password,
+			isToken: loginForm.data.isToken,
+			redirect: redirectTo || undefined,
+		})) as any;
+		
 		if (result.requires2FA) {
 			requires2FA = true;
 			twoFAUserId = result.userId || "";
@@ -226,34 +224,32 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			});
 			return;
 		}
-
+		
 		if (result.success && result.redirectPath) {
-				console.log('[SignIn Client] redirectPath:', result.redirectPath);
-				isAuthenticating = true;
-				sessionStorage.setItem(
-					"flashMessage",
-					JSON.stringify({
-						type: "success",
-						title: "Welcome Back!",
-						description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
-						duration: 4000,
-					})
-				);
-				await goto(result.redirectPath, { invalidateAll: true });
-				return;
+			console.log('[SignIn Client] redirectPath:', result.redirectPath);
+			sessionStorage.setItem(
+				"flashMessage",
+				JSON.stringify({
+					type: "success",
+					title: "Welcome Back!",
+					description: `<iconify-icon icon="mdi:party-popper" width="24" class="me-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
+					duration: 4000,
+				})
+			);
+			await goto(result.redirectPath, { invalidateAll: true });
+			return;
 		}
-
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
+		
 		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
 		wiggle(loginFormElement);
 	} catch (error: any) {
-		isSubmitting = false;
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
 		const errorMessage = error?.message || "An unexpected error occurred";
 		toast.error({ title: "Sign In Failed", description: errorMessage });
 		wiggle(loginFormElement);
+	} finally {
+		isSubmitting = false;
+		isAuthenticating = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
 	}
 }
 
@@ -830,8 +826,7 @@ $effect(() => {
 																				aria-label={twofa_verify_button()}
 																			 class="flex-1">
 										{#if isVerifying2FA}
-											<!-- FIX: alt="" + aria-hidden on spinner image -->
-											<img src="/Spinner.svg" alt="" aria-hidden="true" class="me-2 h-5 invert filter" />
+											<div class="me-2 h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 											{twofa_verifying()}
 										{:else}
 											<iconify-icon icon="mdi:check" width={20} class="me-2" aria-hidden="true"></iconify-icon>
@@ -886,7 +881,7 @@ $effect(() => {
 							 class="text-white w-full sm:w-auto">
 								{form_resetpassword()}
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6 invert filter" />
+									<div class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 								{/if}
 							</Button>
 
@@ -935,7 +930,7 @@ $effect(() => {
 								class="text-white w-full sm:w-auto">
 								Send Magic Link
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6 invert filter" />
+									<div class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 								{/if}
 							</Button>
 
@@ -1017,7 +1012,7 @@ $effect(() => {
 							 class="mt-6 text-white w-full sm:w-auto">
 								{signin_savenewpassword()}
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ms-4 h-6" />
+									<div class="ms-4 h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 								{/if}
 							</Button>
 

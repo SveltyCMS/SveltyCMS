@@ -76,10 +76,12 @@ export async function notifyContentUpdate(
   await invalidateNavigationCache(tid);
 
   eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
-    version: Date.now(),
-    tenantId: tenantId || null,
+    collection: "*",
+    entryId: "*",
+    action: "update" as const,
+    tenantId: tenantId ?? null,
     ...(options?.batchSize !== undefined ? { batchSize: options.batchSize } : {}),
-  });
+  } as any);
 }
 
 /**

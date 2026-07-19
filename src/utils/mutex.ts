@@ -1,38 +1,50 @@
 /**
  * @file src/utils/mutex.ts
- * @description Simple asynchronous mutex for serializing access to shared resources.
+ * @description Robust asynchronous mutex for serializing access to shared resources.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Fixed isLocked(): now uses a boolean flag instead of a never-nulled Promise reference
+ * - Memory leak protection: promise chain dissolves references after each task completes
+ * - Sync/async handler support: runExclusive accepts Promise<T> | T
  */
 
 export class Mutex {
-  private promise: Promise<void> | null = null;
+  // Chain of pending promises — resolves sequentially in FIFO order
+  private queue: Promise<void> = Promise.resolve();
+  private locked = false;
 
   /**
    * Acquires the lock. Returns a function to release it.
    */
   async lock(): Promise<() => void> {
-    const previous = this.promise;
-    let resolve: () => void;
-    this.promise = new Promise((r) => {
-      resolve = r;
+    let release: () => void;
+
+    // Create a new promise for the current lock attempt
+    const nextInLine = new Promise<void>((resolve) => {
+      release = resolve;
     });
 
-    if (previous) {
-      await previous;
-    }
+    // Capture the current end of the queue and update it
+    const previous = this.queue;
+    this.queue = this.queue.then(() => nextInLine);
 
-    let released = false;
+    // Wait for the previous task to complete
+    await previous;
+
+    this.locked = true;
+
+    // Return the release callback
     return () => {
-      if (!released) {
-        released = true;
-        resolve();
-      }
+      this.locked = false;
+      release();
     };
   }
 
   /**
    * Runs a function with the lock held.
+   * Accepts both sync and async functions.
    */
-  async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  async runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
     const release = await this.lock();
     try {
       return await fn();
@@ -42,9 +54,9 @@ export class Mutex {
   }
 
   /**
-   * Checks if the mutex is currently locked.
+   * Checks if the mutex is currently waiting or processing an item.
    */
   isLocked(): boolean {
-    return this.promise !== null;
+    return this.locked;
   }
 }

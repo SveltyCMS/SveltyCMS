@@ -28,6 +28,7 @@ This component provides a user interface for managing 2FA settings:
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import type { User } from '@src/databases/auth/types';
+	import { page } from '$app/state';
 	// ParaglideJS
 	import {
 		button_cancel,
@@ -123,7 +124,7 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/setup', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' }
 			});
 
 			const result = await response.json();
@@ -151,19 +152,29 @@ This component provides a user interface for managing 2FA settings:
 		}
 	}
 
-	// Verify and enable 2FA
+	// Verify and enable 2FA (complete enrollment with secret from setup)
 	async function verify2FA() {
 		if (isLoading || !verificationCode || verificationCode.length !== 6) {
+			return;
+		}
+		if (!setupData?.secret) {
+			showErrorToast(twofa_error_setup_failed());
 			return;
 		}
 
 		isLoading = true;
 
 		try {
-			const response = await fetch('/api/auth/2fa/verify', {
+			// verify-setup completes enrollment; /verify is for login-time checks only
+			const response = await fetch('/api/auth/2fa/verify-setup', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ code: verificationCode })
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
+				body: JSON.stringify({
+					code: verificationCode,
+					verificationCode,
+					secret: setupData.secret,
+					backupCodes: setupData.backupCodes || []
+				})
 			});
 
 			const result = await response.json();
@@ -208,7 +219,7 @@ This component provides a user interface for managing 2FA settings:
 				try {
 					const response = await fetch('/api/auth/2fa/disable', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
+						headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
 						body: JSON.stringify({ code })
 					});
 
@@ -241,7 +252,7 @@ This component provides a user interface for managing 2FA settings:
 		try {
 			const response = await fetch('/api/auth/2fa/backup-codes', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' }
 			});
 
 			const result = await response.json();
@@ -266,12 +277,12 @@ This component provides a user interface for managing 2FA settings:
 </script>
 
 <!-- Main Modal Component -->
-<div class="modal-2fa space-y-3">
+<div class="modal-2fa flex flex-col h-full space-y-3">
 	<header class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader} shrink-0`}>{title ?? twofa_title()}</header>
 
 	<article class="shrink-0 text-center text-sm">{body ?? twofa_description()}</article>
 
-	<form class="modal-form {cForm} max-h-[60vh]">
+	<form class="modal-form {cForm} flex-1 min-h-0">
 		<!-- Status Section -->
 		<div class="mb-4 flex items-center justify-between rounded bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
@@ -292,9 +303,9 @@ This component provides a user interface for managing 2FA settings:
 			{#if isLoading && !setupData}
 				<!-- Loading state -->
 				<div class="flex flex-col items-center justify-center gap-4 py-8">
-					<iconify-icon icon="svg-spinners:ring-resize" width={24}></iconify-icon>
-					<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
-				</div>
+									<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
+									<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
+								</div>
 			{:else if setupData}
 				<!-- QR Code Setup -->
 				<div class="space-y-4">
@@ -399,7 +410,7 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Verify button when setting up -->
 			<Button variant="tertiary" onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="dark:">
 				{#if isLoading}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_verifying()}
 				{:else}
 					<iconify-icon icon="mdi:check-circle" width={20} class="me-2"></iconify-icon>
@@ -410,17 +421,17 @@ This component provides a user interface for managing 2FA settings:
 			<!-- Management buttons when 2FA is enabled -->
 			<Button variant="surface" onclick={generateBackupCodes} disabled={isLoading} class="-secondary-500">
 				{#if isLoading}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_generating_codes()}
 				{:else}
 					<iconify-icon icon="mdi:key-variant" width={24}></iconify-icon>
 					{twofa_generate_backup_codes()}
 				{/if}
 			</Button>
-
+	
 			<Button variant="error" onclick={disable2FA} disabled={isLoading}>
 				{#if isLoading}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width={24}></iconify-icon>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_disabling()}
 				{:else}
 					<iconify-icon icon="mdi:shield-remove" width={24}></iconify-icon>

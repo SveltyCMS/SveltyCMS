@@ -1,16 +1,12 @@
 /**
  * @file tests/unit/api/token.test.ts
- * @description Unit tests for registration tokens.
+ * @description Unit tests for registration tokens via shared createMockRequestEvent.
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type { RequestEvent } from "@sveltejs/kit";
 import { createMockSuperAdmin, createDbAdapterStub } from "../utils/mock-factories";
+import { createMockRequestEvent } from "../utils/mock-event";
 
-// Mock dependencies
-
-// Mock dependencies
-// Mock dependencies
 vi.mock("@src/databases/db", () => {
   const dbStub = createDbAdapterStub();
   const adapter = {
@@ -57,69 +53,45 @@ vi.mock("@utils/api-handler", () => ({
 
 import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
-describe("Token API Unit Tests", () => {
-  const createMockEvent = (
-    method: string,
-    path: string,
-    body: any = {},
-    user: any = createMockSuperAdmin({ _id: "u1" }),
-    tenantId?: string,
-  ) => {
-    const dbStub = createDbAdapterStub();
-    return {
-      url: new URL(`http://localhost/api/${path}`),
-      params: { path },
-      request: {
-        method,
-        json: vi.fn().mockResolvedValue(body),
-        headers: new Map(),
-      },
-      locals: {
-        __testBypass: true,
-        user: { ...user, role: "admin", isAdmin: true },
-        tenantId: tenantId ?? "t1",
-        roles: [
-          {
-            _id: "admin",
-            name: "Administrator",
-            isAdmin: true,
-            permissions: [],
-          },
-        ],
-        dbAdapter: {
-          ...dbStub,
-          auth: {
-            ...dbStub.auth,
-            getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
-            getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
-            updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
-            createToken: vi.fn().mockResolvedValue({ success: true, data: "a".repeat(64) }),
-            deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
-            getUserByEmail: vi.fn().mockResolvedValue({ success: true, data: null }),
-          },
-          collection: {
-            ...dbStub.collection,
-            getModel: vi.fn().mockResolvedValue({}),
-          },
-          collections: {},
-          media: {},
-          widgets: {},
-          system: {},
-          crud: {
-            ...dbStub.crud,
-            findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
-            insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
-            count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
-          },
-        },
-      },
-      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
-    } as unknown as RequestEvent;
+function tokenAdapter() {
+  const dbStub = createDbAdapterStub();
+  return {
+    ...dbStub,
+    auth: {
+      ...dbStub.auth,
+      getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
+      createToken: vi.fn().mockResolvedValue({ success: true, data: "a".repeat(64) }),
+      deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
+      getUserByEmail: vi.fn().mockResolvedValue({ success: true, data: null }),
+    },
+    collection: {
+      ...dbStub.collection,
+      getModel: vi.fn().mockResolvedValue({}),
+    },
+    crud: {
+      ...dbStub.crud,
+      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+      count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+    },
   };
+}
+
+describe("Token API Unit Tests", () => {
+  const admin = createMockSuperAdmin({ _id: "u1" });
 
   it("should list tokens", async () => {
-    const event = createMockEvent("GET", "token");
-    const response = await dispatcherGET(event as any);
+    const event = createMockRequestEvent({
+      method: "GET",
+      path: "token",
+      user: { ...admin, role: "admin", isAdmin: true },
+      tenantId: "t1",
+      roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+      dbAdapter: tokenAdapter(),
+    });
+    const response = await dispatcherGET(event);
     const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
@@ -127,12 +99,20 @@ describe("Token API Unit Tests", () => {
   });
 
   it("should create token", async () => {
-    const event = createMockEvent("POST", "token/create-token", {
-      email: "t@t.com",
-      expires: "2026-01-01",
-      role: "admin",
+    const event = createMockRequestEvent({
+      method: "POST",
+      path: "token/create-token",
+      body: {
+        email: "t@t.com",
+        expires: "2026-01-01",
+        role: "admin",
+      },
+      user: { ...admin, role: "admin", isAdmin: true },
+      tenantId: "t1",
+      roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+      dbAdapter: tokenAdapter(),
     });
-    const response = await dispatcherPOST(event as any);
+    const response = await dispatcherPOST(event);
     const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.token).toBeDefined();

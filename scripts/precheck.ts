@@ -37,6 +37,7 @@ import {
   type PrecheckOptions,
   type PrecheckTier,
   type Task,
+  type CommandOutput,
 } from "./precheck-shared.ts";
 
 const VALID_DBS = INTEGRATION_DB_MATRIX;
@@ -61,6 +62,7 @@ function parseArgs(): PrecheckOptions & { plan?: boolean } {
     skipBenchmarks: argv.includes("--skip-benchmarks"),
     singleDb,
     includeDbTasks: argv.includes("--include-db-tasks"),
+    includeSqliteOnPush: argv.includes("--include-sqlite"),
     plan: argv.includes("--plan") || argv.includes("--explain"),
   };
 }
@@ -109,7 +111,13 @@ interface TaskResult {
 
 // ── ANSI helpers ──
 
-const TTY = process.stdout.isTTY;
+const TTY =
+  process.stdout.isTTY ||
+  process.env.FORCE_TTY === "true" ||
+  (process.env.CI !== "true" &&
+    process.env.CI !== "1" &&
+    ((process.env.TERM !== undefined && process.env.TERM !== "dumb") ||
+      process.env.GIT_DIR !== undefined));
 const C = {
   reset: TTY ? "\x1b[0m" : "",
   green: TTY ? "\x1b[32m" : "",
@@ -167,7 +175,7 @@ function printResultTable(results: TaskResult[]): void {
 function renderDashboard(
   tierLabel: string,
   results: TaskResult[],
-  currentTask: string | null,
+  currentTask: Task | null,
   pendingTasks: Task[],
   estimatedRemainingMs: number,
   previousLineCount: number = 0,
@@ -206,7 +214,8 @@ function renderDashboard(
 
   if (currentTask) {
     const right = `[running — ${eta}]`;
-    const left = `▶ ${currentTask}`;
+    const subText = currentTask.subStatus ? ` (${currentTask.subStatus})` : "";
+    const left = `▶ ${currentTask.name}${subText}`;
     const pad = contentW - left.length - right.length;
     lines.push(`║  ${left}${" ".repeat(Math.max(1, pad))}${right} ║`);
   }
@@ -334,6 +343,7 @@ export async function runPrecheck(
 
   const results: TaskResult[] = [];
   const failedTasks: string[] = [];
+  const failedOutputs: { name: string; output: CommandOutput }[] = [];
   const tierLabel = options.tier === "full" ? "Full Precheck" : "Pre-Push";
 
   // Print initial dashboard once (all tasks pending)
@@ -347,6 +357,16 @@ export async function runPrecheck(
     const task = activeTasks[i];
     const remaining = activeTasks.slice(i + 1);
 
+    // Refresh the dashboard to show that this task is starting to run
+    dashboardLines = renderDashboard(
+      tierLabel,
+      results,
+      task,
+      remaining,
+      estimatedRemainingMs,
+      dashboardLines,
+    );
+
     const taskStart = performance.now();
     const thisEstimate = task.estimatedMs ?? 60000;
 
@@ -354,7 +374,17 @@ export async function runPrecheck(
     let errorThrown: unknown = undefined;
     clearLastCommandOutput();
     try {
-      const result = task.run();
+      const result = task.run((text) => {
+        task.subStatus = text;
+        dashboardLines = renderDashboard(
+          tierLabel,
+          results,
+          task,
+          remaining,
+          estimatedRemainingMs,
+          dashboardLines,
+        );
+      });
       success = await result;
     } catch (err) {
       errorThrown = err;
@@ -395,7 +425,7 @@ export async function runPrecheck(
           }
 
           // If it was formatting and is now passing, offer to amend the commit
-          if (success && task.name === "Format, Lint & Check") {
+          if (success && task.name === "Auto-Format Check") {
             const commitAnswer = prompt(
               `   Would you like to automatically amend these formatting fixes into your current commit? [Y/n] `,
             );
@@ -433,7 +463,7 @@ export async function runPrecheck(
     dashboardLines = renderDashboard(
       tierLabel,
       results,
-      remaining.length > 0 ? remaining[0].name : null,
+      remaining.length > 0 ? remaining[0] : null,
       remaining.slice(1),
       estimatedRemainingMs,
       dashboardLines,
@@ -443,16 +473,25 @@ export async function runPrecheck(
       failedTasks.push(task.name);
       const output = getLastCommandOutput();
       if (output) {
-        printFailedTaskOutput(task.name, output);
-        // Track extra output lines so the cursor-up on the next
-        // renderDashboard skips over this error block too
-        dashboardLines += 8;
+        // Collect failed output — print after dashboard so it isn't overwritten
+        failedOutputs.push({ name: task.name, output });
       }
     }
   }
 
   // Final dashboard — all tasks completed (overwrite previous)
   renderDashboard(tierLabel, results, null, [], 0, dashboardLines);
+
+  // Print failed task outputs FIRST (detailed error info),
+  // then the compact summary table below
+  if (failedOutputs.length > 0) {
+    console.log(
+      `\n${C.red}${C.bold}══ Failed Task Details ════════════════════════════════════════${C.reset}`,
+    );
+    for (const { name, output } of failedOutputs) {
+      printFailedTaskOutput(name, output);
+    }
+  }
 
   if (failedTasks.length > 0) {
     printErrorSummary(

@@ -6,18 +6,19 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-10"
+updated: "2026-07-15"
 tags:
   - "api"
   - "media"
   - "upload"
   - "images"
   - "dam"
+  - "virtual-folders"
 ---
 
 # Media Reference (`media.ts`)
 
-The Media API provides a centralized interface for managing all assets within SveltyCMS. It handles multi-part uploads, intelligent deduplication, folder-based organization, and DAM features (analytics, versioning, bulk download, secure sharing).
+The Media API provides a centralized interface for managing all assets within SveltyCMS. It handles multi-part uploads, intelligent deduplication, virtual folder organization (logical `folderId` moves), and DAM features (analytics, versioning, bulk download, secure sharing).
 
 ---
 
@@ -29,6 +30,7 @@ The Media API provides a centralized interface for managing all assets within Sv
 | **Get Manifest**    | `/api/media/{id}`                   | `GET`      | `media:read`        |
 | **Upload Media**    | `/api/media` or `/api/media/upload` | `POST`     | `media:write`       |
 | **Stream Upload**   | `/api/media/stream`                 | `POST`     | `media:write`       |
+| **Move Media**      | `/api/media/move`                   | `POST`     | `media:write`       |
 | **Update Metadata** | `/api/media/{id}`                   | `PATCH`    | `media:write`       |
 | **Delete Media**    | `/api/media/{id}`                   | `DELETE`   | `media:delete`      |
 | **Bulk Download**   | `/api/media/bulk-download`          | `GET/POST` | `media:read`        |
@@ -70,7 +72,71 @@ Used by `mediagallery/+page.svelte` and `upload-media/local-upload.svelte`.
 
 ### Folders & Structure
 
-Virtual folders allow you to organize your asset library without relying on physical directory structures. Folder context is passed on upload via the `folder` form field and resolved server-side by `MediaService.saveMedia()`.
+Virtual folders organize the asset library **without** relocating physical files on disk or object storage. Each media row stores an optional `folderId` pointing at a system virtual folder (or `null` for media root).
+
+| Concern            | Mechanism                                                            |
+| :----------------- | :------------------------------------------------------------------- |
+| **Folder CRUD**    | `GET/POST/PATCH/DELETE /api/system-virtual-folder`                   |
+| **List by folder** | `GET /api/media?folderId={id}&recursive=true\|false`                 |
+| **Upload into**    | Multipart field `folder` (virtual folder ID, or `"global"` for root) |
+| **Move into**      | `POST /api/media/move` (updates `folderId` only — virtual move)      |
+
+Folder context on upload is resolved server-side by `MediaService.saveMedia()`.
+
+### Move Media (Virtual Folder)
+
+**Endpoint**: `POST /api/media/move`  
+**Permission**: `media:write`  
+**Handler**: `handleMediaMove` in `handlers/media.ts`  
+**SDK**: `LocalCMS` → `media.move(fileIds, targetFolderId, { tenantId })`  
+**Adapter**: `dbAdapter.media.files.move(fileIds, targetFolderId?, tenantId?)`
+
+Moves one or many assets into a virtual folder (or back to media root). **Does not** rewrite storage paths, invalidate share tokens, or reprocess thumbnails.
+
+**Payload**:
+
+```json
+{
+  "fileIds": ["uuid-1", "uuid-2"],
+  "targetFolderId": "folder-uuid-or-null"
+}
+```
+
+| Field            | Type                  | Description                                                                 |
+| :--------------- | :-------------------- | :-------------------------------------------------------------------------- |
+| `fileIds`        | `string[]` (required) | Non-empty list of media IDs to move                                         |
+| `targetFolderId` | `string \| null`      | Destination virtual folder ID. `null`, `""`, `"root"`, or `"global"` → root |
+
+**Success response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "movedCount": 2,
+    "fileIds": ["uuid-1", "uuid-2"],
+    "targetFolderId": "folder-uuid"
+  }
+}
+```
+
+**Client helper**: `moveMediaToFolder()` in `src/utils/media/media-dnd.ts` posts this endpoint and dispatches a document-level `mediaMoved` event so the gallery can refresh optimistically.
+
+#### Admin UI — drag & drop
+
+The Media Gallery treats the **sidebar folder tree** and **breadcrumb ancestors** as equivalent drop targets for the same multi-id payload:
+
+| Source                       | Drop target                      | Behavior                                       |
+| :--------------------------- | :------------------------------- | :--------------------------------------------- |
+| `media-grid.svelte`          | Sidebar (`media-folders.svelte`) | Full virtual tree + Media Root                 |
+| `media-table.svelte`         | Breadcrumbs (`+page.svelte`)     | Ancestor path segments + Media Gallery root    |
+| Multi-select (Windows-style) | Either target                    | Dragging any selected item moves the whole set |
+
+- Custom MIME: `application/x-sveltycms-media-ids` (`{ ids: string[] }`)
+- Shared helpers: `beginMediaDrag`, `resolveMediaDragIds`, `hasMediaDrag` in `media-dnd.ts`
+- Mobile: limited sidebar space — prefer breadcrumb drop, or select items and **tap** a parent crumb to move
+
+Folder tree CRUD remains on `/api/system-virtual-folder` (create/rename/reorder/delete folders).
 
 ---
 
@@ -229,7 +295,7 @@ Generate expiring, password-protected share links for media assets. See also [Me
 
 ## Related Documents
 
-- [Media System Architecture](../architecture/media-system.mdx)
-- [Media Sharing Endpoint](./media-sharing.mdx)
+- [Media System Architecture](../architecture/media-system.mdx) — virtual folders, gallery DnD, integrity gate
+- [Media Sharing Endpoint](./media-sharing.mdx) — share links (unaffected by virtual folder moves)
 - [Collections Reference (collections.ts)](./collections.mdx)
-- [System Reference (system.ts)](./system.mdx)
+- [System Reference (system.ts)](./system.mdx) — `system-virtual-folder` namespace

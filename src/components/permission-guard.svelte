@@ -1,42 +1,85 @@
 <!--
 @file src/components/permission-guard.svelte
 @component
-**Permission guard that hides children when a condition blocks access**
+**Permission guard that hides children when RBAC or collection flags block access**
 
 ### Props
-- `collection` (Schema | null): The collection schema to check
-- `action` ("bulkDelete" | "delete" | "create" | "update"): The action being guarded
+- `collection` (Schema | null): The collection schema to check (bulkDelete flag)
+- `action` (string): Collection action being guarded (default bulkDelete)
+- `config` (PermissionConfig): System/config contextId used with page.data.permissions
+- `silent` (boolean): When true, render nothing when denied (no fallback text)
+- `fallback` (string): Optional text when blocked and not silent
 - `children` (Snippet): Content to render when allowed
-- `fallback` (string): Text to show when blocked
 
 ### Features:
+- checks page.data.permissions[contextId].hasPermission for system/config guards
+- admin fast-path via page.data.isAdmin when permissions entry is missing
 - checks disableBulkDelete flag on the collection schema
-- checks user permissions if provided via context
-- renders children snippet when allowed, optionally shows fallback content
+- fail-closed when a config.contextId is set but no grant is found
 -->
 <script lang="ts">
-  import type { Schema } from "@src/content/types";
-  import type { Snippet } from "svelte";
+	import type { Schema } from '@src/content/types';
+	import type { Snippet } from 'svelte';
+	import { page } from '$app/state';
 
-  let {
-    collection = null,
-    action = "bulkDelete",
-    fallback = "",
-    children,
-  }: {
-    collection: Schema | null;
-    action: "bulkDelete" | "delete" | "create" | "update";
-    fallback?: string;
-    children: Snippet;
-  } = $props();
+	interface PermissionConfig {
+		contextId?: string;
+		action?: string;
+		requiredRole?: string;
+		name?: string;
+		description?: string;
+		contextType?: string;
+	}
 
-  let allowed = $derived(
-    !(action === "bulkDelete" && collection?.disableBulkDelete === true),
-  );
+	let {
+		collection = null,
+		action = 'bulkDelete',
+		config = undefined,
+		silent = false,
+		fallback = '',
+		children
+	}: {
+		collection?: Schema | null;
+		action?: 'bulkDelete' | 'delete' | 'create' | 'update' | string;
+		config?: PermissionConfig;
+		silent?: boolean;
+		fallback?: string;
+		children: Snippet;
+	} = $props();
+
+	const allowed = $derived.by(() => {
+		// Collection-scoped: respect disableBulkDelete
+		if (action === 'bulkDelete' && collection?.disableBulkDelete === true) {
+			return false;
+		}
+
+		// System / config guards driven by load() permission maps
+		if (config?.contextId) {
+			const perms = page.data?.permissions as
+				| Record<string, { hasPermission?: boolean } | boolean>
+				| undefined;
+			const entry = perms?.[config.contextId];
+			if (typeof entry === 'boolean') {
+				return entry;
+			}
+			if (entry && typeof entry.hasPermission === 'boolean') {
+				return entry.hasPermission;
+			}
+			// Admin bypass when map has no entry for this key
+			if (page.data?.isAdmin === true) {
+				return true;
+			}
+			// Fail-closed: explicit config means deny unless granted
+			return false;
+		}
+
+		// No config → allow (legacy collection-only usage)
+		return true;
+	});
 </script>
 
 {#if allowed}
-  {@render children()}
-{:else if fallback}
-  <span class="text-muted-foreground text-sm">{fallback}</span>
+	{@render children()}
+{:else if fallback && !silent}
+	<span class="text-muted-foreground text-sm">{fallback}</span>
 {/if}

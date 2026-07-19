@@ -8,7 +8,7 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, mock } from "vitest";
 import { createSchemaProxy } from "../../../src/databases/core/schema-proxy";
 
 // 🟢 Apply the v8 shim before any MongoDB/Bson imports

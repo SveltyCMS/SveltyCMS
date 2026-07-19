@@ -79,7 +79,7 @@ export class WebhookService {
       return;
     }
 
-    if (!tenantId) {
+    if (tenantId === undefined || tenantId === "") {
       if (process.env.TEST_MODE !== "true") {
         logger.warn(`Webhook trigger called without tenantId for event: ${event}`);
       } else {
@@ -148,7 +148,7 @@ export class WebhookService {
    * Get webhooks for a tenant with caching
    */
   public async getWebhooks(tenantId: string): Promise<Webhook[]> {
-    if (!tenantId) return [];
+    if (tenantId === undefined || tenantId === "") return [];
 
     const cached = this.webhooksCache.get(tenantId);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
@@ -188,7 +188,7 @@ export class WebhookService {
    * Save or update a webhook for a tenant
    */
   public async saveWebhook(partial: Partial<Webhook>, tenantId: string): Promise<Webhook> {
-    if (!tenantId) {
+    if (tenantId === undefined || tenantId === "") {
       throw new Error("tenantId is required to save webhook");
     }
 
@@ -236,7 +236,7 @@ export class WebhookService {
    * Delete a webhook by ID for a tenant
    */
   public async deleteWebhook(id: string, tenantId: string): Promise<void> {
-    if (!tenantId) return;
+    if (tenantId === undefined || tenantId === "") return;
 
     const db = dbAdapter;
     if (!db?.system?.preferences) return;

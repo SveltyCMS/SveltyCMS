@@ -146,7 +146,7 @@ onMount(() => {
 					<!-- Main Preview -->
 					<div class="relative flex-1 bg-surface-100 dark:bg-surface-800 overflow-hidden">
 						{#if file.type === 'image'}
-							<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" />
+							<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" />
 						{:else}
 							<div class="h-full w-full flex items-center justify-center opacity-30">
 								<iconify-icon icon="mdi:file-document-outline" width={48}></iconify-icon>

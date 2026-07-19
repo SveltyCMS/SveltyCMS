@@ -1,6 +1,9 @@
 /**
  * @file src/utils/compilation/types.ts
  * @description Type definitions for the compilation system.
+ *
+ * Manifest entries use relative paths (portable across CI/dev machines).
+ * Fingerprint-driven invalidation catches transformer changes, not just sources.
  */
 
 export interface CompileOptions {
@@ -10,8 +13,6 @@ export interface CompileOptions {
   concurrency?: number;
   /** Logger interface for build process feedback */
   logger?: Logger;
-  /** Optional system collections directory (if different from default) */
-  systemCollections?: string;
   /** Optional specific file to compile (relative to userCollections) */
   targetFile?: string;
   /** Tenant ID for multi-tenant mode (undefined/null = global resource) */
@@ -28,17 +29,13 @@ export interface Logger {
 }
 
 export interface ManifestEntry {
+  /** Relative path to the source file (from userCollections) */
   sourcePath: string;
   sourceHash: string;
   compiledAt: number;
   tenantId?: string | null;
-}
-
-export interface ExistingFileData {
-  hash: string | null;
-  jsPath: string;
-  tenantId?: string | null;
-  uuid: string | null;
+  /** Direct source file dependencies (relative paths) for invalidation */
+  deps?: string[];
 }
 
 export interface CompilationResult {
@@ -47,6 +44,8 @@ export interface CompilationResult {
   /** List of orphaned compiled files that no longer have a source file */
   orphanedFiles: string[];
   processed: number;
+  /** Where tenant source roots were resolved from */
+  resolvedFrom?: "flat" | "tenant" | "tenant-fallback" | "flat-fallback";
   /** Schema warnings detected during compilation (breaking changes) */
   schemaWarnings: Array<{
     file: string;

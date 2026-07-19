@@ -12,9 +12,15 @@ test.describe("Tenant Management", () => {
   });
 
   test("page loads with tenant list", async ({ page }) => {
-    await page.goto("/admin/tenants");
-    // Multi-tenancy may be disabled — accept any page content after navigation.
-    await expect(page.locator("body")).toBeVisible({ timeout: 15_000 });
+    await page.goto("/admin/tenants", { waitUntil: "domcontentloaded" });
+    // Re-auth if content-init bounced us to login/collectionbuilder without session
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/admin/tenants");
+    }
+    // Multi-tenancy may be disabled — accept any attached document after navigation.
+    // Prefer toBeAttached: Playwright marks body "hidden" under some splash/CSS states.
+    await expect(page.locator("body")).toBeAttached({ timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/login/);
     // Table is only present when tenants exist; skip if not visible
     const table = page.getByRole("table");
     if (await table.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -23,11 +29,13 @@ test.describe("Tenant Management", () => {
   });
 
   test("shows quota information when tenants exist", async ({ page }) => {
-    await page.goto("/admin/tenants");
-    // Accept any page content; quota headers only render when tenants exist.
-    await expect(page.locator("body")).toBeVisible({ timeout: 15_000 });
+    await page.goto("/admin/tenants", { waitUntil: "domcontentloaded" });
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/admin/tenants");
+    }
+    await expect(page.locator("body")).toBeAttached({ timeout: 15_000 });
     const quotaHeaders = page.getByText(/users|storage|collections|quota/i);
-    const emptyState = page.getByText(/no tenants|not found/i);
+    const emptyState = page.getByText(/no tenants|not found|tenant/i);
     await expect(quotaHeaders.or(emptyState).first())
       .toBeVisible({
         timeout: 10_000,

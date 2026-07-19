@@ -2,27 +2,27 @@
 @file src/components/left-sidebar.svelte
 
 @component
-**LeftSidebar component displaying collection fields, publish options and translation status.**
+**LeftSidebar — context-aware primary navigation**
+
+Route-driven sidebar content (no dual collapsible section headers):
+- Default / collections → collection tree only
+- Media gallery → virtual folders + back to collections
+- System settings → SettingsMenu
 
 @example
 <LeftSidebar />
 
-#### Props
-- `mode` {object} - The current mode object from the mode store
-- `collection` {object} - The current collection object from the collection store
-
-#### Features
-- Displays collection fields
-- Displays publish options
-- Displays translation status
-- Optimized event handlers
+### Features:
+- Context-switched collections tree vs media folders
+- Pinned items (when any)
+- User / theme / language / sign-out footer
 -->
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-			import Input from '@components/ui/input.svelte';
-			// Native UI Components
-			import Dropdown from "@components/ui/dropdown.svelte";
+	import Input from '@components/ui/input.svelte';
+	// Native UI Components
+	import Dropdown from "@components/ui/dropdown.svelte";
 	import Collections from '@src/components/collections.svelte';
 	import SettingsMenu from '@src/components/settings-menu.svelte';
 	import MediaFolders from '@src/components/media-folders.svelte';
@@ -34,7 +34,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
-	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
+	import type { ContentNode } from '@src/content/types';
 	// Paraglide Messages
 	import {
 		applayout_signout,
@@ -44,21 +44,19 @@
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	// Stores
-import { contentStructure } from '@src/stores/collection-store.svelte';
-import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
-import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
+	import { contentStructure } from '@src/stores/collection-store.svelte';
+	import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
+	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { systemLanguage } from '@src/stores/store.svelte';
+	import { app, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
-		import Avatar from '@components/ui/avatar.svelte';
-	// Removed axios import
+	import Avatar from '@components/ui/avatar.svelte';
 	import { browser } from '$app/environment';
-	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import { scale } from 'svelte/transition';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
@@ -77,25 +75,12 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	const currentPath = $derived(page.url.pathname);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
 	let searchQuery = $state('');
-	// Removed isDropdownOpen and dropdownRef as Menu handles this
 
-	// Collapsible Sidebar Sections State
+	// Route context: exclusive modes — never show both trees at once
+	const isMediaGalleryRoute = $derived(currentPath.includes('/mediagallery'));
+
+	// Collapsible: pinned section only
 	let isPinnedOpen = $state(true);
-	let isCollectionsOpen = $state(true);
-	let isMediaOpen = $state(false);
-
-	$effect(() => {
-		// Context-aware sidebar: sections are route-specific to match user intent.
-		// - /mediagallery             → Media only
-		// - default (collections)     → Collections only
-		if (currentPath.includes('/mediagallery')) {
-			isMediaOpen = true;
-			isCollectionsOpen = false;
-		} else {
-			isCollectionsOpen = true;
-			isMediaOpen = false;
-		}
-	});
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -122,7 +107,12 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
 	const showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
 
-	let languageTag = $state<Locale>('en' as Locale);
+	let languageTag = $state<Locale>(getLocale() as Locale);
+
+	// Keep languageTag in sync when the Paraglide locale changes externally
+	$effect(() => {
+		languageTag = getLocale() as Locale;
+	});
 
 	const filteredLanguages = $derived(
 		availableLanguages
@@ -168,15 +158,13 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
 
-
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
+		app.systemLanguage = lang;
 		systemLanguage.set(lang as Locale);
 		languageTag = lang as Locale;
 		searchQuery = '';
 	}
-
-	// Unused settings helper removed
 
 	function toggleSidebar(): void {
 		const newState: SidebarState = ui.state.leftSidebar === 'full' ? 'collapsed' : 'full';
@@ -224,42 +212,46 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 		}
 	}
 
-	function handleCollectionsClick(): void {
-		isCollectionsOpen = !isCollectionsOpen;
-		if (isCollectionsOpen) {
-			isMediaOpen = false;
-		}
+	/** Leave media gallery and restore collections navigation */
+	function handleBackToCollections(): void {
 		if (collections.length === 0) {
 			goto('/config/collectionbuilder');
 		} else {
 			goto(firstCollectionPath);
 		}
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'collapsed');
+		}
 	}
 
-	$effect(() => {
-		if (firstCollectionPath === undefined) return;
-	});
+	/** Navigate to the media gallery from collection builder context */
+	function handleGoToMediaGallery(): void {
+		goto('/mediagallery');
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'collapsed');
+		}
+	}
 </script>
 
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
-		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex items-center pt-1 no-underline!" data-sveltekit-preload-data="hover">
+		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex min-h-12 shrink-0 items-center pt-2 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9" />
-			<span class="base-font-color relative -ms-1 text-2xl font-bold"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
+			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>
 	{:else}
-		<div class="flex justify-start gap-2">
+		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
 			<Button variant="ghost"
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-			 class="p-0! min-w-0 preset-outline-surface-500 mt-1">
+			 class="p-0! min-w-0 preset-outline-surface-500">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 
-			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 no-underline!">
-				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
+			<a href="/" aria-label="SveltyCMS Logo" class="flex items-center no-underline!">
+				<SveltyCMSLogo fill="red" className="h-9 -ms-2" />
 			</a>
 		</div>
 	{/if}
@@ -268,7 +260,7 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 		positioning={{ placement: 'right-end' }}
-		triggerClass="absolute top-2 z-20 ltr:-end-4 rtl:-start-4"
+		triggerClass="absolute top-3 z-20 ltr:-end-4 rtl:-start-4"
 	>
 		<Button variant="ghost"
 			type="button"
@@ -280,7 +272,7 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 			<iconify-icon
 				icon="bi:arrow-left-circle-fill"
 				width="34"
-				class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
+				class="rounded-full bg-surface-500 text-white transition-transform dark:bg-white dark:text-surface-600 {isSidebarFull
 					? 'rotate-0 rtl:rotate-180'
 					: 'rotate-180 rtl:rotate-0'}"
 			></iconify-icon>
@@ -351,71 +343,60 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
 			{/if}
 
-			<!-- 2. Collections -->
-			<div class="space-y-1">
-				{#if !currentPath.includes('/collection/')}
-					<Button variant="secondary"
-						type="button"
-						onclick={handleCollectionsClick}
-						class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-					 aria-label="Toggle collections">
-						<span class="flex items-center gap-1.5">
-							<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{#if isSidebarFull}Collections{/if}
-						</span>
-						{#if isSidebarFull}
-							<iconify-icon
-								icon="bi:chevron-down"
-								width="12"
-								class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
-							></iconify-icon>
-						{/if}
-					</Button>
-				{/if}
-				{#if isCollectionsOpen && showCollectionsHere}
-					<div class="w-full ps-0 pe-1 text-start">
-						<Collections />
-					</div>
-				{/if}
-			</div>
-			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
+			{#if isMediaGalleryRoute}
+				<!-- Media gallery: back to collections + virtual folder tree -->
+				<div class="space-y-2" data-testid="sidebar-media-context">
+					<SystemTooltip
+						title="Back to Collections"
+						positioning={{ placement: 'right' }}
+						triggerClass="w-full"
+					>
+						<Button
+							variant="ghost"
+							type="button"
+							onclick={handleBackToCollections}
+							aria-label="Back to Collections"
+							class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-100 {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
+						>
+							<iconify-icon icon="bi:arrow-left" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}
+								<span class="truncate">Collections</span>
+							{/if}
+						</Button>
+					</SystemTooltip>
 
-			<!-- 3. Media Gallery -->
-			<div class="space-y-1">
-				<Button variant={currentPath.includes('/mediagallery') ? 'secondary' : 'ghost'}
-					type="button"
-					onclick={() => {
-						isMediaOpen = !isMediaOpen;
-						if (isMediaOpen) {
-							isCollectionsOpen = false;
-						}
-						if (!currentPath.includes('/mediagallery')) {
-							goto('/mediagallery');
-							if (isMobile()) {
-								toggleUIElement('leftSidebar', 'collapsed');
-							}
-						}
-					}}
-					class="flex w-full items-center justify-between py-2 text-xs font-bold uppercase tracking-wider rounded {isSidebarFull ? 'px-2' : 'justify-center'}"
-				>
-					<span class="flex items-center gap-1.5">
-						<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						{#if isSidebarFull}Media Gallery{/if}
-					</span>
-					{#if isSidebarFull}
-						<iconify-icon
-							icon="bi:chevron-down"
-							width="12"
-							class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
-						></iconify-icon>
-					{/if}
-				</Button>
-				{#if isMediaOpen}
-					<div class="px-1 space-y-2">
+					<div class="px-1 space-y-2" role="region" aria-label="Media folders">
 						<MediaFolders />
 					</div>
-				{/if}
-			</div>
+				</div>
+			{:else if showCollectionsHere}
+				<!-- Default: collection tree only — no redundant section header button -->
+				<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
+					<Collections />
+				</div>
+
+				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+
+				<SystemTooltip
+					title="Go to Media Gallery"
+					positioning={{ placement: 'right' }}
+					triggerClass="w-full"
+				>
+					<Button
+						variant="ghost"
+						type="button"
+						onclick={handleGoToMediaGallery}
+						aria-label="Go to Media Gallery"
+						class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-100 {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
+					>
+						<iconify-icon icon="bi:image" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{#if isSidebarFull}
+							<span class="truncate">Media Gallery</span>
+						{/if}
+					</Button>
+				</SystemTooltip>
+			{/if}
 		{/if}
 	</div>
 
@@ -457,21 +438,22 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={28} />
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-300/20" iconSize={28} />
  					</div>
  				</SystemTooltip>
  			</div>
 
  			<!-- Language Selector -->
  			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
- 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
- 					<div class="language-selector relative">
+  				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }} role={null} tabindex={null}>
+ 					<div class="language-selector relative" data-testid="language-selector">
  						<Dropdown position="right-start" class="w-56">
  							{#snippet trigger()}
  								<Button
  									variant="surface"
  									rounded
  									aria-label="Select language"
+ 									data-testid="language-selector-trigger"
  									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 {isSidebarFull ? 'h-12 w-12 text-xs font-semibold' : 'h-11 w-11 text-xs font-semibold'}"
  								>
  									{languageTag}
@@ -525,8 +507,15 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
-					<Button variant="ghost" onclick={signOut} type="button" aria-label="Sign Out" class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0">
-						<iconify-icon icon="uil:signout" width="32" class=""></iconify-icon>
+					<Button
+						variant="ghost"
+						onclick={signOut}
+						type="button"
+						aria-label="Sign Out"
+						data-testid="sign-out-button"
+						class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0"
+					>
+						<iconify-icon icon="uil:signout" width="32" class="" aria-hidden="true"></iconify-icon>
 					</Button>
 				</SystemTooltip>
 			</div>
@@ -577,6 +566,22 @@ import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 
 	.sidebar-root {
 		max-width: var(--admin-sidebar-width, 240px);
+		position: relative;
+	}
+
+	.sidebar-root::after {
+		content: '';
+		position: absolute;
+		inset-inline-end: -0.5rem;
+		top: 3.5rem;
+		bottom: 0;
+		width: 1px;
+		background-color: var(--color-surface-200, #e2e8f0);
+		pointer-events: none;
+	}
+
+	:global(.dark) .sidebar-root::after {
+		background-color: var(--color-surface-500, #64748b);
 	}
 
 	/* Scrollbar styling */

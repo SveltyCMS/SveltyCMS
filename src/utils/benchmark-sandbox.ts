@@ -17,11 +17,14 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { paths } from "./path-resolver";
 
 export type BenchmarkProfile = "local" | "ci-fresh";
 
-const SANDBOX_COMPILED_ROOT = path.join(".compiledCollections", "test", "_local_sandbox");
-const SANDBOX_MEDIA_REL = path.join("config", "benchmark-sandbox", "media");
+const SANDBOX_COMPILED_ROOT = path.relative(paths.root, paths.benchmark.sandboxCompiled);
+const SANDBOX_MEDIA_REL = path
+  .relative(paths.root, paths.benchmark.sandboxMedia)
+  .replace(/\\/g, "/");
 
 /** Inlined from test-db-credentials to break circular dependency (benchmark-sandbox ↔ test-db-credentials). */
 function getBenchmarkSandboxDbName(dbType: string): string {
@@ -80,11 +83,21 @@ export function getLocalSandboxMediaRoot(): string {
   return path.resolve(process.cwd(), SANDBOX_MEDIA_REL);
 }
 
+/** 🛡️ Hardened: live roots re-resolved each call so chdir/tests stay correct */
+function getLiveRoots(): string[] {
+  return [
+    paths.privateConfig,
+    paths.collections,
+    paths.compiledCollections,
+    paths.database,
+    paths.media,
+  ].map((p) => path.normalize(p));
+}
+
 function liveCompiledCollectionsPath(tenantId?: string | null): string {
   const base = path.join(process.cwd(), ".compiledCollections");
-  if (tenantId === undefined) return base;
-  const tenant = tenantId === null ? "global" : tenantId;
-  return path.join(base, tenant);
+  if (tenantId === undefined || tenantId === null) return base;
+  return path.join(base, tenantId);
 }
 
 /**
@@ -103,40 +116,35 @@ export function resolveCompiledCollectionsPath(tenantId?: string | null): string
 export function assertLiveDataWriteAllowed(targetPath: string): void {
   if (!isLocalBenchmarkSandbox()) return;
 
-  const normalized = path.normalize(path.resolve(targetPath));
-  const cwd = path.resolve(process.cwd());
+  const normalizedTarget = path.normalize(path.resolve(targetPath));
+
+  // 1. Allow sandbox paths
   const sandboxCompiled = getLocalSandboxCompiledRoot();
   const sandboxMedia = getLocalSandboxMediaRoot();
 
   if (
-    normalized === sandboxCompiled ||
-    normalized.startsWith(sandboxCompiled + path.sep) ||
-    normalized === sandboxMedia ||
-    normalized.startsWith(sandboxMedia + path.sep)
+    normalizedTarget === sandboxCompiled ||
+    normalizedTarget.startsWith(sandboxCompiled + path.sep) ||
+    normalizedTarget === sandboxMedia ||
+    normalizedTarget.startsWith(sandboxMedia + path.sep)
   ) {
     return;
   }
 
-  if (normalized.includes("benchmark_shared")) return;
-
-  const testCollections = path.join(cwd, "config", "collections", "test");
-  if (normalized === testCollections || normalized.startsWith(testCollections + path.sep)) {
+  // 2. Allow test collections
+  const testCollections = path.join(process.cwd(), "config", "collections", "test");
+  if (
+    normalizedTarget === testCollections ||
+    normalizedTarget.startsWith(testCollections + path.sep)
+  ) {
     return;
   }
 
-  const liveRoots = [
-    path.join(cwd, "config", "private.ts"),
-    path.join(cwd, "config", "collections"),
-    path.join(cwd, ".compiledCollections"),
-    path.join(cwd, "mediaFolder"),
-    path.join(cwd, "config", "database", "sveltycms.db"),
-    path.join(cwd, "config", "database", "sveltycms_test.sqlite"),
-  ];
-
-  for (const root of liveRoots) {
-    if (normalized === root || normalized.startsWith(root + path.sep)) {
+  // 3. Block all other live roots
+  for (const root of getLiveRoots()) {
+    if (normalizedTarget === root || normalizedTarget.startsWith(root + path.sep)) {
       throw new Error(
-        `[BenchmarkSandbox] Blocked write to live data: ${path.relative(cwd, normalized)}. ` +
+        `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
           `Use sandbox paths under ${SANDBOX_COMPILED_ROOT} or ${SANDBOX_MEDIA_REL}.`,
       );
     }

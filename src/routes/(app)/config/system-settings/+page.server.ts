@@ -25,7 +25,11 @@ import "./admin.remote";
 export const load: PageServerLoad = async ({ locals }) => {
   try {
     const user = getAuthenticatedUser(locals);
-    const { isAdmin, roles: tenantRoles = [] } = locals;
+    const isAdmin =
+      locals.isAdmin === true ||
+      (user as any)?.isAdmin === true ||
+      (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
+    const tenantRoles = locals.roles ?? [];
 
     // Log successful session validation
     logger.trace(`User authenticated successfully for user: ${user._id}`);

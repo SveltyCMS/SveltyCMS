@@ -4,7 +4,7 @@
  * Refactored to be 100% Black-Box using the external API.
  */
 
-import { describe, expect, it, beforeAll } from "bun:test";
+import { describe, expect, it, beforeAll } from "vitest";
 import { getApiBaseUrl, safeFetch } from "./helpers/server";
 import fs from "node:fs";
 import path from "node:path";

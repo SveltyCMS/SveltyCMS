@@ -101,7 +101,7 @@ const errorSummary = isDatabaseError
 			<div class="animate-[spin_20s_linear_infinite] absolute inset-0 flex items-center justify-center" style="font-size: {font}em;">
 				{#each array as char, index (index)}
 					<div
-						class="absolute start-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
+						class="absolute inset-s-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
 						style="transform: translateX(-50%) rotate({(360 / array.length) * index}deg); transform-origin: center {size / 2}px;"
 					>
 						<SiteName {char} textClass={isCMSChar(index) ? 'text-primary-500' : 'text-white'} />

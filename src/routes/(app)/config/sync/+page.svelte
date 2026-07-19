@@ -39,11 +39,13 @@ const changeSummary = $derived(() => ({
 async function loadStatus() {
 	isLoading = true;
 	try {
-		const res = await fetch("/api/config/status");
-		if (!res.ok) {
-			throw new Error(`HTTP ${res.status}`);
+		const { fetchSyncStatus } = await import("./sync-api");
+		const result = await fetchSyncStatus();
+		if (!result.success) {
+			throw new Error(result.message || "Failed to fetch status");
 		}
-		status = await res.json();
+		const payload = (result as { data?: ConfigStatus }).data ?? (result as unknown as ConfigStatus);
+		status = payload && typeof payload === "object" && "status" in payload ? payload : (result as any);
 		console.debug("[Config Sync] Received status:", $state.snapshot(status));
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : String(err);
@@ -55,7 +57,7 @@ async function loadStatus() {
 }
 
 async function performSync() {
-	if (!status || status?.unmetRequirements?.length > 0) {
+	if (!status || (status?.unmetRequirements?.length ?? 0) > 0) {
 		toast.warning("Sync blocked due to unmet requirements.");
 		return;
 	}
@@ -63,35 +65,26 @@ async function performSync() {
 	isProcessing = true;
 	try {
 		toast.info("Creating configuration promotion plan...");
+		const { createSyncPlan, applySyncPlan } = await import("./sync-api");
 
-		const planRes = await fetch("/api/config/plan", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ mode: "merge" }),
-		});
-
-		const planEnvelope = await planRes.json();
-		if (!planRes.ok) {
-			throw new Error(planEnvelope.message || `HTTP ${planRes.status}`);
+		const planResult = await createSyncPlan("merge");
+		if (!planResult.success) {
+			throw new Error(planResult.message || "Plan failed");
 		}
-
-		const plan = planEnvelope.data ?? planEnvelope;
+		const plan =
+			(planResult as { data?: { planId?: string; mode?: string } }).data ??
+			(planResult as { planId?: string; mode?: string });
 		if (!plan?.planId) {
 			throw new Error("Plan response did not include a planId.");
 		}
 
-		const res = await fetch("/api/config/apply", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ planId: plan.planId, mode: plan.mode }),
-		});
-
-		const resultEnvelope = await res.json();
-		if (!res.ok) {
-			throw new Error(resultEnvelope.message || `HTTP ${res.status}`);
+		const applyResult = await applySyncPlan(plan.planId, plan.mode);
+		if (!applyResult.success) {
+			throw new Error(applyResult.message || "Apply failed");
 		}
-
-		const result = resultEnvelope.data ?? resultEnvelope;
+		const result =
+			(applyResult as { data?: { message?: string } }).data ??
+			(applyResult as { message?: string });
 		toast.success(result.message || "Sync successful!");
 		await loadStatus();
 	} catch (err) {
@@ -118,7 +111,7 @@ onMount(() => {
 	showBackButton={true}
 	backUrl="/config"
 >
-
+	<div data-testid="sync-page" class="contents">
 	<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
 		<div class="preset-tonal-surface mb-4 p-4">
 			<p class="text-surface-600 dark:text-surface-300">
@@ -131,6 +124,7 @@ onMount(() => {
 			class="flex w-full overflow-x-auto border border-surface-300 bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70"
 			role="tablist"
 			aria-label="Sync Options"
+			data-testid="sync-tabs"
 		>
 			{#each ['sync', 'backups', 'debug'] as tab (tab)}
 				<SystemTooltip
@@ -147,6 +141,7 @@ onMount(() => {
 						aria-selected={activeTab === tab}
 						aria-controls="{tab}-panel"
 						id="{tab}-tab"
+						data-testid={`sync-tab-${tab}`}
 					>
 						{tab.charAt(0).toUpperCase() + tab.slice(1)}
 					</Button>
@@ -170,31 +165,33 @@ onMount(() => {
 
 				<div class="my-4">
 					<Button variant="tertiary"
-						disabled={isProcessing || !status || status.status === 'in_sync' || status?.unmetRequirements?.length > 0}
+						disabled={isProcessing || !status || status.status === 'in_sync' || (status?.unmetRequirements?.length ?? 0) > 0}
 						onclick={syncAllChanges}
-					 class="w-full dark: sm:w-auto" leadingIcon="mdi:sync">
+						data-testid="sync-run"
+					 class="w-full sm:w-auto" leadingIcon="mdi:sync">
 						{isProcessing ? 'Syncing...' : 'Sync All Changes'}
 					</Button>
 				</div>
 
 				{#if isLoading}
-					<div class="flex flex-col items-center py-12 text-surface-500">
+					<div class="flex flex-col items-center py-12 text-surface-500" data-testid="sync-loading">
 						<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Checking synchronization status" />
 						<Button variant="tertiary"
 							onclick={loadStatus}
 							disabled={isLoading}
-						 class="mt-6 flex items-center gap-2 dark:" leadingIcon="mdi:refresh">
+							data-testid="sync-refresh"
+						 class="mt-6 flex items-center gap-2" leadingIcon="mdi:refresh">
 							{isLoading ? 'Checking...' : 'Refresh'}
 						</Button>
 					</div>
 				{:else if status?.status === 'in_sync'}
-					<div class="space-y-3 py-12 text-center">
+					<div class="space-y-3 py-12 text-center" data-testid="sync-in-sync">
 						<iconify-icon icon="mdi:check-circle" class="mx-auto text-6xl text-success-500"></iconify-icon>
 						<h2 class="text-xl font-semibold">System is in Sync</h2>
 						<p class="text-surface-500">Your database and filesystem configurations match perfectly.</p>
 					</div>
 				{:else}
-					<div class="space-y-4">
+					<div class="space-y-4" data-testid="sync-changes">
 						<h3 class="flex items-center gap-2 text-lg font-semibold">
 							<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
 							Changes Detected
@@ -262,4 +259,5 @@ onMount(() => {
 			{/if}
 		</section>
 	</AdminCard>
+	</div>
 </AdminPageShell>

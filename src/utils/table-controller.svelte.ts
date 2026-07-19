@@ -1,75 +1,35 @@
 /**
  * @file src/utils/table-controller.svelte.ts
- * @module
- * @description A reusable, Svelte 5 runes-based controller for managing complex client-side state
- * (selection, sorting, filtering, pagination) in a data-intensive table component.
- * This pattern encapsulates business logic into a class, separating it from the presentation layer.
+ * @description Bridge to legacy TableController.
  *
- * @template T The data type of the entries managed by the controller.
- * @param {T[]} initialData The initial array of data entries.
+ * ### Hardening (audit 2026-07):
+ * - Migration awareness: console.warn in dev mode tracks legacy usage
+ * - Transparent: extends LegacyTableController, preserving full API compatibility
+ * - Migration path: Use `createSmartTable` from `@components/ui/smart-table`.
+ *
+ * Legacy entry re-export. Prefer:
+ * - `@components/ui/smart-table` → `createSmartTable` (unified platform)
+ * - `@utils/collection-filter-defs` + filter engine for schema filters
+ *
+ * Kept so existing imports of `TableController` continue to work.
  */
-import { page } from "$app/state";
-import { goto } from "$app/navigation";
 
-export class TableController<T> {
-  // State variables powered by $state() for deep, granular reactivity.
-  data = $state<T[]>([]);
-  selectedIndices = $state(new Set<number>());
+import { TableController as LegacyTableController } from "./table-controller-legacy.svelte";
+import { dev } from "$app/environment";
 
-  // Sorting state: e.g., { sortedBy: 'field_name', isSorted: 1 | -1 }
-  sorting = $state({ sortedBy: "", isSorted: 0 });
-
-  // Filters state: e.g., { name: 'value', status: 'active' }
-  filters = $state<Record<string, string>>({});
-
+/**
+ * @deprecated Use `createSmartTable` from `@components/ui/smart-table`.
+ * This wrapper provides the same API while logging legacy usage in development.
+ */
+export class TableController<T> extends LegacyTableController<T> {
   constructor(initialData: T[]) {
-    this.data = initialData;
-  }
+    super(initialData);
 
-  /** Getter to check if all records are selected. */
-  get selectAll() {
-    return this.data.length > 0 && this.selectedIndices.size === this.data.length;
-  }
-
-  /** Setter for selecting all records. */
-  set selectAll(value: boolean) {
-    if (value) {
-      this.selectedIndices = new Set(this.data.map((_, i) => i));
-    } else {
-      this.selectedIndices.clear();
+    if (dev) {
+      console.warn(
+        "[Migration Notice] TableController is deprecated. " +
+          "Please migrate this component to `createSmartTable` from `@components/ui/smart-table`.",
+      );
     }
-  }
-
-  /** Toggles selection status for a given index. */
-  toggleSelect(index: number) {
-    if (this.selectedIndices.has(index)) {
-      this.selectedIndices.delete(index);
-    } else {
-      this.selectedIndices.add(index);
-    }
-  }
-
-  /**
-   * Updates the controller's state and synchronizes the URL query parameters.
-   * @param updates A map of filter/sort parameters to update.
-   */
-  updateFiltersAndSync(updates: Record<string, string | number | null>) {
-    // 1. Update local state
-    Object.assign(this.filters, updates);
-
-    // 2. Update URL for deep linking and state persistence
-    const newUrl = new URL(page.url);
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === null || value === "") {
-        newUrl.searchParams.delete(key);
-      } else {
-        // Ensure keys are URL-safe
-        newUrl.searchParams.set(key, String(value));
-      }
-    });
-
-    // Use goto to update the URL state without triggering a full page reload
-    // (assuming the component is inside a SvelteKit page context).
-    goto(newUrl, { keepFocus: true, noScroll: true });
   }
 }
