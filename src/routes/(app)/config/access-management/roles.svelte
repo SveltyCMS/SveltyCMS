@@ -176,15 +176,29 @@ const toggleRoleSelection = (roleId: string) => {
 };
 
 	function handleRoleDrop(state: DragDropState<Role & { id: string }>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
-		const fromIndex = filteredRoles.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+
+			const fromIndex = roles.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-role-id]') as HTMLElement | null;
+			const targetRoleId = targetEl?.dataset?.roleId;
+
+			let targetIndex: number;
+			if (targetRoleId) {
+				targetIndex = roles.findIndex(r => (r._id || r.id) === targetRoleId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = roles.length;
+			}
+						targetIndex = Math.max(0, Math.min(targetIndex, roles.length));
+
+			if (fromIndex === targetIndex) return;
 		let movedRole: (Role & { id: string }) | undefined;
 		roles = untrack(() => {
 			const newRoles = [...roles];
 			movedRole = newRoles.splice(fromIndex, 1)[0];
-			newRoles.splice(state.targetIndex, 0, movedRole!);
+			newRoles.splice(targetIndex, 0, movedRole!);
 			return newRoles;
 		});
 		if (movedRole) modifiedRoles.add(movedRole._id);
@@ -251,9 +265,8 @@ const toggleRoleSelection = (roleId: string) => {
 						class="list-none space-y-2"
 						use:droppable={{
 							container: 'roles',
-							onDrop: handleRoleDrop,
+							callbacks: { onDrop: handleRoleDrop },
 							direction: 'vertical',
-							keyboard: true,
 							attributes: { dragOverClass: 'bg-secondary-200' }
 						}}
 						aria-describedby="roles-dnd-instructions"

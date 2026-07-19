@@ -65,14 +65,29 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	}
 
 	function handleRepeaterDrop(state: DragDropState<{ id: string; data: Record<string, any> }>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
 		const fromIndex = items.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
+		if (fromIndex < 0) return;
+
+		const targetEl = state.targetElement?.closest('[data-item-id]') as HTMLElement | null;
+		const targetItemId = targetEl?.dataset?.itemId;
+
+		let targetIndex: number;
+		if (targetItemId) {
+			targetIndex = items.findIndex(i => i.id === targetItemId);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = items.length;
+		}
+		targetIndex = Math.max(0, Math.min(targetIndex, items.length));
+
+		if (fromIndex === targetIndex) return;
 		const newItems = untrack(() => {
 			const copy = [...items];
 			copy.splice(fromIndex, 1);
-			copy.splice(state.targetIndex, 0, dragged);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			copy.splice(adjusted, 0, dragged);
 			return copy;
 		});
 		items = newItems;
@@ -126,9 +141,8 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	<div
 		use:droppable={{
 			container: 'repeater',
-			onDrop: handleRepeaterDrop,
+			callbacks: { onDrop: handleRepeaterDrop },
 			direction: 'vertical',
-			keyboard: true,
 			attributes: { dragOverClass: 'bg-secondary-200' }
 		}}
 		class="flex flex-col gap-2"

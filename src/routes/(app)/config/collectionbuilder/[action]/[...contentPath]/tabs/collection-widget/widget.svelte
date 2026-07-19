@@ -85,22 +85,41 @@ $effect.root(() => {
 });
 
 	const handleFieldDrop = (state: DragDropState<Field>) => {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
-		const fromIndex = fields.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
-		fields = untrack(() => {
-			const newFields = [...fields];
-			newFields.splice(fromIndex, 1);
-			newFields.splice(state.targetIndex, 0, dragged);
-			return newFields;
-		});
-		// Persist to store
-		setCollectionValue({
-			...collectionValue.value,
-			fields,
-		});
-	};
+	const dragged = state.draggedItem;
+	if (!dragged) return;
+
+	const fromIndex = fields.indexOf(dragged);
+	if (fromIndex < 0) return;
+
+	// Find target item via DOM data attribute
+	const targetEl = state.targetElement?.closest('[data-field-label]') as HTMLElement | null;
+	const targetLabel = targetEl?.dataset?.fieldLabel;
+
+	let targetIndex: number;
+	if (targetLabel) {
+		targetIndex = fields.findIndex(f => f.label === targetLabel);
+		if (state.dropPosition === 'after') targetIndex++;
+	} else {
+		targetIndex = fields.length;
+	}
+	targetIndex = Math.max(0, Math.min(targetIndex, fields.length));
+
+	if (fromIndex === targetIndex) return;
+
+	fields = untrack(() => {
+		const newFields = [...fields];
+		newFields.splice(fromIndex, 1);
+		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		newFields.splice(adjusted, 0, dragged);
+		return newFields;
+	});
+
+	// Persist to store
+	setCollectionValue({
+		...collectionValue.value,
+		fields,
+	});
+};
 
 // Modal 2 to Edit a selected widget
 function modalWidgetForm(selectedWidget: Field): void {
@@ -216,9 +235,8 @@ async function handleCollectionSave() {
 		<section
 			use:droppable={{
 				container: 'widget-fields',
-				onDrop: handleFieldDrop,
+				callbacks: { onDrop: handleFieldDrop },
 				direction: 'vertical',
-				keyboard: true,
 				attributes: { dragOverClass: 'bg-secondary-200' }
 			}}
 			class="my-1 w-full"
@@ -229,6 +247,8 @@ async function handleCollectionSave() {
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					use:draggable={{ container: 'widget-fields', dragData: field, keyboard: true }}
+					use:droppable={{ container: 'widget-fields', callbacks: { onDrop: handleFieldDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
+					data-field-label={field.label}
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
 					role="listitem"
 					tabindex="0"

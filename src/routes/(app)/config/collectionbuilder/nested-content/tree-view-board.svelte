@@ -30,7 +30,7 @@ import { sortContentNodes } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { tick } from "svelte";
 import { flip } from "svelte/animate";
-import { draggable, droppable } from '@thisux/sveltednd';
+import { draggable, droppable, dndState } from '@thisux/sveltednd';
 import type { DragDropState } from '@thisux/sveltednd';
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
@@ -83,7 +83,7 @@ let treeRoots = $state<EnhancedTreeViewItem[]>([]);
 let initialized = $state(false);
 // eslint-disable-next-line svelte/no-unnecessary-state-wrap
 let expandedNodes = $state(new SvelteSet<string>());
-let isDragging = $state(false);
+// isDragging is now tracked via dndState.isDragging from @thisux/sveltednd
 	let lastContentNodesHash = $state("");
 /** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
 let lastPushedHash = $state("");
@@ -119,11 +119,11 @@ $effect(() => {
 	};
 });
 
-// Initialize Tree from Props - with race condition protection
-$effect(() => {
-	if (isDragging || !contentNodes.length) {
-		return;
-	}
+	// Initialize Tree from Props - with race condition protection
+	$effect(() => {
+		if (dndState.isDragging || !contentNodes.length) {
+			return;
+		}
 
 	// When parent signals fresh server data (e.g. after save), clear hash guards so we rebuild from server order
 	if (structureKey !== lastStructureKey) {
@@ -381,23 +381,21 @@ function announce(message: string) {
 // --- Drag & Drop Handler ---
 
 function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
-	if (!state.item) return;
+	const dragged = state.draggedItem;
+	if (!dragged) return;
 
-	const draggedId = state.item.itemId;
-	const sourceContainer = state.container;
-	const targetContainer = state.targetContainer || sourceContainer;
-	const targetIndex = state.targetIndex;
-	if (targetIndex < 0) return;
+	const draggedId = dragged.itemId;
+	const targetContainer = state.targetContainer || state.sourceContainer;
+	const dropPosition = state.dropPosition;
+
+	// Find the target item element via data-item-id (only present on item wrappers)
+	const targetItemEl = state.targetElement?.closest('[data-item-id]') as HTMLElement | null;
+	const targetItemId = targetItemEl?.dataset?.itemId;
 
 	// Convert container names to parent IDs
-	const targetParentId = targetContainer === 'root' ? null : targetContainer.replace('children:', '');
-
-	// Same position = no-op
-	const siblingList = targetParentId
-		? (findNode(treeRoots, targetParentId)?.children || [])
-		: treeRoots;
-	const currentIndex = siblingList.findIndex(n => n.id === draggedId);
-	if (sourceContainer === targetContainer && currentIndex === targetIndex) return;
+	const targetParentId = targetContainer === 'root'
+		? null
+		: targetContainer.replace('children:', '');
 
 	// CYCLE DETECTION
 	const draggedNode = findNode(treeRoots, draggedId);
@@ -408,12 +406,12 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	}
 
 	// DUPLICATE NAME DETECTION
-	const targetSiblings = targetParentId
+	const siblingList = targetParentId
 		? (findNode(treeRoots, targetParentId)?.children || [])
 		: treeRoots;
 	const nameNorm = (n: string) => n.trim().toLowerCase();
 	const draggedName = nameNorm(draggedNode.name || '');
-	if (draggedName && targetSiblings.some(n => n.id !== draggedId && nameNorm(n.name || '') === draggedName)) {
+	if (draggedName && siblingList.some(n => n.id !== draggedId && nameNorm(n.name || '') === draggedName)) {
 		announce("A collection with this name already exists in the target category.");
 		toast.warning("A collection with this name already exists in the target category.");
 		return;
@@ -425,11 +423,25 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	// Remove from source
 	removeFromTree(treeRoots, draggedId);
 
-	// Insert at target
+	// Calculate insertion position (after removal, so indices are stable for the target list)
 	const targetList = targetParentId
 		? (findNode(treeRoots, targetParentId)?.children || [])
 		: treeRoots;
-	targetList.splice(Math.min(targetIndex, targetList.length), 0, fullNode);
+
+	let targetIndex: number;
+	if (targetItemId) {
+		const foundIndex = targetList.findIndex(n => n.id === targetItemId);
+		if (foundIndex >= 0) {
+			targetIndex = dropPosition === 'after' ? foundIndex + 1 : foundIndex;
+		} else {
+			targetIndex = targetList.length;
+		}
+	} else {
+		targetIndex = targetList.length;
+	}
+	targetIndex = Math.min(targetIndex, targetList.length);
+
+	targetList.splice(targetIndex, 0, fullNode);
 
 	// Trigger reactivity and recalculate
 	treeRoots = [...treeRoots];
@@ -438,9 +450,8 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	const treeWithPaths = buildTree(withPaths);
 	treeRoots = $state.snapshot(treeWithPaths) as EnhancedTreeViewItem[];
 
-	// Save
+	// Save immediately (optimistic persistence)
 	saveTreeData();
-	isDragging = false;
 }
 
 // Helper: Remove node from tree
@@ -499,11 +510,6 @@ function saveTreeData() {
 	lastPushedHash = pushedHash;
 
 	onNodeUpdate(nodes);
-
-	// Delay releasing the dragging lock to ensure parent state updates
-	setTimeout(() => {
-		isDragging = false;
-	}, 100);
 }
 
 function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
@@ -921,8 +927,8 @@ const flipDurationMs = 200;
 
 <!-- Tree View -->
 <div
-	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2"
-	class:is-dragging={isDragging}
+	class="collection-builder-tree dnd-tree relative w-full h-auto overflow-y-auto rounded p-2"
+	class:dnd-active={dndState.isDragging}
 	onkeydown={handleTreeKeyDown}
 	role="tree"
 	tabindex="0"
@@ -937,14 +943,13 @@ const flipDurationMs = 200;
 	{:else}
 		<div
 			class="dnd-zone root-zone"
-			class:is-dragging={isDragging}
+			class:dropping={dndState.isDragging}
 			use:droppable={{
 				container: 'root',
-				onDrop: handleTreeDrop,
+				callbacks: { onDrop: handleTreeDrop },
 				direction: 'vertical',
 				attributes: {
-					draggingClass: 'opacity-50',
-					dragOverClass: 'drag-over'
+					dragOverClass: 'drag-over-zone'
 				}
 			}}
 			role="group"
@@ -959,7 +964,8 @@ const flipDurationMs = 200;
 					aria-selected="false"
 					data-item-id={item.id}
 					data-node-type={item.nodeType}
-					use:draggable={{ container: 'root', dragData: { itemId: item.id }, disabled: !!searchText }}
+					use:draggable={{ container: 'root', dragData: { itemId: item.id }, disabled: !!searchText, keyboard: true }}
+					use:droppable={{ container: 'root', callbacks: { onDrop: handleTreeDrop }, direction: 'vertical', attributes: { dragOverClass: 'drag-over-item' } }}
 				>
 					{@render treeNode(item, 0)}
 				</div>
@@ -1001,11 +1007,10 @@ const flipDurationMs = 200;
 					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
 					use:droppable={{
 						container: 'children:' + item.id,
-						onDrop: handleTreeDrop,
+						callbacks: { onDrop: handleTreeDrop },
 						direction: 'vertical',
 						attributes: {
-							draggingClass: 'opacity-50',
-							dragOverClass: 'drag-over'
+							dragOverClass: 'drag-over-zone'
 						}
 					}}
 					role="group"
@@ -1022,12 +1027,13 @@ const flipDurationMs = 200;
 								aria-selected="false"
 								data-item-id={child.id}
 								data-node-type={child.nodeType}
-								use:draggable={{ container: 'children:' + item.id, dragData: { itemId: child.id }, disabled: !!searchText }}
+								use:draggable={{ container: 'children:' + item.id, dragData: { itemId: child.id }, disabled: !!searchText, keyboard: true }}
+								use:droppable={{ container: 'children:' + item.id, callbacks: { onDrop: handleTreeDrop }, direction: 'vertical', attributes: { dragOverClass: 'drag-over-item' } }}
 							>
 								{@render treeNode(child, level + 1)}
 							</div>
 						{/each}
-					{:else if isDragging}
+					{:else if dndState.isDragging}
 						<!-- Only show empty drop zone during active dragging -->
 						<div class="empty-drop-zone min-h-10" role="none"></div>
 					{/if}
@@ -1084,7 +1090,7 @@ const flipDurationMs = 200;
 		transition: all 0.2s ease;
 	}
 
-	.is-dragging .empty-drop-zone {
+	.dnd-active .empty-drop-zone {
 		min-height: 48px;
 		padding: 0.5rem;
 		margin: 0.5rem 0;
@@ -1096,26 +1102,33 @@ const flipDurationMs = 200;
 		position: relative;
 	}
 
-	/* Active dragging state */
+	/* Active dragging state — applied by library via draggingClass: 'dragging' */
 	:global(.tree-node-wrapper.dragging) {
 		opacity: 0.5;
 		transform: scale(0.95);
 	}
 
-	/* Drop target feedback */
-	:global(.dnd-zone.drag-over) {
+	/* Drop target on zone level */
+	:global(.dnd-zone.drag-over-zone) {
 		background: rgb(var(--color-primary-500) / 0.1) !important;
 		outline: 2px dashed rgb(var(--color-primary-500)) !important;
 	}
 
+	/* Drop target on individual item */
+	:global(.tree-node-wrapper.drag-over-item) {
+		outline: 2px dashed rgb(var(--color-primary-400)) !important;
+		outline-offset: 2px;
+		border-radius: 0.5rem;
+	}
+
 	/* Category drop zone feedback */
-	:global(.nested-zone.drag-over) {
+	:global(.nested-zone.drag-over-zone) {
 		background: rgb(var(--color-tertiary-500) / 0.1) !important;
 		outline: 2px dashed rgb(var(--color-tertiary-500)) !important;
 	}
 
 	/* Disable selection during drag */
-	.collection-builder-tree.is-dragging {
+	.collection-builder-tree.dnd-active {
 		user-select: none;
 	}
 
@@ -1145,7 +1158,7 @@ const flipDurationMs = 200;
 	}
 
 	/* Hide empty drop zones when not dragging */
-	.dnd-zone:not(.is-dragging) .empty-drop-zone {
+	.dnd-zone:not(.dropping) .empty-drop-zone {
 		display: none;
 	}
 </style>

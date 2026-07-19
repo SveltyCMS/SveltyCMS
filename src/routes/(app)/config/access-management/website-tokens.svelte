@@ -135,12 +135,26 @@ let displayTableHeaders = $state(
 let selectAllColumns = $state(true);
 
 	function handleColumnDrop(state: DragDropState<TableHeader>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
-		const fromIndex = displayTableHeaders.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+
+			const fromIndex = displayTableHeaders.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
+			const targetHeaderId = targetEl?.dataset?.headerId;
+
+			let targetIndex: number;
+			if (targetHeaderId) {
+				targetIndex = displayTableHeaders.findIndex(h => h.id === targetHeaderId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = displayTableHeaders.length;
+			}
+					targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
+
+			if (fromIndex === targetIndex) return;
 		displayTableHeaders = untrack(() =>
-			displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(state.targetIndex, 0, dragged)
+			displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(targetIndex, 0, dragged)
 		);
 	}
 
@@ -517,9 +531,8 @@ $effect(() => {
 						<section
 							use:droppable={{
 								container: 'columns',
-								onDrop: handleColumnDrop,
+								callbacks: { onDrop: handleColumnDrop },
 								direction: 'horizontal',
-								keyboard: true
 							}}
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
 							role="list"
@@ -527,7 +540,7 @@ $effect(() => {
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header, keyboard: true }} role="listitem" tabindex="0">
+								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header, keyboard: true }} use:droppable={{ container: 'columns', callbacks: { onDrop: handleColumnDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }} data-header-id={header.id} role="listitem" tabindex="0">
 									<Button variant="secondary"
 										onclick={() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));

@@ -120,7 +120,8 @@
     "repair:drizzle": "node -e \"try{require('fs').accessSync('node_modules/drizzle-orm/sql/index.js');process.exit(0)}catch(e){process.exit(1)}\" || (npm remove drizzle-orm 2>/dev/null; npm install drizzle-orm)",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
     "translate": "npx @inlang/cli machine translate --project ./project.inlang",
-    "upgrade": "npx tsx scripts/upgrade.ts"
+    "upgrade": "npx tsx scripts/upgrade.ts",
+    "postinstall": "node scripts/fix-sveltednd-types.mjs || true"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

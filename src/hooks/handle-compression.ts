@@ -447,7 +447,7 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 
       const compressed = compressSync(full, algorithm, contentLength);
       if (compressed) {
-        compressedBody = compressed;
+        compressedBody = compressed as BodyInit;
         compressedSize = compressed.byteLength;
       } else {
         // Sync failed — serve uncompressed rather than double-streaming
