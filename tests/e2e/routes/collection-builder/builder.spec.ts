@@ -44,7 +44,8 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(
       page
         .getByTestId("collection-builder-board")
-        .or(page.getByTestId("add-collection-button").first()),
+        .or(page.getByTestId("add-collection-button").first())
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
 
     const addCollection = page.getByTestId("add-collection-button").first();

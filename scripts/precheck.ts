@@ -37,6 +37,7 @@ import {
   type PrecheckOptions,
   type PrecheckTier,
   type Task,
+  type CommandOutput,
 } from "./precheck-shared.ts";
 
 const VALID_DBS = INTEGRATION_DB_MATRIX;
@@ -342,6 +343,7 @@ export async function runPrecheck(
 
   const results: TaskResult[] = [];
   const failedTasks: string[] = [];
+  const failedOutputs: { name: string; output: CommandOutput }[] = [];
   const tierLabel = options.tier === "full" ? "Full Precheck" : "Pre-Push";
 
   // Print initial dashboard once (all tasks pending)
@@ -471,16 +473,25 @@ export async function runPrecheck(
       failedTasks.push(task.name);
       const output = getLastCommandOutput();
       if (output) {
-        printFailedTaskOutput(task.name, output);
-        // Track extra output lines so the cursor-up on the next
-        // renderDashboard skips over this error block too
-        dashboardLines += 8;
+        // Collect failed output — print after dashboard so it isn't overwritten
+        failedOutputs.push({ name: task.name, output });
       }
     }
   }
 
   // Final dashboard — all tasks completed (overwrite previous)
   renderDashboard(tierLabel, results, null, [], 0, dashboardLines);
+
+  // Print failed task outputs FIRST (detailed error info),
+  // then the compact summary table below
+  if (failedOutputs.length > 0) {
+    console.log(
+      `\n${C.red}${C.bold}══ Failed Task Details ════════════════════════════════════════${C.reset}`,
+    );
+    for (const { name, output } of failedOutputs) {
+      printFailedTaskOutput(name, output);
+    }
+  }
 
   if (failedTasks.length > 0) {
     printErrorSummary(

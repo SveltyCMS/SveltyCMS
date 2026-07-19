@@ -42,7 +42,7 @@ test.describe("Identity display", () => {
       timeout: ACTION_TIMEOUT,
     });
     // Admin email from credentials
-    await expect(page.getByText(ADMIN_CREDENTIALS.email, { exact: false })).toBeVisible({
+    await expect(page.getByText(ADMIN_CREDENTIALS.email, { exact: false }).first()).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
     // Role badge text

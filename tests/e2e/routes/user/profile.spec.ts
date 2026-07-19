@@ -78,7 +78,8 @@ test.describe.serial("User Profile Management", () => {
     await expect(
       page
         .getByRole("heading", { level: 1, name: /admin theme settings|appearance/i })
-        .or(page.getByRole("heading", { level: 3, name: /my overrides/i })),
+        .or(page.getByRole("heading", { name: /my overrides/i }))
+        .first(),
     ).toBeVisible({ timeout: 20_000 });
   });
 

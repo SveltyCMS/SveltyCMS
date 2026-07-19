@@ -125,7 +125,8 @@ test.describe("System Settings shell", () => {
 
   test("editing a field enables save; discard restores clean state", async ({ page }) => {
     await goSettings(page, "cache");
-    await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+    const cachePanel = page.getByTestId("settings-panel-cache");
+    await expect(cachePanel).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
 
@@ -139,17 +140,26 @@ test.describe("System Settings shell", () => {
     const nextValue = current === "120" ? "121" : "120";
     await input.fill(nextValue);
 
-    await expect(page.getByTestId("settings-group-save")).toBeEnabled({
+    // Scope group-level save/discard to the cache panel to avoid strict-mode
+    // violations when the global toolbar also renders the same testids.
+    const groupSave = cachePanel
+      .getByTestId("settings-group-save")
+      .or(page.getByTestId("settings-group-save").first());
+    const groupDiscard = cachePanel
+      .getByTestId("settings-group-discard")
+      .or(page.getByTestId("settings-group-discard").first());
+
+    await expect(groupSave.first()).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
     await expect(page.getByTestId("system-settings-save")).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByTestId("settings-group-discard")).toBeEnabled();
+    await expect(groupDiscard.first()).toBeEnabled();
     await expect(page.getByTestId("system-settings-discard")).toBeVisible();
 
-    await page.getByTestId("settings-group-discard").click();
-    await expect(page.getByTestId("settings-group-save")).toBeDisabled({
+    await groupDiscard.first().click();
+    await expect(groupSave.first()).toBeDisabled({
       timeout: ACTION_TIMEOUT,
     });
     await expect(page.getByTestId("system-settings-save")).toBeDisabled({

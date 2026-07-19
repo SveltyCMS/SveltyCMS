@@ -251,25 +251,26 @@ $effect(() => {
 			/>
 			<div class="flex flex-wrap gap-2" role="list" aria-label="Setting groups">
 				{#each filteredGroups as group (group.id)}
-					<button
-						type="button"
-						role="listitem"
-						data-testid={`settings-group-${group.id}`}
-						data-group-id={group.id}
-						aria-current={selectedGroupId === group.id ? 'true' : undefined}
-						onclick={() => selectGroup(group.id)}
-						class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors
-							{selectedGroupId === group.id
-								? 'border-primary-500 bg-primary-500/15 text-primary-700 dark:text-primary-300'
-								: 'border-surface-200 bg-surface-50 text-surface-700 hover:border-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200'}
-							{groupsNeedingConfig.has(group.id) ? 'ring-1 ring-error-500/50' : ''}"
-					>
-						<span aria-hidden="true">{group.icon}</span>
-						<span>{group.name}</span>
-						{#if groupsNeedingConfig.has(group.id)}
-							<span class="text-error-500" title="Needs configuration">●</span>
-						{/if}
-					</button>
+					<div role="listitem">
+						<button
+							type="button"
+							data-testid={`settings-group-${group.id}`}
+							data-group-id={group.id}
+							aria-current={selectedGroupId === group.id ? 'true' : undefined}
+							onclick={() => selectGroup(group.id)}
+							class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors
+								{selectedGroupId === group.id
+									? 'border-primary-500 bg-primary-500/15 text-primary-700 dark:text-primary-300'
+									: 'border-surface-200 bg-surface-50 text-surface-700 hover:border-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200'}
+								{groupsNeedingConfig.has(group.id) ? 'ring-1 ring-error-500/50' : ''}"
+						>
+							<span aria-hidden="true">{group.icon}</span>
+							<span>{group.name}</span>
+							{#if groupsNeedingConfig.has(group.id)}
+								<span class="text-error-500" title="Needs configuration">●</span>
+							{/if}
+						</button>
+					</div>
 				{:else}
 					<p class="text-sm text-surface-500" data-testid="system-settings-group-empty">No groups match your search.</p>
 				{/each}

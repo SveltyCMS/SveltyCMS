@@ -39,7 +39,7 @@ test.describe("Access Management shell", () => {
     await expect(page.getByTestId("access-tab-admin")).toBeVisible();
     await expect(page.getByTestId("access-tab-tokens")).toBeVisible();
 
-    const saveBtn = page.getByTestId("access-mgmt-save");
+    const saveBtn = page.getByTestId("access-mgmt-save").first();
     await expect(saveBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(saveBtn).toBeDisabled();
   });
@@ -67,7 +67,15 @@ test.describe("Access Management shell", () => {
     await page.getByTestId("access-tab-roles").click();
 
     await page.getByTestId("access-create-role").click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasText: /role name|name.*role|roleName/i })
+      .or(
+        page
+          .getByRole("dialog")
+          .filter({ has: page.locator('input[name="roleName"], input[name="name"]') }),
+      )
+      .first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const roleName = `E2ERole_${Date.now().toString(36).slice(-5)}`;
@@ -85,7 +93,7 @@ test.describe("Access Management shell", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    const saveBtn = page.getByTestId("access-mgmt-save");
+    const saveBtn = page.getByTestId("access-mgmt-save").first();
     await expect(saveBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
 
     // Reset without saving

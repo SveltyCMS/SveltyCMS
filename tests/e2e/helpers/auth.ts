@@ -605,3 +605,39 @@ export async function ensureSidebarVisible(page: Page) {
   }
   return false;
 }
+
+/**
+ * Dismiss the cookie consent banner without a full login flow.
+ *
+ * Use this at the start of tests that:
+ * - Use `storageState: { cookies: [], origins: [] }` (blank context)
+ * - Navigate directly to app pages (not through loginAsAdmin)
+ * - Subsequently call `getByRole("dialog")` for application dialogs
+ *
+ * The banner is rendered as `div[role="dialog"]` and causes strict-mode
+ * violations when mixed with native `<dialog>` elements.
+ */
+export async function dismissCookieBanner(page: Page): Promise<void> {
+  // Stamp localStorage so the banner never appears on the next navigation
+  await page
+    .evaluate(() => {
+      try {
+        window.localStorage.setItem(
+          "sveltycms_consent",
+          JSON.stringify({ responded: true, necessary: true }),
+        );
+        window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+        window.localStorage.setItem("sveltycms-welcome-seen", "true");
+      } catch {
+        // Ignore if storage is restricted
+      }
+    })
+    .catch(() => {});
+
+  // Defense-in-depth: click the accept button if the banner already rendered
+  const acceptBtn = page.getByTestId("cookie-accept-all");
+  if (await acceptBtn.isVisible({ timeout: 1_500 }).catch(() => false)) {
+    await acceptBtn.click();
+    await page.waitForTimeout(200);
+  }
+}

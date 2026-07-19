@@ -121,7 +121,10 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
   await rowButton.scrollIntoViewIfNeeded();
   await rowButton.click({ timeout: ACTION_TIMEOUT });
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page
+    .getByRole("dialog")
+    .filter({ hasText: /confirm|block|unblock/i })
+    .first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   await dialog.getByRole("button", { name: /confirm/i }).click({ timeout: ACTION_TIMEOUT });
 

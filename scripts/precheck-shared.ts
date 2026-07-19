@@ -532,6 +532,46 @@ const BASE_TASKS: TaskSpec[] = [
       }),
   },
   {
+    name: "Production Build",
+    ciJob: "build",
+    estimatedMs: 120000,
+    // Match CI build job: COMPILE_ALL_ADAPTERS=true so testing harness stays in the
+    // artifact used by benchmarks / db-tests. Deploy strip is verified separately.
+    // MUST run before Full Unit Tests so the integration gate (--no-build) picks up
+    // a build with /api/testing available.
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "build"], {
+        silent: true,
+        timeout: 600_000,
+        env: { ...process.env, COMPILE_ALL_ADAPTERS: "true" },
+      }),
+  },
+  {
+    name: "Benchmark Build Backdoor Check",
+    estimatedMs: 2000,
+    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
+        silent: true,
+        timeout: 60_000,
+      }),
+  },
+  {
+    name: "Bundle Size Check (no TipTap leak)",
+    estimatedMs: 2000,
+    remediation:
+      "Check scripts/check-bundle-size.ts thresholds; ensure TipTap is lazy-loaded in rich-text widget only",
+    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
+    run: () =>
+      runCommand("bun", ["run", "scripts/check-bundle-size.ts"], {
+        silent: true,
+        timeout: 30_000,
+      }),
+  },
+  {
     name: "Full Unit Tests",
     ciJob: "whitebox",
     estimatedMs: 60000,
@@ -564,44 +604,6 @@ const BASE_TASKS: TaskSpec[] = [
       runCommand("bun", ["run", "scripts/test-smart.ts", "--list"], {
         silent: false,
         timeout: 10_000,
-      }),
-  },
-  {
-    name: "Production Build",
-    ciJob: "build",
-    estimatedMs: 120000,
-    // Match CI build job: COMPILE_ALL_ADAPTERS=true so testing harness stays in the
-    // artifact used by benchmarks / db-tests. Deploy strip is verified separately.
-    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
-    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
-    run: () =>
-      runCommand("bun", ["run", "build"], {
-        silent: true,
-        timeout: 600_000,
-        env: { ...process.env, COMPILE_ALL_ADAPTERS: "true" },
-      }),
-  },
-  {
-    name: "Benchmark Build Backdoor Check",
-    estimatedMs: 2000,
-    remediation: "COMPILE_ALL_ADAPTERS=true bun run build",
-    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
-    run: () =>
-      runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
-        silent: true,
-        timeout: 60_000,
-      }),
-  },
-  {
-    name: "Bundle Size Check (no TipTap leak)",
-    estimatedMs: 2000,
-    remediation:
-      "Check scripts/check-bundle-size.ts thresholds; ensure TipTap is lazy-loaded in rich-text widget only",
-    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
-    run: () =>
-      runCommand("bun", ["run", "scripts/check-bundle-size.ts"], {
-        silent: true,
-        timeout: 30_000,
       }),
   },
   {

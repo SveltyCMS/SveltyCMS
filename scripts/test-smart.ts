@@ -26,8 +26,39 @@
  */
 
 import { join, dirname, resolve, relative, extname } from "node:path";
-import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { getChangedPaths } from "./precheck-shared";
+
+// ── Failure cache for smart retry across precheck runs ─────────────────
+const CACHE_DIR = join(import.meta.dirname, "..", ".precheck-cache");
+const FAILURE_CACHE = join(CACHE_DIR, "failed-suites.json");
+
+function saveFailedSuites(suites: { label: string; gate: number; command: string }[]): void {
+  try {
+    if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
+    writeFileSync(FAILURE_CACHE, JSON.stringify(suites, null, 2), "utf8");
+  } catch {
+    /* best-effort */
+  }
+}
+
+function loadFailedSuites(): { label: string; gate: number; command: string }[] | null {
+  try {
+    if (!existsSync(FAILURE_CACHE)) return null;
+    const raw = readFileSync(FAILURE_CACHE, "utf8");
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function clearFailureCache(): void {
+  try {
+    if (existsSync(FAILURE_CACHE)) writeFileSync(FAILURE_CACHE, "[]", "utf8");
+  } catch {}
+}
 
 const ALIASES: Record<string, string> = {
   "@src": "src",
@@ -695,6 +726,7 @@ async function main() {
         .map((s) => s.trim())
         .filter(Boolean)
     : [];
+  const onlyFailures = argv.includes("--only-failures");
 
   if (unitOnly || unitAndSqlite) {
     FULL_CORE_SUITE.command = "bun run test:unit";
@@ -704,9 +736,21 @@ async function main() {
   const changedFiles = runAll ? ["*"] : getChangedFiles();
 
   if (changedFiles.length === 0) {
-    console.log("✅ No changed files detected. Nothing to test.");
-    return;
+    // Smart retry: if no files changed but previous run had failures, re-run those
+    const cached = loadFailedSuites();
+    if (cached && cached.length > 0) {
+      console.log(
+        "No changed files, but " + cached.length + " cached failure(s) found. Re-running those.",
+      );
+      // Push a sentinel so we know to skip normal selection below
+      changedFiles.push("__CACHED_RETRY__");
+    } else {
+      console.log("No changed files detected. Nothing to test.");
+      return;
+    }
   }
+
+  const isCachedRetry = changedFiles.length === 1 && changedFiles[0] === "__CACHED_RETRY__";
 
   console.log(`\n📋 Changed files (${changedFiles.length}):`);
   for (const f of changedFiles.slice(0, 20)) {
@@ -834,7 +878,32 @@ async function main() {
         ]);
       }
     } else {
-      console.log("ℹ️  No additional test files found via dependency graph.");
+      console.log("No additional test files found via dependency graph.");
+    }
+  }
+
+  // Cached retry: replace normal selection with previously failed suites
+  if (isCachedRetry) {
+    const cached = loadFailedSuites();
+    if (cached && cached.length > 0) {
+      const cachedLabels = new Set(cached.map((f) => f.label));
+      const cachedSuites = SUITE_RULES.filter((r) => cachedLabels.has(r.label)).map((rule) => ({
+        rule,
+        matchingFiles: [] as string[],
+      }));
+      if (cachedSuites.length > 0) {
+        suites = cachedSuites;
+        console.log(
+          "Smart retry: running " +
+            suites.length +
+            " cached suite(s): " +
+            suites.map((s) => s.rule.label).join(", "),
+        );
+      } else {
+        console.log("Cached suites no longer exist. Clearing cache.");
+        clearFailureCache();
+        return;
+      }
     }
   }
 
@@ -849,8 +918,47 @@ async function main() {
   if (suiteFilter) {
     suites = suites.filter((s) => s.rule.label.toLowerCase().includes(suiteFilter.toLowerCase()));
     if (suites.length === 0) {
-      console.error(`❌ No suite matches filter "${suiteFilter}"`);
+      console.error(`❌ No suite matches filter "` + suiteFilter + `"`);
       process.exit(1);
+    }
+  }
+
+  // --only-failures: narrow to previously failed suites only
+  if (onlyFailures) {
+    const cached = loadFailedSuites();
+    if (cached) {
+      const failedLabels = new Set(cached.map((f) => f.label));
+      suites = suites.filter((s) => failedLabels.has(s.rule.label));
+      if (suites.length === 0) {
+        console.log("No cached failures match current selection. Running full suite.");
+        clearFailureCache();
+      } else {
+        console.log(
+          "Retrying " +
+            suites.length +
+            " previously failed suite(s): " +
+            suites.map((s) => s.rule.label).join(", "),
+        );
+      }
+    } else {
+      console.log("No cached failures found. Running full suite.");
+    }
+  } else if (!runAll) {
+    // Auto-retry: if full suite already ran and only specific suites failed,
+    // narrow to just those failures on the next run (no new changes).
+    const cached = loadFailedSuites();
+    if (cached && cached.length > 0) {
+      const failedLabels = new Set(cached.map((f) => f.label));
+      const narrowed = suites.filter((s) => failedLabels.has(s.rule.label));
+      if (narrowed.length > 0) {
+        console.log(
+          "Smart retry: narrowing to " +
+            narrowed.length +
+            " previously failed suite(s): " +
+            narrowed.map((s) => s.rule.label).join(", "),
+        );
+        suites = narrowed;
+      }
     }
   }
 
@@ -922,6 +1030,24 @@ async function main() {
     for (const r of results) {
       const status = r.code === 0 ? "✅" : "❌";
       console.log(`  ${status} Gate ${r.gate}: ${r.label}`);
+    }
+
+    // Persist failures for smart retry on next precheck run
+    if (failedSuites.length > 0) {
+      saveFailedSuites(
+        failedSuites.map((s) => ({
+          label: s.rule.label,
+          gate: s.rule.gate,
+          command: s.rule.command,
+        })),
+      );
+      console.log(
+        "\nCached " +
+          failedSuites.length +
+          " failed suite(s) for smart retry. Next run with --only-failures skips passing suites.",
+      );
+    } else {
+      clearFailureCache();
     }
 
     if (failedSuites.length > 0) {

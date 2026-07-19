@@ -42,6 +42,10 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     return (this._crud ??= new MongoCrudModule(this));
   }
 
+  public set crud(wrapper: ICrudAdapter) {
+    this._crud = wrapper;
+  }
+
   public get auth(): IAuthAdapter {
     return (this._auth ??= new MongoAuthModule(this));
   }

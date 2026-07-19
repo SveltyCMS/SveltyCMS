@@ -539,7 +539,10 @@ test.describe("Token Management", () => {
 
     await tokenRows.first().click({ timeout: ACTION_TIMEOUT });
 
-    const tokenDialog = page.getByRole("dialog");
+    const tokenDialog = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("button", { name: /save/i }) })
+      .first();
     await expect(tokenDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(tokenDialog.getByRole("button", { name: /save/i })).toBeVisible({
       timeout: ACTION_TIMEOUT,
@@ -559,7 +562,10 @@ test.describe("Token Management", () => {
     await expect(tokenRows.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
     await tokenRows.first().click({ timeout: ACTION_TIMEOUT });
 
-    const tokenDialog = page.getByRole("dialog");
+    const tokenDialog = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("button", { name: /delete/i }) })
+      .first();
     await expect(tokenDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const deleteBtn = tokenDialog.getByRole("button", { name: /delete/i });

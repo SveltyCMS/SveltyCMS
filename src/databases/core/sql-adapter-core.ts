@@ -256,8 +256,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return this._collection;
   }
 
+  private _crudWrapper: ICrudAdapter | null = null;
+
   public get crud(): ICrudAdapter {
-    return this as any;
+    return this._crudWrapper ?? (this as any);
+  }
+
+  public set crud(wrapper: ICrudAdapter) {
+    this._crudWrapper = wrapper;
   }
 
   // --------------------------------------------------------------------------
