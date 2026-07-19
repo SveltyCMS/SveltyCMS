@@ -146,10 +146,13 @@ export function runCommand(
     timeout?: number;
   } = {},
 ): boolean {
+  // Callers that pass `env` own the full map (usually `{...process.env, ...}`).
+  // Do NOT re-merge process.env here — that reintroduces keys callers deleted
+  // (e.g. COMPILE_ALL_ADAPTERS / TEST_MODE for deploy strip probe).
   const result = spawnSync(cmd, args, {
     stdio: "pipe",
     shell: IS_WINDOWS,
-    env: options.env ? { ...process.env, ...options.env } : process.env,
+    env: options.env ?? process.env,
     cwd: ROOT,
     timeout: options.timeout ?? 300_000,
   });
@@ -189,7 +192,8 @@ export function runCommandAsync(
     const proc = spawn(cmd, args, {
       stdio: "pipe",
       shell: IS_WINDOWS,
-      env: options.env ? { ...process.env, ...options.env } : process.env,
+      // Same contract as runCommand: callers own the full env map when provided.
+      env: options.env ?? process.env,
       cwd: ROOT,
     });
 
@@ -667,12 +671,18 @@ const BASE_TASKS: TaskSpec[] = [
       // CRITICAL: save the good COMPILE_ALL_ADAPTERS build first, then restore it.
       // Windows rename can leave mixed chunk hashes if restore fails mid-way — use
       // copy + rm for restore reliability so integration --no-build stays coherent.
+      //
+      // Stripper (vite testBackdoorStripperPlugin) only runs when:
+      //   NODE_ENV=production && !TEST_MODE && COMPILE_ALL_ADAPTERS !== "true"
+      // So we must UNSET both TEST_MODE and COMPILE_ALL_ADAPTERS. SVELTY_PRECHECK
+      // alone keeps private-config-fallback on private.test.ts (never live DB).
       const deployEnv = {
         ...process.env,
         SVELTY_PRECHECK: "true",
-        TEST_MODE: "true",
+        NODE_ENV: "production",
       } as Record<string, string>;
       delete deployEnv.COMPILE_ALL_ADAPTERS;
+      delete deployEnv.TEST_MODE;
 
       const outputDir = join(ROOT, ".svelte-kit", "output");
       const savedDir = join(ROOT, ".svelte-kit", "output-saved");

@@ -35,8 +35,17 @@ describe("path-resolver", () => {
       expect(paths.database).toBe(path.join(CWD, "config", "database"));
     });
 
-    it("privateConfig resolves to config/private.ts", () => {
-      expect(paths.privateConfig).toBe(path.join(CWD, "config", "private.ts"));
+    it("privateConfigLive always resolves to config/private.ts", () => {
+      expect(paths.privateConfigLive).toBe(path.join(CWD, "config", "private.ts"));
+    });
+
+    it("privateConfigTest always resolves to config/private.test.ts", () => {
+      expect(paths.privateConfigTest).toBe(path.join(CWD, "config", "private.test.ts"));
+    });
+
+    it("privateConfig follows private-config-policy (vitest → private.test.ts)", () => {
+      // Under VITEST/TEST_MODE, active bootstrap is never live private.ts
+      expect(paths.privateConfig).toBe(path.join(CWD, "config", "private.test.ts"));
     });
   });
 

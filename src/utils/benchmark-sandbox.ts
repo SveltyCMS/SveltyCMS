@@ -85,7 +85,12 @@ export function getLocalSandboxMediaRoot(): string {
 
 /** 🛡️ Hardened: live roots re-resolved each call so chdir/tests stay correct */
 function getLiveRoots(): string[] {
+  // Always protect BOTH live private.ts and private.test.ts — under automated
+  // harnesses paths.privateConfig resolves to private.test.ts only, which would
+  // leave the real developer private.ts writable without privateConfigLive.
   return [
+    paths.privateConfigLive,
+    paths.privateConfigTest,
     paths.privateConfig,
     paths.collections,
     paths.compiledCollections,
