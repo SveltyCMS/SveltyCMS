@@ -4,7 +4,6 @@
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
-import VerticalList from "@src/components/vertical-list.svelte";
 import {
 	button_edit,
 	button_previous,
@@ -24,12 +23,13 @@ import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
 import { getGuiFields } from "@utils/utils";
+import { draggable, droppable } from '@thisux/sveltednd';
 import type { DragDropState } from '@thisux/sveltednd';
 // Stores
 import { page } from "$app/state";
 import ModalSelectWidget from "./modal-select-widget.svelte";
 import ModalWidgetForm from "./modal-widget-form.svelte";
-	import Button from '@components/ui/button.svelte';
+import Button from '@components/ui/button.svelte';
 
 interface Props {
 	"on:save"?: () => void;
@@ -83,19 +83,20 @@ $effect.root(() => {
 	);
 });
 
-// Collection headers
-const headers = ["Id", "Icon", "Name", "DBName", "Widget"];
-
-const handleFieldDrop = (state: DragDropState<{ item: Record<string, unknown>; index: number }>) => {
-	if (!state.item) return;
-	const fromIndex = state.item.index;
-	const toIndex = state.targetIndex;
-	if (fromIndex === toIndex || toIndex < 0) return;
-	const newFields = [...fields];
-	newFields.splice(fromIndex, 1);
-	newFields.splice(toIndex, 0, state.item.item as Field);
-	fields = newFields as Field[];
-};
+	const handleFieldDrop = (state: DragDropState<Field>) => {
+		if (!state.item || state.targetIndex < 0) return;
+		const fromIndex = fields.indexOf(state.item);
+		if (fromIndex === state.targetIndex) return;
+		const newFields = [...fields];
+		newFields.splice(fromIndex, 1);
+		newFields.splice(state.targetIndex, 0, state.item);
+		fields = newFields;
+		// Persist to store
+		setCollectionValue({
+			...collectionValue.value,
+			fields: newFields,
+		});
+	};
 
 // Modal 2 to Edit a selected widget
 function modalWidgetForm(selectedWidget: Field): void {
@@ -207,28 +208,37 @@ async function handleCollectionSave() {
 		</p>
 		<p class="mb-2">{collection_widgetfield_drag()}</p>
 	</div>
-	<div style="max-height: 55vh !important;">
-		<VerticalList items={fields} {headers} container="widget-fields" onDrop={handleFieldDrop}>
-			{#snippet children(item)}
+	<div style="max-height: 55vh !important;" class="overflow-y-auto" role="table" aria-label="Field list">
+		<section
+			use:droppable={{
+				container: 'widget-fields',
+				onDrop: handleFieldDrop,
+				direction: 'vertical'
+			}}
+			class="my-1 w-full"
+			role="rowgroup"
+		>
+			{#each fields as field (field.id)}
 				<div
+					use:draggable={{ container: 'widget-fields', dragData: field }}
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
 					role="row"
 				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{(item as any).id}</div>
+					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
 
-					<div role="cell" class="flex justify-center"><iconify-icon icon={(item as any).icon} width="24" class="text-tertiary-500"></iconify-icon></div>
-					<div class="font-bold dark:text-primary-500" role="cell">{(item as any).label}</div>
-					<div class=" " role="cell">{(item as any)?.db_fieldName ? (item as any).db_fieldName : '-'}</div>
-					<div class=" " role="cell">{(item as any).widget?.key}</div>
+					<div role="cell" class="flex justify-center"><iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon></div>
+					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
+					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+					<div class=" " role="cell">{field.widget?.key}</div>
 
 					<div role="cell" class="flex justify-end">
-						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(item as Field)} aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
+						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
 							<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
 						</Button>
 					</div>
 				</div>
-			{/snippet}
-		</VerticalList>
+			{/each}
+		</section>
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
