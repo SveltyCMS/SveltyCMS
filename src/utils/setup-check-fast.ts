@@ -62,7 +62,7 @@ export function isSetupComplete(): boolean {
     try {
       const content = fs.readFileSync(privateConfigPath, "utf8");
       // Regex ensures keys are matched as quoted strings, not inside comments
-      const hasRequiredFields = /["']JWT_SECRET_KEY["']|["']DB_HOST["']/i.test(content);
+      const hasRequiredFields = content.includes("JWT_SECRET_KEY") && content.includes("DB_HOST");
 
       // Validate minimum content length to filter out half-written files during write-race
       if (content.length > 100 && hasRequiredFields) {
