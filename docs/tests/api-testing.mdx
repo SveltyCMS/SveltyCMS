@@ -25,13 +25,13 @@ Unit-level dispatcher checks use thin shared helpers (`invokeApi` in `tests/unit
 
 ## 🛡️ Test Isolation & Safety
 
-SveltyCMS is designed so test runs never touch live data. The safety contract is:
+SveltyCMS is designed so test runs never touch live user data. The safety contract is:
 
-1. **Config Isolation**: `config/private.test.ts` is the source of truth for integration and E2E jobs.
-2. **Ephemeral Mirror Only**: If CI creates `config/private.ts`, it must be a short-lived mirror of the test config only.
+1. **Config Isolation**: Local integration/E2E/precheck use **`config/private.test.ts` only**. They must never read or write the developer's **`config/private.ts`** (live CMS DB — e.g. `sveltycms.db`). See `src/utils/private-config-policy.ts`.
+2. **Ephemeral Mirror Only**: CI may create a short-lived `config/private.ts` on the runner as a mirror of the test config — never committed or pushed.
 3. **Test Mode Gate**: `/api/testing` is inactive unless `TEST_MODE=true` and a valid `TEST_API_SECRET` is provided.
-4. **Loopback Lockdown**: Local black-box jobs use `127.0.0.1` to avoid IPv4/IPv6 drift and to keep the test API loopback-only.
-5. **Database Isolation**: SQLite jobs must use obvious test database names such as `*_test*` or `e2e_*`; service-backed jobs use disposable CI containers.
+4. **Loopback Lockdown**: Local black-box jobs use `127.0.0.1` to avoid IPv4/IPv6 drift and keep the test API loopback-only.
+5. **Database Isolation**: SQLite jobs use isolated names (`sveltycms_test`, `benchmark_shared`, `e2e_*`). Service-backed jobs use disposable CI containers. Test `DB_NAME` must not equal live `private.ts`.
 
 ## Coverage at a Glance
 

@@ -58,10 +58,10 @@ To maximize performance, SveltyCMS supports parallel E2E testing using a **Datab
 
 SveltyCMS enforces a hard boundary between production and testing:
 
-1. **TEST_MODE**: Automatically enabled during `bun run test:*`.
-2. **Config Redirect**: The system is hard-coded to look for `config/private.test.ts` when testing.
-3. **Safety Guard**: `src/databases/config-state.ts` fails startup if `TEST_MODE` tries to use a non-isolated `DB_NAME`.
-4. **Triple-Lock Security**: Testing routes are physically removed from production builds and require a cryptographic handshake for activation.
+1. **TEST_MODE**: Enabled for integration / E2E / precheck harnesses (`private-config-policy.ts`).
+2. **Config Redirect**: Automated runs load **`config/private.test.ts` only** — never the developer's live `config/private.ts` (user DB risk).
+3. **Safety Guard**: `config-state.ts` fails if `TEST_MODE` uses a non-isolated `DB_NAME` or a name equal to live `private.ts`.
+4. **Triple-Lock Security**: Testing routes are stripped from production builds and require a cryptographic handshake for activation.
 
 ### Database Test Sequence
 
@@ -141,16 +141,17 @@ bun run scripts/run-integration-tests.ts --db=postgresql
 bun run scripts/run-integration-tests.ts --db=mariadb
 ```
 
-### 3. Automated 4-DB Gate (Pre-Push)
+### 3. 4-DB Matrix (CI by default)
 
-You do not need to run each adapter manually before every push. The pre-push hook (`scripts/precheck.ts --tier=push`) runs integration and core benchmarks for **all four adapters** when code, scripts, or database files changed:
+The **4-adapter integration + bench-core matrix runs in GitHub CI** (`ci.yml` `db-tests` / `bench-core`). Local pre-push does **not** run it by default (keeps the gate fast and avoids accidental live-config misuse).
 
 ```bash
-bun run verify:push       # same as git push hook
-bun run verify:full       # always runs full matrix (manual)
+bun run verify:push                                    # local push gate (no DB matrix)
+bun run scripts/precheck.ts --tier=push --include-db-tasks  # opt-in local matrix
+bun run verify:full                                    # full local CI parity (manual)
 ```
 
-Env blocks and credentials are centralized in `src/utils/test-db-credentials.ts` — the same source used by `ci.yml`, `run-integration-tests.ts`, and `run-core-benchmarks.ts`.
+Env blocks and credentials: `src/utils/test-db-credentials.ts` (`sveltycms_test` / `benchmark_shared` — never the live `sveltycms.db` from `private.ts`).
 
 ### 4. Parallel E2E Testing
 

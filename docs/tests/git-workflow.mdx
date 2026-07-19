@@ -59,12 +59,14 @@ Each task maps to a `ci.yml` job (`format`, `unit`, `db-tests`, `bench-core`, et
 
 `.githooks/pre-commit` runs:
 
-1. **Test config safety** — `scripts/check-test-db-safety.ts` blocks unsafe `config/private.test.ts`.
+1. **Test config safety** — `scripts/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
 2. **Format check** + **lint-staged** — `oxfmt`, `oxlint`, `slop-scanner` on staged `src/`; `lint-docs` on staged `docs/`.
 3. **Security regression (pre-commit only)** — `bun run scripts/security-regression.ts` (hooks + RBAC + setup gating).
 
 > [!IMPORTANT]
-> **No double-run rule:** security regression runs on **pre-commit only**. Pre-push excludes those files from unit tests and skips the security task entirely.
+> **No double-run rule:** security regression runs on **pre-commit only**. Pre-push excludes those files from unit tests.
+>
+> **Live data rule:** automated local runs never use `config/private.ts` or the user database — only `private.test.ts` + isolated DB names.
 
 #### Pre-push (~1–3 min) — build + unit (excludes security suite)
 
@@ -248,7 +250,7 @@ bun run ci:local -- --skip-benchmarks
 bun run verify:full
 ```
 
-`ci:local` backs up `config/private.ts`, runs tests, then restores your live config. A warning is printed when live CMS artifacts are detected — no disposable-worktree requirement.
+`ci:local` / full precheck must use **`config/private.test.ts` only** for automated runs — they must **not** rename, overwrite, or connect through the developer's `config/private.ts` (live user data). Isolation is env + policy (`private-config-policy.ts`), not backup/restore of live config.
 
 **Prerequisites:** Docker Desktop with MongoDB (27017), MariaDB (3306), and PostgreSQL (5432) on `127.0.0.1`.
 

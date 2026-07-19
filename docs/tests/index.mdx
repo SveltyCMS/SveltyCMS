@@ -164,7 +164,7 @@ Local tests and benchmarks must not mutate a user's live CMS setup:
 - `config/private.ts` is never renamed, copied from, deleted, or used by local integration tests. `run-integration-tests.ts` builds with `TEST_MODE=true`, so Vite aliases `@config/private` to `config/private.test.ts`.
 - `config/private.test.ts` must contain an isolated DB name. `src/utils/test-db-safety.ts` allows names containing `test`, `bench`, `e2e`, or ending in `_functional`; `scripts/check-test-db-safety.ts` blocks unsafe files.
 - `config/collections/` root and `.compiledCollections/` root are user-owned. Test fixtures go under `config/collections/test/`, tenant-specific test paths such as `config/test-setup-presets/collections/`, or `.compiledCollections/test/<workspace>/`.
-- `bun run ci:local` backs up `config/private.ts` (and related paths), runs the full precheck manifest, optionally Playwright E2E, then restores your live config. A warning is printed when live CMS artifacts are detected.
+- `bun run ci:local` / full precheck use isolated test config and DBs only — they must never back up/replace or connect through live `config/private.ts` (see `private-config-policy.ts`).
 
 ### Tiered Local Testing
 

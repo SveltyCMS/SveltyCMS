@@ -192,15 +192,13 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 ---
 
 > [!IMPORTANT]
-> **Safety Protocol**: Black-box tests must use test-only configuration. `config/private.test.ts` is the **only** local source of truth for precheck, integration, and local E2E. Local runs must never create, overwrite, rename, copy into, or delete the developer's `config/private.ts` (see `src/utils/private-config-policy.ts`). CI (`ci.yml`) may write an ephemeral `config/private.ts` on the runner as a mirror of the test config — that file is never committed or pushed.
+> **Safety Protocol (live data — non-negotiable)**: Local automated work must **never read or write** the developer's `config/private.ts` and must **never connect** to the live user database (e.g. `sveltycms.db`). Source of truth is **`config/private.test.ts` only** (isolated names: `sveltycms_test`, `benchmark_shared`, `e2e_*`). Policy: `src/utils/private-config-policy.ts`. CI (`ci.yml`) may create an ephemeral `private.ts` on the runner as a test mirror — never committed or pushed.
 >
-> The safety check runs automatically in **pre-commit** and **pre-push** hooks via `scripts/check-test-db-safety.ts`. It blocks any `config/private.test.ts` with a non-isolated `DB_NAME`. Run it manually with `bun run scripts/check-test-db-safety.ts`.
+> Pre-commit / pre-push run `scripts/check-test-db-safety.ts`: rejects unsafe test `DB_NAME`, live config pointing at test DBs, and **test DB_NAME equal to live private.ts**. Manual: `bun run scripts/check-test-db-safety.ts`.
 >
-> On **git push**, `scripts/precheck.ts` (push tier) runs the full 4-DB integration matrix and `bench-core` benchmarks when source or infra files changed — mirroring `ci.yml` `db-tests` and `bench-core` jobs. Credentials come from `src/utils/test-db-credentials.ts`.
+> **Pre-push does not run the 4-DB matrix or benchmarks by default** (CI-only). Opt in: `bun run scripts/precheck.ts --tier=push --include-db-tasks`. Credentials: `src/utils/test-db-credentials.ts`.
 >
-> The shared classifier lives in `src/utils/test-db-safety.ts` and is used by the server (`config-state.ts`), integration runner (`run-integration-tests.ts`), and git hooks so the rule can never drift between them.
->
-> For SQLite-based black-box jobs, database names must be obviously isolated test names such as `*_test*`, `*_bench*`, or `e2e_*`. Reusing the server's active SQLite file is forbidden because it breaks setup isolation and can corrupt the runtime under concurrent access.
+> Shared classifier: `src/utils/test-db-safety.ts` (server, integration runner, hooks). User live collections under `config/collections/` (outside `test/`) and root `.compiledCollections/` must not be written by benchmarks — see [Benchmark Collection Isolation](./benchmark-isolation.mdx).
 
 > [!IMPORTANT]
 > **No Backdoor Policy**: SveltyCMS has a zero-backdoor policy for security. Integration tests do NOT bypass authentication via:
