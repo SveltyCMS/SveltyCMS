@@ -55,32 +55,32 @@ Each task maps to a `ci.yml` job (`format`, `unit`, `db-tests`, `bench-core`, et
 
 `scripts/quality-gate.ts` is a thin wrapper that calls `runPrecheckCli({ tier: "push" })`.
 
-#### Pre-commit (~2–3s) — staged files only
+#### Pre-commit (~2–3s) — staged files + security suite (once)
 
 `.githooks/pre-commit` runs:
 
 1. **Test config safety** — `scripts/check-test-db-safety.ts` blocks unsafe `config/private.test.ts`.
-2. **lint-staged** — `oxfmt`, `oxlint`, `slop-scanner` on staged `src/`; `lint-docs` on staged `docs/`.
+2. **Format check** + **lint-staged** — `oxfmt`, `oxlint`, `slop-scanner` on staged `src/`; `lint-docs` on staged `docs/`.
+3. **Security regression (pre-commit only)** — `bun run scripts/security-regression.ts` (hooks + RBAC + setup gating).
 
-Fast feedback only. No build, integration, or E2E on commit.
+> [!IMPORTANT]
+> **No double-run rule:** security regression runs on **pre-commit only**. Pre-push excludes those files from unit tests and skips the security task entirely.
 
-#### Pre-push (~1–3 min) — Fast gate with progress dashboard
+#### Pre-push (~1–3 min) — build + unit (excludes security suite)
 
-`.githooks/pre-push` runs `bun run verify:push` via `scripts/precheck.ts`. Declarative task registry with progress dashboard, adaptive ETA, and error remediation hints:
+`.githooks/pre-push` runs `bun run verify:push` via `scripts/precheck.ts`. Diff base is `@{upstream}` / `origin/next`.
 
-| Check                                                 | CI job           | Est. |
-| :---------------------------------------------------- | :--------------- | :--- |
-| Test Config Safety                                    | —                | 1s   |
-| Format + tree-clean verification                      | `format`         | 3s   |
-| Slop scanner + import validation                      | `lint`           | 5s   |
-| oxlint                                                | `lint`           | 8s   |
-| Docs lint + benchmark MDX lint (always)               | —                | 4s   |
-| `bun audit --severity=high` (if packages changed)     | `security-audit` | 30s  |
-| `bun run check` (type check)                          | `check`          | 15s  |
-| Full unit tests (**always**)                          | `unit`           | 60s  |
-| Production build (`COMPILE_ALL_ADAPTERS`, **always**) | `build`          | 120s |
+| Check                                                                 | CI job   | Est.                                    |
+| :-------------------------------------------------------------------- | :------- | :-------------------------------------- |
+| Test Config Safety                                                    | —        | 1s                                      |
+| Format / oxlint / `bun run check` (when paths changed)                | whitebox | ~20s                                    |
+| Slop + imports + secret scan (source/infra)                           | whitebox | ~10s                                    |
+| Docs / benchmark MDX lint (docs or infra)                             | —        | ~4s                                     |
+| Unit tests via `test-smart --unit-only` (**excludes security files**) | whitebox | ~3–60s                                  |
+| Production build (`COMPILE_ALL_ADAPTERS`, when source/infra)          | build    | ~45–120s                                |
+| Deploy backdoor double-build                                          | whitebox | only if vite/testing-strip paths change |
 
-**DB integration + benchmarks are CI-only on push tier.** Opt in with `--include-db-tasks` for local CI simulation.
+**Security regression is not re-run on push.** DB integration + benchmarks are CI-only. Opt in with `--include-db-tasks`.
 
 ```bash
 bun run verify:push                         # pre-push gate

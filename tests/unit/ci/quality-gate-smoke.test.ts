@@ -51,4 +51,26 @@ describe("pre-push precheck CI smoke", () => {
     expect(unitBlock).toContain('name: "Full Unit Tests"');
     expect(unitBlock).not.toContain("skip:");
   });
+
+  it("never runs security regression twice (pre-commit owns, push skips + excludes)", () => {
+    const precheck = readFileSync(join(ROOT, "scripts/precheck-shared.ts"), "utf8");
+    const preCommit = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
+    const securityScript = readFileSync(join(ROOT, "scripts/security-regression.ts"), "utf8");
+
+    // Single source of truth for the suite list
+    expect(securityScript).toContain("SECURITY_REGRESSION_FILES");
+    expect(preCommit).toContain("scripts/security-regression.ts");
+    expect(preCommit).toContain("pre-commit only");
+
+    // Push tier skips the dedicated security task
+    const secStart = precheck.indexOf('name: "Security Regression Tests"');
+    const secEnd = precheck.indexOf('name: "Docs Lint"', secStart);
+    const secBlock = precheck.slice(secStart, secEnd);
+    expect(secBlock).toContain('ctx.tier === "push"');
+    expect(secBlock).toMatch(/shouldSkip:[\s\S]*tier === "push"/);
+
+    // Push unit run excludes the same files
+    expect(precheck).toContain("securityRegressionExcludeArg");
+    expect(precheck).toContain("--exclude=");
+  });
 });

@@ -30,6 +30,7 @@ import {
   INTEGRATION_DB_MATRIX,
   type IntegrationDbType,
 } from "../src/utils/test-db-credentials.ts";
+import { securityRegressionExcludeArg } from "./security-regression.ts";
 
 export const ROOT = process.cwd();
 export const IS_WINDOWS = process.platform === "win32";
@@ -521,19 +522,11 @@ const BASE_TASKS: TaskSpec[] = [
     name: "Security Regression Tests",
     ciJob: "whitebox",
     estimatedMs: 1000,
-    remediation:
-      "bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
-    shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.hasSourceCode && !ctx.profile.hasInfra,
-    run: () =>
-      runCommand("bun", [
-        "test",
-        "tests/unit/hooks/defense-in-depth.test.ts",
-        "tests/unit/hooks/authentication.test.ts",
-        "tests/unit/hooks/authorization.test.ts",
-        "tests/unit/auth/role-permission-access.test.ts",
-        "tests/unit/hooks/setup.test.ts",
-        "tests/unit/hooks/security-headers.test.ts",
-      ]),
+    remediation: "bun run scripts/security-regression.ts",
+    // Ownership: pre-commit runs this suite once. Push must never re-run it.
+    // Full tier (manual local CI) still includes it because no pre-commit ran.
+    shouldSkip: (ctx) => ctx.tier === "push",
+    run: () => runCommand("bun", ["run", "scripts/security-regression.ts"]),
   },
   {
     name: "Docs Lint",
@@ -615,15 +608,15 @@ const BASE_TASKS: TaskSpec[] = [
     run: (ctx) =>
       runCommand(
         "bun",
-        // Push: unit-only (smart + fail-cache). SQLite HTTP integration is the
-        // separate "Integration smoke" task when hasDbInfra — not bundled here.
-        // Full tier keeps the complete unit suite for CI parity.
+        // Push: unit-only, excluding security regression files already run on
+        // pre-commit (never run the same tests twice in one commit→push cycle).
+        // Full tier runs the complete unit suite (includes security files).
         ctx.tier === "push"
           ? [
               "run",
               "scripts/test-smart.ts",
               "--unit-only",
-              "--exclude=tests/unit/hooks/defense-in-depth.test.ts,tests/unit/hooks/authentication.test.ts,tests/unit/hooks/authorization.test.ts,tests/unit/auth/role-permission-access.test.ts,tests/unit/hooks/setup.test.ts,tests/unit/hooks/security-headers.test.ts",
+              `--exclude=${securityRegressionExcludeArg()}`,
             ]
           : ["run", "test:unit"],
         { silent: true, timeout: 600_000 },

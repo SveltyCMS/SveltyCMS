@@ -85,10 +85,11 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline**. Developers do NOT need to manually run the full chain — git hooks handle it automatically:
-  - **Pre-commit** (`git commit`): `gate:fast` runs format, lint, and slop scanner on **staged files only** (~2-3s)
-  - **Pre-push** (`git push`): `verify:push` runs `scripts/precheck.ts` (push tier) — static analysis, format, lint, unit tests, production build, with **progress dashboard, adaptive ETA, and error remediation hints** (~1-3min). Heavy DB integration + benchmarks are CI-only; opt in with `--include-db-tasks`.
+  - **Pre-commit** (`git commit`): format, lint-staged, **security regression once** (`scripts/security-regression.ts`) (~2-3s). Never re-runs on push.
+  - **Pre-push** (`git push`): `verify:push` → `scripts/precheck.ts` (push tier) — static analysis, **unit tests excluding security files**, production build (~1-3min). Security suite is **skipped** on push (pre-commit already ran it). Heavy DB integration + benchmarks are CI-only; opt in with `--include-db-tasks`.
   - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (4 projects, 6 shards), benchmarks
-  - Manual: `bun run gate:fast` (pre-commit checks), `bun run verify:push` (pre-push checks), `bun run scripts/precheck.ts --plan` (dry-run task inspection). DB matrix, benchmarks, and E2E are CI-only unless you opt in with `bun run scripts/precheck.ts --tier=push --include-db-tasks`.
+  - Manual: `bun run gate:fast` (lint-staged), `bun run scripts/security-regression.ts`, `bun run verify:push`, `bun run scripts/precheck.ts --plan` (dry-run). DB matrix is CI-only unless `bun run scripts/precheck.ts --tier=push --include-db-tasks`.
+  - **No double-run rule**: the same test suite must not run on both pre-commit and pre-push for one commit→push cycle.
 
 | Category          | Convention           | Examples                                                                         |
 | :---------------- | :------------------- | :------------------------------------------------------------------------------- |
@@ -276,11 +277,7 @@ When generating/modifying code:
     - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-14. **Security Regression Test (CRITICAL)**: Before committing any change touching `src/hooks/`, `src/routes/api/`, `src/routes/files/`, or `src/routes/(app)/`, run the fast security regression suite:
-    `bash
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/file-server-tenant.test.ts
-`
-    This validates all 5 security layers (Middleware → Dispatcher → Handler → Page Action → File Server) in under 2 seconds.
+14. **Security Regression Test (CRITICAL)**: Owned by **pre-commit only** (`bun run scripts/security-regression.ts`). Pre-push excludes these files from Full Unit Tests — do not re-add them to the push tier. Before committing changes under `src/hooks/`, `src/routes/api/`, `src/routes/files/`, or `src/routes/(app)/`, that suite runs automatically; manual: `bun run scripts/security-regression.ts`.
 15. **Predictive Preloading (Anchor-First)**:
     - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading.
     - **Strategy Selection**:

@@ -2,15 +2,14 @@
 # =============================================================================
 # SveltyCMS Pre-Commit — Fast Loop (~2-3s)
 # =============================================================================
-# Runs on STAGED FILES ONLY via lint-staged (.lintstagedrc.json):
-#   • oxfmt (auto-format), oxlint --deny-warnings, slop-scanner (src/**)
-#   • lint-docs (docs/**)
-#   • check-test-db-safety (pre-check)
+# Test ownership (never run the same suite on pre-push):
+#   • Security regression → THIS hook only (scripts/security-regression.ts)
+#   • Smart unit / build  → pre-push only
 #
-# Full gate runs on pre-push via scripts/precheck.ts (push tier):
-#   • static analysis, lint, unit tests, production build
-#   • progress dashboard with ETA and error remediation
-#   • DB integration + benchmarks are CI-only (opt in: --include-db-tasks)
+# Also: check-test-db-safety, format, lint-staged (fmt/lint/slop on staged files).
+#
+# Pre-push (scripts/precheck.ts push tier): typecheck, imports, unit (excludes
+# security files), production build. DB matrix is CI-only.
 #
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
@@ -44,14 +43,11 @@ bun run format --check || {
 echo "[3/4] ⚡ Running lint-staged on staged files..."
 bun run gate:fast
 
-# Step 4: Security regression tests — validates all 4 security layers
-# (Middleware → Dispatcher → Handler → Page Action) in under 1s
-# Catches handler routing issues, permission gaps, and auth bypasses
-# that lint cannot detect. 123 tests, ~847ms.
-echo "[4/4] 🔒 Running security regression tests..."
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts 2>&1 || {
+# Step 4: Security regression — PRE-COMMIT ONLY (pre-push excludes these files)
+echo "[4/4] 🔒 Running security regression tests (pre-commit only)..."
+bun run scripts/security-regression.ts || {
     echo "❌ Security regression tests FAILED. Fix before committing."
-    echo "   Run manually: bun test tests/unit/hooks/"
+    echo "   Run manually: bun run scripts/security-regression.ts"
     exit 1
 }
 
