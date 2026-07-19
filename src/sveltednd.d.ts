@@ -24,33 +24,35 @@ declare module "@thisux/sveltednd" {
   /**
    * Configuration options for draggable elements.
    */
-  export interface DraggableOptions<T = unknown> {
-    container: string;
-    dragData: T;
-    disabled?: boolean;
-    handle?: string;
-    interactive?: boolean;
-    onDragStart?: (state: DragDropState<T>) => void;
-    onDragEnd?: (state: DragDropState<T>) => void;
-  }
+  		export interface DraggableOptions<T = unknown> {
+  			container: string;
+  			dragData: T;
+  			disabled?: boolean;
+  			handle?: string;
+  			interactive?: boolean;
+  			keyboard?: boolean;
+  			onDragStart?: (state: DragDropState<T>) => void;
+  			onDragEnd?: (state: DragDropState<T>) => void;
+  		}
 
-  /**
-   * Configuration options for droppable elements.
-   */
-  export interface DroppableOptions<T = unknown> {
-    container: string;
-    direction?: "vertical" | "horizontal" | "grid";
-    onDrop?: (state: DragDropState<T>) => void;
-    onDragEnter?: (state: DragDropState<T>) => void;
-    onDragLeave?: (state: DragDropState<T>) => void;
-    onDragOver?: (state: DragDropState<T>) => void;
-    attributes?: {
-      draggingClass?: string;
-      dragOverClass?: string;
-      dropBeforeClass?: string;
-      dropAfterClass?: string;
-    };
-  }
+  		/**
+  		 * Configuration options for droppable elements.
+  		 */
+  		export interface DroppableOptions<T = unknown> {
+  			container: string;
+  			direction?: "vertical" | "horizontal" | "grid";
+  			onDrop?: (state: DragDropState<T>) => void;
+  			onDragEnter?: (state: DragDropState<T>) => void;
+  			onDragLeave?: (state: DragDropState<T>) => void;
+  			onDragOver?: (state: DragDropState<T>) => void;
+  			keyboard?: boolean;
+  			attributes?: {
+  				draggingClass?: string;
+  				dragOverClass?: string;
+  				dropBeforeClass?: string;
+  				dropAfterClass?: string;
+  			};
+  		}
 
   /**
    * Svelte action for making elements draggable.

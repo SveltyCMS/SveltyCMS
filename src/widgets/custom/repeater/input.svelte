@@ -17,6 +17,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { getFieldName } from '@utils/utils';
 	import { flip } from 'svelte/animate';
+	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	const uuidv4 = () => crypto.randomUUID();
@@ -64,12 +65,16 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	}
 
 	function handleRepeaterDrop(state: DragDropState<{ id: string; data: Record<string, any> }>) {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = items.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = items.indexOf(dragged);
 		if (fromIndex === state.targetIndex) return;
-		const newItems = [...items];
-		newItems.splice(fromIndex, 1);
-		newItems.splice(state.targetIndex, 0, state.item);
+		const newItems = untrack(() => {
+			const copy = [...items];
+			copy.splice(fromIndex, 1);
+			copy.splice(state.targetIndex, 0, dragged);
+			return copy;
+		});
 		items = newItems;
 		updateValue();
 	}
@@ -122,15 +127,22 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		use:droppable={{
 			container: 'repeater',
 			onDrop: handleRepeaterDrop,
-			direction: 'vertical'
+			direction: 'vertical',
+			keyboard: true,
+			attributes: { dragOverClass: 'bg-secondary-200' }
 		}}
 		class="flex flex-col gap-2"
+		role="list"
+		aria-label="Repeater items"
 	>
 		{#each items as item, index (item.id)}
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
 				animate:flip={{ duration: 300 }}
-				use:draggable={{ container: 'repeater', dragData: item }}
+				use:draggable={{ container: 'repeater', dragData: item, keyboard: true }}
+				role="listitem"
+				tabindex="0"
 			>
 				<!-- Header / Handle -->
 				<header class="flex items-center justify-between border-b border-surface-200 p-2 dark:border-surface-700">

@@ -27,6 +27,7 @@
 	import Portal from "@components/ui/portal.svelte";
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
+	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	import { page } from '$app/state';
@@ -251,13 +252,16 @@
 	}
 
 	function handleMediaDrop(state: DragDropState<MediaFile>) {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = selectedFiles.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = selectedFiles.indexOf(dragged);
 		if (fromIndex === state.targetIndex || fromIndex < 0) return;
-		const newFiles = [...selectedFiles];
-		newFiles.splice(fromIndex, 1);
-		newFiles.splice(state.targetIndex, 0, state.item);
-		selectedFiles = newFiles;
+		selectedFiles = untrack(() => {
+			const newFiles = [...selectedFiles];
+			newFiles.splice(fromIndex, 1);
+			newFiles.splice(state.targetIndex, 0, dragged);
+			return newFiles;
+		});
 	}
 </script>
 
@@ -267,11 +271,22 @@
 			use:droppable={{
 				container: 'media-grid',
 				onDrop: handleMediaDrop,
-				direction: 'grid'
+				direction: 'grid',
+				keyboard: true,
+				attributes: { dragOverClass: 'bg-secondary-200' }
 			}}
+			role="list"
+			aria-label="Media files"
 		>
 			{#each selectedFiles as file (file._id)}
-				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip use:draggable={{ container: 'media-grid', dragData: file }}>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div
+					class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50"
+					animate:flip
+					use:draggable={{ container: 'media-grid', dragData: file, keyboard: true }}
+					role="listitem"
+					tabindex="0"
+				>
 					<button
 						type="button"
 						class="block w-full cursor-pointer text-start"

@@ -25,6 +25,7 @@ import { modalState } from "@utils/modal.svelte";
 import { getGuiFields } from "@utils/utils";
 import { draggable, droppable } from '@thisux/sveltednd';
 import type { DragDropState } from '@thisux/sveltednd';
+import { untrack } from 'svelte';
 // Stores
 import { page } from "$app/state";
 import ModalSelectWidget from "./modal-select-widget.svelte";
@@ -84,17 +85,20 @@ $effect.root(() => {
 });
 
 	const handleFieldDrop = (state: DragDropState<Field>) => {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = fields.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = fields.indexOf(dragged);
 		if (fromIndex === state.targetIndex) return;
-		const newFields = [...fields];
-		newFields.splice(fromIndex, 1);
-		newFields.splice(state.targetIndex, 0, state.item);
-		fields = newFields;
+		fields = untrack(() => {
+			const newFields = [...fields];
+			newFields.splice(fromIndex, 1);
+			newFields.splice(state.targetIndex, 0, dragged);
+			return newFields;
+		});
 		// Persist to store
 		setCollectionValue({
 			...collectionValue.value,
-			fields: newFields,
+			fields,
 		});
 	};
 
@@ -213,16 +217,22 @@ async function handleCollectionSave() {
 			use:droppable={{
 				container: 'widget-fields',
 				onDrop: handleFieldDrop,
-				direction: 'vertical'
+				direction: 'vertical',
+				keyboard: true,
+				attributes: { dragOverClass: 'bg-secondary-200' }
 			}}
 			class="my-1 w-full"
-			role="rowgroup"
+			role="list"
+			aria-label="Field list"
 		>
 			{#each fields as field (field.id)}
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
-					use:draggable={{ container: 'widget-fields', dragData: field }}
+					use:draggable={{ container: 'widget-fields', dragData: field, keyboard: true }}
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
-					role="row"
+					role="listitem"
+					tabindex="0"
+					aria-label="Field: {field.label}. Press Space to grab, arrows to move."
 				>
 					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
 

@@ -69,13 +69,16 @@ $effect(() => {
 const flipDurationMs = 200;
 
 function handleFieldDrop(state: DragDropState<WidgetListItem>) {
-	if (!state.item || state.targetIndex < 0) return;
-	const fromIndex = items.indexOf(state.item);
+	const dragged = state.item;
+	if (!dragged || state.targetIndex < 0) return;
+	const fromIndex = items.indexOf(dragged);
 	if (fromIndex === state.targetIndex) return;
-	const newItems = [...items];
-	newItems.splice(fromIndex, 1);
-	newItems.splice(state.targetIndex, 0, state.item);
-	items = newItems;
+	items = untrack(() => {
+		const newItems = [...items];
+		newItems.splice(fromIndex, 1);
+		newItems.splice(state.targetIndex, 0, dragged);
+		return newItems;
+	});
 	dragIdsByIndex = items.reduce(
 		(acc, it, i) => {
 			acc[i] = it._dragId;
@@ -334,18 +337,25 @@ const marketplaceWidgets = $derived(
 				use:droppable={{
 					container: 'widget-fields',
 					onDrop: handleFieldDrop,
-					direction: 'vertical'
+					direction: 'vertical',
+					keyboard: true,
+					attributes: { dragOverClass: 'bg-secondary-200' }
 				}}
 				class="space-y-3 min-h-50"
 				data-testid="widget-fields-list"
+				role="list"
+				aria-label="Widget fields list"
 			>
 				{#each items as item (item._dragId)}
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<div
-						use:draggable={{ container: 'widget-fields', dragData: item }}
+						use:draggable={{ container: 'widget-fields', dragData: item, keyboard: true }}
 						animate:flip={{ duration: flipDurationMs }}
 						class="group relative"
 						data-testid="widget-field-row"
 						data-field-name={item.db_fieldName || ""}
+						role="listitem"
+						tabindex="0"
 					>
 						<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
 							<!-- Drag Handle -->

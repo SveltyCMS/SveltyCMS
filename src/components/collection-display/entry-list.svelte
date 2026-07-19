@@ -497,13 +497,16 @@ bulk actions, and predictive preloading.
 
 	// DND Logic for Headers
 	function handleColumnDrop(state: DragDropState<TableHeader>) {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = displayTableHeaders.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = displayTableHeaders.indexOf(dragged);
 		if (fromIndex === state.targetIndex) return;
-		const newItems = [...displayTableHeaders];
-		newItems.splice(fromIndex, 1);
-		newItems.splice(state.targetIndex, 0, state.item);
-		displayTableHeaders = newItems;
+		displayTableHeaders = untrack(() => {
+			const newItems = [...displayTableHeaders];
+			newItems.splice(fromIndex, 1);
+			newItems.splice(state.targetIndex, 0, dragged);
+			return newItems;
+		});
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
@@ -1060,12 +1063,24 @@ bulk actions, and predictive preloading.
 						container: 'columns',
 						onDrop: handleColumnDrop,
 						direction: 'horizontal',
-						attributes: { dragOverClass: 'bg-secondary-200' }
+						keyboard: true,
+						attributes: {
+							dragOverClass: 'bg-secondary-200'
+						}
 					}}
 					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
+					role="list"
+					aria-label="Drag columns to reorder"
 				>
 					{#each displayTableHeaders as header (header.id)}
-						<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header }}>
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<div
+							animate:flip={{ duration: 300 }}
+							use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
+							role="listitem"
+							tabindex="0"
+							aria-label={`Column: ${header.label}. Press Space to grab, arrows to move.`}
+						>
 							<Button variant="tertiary"
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}

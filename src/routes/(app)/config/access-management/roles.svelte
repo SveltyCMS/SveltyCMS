@@ -22,6 +22,7 @@ import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 import { modalState } from "@utils/modal.svelte";
 import { SvelteSet } from "svelte/reactivity";
+import { untrack } from 'svelte';
 import { draggable, droppable } from '@thisux/sveltednd';
 import type { DragDropState } from '@thisux/sveltednd';
 import RoleModal from "./role-modal.svelte";
@@ -175,14 +176,18 @@ const toggleRoleSelection = (roleId: string) => {
 };
 
 	function handleRoleDrop(state: DragDropState<Role & { id: string }>) {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = filteredRoles.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = filteredRoles.indexOf(dragged);
 		if (fromIndex === state.targetIndex) return;
-		const newRoles = [...roles];
-		const movedRole = newRoles.splice(fromIndex, 1)[0];
-		newRoles.splice(state.targetIndex, 0, movedRole);
-		roles = newRoles;
-		modifiedRoles.add(movedRole._id);
+		let movedRole: (Role & { id: string }) | undefined;
+		roles = untrack(() => {
+			const newRoles = [...roles];
+			movedRole = newRoles.splice(fromIndex, 1)[0];
+			newRoles.splice(state.targetIndex, 0, movedRole!);
+			return newRoles;
+		});
+		if (movedRole) modifiedRoles.add(movedRole._id);
 		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
 		setRoleData(cleanedRoles);
 		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
@@ -247,16 +252,21 @@ const toggleRoleSelection = (roleId: string) => {
 						use:droppable={{
 							container: 'roles',
 							onDrop: handleRoleDrop,
-							direction: 'vertical'
+							direction: 'vertical',
+							keyboard: true,
+							attributes: { dragOverClass: 'bg-secondary-200' }
 						}}
 						aria-describedby="roles-dnd-instructions"
 						role="list"
 					>
 						{#each filteredRoles as role (role.id)}
+							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<li
 								class="animate-flip flex items-center justify-between rounded border border-surface-200 dark:border-surface-800 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
-								use:draggable={{ container: 'roles', dragData: role }}
+								use:draggable={{ container: 'roles', dragData: role, keyboard: true }}
+								tabindex="0"
+								aria-label="Role: {role.name}. Press Space to grab, arrows to move."
 							>
 								<div class="flex items-center gap-2">
 									<div

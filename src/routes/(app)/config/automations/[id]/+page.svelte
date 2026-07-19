@@ -37,7 +37,7 @@ import {
 	OPERATION_TYPES,
 } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { fade, slide } from "svelte/transition";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { draggable, droppable } from '@thisux/sveltednd';
@@ -164,13 +164,16 @@ async function testFlow() {
 }
 
 	function handleOperationDrop(state: DragDropState<AutomationOperation>) {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = flow.operations.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = flow.operations.indexOf(dragged);
 		if (fromIndex === state.targetIndex) return;
-		const newOps = [...flow.operations];
-		newOps.splice(fromIndex, 1);
-		newOps.splice(state.targetIndex, 0, state.item);
-		flow.operations = newOps;
+		flow.operations = untrack(() => {
+			const newOps = [...flow.operations];
+			newOps.splice(fromIndex, 1);
+			newOps.splice(state.targetIndex, 0, dragged);
+			return newOps;
+		});
 	}
 
 function insertToken(opIndex: number, field: string, token: string) {
@@ -530,15 +533,22 @@ const conditionOperatorOptions = [
 							use:droppable={{
 								container: 'operations',
 								onDrop: handleOperationDrop,
-								direction: 'vertical'
+								direction: 'vertical',
+								keyboard: true,
+								attributes: { dragOverClass: 'bg-secondary-200' }
 							}}
+							role="list"
+							aria-label="Operation chain"
 						>
 							{#each flow.operations as op, i (op.id)}
 								{const meta = getOperationMeta(op.type)}
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 								<div
 									class="card p-4 border border-surface-300 dark:border-surface-600 rounded bg-surface-50 dark:bg-surface-900 relative"
 									transition:slide
-									use:draggable={{ container: 'operations', dragData: op, disabled: activeStep !== 2 }}
+									use:draggable={{ container: 'operations', dragData: op, disabled: activeStep !== 2, keyboard: true }}
+									role="listitem"
+									tabindex={activeStep === 2 ? 0 : -1}
 								>
 									<!-- Drag Handle -->
 									<div class="absolute inset-s-1 top-1/2 -translate-y-1/2 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">

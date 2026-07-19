@@ -135,10 +135,13 @@ let displayTableHeaders = $state(
 let selectAllColumns = $state(true);
 
 	function handleColumnDrop(state: DragDropState<TableHeader>) {
-		if (!state.item || state.targetIndex < 0) return;
-		const fromIndex = displayTableHeaders.indexOf(state.item);
+		const dragged = state.item;
+		if (!dragged || state.targetIndex < 0) return;
+		const fromIndex = displayTableHeaders.indexOf(dragged);
 		if (fromIndex === state.targetIndex) return;
-		displayTableHeaders = displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(state.targetIndex, 0, state.item);
+		displayTableHeaders = untrack(() =>
+			displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(state.targetIndex, 0, dragged)
+		);
 	}
 
 const filteredAvailablePermissions = $derived(
@@ -515,12 +518,16 @@ $effect(() => {
 							use:droppable={{
 								container: 'columns',
 								onDrop: handleColumnDrop,
-								direction: 'horizontal'
+								direction: 'horizontal',
+								keyboard: true
 							}}
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
+							role="list"
+							aria-label="Drag columns to reorder"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header }}>
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header, keyboard: true }} role="listitem" tabindex="0">
 									<Button variant="secondary"
 										onclick={() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
