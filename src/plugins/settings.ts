@@ -17,9 +17,27 @@ export class PluginSettingsService {
 
   constructor(private readonly dbAdapter: IDBAdapter) {}
 
-  // Ensure the plugin_settings collection exists
+  // Ensure the plugin_settings collection exists (SQL adapters need physical table).
   async initialize(): Promise<void> {
     try {
+      // Prefer explicit schema provisioning when available (MariaDB/Postgres/SQLite).
+      // Without this, SQL adapters map plugin_settings → collection_plugin_settings
+      // and insert fails with "table doesn't exist".
+      if (typeof (this.dbAdapter as any).createModel === "function") {
+        try {
+          await (this.dbAdapter as any).createModel({
+            _id: this.SETTINGS_COLLECTION,
+            name: this.SETTINGS_COLLECTION,
+            fields: [],
+          });
+        } catch (provisionErr) {
+          logger.debug(
+            `createModel for ${this.SETTINGS_COLLECTION} skipped/failed (may already exist)`,
+            { error: provisionErr },
+          );
+        }
+      }
+
       const count = await this.dbAdapter.crud.count(this.SETTINGS_COLLECTION, undefined, {
         bypassTenantCheck: true,
       });

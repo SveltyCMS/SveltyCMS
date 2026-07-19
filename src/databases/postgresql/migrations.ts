@@ -490,7 +490,12 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
   ];
 
   for (const query of queries) {
-    await sql.unsafe(query);
+    try {
+      await sql.unsafe(query);
+    } catch (err: any) {
+      // Never abort the whole migration for a single statement; log and continue.
+      logger.warn(`[PostgreSQL] Migration statement failed (continuing): ${err?.message || err}`);
+    }
   }
 
   // Add isRegistered column if it doesn't exist (for existing databases)
