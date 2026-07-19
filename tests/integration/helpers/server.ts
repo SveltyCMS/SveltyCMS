@@ -111,6 +111,22 @@ export async function safeFetch(
         throw new Error(`Server at ${url} returned an undefined response.`);
       }
 
+      if (!resp.headers) {
+        throw new Error(`Server at ${url} returned a response without headers.`);
+      }
+
+      // SSE / long-lived streams never end — buffering arrayBuffer() hangs until
+      // abort (broke tests/integration/api/rtc.test.ts on every DB adapter).
+      // Key off response Content-Type only so 401 JSON still buffers for logging.
+      const contentType = resp.headers.get("Content-Type") || "";
+      const isStreaming =
+        contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson");
+
+      if (isStreaming) {
+        // Return live body so callers can read event chunks / cancel the reader
+        return resp;
+      }
+
       // Buffer body immediately — mid-read ECONNRESET after headers is common when
       // the preview process restarts under load; treat that as transient too.
       const bodyBuf = await resp.arrayBuffer();
@@ -124,10 +140,6 @@ export async function safeFetch(
           `[safeFetch]    Cookie: ${cookieHeader}\n` +
           `[safeFetch]    Body: ${bodyText.slice(0, 500)}\n`;
         process.stderr.write(logMsg);
-      }
-
-      if (!resp.headers) {
-        throw new Error(`Server at ${url} returned a response without headers.`);
       }
 
       // Rebuild Response so callers can .json()/.text() without re-reading the socket
