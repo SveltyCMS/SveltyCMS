@@ -67,29 +67,36 @@ test.describe("Access Management shell", () => {
     await page.getByTestId("access-tab-roles").click();
 
     await page.getByTestId("access-create-role").click();
+    // Exclude GDPR cookie banner; role modal may not always have a name attribute.
     const dialog = page
       .getByRole("dialog")
-      .filter({ hasText: /role name|name.*role|roleName/i })
-      .or(
-        page
-          .getByRole("dialog")
-          .filter({ has: page.locator('input[name="roleName"], input[name="name"]') }),
-      )
+      .filter({ hasNotText: /we value your privacy|cookie|privacy policy/i })
+      .filter({
+        has: page.locator(
+          'input[name="roleName"], input[name="name"], input[type="text"], input:not([type])',
+        ),
+      })
       .first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const roleName = `E2ERole_${Date.now().toString(36).slice(-5)}`;
     const nameInput = dialog
-      .locator('input[name="roleName"], input[name="name"]')
+      .locator('input[name="roleName"], input[name="name"], input[type="text"], input:not([type])')
       .or(dialog.getByLabel(/name|role/i))
       .first();
     await expect(nameInput).toBeVisible({ timeout: ACTION_TIMEOUT });
     await nameInput.fill(roleName);
 
-    // Confirm create in modal
-    await dialog.getByRole("button", { name: /^(save|create|confirm|ok)$/i }).click();
+    // Confirm create in modal (button text is often "Create" / "Save")
+    await dialog
+      .getByRole("button", { name: /^(save|create|confirm|ok|create role)$/i })
+      .or(dialog.locator('button[type="submit"]'))
+      .first()
+      .click();
 
-    await expect(page.getByText(/role added|save to apply/i)).toBeVisible({
+    await expect(
+      page.getByText(new RegExp(roleName, "i")).or(page.getByText(/role added|save to apply/i)),
+    ).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
 

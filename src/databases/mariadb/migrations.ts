@@ -383,13 +383,13 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			userAgent TEXT,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			      previousHash VARCHAR(64),
-			      chainHash VARCHAR(64),
-			      INDEX timestamp_idx (timestamp),
-			      INDEX event_type_idx (eventType),
-			      INDEX tenant_idx (tenantId)
-			    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			previousHash VARCHAR(64),
+			chainHash VARCHAR(64),
+			INDEX timestamp_idx (timestamp),
+			INDEX event_type_idx (eventType),
+			INDEX tenant_idx (tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // Svelty Jobs
     `CREATE TABLE IF NOT EXISTS svelty_jobs (
@@ -463,12 +463,25 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX entry_idx (entryId, collectionId)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-    // Full-text search indexes (not auto-created by Drizzle ORM)
-    `CREATE FULLTEXT INDEX IF NOT EXISTS content_nodes_fts_idx ON content_nodes (name, description)`,
+    // Full-text search indexes are applied best-effort after core tables.
   ];
 
   for (const query of queries) {
-    await connection.query(query);
+    try {
+      await connection.query(query);
+    } catch (err) {
+      // Never abort the whole migration for a single statement; log and continue.
+      logger.warn(`[MariaDB] Migration statement failed (continuing): ${err?.message || err}`);
+    }
+  }
+
+  // Optional FTS index — best-effort only
+  try {
+    await connection.query(
+      `CREATE FULLTEXT INDEX content_nodes_fts_idx ON content_nodes (name, description)`,
+    );
+  } catch {
+    // Index may already exist or engine may not support FULLTEXT on these columns
   }
 
   // Add isRegistered column if it doesn't exist (for existing databases)

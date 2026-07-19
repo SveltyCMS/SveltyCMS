@@ -78,8 +78,15 @@ test.describe("Media virtual folders", () => {
     );
 
     await page.getByTestId("media-create-folder").click();
-    // ModalPrompt — dialog with text input
-    const dialog = page.getByRole("dialog");
+    // ModalPrompt — prefer named dialog so GDPR cookie banner is excluded.
+    const dialog = page
+      .getByRole("dialog", { name: /create new folder|new folder|folder/i })
+      .or(
+        page
+          .getByRole("dialog")
+          .filter({ hasNotText: /we value your privacy|cookie|privacy policy/i }),
+      )
+      .first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
     const input = dialog.locator("input[type='text'], input:not([type])").first();
     await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -99,7 +106,14 @@ test.describe("Media virtual folders", () => {
     const folderName = `e2e_nav_${Date.now().toString(36).slice(-6)}`;
 
     await page.getByTestId("media-create-folder").click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page
+      .getByRole("dialog", { name: /create new folder|new folder|folder/i })
+      .or(
+        page
+          .getByRole("dialog")
+          .filter({ hasNotText: /we value your privacy|cookie|privacy policy/i }),
+      )
+      .first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
     await dialog.locator("input").first().fill(folderName);
     await dialog.getByRole("button", { name: /^(ok|create|confirm|save)$/i }).click();
@@ -199,7 +213,11 @@ test.describe("Media bulk actions", () => {
     await page.locator("body").click({ position: { x: 5, y: 5 } });
     await page.keyboard.press("Delete");
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasNotText: /we value your privacy|cookie|privacy policy/i })
+      .filter({ hasText: /delete/i })
+      .first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(dialog.getByText(/delete/i)).toBeVisible();
     await dialog.getByRole("button", { name: /confirm/i }).click();

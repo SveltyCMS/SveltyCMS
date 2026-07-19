@@ -906,26 +906,43 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
 
-        const query = this.getDrizzleInstance(options).insert(table).values(values);
-        if (this.insertReturnsRows) {
-          const result = await (query as any).returning();
-          const finalData = utils.convertDatesToISO(result[0], {
-            ...this.convertDatesOptions,
-            table: collection,
-          }) as T;
-          return this.hooks.length > 0
-            ? await this.runHooks("after", "insert", collection, finalData, options)
-            : finalData;
-        } else {
+        const runInsert = async () => {
+          const query = this.getDrizzleInstance(options).insert(table).values(values);
+          if (this.insertReturnsRows) {
+            const result = await (query as any).returning();
+            return utils.convertDatesToISO(result[0], {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as T;
+          }
           await (query as any);
-          const finalData = utils.convertDatesToISO(values, {
+          return utils.convertDatesToISO(values, {
             ...this.convertDatesOptions,
             table: collection,
           }) as T;
-          return this.hooks.length > 0
-            ? await this.runHooks("after", "insert", collection, finalData, options)
-            : finalData;
+        };
+
+        let finalData: T;
+        try {
+          finalData = await runInsert();
+        } catch (err: any) {
+          // Auto-provision dynamic collection tables on first write (MariaDB/Postgres).
+          // Without this, plugin_settings → collection_plugin_settings fails with missing table.
+          if (this.isMissingTableError(err) && typeof (this as any).createModel === "function") {
+            await (this as any).createModel({
+              _id: collection,
+              name: collection,
+              fields: [],
+            });
+            finalData = await runInsert();
+          } else {
+            throw err;
+          }
         }
+
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
       },
       "INSERT_FAILED",
       undefined,

@@ -6,9 +6,12 @@
  * @see tests/e2e/routes/login/accessibility.spec.ts (comprehensive axe-core audits)
  */
 import { test, expect } from "@playwright/test";
+import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";
 
 test("focus indicator is visible on keyboard navigation", async ({ page }) => {
+  await seedCookieConsent(page);
   await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await dismissCookieConsent(page);
 
   // Click Sign In to reveal the form
   const signInIcon = page.getByTestId("signin-icon");

@@ -113,7 +113,8 @@ test.describe("System Settings shell", () => {
     const shellSave = page.getByTestId("system-settings-save");
     await expect(shellSave).toBeDisabled({ timeout: ACTION_TIMEOUT });
 
-    const groupSave = page.getByTestId("settings-group-save");
+    const cachePanel = page.getByTestId("settings-panel-cache");
+    const groupSave = cachePanel.getByTestId("settings-group-save");
     if (await groupSave.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await expect(groupSave).toBeDisabled();
     }
@@ -142,24 +143,20 @@ test.describe("System Settings shell", () => {
 
     // Scope group-level save/discard to the cache panel to avoid strict-mode
     // violations when the global toolbar also renders the same testids.
-    const groupSave = cachePanel
-      .getByTestId("settings-group-save")
-      .or(page.getByTestId("settings-group-save").first());
-    const groupDiscard = cachePanel
-      .getByTestId("settings-group-discard")
-      .or(page.getByTestId("settings-group-discard").first());
+    const groupSave = cachePanel.getByTestId("settings-group-save");
+    const groupDiscard = cachePanel.getByTestId("settings-group-discard");
 
-    await expect(groupSave.first()).toBeEnabled({
+    await expect(groupSave).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
     await expect(page.getByTestId("system-settings-save")).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(groupDiscard.first()).toBeEnabled();
+    await expect(groupDiscard).toBeEnabled();
     await expect(page.getByTestId("system-settings-discard")).toBeVisible();
 
-    await groupDiscard.first().click();
-    await expect(groupSave.first()).toBeDisabled({
+    await groupDiscard.click();
+    await expect(groupSave).toBeDisabled({
       timeout: ACTION_TIMEOUT,
     });
     await expect(page.getByTestId("system-settings-save")).toBeDisabled({
@@ -187,13 +184,15 @@ test.describe("System Settings shell", () => {
     }
 
     await input.fill(target);
-    await expect(page.getByTestId("settings-group-save")).toBeEnabled({
+    const cachePanel = page.getByTestId("settings-panel-cache");
+    const groupSave = cachePanel.getByTestId("settings-group-save");
+    await expect(groupSave).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
 
-    await page.getByTestId("settings-group-save").click();
+    await groupSave.click();
     // Save reloads group and clears dirty state
-    await expect(page.getByTestId("settings-group-save")).toBeDisabled({
+    await expect(groupSave).toBeDisabled({
       timeout: ACTION_TIMEOUT,
     });
     await expect(input).toHaveValue(target, { timeout: ACTION_TIMEOUT });
@@ -215,11 +214,14 @@ test.describe("System Settings shell", () => {
     // Restore original to avoid leaving noisy E2E mutations
     if (original !== target) {
       await afterReload.fill(original);
-      await expect(page.getByTestId("settings-group-save")).toBeEnabled({
+      const restoreSave = page
+        .getByTestId("settings-panel-cache")
+        .getByTestId("settings-group-save");
+      await expect(restoreSave).toBeEnabled({
         timeout: ACTION_TIMEOUT,
       });
-      await page.getByTestId("settings-group-save").click();
-      await expect(page.getByTestId("settings-group-save")).toBeDisabled({
+      await restoreSave.click();
+      await expect(restoreSave).toBeDisabled({
         timeout: ACTION_TIMEOUT,
       });
     }
