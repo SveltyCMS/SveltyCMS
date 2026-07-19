@@ -75,6 +75,7 @@
     "build:analyze": "NODE_OPTIONS=\"--max-old-space-size=8192\" npx vite-bundle-visualizer && $npm_execpath run build:verbose",
     "build:report": "$npm_execpath run build:verbose && du -h .svelte-kit/output/client/_app/immutable/chunks/*.js | sort -rh | head -20",
     "build:stats": "npm run build:verbose && npx tsx scripts/bundle-stats.ts",
+    "build:zstd-dict": "bun run scripts/build-zstd-dict.ts",
     "-- QUALITY GATES -------------------------------------": "",
     "gate:fast": "bun x lint-staged",
     "gate": "bun run scripts/quality-gate.ts",

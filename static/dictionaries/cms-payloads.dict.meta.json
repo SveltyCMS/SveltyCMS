@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "created": "2026-06-15T16:24:38.973Z",
+  "targetSize": 112640,
+  "actualSize": 112648,
+  "selectedEntries": 2091,
+  "corpusEntries": 15,
+  "sourceKnowledgeTokens": 158461,
+  "magic": "0xEC30A437",
+  "dictId": "SVLT",
+  "note": "Trained for SveltyCMS CMS JSON payloads. Use with zstd (or Brotli) dictionary APIs."
+}
