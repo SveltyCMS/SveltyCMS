@@ -111,24 +111,31 @@ export async function safeFetch(
         throw new Error(`Server at ${url} returned an undefined response.`);
       }
 
+      // Buffer body immediately — mid-read ECONNRESET after headers is common when
+      // the preview process restarts under load; treat that as transient too.
+      const bodyBuf = await resp.arrayBuffer();
+      const bodyText = new TextDecoder().decode(bodyBuf);
+
       if (!resp.ok) {
-        const bodyText = await resp
-          .clone()
-          .text()
-          .catch(() => "N/A");
         const logMsg =
           `\n[safeFetch] ❌ Request failed: ${url}\n` +
           `[safeFetch]    Status: ${resp.status}\n` +
           `[safeFetch]    Origin: ${headers.get("Origin")}\n` +
           `[safeFetch]    Cookie: ${cookieHeader}\n` +
-          `[safeFetch]    Body: ${bodyText}\n`;
+          `[safeFetch]    Body: ${bodyText.slice(0, 500)}\n`;
         process.stderr.write(logMsg);
       }
 
       if (!resp.headers) {
         throw new Error(`Server at ${url} returned a response without headers.`);
       }
-      return resp;
+
+      // Rebuild Response so callers can .json()/.text() without re-reading the socket
+      return new Response(bodyBuf, {
+        status: resp.status,
+        statusText: resp.statusText,
+        headers: resp.headers,
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       const isTransient =
