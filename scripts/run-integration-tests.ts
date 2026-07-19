@@ -859,7 +859,13 @@ async function main() {
   const regularTests = testFiles.filter((f) => !isSetupModeTest(f));
   const setupTests = testFiles.filter((f) => isSetupModeTest(f));
 
-  type TestResult = { file: string; success: boolean; time: number; stderr?: string };
+  type TestResult = {
+    file: string;
+    success: boolean;
+    time: number;
+    stderr?: string;
+    serverCrashed?: boolean;
+  };
 
   let passed = 0;
   const results: TestResult[] = [];
