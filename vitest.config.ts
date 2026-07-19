@@ -50,8 +50,24 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      include: ["src/**/*.ts", "src/**/*.svelte"],
-      exclude: ["src/paraglide/**", "src/**/*.d.ts"],
+      // P0 packages only — enterprise A++ gate focuses on security/core, not vanity % of all src
+      include: [
+        "src/hooks/**/*.ts",
+        "src/databases/auth/**/*.ts",
+        "src/utils/test-bypass.server.ts",
+        "src/utils/error-handling.ts",
+        "src/utils/security/**/*.ts",
+        "src/routes/api/[...path]/+server.ts",
+      ],
+      exclude: ["src/paraglide/**", "src/**/*.d.ts", "src/**/*.test.ts"],
+      // Applied when running `bun run test:unit:coverage` — keeps P0 floors honest without
+      // blocking full-suite unit runs that omit --coverage.
+      thresholds: {
+        lines: 55,
+        functions: 50,
+        branches: 45,
+        statements: 55,
+      },
     },
     pool: "forks",
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.

@@ -1,19 +1,37 @@
 /**
- * @file tests/playwright/helpers/auth.ts
- * @description Shared authentication helper for Playwright tests
- * Uses the same credentials as setup-wizard to ensure consistency
+ * @file tests/e2e/helpers/auth.ts
+ * @description Canonical authentication helper for Playwright E2E tests.
+ *
+ * Single entry for admin login. Credentials come from `@tests/harness`
+ * (same universe as integration seed / CI). Session cookie injection lives
+ * in `test-auth.ts` — import `applySessionCookie` / `ensureAuthenticated`
+ * from there when you need low-level API session attach.
  */
 
 import { expect, type Page } from "@playwright/test";
+// Relative import: Playwright does not resolve @tests aliases.
+import {
+  ADMIN_CREDENTIALS as HARNESS_ADMIN,
+  EDITOR_CREDENTIALS as HARNESS_EDITOR,
+  TEST_PASSWORD,
+} from "../../harness/fixtures";
 import { TEST_API_HEADERS } from "./test-api";
 
 /**
- * Login credentials that match the setup wizard defaults
+ * Login credentials — harness is source of truth; env can override in CI.
  */
 export const ADMIN_CREDENTIALS = {
-  email: process.env.ADMIN_EMAIL || "admin@example.com",
-  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Password123!",
+  email: process.env.ADMIN_EMAIL || HARNESS_ADMIN.email,
+  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || HARNESS_ADMIN.password,
 };
+
+/** Editor role credentials (RBAC E2E). */
+export const EDITOR_CREDENTIALS = {
+  email: process.env.EDITOR_EMAIL || HARNESS_EDITOR.email,
+  password: process.env.EDITOR_PASSWORD || HARNESS_EDITOR.password,
+};
+
+export { TEST_PASSWORD };
 
 /**
  * Prepare the login form by dismissing modals and clicking the sign in icon
@@ -65,7 +83,8 @@ export async function prepareLoginForm(page: Page) {
   // Navigate to login page (reload to apply init scripts)
   console.log("[Auth] Navigating to /login...");
   await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await page.waitForTimeout(500);
+  // Prefer network-idle-ish settle via URL stability over fixed sleep
+  await page.waitForLoadState("domcontentloaded").catch(() => undefined);
 
   // Check if we got redirected to setup (config incomplete)
   if (page.url().includes("/setup")) {
@@ -370,8 +389,8 @@ export async function loginAsEditor(
   page: Page,
   waitForUrl?: string | RegExp,
   credentials: { email: string; password: string } = {
-    email: "editor@example.com",
-    password: "Editor123!",
+    email: HARNESS_EDITOR.email,
+    password: HARNESS_EDITOR.password,
   },
 ) {
   await page.context().clearCookies();

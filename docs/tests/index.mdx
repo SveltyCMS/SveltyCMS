@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-18"
+updated: "2026-07-19"
 tags:
   - "testing"
   - "documentation"
@@ -21,11 +21,14 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** July 18, 2026
-**Source of Truth:** GitHub Actions on the current branch or pull request
-**Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E  
+**Last Updated:** July 19, 2026  
+**Source of Truth:** GitHub Actions on the current branch or pull request  
+**Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E (`bun run test:e2e` = CI-parity preview)  
 **Primary Goal:** [100% three-layer completeness](./three-layer-completeness.mdx) (critical inventory, not vanity line %)  
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
+
+> [!TIP]
+> Live dashboard: **[Test Status](./test-status.mdx)**. Architecture: **[ADR Testing 2026](./adr-testing-2026.mdx)** (includes A++ suite contract + residual golden closure).
 
 > [!IMPORTANT]
 > Historical totals and pass rates drift quickly. Treat GitHub Actions as the only current status board for counts, pass rate, and branch health.
@@ -76,15 +79,19 @@ bun run check
 bun run build
 
 # 3. Black-box integration runner (SQLite needs no Docker)
-bun run scripts/run-integration-tests.ts --db=sqlite
-bun run scripts/run-integration-tests.ts --db=sqlite --suite=api
+bun run test:integration
+# or: bun run scripts/run-integration-tests.ts --db=sqlite
+
+# 4. E2E CI-parity (adapter-node preview :4173 — not Vite)
+bun run test:e2e
+# Dev shortcut only: bun run test:e2e:dev
 bun run scripts/run-integration-tests.ts --db=sqlite --suite=db
 bun run scripts/run-integration-tests.ts --db=sqlite --no-build
 
-# 4. Playwright E2E (playwright.config.ts starts ports 4173 and 4174 locally)
-bun x playwright test --project=wizard
-bun x playwright test --project=auth-setup
-bun x playwright test --project=chromium
+# 4. Playwright E2E — default is CI-parity (preview :4173)
+bun run test:e2e
+# Dev-server shortcut only (Vite :5173 — not CI-identical):
+bun run test:e2e:dev
 
 # 5. Smart runner - auto-detects what to test from git diff
 bun run test:smart

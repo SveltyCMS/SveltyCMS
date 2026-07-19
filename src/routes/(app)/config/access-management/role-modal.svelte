@@ -35,7 +35,10 @@ interface Props {
 	currentGroupName: string;
 	currentRoleId: string;
 	isEditMode: boolean;
-	parent: SvelteComponent;
+	/** Optional host bridge (legacy); prefer `close` from DialogManager */
+	parent?: { onClose?: () => void } | SvelteComponent | null;
+	/** Injected by dialog-manager as modalState.close.bind(modalState) */
+	close?: (value?: unknown) => void;
 	roleDescription: string;
 	roleName: string;
 	selectedPermissions?: string[];
@@ -44,7 +47,8 @@ interface Props {
 }
 
 const {
-	parent,
+	parent = null,
+	close: closeModal,
 	isEditMode,
 	currentRoleId,
 	roleName,
@@ -54,6 +58,19 @@ const {
 	permissions = [],
 	roles = [],
 }: Props = $props();
+
+function dismiss(value: unknown = false) {
+	if (typeof closeModal === "function") {
+		closeModal(value);
+		return;
+	}
+	const p = parent as { onClose?: (v?: unknown) => void } | null;
+	if (p && typeof p.onClose === "function") {
+		p.onClose(value);
+		return;
+	}
+	modalState.close(value);
+}
 
 let formName = $state("");
 let formDescription = $state("");
@@ -100,9 +117,10 @@ function handleCopyPermissions(roleId: string) {
 
 function onFormSubmit(event: SubmitEvent): void {
 	event.preventDefault();
+	if (!formName?.trim()) return;
 
-	modalState.close({
-		roleName: formName,
+	dismiss({
+		roleName: formName.trim(),
 		roleDescription: formDescription,
 		currentGroupName,
 		selectedPermissions: localSelectedPermissions,
@@ -111,21 +129,35 @@ function onFormSubmit(event: SubmitEvent): void {
 }
 </script>
 
-<AdminCard class="w-modal space-y-4 p-4 shadow-xl border border-surface-200 dark:border-surface-800">
-	<header class="text-center text-2xl font-bold">{isEditMode ? 'Edit Role' : 'Create New Role'}</header>
+<AdminCard
+	class="w-modal space-y-4 p-4 shadow-xl border border-surface-200 dark:border-surface-800"
+	data-testid="role-modal"
+>
+	<header class="text-center text-2xl font-bold" data-testid="role-modal-title">
+		{isEditMode ? 'Edit Role' : 'Create New Role'}
+	</header>
 
 	<form
 		class="modal-form space-y-4 border border-surface-200 dark:border-surface-700 p-4 rounded overflow-y-auto max-h-[60vh]"
 		onsubmit={onFormSubmit}
 		id="roleForm"
+		data-testid="role-form"
 	>
-		<Input label="Role Name" bind:value={formName} placeholder="Role Name" required />
+		<Input
+			label="Role Name"
+			name="roleName"
+			bind:value={formName}
+			placeholder="Role Name"
+			required
+			data-testid="role-name-input"
+		/>
 		<Textarea
 			id="role-description"
 			label="Role Description"
 			bind:value={formDescription}
 			placeholder="Role Description"
 			rows={3}
+			data-testid="role-description-input"
 		/>
 
 		<div class="space-y-2">
@@ -167,7 +199,16 @@ function onFormSubmit(event: SubmitEvent): void {
 	</form>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<Button variant="ghost" onclick={parent.onClose}>{button_cancel()}</Button>
-		<Button variant="primary" type="submit" form="roleForm">{isEditMode ? 'Update' : 'Create'}</Button>
+		<Button variant="ghost" onclick={() => dismiss(false)} data-testid="role-modal-cancel">
+			{button_cancel()}
+		</Button>
+		<Button
+			variant="primary"
+			type="submit"
+			form="roleForm"
+			data-testid="role-modal-submit"
+		>
+			{isEditMode ? 'Update' : 'Create'}
+		</Button>
 	</footer>
 </AdminCard>

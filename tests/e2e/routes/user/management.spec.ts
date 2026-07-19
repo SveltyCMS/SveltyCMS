@@ -248,8 +248,9 @@ test.describe.serial("User Management Flow", () => {
 
     await editDialog.getByRole("button", { name: /^save$/i }).click();
 
-    // Toast may use HTML description; match text content
-    await expect(page.getByText(/User Data Updated/i)).toBeVisible({ timeout: 15_000 });
+    // Toast via role=alert / data-testid — not CSS classes or icon markup
+    const { expectToast } = await import("../../helpers/stable");
+    await expectToast(page, /user data updated|profile changes were saved/i, 15_000);
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {
@@ -261,7 +262,7 @@ test.describe.serial("User Management Flow", () => {
     await openUserAdminArea(page);
 
     // Block/unblock via per-row buttons (stable). Bulk-delete via Multibutton.
-    // (admins cannot be blocked/deleted; developer@example.com is non-admin)
+    // (admins cannot be blocked/deleted; developer@test.com is non-admin)
     await runRowUserAction(page, "block");
     await runRowUserAction(page, "unblock");
     await bulkDeleteDeveloper(page);

@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/routes/redirects.mdx"
 title: "Redirect Manager Tests — Control Map"
-description: "Coverage for /config/redirects: admin gate, CRUD, search, confirm delete."
+description: "Coverage for /config/redirects: admin gate, redirectsMV CRUD, search, confirm delete."
 order: 20
 icon: "mdi:arrow-decision"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-18"
+updated: "2026-07-19"
 tags:
   - "testing"
   - "e2e"
@@ -17,46 +17,62 @@ tags:
 
 ## Surface
 
-| Piece                 | Role                                              |
-| --------------------- | ------------------------------------------------- |
-| `+page.server.ts`     | Auth + **admin-only** gate; load tenant redirects |
-| `+page.svelte`        | Table, search, modal create/edit, confirm delete  |
-| `redirects-utils.ts`  | Path validation, payload normalize, client filter |
-| `redirects.server.ts` | LocalCMS create/update/delete + cache invalidate  |
-| `redirects.remote.ts` | SvelteKit command wrappers                        |
+| Piece                 | Role                                                             |
+| --------------------- | ---------------------------------------------------------------- |
+| `+page.server.ts`     | Auth + **admin-only** gate; load via `listRedirects()`           |
+| `+page.svelte`        | Table, search, modal create/edit, confirm delete                 |
+| `redirects-utils.ts`  | Path validation, payload normalize, **normalizeRedirectRow**     |
+| `redirects.server.ts` | **Primary: `redirectsMV`** insert/update/delete + content mirror |
+| `redirects.remote.ts` | SvelteKit command wrappers                                       |
+| Middleware            | `handle-redirects` reads **`redirectsMV`** (`source` / `target`) |
+
+### Storage contract (2026-07-19)
+
+| Store                  | Role                                       | Field names        |
+| ---------------------- | ------------------------------------------ | ------------------ |
+| **`redirects_mv`**     | **Source of truth** for admin UI + runtime | `source`, `target` |
+| `collection_redirects` | Best-effort CMS mirror (non-fatal)         | nested `data` JSON |
+| UI                     | Always `from` / `to`                       | mapped on load     |
+
+Index: `idx_redirects_mv_lookup` on `(tenantId, source, active)` — SQLite / MariaDB / PostgreSQL.
 
 ---
 
 ## Control → test matrix
 
-| Control                                | Unit                                  | E2E                  |
-| -------------------------------------- | ------------------------------------- | -------------------- |
-| Admin gate (403 non-admin)             | ✅ page.server                        | —                    |
-| Validation (from/to paths, type)       | ✅ redirects-utils + redirects.server | —                    |
-| Create + cache invalidate              | ✅ redirects.server                   | ✅ create happy path |
-| Delete + confirm (no `window.confirm`) | ✅ server                             | ✅ delete happy path |
-| Shell + search + empty                 | —                                     | ✅                   |
-| Modal open / cancel                    | —                                     | ✅                   |
+| Control                                | Unit                                    | E2E                  |
+| -------------------------------------- | --------------------------------------- | -------------------- |
+| Admin gate (403 non-admin)             | ✅ page.server / requireAdmin           | —                    |
+| Validation (from/to paths, type)       | ✅ redirects-utils + redirects.server   | —                    |
+| Create → MV insert + cache invalidate  | ✅ redirects.server                     | ✅ golden create     |
+| List maps source/target → from/to      | ✅ normalizeRedirectRow + listRedirects | ✅ search/list       |
+| Delete + confirm (no `window.confirm`) | ✅ server                               | ✅ delete happy path |
+| Shell + search + empty                 | —                                       | ✅                   |
 
 ---
 
-## Product hardening (2026-07-18)
+## Product hardening
 
 - [x] Admin-only page load and mutations
 - [x] Pure validation helpers (`redirects-utils.ts`)
-- [x] `showConfirm` for delete; `invalidateAll` instead of full reload
-- [x] Stable `data-testid`s for automation
+- [x] **`redirectsMV` primary** (aligned with middleware) — not content-collection-only
+- [x] `normalizeRedirectRow` parses string `data` JSON from legacy collection rows
+- [x] `showConfirm` for delete; `invalidateAll` after mutations
+- [x] Stable `data-testid`s + visible action buttons (not zero-size icon-only)
+- [x] Compound lookup index for cold-path O(log n)
+
+---
 
 ## Associated tests
 
 - [redirects.spec.ts](../../../tests/e2e/routes/config/redirects.spec.ts)
-- [redirects-page-server.test.ts](../../../tests/unit/routes/redirects-page-server.test.ts)
 - [redirects-server.test.ts](../../../tests/unit/routes/redirects-server.test.ts)
-- [redirects-utils.test.ts](../../../tests/unit/config/redirects-utils.test.ts)
+- [redirects-utils.test.ts](../../../tests/unit/config/redirects-utils.test.ts) (if present)
+- [redirects-remote-admin.test.ts](../../../tests/unit/routes/redirects-remote-admin.test.ts)
 
 ## Run
 
 ```bash
-bun run test:unit -- tests/unit/routes/redirects-page-server.test.ts tests/unit/routes/redirects-server.test.ts tests/unit/config/redirects-utils.test.ts
-bun x playwright test tests/e2e/routes/config/redirects.spec.ts
+bun test tests/unit/routes/redirects-server.test.ts
+bun run scripts/run-e2e-ci.ts --no-build --project=chromium "--grep=redirects"
 ```

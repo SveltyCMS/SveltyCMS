@@ -51,8 +51,14 @@ export class WorkflowService {
     this.validateTopology(definition);
 
     const now = Date.now();
+    // name is NOT NULL in SQL schemas — never insert without a non-empty name
+    const safeName =
+      (typeof definition.name === "string" && definition.name.trim()) ||
+      definition.collectionId ||
+      "Untitled Workflow";
     const toSave = {
       ...definition,
+      name: safeName,
       updatedAt: now,
       tenantId: (tenantId || definition.tenantId) as DatabaseId | undefined,
     };
@@ -101,10 +107,14 @@ export class WorkflowService {
   ): Promise<WorkflowDefinition | null> {
     const dbAdapter = await getDbAdapter();
     try {
+      const findOpts =
+        tenantId !== undefined && tenantId !== null && tenantId !== ""
+          ? { tenantId: tenantId as DatabaseId }
+          : {};
       const workflows = await dbAdapter.crud.findMany<any>(
         this.DEFINITIONS_COLLECTION,
         { collectionId },
-        { tenantId: tenantId as DatabaseId },
+        findOpts,
       );
 
       // Fallback: If store is empty, query DB directly
@@ -112,12 +122,34 @@ export class WorkflowService {
         return null;
       }
 
-      return workflows.data[0] as WorkflowDefinition;
+      return this.normalizeDefinition(workflows.data[0]);
     } catch (err: any) {
       // If table doesn't exist yet, just assume no workflow
       if (err.message.includes("no such table")) return null;
       throw err;
     }
+  }
+
+  /** Ensure states/transitions are arrays after SQL TEXT/JSON round-trip. */
+  private normalizeDefinition(raw: any): WorkflowDefinition {
+    const parseArr = (v: unknown): any[] => {
+      if (Array.isArray(v)) return v;
+      if (typeof v === "string" && v.trim()) {
+        try {
+          const parsed = JSON.parse(v);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    };
+    return {
+      ...raw,
+      name: raw?.name || raw?.collectionId || "Untitled Workflow",
+      states: parseArr(raw?.states),
+      transitions: parseArr(raw?.transitions),
+    } as WorkflowDefinition;
   }
 
   /**

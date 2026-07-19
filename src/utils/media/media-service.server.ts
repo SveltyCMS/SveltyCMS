@@ -11,6 +11,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
+import { AppError } from "@utils/error-handling";
 import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
 import type {
   IDBAdapter,
@@ -349,6 +350,28 @@ export class MediaService {
     return this.db.media.files;
   }
 
+  /**
+   * Maps Node.js filesystem error codes to meaningful AppError responses.
+   * Call this in catch blocks where filesystem writes may fail.
+   */
+  private mapFileSystemError(err: unknown): void {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (!code) return; // Not a Node.js system error — let caller handle normally
+
+    switch (code) {
+      case "ENOSPC":
+        throw new AppError("Storage quota exceeded", 507, "STORAGE_FULL");
+      case "EACCES":
+      case "EPERM":
+        throw new AppError("Permission denied", 403, "STORAGE_ACCESS_DENIED");
+      case "EFBIG":
+        throw new AppError("File too large", 413, "FILE_TOO_LARGE");
+      default:
+        // Unknown filesystem error — let caller handle normally
+        return;
+    }
+  }
+
   private async ensureOriginalOnDisk(
     hash: string,
     filename: string,
@@ -360,7 +383,12 @@ export class MediaService {
       return relPath;
     }
 
-    await saveFile(data, relPath);
+    try {
+      await saveFile(data, relPath);
+    } catch (err: unknown) {
+      this.mapFileSystemError(err);
+      throw err;
+    }
     if (!(await fileExists(relPath))) {
       throw new Error(`Media file was not persisted to disk: ${relPath}`);
     }
@@ -562,6 +590,7 @@ export class MediaService {
         )) as unknown as DatabaseResult<MediaItem>;
       }
     } catch (err: unknown) {
+      this.mapFileSystemError(err);
       const e = err as Error;
       return {
         success: false,
@@ -634,6 +663,7 @@ export class MediaService {
 
       return await this.saveMedia(file, userId, access as "public" | "private", tenantId);
     } catch (err: unknown) {
+      this.mapFileSystemError(err);
       const e = err as Error;
       return {
         success: false,
@@ -1070,8 +1100,9 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<MediaReference[]> {
     try {
-      // First call or cache expired — rebuild the index
-      if (this.referenceIndex.getReferences(mediaId).length === 0) {
+      // Rebuild once per cache lifetime — empty refs for an unknown mediaId
+      // must NOT re-scan all collections (caused OOM on DELETE nonexistent).
+      if (!this.referenceIndex.isBuilt()) {
         await this.rebuildReferenceIndex(tenantId);
       }
       return this.enrichReferences(this.referenceIndex.getReferences(mediaId));
@@ -1110,8 +1141,7 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<MediaReference[]> {
     try {
-      // First call or cache expired — rebuild the index
-      if (this.referenceIndex.getReferences(mediaId).length === 0) {
+      if (!this.referenceIndex.isBuilt()) {
         await this.rebuildReferenceIndex(tenantId);
       }
       // Filter to published-only references by checking the status map
@@ -1212,6 +1242,8 @@ export class MediaService {
       }
     }
     this.referenceIndex.rebuild(allEntries);
+    // Even with zero entries, mark built so empty lookups stay O(1)
+    this.referenceIndex.markBuilt();
   }
 
   /** Enrich index references with legacy fields for backward compatibility. */
@@ -1363,6 +1395,7 @@ export class MediaService {
       }
       throw new Error("Failed to retrieve updated media item");
     } catch (err: unknown) {
+      this.mapFileSystemError(err);
       const e = err as Error;
       logger.error(`[MediaService] Error uploading new version:`, err);
       return {

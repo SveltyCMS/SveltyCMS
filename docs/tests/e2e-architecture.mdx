@@ -4,7 +4,7 @@ title: E2E Architecture & Flow
 description: Technical deep-dive into the simplified 4-project Playwright E2E testing architecture.
 author: SveltyCMS Team
 created: 2026-03-21
-updated: 2026-07-07
+updated: 2026-07-19
 tags:
   - testing
   - e2e
@@ -15,7 +15,12 @@ sidebar_position: 2
 
 # Black-box E2E – Simplified 4-Project Architecture
 
-SveltyCMS uses a streamlined **4-project pipeline** to achieve high-concurrency E2E testing with minimal CI overhead. Each project handles a distinct phase of the test lifecycle, with all browser tests sharing a single server instance.
+SveltyCMS uses a streamlined **4-project pipeline** to achieve high-concurrency E2E testing with minimal CI overhead. Each project handles a distinct phase of the test lifecycle.
+
+> [!IMPORTANT]
+> **Local default = CI parity:** `bun run test:e2e` runs `scripts/run-e2e-ci.ts` (preview `node build/index.js` on **:4173**).  
+> Use `bun run test:e2e:dev` only for Vite :5173 debugging — it is **not** CI-identical.  
+> Identity: `admin@example.com` / `Password123!` from `tests/harness` (same as integration seed).
 
 ## Pipeline Overview
 
@@ -79,7 +84,7 @@ The previous architecture used **19 CI jobs** (one per Playwright project). The 
 | `e2e-chromium` (×6) | `chromium`                          | Parallel (6 **grep groups**, each `shard=1/1`) | Named suites via `--grep` (not N/6 of the full list) |
 | `e2e-report`        | —                                   | Serial (merge)                                 | Aggregate shard reports into a single HTML report    |
 
-All 6 chromium shards connect to **one preview server instance** started by the CI runner, eliminating redundant cold starts.
+Each named E2E matrix job boots **its own** preview server from the e2e-env artifact (grep partitions the suite; `shard=1/1`). Prep runs once on a shared artifact; product groups do not share a single long-lived process across jobs.
 
 ## Benefits
 

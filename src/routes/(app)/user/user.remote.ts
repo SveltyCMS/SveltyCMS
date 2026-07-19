@@ -11,28 +11,38 @@
  * - Token create/edit/delete, session list/revoke, batch delete
  */
 
-import { query, getRequestEvent } from "$app/server";
+import { command, query, getRequestEvent } from "$app/server";
 import { buildUpdateProfileBody, remoteJsonHeaders } from "./user-remote-utils";
 
 // Not re-exported: SvelteKit .remote.ts files require all exports to be remote functions.
 // Use user-remote-utils.ts directly in tests.
 
-export const updateProfile = query(
+/** Profile mutation — must be `command` (not query) so body is always posted. */
+export const updateProfile = command(
   "unchecked",
   async (
     data: Record<string, unknown>,
   ): Promise<{ success: boolean; message?: string; error?: string }> => {
     const event = getRequestEvent();
     const body = buildUpdateProfileBody(data);
+    // Own-profile safety: empty/self resolves to session user so client never sends a stale id
+    if (!body.user_id || body.user_id === "self") {
+      const sessionId = event.locals.user?._id;
+      if (sessionId) body.user_id = String(sessionId);
+    }
     const r = await event.fetch("/api/user/update-user-attributes", {
       method: "PUT",
       headers: remoteJsonHeaders(event.cookies),
       body: JSON.stringify(body),
     });
     const d = await r.json().catch(() => ({}));
-    return r.ok
-      ? { success: true, message: "Updated" }
-      : { success: false, error: (d as { message?: string }).message || "Update failed" };
+    const errMsg =
+      (d as { message?: string; error?: string | { message?: string } }).message ||
+      (typeof (d as { error?: unknown }).error === "string"
+        ? (d as { error: string }).error
+        : (d as { error?: { message?: string } }).error?.message) ||
+      "Update failed";
+    return r.ok ? { success: true, message: "Updated" } : { success: false, error: errMsg };
   },
 );
 
@@ -141,7 +151,7 @@ export const deleteTokenAction = query(
 
 export const getActiveSessions = query(
   "unchecked",
-  async (): Promise<{ sessions?: any[]; error?: string }> => {
+  async (_event?: any): Promise<{ sessions?: any[]; error?: string }> => {
     const event = getRequestEvent();
     const r = await event.fetch("/api/user/sessions", {
       method: "GET",

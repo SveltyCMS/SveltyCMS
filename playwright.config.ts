@@ -11,10 +11,9 @@
  * Projects run in dependency order. In CI, e2e-prep runs wizard →
  * firstuser → auth-setup sequentially, then chromium is sharded N ways.
  *
- * For local runs, use: npm run test:e2e
- * This starts the Vite dev server (port 5173) which includes the /api/testing
- * handler needed for test authentication. The production build strips this
- * handler for security — build with `npm run build:e2e` if you need it.
+ * Local default (CI-parity): `bun run test:e2e` → scripts/run-e2e-ci.ts
+ *   (preview server :4173, COMPILE_ALL_ADAPTERS build, wizard → auth-setup → chromium)
+ * Dev-server shortcut: `bun run test:e2e:dev` (Vite :5173) — not CI-identical.
  */
 
 import { defineConfig, devices } from "@playwright/test";

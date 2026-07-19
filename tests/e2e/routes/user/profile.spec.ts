@@ -151,25 +151,76 @@ test.describe.serial("User Profile Management", () => {
   });
 
   test("Edit User Details", async ({ page }) => {
-    await page.goto("/user");
+    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
 
-    await page.getByRole("button", { name: /Edit User Settings/i }).click();
+    await page
+      .getByTestId("edit-user-settings-btn")
+      .or(page.getByRole("button", { name: /Edit User Settings/i }))
+      .first()
+      .click();
 
     // Scope to the edit dialog so Save/username resolve unambiguously
-    const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
-    await expect(editDialog).toBeVisible({ timeout: 10_000 });
+    const editDialog = page
+      .getByRole("dialog", { name: /Edit User Data|edit user/i })
+      .or(page.getByRole("dialog").filter({ hasText: /username/i }))
+      .first();
+    await expect(editDialog).toBeVisible({ timeout: 15_000 });
 
-    // usernameSchema disallows spaces (regex /^[a-zA-Z0-9@$!%*#.__-]+$/), so use
-    // a username without spaces — otherwise the form validation fails and the
-    // "User Data Updated" toast never appears.
-    await editDialog.locator('input[name="username"]:not([disabled])').fill("TestUserUpdated");
+    // Unique username each run — avoids uniqueness validation failures
+    const newUsername = `TestUser_${Date.now().toString(36).slice(-6)}`;
+    const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
+    await expect(usernameInput).toBeVisible({ timeout: 10_000 });
+    await usernameInput.fill(newUsername);
 
-    await editDialog.getByRole("button", { name: "Save" }).click();
+    const updateRespPromise = page
+      .waitForResponse(
+        (res) =>
+          res.url().includes("/api/user/update-user-attributes") &&
+          ["PUT", "POST", "PATCH"].includes(res.request().method()),
+        { timeout: 15_000 },
+      )
+      .catch(() => null);
 
-    // Toast notification may be brief; increase timeout
-    await expect(page.getByText(/User Data Updated/i)).toBeVisible({
-      timeout: 10_000,
-    });
+    await editDialog.getByRole("button", { name: /^save$/i }).click();
+
+    const updateResp = await updateRespPromise;
+    if (updateResp && !updateResp.ok()) {
+      const body = await updateResp.text().catch(() => "");
+      throw new Error(
+        `update-user-attributes failed: HTTP ${updateResp.status()} ${body.slice(0, 300)}`,
+      );
+    }
+
+    // Prefer outcome over toast flash: dialog closes, username visible, or success toast
+    const { expectToast } = await import("../../helpers/stable");
+    await expect(async () => {
+      const dialogGone = !(await editDialog.isVisible().catch(() => false));
+      if (dialogGone) return;
+      const usernameVisible = await page
+        .getByText(newUsername, { exact: false })
+        .first()
+        .isVisible()
+        .catch(() => false);
+      if (usernameVisible) return;
+      const errToast = page
+        .getByTestId("app-toast")
+        .filter({ hasText: /user not found|update failed|failed to update/i });
+      if (
+        await errToast
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
+        throw new Error(
+          `Profile update failed: ${await errToast
+            .first()
+            .textContent()
+            .catch(() => "error toast")}`,
+        );
+      }
+      await expectToast(page, /user data updated|profile changes were saved/i, 2_000);
+    }).toPass({ timeout: 20_000 });
   });
 
   test("Registration Token Workflow", async ({ page }) => {

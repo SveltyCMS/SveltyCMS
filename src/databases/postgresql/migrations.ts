@@ -448,8 +448,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     `CREATE TABLE IF NOT EXISTS redirects_mv (
 			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
 			"tenantId" VARCHAR(36) NOT NULL,
-			"from" VARCHAR(2000) NOT NULL,
-			"to" VARCHAR(2000) NOT NULL,
+			"source" VARCHAR(2000) NOT NULL,
+			"target" VARCHAR(2000) NOT NULL,
 			"type" INT NOT NULL DEFAULT 301,
 			"isRegex" BOOLEAN NOT NULL DEFAULT FALSE,
 			"active" BOOLEAN NOT NULL DEFAULT TRUE,
@@ -457,7 +457,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-    `CREATE INDEX IF NOT EXISTS redirects_mv_tenant_from_idx ON redirects_mv ("tenantId", "from")`,
+    `CREATE INDEX IF NOT EXISTS idx_redirects_mv_lookup ON redirects_mv ("tenantId", "source", "active")`,
 
     // Workflow Definitions
     `CREATE TABLE IF NOT EXISTS workflow_definitions (
@@ -552,6 +552,36 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
       }
     } catch {
       // Ignore
+    }
+
+    // 🚀 MIGRATION: Rename 'from'/'to' columns to 'source'/'target' in redirects_mv if needed
+    try {
+      const fromColumns = await sql`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'redirects_mv' AND column_name = 'from'
+      `;
+      if (fromColumns.length > 0) {
+        logger.info(
+          "[PostgreSQL] Migrating 'from'/'to' columns to 'source'/'target' in redirects_mv...",
+        );
+        await sql.unsafe('ALTER TABLE redirects_mv RENAME COLUMN "from" TO "source"');
+        await sql.unsafe('ALTER TABLE redirects_mv RENAME COLUMN "to" TO "target"');
+        try {
+          await sql.unsafe("DROP INDEX IF EXISTS redirects_mv_tenant_from_idx");
+        } catch {}
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 🚀 MIGRATION: Ensure compound lookup index (tenantId, source, active) exists
+    try {
+      await sql.unsafe(
+        'CREATE INDEX IF NOT EXISTS idx_redirects_mv_lookup ON redirects_mv ("tenantId", "source", "active")',
+      );
+    } catch {
+      // Index may already exist
     }
 
     // 🚀 MIGRATION: Ensure 'isDeleted' column exists in all dynamic collections

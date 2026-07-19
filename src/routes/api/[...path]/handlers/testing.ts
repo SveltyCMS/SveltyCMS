@@ -472,7 +472,7 @@ export async function handleTestingRoutes(
           const loginResult = await cms.auth.login({ email, password }, { tenantId });
           if (loginResult.success && loginResult.data?.session?._id) {
             sessionId = loginResult.data.session._id;
-            const cookie = await setTestingSessionCookie(event, sessionId);
+            const cookie = await setTestingSessionCookie(event, sessionId!);
             seedSetCookie = cookie.setCookieHeader;
           }
         } catch (err: any) {
@@ -1424,7 +1424,7 @@ export async function handleTestingRoutes(
           id: params.id as string | undefined,
           name: (params.name as string) || `E2E Webhook ${stamp}`,
           url: (params.url as string) || `https://example.com/e2e-hook/${stamp}`,
-          events: (params.events as string[]) || ["entry:publish"],
+          events: (params.events as any) || ["entry:publish"],
           active: params.active !== false,
           secret: (params.secret as string) || `e2e-secret-${stamp}`,
         },
@@ -1488,6 +1488,8 @@ export async function handleTestingRoutes(
       const definition = {
         _id: params.id as string | undefined,
         collectionId,
+        name: (params.name as string) || `E2E Workflow ${stamp}`,
+        description: params.description as string | undefined,
         states: (params.states as any[]) || [
           { id: "draft", label: "Draft", color: "#94a3b8", isInitial: true },
           { id: "review", label: "In Review", color: "#fbbf24" },
@@ -1618,7 +1620,7 @@ export async function handleTestingRoutes(
           title,
           status: "publish",
           tenantId,
-        },
+        } as any,
         { tenantId },
       );
       if (!insertRes.success) {
@@ -1629,7 +1631,7 @@ export async function handleTestingRoutes(
       const delRes = await initializedAdapter.crud.delete(collectionName, entryId as any, {
         tenantId,
         permanent: false,
-        userId: "system",
+        userId: "system" as any,
       });
       if (!delRes.success) {
         throw new AppError(`seed-trash soft-delete failed: ${delRes.message || "unknown"}`, 500);
@@ -1654,7 +1656,7 @@ export async function handleTestingRoutes(
       await initializedAdapter.crud.delete(collectionName, entryId as any, {
         tenantId,
         permanent: true,
-        userId: "system",
+        userId: "system" as any,
       });
       return rawResponse({ success: true, purged: entryId, collectionId });
     }

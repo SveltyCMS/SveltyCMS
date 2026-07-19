@@ -72,9 +72,12 @@ test.describe("Media Gallery", () => {
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Filter by type persists selection (option values are lowercase; labels are UPPER)
-    await page.locator("#media-type-filter").selectOption({ label: "IMAGE" });
-    await expect(page.locator("#media-type-filter")).toHaveValue("image");
+    // Prefer accessible name over #id CSS selector (label is sr-only but linked via for=)
+    const typeFilter = page
+      .getByLabel(/filter by media type/i)
+      .or(page.locator("#media-type-filter"));
+    await typeFilter.selectOption({ label: "IMAGE" });
+    await expect(typeFilter).toHaveValue("image");
     await expect(page.getByTestId("media-grid")).toBeVisible();
   });
 

@@ -562,6 +562,29 @@ export const tenants = pgTable(
   }),
 );
 
+// Redirects Materialized View Table
+export const redirectsMV = pgTable(
+  "redirects_mv",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    source: text("source").notNull(),
+    target: text("target").notNull(),
+    type: integer("type").notNull().default(301),
+    isRegex: boolean("isRegex").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    metadata: jsonb("metadata").default({}),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),
+    sourceIdx: index("redirects_mv_source_idx").on(table.source),
+    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
+  }),
+);
+
 // Auth API Keys Table
 export const authApiKeys = pgTable(
   "auth_api_keys",
@@ -654,6 +677,7 @@ export const schema = {
   pluginMigrations,
   auditLogs,
   tenants,
+  redirectsMV,
   workflowDefinitions,
   workflowInstances,
 };

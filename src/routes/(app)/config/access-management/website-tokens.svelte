@@ -392,38 +392,58 @@ function toggleAllTokens() {
 	smartTable.setSelectAll(!smartTable.allSelected);
 }
 
-// Search / column filters → reset page + refetch (sort/page go through smartTable.onQueryChange)
+// Search / column filters → reset page + refetch (sort/page go through smartTable.onQueryChange).
+// All writes untracked so setPaginationMeta / setRows cannot re-enter this effect (effect_update_depth).
+let tokensFetchGen = 0;
 $effect(() => {
 	void globalSearchValue;
 	void filters;
+	const gen = ++tokensFetchGen;
 	untrack(() => {
 		smartTable.setPaginationMeta({ currentPage: 1 });
-		fetchTokens().catch(() => {});
+		// Debounce re-entry if parent re-renders permissions mid-fetch
+		queueMicrotask(() => {
+			if (gen !== tokensFetchGen) return;
+			fetchTokens().catch(() => {});
+		});
 	});
 });
 
+// Density / columns: write only when values change — avoid infinite setColumns loops
+let lastDensitySync = "";
+let lastColumnsSync = "";
 $effect(() => {
-	smartTable.setDensity(density);
-	smartTable.setColumns(
-		displayTableHeaders.map((h) => ({
-			key: h.key,
-			label: h.label,
-			sortable: true,
-			visible: h.visible,
-		})),
-	);
+	const nextDensity = density;
+	const colKey = displayTableHeaders.map((h) => `${h.key}:${h.visible ? 1 : 0}`).join("|");
+	untrack(() => {
+		if (nextDensity !== lastDensitySync) {
+			lastDensitySync = nextDensity;
+			smartTable.setDensity(nextDensity);
+		}
+		if (colKey !== lastColumnsSync) {
+			lastColumnsSync = colKey;
+			smartTable.setColumns(
+				displayTableHeaders.map((h) => ({
+					key: h.key,
+					label: h.label,
+					sortable: true,
+					visible: h.visible,
+				})),
+			);
+		}
+	});
 });
 </script>
 
-<div class="space-y-4">
-	<h3 class="mb-2 text-center text-xl font-bold">Website Access Tokens</h3>
+<div class="space-y-4" data-testid="website-tokens-panel">
+	<h3 class="mb-2 text-center text-xl font-bold" data-testid="website-tokens-title">Website Access Tokens</h3>
 	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Manage API tokens for external websites to access your content.
 	</p>
 
 	<AdminCard class="mb-4 border border-surface-200 dark:border-surface-800">
 		<div class="p-4 space-y-4">
-			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
+			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500" data-testid="website-tokens-generate">Generate New Website Token</h4>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<Input
@@ -528,19 +548,27 @@ $effect(() => {
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
+						<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
 						<section
-							use:droppable={{
-								container: 'columns',
-								callbacks: { onDrop: handleColumnDrop },
-								direction: 'horizontal',
-							}}
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
 							role="list"
 							aria-label="Drag columns to reorder"
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-								<div animate:flip={{ duration: 300 }} use:draggable={{ container: 'columns', dragData: header, keyboard: true }} use:droppable={{ container: 'columns', callbacks: { onDrop: handleColumnDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }} data-header-id={header.id} role="listitem" tabindex="0">
+								<div
+									animate:flip={{ duration: 300 }}
+									use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
+									use:droppable={{
+										container: 'columns',
+										callbacks: { onDrop: handleColumnDrop },
+										direction: 'horizontal',
+										attributes: { dragOverClass: 'bg-secondary-200' }
+									}}
+									data-header-id={header.id}
+									role="listitem"
+									tabindex="0"
+								>
 									<Button variant="secondary"
 										onclick={() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));

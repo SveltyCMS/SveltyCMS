@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-18"
+updated: "2026-07-19"
 tags:
   - "testing"
   - "adr"
@@ -154,16 +154,46 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 ## Shared infrastructure
 
-| Piece                 | Path                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| CSRF mutation client  | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                            |
-| Testing / bypass gate | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                       |
-| Testing handler       | `src/routes/api/[...path]/handlers/testing.ts`                                      |
-| E2E seeds             | `tests/e2e/helpers/seed.ts`                                                         |
-| Confirm helper        | `tests/e2e/helpers/confirm-modal.ts`                                                |
-| Gate unit tests       | `tests/unit/utils/testing-api-gate.test.ts`                                         |
-| Prod strip proof      | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                             |
-| Smart Test Selector   | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering |
+| Piece                  | Path                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                          |
+| Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                     |
+| Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                    |
+| E2E seeds              | `tests/e2e/helpers/seed.ts`                                                                                       |
+| Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                              |
+| Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                       |
+| Prod strip proof       | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                                                           |
+| Smart Test Selector    | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering                               |
+| **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                    |
+| Integration runner     | `scripts/run-integration-tests.ts` — crash detect + full restart + seed isolation                                 |
+| E2E CI-parity runner   | `bun run test:e2e` → `run-e2e-ci.ts` (preview :4173, harness pre-check). Dev: `run-e2e-dev.ts` (strictPort :5173) |
+
+---
+
+## A++ suite contract (2026-07-19)
+
+Enterprise stability rules that every layer must honor:
+
+| Rule                   | Unit                            | Integration                           | E2E                             |
+| ---------------------- | ------------------------------- | ------------------------------------- | ------------------------------- | ------------- | --------------------- |
+| **One identity**       | `@tests/harness`                | seed uses harness emails              | `helpers/auth.ts` → harness     |
+| **Right altitude**     | pure logic / gates              | HTTP + multi-DB                       | golden journeys only            |
+| **No soft-skip empty** | n/a                             | n/a                                   | seed or hard-fail               |
+| **Crash isolation**    | n/a                             | detect socket death → restart         | storageState fail-closed        |
+| **Local = CI binary**  | Vitest                          | preview `node build`                  | `test:e2e` = preview :4173      |
+| **P0 floors**          | `test:unit:coverage` thresholds | multi-DB matrix in CI                 | P0 journeys in `p0-manifest.ts` |
+| **Push smoke**         | smart unit + security           | auto SQLite smoke when `src/databases | plugins                         | hooks` change | not on push (CI-only) |
+
+**Commands (canonical):**
+
+```bash
+bun run test:unit                 # Layer 1
+bun run test:unit:coverage        # Layer 1 + P0 coverage floors
+bun run test:integration          # Layer 2 (builds + multi-file)
+bun run test:integration:smoke    # Layer 2 quick SQLite
+bun run test:e2e                  # Layer 3 CI-parity (preview :4173)
+bun run test:e2e:dev              # Layer 3 Vite :5173 (local only)
+```
 
 ---
 
@@ -196,6 +226,12 @@ Use when adding or finishing a domain:
 - [x] Builder E2E: consolidated 9 files → 1 (shell + golden)
 - [x] E2E reliability: 6 `page.reload()` → `.toPass()` polling
 - [x] Multi-DB tracking: `db-summary` CI job with per-adapter dashboard
+- [x] **A++ identity:** single harness credentials across unit/integration/E2E
+- [x] **A++ integration crash:** `serverCrashed` detection + full process restart
+- [x] **A++ E2E default:** `test:e2e` = CI-parity preview runner (not Vite)
+- [x] **A++ unit coverage floors** on hooks/auth/security paths
+- [x] **A++ push SQLite smoke** when databases/plugins/hooks change
+- [x] **Residual config/user goldens (2026-07-19):** redirectsMV primary store; profile email-fallback update; automations card link open; workflow seed `name`; access tokens panel effect loop fixed
 
 ---
 

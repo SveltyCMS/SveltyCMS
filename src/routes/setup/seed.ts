@@ -280,19 +280,35 @@ PRESET_COLLECTIONS.demo = [
     name: "redirects",
     icon: "mdi:link-variant",
     fields: [
+      // Canonical UI field names (admin redirect manager uses from/to)
       {
-        db_fieldName: "source",
+        db_fieldName: "from",
         label: "From",
         widget: { Name: "Input" },
         type: "string",
         required: true,
       },
       {
-        db_fieldName: "target",
+        db_fieldName: "to",
         label: "To",
         widget: { Name: "Input" },
         type: "string",
         required: true,
+      },
+      // Plugin / MV aliases (handle-redirects + redirect-manager use source/target)
+      {
+        db_fieldName: "source",
+        label: "Source (alias)",
+        widget: { Name: "Input" },
+        type: "string",
+        required: false,
+      },
+      {
+        db_fieldName: "target",
+        label: "Target (alias)",
+        widget: { Name: "Input" },
+        type: "string",
+        required: false,
       },
       {
         db_fieldName: "type",
@@ -300,6 +316,20 @@ PRESET_COLLECTIONS.demo = [
         widget: { Name: "Select" },
         type: "number",
         required: true,
+      },
+      {
+        db_fieldName: "active",
+        label: "Active",
+        widget: { Name: "Checkbox" },
+        type: "boolean",
+        required: false,
+      },
+      {
+        db_fieldName: "isRegex",
+        label: "Regex",
+        widget: { Name: "Checkbox" },
+        type: "boolean",
+        required: false,
       },
     ],
   },

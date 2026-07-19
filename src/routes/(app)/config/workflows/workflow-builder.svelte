@@ -44,6 +44,8 @@ const collectionOptions = $derived(
 let roles = $state<any[]>([]);
 let selectedCollectionId = $state<string>("");
 let workflowId = $state<string | null>(null);
+let workflowName = $state<string>("");
+let workflowDescription = $state<string>("");
 
 onMount(async () => {
 	// Load collections + roles via workflows-api (CSRF-safe fetchApi)
@@ -57,11 +59,15 @@ async function loadWorkflow(collectionId: string) {
 	if (data.success && data.data) {
 		const wf = data.data as WorkflowDefinition;
 		workflowId = wf._id || null;
+		workflowName = wf.name || "";
+		workflowDescription = wf.description || "";
 		states = wf.states;
 		transitions = wf.transitions;
 		toast.success(`Workflow loaded for ${collectionId}`);
 	} else {
 		workflowId = null;
+		workflowName = "";
+		workflowDescription = "";
 	}
 }
 
@@ -74,6 +80,8 @@ async function saveWorkflow() {
 	const definition: WorkflowDefinition = {
 		_id: workflowId || undefined,
 		collectionId: selectedCollectionId,
+		name: workflowName || selectedCollectionId,
+		description: workflowDescription || undefined,
 		states: $state.snapshot(states),
 		transitions: $state.snapshot(transitions)
 	};
@@ -150,6 +158,18 @@ function selectNode(id: string) {
 				class="min-w-48"
 			/>
 		</div>
+		<Input
+			bind:value={workflowName}
+			label="Workflow Name"
+			placeholder="e.g. Blog Review Flow"
+			class="min-w-48"
+		/>
+		<Input
+			bind:value={workflowDescription}
+			label="Description"
+			placeholder="Optional description"
+			class="min-w-48"
+		/>
 		{#if workflowId}
 			<span class="text-xs opacity-50" data-testid="workflow-id">id: {workflowId}</span>
 		{/if}

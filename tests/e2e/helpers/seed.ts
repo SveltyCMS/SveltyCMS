@@ -106,6 +106,8 @@ export async function seedWorkflow(
   options: {
     collectionId?: string;
     id?: string;
+    name?: string;
+    description?: string;
     states?: unknown[];
     transitions?: unknown[];
   } = {},
@@ -115,6 +117,8 @@ export async function seedWorkflow(
     action: "seed-workflow",
     collectionId: options.collectionId ?? `e2e_wf_${stamp}`,
     id: options.id,
+    name: options.name ?? `E2E Workflow ${stamp}`,
+    description: options.description,
     states: options.states,
     transitions: options.transitions,
   });
@@ -192,15 +196,16 @@ export function handleOptionalInfraUnavailable(
   skipFn(true, full);
 }
 
+// Identity universe: keep in sync with tests/harness/fixtures.ts
 export const TEST_USERS = {
   developer: {
-    email: "developer@example.com",
-    password: "Developer123!",
+    email: "developer@test.com",
+    password: "Password123!",
     role: "developer",
   },
   editor: {
-    email: "editor@example.com",
-    password: "Editor123!",
+    email: "editor@test.com",
+    password: "Password123!",
     role: "editor",
   },
 } as const;

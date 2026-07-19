@@ -4,7 +4,7 @@
  * including encrypted secret fields via AES-256-GCM.
  */
 
-import type { IDBAdapter } from "@databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { logger } from "@utils/logger";
 import type { PluginState } from "./types";
 import type { SettingsPart } from "./settings-declaration";
@@ -75,13 +75,16 @@ export class PluginSettingsService {
     declaration?: SettingsPart,
   ): Promise<Record<string, unknown> | null> {
     try {
-      const result = await (this.dbAdapter.crud.findOne as any)<{
-        settings: Record<string, unknown>;
-      }>(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
+      const result: any = await this.dbAdapter.crud.findOne(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+      const data = result.data as { settings?: Record<string, unknown> } | undefined;
 
-      if (!result.success || !result.data?.settings) return null;
+      if (!result.success || !data?.settings) return null;
 
-      const stored = result.data.settings;
+      const stored = data.settings;
 
       // Mask secrets if declaration is provided
       if (declaration) {
@@ -112,14 +115,16 @@ export class PluginSettingsService {
     declaration?: SettingsPart,
   ): Promise<Record<string, unknown> | null> {
     try {
-      const result = await (this.dbAdapter.crud.findOne as any)<
-        any,
-        { settings: Record<string, unknown> }
-      >(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
+      const result: any = await this.dbAdapter.crud.findOne(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+      const data = result.data as { settings?: Record<string, unknown> } | undefined;
 
-      if (!result.success || !result.data?.settings) return null;
+      if (!result.success || !data?.settings) return null;
 
-      const stored = result.data.settings;
+      const stored = data.settings;
 
       // Decrypt secrets if declaration is provided
       if (declaration) {
@@ -166,15 +171,19 @@ export class PluginSettingsService {
         }
       }
 
-      const existing = await this.dbAdapter.crud.findOne<{
-        _id: unknown;
-        settings: Record<string, unknown>;
-      }>(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
+      const existing: any = await this.dbAdapter.crud.findOne(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+      const existingData = existing.data as
+        | { _id?: unknown; settings?: Record<string, unknown> }
+        | undefined;
 
-      if (existing.success && existing.data?._id) {
+      if (existing.success && existingData?._id) {
         const updateResult = await this.dbAdapter.crud.update(
           this.SETTINGS_COLLECTION,
-          existing.data._id as unknown as string,
+          existingData._id as unknown as DatabaseId,
           {
             settings: toStore,
             updatedAt: new Date(),

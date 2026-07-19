@@ -25,11 +25,19 @@ test.describe.configure({ mode: "serial" });
 test.use({ storageState: { cookies: [], origins: [] } });
 
 async function goDashboard(page: Page) {
+  await loginAsAdmin(page, "/dashboard");
   await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30_000 });
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/dashboard");
   }
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: ACTION_TIMEOUT });
+  // Poll for URL + shell (SYSTEM_IDLE can briefly block)
+  await expect(async () => {
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/dashboard");
+    }
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 5_000 });
+  }).toPass({ timeout: ACTION_TIMEOUT });
+
   const systemError = page.getByRole("heading", { name: /system error/i });
   if (await systemError.isVisible({ timeout: 1_200 }).catch(() => false)) {
     const detail = await page
@@ -39,29 +47,22 @@ async function goDashboard(page: Page) {
       .catch(() => "");
     throw new Error(`Dashboard hit System Error: ${detail?.trim() || "(no detail)"}`);
   }
-  const title = page.getByTestId("page-title");
-  if (await title.isVisible({ timeout: ACTION_TIMEOUT }).catch(() => false)) {
-    await expect(title).toContainText(/dashboard/i);
-    return;
-  }
-  // Soft shell: heading or dashboard chrome if page-title lags under cold hydrate
-  const alt = page
-    .getByRole("heading", { name: /dashboard/i })
-    .or(page.getByTestId("dashboard-add-widget"))
-    .or(page.getByTestId("dashboard-reset-widgets"))
-    .or(page.getByText(/dashboard|widgets/i).first());
-  if (
-    !(await alt
-      .first()
-      .isVisible({ timeout: 8_000 })
-      .catch(() => false))
-  ) {
-    const body = await page
-      .locator("body")
-      .innerText()
-      .catch(() => "");
-    throw new Error(`Dashboard shell missing at ${page.url()} body=${body.slice(0, 400)}`);
-  }
+
+  // Prefer stable testids over free text
+  await expect(async () => {
+    const title = page.getByTestId("page-title");
+    const main = page.getByTestId("dashboard-main");
+    const toolbar = page.getByTestId("dashboard-toolbar");
+    const empty = page.getByTestId("dashboard-empty-state");
+    const grid = page.getByTestId("dashboard-widget-grid");
+    const any =
+      (await title.isVisible().catch(() => false)) ||
+      (await main.isVisible().catch(() => false)) ||
+      (await toolbar.isVisible().catch(() => false)) ||
+      (await empty.isVisible().catch(() => false)) ||
+      (await grid.isVisible().catch(() => false));
+    expect(any).toBe(true);
+  }).toPass({ timeout: ACTION_TIMEOUT });
 }
 
 async function widgetIdsInDomOrder(page: Page): Promise<string[]> {
@@ -116,7 +117,11 @@ async function ensureNWidgets(page: Page, count: number): Promise<number> {
       break;
     }
     await item.click();
-    await page.waitForTimeout(400);
+    // Poll widget count instead of fixed sleep (CSS/animation independent)
+    await expect
+      .poll(async () => page.locator("[data-widget-id]").count(), { timeout: 5_000 })
+      .toBeGreaterThan(n)
+      .catch(() => undefined);
     n = await page.locator("[data-widget-id]").count();
   }
 
@@ -154,9 +159,12 @@ async function pointerDragReorderFirstPastSecond(page: Page): Promise<void> {
     steps: 8,
   });
   await page.mouse.move(endX, endY, { steps: 12 });
-  await page.waitForTimeout(80);
   await page.mouse.up();
-  await page.waitForTimeout(400);
+  // Wait for DOM settle via widget count stability, not CSS animation timing
+  await expect
+    .poll(async () => page.locator("[data-widget-id]").count(), { timeout: 3_000 })
+    .toBeGreaterThanOrEqual(2)
+    .catch(() => undefined);
 }
 
 test.describe("Dashboard shell (widget-agnostic)", () => {
@@ -175,17 +183,18 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
     await loginAsAdmin(page, "/dashboard");
     await goDashboard(page);
 
-    // Wait for preferences load + registry
-    await page.waitForTimeout(800);
-
     const empty = page.getByTestId("dashboard-empty-state");
     const grid = page.getByTestId("dashboard-widget-grid");
 
-    const emptyVisible = await empty.isVisible({ timeout: 5_000 }).catch(() => false);
-    const gridVisible = await grid.isVisible({ timeout: 2_000 }).catch(() => false);
+    // Poll until shell hydrates (testid only — no CSS class sleeps)
+    await expect(async () => {
+      const emptyVisible = await empty.isVisible().catch(() => false);
+      const gridVisible = await grid.isVisible().catch(() => false);
+      expect(emptyVisible || gridVisible).toBe(true);
+    }).toPass({ timeout: ACTION_TIMEOUT });
 
-    // Exactly one of empty or grid must be true for a healthy shell
-    expect(emptyVisible || gridVisible).toBe(true);
+    const emptyVisible = await empty.isVisible().catch(() => false);
+    const gridVisible = await grid.isVisible().catch(() => false);
 
     if (gridVisible) {
       const widgets = page.locator("[data-widget-id]");
@@ -201,15 +210,24 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
   test("Add Widget menu opens and lists install widgets when any remain", async ({ page }) => {
     await loginAsAdmin(page, "/dashboard");
     await goDashboard(page);
-    await page.waitForTimeout(800);
 
-    // Prefer toolbar add; fall back to empty-state CTA
+    // Prefer toolbar add; fall back to empty-state CTA (testid only)
     const addBtn = page.getByTestId("dashboard-add-widget");
     const addFirst = page.getByTestId("dashboard-add-first-widget");
 
-    if (await addBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await expect(async () => {
+      const a = await addBtn.isVisible().catch(() => false);
+      const b = await addFirst.isVisible().catch(() => false);
+      const grid = await page
+        .getByTestId("dashboard-widget-grid")
+        .isVisible()
+        .catch(() => false);
+      expect(a || b || grid).toBe(true);
+    }).toPass({ timeout: ACTION_TIMEOUT });
+
+    if (await addBtn.isVisible().catch(() => false)) {
       await addBtn.click();
-    } else if (await addFirst.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    } else if (await addFirst.isVisible().catch(() => false)) {
       await addFirst.click();
     } else {
       // All registry widgets already on grid — still valid for full installs

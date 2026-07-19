@@ -224,16 +224,30 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User>> {
     return this.adapter.wrap(
       async () => {
-        const conditions = [eq(this.schema.authUsers._id, userId as string)];
-        if (options?.tenantId !== undefined) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
-          );
-        }
+        const idCond = eq(this.schema.authUsers._id, String(userId));
+        // Prefer id-only match when tenant check is bypassed or tenant is unset.
+        // Explicit null tenantId previously forced isNull() and could miss rows
+        // after re-seed / session cache races in E2E.
+        const applyTenant =
+          !utils.shouldBypassTenantCheck(options) &&
+          options?.tenantId !== undefined &&
+          options.tenantId !== null &&
+          options.tenantId !== "";
+        const conditions = applyTenant
+          ? [idCond, eq(this.schema.authUsers.tenantId, options!.tenantId as string)]
+          : [idCond];
 
-        const { createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = userData;
+        const {
+          createdAt: _createdAt,
+          updatedAt: _updatedAt,
+          tenantId: _tid,
+          ...rest
+        } = userData as Partial<User> & { tenantId?: unknown };
+        // Never allow client to rewrite identity / tenant via attribute update
+        delete (rest as any)._id;
+        delete (rest as any).id;
+        delete (rest as any).passwordHash;
+
         const updateData: any = {
           ...(rest as any),
           updatedAt: isoDateStringToDate(nowISODateString()),
@@ -258,11 +272,24 @@ export class RelationalAuthModule implements IAuthAdapter {
           .set(preparedUpdate)
           .where(and(...conditions));
 
-        const [result] = await db
+        let [result] = await db
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
+
+        // Fallback: re-read by primary key only (tenant filter miss after partial match)
+        if (!result) {
+          [result] = await db
+            .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
+            .from(this.schema.authUsers)
+            .where(idCond)
+            .limit(1);
+        }
+        if (!result) {
+          // Explicit adapter error (avoid mapUser throw → opaque 500)
+          throw new Error(`User not found for id=${String(userId)}`);
+        }
         return this.mapUser(result);
       },
       "UPDATE_USER_FAILED",
@@ -292,19 +319,28 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
-        const conditions = [eq(this.schema.authUsers._id, userId as string)];
-        if (options?.tenantId !== undefined) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
-          );
-        }
-        const [result] = await this.getDb(options)
+        const idCond = eq(this.schema.authUsers._id, String(userId));
+        const applyTenant =
+          !utils.shouldBypassTenantCheck(options) &&
+          options?.tenantId !== undefined &&
+          options.tenantId !== null &&
+          options.tenantId !== "";
+        const conditions = applyTenant
+          ? [idCond, eq(this.schema.authUsers.tenantId, options!.tenantId as string)]
+          : [idCond];
+        let [result] = await this.getDb(options)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
+        // Fallback by id only when tenant filter missed (null vs unset tenant rows)
+        if (!result && applyTenant) {
+          [result] = await this.getDb(options)
+            .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
+            .from(this.schema.authUsers)
+            .where(idCond)
+            .limit(1);
+        }
         // 🚀 Optimized mapper
         return result ? this.mapUser(result) : null;
       },

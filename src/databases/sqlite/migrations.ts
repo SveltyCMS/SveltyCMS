@@ -382,6 +382,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
       );
+      CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source", "active");
 
       CREATE TABLE IF NOT EXISTS "collection_redirects" (
         "_id" TEXT PRIMARY KEY,

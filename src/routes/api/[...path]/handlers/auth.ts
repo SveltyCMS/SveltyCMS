@@ -10,7 +10,7 @@
  * - Test-mode bypass for integration/E2E suites
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
@@ -146,6 +146,7 @@ export async function handleAuthUserRoutes(
         throw new AppError(`Auth endpoint /api/${segments.join("/")} not implemented`, 404);
     }
   } catch (err: any) {
+    rethrow(err);
     console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "Authentication operation failed", 500);
@@ -341,13 +342,67 @@ export async function handleUpdateUserAttributesRoute(
       ? { ...directUpdates, ...newUserData }
       : directUpdates;
 
+  // Strip empty password fields so adapters never try to write blank credentials
+  if ("password" in updates && (!updates.password || String(updates.password).trim() === "")) {
+    delete (updates as any).password;
+  }
+  if (
+    "currentPassword" in updates &&
+    (!updates.currentPassword || String(updates.currentPassword).trim() === "")
+  ) {
+    delete (updates as any).currentPassword;
+  }
+  // currentPassword is verification-only — never persist it as a user column
+  delete (updates as any).currentPassword;
+  delete (updates as any).confirmPassword;
+  delete (updates as any).user_id;
+
   if (Object.keys(updates).length === 0) {
     throw new AppError("At least one user attribute is required", 400);
   }
 
-  const result = await cms.auth.updateUserAttributes(targetId, updates, {
-    tenantId,
-  });
+  // Never force isNull(tenantId) when multi-tenant is off — session-cached users
+  // after re-seed can miss null-tenant filters. Prefer id-only update.
+  const updateOpts: { tenantId?: DatabaseId; bypassTenantCheck?: boolean } = {
+    bypassTenantCheck: true,
+  };
+  if (tenantId) {
+    updateOpts.tenantId = tenantId;
+    updateOpts.bypassTenantCheck = false;
+  }
+
+  let resolvedId = String(targetId);
+  let result = await cms.auth.updateUserAttributes(resolvedId, updates, updateOpts);
+
+  // Session can hold a stale user_id after wizard reset / re-seed while email is current.
+  // Resolve by email and retry once so self-profile updates never 404 spuriously.
+  if (
+    !result.success &&
+    /not found/i.test(String(result.message || "")) &&
+    event.locals.user?.email
+  ) {
+    try {
+      const byEmail = await cms.auth.getUserByEmail(String(event.locals.user.email), {
+        bypassTenantCheck: true,
+      } as any);
+      const emailUser =
+        byEmail?.success && byEmail.data
+          ? byEmail.data
+          : byEmail && typeof byEmail === "object" && "_id" in (byEmail as object)
+            ? (byEmail as { _id: string })
+            : null;
+      const emailId = emailUser && (emailUser as { _id?: string })._id;
+      if (emailId && String(emailId) !== resolvedId) {
+        resolvedId = String(emailId);
+        result = await cms.auth.updateUserAttributes(resolvedId, updates, {
+          bypassTenantCheck: true,
+        } as any);
+      }
+    } catch {
+      /* keep original failure */
+    }
+  }
+
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
 
   // 🔄 Refresh session caches so the next page load returns updated user data

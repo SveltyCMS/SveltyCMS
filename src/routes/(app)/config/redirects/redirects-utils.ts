@@ -96,6 +96,44 @@ export function toRedirectPayload(draft: RedirectDraft): RedirectDraft {
 }
 
 /**
+ * Parse nested collection `data` (object or JSON string) and map source/target → from/to.
+ * Used by admin list load when rows come from content collections or redirectsMV.
+ */
+export function normalizeRedirectRow(
+  r: Record<string, unknown> | null | undefined,
+): RedirectDraft & {
+  _id?: string;
+  id?: string;
+} {
+  if (!r) {
+    return { from: "", to: "", type: 301, active: true, isRegex: false };
+  }
+  let nested: Record<string, unknown> = {};
+  const rawData = r.data;
+  if (rawData && typeof rawData === "object") {
+    nested = rawData as Record<string, unknown>;
+  } else if (typeof rawData === "string" && rawData.trim()) {
+    try {
+      const parsed = JSON.parse(rawData);
+      if (parsed && typeof parsed === "object") nested = parsed as Record<string, unknown>;
+    } catch {
+      /* ignore */
+    }
+  }
+  const from = String(r.from || r.source || nested.from || nested.source || "");
+  const to = String(r.to || r.target || nested.to || nested.target || "");
+  return {
+    id: (r._id || r.id) as string | undefined,
+    _id: (r._id || r.id) as string | undefined,
+    from,
+    to,
+    type: normalizeRedirectType(r.type ?? nested.type ?? 301),
+    active: r.active !== false && nested.active !== false && r.active !== 0,
+    isRegex: Boolean(r.isRegex ?? nested.isRegex),
+  };
+}
+
+/**
  * Filter redirect rows by free-text search on from/to paths.
  */
 export function filterRedirectsByQuery<T extends { from: string; to: string }>(

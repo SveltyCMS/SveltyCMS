@@ -6,7 +6,7 @@ order: 18
 icon: "mdi:shield-account"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-18"
+updated: "2026-07-19"
 tags:
   - "testing"
   - "e2e"
@@ -32,18 +32,24 @@ tags:
 
 ## Control → test matrix
 
-| Control                            | Unit           | E2E            | Spec                 |
-| ---------------------------------- | -------------- | -------------- | -------------------- |
-| Admin-only gate                    | ✅ page.server | RBAC elsewhere | unit                 |
-| Four tabs                          | —              | ✅             | `access-tab-*`       |
-| Save disabled when clean           | —              | ✅             | `access-mgmt-save`   |
-| Permissions matrix content         | —              | ✅             | permissions tab      |
-| Roles list + admin visible         | —              | ✅             | roles tab            |
-| Create role → save enabled → reset | —              | ✅             | create + discard     |
-| Role search                        | —              | ✅             | `access-role-search` |
-| Admin tab                          | —              | ✅             | opens                |
-| Website Tokens tab                 | —              | ✅             | opens                |
-| CSRF on save POST                  | code           | —              | +page.svelte         |
+| Control                            | Unit           | E2E            | Spec                                      |
+| ---------------------------------- | -------------- | -------------- | ----------------------------------------- |
+| Admin-only gate                    | ✅ page.server | RBAC elsewhere | unit                                      |
+| Four tabs                          | —              | ✅             | `access-tab-*`                            |
+| Save disabled when clean           | —              | ✅             | `access-mgmt-save`                        |
+| Permissions matrix content         | —              | ✅             | permissions tab                           |
+| Roles list + admin visible         | —              | ✅             | roles tab                                 |
+| Create role → save enabled → reset | —              | ✅             | create + discard                          |
+| Role search                        | —              | ✅             | `access-role-search`                      |
+| Admin tab                          | —              | ✅             | opens                                     |
+| Website Tokens tab                 | —              | ✅             | `website-tokens-panel` / title / generate |
+| CSRF on save POST                  | code           | —              | +page.svelte                              |
+
+### Product notes (2026-07-19)
+
+- Create-role modal: `modalState.trigger(Component, props, response)` — response is **3rd arg**, not buried in props.
+- Sticky page-actions duplicate Save/Reset — E2E always uses `.first()`.
+- Website tokens: `$effect` density/column sync is change-gated to avoid `effect_update_depth_exceeded` on tab open.
 
 ---
 

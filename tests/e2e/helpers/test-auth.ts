@@ -220,6 +220,9 @@ async function seedViaApi(page: Page): Promise<boolean> {
 
 /**
  * Ensures a usable admin session for the browser context.
+ * Prefer `loginAsAdmin` from `./auth` for page journeys; this helper is for
+ * API-first attach without full UI login (builder beforeEach, multi-tenant).
+ *
  * Never throws on cookie field errors — only throws if login/seed itself fails.
  */
 export async function ensureAuthenticated(page: Page): Promise<void> {
@@ -240,6 +243,14 @@ export async function ensureAuthenticated(page: Page): Promise<void> {
   }
 
   if (!(await loginViaApi(page))) {
+    // Last resort: canonical auth helper (same credentials, UI/API hybrid)
+    try {
+      const { loginAsAdmin } = await import("./auth");
+      await loginAsAdmin(page);
+      if (await sessionLooksValid(page)) return;
+    } catch {
+      /* fall through */
+    }
     throw new Error(
       `ensureAuthenticated: API login failed for ${ADMIN_CREDENTIALS.email} after seed`,
     );

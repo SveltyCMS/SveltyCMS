@@ -246,6 +246,15 @@ export function isHttpError(err: unknown): err is HttpError {
   );
 }
 
+/**
+ * Re-throws redirects and HTTP errors so SvelteKit can handle them
+ * natively. For all other errors, this is a no-op. Call at the top of
+ * every catch block to prevent accidental wrapping of framework signals.
+ */
+export function rethrow(err: unknown): void {
+  if (isRedirect(err) || isHttpError(err)) throw err;
+}
+
 export function wrapError(
   error: unknown,
   message = "An unexpected error occurred",

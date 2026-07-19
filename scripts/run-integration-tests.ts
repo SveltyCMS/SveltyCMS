@@ -403,11 +403,19 @@ async function startPreviewServer(options: { allowSetup?: boolean } = {}) {
   const runtimeCmd = process.env.INTEGRATION_SERVER_RUNTIME?.trim() || "node";
   console.log(`⚙️ Preview server runtime: ${runtimeCmd}`);
 
+  // Windows/CI: default Node heap (~1.5–4GB) OOM's on multi-file black-box suites
+  // (contract + media). Raise unless the caller already set a higher limit.
+  const existingNodeOpts = process.env.NODE_OPTIONS || "";
+  const nodeOpts = existingNodeOpts.includes("max-old-space-size")
+    ? existingNodeOpts
+    : `${existingNodeOpts} --max-old-space-size=8192`.trim();
+
   previewProcess = spawn(runtimeCmd, [entryPoint], {
     cwd: ROOT,
     env: {
       ...process.env,
       ...getTestEnv(db),
+      NODE_OPTIONS: nodeOpts,
       // Ensure secrets are never empty strings (schema minLength 32)
       JWT_SECRET_KEY:
         process.env.JWT_SECRET_KEY ||
@@ -561,8 +569,8 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
     try {
       const body: any = { action };
       if (action === "seed") {
-        // Must match tests/integration/helpers/test-setup.ts testFixtures.adminUser
-        body.email = "admin@example.com";
+        // Must match @tests/harness ADMIN_CREDENTIALS / testFixtures.adminUser
+        body.email = process.env.ADMIN_EMAIL || "admin@example.com";
         body.password = CONFIG?.ADMIN_PASSWORD || "Password123!";
       }
       if (preset) body.preset = preset;
@@ -872,6 +880,30 @@ async function main() {
   const db = getDbDefaults();
   const dbTimeout = db.type === "mongodb" || db.type === "mariadb" ? "180000" : "60000";
 
+  /** Detect process-level server death from client/server error text. */
+  function looksLikeServerCrash(...parts: Array<string | undefined | null>): boolean {
+    // Check each stream separately — do not rely on concatenation order
+    for (const part of parts) {
+      if (!part) continue;
+      const t = part.toLowerCase();
+      if (
+        t.includes("socket connection closed") ||
+        t.includes("connectionrefused") ||
+        t.includes("econnrefused") ||
+        t.includes("econnreset") ||
+        t.includes("fetch failed") ||
+        t.includes("failed to reach server") ||
+        t.includes("server flicker") ||
+        t.includes("undici") ||
+        t.includes("other side closed") ||
+        t.includes("premature close")
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async function runOneTest(
     file: string,
     setupMode: boolean,
@@ -906,9 +938,23 @@ async function main() {
           l.includes("AssertionError") ||
           l.includes("Expected") ||
           l.includes("Received") ||
-          l.includes("FAIL"),
+          l.includes("FAIL") ||
+          l.includes("socket connection") ||
+          l.includes("Failed to reach server"),
       );
       entry.stderr = errorLines.slice(0, 8).join("\n") || result.stderr.slice(0, 600);
+    }
+
+    // A++: always detect server death so retry path restarts the process
+    if (!success) {
+      const textCrash = looksLikeServerCrash(result.stdout, result.stderr, entry.stderr);
+      const alive = await isServerAlive();
+      entry.serverCrashed = textCrash || !alive;
+      if (entry.serverCrashed) {
+        console.log(
+          `  ⚠️ Server crash/connection loss detected (alive=${alive}, textCrash=${textCrash})`,
+        );
+      }
     }
 
     const status = success ? `Passed (${(duration / 1000).toFixed(1)}s)` : "Failed";
@@ -940,8 +986,10 @@ async function main() {
       const entry = await runOneTest(file, false, { progress });
 
       if (!entry.success && !isShuttingDown) {
-        if (entry.serverCrashed) {
-          console.log("  ⚠️ Server crashed — restarting...");
+        // A++: always restart process when crash detected or health check fails
+        if (entry.serverCrashed || !(await isServerAlive())) {
+          console.log("  ⚠️ Server crashed or unreachable — full restart before retry...");
+          await stopPreviewServer();
           await freePort(Number.parseInt(PORT, 10));
           await startPreviewServer();
         }
@@ -963,7 +1011,8 @@ async function main() {
       // Reset/seed for next test (skip after last)
       if (i < regularTests.length - 1 && !isShuttingDown) {
         if (!(await isServerAlive())) {
-          console.log("  ⚠️ Server died between tests — restarting...");
+          console.log("  ⚠️ Server died between tests — full restart...");
+          await stopPreviewServer();
           await freePort(Number.parseInt(PORT, 10));
           await startPreviewServer();
         }

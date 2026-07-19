@@ -1,10 +1,19 @@
 /**
- * @file tests/integration/helpers/testSetup.ts
+ * @file tests/integration/helpers/test-setup.ts
  * @description
  * High-level orchestration for integration test environments.
  * Follows strict black-box principles using the /api/testing endpoint.
+ *
+ * Identity is owned by `@tests/harness` — do not invent parallel admin emails.
  */
 
+import {
+  ADMIN_CREDENTIALS,
+  DEVELOPER_CREDENTIALS,
+  EDITOR_CREDENTIALS,
+  TEST_PASSWORD,
+  USERS,
+} from "@tests/harness";
 import { getApiBaseUrl, safeFetch } from "./server";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -33,47 +42,50 @@ if (!TEST_API_SECRET) {
 }
 
 /**
- * Test fixtures for reusing test data across tests
+ * Test fixtures for reusing test data across tests.
+ * Canonical identity: `@tests/harness` (admin@example.com universe).
  */
 export const testFixtures = {
   users: {
     admin: {
-      email: "admin@example.com",
-      password: "Password123!",
-      username: "admin",
-      role: "admin",
+      email: USERS.admin.email,
+      password: USERS.admin.password,
+      username: USERS.admin.username,
+      role: USERS.admin.role,
     },
     developer: {
-      email: "developer@test.com",
-      password: "Password123!",
-      username: "developer",
-      role: "developer",
+      email: USERS.developer.email,
+      password: USERS.developer.password,
+      username: USERS.developer.username,
+      role: USERS.developer.role,
     },
     editor: {
-      email: "editor@test.com",
-      password: "Password123!",
-      username: "editor",
-      role: "editor",
+      email: USERS.editor.email,
+      password: USERS.editor.password,
+      username: USERS.editor.username,
+      role: USERS.editor.role,
     },
   },
   adminUser: {
-    email: "admin@example.com",
-    password: "Password123!",
-    username: "admin",
-    role: "admin",
+    email: ADMIN_CREDENTIALS.email,
+    password: ADMIN_CREDENTIALS.password,
+    username: ADMIN_CREDENTIALS.username,
+    role: "admin" as const,
   },
   developerUser: {
-    email: "developer@test.com",
-    password: "Password123!",
-    username: "developer",
-    role: "developer",
+    email: DEVELOPER_CREDENTIALS.email,
+    password: DEVELOPER_CREDENTIALS.password,
+    username: DEVELOPER_CREDENTIALS.username,
+    role: "developer" as const,
   },
   editorUser: {
-    email: "editor@test.com",
-    password: "Password123!",
-    username: "editor",
-    role: "editor",
+    email: EDITOR_CREDENTIALS.email,
+    password: EDITOR_CREDENTIALS.password,
+    username: EDITOR_CREDENTIALS.username,
+    role: "editor" as const,
   },
+  /** @deprecated Prefer testFixtures.adminUser.password / TEST_PASSWORD from harness */
+  password: TEST_PASSWORD,
 };
 
 /**

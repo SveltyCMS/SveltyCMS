@@ -343,7 +343,11 @@ export function analyzeChanges(paths: string[]): ChangeProfile {
       f.includes("test-db-credentials") ||
       f.includes("run-integration-tests") ||
       f.includes("run-core-benchmarks") ||
-      f.startsWith("src/databases/"),
+      f.startsWith("src/databases/") ||
+      // Plugin settings / registry boot paths crash integration when wrong — smoke on push
+      f.startsWith("src/plugins/") ||
+      f.includes("PluginSettings") ||
+      f.startsWith("src/hooks/"),
   );
 
   const hasAdminTheme = paths.some(
@@ -782,22 +786,32 @@ function runDbTask(
  */
 function createDbTasks(db: IntegrationDbType): TaskSpec[] {
   const contentNodesContractTask: TaskSpec = {
-    name: "Content Nodes Contract (sqlite)",
+    name: "Integration smoke (sqlite)",
     ciJob: "db-tests (sqlite)",
-    estimatedMs: 120000,
+    estimatedMs: 180000,
+    remediation: "bun run test:integration:smoke",
     shouldSkip: (ctx) => {
       const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+      // A++: auto SQLite smoke on push when databases/plugins/hooks change
       const includeSqlite =
-        includeDb || (ctx.tier === "push" && ctx.options.includeSqliteOnPush === true);
+        includeDb ||
+        (ctx.tier === "push" &&
+          (ctx.options.includeSqliteOnPush === true || ctx.profile.hasDbInfra));
       return !includeSqlite || db !== "sqlite";
     },
     run: (ctx) =>
       runCommand(
         "bun",
         [
-          "test",
-          "tests/integration/databases/content-nodes-contract.test.ts",
-          "tests/integration/databases/contract.test.ts",
+          "run",
+          "scripts/run-integration-tests.ts",
+          "--db=sqlite",
+          "--no-build",
+          // Path fragments — avoid bare "contract.test.ts" matching every *contract* file
+          "databases/contract.test.ts",
+          "databases/content-nodes-contract.test.ts",
+          "api/widgets.test.ts",
+          "api/session-page-load.test.ts",
         ],
         {
           env: {
@@ -817,6 +831,7 @@ function createDbTasks(db: IntegrationDbType): TaskSpec[] {
       estimatedMs: 180000,
       shouldSkip: (ctx) => {
         const includeDb = ctx.options.includeDbTasks ?? ctx.tier === "full";
+        // Full matrix only when explicitly opted in or full tier — smoke uses contentNodesContractTask
         return !includeDb;
       },
       run: (ctx, onProgress) => runDbTask(db, "integration", ctx, onProgress),

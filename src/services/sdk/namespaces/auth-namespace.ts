@@ -2,7 +2,7 @@
  * @file src/services/sdk/namespaces/auth-namespace.ts
  * @description Authentication namespace for LocalCMS SDK.
  */
-import { AppError, getErrorMessage } from "@utils/error-handling";
+import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security/crypto";
 import { parseSessionDuration } from "@utils/security/auth-utils";
@@ -24,6 +24,7 @@ async function safeCall<T>(fn: () => Promise<T>, context?: string): Promise<Data
     const data = await fn();
     return { success: true, data };
   } catch (err: unknown) {
+    rethrow(err);
     if (err instanceof AppError) {
       return {
         success: false,
@@ -192,13 +193,17 @@ export class AuthNamespace {
 
   async getUserByEmail(email: string, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId } = options;
+      const { tenantId, bypassTenantCheck } = options as LocalApiOptions & {
+        bypassTenantCheck?: boolean;
+      };
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      const result = await auth.getUserByEmail(
-        { email, tenantId },
-        { tenantId: tenantId as DatabaseId },
-      );
+      // When bypassing tenant (or tenant unset), look up by email only
+      const criteria: { email: string; tenantId?: DatabaseId | null } = { email };
+      if (!bypassTenantCheck && tenantId !== undefined && tenantId !== null && tenantId !== "") {
+        criteria.tenantId = tenantId as DatabaseId;
+      }
+      const result = await auth.getUserByEmail(criteria);
       if (!result.success || !result.data) throw new AppError("User not found", 404);
       return result.data;
     });
@@ -257,13 +262,27 @@ export class AuthNamespace {
 
   async updateUserAttributes(userId: string, data: any, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId } = options;
+      const { tenantId, bypassTenantCheck } = options as LocalApiOptions & {
+        bypassTenantCheck?: boolean;
+      };
       const auth = await this.getAuth();
+      // Forward full query options — do not drop bypassTenantCheck (E2E / null-tenant)
       const result = await auth.updateUserAttributes(userId as DatabaseId, data, {
-        tenantId: tenantId as DatabaseId,
+        ...(tenantId !== undefined && tenantId !== null && tenantId !== ""
+          ? { tenantId: tenantId as DatabaseId }
+          : {}),
+        ...(bypassTenantCheck ? { bypassTenantCheck: true } : {}),
       });
-      if (!result.success) throw new AppError(result.message || "Failed to update user", 400);
-      return result.data;
+      if (!result || (typeof result === "object" && "success" in result && !result.success)) {
+        throw new AppError(
+          (result as { message?: string })?.message || "Failed to update user",
+          400,
+        );
+      }
+      // Adapter returns DatabaseResult; Auth facade may return bare User
+      return (result as { data?: unknown }).data !== undefined
+        ? (result as { data: unknown }).data
+        : result;
     });
   }
 

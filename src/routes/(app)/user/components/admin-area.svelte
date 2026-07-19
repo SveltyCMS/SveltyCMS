@@ -811,12 +811,8 @@
 						{entrylist_all()}
 					</label>
 
+					<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
 					<section
-						use:droppable={{
-							container: 'columns',
-							callbacks: { onDrop: handleColumnDrop },
-							direction: 'horizontal',
-						}}
 						class="flex flex-wrap justify-center gap-1 rounded p-2"
 						role="list"
 						aria-label="Drag columns to reorder"
@@ -826,8 +822,13 @@
 							<span
 								animate:flip={{ duration: flipDurationMs }}
 								use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
-							use:droppable={{ container: 'columns', callbacks: { onDrop: handleColumnDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }}
-							data-header-id={header.id}
+								use:droppable={{
+									container: 'columns',
+									callbacks: { onDrop: handleColumnDrop },
+									direction: 'horizontal',
+									attributes: { dragOverClass: 'bg-secondary-200' }
+								}}
+								data-header-id={header.id}
 								role="listitem"
 								tabindex="0"
 								aria-label={`Column: ${header.label}. Press Space to grab, arrows to move.`}

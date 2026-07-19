@@ -1447,7 +1447,7 @@ import { capabilityRegistry } from "@src/services/security/capability-registry";
  */
 export async function handlePluginSettingsRoutes(
   event: RequestEvent,
-  cms: LocalCMS,
+  _cms: LocalCMS,
   tenantId: DatabaseId,
   segments: string[],
 ) {

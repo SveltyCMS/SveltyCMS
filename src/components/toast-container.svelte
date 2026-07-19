@@ -189,6 +189,8 @@
 
 			<div
 				data-toast-id={t.id}
+				data-testid="app-toast"
+				data-toast-type={t.type}
 				animate:flip={{ duration: 300 }}
 				in:fly={{ ...animDir, duration: 300 }}
 				out:fade={{ duration: 200 }}

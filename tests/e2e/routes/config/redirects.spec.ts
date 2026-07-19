@@ -6,6 +6,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
+import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -15,8 +16,14 @@ async function goRedirects(page: Page) {
     waitUntil: "domcontentloaded",
     timeout: 30_000,
   });
-  await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("page-title")).toContainText(/redirect/i);
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/config/redirects");
+  }
+  await dismissCookieBannerIfPresent(page);
+  await waitForAdminShell(page, ACTION_TIMEOUT);
+  await expect(page.getByTestId("page-title")).toContainText(/redirect/i, {
+    timeout: ACTION_TIMEOUT,
+  });
   await expect(page.getByTestId("redirects-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
@@ -39,24 +46,61 @@ test.describe("Redirect Manager (Testing 2026)", () => {
     const toPath = `/e2e-new-${stamp}`;
 
     await page.getByTestId("redirects-add").click();
-    await expect(page.getByTestId("redirects-modal")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Modal: testid first, role=dialog fallback (no class selectors)
+    const modal = page
+      .getByTestId("redirects-modal")
+      .or(page.getByRole("dialog").filter({ hasText: /redirect|from|to/i }));
+    await expect(modal.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    await page.getByTestId("redirect-from").fill(fromPath);
-    await page.getByTestId("redirect-to").fill(toPath);
-    await page.getByTestId("redirect-save").click();
+    const fromInput = page
+      .getByTestId("redirect-from")
+      .or(page.getByLabel(/from path/i))
+      .first();
+    const toInput = page
+      .getByTestId("redirect-to")
+      .or(page.getByLabel(/to path/i))
+      .first();
+    await expect(fromInput).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await fromInput.click();
+    await fromInput.fill(fromPath);
+    await toInput.click();
+    await toInput.fill(toPath);
 
-    await expect(page.getByTestId("redirects-modal")).toHaveCount(0, {
-      timeout: ACTION_TIMEOUT,
-    });
+    // Submit form (type=submit) — prefer testid, avoid sticky-action duplicates with .first()
+    await page.getByTestId("redirect-save").first().click();
+
+    // Modal closes on success; poll for either close or error toast
+    await expect(async () => {
+      const open = await page
+        .getByTestId("redirects-modal")
+        .isVisible()
+        .catch(() => false);
+      if (!open) return;
+      // If still open, show any validation error text for diagnostics
+      const err = await page
+        .getByRole("alert")
+        .or(page.getByText(/required|invalid|failed/i))
+        .first()
+        .textContent()
+        .catch(() => "");
+      expect(open, `redirect modal still open after save. ${err || ""}`).toBe(false);
+    }).toPass({ timeout: ACTION_TIMEOUT });
+
     await expect(page.getByText(fromPath).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     await page.getByTestId("redirects-search").fill(fromPath);
     await expect(page.getByText(fromPath).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const row = page.locator(`tr[data-from="${fromPath}"]`);
+    // data-* attribute contract — not CSS classes
+    const row = page.locator(`[data-from="${fromPath}"]`).first();
     await expect(row).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await row.getByTestId("redirect-delete").click();
+    const deleteBtn = row.getByTestId("redirect-delete");
+    await deleteBtn.scrollIntoViewIfNeeded();
+    // Table action cells can be clipped by overflow; force after scroll
+    await deleteBtn.click({ force: true, timeout: ACTION_TIMEOUT });
     await confirmModal(page);
-    await expect(page.getByText(fromPath)).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+    await expect(page.locator(`[data-from="${fromPath}"]`)).toHaveCount(0, {
+      timeout: ACTION_TIMEOUT,
+    });
   });
 });

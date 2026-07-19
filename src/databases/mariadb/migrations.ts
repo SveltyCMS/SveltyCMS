@@ -434,8 +434,9 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			metadata JSON NOT NULL,
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX tenant_source_idx (tenantId, source)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+			      INDEX tenant_source_idx (tenantId, source),
+						INDEX idx_redirects_mv_lookup (tenantId, source, active)
+					) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // Workflow Definitions
     `CREATE TABLE IF NOT EXISTS workflow_definitions (
@@ -471,7 +472,9 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
       await connection.query(query);
     } catch (err) {
       // Never abort the whole migration for a single statement; log and continue.
-      logger.warn(`[MariaDB] Migration statement failed (continuing): ${err?.message || err}`);
+      logger.warn(
+        `[MariaDB] Migration statement failed (continuing): ${(err as any)?.message || String(err)}`,
+      );
     }
   }
 
@@ -557,6 +560,15 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
       }
     } catch (err) {
       logger.error("[MariaDB] redirects_mv column migration failed:", err);
+    }
+
+    // 🚀 MIGRATION: Add compound lookup index (tenantId, source, active) for redirects_mv
+    try {
+      await connection.query(
+        "CREATE INDEX IF NOT EXISTS idx_redirects_mv_lookup ON redirects_mv (tenantId, source, active)",
+      );
+    } catch {
+      // Index may already exist
     }
   } catch {
     // Column already exists or other error we can ignore

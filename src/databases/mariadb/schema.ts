@@ -524,6 +524,7 @@ export const redirectsMV = mysqlTable(
   (table) => ({
     tenantIdx: index("tenant_idx").on(table.tenantId),
     activeIdx: index("active_idx").on(table.active),
+    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
   }),
 );
 

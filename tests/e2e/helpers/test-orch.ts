@@ -55,12 +55,15 @@ async function orchRequest(action: string, payload?: Record<string, unknown>, ba
 
 /** Transition system to READY mode: DB seeded with admin user, setup marked complete. */
 export async function seedReadyState(baseUrl?: string) {
+  // Identity must match @tests/harness ADMIN_CREDENTIALS / integration seed
+  const email = process.env.ADMIN_EMAIL || "admin@example.com";
+  const password = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Password123!";
   await orchRequest(
     "reset-to-state",
     {
       state: "ready",
-      email: "admin@test.com",
-      password: "Password123!",
+      email,
+      password,
     },
     baseUrl,
   );

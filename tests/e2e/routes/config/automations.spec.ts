@@ -8,18 +8,27 @@ import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { deleteAutomation, seedAutomation } from "../../helpers/seed";
+import {
+  dismissCookieBannerIfPresent,
+  waitForAdminShell,
+  waitForLoadingGone,
+} from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 20_000;
 
 async function goAutomations(page: Page) {
   await loginAsAdmin(page);
   await page.goto("/config/automations", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("page-title")).toContainText(/automation/i);
-  await expect(page.getByTestId("automations-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("automations-loading")).toHaveCount(0, {
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/config/automations");
+  }
+  await dismissCookieBannerIfPresent(page);
+  await waitForAdminShell(page, ACTION_TIMEOUT);
+  await expect(page.getByTestId("page-title")).toContainText(/automation/i, {
     timeout: ACTION_TIMEOUT,
   });
+  await expect(page.getByTestId("automations-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await waitForLoadingGone(page, "automations-loading", ACTION_TIMEOUT);
 }
 
 test.describe.configure({ mode: "serial" });
@@ -43,29 +52,25 @@ test.describe("Automations (Testing 2026)", () => {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
-      // List only mounts when flows.length > 0; empty card is valid after seed race.
-      await expect(page.getByTestId("automations-loading")).toHaveCount(0, {
+      await waitForLoadingGone(page, "automations-loading", ACTION_TIMEOUT);
+
+      // Poll until seed is visible OR empty shell is ready (no fixed sleep)
+      await expect(async () => {
+        const listOrEmpty = page
+          .getByTestId("automations-list")
+          .or(page.getByTestId("automations-empty"));
+        await expect(listOrEmpty).toBeVisible({ timeout: 5_000 });
+      }).toPass({ timeout: ACTION_TIMEOUT });
+
+      await expect(page.getByTestId("automations-search")).toBeVisible({
         timeout: ACTION_TIMEOUT,
       });
-      const listOrEmpty = page
-        .getByTestId("automations-list")
-        .or(page.getByTestId("automations-empty"));
-      await expect(listOrEmpty).toBeVisible({ timeout: ACTION_TIMEOUT });
-      // Prefer list when present; if empty, skip search-empty assertion path.
-      if (
-        await page
-          .getByTestId("automations-empty")
-          .isVisible()
-          .catch(() => false)
-      ) {
-        // Seeded flow may not have hydrated yet — soft path: just assert shell.
-        await expect(page.getByTestId("automations-search")).toBeVisible();
-        return;
-      }
       await page.getByTestId("automations-search").fill("zzzz-no-automation-xyz-999");
-      await expect(page.getByTestId("automations-search-empty")).toBeVisible({
-        timeout: ACTION_TIMEOUT,
-      });
+      await expect(
+        page
+          .getByTestId("automations-search-empty")
+          .or(page.getByText(/no automation|no results|nothing found/i)),
+      ).toBeVisible({ timeout: ACTION_TIMEOUT });
     } finally {
       await deleteAutomation(page, seeded.id).catch(() => {});
     }
@@ -94,14 +99,24 @@ test.describe("Automations (Testing 2026)", () => {
     await page.getByTestId("automation-add-op-log").click();
     await page.getByTestId("automation-next").click();
 
-    await page.getByTestId("automation-save").click();
+    // Sticky page-actions duplicates toolbar save — always use .first()
+    await page.getByTestId("automation-save").first().click();
     await expect(page).toHaveURL(/\/config\/automations\/?$/, { timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("automations-loading")).toHaveCount(0, {
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByText(name).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await waitForLoadingGone(page, "automations-loading", ACTION_TIMEOUT);
 
-    await page.getByText(name).first().click();
+    // Prefer data-* card contract over free-text (avoids toast/list duplicates)
+    const card = page.locator(`[data-automation-name="${name}"]`);
+    await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // Open editor via the card's view link only (avoid checkbox label strict-mode)
+    await card.getByRole("link", { name: /view automation/i }).click();
+    await expect(page).toHaveURL(/\/config\/automations\/[^/]+/, { timeout: ACTION_TIMEOUT });
+    await expect(
+      page.getByTestId("automation-editor").or(page.getByTestId("automation-editor-loading")),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("automation-editor")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
@@ -110,13 +125,16 @@ test.describe("Automations (Testing 2026)", () => {
     });
 
     await page.goto("/config/automations", { waitUntil: "domcontentloaded" });
+    await waitForLoadingGone(page, "automations-loading", ACTION_TIMEOUT);
     await expect(page.getByTestId("automations-list")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    const card = page.locator(`[data-automation-name="${name}"]`);
-    await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await card.getByTestId("automation-delete").click();
+    const listCard = page.locator(`[data-automation-name="${name}"]`);
+    await expect(listCard).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await listCard.getByTestId("automation-delete").click();
     await confirmModal(page);
-    await expect(page.getByText(name)).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+    await expect(page.locator(`[data-automation-name="${name}"]`)).toHaveCount(0, {
+      timeout: ACTION_TIMEOUT,
+    });
   });
 });
