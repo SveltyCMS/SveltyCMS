@@ -20,7 +20,7 @@
  */
 
 import { spawnSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -615,24 +615,61 @@ const BASE_TASKS: TaskSpec[] = [
     shouldSkip: (ctx) => ctx.tier === "push" && !ctx.profile.needsCiSmoke,
     run: () => {
       // Rebuild WITHOUT COMPILE_ALL_ADAPTERS to verify the deploy strip of /api/testing.
-      // Isolated from the CI-parity COMPILE_ALL_ADAPTERS build above.
-      // Explicitly delete (not empty-string) so the stripper condition
-      // `COMPILE_ALL_ADAPTERS !== "true"` is unambiguous across shells.
+      // CRITICAL: save the good build first, then restore it after verification.
+      // Without this, the deploy build overwrites the COMPILE_ALL_ADAPTERS build
+      // and all subsequent --no-build integration/E2E tests pick up the stripped build.
       const deployEnv = { ...process.env } as Record<string, string>;
       delete deployEnv.COMPILE_ALL_ADAPTERS;
-      const buildOk =
-        runCommand("bun", ["run", "build"], {
-          silent: true,
-          timeout: 300_000,
-          env: deployEnv,
-        }) !== false;
-      if (!buildOk) return false;
-      return (
-        runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=deploy"], {
-          silent: true,
-          timeout: 60_000,
-        }) !== false
-      );
+
+      const outputDir = join(ROOT, ".svelte-kit", "output");
+      const savedDir = join(ROOT, ".svelte-kit", "output-saved");
+      const buildDir = join(ROOT, "build");
+      const savedBuildDir = join(ROOT, "build-saved");
+      try {
+        if (existsSync(savedDir)) rmSync(savedDir, { recursive: true, force: true });
+      } catch {}
+      try {
+        if (existsSync(savedBuildDir)) rmSync(savedBuildDir, { recursive: true, force: true });
+      } catch {}
+      try {
+        if (existsSync(outputDir)) renameSync(outputDir, savedDir);
+      } catch {}
+      try {
+        if (existsSync(buildDir)) renameSync(buildDir, savedBuildDir);
+      } catch {}
+
+      let buildOk = false;
+      let probeOk = false;
+      try {
+        buildOk =
+          runCommand("bun", ["run", "build"], {
+            silent: true,
+            timeout: 300_000,
+            env: deployEnv,
+          }) !== false;
+        if (!buildOk) return false;
+        probeOk =
+          runCommand("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=deploy"], {
+            silent: true,
+            timeout: 60_000,
+          }) !== false;
+      } finally {
+        // Restore the good COMPILE_ALL_ADAPTERS build so subsequent
+        // integration/E2E tests work correctly (--no-build picks this up)
+        try {
+          if (existsSync(outputDir)) rmSync(outputDir, { recursive: true, force: true });
+        } catch {}
+        try {
+          if (existsSync(buildDir)) rmSync(buildDir, { recursive: true, force: true });
+        } catch {}
+        try {
+          if (existsSync(savedDir)) renameSync(savedDir, outputDir);
+        } catch {}
+        try {
+          if (existsSync(savedBuildDir)) renameSync(savedBuildDir, buildDir);
+        } catch {}
+      }
+      return probeOk;
     },
   },
   {
