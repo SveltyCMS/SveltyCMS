@@ -569,7 +569,14 @@ const BASE_TASKS: TaskSpec[] = [
       runCommand("bun", ["run", "build"], {
         silent: true,
         timeout: 600_000,
-        env: { ...process.env, COMPILE_ALL_ADAPTERS: "true" },
+        // TEST_MODE + SVELTY_PRECHECK force vite to bind private.test.ts only —
+        // never bake live config/private.ts (or its DB) into the artifact.
+        env: {
+          ...process.env,
+          COMPILE_ALL_ADAPTERS: "true",
+          TEST_MODE: "true",
+          SVELTY_PRECHECK: "true",
+        },
       }),
   },
   {
@@ -660,7 +667,12 @@ const BASE_TASKS: TaskSpec[] = [
       // CRITICAL: save the good build first, then restore it after verification.
       // Without this, the deploy build overwrites the COMPILE_ALL_ADAPTERS build
       // and all subsequent --no-build integration/E2E tests pick up the stripped build.
-      const deployEnv = { ...process.env } as Record<string, string>;
+      // Keep SVELTY_PRECHECK/TEST_MODE so vite still never resolves live private.ts.
+      const deployEnv = {
+        ...process.env,
+        SVELTY_PRECHECK: "true",
+        TEST_MODE: "true",
+      } as Record<string, string>;
       delete deployEnv.COMPILE_ALL_ADAPTERS;
 
       const outputDir = join(ROOT, ".svelte-kit", "output");

@@ -155,7 +155,13 @@ function privateConfigFallbackPlugin(): Plugin {
   const RVID = `\0${VID}`,
     RVIDT = `\0${VIDT}`;
   const cache = new Map<string, string | null>();
-  const isTest = process.env.TEST_MODE === "true" || process.env.COMPILE_ALL_ADAPTERS === "true";
+  // Precheck / integration / E2E / COMPILE_ALL_ADAPTERS: never bind to live private.ts
+  const isTestHarness =
+    process.env.TEST_MODE === "true" ||
+    process.env.COMPILE_ALL_ADAPTERS === "true" ||
+    process.env.SVELTY_PRECHECK === "true" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true";
 
   return {
     name: "private-config-fallback",
@@ -167,7 +173,12 @@ function privateConfigFallbackPlugin(): Plugin {
       if (id === VIDT) return RVIDT;
       const nid = id.replace(/\\/g, "/");
       let result: string | null = null;
-      if (isTest && (id === VID || nid.endsWith("config/private.ts"))) {
+      // Automated builds: always resolve private.ts imports → private.test.ts
+      // so live developer DB credentials never enter the test artifact.
+      if (
+        isTestHarness &&
+        (id === VID || nid.endsWith("config/private.ts") || nid.endsWith("config/private"))
+      ) {
         const tp = path.resolve(CWD, "config/private.test.ts");
         if (existsSync(tp)) {
           result = tp;
@@ -176,6 +187,7 @@ function privateConfigFallbackPlugin(): Plugin {
           result = RVID;
         }
       } else if (nid.endsWith("config/private") || nid.endsWith("config/private.ts")) {
+        // Live app only — real private.ts or virtual empty
         result = existsSync(path.resolve(CWD, "config/private.ts")) ? null : RVID;
       } else if (nid.endsWith("config/private.test") || nid.endsWith("config/private.test.ts")) {
         result = existsSync(path.resolve(CWD, "config/private.test.ts")) ? null : RVIDT;

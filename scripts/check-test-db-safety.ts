@@ -4,10 +4,10 @@
  * @description
  * Standalone safety check for pre-commit / pre-push (<50ms).
  *
- * ### Private config policy
- * - Local automated tests use **config/private.test.ts only**.
- * - They must **never** mutate **config/private.ts** (developer live config).
- * - CI may create ephemeral private.ts (never committed); see private-config-policy.ts.
+ * ### Private config policy (live data safety)
+ * - Local automated runs must **never read or write config/private.ts**
+ *   (live CMS — corruption risk). Use **config/private.test.ts** only.
+ * - CI may create ephemeral private.ts on the runner (never committed).
  *
  * Also catches unsafe private.test.ts DB names and live private.ts pointing at
  * test DBs (e.g. sveltycms_test / benchmark_shared).

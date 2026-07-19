@@ -90,7 +90,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
   - **CI** (GitHub PR): Production build (gated on main/PR only), DB matrix (4 adapters), E2E Playwright (4 projects, 6 shards), benchmarks
   - Manual: `bun run gate:fast` (lint-staged), `bun run scripts/security-regression.ts`, `bun run verify:push`, `bun run scripts/precheck.ts --plan` (dry-run). DB matrix is CI-only unless `bun run scripts/precheck.ts --tier=push --include-db-tasks`.
   - **No double-run rule**: the same test suite must not run on both pre-commit and pre-push for one commit→push cycle.
-  - **Private config policy**: Local precheck / unit / integration / E2E must use **`config/private.test.ts` only** and must **never create, overwrite, or delete `config/private.ts`**. CI (`ci.yml`) may write an ephemeral `private.ts` on the runner (never pushed). See `src/utils/private-config-policy.ts`.
+  - **Private config policy (live data safety)**: Automated local work (precheck, tests, COMPILE_ALL_ADAPTERS builds, Playwright) must **never read or write `config/private.ts`** — that file is the developer's live CMS and using it can destroy real data. Always **`config/private.test.ts`** (Vite + `loadPrivateConfig` enforce this under `TEST_MODE` / `SVELTY_PRECHECK` / harness flags). Normal `bun run dev` may use `private.ts`. CI may create ephemeral `private.ts` on the runner only (never pushed). See `src/utils/private-config-policy.ts`.
 
 | Category          | Convention           | Examples                                                                         |
 | :---------------- | :------------------- | :------------------------------------------------------------------------------- |

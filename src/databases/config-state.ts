@@ -144,7 +144,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
   return loadPromise;
 }
 
-/** Helper: Load from config/private.ts or private.test.ts only when necessary */
+/** Helper: Load from private.test.ts (automated) or private.ts (live app only). */
 async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
   const isTest = env("TEST_MODE") === "true" || env("NODE_ENV") === "test";
   const isBenchmark = env("SVELTY_BENCHMARK_SUITE") === "true" || env("BENCHMARK") === "true";
@@ -156,7 +156,15 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     return null; // Prefer pure env in normal/prod runs
   }
 
-  const filename = isTest ? "private.test.ts" : "private.ts";
+  // Automated harnesses must NEVER load config/private.ts (live data risk).
+  // See src/utils/private-config-policy.ts
+  const { resolvePrivateConfigFileName, assertAutomatedMustNotUseLivePrivateTs } =
+    await import("@utils/private-config-policy");
+  const filename = resolvePrivateConfigFileName();
+  if (filename === "private.ts") {
+    // Live app path only — double-check harness flags did not slip through
+    assertAutomatedMustNotUseLivePrivateTs("load");
+  }
   const configPath = `${process.cwd()}/config/${filename}`;
 
   try {
