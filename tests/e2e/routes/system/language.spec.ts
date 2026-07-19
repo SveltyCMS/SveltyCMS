@@ -4,16 +4,20 @@
  */
 import { expect, test } from "@playwright/test";
 import { ensureSidebarVisible, loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 test.describe("System Language Change", () => {
   test.setTimeout(60_000);
 
   test("change system language between EN and DE", async ({ page }) => {
+    await seedCookieConsent(page);
     await loginAsAdmin(page, /\/(admin|Collections|collectionbuilder|dashboard)/);
     await ensureSidebarVisible(page);
+    await dismissCookieConsent(page);
 
     const languageSelector = page
       .getByTestId("language-selector")
+      .or(page.getByTestId("language-selector-trigger"))
       .or(page.getByLabel(/language|locale|sprache/i))
       .or(page.locator('select[name*="lang" i], select[id*="lang" i]'))
       .first();
@@ -30,16 +34,17 @@ test.describe("System Language Change", () => {
         await expect(languageSelector).toHaveValue(lang, { timeout: 5_000 });
       }
     } else {
-      // Button/menu style: open and pick DE then EN if options exist
-      await languageSelector.click();
+      // Button/menu style: open and pick DE then EN if options exist.
+      // force:true avoids residual cookie-banner intercepts.
+      await languageSelector.click({ force: true });
       const de = page.getByRole("option", { name: /deutsch|german|^de$/i }).first();
       if (await de.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await de.click();
+        await de.click({ force: true });
       }
-      await languageSelector.click();
+      await languageSelector.click({ force: true });
       const en = page.getByRole("option", { name: /english|^en$/i }).first();
       if (await en.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await en.click();
+        await en.click({ force: true });
       }
     }
   });
