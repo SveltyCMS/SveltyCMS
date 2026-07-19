@@ -139,7 +139,7 @@
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
-    "@thisux/sveltednd": "^0.4.1",
+    "@thisux/sveltednd": "github:thisuxhq/sveltednd#sveltednd-v0.7.0",
     "@tiptap/core": "^3.28.0",
     "@tiptap/extension-character-count": "^3.28.0",
     "@tiptap/extension-collaboration": "^3.28.0",
@@ -243,13 +243,13 @@
   },
   "optionalDependencies": {
     "mongoose": "^9.7.4",
-    "mysql2": "^3.23.0",
+    "mysql2": "^3.23.1",
     "postgres": "^3.4.9"
   },
   "overrides": {
     "@sveltejs/vite-plugin-svelte": "$@sveltejs/vite-plugin-svelte",
     "@tiptap/core": "$@tiptap/core",
-    "@tiptap/y-tiptap": "^3.0.6",
+    "@tiptap/y-tiptap": "^3.0.7",
     "axios": ">=1.15.1",
     "cookie": "^0.7.2",
     "fast-uri": ">=3.1.2",

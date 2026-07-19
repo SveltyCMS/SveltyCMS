@@ -159,8 +159,10 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const { request, url } = event;
   const forceSecurity = request.headers.get("x-test-security") === "true";
   const flags = (event.locals as any).__flags;
-  if ((flags?.isPublic || flags?.isBootstrap || flags?.isStatic) && !forceSecurity)
-    return resolve(event);
+  // Only bootstrap/system routes skip security checks.
+  // Public and static routes (files, login, share) still go through
+  // firewall, bot blocking, honeypot detection, and heap protection.
+  if (flags?.isBootstrap && !forceSecurity) return resolve(event);
 
   const clientIp = getClientIp(event);
   const isLocal = clientIp === "127.0.0.1" || clientIp === "::1" || url.hostname === "localhost";

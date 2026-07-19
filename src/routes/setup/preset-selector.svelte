@@ -2,7 +2,7 @@
 @file src/routes/setup/PresetSelector.svelte
 @component
 Horizontal snap-scroll preset carousel for selecting project blueprints.
-Default value is 'website' (SvelteKit + Svedit frontpage design).
+Default value is 'blank' — headless-first with no pre-seeded collections.
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
@@ -10,7 +10,7 @@ Default value is 'website' (SvelteKit + Svedit frontpage design).
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { Preset } from './presets';
 
-	let { presets, selected = $bindable('website') } = $props<{
+	let { presets, selected = $bindable('blank') } = $props<{
 		presets: Preset[];
 		selected: string | null;
 	}>();
@@ -175,9 +175,8 @@ Default value is 'website' (SvelteKit + Svedit frontpage design).
 						{#if preset.recommended}
 							<Badge
 								variant="primary"
-								preset="tonal"
 								size="sm"
-								class="absolute top-1 inset-e-1 shrink-0"
+								class="absolute top-1 inset-e-1 shrink-0 bg-primary-500 text-white dark:bg-primary-600 dark:text-white"
 							>
 								Recommended
 							</Badge>
@@ -247,10 +246,10 @@ Default value is 'website' (SvelteKit + Svedit frontpage design).
 	</div>
 
 	<p class="mb-1 text-[0.71rem] italic text-center text-black dark:text-white">
-		{#if selected === 'website'}
-			"Website Starter" selected — SvelteKit frontend, Svedit page design, and a published homepage will be ready after setup.
-		{:else if selected === 'blank'}
+		{#if selected === 'blank'}
 			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
+		{:else if selected === 'website'}
+			"Website Starter" selected — SvelteKit frontend, Svedit page design, and a published homepage will be ready after setup.
 		{:else if selected}
 			"{presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.
 		{:else}

@@ -37,7 +37,6 @@ reveal after position calculation prevents layout flash.
 		};
 		class?: string;
 		triggerClass?: string;
-		arrowClass?: string;
 		content?: Snippet;
 		children?: Snippet;
 		role?: string | null;
@@ -50,7 +49,6 @@ reveal after position calculation prevents layout flash.
 		positioning = { placement: "top", gutter: 8 },
 		class: className,
 		triggerClass,
-		arrowClass,
 		content,
 		children,
 		role = "button",
@@ -108,27 +106,64 @@ reveal after position calculation prevents layout flash.
 	const activeTabindex = $derived(hasFocusableDescendant ? undefined : (tabindex === null ? undefined : (typeof tabindex === 'string' ? parseInt(tabindex, 10) : tabindex)));
 	const activeRole = $derived(hasFocusableDescendant ? undefined : (role === null ? undefined : role));
 
-	const arrowBorderClass = $derived.by(() => {
-		const color = arrowClass ?? 'border-s-surface-900 dark:border-s-white';
-		switch (floating.staticSide) {
-			case 'left':
-				return `border-y-transparent border-e-[6px] ${color.replace('border-s-', 'border-e-')}`;
-			case 'bottom':
-				return `border-x-transparent border-t-[6px] ${color.replace('border-s-', 'border-t-')}`;
-			case 'top':
-				return `border-x-transparent border-b-[6px] ${color.replace('border-s-', 'border-b-')}`;
-			default:
-				return `border-y-transparent border-s-[6px] ${color}`;
+	/**
+	 * Calculate arrow position relative to the tooltip's target top-left.
+	 * Uses floating.x/y (target coordinates from useFloating) so the
+	 * calculation is correct even before the DOM paints.
+	 */
+	let arrowX = $state<number | null>(null);
+	let arrowY = $state<number | null>(null);
+	let arrowSide = $state<string>('bottom');
+
+	$effect(() => {
+		if (!open || !referenceEl || !floatingEl) {
+			arrowX = null;
+			arrowY = null;
+			return;
 		}
+
+		if (!floating.positionCalculated) {
+			arrowX = null;
+			arrowY = null;
+			return;
+		}
+
+		const ref = resolveReference();
+		if (!ref) {
+			arrowX = null;
+			arrowY = null;
+			return;
+		}
+
+		const refRect = ref.getBoundingClientRect();
+		const floatRect = floatingEl.getBoundingClientRect();
+		const [side] = (floating.placement || 'top').split('-');
+
+		// Center of the reference element
+		const targetX = refRect.left + refRect.width / 2;
+		const targetY = refRect.top + refRect.height / 2;
+
+		// Arrow position relative to tooltip's target top-left
+		let ax: number, ay: number;
+		if (side === 'top' || side === 'bottom') {
+			ax = targetX - floating.x;
+			ay = side === 'top' ? floatRect.height : 0;
+		} else {
+			ax = side === 'left' ? floatRect.width : 0;
+			ay = targetY - floating.y;
+		}
+
+		ax = Math.max(9, Math.min(Math.round(ax), floatRect.width - 9));
+		ay = Math.max(9, Math.min(Math.round(ay), floatRect.height - 9));
+
+		arrowX = ax;
+		arrowY = ay;
+		arrowSide = floating.staticSide;
 	});
 
 	const arrowStyle = $derived.by(() => {
-		if (floating.arrowY == null && floating.arrowX == null) return '';
-		const side = floating.staticSide;
-		if (side === 'right' || side === 'left') {
-			return `top: ${floating.arrowY}px; ${side}: -6px; transform: translateY(-50%);`;
-		}
-		return `left: ${floating.arrowX}px; ${side}: -6px; transform: translateX(-50%);`;
+		if (arrowY == null && arrowX == null) return '';
+		return `left: ${arrowX}px; top: ${arrowY}px; ${arrowSide}: -3px;`;
 	});
 
 	function show() {
@@ -171,7 +206,7 @@ reveal after position calculation prevents layout flash.
 			class={cn(
 				"z-300 pointer-events-none overflow-visible rounded px-2.5 py-1.5 text-xs font-medium shadow-xl fixed",
 				"bg-surface-900 dark:bg-white text-white dark:text-surface-900",
-				"transition duration-150 animate-in fade-in zoom-in-95 scale-95",
+				"transition-opacity duration-150",
 				!floating.positionCalculated ? "opacity-0" : "opacity-100",
 				className,
 			)}
@@ -186,8 +221,7 @@ reveal after position calculation prevents layout flash.
 			<div
 				bind:this={arrowEl}
 				class={cn(
-					'pointer-events-none absolute h-0 w-0 border-y-[6px] border-y-transparent border-s-[6px]',
-					arrowBorderClass,
+					'pointer-events-none absolute size-3 bg-surface-900 dark:bg-white rotate-45',
 				)}
 				style={arrowStyle}
 			></div>

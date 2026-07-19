@@ -28,7 +28,7 @@ const IS_TEST_MODE = (() => {
 // ─── Pre-compiled classification matchers ─────────────────────────────────
 
 export const INTERNAL_PATH_REGEX =
-  /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|files\/|\.svelte-kit\/generated\/client\/nodes)/;
+  /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|\.svelte-kit\/generated\/client\/nodes)/;
 
 /** Anchored to end ($) to prevent catastrophic backtracking (ReDoS). */
 export const STATIC_EXT_REGEX =

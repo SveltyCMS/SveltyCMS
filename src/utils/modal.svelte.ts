@@ -128,7 +128,7 @@ class ModalManager {
       this.trigger(
         ConfirmDialog,
         {
-          htmlTitle: escapeHtml(options.title),
+          htmlTitle: options.title,
           body: options.body,
           buttonTextConfirm: options.confirmText || m.button_confirm?.() || "Confirm",
           buttonTextCancel: options.cancelText || m.button_cancel?.() || "Cancel",
