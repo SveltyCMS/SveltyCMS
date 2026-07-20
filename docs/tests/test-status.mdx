@@ -20,18 +20,18 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > Deep inventories and “what we shipped when” live in **[Test Status Archive](./test-status-archive.mdx)**.
 
-**Dashboard updated:** 2026-07-20 (A++ suite + residual config/user goldens green; redirectsMV primary store)
+**Dashboard updated:** 2026-07-20 (databases whitebox green; outbox / plugin-storage / schema hooks; real Auth+Cache proofs)
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------------------------ |
-| **Are the gates healthy?**        | Design A++: unit → security → push (+ SQLite smoke on DB/plugin) → CI multi-DB + E2E             |
-| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc      |
-| **Biggest recent win**            | **Residual goldens closed:** redirectsMV CRUD, profile update resilience, tokens tab effect loop |
-| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)     |
+| Question                          | Answer                                                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Are the gates healthy?**        | Design A++: unit → security → push (+ SQLite smoke on DB/plugin) → CI multi-DB + E2E                       |
+| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc                |
+| **Biggest recent win**            | **Databases unit green** + whitebox Auth/Cache/boot; outbox, plugin storage, schema hooks with real proofs |
+| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)               |
 
 > [!TIP]
 > **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
@@ -40,13 +40,13 @@ tags:
 
 ## 2. Health by layer
 
-| Layer                       | Confidence    | What it proves                                                                 | How to run                                                   |
-| --------------------------- | ------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| **Unit** (Vitest)           | **A++**       | Auth cookies, import-boundary, page gates, widgets, security, dispatcher edges | `bun run test:unit` · coverage: `test:unit:coverage`         |
-| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth (~2s local)                                      | See AGENTS.md security command                               |
-| **Integration** (black-box) | **A++**       | HTTP + DB; crash restart; multi-adapter matrix in CI                           | `bun run test:integration` · smoke: `test:integration:smoke` |
-| **E2E** (Playwright)        | **A++**       | Browser goldens / P0 journeys; CI-parity preview :4173                         | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`      |
-| **Benchmarks**              | **Selective** | Perf matrix; full suite is long — not every PR                                 | See [benchmarks](../project/benchmarks/index.mdx)            |
+| Layer                       | Confidence    | What it proves                                                                               | How to run                                                   |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Unit** (Vitest)           | **A++**       | Auth cookies, **CacheService/Auth whitebox**, import-boundary, page gates, widgets, security | `bun run test:unit` · coverage: `test:unit:coverage`         |
+| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth (~2s local)                                                    | See AGENTS.md security command                               |
+| **Integration** (black-box) | **A++**       | HTTP + DB; crash restart; multi-adapter matrix in CI                                         | `bun run test:integration` · smoke: `test:integration:smoke` |
+| **E2E** (Playwright)        | **A++**       | Browser goldens / P0 journeys; CI-parity preview :4173                                       | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`      |
+| **Benchmarks**              | **Selective** | Perf matrix; full suite is long — not every PR                                               | See [benchmarks](../project/benchmarks/index.mdx)            |
 
 **Gates (local → CI)**
 
@@ -194,6 +194,17 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix     |
 | **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                                   |
 
+### Databases whitebox + enterprise storage (2026-07-20)
+
+|                |                                                                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**     | **`tests/unit/databases/` green** (0 skip for soft-delete under Bun; magic-link + CacheService fixed). Real proofs — not mock-only theater for Auth lockout, credential cache, boot helpers                                                       |
+| **Unit**       | `cache-service` (always-tenant keys, pattern clear), `credential-auth-cache` (real L1), `auth-lockout` (real `Auth`), `soft-delete` (mongoose stub), `database-resilience` / `CORRUPT_CONFIG`, magic-link privacy                                 |
+| **Product**    | CacheService `set`/`get` tenant default alignment; `clearByPattern` wildcard tenant; fail-fast `CORRUPT_CONFIG` → `MISSING_CONFIG`                                                                                                                |
+| **Enterprise** | Transactional **outbox**, **plugin storage**, **schema lifecycle hooks** (`beforeValidate`/`afterValidate`), media **jsonPath** — unit + integration seeds                                                                                        |
+| **Manifest**   | `tests/critical-test-paths.ts` (replaces p0-manifest/registry) · runners: `scripts/run-integration.ts`, `run-e2e.ts`, `test-doctor.ts`                                                                                                            |
+| **Docs**       | [database-tests.mdx](./database-tests.mdx) · [plugin-storage](../reference/architecture/plugin-storage.mdx) · [outbox](../reference/architecture/transactional-outbox.mdx) · [schema hooks](../reference/architecture/schema-lifecycle-hooks.mdx) |
+
 ### Other solid areas (summary)
 
 | Area                   | Notes                                                                              |
@@ -204,6 +215,7 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | Site starter / preview | Smoke E2E + unit; deep iframe edit still open                                      |
 | Data operations        | Strong **unit**; thin browser E2E                                                  |
 | Multi-tenant           | Unit/guard coverage; E2E isolation spec exists, gated behind `MULTI_TENANT=true`   |
+| Stores unit            | `tests/unit/stores/` cleaned (string enums, stale headers, real assertions)        |
 
 Full suite catalogs → [archive](./test-status-archive.mdx) · tiers → [headless inventory](./headless-test-inventory.mdx).
 
@@ -221,7 +233,7 @@ Resolved historical items are **not** listed here — see [archive gaps](./test-
 | **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                       |
 | **Config residual goldens (access/auto/wf)**  | ✅ Closed | Local focused chromium 16/16 (2026-07-19) after product fixes                      |
 | **Data operations deep E2E**                  | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated                     |
-| **Cache L2 (Redis) integration**              | 🟡 Medium | L1 contract exists; Redis path thin                                                |
+| **Cache L2 (Redis) integration**              | 🟡 Medium | L1 whitebox + contract strong; Redis L2 path still thin                            |
 | **GraphQL browser E2E**                       | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                            |
 | **SSO/OAuth real IdP**                        | 🟡 Medium | Mock-only in CI                                                                    |
 | **Builder E2E sprawl**                        | ✅ Closed | Consolidated to shell + golden; 8 specs removed                                    |
@@ -244,8 +256,12 @@ bun run test:unit
 # Ultra-smart unit slice (auth, boundary, queue/redirects remotes)
 bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
 
+# Databases whitebox + Auth lockout (real CacheService / Auth / boot)
+bun test tests/unit/databases/ tests/unit/auth/auth-lockout.test.ts
+
 # Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
-bun test tests/integration/
+bun run test:integration
+# or reuse build: bun test --timeout 300000 tests/integration/
 
 # E2E CI-parity (preview :4173 — not Vite)
 bun run test:e2e
