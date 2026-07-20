@@ -12,6 +12,8 @@ export const REAL_DB_TEST_MARKERS = [
   "structure-persistence.test",
   "structure-persistence-matrix",
   "content-nodes-contract",
+  // Directory run: `bun test tests/integration/` must not load mockDbAdapter
+  "tests/integration",
 ] as const;
 
 export function argvIncludesRealDbTest(argv: string[] = process.argv): boolean {

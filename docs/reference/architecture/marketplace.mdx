@@ -6,7 +6,7 @@ order: 32
 icon: "mdi:store"
 author: "SveltyCMS Team"
 created: "2026-06-20"
-updated: "2026-06-27"
+updated: "2026-07-20"
 tags:
   - "marketplace"
   - "plugins"
@@ -87,6 +87,12 @@ flowchart TD
 | `POST` | `/api/v1/license/verify`             | Validate license key                               |
 | `GET`  | `/api/v1/extensions`                 | List available extension types                     |
 | `POST` | `/api/v1/extensions/{type}/{action}` | Premium extension logic                            |
+
+### Local CMS license gates
+
+Which plugins/widgets call `checkExtensionLicense` and how fail-open works is documented in:
+
+**[License Gate Inventory](../security/license-endpoint-inventory.mdx)**
 
 ## Two Paths to Extend
 

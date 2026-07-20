@@ -12,7 +12,7 @@
  * Also catches unsafe private.test.ts DB names and live private.ts pointing at
  * test DBs (e.g. sveltycms_test / benchmark_shared).
  *
- * Invoked by: .githooks/pre-commit and scripts/precheck.ts
+ * Invoked by: .githooks/pre-commit
  * Manual: bun run scripts/check-test-db-safety.ts
  */
 

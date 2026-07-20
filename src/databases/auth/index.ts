@@ -604,37 +604,37 @@ export class Auth {
     userId?: DatabaseId,
     type = "access",
     options?: BaseQueryOptions,
-  ): Promise<{ status: boolean; message: string }> {
+  ): Promise<{ status: boolean; message: string; code?: string }> {
     const result = await this.db.auth.consumeToken(token, userId, type, options);
-    if (result?.success) {
-      return result.data;
+    // SQL adapters wrap { status, message, code } as DatabaseResult.data
+    if (result?.success && result.data && typeof result.data === "object") {
+      const data = result.data as { status?: boolean; message?: string; code?: string };
+      if (typeof data.status === "boolean") {
+        return {
+          status: data.status,
+          message: data.message || (data.status ? "Consumed" : "Failed to consume token"),
+          code: data.code,
+        };
+      }
+      return { status: true, message: "Consumed" };
     }
+    // Mongo adapters return success:false with error.code (TOKEN_EXPIRED, etc.)
     return {
       status: false,
       message:
         !result || result.success
           ? "Failed to consume token"
           : result.message || "Failed to consume token",
+      code: (result as { error?: { code?: string } } | undefined)?.error?.code,
     };
   }
 
   async consumeRegistrationToken(
     token: string,
     options?: BaseQueryOptions,
-  ): Promise<{ status: boolean; message: string }> {
+  ): Promise<{ status: boolean; message: string; code?: string }> {
     // Attempt to consume using the global standard 'invite-token'
-    const result = await this.db.auth.consumeToken(token, undefined, "invite-token", options);
-
-    if (result?.success && result.data) {
-      return result.data;
-    }
-    return {
-      status: false,
-      message:
-        !result || result.success
-          ? "Failed to consume token"
-          : result.message || "Failed to consume token",
-    };
+    return this.consumeToken(token, undefined, "invite-token", options);
   }
   async authenticate(
     email: string,

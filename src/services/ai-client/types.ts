@@ -130,7 +130,7 @@ export interface EmbeddingResult {
   /** Dimensionality. */
   dimensions: number;
   /** Which backend produced the result. */
-  backend: "litert" | "ollama" | "tfidf";
+  backend: "litert" | "ollama" | "tfidf" | "failed";
   /** How long inference took (ms). */
   latencyMs: number;
 }

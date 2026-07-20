@@ -15,8 +15,8 @@ import {
   loginAsEditor,
   logout,
 } from "../../helpers/auth";
-import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/seed";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
+import { prepareTestUser, seedInviteToken, TEST_USERS } from "../helpers/api";
+import { TEST_API_HEADERS } from "../helpers/api";
 
 const ACTION_TIMEOUT = 20_000;
 

@@ -833,14 +833,14 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const hashedToken = await this._hashToken(token);
-        const conditions = [
+        const baseConditions = [
           eq(this.schema.authTokens.token, hashedToken),
           eq(this.schema.authTokens.consumed, false),
         ];
-        if (userId) conditions.push(eq(this.schema.authTokens.user_id, userId as string));
-        if (type) conditions.push(eq(this.schema.authTokens.type, type));
+        if (userId) baseConditions.push(eq(this.schema.authTokens.user_id, userId as string));
+        if (type) baseConditions.push(eq(this.schema.authTokens.type, type));
         if (options?.tenantId !== undefined)
-          conditions.push(
+          baseConditions.push(
             options.tenantId === null
               ? isNull(this.schema.authTokens.tenantId)
               : eq(this.schema.authTokens.tenantId, options.tenantId as string),
@@ -848,23 +848,55 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const db = this.getDb(options);
 
-        // Atomic single-update: eliminates SELECT→UPDATE race condition
+        // Atomic claim only for non-expired tokens
         const result = await db
           .update(this.schema.authTokens)
           .set({ consumed: true })
-          .where(and(...conditions));
+          .where(and(...baseConditions, gt(this.schema.authTokens.expires, new Date())));
 
         const isClaimed =
           (result as any).changes > 0 || (result as any).affectedRows > 0 || result.length > 0;
 
-        if (!isClaimed) {
-          return {
-            status: false,
-            message: "Token not found, already consumed, or claimed by parallel request",
-          };
+        if (isClaimed) {
+          return { status: true, message: "Consumed" };
         }
 
-        return { status: true, message: "Consumed" };
+        // Diagnose failure for better UX (expired vs missing vs already used)
+        const [existing] = await db
+          .select({
+            expires: this.schema.authTokens.expires,
+            consumed: this.schema.authTokens.consumed,
+          })
+          .from(this.schema.authTokens)
+          .where(eq(this.schema.authTokens.token, hashedToken))
+          .limit(1);
+
+        if (!existing) {
+          return { status: false, message: "Token not found", code: "TOKEN_NOT_FOUND" };
+        }
+        if (existing.consumed) {
+          return {
+            status: false,
+            message: "Token has already been used",
+            code: "TOKEN_ALREADY_CONSUMED",
+          };
+        }
+        const exp =
+          existing.expires instanceof Date
+            ? existing.expires
+            : new Date(existing.expires as string | number);
+        if (!Number.isNaN(exp.getTime()) && exp.getTime() <= Date.now()) {
+          return {
+            status: false,
+            message: "Token has expired. Request a new reset link.",
+            code: "TOKEN_EXPIRED",
+          };
+        }
+        return {
+          status: false,
+          message: "Token not found, already consumed, or claimed by parallel request",
+          code: "TOKEN_CLAIM_FAILED",
+        };
       },
       "CONSUME_TOKEN_FAILED",
       undefined,
@@ -872,23 +904,39 @@ export class RelationalAuthModule implements IAuthAdapter {
     );
   }
 
-  async deleteToken(tokenId: DatabaseId): Promise<DatabaseResult<void>> {
+  async deleteToken(
+    tokenId: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(async () => {
-      await this.getDb()
+      const conditions = [eq(this.schema.authTokens._id, tokenId as string)];
+      if (options?.tenantId !== undefined && options.tenantId !== null && options.tenantId !== "") {
+        conditions.push(eq(this.schema.authTokens.tenantId, options.tenantId as string));
+      }
+      await this.getDb(options)
         .delete(this.schema.authTokens)
-        .where(eq(this.schema.authTokens._id, tokenId as string));
+        .where(and(...conditions));
     }, "DELETE_TOKEN_FAILED");
   }
 
   async deleteTokens(
     tokenIds: DatabaseId[],
-    _options?: BaseQueryOptions,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     return this.adapter.wrap(async () => {
-      await this.getDb()
+      const conditions = [inArray(this.schema.authTokens._id, tokenIds as string[])];
+      if (options?.tenantId !== undefined && options.tenantId !== null && options.tenantId !== "") {
+        conditions.push(eq(this.schema.authTokens.tenantId, options.tenantId as string));
+      }
+      const result = await this.getDb(options)
         .delete(this.schema.authTokens)
-        .where(inArray(this.schema.authTokens._id, tokenIds as string[]));
-      return { deletedCount: tokenIds.length };
+        .where(and(...conditions));
+      // drizzle-sqlite may not return rowCount; fall back to requested length
+      const deletedCount =
+        typeof (result as { rowsAffected?: number })?.rowsAffected === "number"
+          ? (result as { rowsAffected: number }).rowsAffected
+          : tokenIds.length;
+      return { deletedCount };
     }, "DELETE_TOKENS_FAILED");
   }
 
@@ -1240,15 +1288,27 @@ export class RelationalAuthModule implements IAuthAdapter {
   async getAllTokens(_filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
     return this.adapter.wrap(
       async () => {
-        const res = await this.getDb()
-          .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
-          .from(this.schema.authTokens)
-          .limit(1000);
+        const tenantId = (_filter as { tenantId?: string | null } | undefined)?.tenantId;
+        const db = this.getDb();
+        const selection = this.adapter.getPhysicalSelection(this.schema.authTokens);
+
+        // Scope by tenant when provided so list/batch isolation works on SQL adapters
+        // (Mongo already uses safeQuery). "global"/null/empty → all tokens in single-tenant.
+        if (tenantId && tenantId !== "global" && tenantId !== "null") {
+          const res = await db
+            .select(selection)
+            .from(this.schema.authTokens)
+            .where(eq(this.schema.authTokens.tenantId, tenantId as string))
+            .limit(1000);
+          return utils.convertArrayDatesToISO(res) as unknown as Token[];
+        }
+
+        const res = await db.select(selection).from(this.schema.authTokens).limit(1000);
         return utils.convertArrayDatesToISO(res) as unknown as Token[];
       },
       "GET_ALL_TOKENS_FAILED",
       undefined,
-      { transaction: _filter?.transaction },
+      { transaction: (_filter as { transaction?: unknown } | undefined)?.transaction },
     );
   }
 

@@ -292,6 +292,7 @@ export class MongoMediaMethods {
       sortField = "createdAt",
       sortDirection = "desc",
       user,
+      jsonPath,
     } = options;
 
     // Determine if we should filter by user ownership
@@ -300,7 +301,9 @@ export class MongoMediaMethods {
     const isAdmin = user?.role === "admin" || user?.isAdmin === true;
     const shouldFilterByUser = user && !isAdmin;
 
-    const cacheKey = `media:files:${folderId || "root"}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || "no-tenant"}${shouldFilterByUser ? `:user:${userId}` : ""}`;
+    // Native JSON path changes result set — include in cache key
+    const jsonPathKey = jsonPath?.trim() ? `:jp:${jsonPath.trim().slice(0, 120)}` : "";
+    const cacheKey = `media:files:${folderId || "root"}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || "no-tenant"}${shouldFilterByUser ? `:user:${userId}` : ""}${jsonPathKey}`;
 
     const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
       try {
@@ -319,6 +322,15 @@ export class MongoMediaMethods {
             ...query,
             $or: [{ createdBy: userId }, { user: userId }, { path: /^global\// }],
           };
+        }
+
+        // DB-native metadata path filter (large libraries)
+        if (jsonPath?.trim()) {
+          const { buildMediaJsonPathMongoFilter } = await import("../core/media-json-path");
+          const { filter: jpFilter } = buildMediaJsonPathMongoFilter(jsonPath.trim());
+          if (jpFilter) {
+            query = { $and: [query, jpFilter] };
+          }
         }
 
         // Apply tenant isolation and security

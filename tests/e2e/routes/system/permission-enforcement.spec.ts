@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
+import { TEST_API_HEADERS } from "../helpers/api";
 
 const TEST_ROLE_ID = "e2e-perm-test-role";
 const TEST_USER = {

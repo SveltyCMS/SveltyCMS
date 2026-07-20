@@ -1112,22 +1112,42 @@ export class CollectionsNamespace {
     // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
     const sanitizedData = sanitizeCollectionFields(data, schema as CollectionFieldSchema);
 
-    const entryData = {
+    let entryData: Record<string, unknown> = {
       ...sanitizedData,
       tenantId,
       createdBy: system ? "system" : user?._id,
       createdAt: new Date().toISOString(),
-    };
+    } as Record<string, unknown>;
 
-    // 🛡️ Validate numeric field ranges before they reach the database adapter
-    const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
-    if (rangeErrors.length > 0) {
-      throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+    // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
+    {
+      const { applyBeforeValidate, applyAfterValidate } = await import("@src/content/schema-hooks");
+      const hookCtx = {
+        schema,
+        operation: "create" as const,
+        tenantId: tenantId as string | undefined,
+        userId: user?._id as string | undefined,
+      };
+      entryData = await applyBeforeValidate(schema.hooks, entryData, {
+        ...hookCtx,
+        document: { ...entryData },
+      });
+
+      // 🛡️ Validate numeric field ranges before they reach the database adapter
+      const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
+      if (rangeErrors.length > 0) {
+        throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+      }
+
+      entryData = await applyAfterValidate(schema.hooks, entryData, {
+        ...hookCtx,
+        document: { ...entryData },
+      });
     }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    const finalData = await this.triggerLifecycleHook(
+    let finalData = await this.triggerLifecycleHook(
       "beforeSave",
       collectionId,
       entryData,
@@ -1136,8 +1156,10 @@ export class CollectionsNamespace {
     );
 
     const collectionModel = await this._getModelResilient(schema);
+    // mutate in place so widget/modifyRequest transforms are persisted
+    const payload = [finalData];
     await modifyRequest({
-      data: [finalData],
+      data: payload,
       fields: schema.fields as FieldInstance[],
       collection: collectionModel,
       user: effectiveUser,
@@ -1148,11 +1170,22 @@ export class CollectionsNamespace {
       action: "create",
       system,
     });
+    finalData = payload[0] ?? finalData;
 
     const collectionName = this.getCollectionName(schema._id as string);
-    const result = await this._dbAdapter.crud.insert(collectionName, entryData, {
-      tenantId: tenantId as DatabaseId,
-    });
+    const result = await this.persistWithOutbox(
+      "create",
+      async (txOpts) =>
+        this._dbAdapter.crud.insert(collectionName, finalData, {
+          tenantId: tenantId as DatabaseId,
+          ...txOpts,
+        }),
+      schema,
+      tenantId,
+      effectiveUser,
+      (res) => String(res.data?._id ?? ""),
+      (res) => res.data,
+    );
 
     if (result && result.success && result.data) {
       try {
@@ -1170,6 +1203,7 @@ export class CollectionsNamespace {
         result.data!._id as string,
         result.data,
         effectiveUser,
+        { skipOutbox: true },
       );
       await this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema);
     }
@@ -1185,21 +1219,40 @@ export class CollectionsNamespace {
     // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
     const sanitizedData = sanitizeCollectionFields(data, schema as CollectionFieldSchema);
 
-    const updateData = {
+    let updateData: Record<string, unknown> = {
       ...sanitizedData,
       updatedBy: system ? "system" : user?._id,
       updatedAt: new Date().toISOString(),
-    };
+    } as Record<string, unknown>;
 
-    // 🛡️ Validate numeric field ranges before they reach the database adapter
-    const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
-    if (rangeErrors.length > 0) {
-      throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+    // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
+    {
+      const { applyBeforeValidate, applyAfterValidate } = await import("@src/content/schema-hooks");
+      const hookCtx = {
+        schema,
+        operation: "update" as const,
+        tenantId: tenantId as string | undefined,
+        userId: user?._id as string | undefined,
+      };
+      updateData = await applyBeforeValidate(schema.hooks, updateData, {
+        ...hookCtx,
+        document: { ...updateData },
+      });
+
+      const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
+      if (rangeErrors.length > 0) {
+        throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+      }
+
+      updateData = await applyAfterValidate(schema.hooks, updateData, {
+        ...hookCtx,
+        document: { ...updateData },
+      });
     }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    const finalData = await this.triggerLifecycleHook(
+    let finalData = await this.triggerLifecycleHook(
       "beforeSave",
       collectionId,
       updateData,
@@ -1209,8 +1262,9 @@ export class CollectionsNamespace {
 
     const collectionModel = await this._getModelResilient(schema);
 
+    const payload = [finalData];
     await modifyRequest({
-      data: [finalData],
+      data: payload,
       fields: schema.fields as FieldInstance[],
       collection: collectionModel,
       user: effectiveUser,
@@ -1221,16 +1275,28 @@ export class CollectionsNamespace {
       action: "update",
       system,
     });
+    finalData = payload[0] ?? finalData;
 
-    const result = await this._dbAdapter.crud.update(
-      this.getCollectionName(schema._id as string),
-      entryId as DatabaseId,
-      finalData,
-      { tenantId: tenantId as DatabaseId },
+    const result = await this.persistWithOutbox(
+      "update",
+      async (txOpts) =>
+        this._dbAdapter.crud.update(
+          this.getCollectionName(schema._id as string),
+          entryId as DatabaseId,
+          finalData,
+          { tenantId: tenantId as DatabaseId, ...txOpts },
+        ),
+      schema,
+      tenantId,
+      effectiveUser,
+      () => entryId,
+      (res) => res.data,
     );
 
     if (result && result.success && result.data) {
-      await this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser);
+      await this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser, {
+        skipOutbox: true,
+      });
       await this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema);
     }
 
@@ -1244,14 +1310,28 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    const result = await this._dbAdapter.crud.delete(
-      this.getCollectionName(schema._id as string),
-      entryId as DatabaseId,
-      { tenantId: tenantId as DatabaseId },
+    const result = await this.persistWithOutbox(
+      "delete",
+      async (txOpts) =>
+        this._dbAdapter.crud.delete(
+          this.getCollectionName(schema._id as string),
+          entryId as DatabaseId,
+          {
+            tenantId: tenantId as DatabaseId,
+            ...txOpts,
+          },
+        ),
+      schema,
+      tenantId,
+      effectiveUser,
+      () => entryId,
+      () => null,
     );
 
     if (result && result.success) {
-      await this.afterMutation(schema, tenantId, "delete", entryId, null, effectiveUser);
+      await this.afterMutation(schema, tenantId, "delete", entryId, null, effectiveUser, {
+        skipOutbox: true,
+      });
       await this.triggerLifecycleHook("afterDelete", collectionId, entryId, options, schema);
     }
 
@@ -1363,6 +1443,109 @@ export class CollectionsNamespace {
     }
   }
 
+  /**
+   * Persist a mutation and emit the outbox event in the **same DB transaction**
+   * when the adapter supports `transaction()`. Falls back to sequential write+emit.
+   */
+  private async persistWithOutbox(
+    action: "create" | "update" | "delete",
+    write: (txOpts: Record<string, unknown>) => Promise<any>,
+    schema: Schema,
+    tenantId: DatabaseId | null | undefined,
+    user: any,
+    getId: (result: any) => string,
+    getData: (result: any) => any,
+  ): Promise<any> {
+    const run = async (txOpts: Record<string, unknown> = {}) => {
+      const result = await write(txOpts);
+      if (result?.success) {
+        const id = getId(result);
+        if (id) {
+          await this.emitOutboxEvent(
+            schema,
+            tenantId,
+            action,
+            id,
+            getData(result),
+            user,
+            txOpts.transaction ? { transaction: txOpts.transaction } : undefined,
+          );
+        }
+      }
+      return result;
+    };
+
+    const adapter = this._dbAdapter as any;
+    if (typeof adapter.transaction === "function") {
+      try {
+        const txResult = await adapter.transaction(async (tx: any) => run({ transaction: tx }));
+        // Adapter may wrap as { success, data } — unwrap if the write result is nested
+        if (txResult && typeof txResult === "object" && "success" in txResult) {
+          // When transaction wraps the inner DatabaseResult as data, prefer inner
+          if (
+            txResult.success &&
+            txResult.data &&
+            typeof txResult.data === "object" &&
+            "success" in txResult.data
+          ) {
+            return txResult.data;
+          }
+          return txResult;
+        }
+        return txResult;
+      } catch (err) {
+        // Mongo without replica set / unsupported TX → sequential fallback
+        logger.debug(
+          `[Collections] transaction unavailable for ${action}, falling back: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    return run();
+  }
+
+  /** Best-effort outbox emit (never throws to callers). */
+  private async emitOutboxEvent(
+    schema: Schema,
+    tenantId: DatabaseId | null | undefined,
+    action: string,
+    id: string,
+    data: any,
+    user: any,
+    dbOptions?: { transaction?: unknown },
+  ): Promise<void> {
+    try {
+      const eventType =
+        action === "create"
+          ? "entry:create"
+          : action === "update"
+            ? "entry:update"
+            : action === "delete"
+              ? "entry:delete"
+              : `entry:${action}`;
+      const { outboxService } = await import("@src/services/outbox");
+      await outboxService.emit(
+        eventType,
+        "entry",
+        id,
+        {
+          collection: schema.name || (schema._id as string),
+          collectionId: schema._id,
+          id,
+          action,
+          data,
+          userId: user?._id,
+        },
+        String(tenantId ?? "default"),
+        dbOptions as any,
+      );
+    } catch {
+      /* outbox is non-blocking relative to content mutations */
+    }
+  }
+
   private async afterMutation(
     schema: Schema,
     tenantId: DatabaseId | null | undefined,
@@ -1370,6 +1553,7 @@ export class CollectionsNamespace {
     id: string,
     data: any,
     user: any,
+    opts?: { skipOutbox?: boolean },
   ) {
     await this.invalidateCache(schema, tenantId);
     try {
@@ -1387,5 +1571,9 @@ export class CollectionsNamespace {
         user,
       });
     } catch {}
+
+    if (!opts?.skipOutbox) {
+      await this.emitOutboxEvent(schema, tenantId, action, id, data, user);
+    }
   }
 }

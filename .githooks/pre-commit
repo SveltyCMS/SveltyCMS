@@ -1,54 +1,46 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Fast Loop (~2-3s)
-# =============================================================================
-# Test ownership (never run the same suite on pre-push):
-#   • Security regression → THIS hook only (scripts/security-regression.ts)
-#   • Smart unit / build  → pre-push only
+# SveltyCMS Pre-Commit — Format → Lint → Unit (~40s)
 #
-# Also: check-test-db-safety, format, lint-staged (fmt/lint/slop on staged files).
-#
-# Pre-push (scripts/precheck.ts push tier): typecheck, imports, unit (excludes
-# security files), production build. DB matrix is CI-only.
-#
+# Pre-push runs build + SQLite integration.
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
-set -euo pipefail
+set -u
+[ "${CI:-false}" = "true" ] && exit 0
 
-if [ "${CI:-false}" = "true" ]; then
-    echo "⏩ CI environment detected. Bypassing pre-commit gates."
-    exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/lib.sh"
+
+header "Pre-Commit"
+require_bun
+
+TOTAL=4; OK=0
+
+# Step 1 — Database safety
+if run "🛡️  Database safety" bun run scripts/check-test-db-safety.ts; then
+  OK=$((OK + 1))
 fi
 
-echo ""
-echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
-echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-echo ""
+# Step 2 — Format + lint
+if run "🔍  Format + lint" bun run check; then
+  OK=$((OK + 1))
+else
+  bun run format > /dev/null 2>&1
+  warn "Auto-formatted. ${BOLD}git add -A && git commit -m \"$(git log -1 --format=%s)\"${NC}"
+fi
 
-# Step 1: Check test database safety
-echo "[1/4] 🛡️  Checking test database safety..."
-bun run scripts/check-test-db-safety.ts
+# Step 3 — Lint-staged
+if run "⚡  Lint-staged" bun run gate:fast; then
+  OK=$((OK + 1))
+fi
 
-# Step 2: Format all files (catches formatting drift like bun.lock)
-echo "[2/4] 🔍 Checking formatting..."
-bun run format --check || {
-    echo "❌ Formatting issues detected. Auto-fixing..."
-    bun run format
-    echo "✅ Files formatted. Please review and stage the changes."
-    exit 1
-}
+# Step 4 — Unit tests (skip if only docs changed)
+if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
+  warn "Only docs changed — skipping unit tests"
+  TOTAL=$((TOTAL - 1))
+  OK=$((OK + 1))
+elif run "🧪  Unit tests" bun run test:unit; then
+  OK=$((OK + 1))
+fi
 
-# Step 3: Run lint-staged on staged files
-echo "[3/4] ⚡ Running lint-staged on staged files..."
-bun run gate:fast
-
-# Step 4: Security regression — PRE-COMMIT ONLY (pre-push excludes these files)
-echo "[4/4] 🔒 Running security regression tests (pre-commit only)..."
-bun run scripts/security-regression.ts || {
-    echo "❌ Security regression tests FAILED. Fix before committing."
-    echo "   Run manually: bun run scripts/security-regression.ts"
-    exit 1
-}
-
-echo "✅ All pre-commit checks passed!"
+summary "$OK" "$TOTAL"

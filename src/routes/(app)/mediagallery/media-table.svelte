@@ -67,8 +67,10 @@ const smartTable = createSmartTable({
 	mode: "client",
 	pageSize: 10,
 	layoutKey: "media-gallery-table",
-	getRowId: (row) =>
-		String((row as MediaBase | MediaImage)._id?.toString() || (row as MediaBase | MediaImage).filename || ""),
+	getRowId: (row) => {
+		const r = row as unknown as MediaBase | MediaImage;
+		return String(r._id?.toString() || r.filename || "");
+	},
 });
 
 $effect(() => {
@@ -95,7 +97,7 @@ function openTagEditor(file: MediaImage) {
 }
 
 function typeLabel(file: MediaBase | MediaImage): string {
-	return (file.mimeType?.split("/")[1] || file.type || "file").toString();
+		return ((file as MediaImage).mimeType?.split("/")[1] || file.type || "file").toString();
 }
 
 const pageFileIds = $derived(
@@ -257,8 +259,8 @@ function onUpdateRowsPerPage(rows: number) {
 
 						<div class="min-w-0 flex-1 overflow-hidden pe-1" role="cell">
 							<div class="truncate text-sm font-medium leading-snug" title={file.filename}>{file.filename}</div>
-							<div class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400" title={file.path}>
-								{formatBytes(file.size)} · {typeLabel(file).toUpperCase()}
+							<div class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400" title={(file as MediaImage).path}>
+								{formatBytes((file as MediaImage).size)} · {typeLabel(file).toUpperCase()}
 							</div>
 						</div>
 
@@ -374,10 +376,10 @@ function onUpdateRowsPerPage(rows: number) {
 							</td>
 							<td class="media-table-name {SMART_TABLE_TD} min-w-0 overflow-hidden text-start!">
 								<div class="truncate text-sm font-medium" title={file.filename}>{file.filename}</div>
-								<div class="media-table-path hidden font-mono text-[10px] text-surface-500 sm:block dark:text-surface-400" title={file.path}>{file.path}</div>
+								<div class="media-table-path hidden font-mono text-[10px] text-surface-500 sm:block dark:text-surface-400" title={(file as MediaImage).path}>{(file as MediaImage).path}</div>
 							</td>
 							<td class="media-table-size {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! font-mono text-xs tabular-nums text-surface-500 dark:text-surface-400 sm:table-cell">
-								{formatBytes(file.size)}
+								{formatBytes((file as MediaImage).size)}
 							</td>
 							<td class="media-table-type {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! md:table-cell">
 								<span class="font-mono text-[10px] uppercase text-surface-500 dark:text-surface-400">{typeLabel(file)}</span>

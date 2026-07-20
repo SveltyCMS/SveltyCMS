@@ -104,7 +104,7 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 ## Test Execution Flow
 
-1. **Build**: `scripts/run-integration-tests.ts` generates `config/private.test.ts`, then runs `bun run build` with `TEST_MODE=true`, `COMPILE_ALL_ADAPTERS=true`, and `SKIP_COLLECTION_COMPILE=true`. Vite aliases `@config/private` to `config/private.test.ts`, so local builds never rename or read the user's `config/private.ts`.
+1. **Build / harness**: Integration uses `tests/integration/harness.ts`, which generates or validates `config/private.test.ts` and starts the production preview. Prefer `bun run test:integration` (builds with `COMPILE_ALL_ADAPTERS=true`) or reuse `build/` with `bun test --timeout 300000 tests/integration/`. Vite aliases `@config/private` to `config/private.test.ts` under `TEST_MODE`, so local runs never rename or read the user's `config/private.ts`.
 2. **Preview**: `TEST_MODE=true node build/index.js` starts the production build used by CI black-box jobs. Playwright local runs use `playwright.config.ts` web servers on ports `4173` (ready state) and `4174` (setup wizard state).
    When the suite must mimic production setup gating, `STRICT_SETUP_CHECK=true` is enabled so completed `/setup` routes redirect the same way they do outside test mode.
 3. **Orchestrate**: Test helper calls `/api/testing` (with secure handshake) to prepare the database.
@@ -196,7 +196,7 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 >
 > Pre-commit / pre-push run `scripts/check-test-db-safety.ts`: rejects unsafe test `DB_NAME`, live config pointing at test DBs, and **test DB_NAME equal to live private.ts**. Manual: `bun run scripts/check-test-db-safety.ts`.
 >
-> **Pre-push does not run the 4-DB matrix or benchmarks by default** (CI-only). Opt in: `bun run scripts/precheck.ts --tier=push --include-db-tasks`. Credentials: `src/utils/test-db-credentials.ts`.
+> **Pre-push does not run the 4-DB matrix or benchmarks by default** (CI-only). Opt in locally with Docker + `DB_TYPE=postgresql|mariadb|mongodb bun test --timeout 300000 tests/integration/`. Credentials: `src/utils/test-db-credentials.ts`.
 >
 > Shared classifier: `src/utils/test-db-safety.ts` (server, integration runner, hooks). User live collections under `config/collections/` (outside `test/`) and root `.compiledCollections/` must not be written by benchmarks — see [Benchmark Collection Isolation](./benchmark-isolation.mdx).
 

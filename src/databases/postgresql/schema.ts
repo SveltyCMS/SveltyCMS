@@ -365,6 +365,34 @@ export const systemPreferences = pgTable(
   }),
 );
 
+// Outbox Events Table — Transactional Outbox Pattern
+// Events are written in the same transaction as the data change,
+// then a background process reads and delivers them reliably.
+export const sveltyOutbox = pgTable(
+  "svelty_outbox",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    eventType: varchar("eventType", { length: 255 }).notNull(),
+    aggregateType: varchar("aggregateType", { length: 255 }).notNull(),
+    aggregateId: varchar("aggregateId", { length: 255 }).notNull(),
+    payload: jsonb("payload").notNull(),
+    status: varchar("status", { length: 50 }).notNull().default("pending"),
+    deliveredAt: timestamp("deliveredAt"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("lastError"),
+    ...timestamps,
+  },
+  (table) => ({
+    statusIdx: index("outbox_status_idx").on(table.status),
+    tenantIdx: index("outbox_tenant_idx").on(table.tenantId),
+    eventTypeIdx: index("outbox_event_type_idx").on(table.eventType),
+    createdAtIdx: index("outbox_created_at_idx").on(table.createdAt),
+  }),
+);
+
 // Background Jobs Table
 export const sveltyJobs = pgTable(
   "svelty_jobs",
@@ -488,6 +516,30 @@ export const pluginMigrations = pgTable(
       table.pluginId,
       table.migrationId,
       table.tenantId,
+    ),
+  }),
+);
+
+// Plugin Storage Table
+export const pluginStorage = pgTable(
+  "plugin_storage",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    plugin: varchar("plugin", { length: 255 }).notNull(),
+    collection: varchar("collection", { length: 255 }).notNull(),
+    tenantId: tenantField(),
+    data: jsonb("data").notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    pluginIdx: index("plugin_storage_plugin_idx").on(table.plugin),
+    collectionIdx: index("plugin_storage_collection_idx").on(table.collection),
+    tenantIdx: index("plugin_storage_tenant_idx").on(table.tenantId),
+    pluginCollectionIdx: index("plugin_storage_plugin_collection_idx").on(
+      table.plugin,
+      table.collection,
     ),
   }),
 );
@@ -670,10 +722,12 @@ export const schema = {
   mediaItems,
   systemVirtualFolders,
   systemPreferences,
+  sveltyOutbox,
   sveltyJobs,
   websiteTokens,
   pluginPagespeedResults,
   pluginStates,
+  pluginStorage,
   pluginMigrations,
   auditLogs,
   tenants,

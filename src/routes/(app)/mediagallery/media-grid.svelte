@@ -402,7 +402,7 @@
                       <tr class="border-b border-surface-300 dark:border-surface-700">
                         <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
                         <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
-                        <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes(file.size)}</td>
+                        <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes((file as MediaImage).size)}</td>
                       </tr>
                       {#if file.thumbnails}
                         {@const hasWebp = hasWebpVariants(file.thumbnails)}
@@ -498,10 +498,10 @@
 
         <div class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-200 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-800">
           <span class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 sm:text-[11px] dark:text-surface-400">
-            {formatMimeType(file.mimeType)}
+            {formatMimeType((file as MediaImage).mimeType)}
           </span>
           <span class="shrink-0 font-mono text-[10px] tabular-nums text-surface-400 sm:text-[11px] dark:text-surface-500">
-            {formatBytes(file.size)}
+            {formatBytes((file as MediaImage).size)}
           </span>
         </div>
       </div>

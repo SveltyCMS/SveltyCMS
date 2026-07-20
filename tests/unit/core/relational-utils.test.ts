@@ -11,6 +11,57 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as utils from "@src/databases/core/relational-utils";
 import type { BaseQueryOptions } from "@src/databases/db-interface";
 
+describe("relational-utils — id + error helpers", () => {
+  it("generateId returns 32 hex chars (UUID without dashes)", () => {
+    const id = utils.generateId();
+    expect(id).toMatch(/^[0-9a-f]{32}$/i);
+    expect(utils.validateId(id)).toBe(true);
+  });
+
+  it("generateId produces unique values", () => {
+    const a = utils.generateId();
+    const b = utils.generateId();
+    expect(a).not.toBe(b);
+  });
+
+  it("validateId accepts 32-hex and dashed UUID forms", () => {
+    expect(utils.validateId("a".repeat(32))).toBe(true);
+    expect(utils.validateId("A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4")).toBe(true);
+    expect(utils.validateId("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+  });
+
+  it("validateId rejects empty, short, and invalid strings", () => {
+    expect(utils.validateId("")).toBe(false);
+    expect(utils.validateId("not-an-id")).toBe(false);
+    expect(utils.validateId("g".repeat(32))).toBe(false); // non-hex
+    expect(utils.validateId("a".repeat(31))).toBe(false);
+  });
+
+  it("createDatabaseError shapes code, message, status, and original details", () => {
+    const original = { code: "SQLITE_ERROR", errno: 1 };
+    const err = utils.createDatabaseError("INSERT_FAILED", "insert failed", original, 500);
+    expect(err).toMatchObject({
+      code: "INSERT_FAILED",
+      message: "insert failed",
+      statusCode: 500,
+      originalCode: "SQLITE_ERROR",
+      details: original,
+    });
+  });
+
+  it("createDatabaseError pulls nested originalCode when present", () => {
+    const err = utils.createDatabaseError("X", "msg", {
+      originalError: { code: "NESTED" },
+    });
+    expect(err.originalCode).toBe("NESTED");
+  });
+
+  it("normalizePath strips leading/trailing and collapses slashes", () => {
+    expect(utils.normalizePath("/a//b/")).toBe("a/b");
+    expect(utils.normalizePath("foo/bar")).toBe("foo/bar");
+  });
+});
+
 describe("relational-utils — convertDatesToISO json flattening", () => {
   it("flattens native jsonb data objects onto the row (PostgreSQL)", () => {
     utils.registerTableSchema("collection_bench-articles", [

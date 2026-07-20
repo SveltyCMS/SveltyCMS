@@ -7,33 +7,37 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
+import { isDockerRunning } from "../helpers/docker";
 
 // 1. CONFIGURATION (Isolation for CI)
 // @ts-ignore - optional test config
-const { privateEnv } = (await import("../../../config/private.test").catch(() => ({
-  privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
+const { privateEnv: _privateEnv } = (await import("../../../config/private.test").catch(() => ({
+  _privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
 }))) as any;
 
-const isMariaDB = privateEnv?.DB_TYPE === "mariadb";
-const describeMariaDB = isMariaDB ? describe : describe.skip;
+const _isMariaDB = process.env.DB_TYPE === "mariadb";
+// In-process adapter suite: run whenever MariaDB Docker is available (not only DB_TYPE=mariadb).
+const mariadbDockerRunning = isDockerRunning("mariadb");
+const describeMariaDB = mariadbDockerRunning ? describe : describe.skip;
+if (!mariadbDockerRunning) {
+  console.log("⏭️ MariaDB adapter suite skipped — no Docker container matching 'mariadb'");
+}
 
 describeMariaDB("MariaDB Adapter Integration", () => {
   let db: IDBAdapter | null = null;
   const TEST_TENANT = "test_tenant_mariadb" as any as DatabaseId;
 
   beforeAll(async () => {
-    if (!isMariaDB) return;
-
     try {
       const { MariaDBAdapter } = await import("../../../src/databases/mariadb/mariadb-adapter");
       db = new MariaDBAdapter() as any;
 
-      // MariaDB test connection string from privateEnv
-      const host = privateEnv.DB_HOST || "127.0.0.1";
-      const port = privateEnv.DB_PORT || "3306";
-      const user = privateEnv.DB_USER || "root";
-      const pass = privateEnv.DB_PASSWORD || "mariadb";
-      const dbName = privateEnv.DB_NAME || "sveltycms_test";
+      // Always use Docker-compose defaults for this in-process suite (not CMS DB_TYPE).
+      const host = "127.0.0.1";
+      const port = "3306";
+      const user = "root";
+      const pass = "mariadb";
+      const dbName = "sveltycms_test";
 
       const connStr = `mariadb://${user}:${pass}@${host}:${port}/${dbName}`;
 
@@ -41,13 +45,13 @@ describeMariaDB("MariaDB Adapter Integration", () => {
       if (!result.success) {
         throw new Error(result.message);
       }
+      await (db as any).provision?.();
     } catch (err: any) {
       console.warn(
-        "MariaDB not available on 127.0.0.1/sveltycms_test. Skipping functional tests.",
+        "MariaDB not available on 127.0.0.1/sveltycms_test. Failing suite.",
         err.message,
       );
       db = null;
-
       throw err;
     }
   });

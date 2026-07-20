@@ -187,7 +187,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       });
 
     // Status facets for filter chips (non-blocking failure → empty map)
-    let statusFacets: Record<string, number> = {};
+    let statusFacets: Partial<Record<string, number>> = {};
     try {
       statusFacets = await collectionService.getStatusFacets({
         collection: currentCollection,

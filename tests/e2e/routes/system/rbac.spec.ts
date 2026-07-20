@@ -12,7 +12,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
-import { seedTestUsers, TEST_USERS } from "../../helpers/seed";
+import { seedTestUsers, TEST_USERS } from "../helpers/api";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {

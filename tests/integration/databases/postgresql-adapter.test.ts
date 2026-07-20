@@ -7,32 +7,37 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
+import { isDockerRunning } from "../helpers/docker";
 
 // @ts-ignore - optional test config generated at runtime
-const { privateEnv } = (await import("../../../config/private.test").catch(() => ({
-  privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
+const { privateEnv: _privateEnv } = (await import("../../../config/private.test").catch(() => ({
+  _privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
 }))) as any;
 
-const isPostgres = privateEnv?.DB_TYPE === "postgresql";
-const describePostgres = isPostgres ? describe : describe.skip;
+const _isPostgres = process.env.DB_TYPE === "postgresql";
+// In-process adapter suite: run whenever Postgres Docker is available (not only DB_TYPE=postgresql).
+const pgDockerRunning = isDockerRunning("postgres");
+const describePostgres = pgDockerRunning ? describe : describe.skip;
+if (!pgDockerRunning) {
+  console.log("⏭️ PostgreSQL adapter suite skipped — no Docker container matching 'postgres'");
+}
 
 describePostgres("PostgreSQL Adapter Integration", () => {
   let db: IDBAdapter | null = null;
   const TEST_TENANT = "test_tenant_postgres" as any as DatabaseId;
 
   beforeAll(async () => {
-    if (!isPostgres) return;
-
     try {
       const { PostgreSQLAdapter } =
         await import("../../../src/databases/postgresql/postgres-adapter");
       db = new PostgreSQLAdapter() as any;
 
-      const host = privateEnv.DB_HOST || "127.0.0.1";
-      const port = privateEnv.DB_PORT || "5432";
-      const user = privateEnv.DB_USER || "postgres";
-      const pass = privateEnv.DB_PASSWORD || "postgres";
-      const dbName = `${privateEnv.DB_NAME || "sveltycms_test"}_integration`;
+      // Docker-compose defaults — isolated DB name for this suite.
+      const host = "127.0.0.1";
+      const port = "5432";
+      const user = "postgres";
+      const pass = "postgres";
+      const dbName = "sveltycms_test";
 
       const connStr = `postgres://${user}:${pass}@${host}:${port}/${dbName}`;
 
@@ -40,8 +45,9 @@ describePostgres("PostgreSQL Adapter Integration", () => {
       if (!result.success) {
         throw new Error(result.message);
       }
+      await (db as any).provision?.();
     } catch (err: any) {
-      console.warn("PostgreSQL not available. Skipping functional tests.", err.message);
+      console.warn("PostgreSQL not available. Failing suite.", err.message);
       db = null;
       throw err;
     }

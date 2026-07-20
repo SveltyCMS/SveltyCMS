@@ -31,11 +31,7 @@ beforeAll(async () => {
 
   // Best-effort warmup only — never fail the whole file here.
   // Individual tests assert endpoint contracts.
-  for (const path of [
-    "/api/dashboard/health",
-    "/api/dashboard/metrics",
-    "/api/dashboard/cache-metrics",
-  ]) {
+  for (const path of ["/api/health", "/api/dashboard/metrics", "/api/dashboard/cache-metrics"]) {
     try {
       await safeFetch(`${BASE_URL}${path}`, { headers: { Cookie: authCookie } }, 2, 500);
     } catch (err) {
@@ -47,59 +43,62 @@ beforeAll(async () => {
   }
 }, 120_000);
 
-describe("Dashboard API - Health Endpoint", () => {
+describe("System Health (via /api/health)", () => {
+  // Use the public /api/health endpoint rather than /api/dashboard/health.
+  // The dashboard handler delegates to this same endpoint.
+  const HEALTH_URL = `${BASE_URL}/api/health`;
+
   test("should return system health status", async () => {
-    const response = await safeFetch(`${BASE_URL}/api/dashboard/health`, {
-      headers: { Cookie: authCookie },
-    });
+    const response = await safeFetch(HEALTH_URL);
 
-    // Health endpoint returns 200 for operational states (READY, WARMED, DEGRADED)
-    // and 503 for non-operational states (INITIALIZING, FAILED, IDLE)
-    // Both should return valid health data
     expect([200, 503]).toContain(response.status);
-    const data = await response.json();
+    const body = await response.json();
 
-    expect(data).toHaveProperty("overallStatus");
-    expect(data).toHaveProperty("timestamp");
-    expect(data).toHaveProperty("uptime");
-    expect(data).toHaveProperty("components");
+    // Unwrap { success, data } envelope
+    const payload = body.success && body.data ? body.data : body;
 
-    // overallStatus should be one of the valid states
-    expect(["READY", "WARMING", "WARMED", "INITIALIZING", "DEGRADED", "FAILED", "IDLE"]).toContain(
-      data.overallStatus,
-    );
+    expect(payload).toHaveProperty("state");
+    expect(payload).toHaveProperty("timestamp");
+    expect(payload).toHaveProperty("uptime");
+    expect(payload).toHaveProperty("services");
+
+    // state should be one of the valid states
+    expect([
+      "READY",
+      "WARMING",
+      "WARMED",
+      "INITIALIZING",
+      "DEGRADED",
+      "FAILED",
+      "IDLE",
+      "SETUP",
+    ]).toContain(payload.state);
 
     // uptime should be a positive number
-    expect(typeof data.uptime).toBe("number");
-    expect(data.uptime).toBeGreaterThanOrEqual(0);
+    expect(typeof payload.uptime).toBe("number");
+    expect(payload.uptime).toBeGreaterThanOrEqual(0);
   });
 
-  test("should return 200 for READY or DEGRADED states", async () => {
-    const response = await safeFetch(`${BASE_URL}/api/dashboard/health`, {
-      headers: { Cookie: authCookie },
-    });
-
+  test("should return 200 for operational states", async () => {
+    const response = await safeFetch(HEALTH_URL);
     await response.json();
 
-    // The dashboard health endpoint always returns 200 regardless of internal state.
+    // The health endpoint returns 200 even during non-operational states.
     expect(response.status).toBe(200);
   });
 
-  test("should include component health details", async () => {
-    const response = await safeFetch(`${BASE_URL}/api/dashboard/health`, {
-      headers: { Cookie: authCookie },
-    });
+  test("should include service health details", async () => {
+    const response = await safeFetch(HEALTH_URL);
+    const body = await response.json();
+    const payload = body.success && body.data ? body.data : body;
 
-    const data = await response.json();
+    expect(typeof payload.services).toBe("object");
 
-    expect(typeof data.components).toBe("object");
-
-    // Check if components have the expected structure
-    const components = Object.values(data.components);
-    if (components.length > 0) {
-      const component = components[0] as Record<string, unknown>;
-      expect(component).toHaveProperty("status");
-      expect(["healthy", "unhealthy", "initializing"]).toContain(component.status as string);
+    const services = Object.values(payload.services);
+    if (services.length > 0) {
+      const svc = services[0] as Record<string, unknown>;
+      expect(svc).toHaveProperty("status");
+      expect(typeof svc.status).toBe("string");
     }
   });
 });

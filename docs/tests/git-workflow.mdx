@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-08"
+updated: "2026-07-20"
 tags:
   - "git"
   - "workflow"
@@ -42,52 +42,40 @@ Before any commit or push, SveltyCMS runs automated checks via native Git hooks.
 git config core.hooksPath .githooks
 ```
 
-### Unified Precheck Manifest (`scripts/precheck-shared.ts`)
+### Git Hook Overview
 
-All local gates share a **single task manifest** in `scripts/precheck-shared.ts`. The orchestrator `scripts/precheck.ts` runs it in two tiers:
+SveltyCMS uses native Git hooks for local quality gates — no external precheck orchestrator script required.
 
-| Tier     | Entry point                                  | When              |
-| :------- | :------------------------------------------- | :---------------- |
-| **push** | `.githooks/pre-push` → `bun run verify:push` | Every `git push`  |
-| **full** | `bun run verify:full` or `bun run ci:local`  | Manual, before PR |
-
-Each task maps to a `ci.yml` job (`format`, `unit`, `db-tests`, `bench-core`, etc.) so local failures match GitHub failures.
-
-`scripts/quality-gate.ts` is a thin wrapper that calls `runPrecheckCli({ tier: "push" })`.
-
-#### Pre-commit (~2–3s) — staged files + security suite (once)
+#### Pre-commit (`check-test-db-safety.ts` → format+lint → lint-staged → unit tests)
 
 `.githooks/pre-commit` runs:
 
-1. **Test config safety** — `scripts/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
-2. **Format check** + **lint-staged** — `oxfmt`, `oxlint`, `slop-scanner` on staged `src/`; `lint-docs` on staged `docs/`.
-3. **Security regression (pre-commit only)** — `bun run scripts/security-regression.ts` (hooks + RBAC + setup gating).
+1. **Database safety** — `scripts/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
+2. **Format + lint** — `bun run check` (oxfmt + oxlint).
+3. **Lint-staged** — `bun run gate:fast`.
+4. **Unit tests** — `vitest run` (skipped if only docs changed).
 
 > [!IMPORTANT]
-> **No double-run rule:** security regression runs on **pre-commit only**. Pre-push excludes those files from unit tests.
+> **No double-run rule:** the full unit suite (including hooks security tests) runs on **pre-commit only**. Pre-push runs build + SQLite integration — do not re-run the entire unit suite on push. Focused re-run: `bun run test:security`.
 >
 > **Live data rule:** automated local runs never use `config/private.ts` or the user database — only `private.test.ts` + isolated DB names.
 
-#### Pre-push (~1–3 min) — build + unit (excludes security suite)
+#### Pre-push (~5 min) — production build + SQLite integration tests
 
-`.githooks/pre-push` runs `bun run verify:push` via `scripts/precheck.ts`. Diff base is `@{upstream}` / `origin/next`.
+`.githooks/pre-push` runs:
 
-| Check                                                                 | CI job   | Est.                                    |
-| :-------------------------------------------------------------------- | :------- | :-------------------------------------- |
-| Test Config Safety                                                    | —        | 1s                                      |
-| Format / oxlint / `bun run check` (when paths changed)                | whitebox | ~20s                                    |
-| Slop + imports + secret scan (source/infra)                           | whitebox | ~10s                                    |
-| Docs / benchmark MDX lint (docs or infra)                             | —        | ~4s                                     |
-| Unit tests via `test-smart --unit-only` (**excludes security files**) | whitebox | ~3–60s                                  |
-| Production build (`COMPILE_ALL_ADAPTERS`, when source/infra)          | build    | ~45–120s                                |
-| Deploy backdoor double-build                                          | whitebox | only if vite/testing-strip paths change |
+| Check                         | Command                                   | Est.     |
+| :---------------------------- | :---------------------------------------- | :------- |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build` | ~45–120s |
+| SQLite integration tests      | `bun test tests/integration/`             | ~60–180s |
 
-**Security regression is not re-run on push.** DB integration + benchmarks are CI-only. Opt in with `--include-db-tasks`.
+**Security regression is not re-run on push.** DB integration (multi-adapter matrix) and benchmarks are CI-only.
 
 ```bash
-bun run verify:push                         # pre-push gate
-bun run scripts/precheck.ts --plan          # dry-run — see what WOULD run
-bun run verify:push --include-db-tasks      # push + DB matrix + benchmarks
+bun run gate                               # pre-push gate (build + SQLite integration)
+bun run prepush                            # same as gate
+bun test --timeout 300000 tests/integration/   # Integration only (needs build/)
+bun run test:doctor                        # unit + SQLite integration + gate map
 ```
 
 ---
@@ -148,12 +136,12 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 
 ## Automated Testing Architecture
 
-### 🧪 Vitest Unit Tests (1,100+ tests)
+### 🧪 Vitest Unit Tests
 
-- **Speed**: ⚡ Lightning fast (under 10 seconds for the full 1,100+ suite).
+- **Speed**: ⚡ Fast feedback on every commit (full suite via pre-commit).
 - **Location**: `tests/unit/`
 - **Runner**: Vitest with jsdom for components, stores, services, and API logic.
-- **Command**: `bun run test:unit`
+- **Command**: `bun run test:unit` · focused security: `bun run test:security`
 
 ### 🔗 Contract Tests (Adapter Parity)
 
@@ -178,11 +166,6 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 - **Purpose**: Detects unsafe `{@html}`, legacy Svelte 4 patterns, missing ARIA, RTL violations, dead exports.
 - **Command**: `bun run slop`
 
-### 🧬 Mutation Tester
-
-- **Purpose**: Introduces deliberate bugs; verifies tests catch them. Target: >85% kill rate.
-- **Command**: `bun run mutate`
-
 ---
 
 ## Tiered Local Testing Strategy
@@ -191,68 +174,50 @@ SveltyCMS uses a **three-tier testing strategy** that balances developer velocit
 
 ```mermaid
 flowchart LR
-    A["git commit"] -->|"< 3s"| B["Pre-Commit<br/>lint-staged<br/>+ DB safety"]
-    C["git push"] -->|"1–3 min"| D["Pre-Push precheck<br/>build + unit tests<br/>+ progress dashboard"]
-    E["bun run ci:local"] -->|"30–60 min"| F["Full CI<br/>precheck:full + E2E"]
+    A["git commit"] -->|"~40s"| B["Pre-Commit<br/>DB safety → format+lint<br/>→ lint-staged → unit tests"]
+    C["git push"] -->|"~5 min"| D["Pre-Push<br/>Production build (4 adapters)<br/>→ bun test tests/integration/"]
 ```
 
 ### Tier 1: Pre-Commit (`.githooks/pre-commit`) — Fast Feedback
 
-Runs automatically on every `git commit`. Target: **~2–3 seconds** on staged files only.
+Runs automatically on every `git commit`. Target: **~40 seconds** (full unit suite; skipped if only docs changed).
 
-| Check              | Tool                              |
-| :----------------- | :-------------------------------- |
-| Test config safety | `check-test-db-safety.ts`         |
-| Formatting         | oxfmt (staged)                    |
-| Slop Scanner       | `slop-scanner.ts` (staged `src/`) |
-| Linting            | oxlint (staged)                   |
-| Docs lint          | `lint-docs.ts` (staged `docs/`)   |
+| Check              | Tool                             |
+| :----------------- | :------------------------------- |
+| Test config safety | `check-test-db-safety.ts`        |
+| Format + lint      | `bun run check` (oxfmt + oxlint) |
+| Lint-staged        | `bun run gate:fast`              |
+| Unit tests         | `bun run test:unit` (Vitest)     |
 
-### Tier 2: Pre-Push (`.githooks/pre-push`) — CI Core Gate
+### Tier 2: Pre-Push (`.githooks/pre-push`) — Production Build + Integration
 
-Runs automatically on every `git push` via `bun run verify:push`. Catches the same integration and benchmark failures that previously only surfaced on GitHub (e.g. MariaDB JSON encoding, PostgreSQL credential drift).
+Runs automatically on every `git push`. Catches build and integration failures before they reach CI.
 
-| Check                             | Tool                                      |
-| :-------------------------------- | :---------------------------------------- |
-| Full static analysis + unit tests | `precheck-shared.ts` declarative registry |
-| Production build                  | `vite build` + `COMPILE_ALL_ADAPTERS`     |
-| Progress dashboard with ETA       | Adaptive correction factor                |
-| ciJob parity validation           | `validateCiParity()` scans `ci.yml`       |
+| Check                         | Command                                   |
+| :---------------------------- | :---------------------------------------- |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build` |
+| SQLite integration tests      | `bun test tests/integration/`             |
 
-**DB integration + benchmarks are CI-only on push tier.** Use `--include-db-tasks` to opt in locally, or run `bun run verify:full` (local CI parity).
+**Multi-adapter DB integration + benchmarks are CI-only.**
 
-Manual equivalent: `bun run gate` or `bun run verify:push`.
-
-> [!NOTE]
-> The script is named `verify:push` (not `precheck`) because npm/bun treat a `precheck` script as a lifecycle hook that runs automatically before `check`, which would recurse infinitely.
+Manual equivalent: `bun run prepush` (alias for pre-push hook via hardened git wrapper).
 
 > [!CAUTION]
 > `--no-verify` is blocked by `scripts/git-safe.ts`. Use `bun run git push` — bypassing requires the system `git` binary path deliberately.
 
-### Tier 3: Local CI Simulator (`bun run ci:local`) — Full Parity
+### Tier 3: Full CI Parity — CI Pipeline
 
-Run manually before opening a pull request. Runs **full-tier precheck** (same manifest as push, but always-on scans and dependency audit) plus Playwright E2E.
+CI runs the complete matrix automatically on every PR/push to `next`. Covers what local hooks skip:
 
-```bash
-# Full precheck + E2E (Docker DBs required)
-bun run ci:local
+- **Whitebox**: format + lint + type check + secret scan + deploy backdoor probe
+- **Build**: `COMPILE_ALL_ADAPTERS=true` production build
+- **DB tests**: Full multi-adapter matrix (MongoDB, PostgreSQL, MariaDB, SQLite)
+- **E2E**: Playwright prep + 6 shards (chromium)
+- **Benchmarks**: Performance regression detection
 
-# Single adapter
-bun run ci:local -- --db=postgresql
+All local test commands must use **`config/private.test.ts` only** — they must **not** rename, overwrite, or connect through the developer's `config/private.ts` (live user data). Isolation is env + policy (`private-config-policy.ts`), not backup/restore of live config.
 
-# Skip Playwright (precheck only)
-bun run ci:local -- --skip-e2e
-
-# Skip benchmarks
-bun run ci:local -- --skip-benchmarks
-
-# Precheck without E2E (no config backup dance)
-bun run verify:full
-```
-
-`ci:local` / full precheck must use **`config/private.test.ts` only** for automated runs — they must **not** rename, overwrite, or connect through the developer's `config/private.ts` (live user data). Isolation is env + policy (`private-config-policy.ts`), not backup/restore of live config.
-
-**Prerequisites:** Docker Desktop with MongoDB (27017), MariaDB (3306), and PostgreSQL (5432) on `127.0.0.1`.
+**Prerequisites for local integration tests:** Docker Desktop with MongoDB (27017), MariaDB (3306), and PostgreSQL (5432) on `127.0.0.1`.
 
 ---
 
@@ -262,31 +227,30 @@ All scripts in `scripts/` and their role in the testing pipeline:
 
 ### Core Scripts (Testing Pipeline)
 
-| Script                     | Role                                         | Called By                                       |
-| :------------------------- | :------------------------------------------- | :---------------------------------------------- |
-| `precheck-shared.ts`       | Single CI-parity task manifest               | `precheck.ts`, `quality-gate.ts`, `ci-local.ts` |
-| `precheck.ts`              | Unified orchestrator (`push` / `full` tiers) | `.githooks/pre-push`, `bun run verify:push`     |
-| `quality-gate.ts`          | Thin wrapper → `precheck` push tier          | `bun run gate`                                  |
-| `run-integration-tests.ts` | DB matrix test runner                        | CI, precheck, ci-local                          |
-| `run-core-benchmarks.ts`   | `bench-core` parity per adapter              | CI, precheck, ci-local                          |
-| `test-db-credentials.ts`   | Canonical Docker credentials + env blocks    | precheck, CI, integration runner                |
-| `check-test-db-safety.ts`  | Blocks unsafe test config                    | pre-commit, precheck                            |
-| `slop-scanner.ts`          | AI/code smell detector                       | lint-staged, precheck                           |
-| `ci-local.ts`              | Full precheck + E2E with config backup       | `bun run ci:local`                              |
-| `test-smart.ts`            | Git-diff-aware test selector                 | `bun run test:smart` (manual)                   |
+| Script                          | Role                                     | Called By                      |
+| :------------------------------ | :--------------------------------------- | :----------------------------- |
+| `test-doctor.ts`                | Gate map + unit + SQLite integration     | `bun run test:doctor` (manual) |
+| `test-smart.ts`                 | Git-diff-aware test selector             | `bun run test:smart` (manual)  |
+| `security-audit.ts`             | Security vulnerability scanner           | `bun run security`             |
+| `run-e2e.ts`                    | Unified E2E runner (CI/dev modes)        | `bun run test:e2e`             |
+| `check-test-db-safety.ts`       | Blocks unsafe test config                | pre-commit                     |
+| `scan-secret-misuse.ts`         | Secret exposure static analysis          | CI whitebox / manual           |
+| `verify-prod-build-backdoor.ts` | Checks /api/testing stripped in deploy   | CI build / whitebox            |
+| `verify-benchmark-local.ts`     | Blocks local benchmarks on test DB names | Manual                         |
+| `bundle-stats.ts`               | Bundle size analysis                     | `bun run build:stats`          |
+| `check-bundle-size.ts`          | CI bundle size gate                      | CI build job                   |
+| `generate-sbom.ts`              | Software bill of materials generation    | `bun run audit:sbom`           |
 
 ### Utility Scripts
 
-| Script                       | Role                           | Command                  |
-| :--------------------------- | :----------------------------- | :----------------------- |
-| `security-audit.ts`          | Security vulnerability scanner | `bun run audit:security` |
-| `mutation-test.ts`           | Mutation testing               | `bun run mutate`         |
-| `generate-sbom.ts`           | SBOM generation                | `bun run audit:sbom`     |
-| `bundle-stats.ts`            | Bundle size analysis           | `bun run build:stats`    |
-| `upgrade.ts`                 | Automated core updates         | `bun run upgrade`        |
-| `setup-system.ts`            | System bootstrap               | Dev setup helper         |
-| `cache-clear.ts`             | Cache management               | Maintenance utility      |
-| `generate-core-countries.js` | Country data generator         | Address widget data      |
+| Script                       | Role                           | Command               |
+| :--------------------------- | :----------------------------- | :-------------------- |
+| `security-audit.ts`          | Security vulnerability scanner | `bun run security`    |
+| `generate-sbom.ts`           | SBOM generation                | `bun run audit:sbom`  |
+| `bundle-stats.ts`            | Bundle size analysis           | `bun run build:stats` |
+| `upgrade.ts`                 | Automated core updates         | `bun run upgrade`     |
+| `setup-system.ts`            | System bootstrap               | Dev setup helper      |
+| `generate-core-countries.js` | Country data generator         | Address widget data   |
 
 ---
 
@@ -295,41 +259,41 @@ All scripts in `scripts/` and their role in the testing pipeline:
 ### Commit Workflow
 
 1.  **Stage changes**: `git add .`
-2.  **Commit**: `git commit -m "feat(auth): add OAuth2 support"` — pre-commit lint-staged runs automatically.
-3.  **Push**: `bun run git push origin feat/my-feature` — pre-push precheck runs with progress dashboard, adaptive ETA, and error remediation hints.
-4.  **Before PR**: Run `bun run verify:full` for local CI parity, or `bun run ci:local` for full E2E simulation.
+2.  **Commit**: `git commit -m "feat(auth): add OAuth2 support"` — pre-commit hook runs (DB safety → format+lint → lint-staged → unit tests).
+3.  **Push**: `bun run git push origin feat/my-feature` — pre-push hook runs (production build → `bun test tests/integration/`).
+4.  **Before PR**: Ensure CI passes — local hooks already guarantee the same gate.
 
 ### Manual Verification
 
 If you want to run checks outside the hook lifecycle:
 
 ```bash
-# Pre-push gate manually (same as git push hook)
-bun run verify:push
+# Pre-commit gate manually
+bun run precommit
+
+# Pre-push gate manually
 bun run gate
+# or: bun run prepush
 
-# Full CI core without E2E
-bun run verify:full
+# Unit + SQLite integration + gate map
+bun run test:doctor
 
-# Full CI including Playwright
-bun run ci:local
+# Integration tests (SQLite; needs build/)
+bun test --timeout 300000 tests/integration/
 
 # Smart Test Orchestrator — auto-detects what to test from git diff
 bun run test:smart
 
 # AI Slop Scanner — detect code smells
 bun run slop
-
-# Mutation Tester — verify tests catch real bugs
-bun run mutate
 ```
 
 ### Security & Slop Regression Check
 
 For changes touching auth, middleware, or API routes, also run:
 
-```
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts
+```bash
+bun run test:security
 bun run slop
 ```
 
@@ -358,7 +322,7 @@ Ensure you are using `127.0.0.1` in your `config/private.test.ts` and that the t
 
 ### Docker DB Not Reachable During Pre-Push
 
-If precheck reports `postgresql is not reachable at 127.0.0.1:5432`:
+If the pre-push hook or local CI reports `postgresql is not reachable at 127.0.0.1:5432`:
 
 ```bash
 docker compose -f tests/docker-compose.yml --profile postgresql up -d

@@ -8,8 +8,8 @@
 
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
-import { enablePlugin, handleOptionalInfraUnavailable } from "../../helpers/seed";
+import { TEST_API_HEADERS } from "../helpers/api";
+import { enablePlugin, handleOptionalInfraUnavailable } from "../helpers/api";
 
 async function seedHub(request: APIRequestContext, rowCount = 25) {
   return request.post("/api/testing", {

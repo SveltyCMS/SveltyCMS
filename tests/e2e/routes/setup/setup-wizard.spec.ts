@@ -5,7 +5,7 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "../../helpers/setup-wizard";
-import { resetToSetupMode } from "../../helpers/test-orch";
+import { resetToSetupMode } from "../../helpers/api";
 
 // --- PAGE OBJECT MODEL ---
 

@@ -88,10 +88,10 @@ export const dbAdapter: DatabaseAdapter = createSelfHealingProxy<IDBAdapter>(
 export const auth: any = new Proxy(
   {},
   {
-    get(_, prop) {
+    get(_target: any, prop: string) {
       const instance = getGlobal(AUTH_KEY);
       if (!instance) return undefined;
-      const val = instance[prop];
+      const val = (instance as Record<string, any>)[prop];
       return typeof val === "function" ? val.bind(instance) : val;
     },
   },
@@ -208,11 +208,9 @@ export async function ensureFullInitialization(): Promise<any | null> {
     try {
       setGlobal(BOOT_PHASE_KEY, "INITIALIZING");
       logger.info("[Boot] Starting initialization...");
-      const dbInit = await getDbInit();
-      let cfg = await loadConfig();
-      setGlobal("__CACHED_CONFIG__", cfg);
 
-      // 🛡️ STATE VALIDATION (Pillar 1 Focus): Detect corrupted/missing configuration
+      // 🛡️ STATE VALIDATION (Pillar 1 Focus): Fail fast before loading adapters.
+      // CORRUPT_CONFIG is a test/diagnostic gate for controlled MISSING_CONFIG.
       if (process.env.CORRUPT_CONFIG === "true") {
         throw new AppError(
           "Database configuration is corrupted or missing.",
@@ -220,6 +218,10 @@ export async function ensureFullInitialization(): Promise<any | null> {
           "MISSING_CONFIG",
         );
       }
+
+      const dbInit = await getDbInit();
+      let cfg = await loadConfig();
+      setGlobal("__CACHED_CONFIG__", cfg);
 
       if (
         process.env.TEST_MODE === "true" ||
@@ -230,7 +232,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
         logger.info(`[Boot] Test mode detected. Forcing engine: ${testEngine}`);
 
         // 🚀 INTEGRATION BRIDGE: Use physical file to share data between seeder and server
-        const auditFile = "./config/database/integration_audit.sqlite";
+        const auditFile = "./config/test-database/integration_audit.sqlite";
         // Clone cfg so we can mutate it (config may be frozen/readonly)
         let mutableCfg: any = cfg ? Object.assign({}, cfg) : null;
         if (!cfg) {

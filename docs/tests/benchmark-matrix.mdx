@@ -331,7 +331,7 @@ flowchart LR
 1. Aggregates all per-adapter MDX reports
 2. Produces `ci-summary.json` and `$GITHUB_STEP_SUMMARY`
 
-**Quality gate (`precheck-shared.ts`):**
+**Quality gate (hooks + CI — no separate precheck-shared.ts):**
 
 - `push` tier: runs `bench-core` on changed code
 - `full` tier: runs complete bench matrix

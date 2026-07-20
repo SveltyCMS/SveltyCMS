@@ -40,4 +40,37 @@ describe("plugins-api", () => {
       }),
     );
   });
+
+  it("toggle disables a plugin", async () => {
+    await togglePlugin("my-plugin", false);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/plugins/toggle",
+      expect.objectContaining({
+        body: JSON.stringify({ pluginId: "my-plugin", enabled: false }),
+      }),
+    );
+  });
+
+  it("handles API error response gracefully", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ success: false, message: "Server error" }),
+    });
+
+    const result = await togglePlugin("demo", true);
+    expect(result.success).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("includes CSRF token from cookie", async () => {
+    stubDocumentCookie(() => "csrf_token=custom-value; other=stuff");
+    await togglePlugin("test", true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/plugins/toggle",
+      expect.objectContaining({
+        headers: expect.objectContaining({ "X-CSRF-Token": "custom-value" }),
+      }),
+    );
+  });
 });

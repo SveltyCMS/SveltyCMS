@@ -318,16 +318,20 @@ function spawnTestProcess(
 ): Promise<{ code: number; durationMs: number; output: string }> {
   return new Promise((resolve) => {
     const testStartTime = performance.now();
-    const p = spawn("bun", ["test", `tests/benchmarks/${file}`, "--timeout", "300000"], {
-      stdio: ["inherit", "pipe", "pipe"],
-      shell: process.platform === "win32",
-      env: {
-        ...serverEnv,
-        API_BASE_URL: baseUrl,
-        BENCHMARK_MATRIX: "1",
-        BENCHMARK_RUN_ID: runId,
-      } as Record<string, string>,
-    });
+    const p = spawn(
+      process.platform === "win32" ? "bun.cmd" : "bun",
+      ["test", `tests/benchmarks/${file}`, "--timeout", "300000"],
+      {
+        stdio: ["inherit", "pipe", "pipe"],
+        shell: false,
+        env: {
+          ...serverEnv,
+          API_BASE_URL: baseUrl,
+          BENCHMARK_MATRIX: "1",
+          BENCHMARK_RUN_ID: runId,
+        } as Record<string, string>,
+      },
+    );
 
     let output = "";
     p.stdout.on("data", (d: Buffer) => {
@@ -416,11 +420,15 @@ async function run() {
 
   try {
     const { spawnSync: sync } = await import("node:child_process");
-    const verify = sync("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
-      cwd: process.cwd(),
-      stdio: "pipe",
-      shell: process.platform === "win32",
-    });
+    const verify = sync(
+      process.platform === "win32" ? "bun.cmd" : "bun",
+      ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"],
+      {
+        cwd: process.cwd(),
+        stdio: "pipe",
+        shell: false,
+      },
+    );
     if (verify.status !== 0) {
       console.error(verify.stderr?.toString() || verify.stdout?.toString());
       console.error(
@@ -493,7 +501,7 @@ async function run() {
       const proc = spawn("node", ["build/index.js"], {
         env: serverEnv,
         stdio: "pipe",
-        shell: process.platform === "win32",
+        shell: false,
       });
       serverLogs = "";
       proc.stderr.on("data", (d: Buffer) => {
@@ -535,7 +543,6 @@ async function run() {
         execSync("bun run scripts/setup-system.ts", {
           env: { ...serverEnv, API_BASE_URL: baseUrl, PRESET: "demo" },
           stdio: "pipe",
-          shell: process.platform === "win32",
           timeout: 120_000,
         } as any);
         console.log("OK (CI-fresh wizard)");

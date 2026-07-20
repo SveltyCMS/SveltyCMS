@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/stores/setupStore.test.ts
+ * @file tests/unit/stores/setup-store.test.ts
  * @description Tests for setup wizard store
  *
  * Tests:

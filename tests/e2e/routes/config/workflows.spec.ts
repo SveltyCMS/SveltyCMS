@@ -5,7 +5,7 @@
 
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { deleteWorkflow, seedWorkflow } from "../../helpers/seed";
+import { deleteWorkflow, seedWorkflow } from "../helpers/api";
 import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 25_000;

@@ -9,23 +9,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { unlinkSync } from "node:fs";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 
-// @ts-ignore - optional test config generated at runtime
-const { privateEnv } = (await import("../../../config/private.test").catch(() => ({
-  privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
-}))) as any;
+// File-based adapter — always run (no Docker). Uses an isolated file, not CMS DB_TYPE.
+const describeSQLite = describe;
 
-const isSQLite = privateEnv?.DB_TYPE === "sqlite";
-const describeSQLite = isSQLite ? describe : describe.skip;
-
-const TEST_DB_PATH = "config/database/sveltycms_test_integration.sqlite";
+const TEST_DB_PATH = "config/test-database/sveltycms_test_integration.sqlite";
 
 describeSQLite("SQLite Adapter Integration", () => {
   let db: IDBAdapter | null = null;
   const TEST_TENANT = "test_tenant_sqlite" as any as DatabaseId;
 
   beforeAll(async () => {
-    if (!isSQLite) return;
-
     try {
       const { SQLiteAdapter } = await import("../../../src/databases/sqlite/sqlite-adapter");
       db = new SQLiteAdapter() as any;

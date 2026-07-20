@@ -8,7 +8,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../../helpers/database";
+import { resetAndSeedDatabase } from "../helpers/api";
 import {
   dynamicMasks,
   openLoginSignInForm,

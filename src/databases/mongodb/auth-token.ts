@@ -157,20 +157,46 @@ export class TokenAdapter {
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
 
-      const found = await this.TokenModel.findOneAndDelete(filter).lean();
+      // Only claim non-expired tokens (expiry must be in the claim filter)
+      const claimFilter = {
+        ...filter,
+        expires: { $gt: new Date() },
+        blocked: { $ne: true },
+      };
+      const found = await this.TokenModel.findOneAndDelete(claimFilter).lean();
 
-      if (!found || found.blocked || new Date(found.expires) < new Date()) {
-        return {
-          success: false,
-          message: "Invalid or expired token",
-          error: {
-            code: "TOKEN_INVALID",
-            message: "Token not found or expired",
-          },
-        };
+      if (found) {
+        return { success: true, data: undefined };
       }
 
-      return { success: true, data: undefined };
+      // Diagnose: missing vs expired vs blocked
+      const existing = await this.TokenModel.findOne(filter).lean();
+      if (!existing) {
+        return {
+          success: false,
+          message: "Token not found",
+          error: { code: "TOKEN_NOT_FOUND", message: "Token not found" },
+        };
+      }
+      if (existing.blocked) {
+        return {
+          success: false,
+          message: "Token is blocked",
+          error: { code: "TOKEN_BLOCKED", message: "Token is blocked" },
+        };
+      }
+      if (new Date(existing.expires) < new Date()) {
+        return {
+          success: false,
+          message: "Token has expired. Request a new reset link.",
+          error: { code: "TOKEN_EXPIRED", message: "Token has expired" },
+        };
+      }
+      return {
+        success: false,
+        message: "Invalid or expired token",
+        error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
+      };
     } catch (err) {
       const message = "Token consumption error";
       logger.error(message, err);

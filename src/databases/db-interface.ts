@@ -102,6 +102,12 @@ export interface PaginationOptions {
   sortField?: string;
   user?: User; // Optional user for ownership-based filtering
   filter?: Record<string, any>; // For filtering support
+  /**
+   * Gallery JSON-path expression (e.g. `metadata.camera = Canon`).
+   * SQL/Mongo adapters push `metadata.*` clauses into native JSON queries;
+   * in-memory post-filter still applies for non-native clauses.
+   */
+  jsonPath?: string;
   limit?: number; // fallback for pageSize
   offset?: number; // fallback for page
   sort?: SortOption; // fallback for sortField/sortDirection
@@ -577,7 +583,7 @@ export interface IAuthAdapter {
     userId?: DatabaseId,
     type?: string,
     options?: BaseQueryOptions,
-  ): Promise<DatabaseResult<{ status: boolean; message: string }>>;
+  ): Promise<DatabaseResult<{ status: boolean; message: string; code?: string }>>;
   createRole(role: Role, options?: BaseQueryOptions): Promise<DatabaseResult<Role>>;
   createSession(
     sessionData: {

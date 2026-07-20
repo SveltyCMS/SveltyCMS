@@ -129,6 +129,7 @@ async function ensureLiteRt(): Promise<void> {
     // The WASM files are expected alongside the Worker URL under /ai/wasm/.
     const module = await import(
       /* @vite-ignore */
+      // @ts-expect-error - Dynamic worker import resolved by Vite at build time
       "/ai/wasm/@litertjs-core.js"
     );
 

@@ -89,7 +89,7 @@ export async function runSystemSetup(
         API_BASE_URL: `http://127.0.0.1:${port}`,
       },
       stdio: "inherit",
-      shell: process.platform === "win32",
+      shell: false,
     });
     proc.on("close", (code) => resolve(code === 0));
   });

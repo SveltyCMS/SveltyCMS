@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-19"
+updated: "2026-07-20"
 tags:
   - "testing"
   - "documentation"
@@ -21,9 +21,10 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** July 19, 2026  
-**Source of Truth:** GitHub Actions on the current branch or pull request  
-**Core Gates:** White-box unit tests, black-box integration tests, and Playwright E2E (`bun run test:e2e` = CI-parity preview)  
+**Last Updated:** July 20, 2026  
+**Source of Truth:** `.githooks/*` + `package.json` + GitHub Actions on the current branch/PR  
+**Core Gates:** White-box unit, black-box integration (SQLite locally), Playwright E2E (`bun run test:e2e` = CI-parity preview)  
+**Start here:** `bun run test:doctor` (prints the gate map and runs unit + SQLite integration)  
 **Primary Goal:** [100% three-layer completeness](./three-layer-completeness.mdx) (critical inventory, not vanity line %)  
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data
 
@@ -70,37 +71,38 @@ tags:
 
 ### Running Tests Locally
 
-````bash
-# 1. White-box unit gate (Vitest via vitest.config.ts)
+```bash
+# Single entrypoint: print gate map + unit + SQLite integration
+bun run test:doctor
+bun run test:doctor --list          # map only
+bun run test:doctor --unit-only     # skip integration
+
+# 1. White-box unit (Vitest)
 bun run test:unit
 bun run check
+bun run test:security               # focused hooks security suite
 
-# 2. Production build used by black-box integration and Playwright webServer
-bun run build
-
-# 3. Black-box integration runner (SQLite needs no Docker)
+# 2. Black-box integration (SQLite; harness starts preview + private.test.ts)
+#    Prefers an existing build/; otherwise builds with COMPILE_ALL_ADAPTERS
 bun run test:integration
-# or: bun run scripts/run-integration-tests.ts --db=sqlite
+# or without package build wrapper (if build/ already exists):
+bun test --timeout 300000 tests/integration/
 
-# 4. E2E CI-parity (adapter-node preview :4173 — not Vite)
-bun run test:e2e
-# Dev shortcut only: bun run test:e2e:dev
-bun run scripts/run-integration-tests.ts --db=sqlite --suite=db
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
-
-# 4. Playwright E2E — default is CI-parity (preview :4173)
+# 3. Playwright E2E — CI-parity (preview :4173)
 bun run test:e2e
 # Dev-server shortcut only (Vite :5173 — not CI-identical):
 bun run test:e2e:dev
+# Reuse existing build:
+bun run test:e2e:quick
 
-# 5. Smart runner - auto-detects what to test from git diff
+# 4. Smart runner — auto-detects suites from git diff
 bun run test:smart
 
 # Safety guard for generated test config
 bun run scripts/check-test-db-safety.ts
 
 # Single integration contract against the active test database
-bun test tests/integration/databases/contract.test.ts
+bun test --timeout 300000 tests/integration/databases/contract.test.ts
 
 # Complete Enterprise Performance Matrix
 bun run scripts/benchmark-matrix/index.ts
@@ -123,19 +125,19 @@ docker compose -f tests/docker-compose.yml --profile mariadb up -d
 docker compose -f tests/docker-compose.yml --profile redis up -d
 ```
 
-| Profile | Port | Runner default credentials |
-| :------ | :--- | :------------------------- |
-| `mongodb` | `27017` | no auth (official image default) |
-| `postgresql` | `5432` | `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=sveltycms_test` |
-| `mariadb` | `3306` | `DB_USER=root`, `DB_PASSWORD=mariadb`, `DB_NAME=sveltycms_test` |
-| `redis` | `6379` | Used by benchmark `*-redis` variants |
+| Profile      | Port    | Runner default credentials                                           |
+| :----------- | :------ | :------------------------------------------------------------------- |
+| `mongodb`    | `27017` | no auth (official image default)                                     |
+| `postgresql` | `5432`  | `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=sveltycms_test` |
+| `mariadb`    | `3306`  | `DB_USER=root`, `DB_PASSWORD=mariadb`, `DB_NAME=sveltycms_test`      |
+| `redis`      | `6379`  | Used by benchmark `*-redis` variants                                 |
 
-Run DB-backed suites after the matching profile is healthy:
+Run DB-backed suites after the matching profile is healthy. Integration uses the **in-suite harness** (`tests/integration/harness.ts`) — set `DB_TYPE` (and credentials) then run Bun test:
 
 ```bash
-bun run scripts/run-integration-tests.ts --db=mongodb
-bun run scripts/run-integration-tests.ts --db=postgresql
-bun run scripts/run-integration-tests.ts --db=mariadb
+DB_TYPE=mongodb bun test --timeout 300000 tests/integration/
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/
+DB_TYPE=mariadb bun test --timeout 300000 tests/integration/
 bun run scripts/benchmark-matrix/index.ts --db=postgresql --no-build
 ```
 
@@ -150,49 +152,47 @@ docker compose -f tests/docker-compose.yml --profile redis down
 
 ### Files Used By Each Runner
 
-| Runner | Main config/scripts | Test files | Test-only state |
-| :----- | :------------------ | :--------- | :-------------- |
-| Unit | `vitest.config.ts`, `tests/unit/setup.ts`, `tests/unit/bun-preload.ts` | `tests/unit/**/*.test.ts` | In-memory mocks and `$app` / `$env` aliases under `tests/unit/mocks/` |
-| Integration | `scripts/run-integration-tests.ts`, `scripts/check-test-db-safety.ts` | `tests/integration/**/*.test.ts` | `config/private.test.ts`, `tests/e2e/.auth/test-secret.txt`, `config/collections/test/integration_test_collection.ts`, `.compiledCollections/test/integration_test_collection.js` |
-| E2E | `playwright.config.ts`, `tests/e2e/global.setup.ts`, `tests/e2e/helpers/` | `tests/e2e/**/*.spec.ts`, `tests/e2e/auth.setup.ts` | `config/private.test.ts`, `tests/e2e/.auth/`, temp SQLite DB names containing `e2e` or `test` |
-| Benchmarks | `scripts/benchmark-matrix/`, `tests/benchmarks/modules/benchmark-utils.ts` | `tests/benchmarks/**/*.test.ts` | `bench_tmp_<db>_<pid>` databases, `tests/benchmarks/results/`, `.compiledCollections/test/<workspace>/` |
+| Runner      | Main config/scripts                                                        | Test files                                          | Test-only state                                                                                                         |
+| :---------- | :------------------------------------------------------------------------- | :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| Unit        | `vitest.config.ts`, `tests/unit/setup.ts`, `tests/unit/bun-preload.ts`     | `tests/unit/**/*.test.ts`                           | In-memory mocks and `$app` / `$env` aliases under `tests/unit/mocks/`                                                   |
+| Integration | `tests/integration/harness.ts`, `scripts/check-test-db-safety.ts`          | `tests/integration/**/*.test.ts`                    | `config/private.test.ts`, `tests/e2e/.auth/test-secret.txt`, `config/collections/test/…`, `.compiledCollections/test/…` |
+| E2E         | `playwright.config.ts`, `scripts/run-e2e.ts`, `tests/e2e/helpers/api.ts`   | `tests/e2e/**/*.spec.ts`, `tests/e2e/auth.setup.ts` | `config/private.test.ts`, `tests/e2e/.auth/`, temp SQLite DB names containing `e2e` or `test`                           |
+| Benchmarks  | `scripts/benchmark-matrix/`, `tests/benchmarks/modules/benchmark-utils.ts` | `tests/benchmarks/**/*.test.ts`                     | `bench_tmp_<db>_<pid>` databases, `tests/benchmarks/results/`, `.compiledCollections/test/<workspace>/`                 |
 
 ### Live Config Safety Contract
 
 Local tests and benchmarks must not mutate a user's live CMS setup:
 
-- `config/private.ts` is never renamed, copied from, deleted, or used by local integration tests. `run-integration-tests.ts` builds with `TEST_MODE=true`, so Vite aliases `@config/private` to `config/private.test.ts`.
+- `config/private.ts` is never renamed, copied from, deleted, or used by local integration tests. The integration harness and Vite `TEST_MODE` alias `@config/private` to `config/private.test.ts`.
 - `config/private.test.ts` must contain an isolated DB name. `src/utils/test-db-safety.ts` allows names containing `test`, `bench`, `e2e`, or ending in `_functional`; `scripts/check-test-db-safety.ts` blocks unsafe files.
 - `config/collections/` root and `.compiledCollections/` root are user-owned. Test fixtures go under `config/collections/test/`, tenant-specific test paths such as `config/test-setup-presets/collections/`, or `.compiledCollections/test/<workspace>/`.
-- `bun run ci:local` / full precheck use isolated test config and DBs only — they must never back up/replace or connect through live `config/private.ts` (see `private-config-policy.ts`).
+- `bun run test:doctor` / hooks / CI use isolated test config and DBs only — they must never back up/replace or connect through live `config/private.ts` (see `private-config-policy.ts`). CI may write an ephemeral `private.ts` on the runner only.
 
 ### Tiered Local Testing
 
-SveltyCMS enforces a **three-tier** local testing strategy. All tiers share the task manifest in `scripts/precheck-shared.ts`:
+SveltyCMS enforces a **three-tier** local testing strategy. Source of truth: `.githooks/*` + `package.json` + `.github/workflows/ci.yml`.
 
 ```bash
-# Tier 1: Pre-Commit (automatic, ~2–3s) — lint-staged on staged files + DB safety
+# Tier 1: Pre-Commit (automatic, ~40s) — DB safety → format+lint → lint-staged → unit
 git commit -m "feat: my change"
 
-# Tier 2: Pre-Push (automatic, ~15–45 min) — build + 4-DB integration + benchmarks
+# Tier 2: Pre-Push (automatic, ~5 min) — production build + SQLite integration
 bun run git push origin my-branch
+# Manual equivalent:
+bun run gate
 
-# Tier 3a: Full CI core (manual) — same checks as push, always-on scans
-bun run verify:full
-
-# Tier 3b: Full CI + E2E (manual, ~30–60 min)
-bun run ci:local
-bun run ci:local -- --db=sqlite
-bun run ci:local -- --skip-e2e
-bun run ci:local -- --skip-benchmarks
+# Tier 3: Manual local health (before PR)
+bun run test:doctor                 # unit + SQLite integration + gate map
+bun run test:e2e                    # optional full browser suite
+# Full multi-DB + benches + 6 E2E groups: GitHub Actions only
 ```
 
-| Command | Build | 4-DB integration | Benchmarks | E2E |
-| :------ | :---: | :--------------: | :--------: | :-: |
-| `git push` (hook) | when code changed | when code changed | when code changed | — |
-| `bun run verify:push` | same as hook | same | same | — |
-| `bun run verify:full` | always | always | always | — |
-| `bun run ci:local` | always | always | optional `--skip-benchmarks` | optional `--skip-e2e` |
+| Command                     |   Build    | SQLite integration | Multi-DB / benches / E2E |
+| :-------------------------- | :--------: | :----------------: | :----------------------: |
+| `git commit` (hook)         |     —      |         —          |        unit only         |
+| `git push` / `bun run gate` |   always   |       always       |       — (CI-only)        |
+| `bun run test:doctor`       | if missing |       always       |  optional `--with-e2e`   |
+| GitHub Actions              |   always   |       always       |       full matrix        |
 
 See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for Docker prerequisites, credential parity, and scripts audit.
 
@@ -201,13 +201,14 @@ See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for Docker prerequisit
 The `next` branch workflow currently validates changes in this order:
 
 1. `bootstrap` — Bun install, codegen verification, E2E secret generation.
-2. `format`, `lint`, `check`, `unit`, `security-audit` — White-box quality gates.
-3. `build` — Production bundle generation.
+2. `whitebox` — format, lint, check, unit, CVE audit, secret misuse, deploy-backdoor probe.
+3. `build` — Production bundle (`COMPILE_ALL_ADAPTERS=true`).
 4. `db-tests` — Black-box integration matrix across SQLite, MongoDB, MariaDB, and PostgreSQL.
-5. `bench-core` — Core performance benchmarks per adapter (also runs on pre-push precheck).
-6. `e2e-wizard`, `e2e-auth`, `e2e-app` — Playwright browser validation (local: `bun run ci:local` only).
+5. `bench-core` — Core performance benchmarks per adapter (CI-only; not pre-push).
+6. `e2e-prep` — wizard + auth-setup, then `e2e` × 6 named groups (Playwright).
+7. `all-green` — consolidates job results.
 
-Pre-push precheck mirrors steps 2–5. Only sharded E2E remains GitHub-only unless you run `ci:local`.
+Pre-push locally is **build + SQLite integration only**. Multi-DB, benchmarks, and E2E remain GitHub-only unless you run them manually (`test:e2e`, `DB_TYPE=… bun test tests/integration/`).
 
 This matters because integration and E2E failures are not just "test" failures. They also validate production build output, redirect logic, auth cookies, and database bootstrap behavior.
 
@@ -256,59 +257,59 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 
 ### 🔬 Detailed Audit Module Explanation
 
-| Benchmark                       | Proves                                                                                         | Operational Importance                               | Est. Time |
-| :------------------------------ | :--------------------------------------------------------------------------------------------- | :--------------------------------------------------- | :-------- |
-| **admin-ux-vitality**           | Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.                     | Critical performance audit for UX Vitality.          | ~30s      |
-| **ai-performance**              | Measures the internal CMS tax for AI enrichment and layout generation.                         | Critical performance audit for AI Overhead.          | ~25s      |
-| **api-latency**                 | Measures the base network and HTTP overhead for the simplest possible API calls.               | Critical performance audit for API Latency.          | ~12s      |
-| **auth-performance**            | Measures JWT verification, session retrieval, and permission matrix resolution overhead.       | Critical performance audit for Auth Trace.           | ~18s      |
-| **build-analysis**              | Measures production bundle size, chunk count, and build performance.                           | Critical performance audit for Build.                | ~85s      |
-| **cache-hit-ratio**             | Audits Redis cache hit/miss ratio, invalidation speed, and cold/warm fill performance.         | Critical performance audit for Cache Efficiency.     | ~10s      |
-| **cache-performance**           | Audits the performance gain of the 2-layer Hybrid Cache across various system modules.         | Critical performance audit for Cache.                | ~15s      |
-| **cache-service**               | Benchmarks L1 cache hit latency and pattern invalidation at scale (1k items @ 200k noise).     | Critical performance audit for Cache Internals.      | ~60s      |
-| **chaos-resilience**            | Simulates 500ms database brownouts and measures CMS availability and stability.                | Critical performance audit for Resilience.           | ~60s      |
-| **circuit-breaker-failover**    | Measures system graceful degradation when external services fail.                              | Critical performance audit for Circuit-Breaker.      | ~25s      |
-| **client-journey**              | E2E journey: Login -> List -> View -> Edit -> Save -> Realtime. Measures cumulative latency.   | Critical performance audit for Journey.              | ~60s      |
-| **cold-start-phased**           | Measures the time to READY state (serving traffic) vs WARMED state (background tasks).         | Critical performance audit for Cold Start.           | ~10s      |
-| **concurrency-race**            | Verifies atomic consistency and lost-update protection.                                        | Critical performance audit for Concurrency.          | ~40s      |
-| **content-scale-stress**        | Measures scan performance on 1,000+ files under `.compiledCollections/test/stress/` (isolated).  | Critical performance audit for Content Stress.       | ~45s      |
-| **content-scan**                | Self-Healing scanner over `.compiledCollections/test/scan/` — never touches user root files.   | Critical performance audit for Scan.                 | ~8s       |
-| **content-incremental-reload**  | Incremental vs full reload under `.compiledCollections/test/incremental/` (1k fixtures).       | Critical performance audit for Hot Reload.           | ~4s       |
-| **data-residency-failover**     | Simulates geopolitical boundary crossing and verifies PII field blocking for residency laws.   | Critical performance audit for Data Sovereignty.     | ~15s      |
-| **database-performance**        | Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.   | Critical performance audit for DB Raw p95.           | ~35s      |
-| **dev-dependency-load**         | Measures overhead of the build, sync, and lint toolchain.                                      | Critical performance audit for DX-Tooling.           | ~30s      |
-| **edge-sync**                   | Verifies distributed L1/L2 cache invalidation latency across simulated nodes.                  | Critical performance audit for Edge Sync.            | ~5s       |
-| **failure-propagation**         | Measures system overhead when downstream dependencies (DB/Redis) fail or timeout.              | Critical performance audit for Fast-Fail.            | ~30s      |
-| **graphql-api-performance**     | Resolver execution time and throughput for common queries.                                     | Critical performance audit for GraphQL.              | ~25s      |
-| **graphql-stress**              | High-concurrency GraphQL query stress test for resolver efficiency.                            | Critical performance audit for GQL Stress.           | ~60s      |
-| **hooks-performance**           | High-resolution micro-benchmarks (µs) for individual middleware layers.                        | Critical performance audit for Hooks Trace.          | ~12s      |
-| **index-pressure**              | Measures complex filtering and sorting performance on 100,000+ entry collections.              | Critical performance audit for Index Pressure.       | ~180s     |
-| **local-api-performance**       | Measures LocalCMS SDK overhead vs direct adapter calls to verify zero-tax dispatching.         | Critical performance audit for SDK Tax.              | ~60s      |
-| **media-performance**           | Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.            | Critical performance audit for Media.                | ~50s      |
-| **media-upload-stress**         | Stress-tests large file upload throughput, concurrent transfers, and streaming efficiency.     | Critical performance audit for Upload Speed.         | ~180s     |
-| **memory-stability**            | Long-running soak test to identify memory leaks and GC pressure.                               | Critical performance audit for Memory.               | ~70s      |
-| **migration-scale**             | Measures system ingestion limits and read performance on 10,000+ entries.                      | Critical performance audit for Migration.            | ~120s     |
-| **mixed-workload**              | Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.                          | Critical performance audit for Mixed.                | ~60s      |
-| **multi-tenant-performance**    | Stress-tests cross-tenant isolation and security boundary latency.                             | Critical performance audit for Tenancy.              | ~45s      |
-| **negative-cache**              | Benchmarks 404-miss response times and cache lookup speedup.                                   | Critical performance audit for Negative Cache.       | ~20s      |
-| **openapi-performance**         | Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.                  | Critical performance audit for OpenAPI.              | ~12s      |
-| **production-day**              | Simulates a realistic multi-user workload: 40% list, 20% read, 25% update, 10% media, 5% GQL.  | Critical performance audit for Production Stability. | ~120s     |
-| **realtime-performance**        | Benchmarks WebSocket connection/broadcast latency.                                             | Critical performance audit for Real-Time.            | ~15s      |
-| **relational-performance**      | Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).        | Critical performance audit for Relational.           | ~35s      |
-| **rest-api-performance**        | End-to-end throughput and latency of the unified REST dispatcher.                              | Critical performance audit for REST.                 | ~25s      |
-| **revision-stress**             | Benchmarks performance degradation as document history grows to 100+ versions.                 | Critical performance audit for Revision Stress.      | ~45s      |
-| **right-to-be-forgotten-audit** | Measures performance of deep-deletion across all linked tables.                                | Critical performance audit for GDPR.                 | ~35s      |
-| **security-audit**              | Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.                | Critical performance audit for Security.             | ~20s      |
-| **seo-performance**             | E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.                | Critical performance audit for SEO.                  | ~30s      |
-| **setup-proxy**                 | Measures cold-start initialization latency and proxy header (X-Forwarded-\*) parsing overhead. | Critical performance audit for Setup Security.       | ~15s      |
-| **state-machine-transition**    | Validates rapid IDLE -> READY self-healing cycles.                                             | Critical performance audit for State-Machine.        | ~15s      |
-| **telemetry-performance**       | Measures the overhead of telemetry data collection and cryptographic signing.                  | Critical performance audit for Telemetry.            | ~8s       |
-| **temporal-integrity**          | Verifies timezone normalization and deterministic UTC persistence.                             | Critical performance audit for Temporal.             | ~20s      |
-| **throttling-backoff-stress**   | Measures rate-limiting consistency under 10x design load.                                      | Critical performance audit for Throttling.           | ~30s      |
-| **transaction-acid**            | Measures commit/rollback latency and transaction isolation performance.                        | Critical performance audit for ACID.                 | ~25s      |
-| **truth-latency**               | The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).            | Critical performance audit for Truth Audit.          | ~15s      |
-| **websocket-broadcast**         | Measures svelte-realtime WebSocket stream broadcast latency and handshake timing.              | Critical performance audit for Real-Time Broadcast.  | ~20s      |
-| **widget-performance**          | Audits server-side processing cost of built-in widgets (Input, RichText, Relation).            | Critical performance audit for Widgets.              | ~25s      |
+| Benchmark                       | Proves                                                                                          | Operational Importance                               | Est. Time |
+| :------------------------------ | :---------------------------------------------------------------------------------------------- | :--------------------------------------------------- | :-------- |
+| **admin-ux-vitality**           | Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.                      | Critical performance audit for UX Vitality.          | ~30s      |
+| **ai-performance**              | Measures the internal CMS tax for AI enrichment and layout generation.                          | Critical performance audit for AI Overhead.          | ~25s      |
+| **api-latency**                 | Measures the base network and HTTP overhead for the simplest possible API calls.                | Critical performance audit for API Latency.          | ~12s      |
+| **auth-performance**            | Measures JWT verification, session retrieval, and permission matrix resolution overhead.        | Critical performance audit for Auth Trace.           | ~18s      |
+| **build-analysis**              | Measures production bundle size, chunk count, and build performance.                            | Critical performance audit for Build.                | ~85s      |
+| **cache-hit-ratio**             | Audits Redis cache hit/miss ratio, invalidation speed, and cold/warm fill performance.          | Critical performance audit for Cache Efficiency.     | ~10s      |
+| **cache-performance**           | Audits the performance gain of the 2-layer Hybrid Cache across various system modules.          | Critical performance audit for Cache.                | ~15s      |
+| **cache-service**               | Benchmarks L1 cache hit latency and pattern invalidation at scale (1k items @ 200k noise).      | Critical performance audit for Cache Internals.      | ~60s      |
+| **chaos-resilience**            | Simulates 500ms database brownouts and measures CMS availability and stability.                 | Critical performance audit for Resilience.           | ~60s      |
+| **circuit-breaker-failover**    | Measures system graceful degradation when external services fail.                               | Critical performance audit for Circuit-Breaker.      | ~25s      |
+| **client-journey**              | E2E journey: Login -> List -> View -> Edit -> Save -> Realtime. Measures cumulative latency.    | Critical performance audit for Journey.              | ~60s      |
+| **cold-start-phased**           | Measures the time to READY state (serving traffic) vs WARMED state (background tasks).          | Critical performance audit for Cold Start.           | ~10s      |
+| **concurrency-race**            | Verifies atomic consistency and lost-update protection.                                         | Critical performance audit for Concurrency.          | ~40s      |
+| **content-scale-stress**        | Measures scan performance on 1,000+ files under `.compiledCollections/test/stress/` (isolated). | Critical performance audit for Content Stress.       | ~45s      |
+| **content-scan**                | Self-Healing scanner over `.compiledCollections/test/scan/` — never touches user root files.    | Critical performance audit for Scan.                 | ~8s       |
+| **content-incremental-reload**  | Incremental vs full reload under `.compiledCollections/test/incremental/` (1k fixtures).        | Critical performance audit for Hot Reload.           | ~4s       |
+| **data-residency-failover**     | Simulates geopolitical boundary crossing and verifies PII field blocking for residency laws.    | Critical performance audit for Data Sovereignty.     | ~15s      |
+| **database-performance**        | Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.    | Critical performance audit for DB Raw p95.           | ~35s      |
+| **dev-dependency-load**         | Measures overhead of the build, sync, and lint toolchain.                                       | Critical performance audit for DX-Tooling.           | ~30s      |
+| **edge-sync**                   | Verifies distributed L1/L2 cache invalidation latency across simulated nodes.                   | Critical performance audit for Edge Sync.            | ~5s       |
+| **failure-propagation**         | Measures system overhead when downstream dependencies (DB/Redis) fail or timeout.               | Critical performance audit for Fast-Fail.            | ~30s      |
+| **graphql-api-performance**     | Resolver execution time and throughput for common queries.                                      | Critical performance audit for GraphQL.              | ~25s      |
+| **graphql-stress**              | High-concurrency GraphQL query stress test for resolver efficiency.                             | Critical performance audit for GQL Stress.           | ~60s      |
+| **hooks-performance**           | High-resolution micro-benchmarks (µs) for individual middleware layers.                         | Critical performance audit for Hooks Trace.          | ~12s      |
+| **index-pressure**              | Measures complex filtering and sorting performance on 100,000+ entry collections.               | Critical performance audit for Index Pressure.       | ~180s     |
+| **local-api-performance**       | Measures LocalCMS SDK overhead vs direct adapter calls to verify zero-tax dispatching.          | Critical performance audit for SDK Tax.              | ~60s      |
+| **media-performance**           | Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.             | Critical performance audit for Media.                | ~50s      |
+| **media-upload-stress**         | Stress-tests large file upload throughput, concurrent transfers, and streaming efficiency.      | Critical performance audit for Upload Speed.         | ~180s     |
+| **memory-stability**            | Long-running soak test to identify memory leaks and GC pressure.                                | Critical performance audit for Memory.               | ~70s      |
+| **migration-scale**             | Measures system ingestion limits and read performance on 10,000+ entries.                       | Critical performance audit for Migration.            | ~120s     |
+| **mixed-workload**              | Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.                           | Critical performance audit for Mixed.                | ~60s      |
+| **multi-tenant-performance**    | Stress-tests cross-tenant isolation and security boundary latency.                              | Critical performance audit for Tenancy.              | ~45s      |
+| **negative-cache**              | Benchmarks 404-miss response times and cache lookup speedup.                                    | Critical performance audit for Negative Cache.       | ~20s      |
+| **openapi-performance**         | Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.                   | Critical performance audit for OpenAPI.              | ~12s      |
+| **production-day**              | Simulates a realistic multi-user workload: 40% list, 20% read, 25% update, 10% media, 5% GQL.   | Critical performance audit for Production Stability. | ~120s     |
+| **realtime-performance**        | Benchmarks WebSocket connection/broadcast latency.                                              | Critical performance audit for Real-Time.            | ~15s      |
+| **relational-performance**      | Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).         | Critical performance audit for Relational.           | ~35s      |
+| **rest-api-performance**        | End-to-end throughput and latency of the unified REST dispatcher.                               | Critical performance audit for REST.                 | ~25s      |
+| **revision-stress**             | Benchmarks performance degradation as document history grows to 100+ versions.                  | Critical performance audit for Revision Stress.      | ~45s      |
+| **right-to-be-forgotten-audit** | Measures performance of deep-deletion across all linked tables.                                 | Critical performance audit for GDPR.                 | ~35s      |
+| **security-audit**              | Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.                 | Critical performance audit for Security.             | ~20s      |
+| **seo-performance**             | E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.                 | Critical performance audit for SEO.                  | ~30s      |
+| **setup-proxy**                 | Measures cold-start initialization latency and proxy header (X-Forwarded-\*) parsing overhead.  | Critical performance audit for Setup Security.       | ~15s      |
+| **state-machine-transition**    | Validates rapid IDLE -> READY self-healing cycles.                                              | Critical performance audit for State-Machine.        | ~15s      |
+| **telemetry-performance**       | Measures the overhead of telemetry data collection and cryptographic signing.                   | Critical performance audit for Telemetry.            | ~8s       |
+| **temporal-integrity**          | Verifies timezone normalization and deterministic UTC persistence.                              | Critical performance audit for Temporal.             | ~20s      |
+| **throttling-backoff-stress**   | Measures rate-limiting consistency under 10x design load.                                       | Critical performance audit for Throttling.           | ~30s      |
+| **transaction-acid**            | Measures commit/rollback latency and transaction isolation performance.                         | Critical performance audit for ACID.                 | ~25s      |
+| **truth-latency**               | The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).             | Critical performance audit for Truth Audit.          | ~15s      |
+| **websocket-broadcast**         | Measures svelte-realtime WebSocket stream broadcast latency and handshake timing.               | Critical performance audit for Real-Time Broadcast.  | ~20s      |
+| **widget-performance**          | Audits server-side processing cost of built-in widgets (Input, RichText, Relation).             | Critical performance audit for Widgets.              | ~25s      |
 
 ---
 
@@ -320,7 +321,7 @@ SveltyCMS uses a strict isolation strategy so tests **never** touch production c
 graph TD
     subgraph levels [Testing Levels]
         Unit[Unit Tests<br/>tests/unit — bun-preload mocks]
-        Int[Integration<br/>run-integration-tests.ts]
+        Int[Integration<br/>harness + bun test]
         E2E[E2E<br/>Playwright + temp DB]
         Bench[Benchmark Matrix<br/>child process + bench_tmp DB]
     end
@@ -350,16 +351,16 @@ graph TD
 
 ### Isolation Guarantees by Artifact
 
-| Artifact | Unit | Integration | E2E | Benchmark |
-| :------- | :--: | :---------: | :-: | :-------: |
-| **config/private.ts** | Never touched | Never touched locally | Never touched in TEST_MODE | Never touched |
-| **config/private.test.ts** | bun-preload mocks | Auto-generated | Generated test config | `writeTestConfig` |
-| **config/collections/** (root) | Never reads | Never reads | Never reads | Never writes; matrix purge removes known benchmark debris only |
-| **config/collections/test/** | Never reads | Writes `integration_test_collection.ts` | Never reads | Benchmark TS sources (if any) |
-| **.compiledCollections/** (root) | Never reads | Never reads | Never reads | Read-only for user files; purge removes known benchmark debris only |
-| **.compiledCollections/test/** | Never reads | Integration fixture JS | Never reads | Scan/stress/incremental workspaces only |
-| **User database** | In-memory mocks | Temp DB only | Temp DB only | `bench_tmp_<db>_<pid>` |
-| **Content store** | Mocked singleton | Per-process | Per-browser | Per matrix server + temp DB |
+| Artifact                         |       Unit        |               Integration               |            E2E             |                              Benchmark                              |
+| :------------------------------- | :---------------: | :-------------------------------------: | :------------------------: | :-----------------------------------------------------------------: |
+| **config/private.ts**            |   Never touched   |          Never touched locally          | Never touched in TEST_MODE |                            Never touched                            |
+| **config/private.test.ts**       | bun-preload mocks |             Auto-generated              |   Generated test config    |                          `writeTestConfig`                          |
+| **config/collections/** (root)   |    Never reads    |               Never reads               |        Never reads         |   Never writes; matrix purge removes known benchmark debris only    |
+| **config/collections/test/**     |    Never reads    | Writes `integration_test_collection.ts` |        Never reads         |                    Benchmark TS sources (if any)                    |
+| **.compiledCollections/** (root) |    Never reads    |               Never reads               |        Never reads         | Read-only for user files; purge removes known benchmark debris only |
+| **.compiledCollections/test/**   |    Never reads    |         Integration fixture JS          |        Never reads         |               Scan/stress/incremental workspaces only               |
+| **User database**                |  In-memory mocks  |              Temp DB only               |        Temp DB only        |                       `bench_tmp_<db>_<pid>`                        |
+| **Content store**                | Mocked singleton  |               Per-process               |        Per-browser         |                     Per matrix server + temp DB                     |
 
 > [!IMPORTANT]
 > Local `TEST_MODE` uses `config/private.test.ts` as the only file-based private config. CI may create an ephemeral `config/private.ts` only on fresh runners for build parity; local developer workspaces must not rely on or mutate the live file.
@@ -398,12 +399,12 @@ graph TD
 
 ### 🟢 1. Unit Test Breakdown (White-Box)
 
-| Test Category        | Status         | Pass Rate | Tests   |
-| :------------------- | :------------- | :-------- | :------ |
-| Unit Tests (Core)    | ✅ Passing     | 100%      | 1,293+  |
-| Utility Functions    | ✅ Passing     | 100%      | (incl.) |
-| Widget Validation    | ✅ Passing     | 100%      | (incl.) |
-| Stores & Hooks       | ✅ Passing     | 100%      | (incl.) |
+| Test Category        | Status         | Pass Rate | Tests      |
+| :------------------- | :------------- | :-------- | :--------- |
+| Unit Tests (Core)    | ✅ Passing     | 100%      | 1,293+     |
+| Utility Functions    | ✅ Passing     | 100%      | (incl.)    |
+| Widget Validation    | ✅ Passing     | 100%      | (incl.)    |
+| Stores & Hooks       | ✅ Passing     | 100%      | (incl.)    |
 | **TOTAL UNIT TESTS** | **✅ Passing** | **100%**  | **1,293+** |
 
 ### 🟡 2. Integration & E2E Tests (Black-Box)
@@ -467,4 +468,7 @@ bun run test:unit
 - **[Test Status (dashboard)](./test-status.mdx)** — live health, open gaps, commands
 - [Test Status Archive](./test-status-archive.mdx) — inventories & history
 - [Widget Coverage](./widget-test-coverage.mdx)
-````
+
+```
+
+```

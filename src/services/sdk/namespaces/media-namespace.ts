@@ -5,6 +5,7 @@
 
 import { MediaService } from "@utils/media/media-service.server";
 import { AppError } from "@utils/error-handling";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { LRUCache } from "lru-cache";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
@@ -102,6 +103,11 @@ export class MediaNamespace {
   async find(options: FindOptions = {}): Promise<DatabaseResult<any>> {
     const { tenantId, limit = 100, folderId, recursive = false, prefix } = options;
 
+    // Mirror collections-namespace: fail closed when multi-tenant and no tenant scope
+    if (isMultiTenantEnabled() && !tenantId) {
+      throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
+    }
+
     const cacheKey = `${tenantId ?? "global"}:media:folder:${folderId ?? "root"}:${limit}:${recursive}`;
     if (MediaNamespace._requestCache.has(cacheKey)) {
       return MediaNamespace._requestCache.get(cacheKey);
@@ -145,6 +151,9 @@ export class MediaNamespace {
     if (!fileId) throw new AppError("File ID is required", 400);
 
     const { tenantId, prefix } = options;
+    if (isMultiTenantEnabled() && !tenantId) {
+      throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
+    }
     const cacheKey = `${tenantId ?? "global"}:media:${fileId}`;
 
     if (MediaNamespace._requestCache.has(cacheKey)) {

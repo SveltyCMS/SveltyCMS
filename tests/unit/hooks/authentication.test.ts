@@ -126,19 +126,27 @@ describe("handleAuthentication Middleware", () => {
 
   describe("Tenant Isolation", () => {
     it("should reject session from different tenant", async () => {
+      // Pre-set request tenant (as multi-tenant middleware would). Isolation does
+      // not require MULTI_TENANT flag once both sides have tenantIds.
+      const base = createMockEvent("/dashboard", "valid-session");
       const event = {
-        ...createMockEvent("/dashboard", "valid-session"),
-        locals: { user: null, tenantId: "t2" },
+        ...base,
+        locals: { ...base.locals, user: null, tenantId: "t2" },
       } as any;
       setupSessionMock({ _id: "user1", email: "test@test.com", role: "editor", tenantId: "t1" });
       const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+
       await expect(handleAuthentication({ event, resolve })).rejects.toThrow(/tenant/i);
+      expect(resolve).not.toHaveBeenCalled();
+      // Session cookie cleared so the browser cannot keep replaying the mismatch
+      expect(event.cookies.delete).toHaveBeenCalled();
     });
 
     it("should allow global admin to access any tenant", async () => {
+      const base = createMockEvent("/dashboard", "admin-session");
       const event = {
-        ...createMockEvent("/dashboard", "admin-session"),
-        locals: { user: null, tenantId: "t2" },
+        ...base,
+        locals: { ...base.locals, user: null, tenantId: "t2" },
       } as any;
       setupSessionMock({
         _id: "admin1",
@@ -150,6 +158,7 @@ describe("handleAuthentication Middleware", () => {
       const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
       await handleAuthentication({ event, resolve });
       expect(event.locals.user).not.toBeNull();
+      expect(resolve).toHaveBeenCalled();
     });
   });
 

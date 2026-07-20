@@ -30,12 +30,12 @@ SveltyCMS separates **user live collection data** from **benchmark and test fixt
 
 Benchmark modules use named workspaces under `test/`:
 
-| Workspace     | Test file                                             | Purpose                                |
-| :------------ | :---------------------------------------------------- | :------------------------------------- |
-| `scan`        | `tests/benchmarks/content-scan.test.ts`               | Self-healing scanner (150+ mock files) |
-| `stress`      | `tests/benchmarks/content-scale-stress.test.ts`       | 1,000-file scale stress                |
-| `incremental` | `tests/benchmarks/content-incremental-reload.test.ts` | Surgical vs full reload                |
-| `integration` | `scripts/run-integration-tests.ts`                    | CI integration fixture                 |
+| Workspace     | Test file                                                      | Purpose                                |
+| :------------ | :------------------------------------------------------------- | :------------------------------------- |
+| `scan`        | `tests/benchmarks/content-scan.test.ts`                        | Self-healing scanner (150+ mock files) |
+| `stress`      | `tests/benchmarks/content-scale-stress.test.ts`                | 1,000-file scale stress                |
+| `incremental` | `tests/benchmarks/content-incremental-reload.test.ts`          | Surgical vs full reload                |
+| `integration` | `tests/integration/harness.ts` + `bun test tests/integration/` | CI / local integration fixture         |
 
 ### API helpers
 

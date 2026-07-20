@@ -18,10 +18,12 @@ tags:
 > **This is the archive.** For the human-readable live dashboard, see **[Test Status](./test-status.mdx)**.  
 > Exact pass counts and CI health: **GitHub Actions** on the current branch/PR.  
 > Content below is a historical detail dump (integration/unit inventories, resolved gaps, completed initiatives).
+>
+> **Pipeline truth (2026-07):** Integration runs via `tests/integration/harness.ts` + `bun test tests/integration/` (not `run-integration-tests.ts`). Local gates are `.githooks/*` + `bun run gate` / `bun run test:doctor`. Names like `precheck.ts`, `ci:local`, `verify:full`, and `security-regression.ts` are **historical** and do not exist on disk.
 
 # SveltyCMS Test Coverage — Archive & Detail
 
-## 1. Black-Box Integration Tests (`scripts/run-integration-tests.ts`)
+## 1. Black-Box Integration Tests (harness + `bun test tests/integration/`)
 
 | Metric                      | Value                                                   |
 | --------------------------- | ------------------------------------------------------- |
@@ -539,7 +541,7 @@ Manifest: `scripts/precheck-shared.ts` · Orchestrator: `scripts/precheck.ts`
 | Slop + Import validation  | pre-push                           | ~1s           | File naming, a11y, stale imports                                                              |
 | Full Unit Tests           | pre-push (**always**)              | ~17s          | All 2,194 Vitest specs (251 files)                                                            |
 | Security Regression Tests | pre-commit + pre-push              | ~250ms        | 130 tests from hooks + permissions + RBAC suites (deduplicated via `--exclude` between tiers) |
-| P0 Coverage Validation    | pre-push (when code changed)       | ~1.5s         | Validates all 14 P0 items have passing tests via `validate-p0-coverage.ts`                    |
+| P0 Coverage Validation    | pre-push (when code changed)       | ~1.5s         | Validates all 14 P0 items have passing tests via `critical-test-paths.ts`                     |
 | Production Build          | pre-push (when code/infra changed) | ~2–5 min      | `COMPILE_ALL_ADAPTERS` build integrity + SHA256 checksum verification                         |
 | Integration × 4           | pre-push (when code/infra changed) | ~3 min each   | SQLite, MongoDB, MariaDB, PostgreSQL — 54 spec files incl. multi-DB contract test             |
 | Core Benchmarks × 4       | pre-push (when code/infra changed) | ~2–5 min each | `bench-core` parity (`run-core-benchmarks.ts`) — with sanitizer                               |
@@ -591,7 +593,7 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 | ✅ **Namespace ownership depth** (resolved)                  | Now covered by namespace-ownership.test.ts (6 tests: verifies test files actually contain tests, not just file existence; contract gates)                                                                                                                                                                  | —         |
 | ✅ **Security tests surfaced in CI** (resolved)              | Now a standalone Security Regression Tests task (123 tests) running in pre-commit AND pre-push via `precheck-shared.ts`, deduplicated across tiers with `--exclude`                                                                                                                                        | —         |
 | ✅ **CI scorecard** (resolved)                               | Per-DB markdown table + JSON summary emitted to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; visible in every CI run's annotations                                                                                                                                                                 | —         |
-| ✅ **P0 journey tracking** (resolved)                        | Now covered by `p0-manifest.ts` (14 P0 items across 20 test files) + `validate-p0-coverage.ts` automated validation in pre-push (`~1.5s`)                                                                                                                                                                  | —         |
+| ✅ **P0 journey tracking** (resolved)                        | Now covered by `critical-test-paths.ts` (14 P0 items across 20 test files, manifest + validation combined) in pre-push (`~1.5s`). The previous standalone `validate-p0-coverage.ts` was a ghost reference — it never existed on disk                                                                       | —         |
 | ✅ **Build artifact integrity verification** (resolved)      | SHA256 checksum generated on build artifact upload and verified on download in `ci.yml`; mismatch fails the job with checksum diff logged                                                                                                                                                                  | —         |
 | ✅ **`bun:test` imports** (resolved)                         | All 43 affected files migrated from `bun:test` to `vitest` imports; `bun-preload.ts` shim retained for `bun test` compatibility                                                                                                                                                                            | —         |
 | ✅ **Website Starter test coverage** (resolved)              | Unit: Svedit helpers, homepage seed, preview utils, license gate, protocol (12 tests). Integration: website preset files. E2E: `site-starter.spec.ts` (3 tests)                                                                                                                                            | —         |
@@ -607,7 +609,7 @@ Manual runs: `bun run verify:push` (push tier), `bun run verify:full` (full tier
 
 1. ✅ **Multi-DB contract test** — 26 tests across 6 security gates (Auth, Collection CRUD, User Batch, Setup Gating, Fail-Closed, Media Permissions) running on all 4 adapters; single `contract.test.ts` file
 2. ✅ **CI scorecard** — per-DB markdown table + JSON summary written to `GITHUB_STEP_SUMMARY` in `run-integration-tests.ts`; each adapter run emits pass/fail/failures for every spec
-3. ✅ **P0 tracking** — 14 P0 items across 20 test files with automated validation via `validate-p0-coverage.ts` in pre-push (`~1.5s`); manifest in `p0-manifest.ts`
+3. ✅ **P0 tracking** — 14 P0 items across 20 test files with automated validation via `critical-test-paths.ts` in pre-push (`~1.5s`); manifest and validation combined in single file
 4. ✅ **Namespace ownership depth checks** — `namespace-ownership.test.ts` (6 tests) verifies test files actually contain tests, not just file existence; validates multi-DB contract gates
 5. ✅ **Security regression tests** — 123 tests (defense-in-depth, auth, authorization, builder RBAC, namespace-ownership) running in pre-commit AND pre-push; deduplicated across tiers via `--exclude` flag
 6. ✅ **Build artifact integrity** — SHA256 checksum generated on upload and verified on download in `ci.yml`; checksum mismatch fails the job with diff logged

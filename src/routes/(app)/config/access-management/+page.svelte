@@ -120,7 +120,8 @@ beforeNavigate(({ cancel }) => {
 
 <AdminPageShell title="Access Management" icon="mdi:shield-account-outline" showBackButton={true} backUrl="/config">
 	{#snippet actions()}
-		<StickyActions data-testid="access-mgmt-actions">
+		<div data-testid="access-mgmt-actions">
+		<StickyActions>
 		<Button variant="tertiary"
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
@@ -143,6 +144,7 @@ beforeNavigate(({ cancel }) => {
 			Reset
 		</Button>
 		</StickyActions>
+		</div>
 	{/snippet}
 
 	<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs" data-testid="access-mgmt-page">
@@ -154,7 +156,8 @@ beforeNavigate(({ cancel }) => {
 		</div>
 
 		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
-			<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800" data-testid="access-mgmt-tabs">
+			<div data-testid="access-mgmt-tabs">
+			<Tabs.List class="flex justify-around text-tertiary-500 dark:text-primary-500 border-b border-surface-200-800">
 				<Tabs.Trigger value="0" class="flex-1" data-testid="access-tab-permissions" aria-current={currentTab === '0' ? 'page' : undefined}>
 					<div class="flex items-center justify-center gap-1 py-4">
 						<iconify-icon icon="mdi:shield-lock-outline" width={24}></iconify-icon>
@@ -180,6 +183,7 @@ beforeNavigate(({ cancel }) => {
 					</div>
 				</Tabs.Trigger>
 			</Tabs.List>
+			</div>
 
 			<Tabs.Content value="0"><div class="p-2"><Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} /></div></Tabs.Content>
 			<Tabs.Content value="1"

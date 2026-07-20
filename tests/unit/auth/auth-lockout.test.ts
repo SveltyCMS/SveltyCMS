@@ -1,266 +1,238 @@
 /**
- * @file tests/unit/auth-lockout.test.ts
- * @description Tests for account lockout and session timeout security features
+ * @file tests/unit/auth/auth-lockout.test.ts
+ * @description Whitebox proofs for Auth.authenticate lockout + password strength.
  *
- * Tests:
- * - Account lockout (block/unblock users)
- * - Session timeout validation
- * - Session expiration handling
+ * Uses the **real** Auth class with an in-memory adapter/session store.
+ * Does not mock Auth, CacheService, or ensureFullInitialization — only the
+ * DB edge (db.auth.*) that Auth delegates to.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Auth } from "@src/databases/auth";
+import type { SessionStore, User } from "@src/databases/auth/types";
+import { hashPassword } from "@utils/security/crypto";
+import { dateToISODateString } from "@src/utils/date";
+import { createLockedUser } from "./utils/auth-test-utils";
 
-// Mock database adapter for testing lockout logic
-// In production, these would test against real DB adapters
+vi.mock("@src/services/core/settings-service", () => ({
+  getPrivateSettingSync: vi.fn((key: string) => {
+    if (key === "PASSWORD_MIN_LENGTH") return 8;
+    if (key === "MULTI_TENANT") return false;
+    return null;
+  }),
+  getPublicSettingSync: vi.fn(() => undefined),
+  getPrivateSetting: vi.fn(async () => null),
+  getPublicSetting: vi.fn(async () => null),
+}));
 
-describe("Account Lockout Security", () => {
-  // Test user model lockout fields
-  const mockUserWithLockout = {
-    id: "user-123",
-    email: "test@example.com",
-    blocked: false,
-    lockoutUntil: null as Date | null,
-    failedAttempts: 0,
+function createMemorySessionStore(): SessionStore {
+  const map = new Map<string, { user: User; expires: string }>();
+  return {
+    async close() {
+      map.clear();
+    },
+    async delete(sessionId) {
+      map.delete(String(sessionId));
+    },
+    async deletePattern() {
+      return 0;
+    },
+    async get(sessionId) {
+      return map.get(String(sessionId))?.user ?? null;
+    },
+    async set(sessionId, user, expiration) {
+      map.set(String(sessionId), { user, expires: expiration });
+    },
+    async validateWithDB(sessionId, dbValidationFn) {
+      return (await dbValidationFn(sessionId)) ?? map.get(String(sessionId))?.user ?? null;
+    },
   };
+}
 
-  it("should track failed login attempts", () => {
-    // Simulate failed login attempts
-    mockUserWithLockout.failedAttempts = 1;
-    expect(mockUserWithLockout.failedAttempts).toBe(1);
+function createAuthHarness(userSeed: Partial<User> & { password: string }) {
+  const users = new Map<string, User>();
+  const user: User = {
+    _id: (userSeed._id as any) || "user-1",
+    email: userSeed.email || "user@test.com",
+    role: (userSeed.role as any) || "editor",
+    password: userSeed.password,
+    failedAttempts: userSeed.failedAttempts ?? 0,
+    lockoutUntil: userSeed.lockoutUntil ?? null,
+    blocked: userSeed.blocked ?? false,
+  } as User;
+  users.set(String(user._id), user);
+  users.set(user.email, user);
 
-    mockUserWithLockout.failedAttempts = 3;
-    expect(mockUserWithLockout.failedAttempts).toBe(3);
-
-    mockUserWithLockout.failedAttempts = 5;
-    expect(mockUserWithLockout.failedAttempts).toBe(5);
+  const updateUserAttributes = vi.fn(async (id: string, attrs: Partial<User>) => {
+    const existing = users.get(String(id));
+    if (!existing) return { success: false };
+    Object.assign(existing, attrs);
+    users.set(existing.email, existing);
+    return { success: true, data: true };
   });
 
-  it("should block user account", () => {
-    // Admin blocks user
-    mockUserWithLockout.blocked = true;
-    mockUserWithLockout.lockoutUntil = new Date();
+  const createSession = vi.fn(async (sessionData: any) => ({
+    success: true,
+    data: {
+      _id: "sess-1",
+      user_id: sessionData.user_id,
+      expires: sessionData.expires,
+      tenantId: sessionData.tenantId ?? null,
+    },
+  }));
 
-    expect(mockUserWithLockout.blocked).toBe(true);
-    expect(mockUserWithLockout.lockoutUntil).not.toBeNull();
+  const dbAdapter = {
+    auth: {
+      getUserByEmail: vi.fn(async ({ email }: { email: string }) => {
+        const found = users.get(email.trim().toLowerCase()) ?? null;
+        return { success: true, data: found };
+      }),
+      getUserById: vi.fn(async (id: string) => {
+        const found = users.get(String(id)) ?? null;
+        return { success: true, data: found };
+      }),
+      updateUserAttributes,
+      createSession,
+      createUser: vi.fn(async (data: Partial<User>) => ({
+        success: true,
+        data: { _id: "new-user", ...data },
+      })),
+    },
+  } as any;
+
+  const auth = new Auth(dbAdapter, createMemorySessionStore());
+  return { auth, dbAdapter, updateUserAttributes, createSession, users, user };
+}
+
+describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
+  let passwordHash: string;
+
+  beforeEach(async () => {
+    passwordHash = await hashPassword("ValidPass1!");
   });
 
-  it("should unblock user account", () => {
-    // Admin unblocks user
-    mockUserWithLockout.blocked = false;
-    mockUserWithLockout.lockoutUntil = null;
-    mockUserWithLockout.failedAttempts = 0;
+  it("rejects authentication while account is locked", async () => {
+    const locked = createLockedUser(5, 15);
+    const { auth, createSession } = createAuthHarness({
+      _id: locked._id,
+      email: locked.email,
+      password: passwordHash,
+      failedAttempts: locked.failedAttempts,
+      lockoutUntil: dateToISODateString(locked.lockoutUntil!),
+      blocked: true,
+    });
 
-    expect(mockUserWithLockout.blocked).toBe(false);
-    expect(mockUserWithLockout.lockoutUntil).toBeNull();
-    expect(mockUserWithLockout.failedAttempts).toBe(0);
+    const result = await auth.authenticate(locked.email, "ValidPass1!");
+    // Auth.authenticate catches HttpError(423) and returns null (no session leak).
+    expect(result).toBeNull();
+    expect(createSession).not.toHaveBeenCalled();
   });
 
-  it("should lock account until specific time", () => {
-    // Lock until 30 minutes from now
-    const lockoutDuration = 30 * 60 * 1000; // 30 minutes
-    const lockoutUntil = new Date(Date.now() + lockoutDuration);
+  it("increments failedAttempts and locks after 5 wrong passwords", async () => {
+    const { auth, updateUserAttributes, user } = createAuthHarness({
+      email: "fail@test.com",
+      password: passwordHash,
+      failedAttempts: 4,
+    });
 
-    mockUserWithLockout.blocked = true;
-    mockUserWithLockout.lockoutUntil = lockoutUntil;
+    const result = await auth.authenticate("fail@test.com", "WrongPass1!");
+    expect(result).toBeNull();
 
-    expect(mockUserWithLockout.lockoutUntil.getTime()).toBeGreaterThan(Date.now());
+    expect(updateUserAttributes).toHaveBeenCalled();
+    const lastCall = updateUserAttributes.mock.calls.at(-1);
+    expect(lastCall?.[0]).toBe(user._id);
+    expect(lastCall?.[1].failedAttempts).toBe(5);
+    expect(lastCall?.[1].lockoutUntil).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("should allow login after lockout expires", () => {
-    // Lockout has expired
-    mockUserWithLockout.lockoutUntil = new Date(Date.now() - 1000); // 1 second ago
-    mockUserWithLockout.blocked = false;
+  it("resets failedAttempts and creates a session on successful login", async () => {
+    const { auth, updateUserAttributes, createSession } = createAuthHarness({
+      email: "ok@test.com",
+      password: passwordHash,
+      failedAttempts: 2,
+      lockoutUntil: null,
+    });
 
-    const isLocked =
-      mockUserWithLockout.blocked ||
-      (mockUserWithLockout.lockoutUntil && mockUserWithLockout.lockoutUntil.getTime() > Date.now());
+    const result = await auth.authenticate("ok@test.com", "ValidPass1!");
+    expect(result).not.toBeNull();
+    expect(result?.sessionId).toBe("sess-1");
+    expect(result?.user.email).toBe("ok@test.com");
 
-    expect(isLocked).toBe(false);
+    // Success path: updateUserAttributes(id, attrs, options?) — options may be undefined.
+    const resetCall = updateUserAttributes.mock.calls.find(
+      (c: any[]) => c[1]?.failedAttempts === 0 && c[1]?.lockoutUntil === null,
+    );
+    expect(resetCall).toBeTruthy();
+    expect(resetCall![0]).toBe("user-1");
+    expect(createSession).toHaveBeenCalled();
   });
 
-  it("should prevent login while locked", () => {
-    // User is currently locked
-    mockUserWithLockout.lockoutUntil = new Date(Date.now() + 3600000); // 1 hour from now
-    mockUserWithLockout.blocked = true;
+  it("clears expired lockout then allows password verification", async () => {
+    const expired = dateToISODateString(new Date(Date.now() - 60_000));
+    const { auth, updateUserAttributes, createSession } = createAuthHarness({
+      email: "expired-lock@test.com",
+      password: passwordHash,
+      failedAttempts: 5,
+      lockoutUntil: expired,
+    });
 
-    const isLocked =
-      mockUserWithLockout.blocked ||
-      (mockUserWithLockout.lockoutUntil && mockUserWithLockout.lockoutUntil.getTime() > Date.now());
+    const result = await auth.authenticate("expired-lock@test.com", "ValidPass1!");
+    expect(result).not.toBeNull();
+    // First update clears expired lockout; success path may also reset.
+    expect(updateUserAttributes).toHaveBeenCalled();
+    expect(createSession).toHaveBeenCalled();
+  });
 
-    expect(isLocked).toBe(true);
+  it("returns null for unknown user without creating a session", async () => {
+    const { auth, createSession } = createAuthHarness({
+      email: "exists@test.com",
+      password: passwordHash,
+    });
+
+    const result = await auth.authenticate("nobody@test.com", "ValidPass1!");
+    expect(result).toBeNull();
+    expect(createSession).not.toHaveBeenCalled();
   });
 });
 
-describe("Session Timeout Security", () => {
-  // Test session with expiration
-  const createMockSession = (expiresInMinutes: number) => ({
-    id: `session-${Date.now()}`,
-    userId: "user-123",
-    createdAt: new Date(),
-    expiresAt: new Date(Date.now() + expiresInMinutes * 60 * 1000),
-  });
-
-  it("should validate session is not expired", () => {
-    const session = createMockSession(30); // 30 minutes from now
-
-    const isExpired = session.expiresAt.getTime() < Date.now();
-
-    expect(isExpired).toBe(false);
-  });
-
-  it("should detect expired session", () => {
-    const session = {
-      id: "session-expired",
-      userId: "user-123",
-      createdAt: new Date(Date.now() - 3600000), // Created 1 hour ago
-      expiresAt: new Date(Date.now() - 1800000), // Expired 30 minutes ago
-    };
-
-    const isExpired = session.expiresAt.getTime() < Date.now();
-
-    expect(isExpired).toBe(true);
-  });
-
-  it("should reject expired session in validation", () => {
-    const session = createMockSession(-60); // Expired 1 hour ago
-
-    const validateSession = (_sessionId: string, expiresAt: Date) => {
-      if (expiresAt.getTime() < Date.now()) {
-        return { valid: false, reason: "Session expired" };
-      }
-      return { valid: true, userId: "user-123" };
-    };
-
-    const result = validateSession(session.id, session.expiresAt);
-
-    expect(result.valid).toBe(false);
-    expect(result.reason).toBe("Session expired");
-  });
-
-  it("should accept valid session", () => {
-    const session = createMockSession(60); // Expires 1 hour from now
-
-    const validateSession = (_sessionId: string, expiresAt: Date) => {
-      if (expiresAt.getTime() < Date.now()) {
-        return { valid: false, reason: "Session expired" };
-      }
-      return { valid: true, userId: "user-123" };
-    };
-
-    const result = validateSession(session.id, session.expiresAt);
-
-    expect(result.valid).toBe(true);
-    expect(result.userId).toBe("user-123");
-  });
-
-  it("should handle session expiring during use", () => {
-    // Simulate session that expires while user is active
-    const sessionStartTime = Date.now() - 25 * 60 * 1000; // 25 minutes ago
-    const sessionLifetime = 30 * 60 * 1000; // 30 minutes total
-    const sessionExpiresAt = new Date(sessionStartTime + sessionLifetime);
-
-    // At 25 minutes, session is still valid
-    const isValidAt25Min = sessionExpiresAt.getTime() > Date.now() - 25 * 60 * 1000;
-    expect(isValidAt25Min).toBe(true);
-
-    // At 35 minutes, session has expired
-    const isValidAt35Min = sessionExpiresAt.getTime() > Date.now() + 10 * 60 * 1000;
-    expect(isValidAt35Min).toBe(false);
-  });
-
-  it("should extend session on activity", () => {
-    // Simulate session that expires in 30 minutes from NOW
-    const now = Date.now();
-    const thirtyMinsFromNow = now + 30 * 60 * 1000;
-
-    let sessionExpiresAt = thirtyMinsFromNow;
-
-    // User is active, extend session by additional 30 minutes
-    const originalExpiry = sessionExpiresAt;
-    sessionExpiresAt = now + 60 * 60 * 1000; // Now 60 mins from now
-
-    // The new expiry should be after the original
-    expect(sessionExpiresAt).toBeGreaterThan(originalExpiry);
-  });
-
-  it("should have configurable session timeout", () => {
-    // Short session for sensitive operations
-    const shortSession = createMockSession(5); // 5 minutes
-    expect(shortSession.expiresAt.getTime() - shortSession.createdAt.getTime()).toBeCloseTo(
-      5 * 60 * 1000,
-      -1,
-    );
-
-    // Long session for normal operations
-    const longSession = createMockSession(480); // 8 hours
-    expect(longSession.expiresAt.getTime() - longSession.createdAt.getTime()).toBeCloseTo(
-      480 * 60 * 1000,
-      -1,
-    );
-  });
-});
-
-describe("Security Policy Enforcement", () => {
-  it("should enforce maximum failed attempts policy", () => {
-    const MAX_FAILED_ATTEMPTS = 5;
-    let failedAttempts = 0;
-
-    // Simulate failed login attempts
-    for (let i = 0; i < MAX_FAILED_ATTEMPTS; i++) {
-      failedAttempts++;
-    }
-
-    expect(failedAttempts).toBe(MAX_FAILED_ATTEMPTS);
-
-    // Account should be locked after max attempts
-    const shouldLock = failedAttempts >= MAX_FAILED_ATTEMPTS;
-    expect(shouldLock).toBe(true);
-  });
-
-  it("should reset failed attempts after successful login", () => {
-    let failedAttempts = 5;
-
-    // Successful login
-    failedAttempts = 0;
-
-    expect(failedAttempts).toBe(0);
-  });
-
-  it("should implement account lockout duration", () => {
-    const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-    const lockoutStart = Date.now();
-    const lockoutEnd = lockoutStart + LOCKOUT_DURATION_MS;
-
-    // Before lockout ends
-    const canLoginBefore = Date.now() < lockoutEnd;
-    expect(canLoginBefore).toBe(true);
-
-    // Simulate time passing
-    const afterLockout = lockoutEnd + 1000;
-    const canLoginAfter = afterLockout > lockoutEnd;
-    expect(canLoginAfter).toBe(true);
-  });
-
-  it("should log security events for account lockout", () => {
-    const securityLogs: string[] = [];
-
-    const logSecurityEvent = (event: string, details: object) => {
-      securityLogs.push(JSON.stringify({ event, details, timestamp: Date.now() }));
-    };
-
-    logSecurityEvent("ACCOUNT_LOCKED", {
-      userId: "user-123",
-      reason: "Failed login attempts",
+describe("Auth.createUser (real Auth class — password strength)", () => {
+  it("rejects weak passwords via validatePasswordStrength", async () => {
+    const { auth } = createAuthHarness({
+      email: "seed@test.com",
+      password: await hashPassword("ValidPass1!"),
     });
-    logSecurityEvent("ACCOUNT_UNLOCKED", {
-      userId: "user-123",
-      reason: "Admin action",
-    });
-    logSecurityEvent("SESSION_EXPIRED", { sessionId: "session-456" });
 
-    expect(securityLogs.length).toBe(3);
-    expect(securityLogs[0]).toContain("ACCOUNT_LOCKED");
-    expect(securityLogs[1]).toContain("ACCOUNT_UNLOCKED");
-    expect(securityLogs[2]).toContain("SESSION_EXPIRED");
+    await expect(
+      auth.createUser({ email: "weak@test.com", password: "short", role: "editor" as any }),
+    ).rejects.toBeTruthy();
+
+    await expect(
+      auth.createUser({
+        email: "weak2@test.com",
+        password: "nouppercase1!",
+        role: "editor" as any,
+      }),
+    ).rejects.toBeTruthy();
+  });
+
+  it("accepts a strong password and hashes before createUser", async () => {
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "seed@test.com",
+      password: await hashPassword("ValidPass1!"),
+    });
+
+    const created = await auth.createUser({
+      email: "strong@test.com",
+      password: "ValidPass1!",
+      role: "editor" as any,
+    });
+
+    expect(created._id).toBe("new-user");
+    expect(dbAdapter.auth.createUser).toHaveBeenCalled();
+    const payload = (dbAdapter.auth.createUser as any).mock.calls[0][0];
+    expect(payload.email).toBe("strong@test.com");
+    // Stored hash must not be plaintext
+    expect(payload.password).not.toBe("ValidPass1!");
+    expect(payload.password).toMatch(/^\$argon2/);
   });
 });

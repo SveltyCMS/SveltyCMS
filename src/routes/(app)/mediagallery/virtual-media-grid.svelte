@@ -167,7 +167,7 @@ onMount(() => {
 					<!-- Footer -->
 					<div class="p-2 border-t border-surface-100 dark:border-surface-800">
 						<div class="truncate text-[10px] font-bold uppercase tracking-tighter opacity-60 mb-0.5">{file.filename}</div>
-						<div class="text-[9px] font-mono opacity-40">{formatBytes(file.size)}</div>
+						<div class="text-[9px] font-mono opacity-40">{formatBytes((file as MediaImage).size)}</div>
 					</div>
 				</div>
 			{/each}

@@ -1,46 +1,116 @@
 /**
  * @file tests/unit/databases/database-resilience.test.ts
- * @description Database resilience: reconnection, initialization failure, graceful degradation.
+ * @description Whitebox proofs for real db.ts boot helpers — not mock-only stubs.
+ *
+ * Covers resetDbInitPromise, getBootPhase, isDbConnected, and ensureFullInitialization
+ * CORRUPT_CONFIG fail-fast (MISSING_CONFIG). Uses ?bun-unmock so setup.ts's global
+ * @src/databases/db mock is not the only proof.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: { crud: { findOne: vi.fn() }, collection: { getModel: vi.fn() } },
-  getDb: vi.fn().mockReturnValue({
-    crud: { findOne: vi.fn() },
-    collection: { getModel: vi.fn() },
-  }),
-  isDbConnected: vi.fn().mockReturnValue(true),
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  ensureFullInitialization: vi.fn().mockResolvedValue(undefined),
-  resetDbInitPromise: vi.fn(),
-  reinitializeSystem: vi.fn().mockResolvedValue({ status: "ready" }),
-}));
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { setGlobal } from "@src/utils/native-utils";
 
-vi.mock("$app/environment", () => ({
-  browser: false,
-  dev: true,
-  building: false,
-  version: "test",
-}));
+const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
+const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
+const BOOT_PHASE_KEY = "__BOOT_PHASE__";
+const AUTH_KEY = "__AUTH_INSTANCE__";
 
-import { resetDbInitPromise, isDbConnected } from "@src/databases/db";
+async function loadRealDb() {
+  return import("@src/databases/db?bun-unmock=" + Date.now());
+}
 
-describe("Database Resilience", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe("Database Resilience (real db.ts)", () => {
+  let realDb: Awaited<ReturnType<typeof loadRealDb>>;
+
+  beforeEach(async () => {
+    realDb = await loadRealDb();
+    // Isolate boot globals from other suites
+    setGlobal(INIT_PROMISE_KEY, null);
+    setGlobal(BOOT_PHASE_KEY, "IDLE");
+    setGlobal(ADAPTER_KEY, null);
+    setGlobal(AUTH_KEY, null);
+    delete process.env.CORRUPT_CONFIG;
   });
 
-  it("should call resetDbInitPromise without throwing", () => {
-    expect(() => resetDbInitPromise()).not.toThrow();
+  afterEach(() => {
+    delete process.env.CORRUPT_CONFIG;
+    setGlobal(INIT_PROMISE_KEY, null);
+    setGlobal(BOOT_PHASE_KEY, "IDLE");
+    setGlobal(ADAPTER_KEY, null);
+    setGlobal(AUTH_KEY, null);
   });
 
-  it("should report connection status", () => {
-    expect(isDbConnected()).toBe(true);
+  it("resetDbInitPromise clears init promise and returns phase to IDLE", () => {
+    setGlobal(INIT_PROMISE_KEY, Promise.resolve({ ok: true }));
+    setGlobal(BOOT_PHASE_KEY, "READY");
+
+    expect(() => realDb.resetDbInitPromise()).not.toThrow();
+    expect(realDb.getBootPhase()).toBe("IDLE");
+
+    // Calling again is idempotent
+    realDb.resetDbInitPromise();
+    expect(realDb.getBootPhase()).toBe("IDLE");
   });
 
-  it("should handle resetDbInitPromise multiple times", () => {
-    resetDbInitPromise();
-    expect(() => resetDbInitPromise()).not.toThrow();
+  it("isDbConnected is false without an adapter and true when connected", () => {
+    expect(realDb.isDbConnected()).toBe(false);
+
+    setGlobal(ADAPTER_KEY, {
+      isConnected: () => true,
+      crud: {},
+      auth: {},
+    });
+    expect(realDb.isDbConnected()).toBe(true);
+
+    setGlobal(ADAPTER_KEY, {
+      isConnected: () => false,
+      crud: {},
+      auth: {},
+    });
+    expect(realDb.isDbConnected()).toBe(false);
+  });
+
+  it("getDb returns the registered adapter instance", () => {
+    const adapter = { isConnected: () => true, mark: "real-adapter" };
+    setGlobal(ADAPTER_KEY, adapter);
+    expect(realDb.getDb()).toBe(adapter);
+  });
+
+  it("ensureFullInitialization fails fast with MISSING_CONFIG when CORRUPT_CONFIG=true", async () => {
+    process.env.CORRUPT_CONFIG = "true";
+    realDb.resetDbInitPromise();
+
+    try {
+      await realDb.ensureFullInitialization();
+      expect.unreachable("Boot should have thrown MISSING_CONFIG");
+    } catch (err: any) {
+      expect(err).toBeInstanceOf(Error);
+      expect(err.code || err.body?.code).toBe("MISSING_CONFIG");
+      expect(err.message).toContain("corrupted or missing");
+      // Phase must be FAILED after crash
+      expect(realDb.getBootPhase()).toBe("FAILED");
+    } finally {
+      delete process.env.CORRUPT_CONFIG;
+      realDb.resetDbInitPromise();
+    }
+  });
+
+  it("ensureFullInitialization does not short-circuit to READY under CORRUPT_CONFIG even if a stale promise exists", async () => {
+    // Stale promise from a previous mock suite must not hide CORRUPT_CONFIG
+    setGlobal(INIT_PROMISE_KEY, Promise.resolve({ adapter: { isConnected: () => true } }));
+    setGlobal(BOOT_PHASE_KEY, "READY");
+    setGlobal(ADAPTER_KEY, { isConnected: () => false }); // force re-init path
+
+    process.env.CORRUPT_CONFIG = "true";
+
+    try {
+      await realDb.ensureFullInitialization();
+      expect.unreachable("Expected MISSING_CONFIG");
+    } catch (err: any) {
+      expect(err.code || err.body?.code).toBe("MISSING_CONFIG");
+    } finally {
+      delete process.env.CORRUPT_CONFIG;
+      realDb.resetDbInitPromise();
+    }
   });
 });

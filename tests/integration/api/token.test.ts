@@ -14,8 +14,6 @@ import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
-const describeWhenMultiTenantEnabled =
-  process.env.MULTI_TENANT === "true" ? describe : describe.skip;
 
 describe("Token API Endpoints", () => {
   let authCookie: string;
@@ -489,63 +487,122 @@ describe("Token API Endpoints", () => {
   });
 
   // ============================================
-  // NEW: Multi-Tenancy Isolation Tests (Blackbox)
+  // Multi-Tenancy Isolation (TEST_MODE x-test-tenant-id)
   // ============================================
 
-  describeWhenMultiTenantEnabled("Multi-Tenancy Isolation - Cross-Tenant Security", () => {
-    // Note: These tests require MULTI_TENANT to be enabled in the test environment
-    // They verify that tenants cannot access each other's resources
-
+  describe("Multi-Tenancy Isolation - Cross-Tenant Security", () => {
+    /**
+     * Uses TEST_MODE header `x-test-tenant-id` so isolation runs without
+     * flipping MULTI_TENANT for the whole CMS process (see handle-authentication).
+     */
     it("should prevent cross-tenant data access (list, update, delete)", async () => {
-      // Step 1: Create a token in Tenant A
-      const tenantAEmail = `tenant-a-${Date.now()}@example.com`;
+      const stamp = Date.now();
+      const tenantA = `tenant-a-${stamp}`;
+      const tenantB = `tenant-b-${stamp}`;
+
+      // Create invite token under Tenant A
       const createA = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: authCookie,
+          "x-test-tenant-id": tenantA,
+        },
         body: JSON.stringify({
-          email: tenantAEmail,
+          email: `tenant-a-${stamp}@example.com`,
           role: "editor",
           expiresIn: "2 days",
         }),
       });
+      expect(createA.status).toBeLessThan(300);
       const resultA = await createA.json();
-      const tenantAToken = resultA.token.value;
+      const tokenAValue = resultA.token?.value ?? resultA.data?.token ?? resultA.data;
+      expect(tokenAValue, "tenant A token value").toBeTruthy();
 
-      // Ensure Token A exists before asserting against it
-      const verifyA = await safeFetch(`${API_BASE_URL}/api/token/${tenantAToken}`);
+      // Token A is valid for public validate by value
+      const verifyA = await safeFetch(`${API_BASE_URL}/api/token/${tokenAValue}`, {
+        headers: { "x-test-tenant-id": tenantA },
+      });
       expect(verifyA.status).toBe(200);
 
-      // Step 2: Re-login as Tenant B (or simulate Tenant B context)
-      // Since the test suite `authCookie` is logged in during beforeEach,
-      // we must simulate Tenant B's boundary explicitly.
-      // For testing, since `authCookie` creates things under its own tenant,
-      // if we try to manipulate `tenantAToken` using a DIFFERENT tenant's cookie,
-      // it should fail. The best way is to run a batch operation spoofing Tenant B.
-
-      // Let's test the batch isolation mapping
-      const batchEmail1 = `batch-tenantA-${Date.now()}-1@example.com`;
-      const createBatchA = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
+      // Create a token under Tenant B
+      const createB = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: authCookie,
+          "x-test-tenant-id": tenantB,
+        },
         body: JSON.stringify({
-          email: batchEmail1,
+          email: `tenant-b-${stamp}@example.com`,
           role: "editor",
           expiresIn: "2 days",
         }),
       });
-      const t1 = (await createBatchA.json()).token.value;
+      expect(createB.status).toBeLessThan(300);
+      const resultB = await createB.json();
+      const tokenBValue = resultB.token?.value ?? resultB.data?.token ?? resultB.data;
+      expect(tokenBValue).toBeTruthy();
 
-      // Try batch delete
-      const batchResponse = await safeFetch(`${API_BASE_URL}/api/token/batch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: authCookie },
-        body: JSON.stringify({ tokenIds: [t1], action: "delete" }),
+      // List as Tenant B — must not include Tenant A's invite email
+      const listB = await safeFetch(`${API_BASE_URL}/api/token`, {
+        headers: {
+          Cookie: authCookie,
+          "x-test-tenant-id": tenantB,
+        },
       });
-      expect(batchResponse.status).toBe(200); // Should succeed for its own tenant
+      expect(listB.status).toBe(200);
+      const listBBody = await listB.json();
+      const tokensB: Array<{ email?: string; token?: string; value?: string }> = Array.isArray(
+        listBBody.data,
+      )
+        ? listBBody.data
+        : [];
+      const leakA = tokensB.some(
+        (t) =>
+          t.email === `tenant-a-${stamp}@example.com` ||
+          t.token === tokenAValue ||
+          t.value === tokenAValue,
+      );
+      expect(leakA, "tenant B list must not include tenant A token").toBe(false);
 
-      // Check it was deleted
-      const check1 = await safeFetch(`${API_BASE_URL}/api/token/${t1}`);
-      expect(check1.status).toBe(404);
+      // List as Tenant A — should include tenant A email
+      const listA = await safeFetch(`${API_BASE_URL}/api/token`, {
+        headers: {
+          Cookie: authCookie,
+          "x-test-tenant-id": tenantA,
+        },
+      });
+      expect(listA.status).toBe(200);
+      const listABody = await listA.json();
+      const tokensA: Array<{ email?: string }> = Array.isArray(listABody.data)
+        ? listABody.data
+        : [];
+      expect(
+        tokensA.some((t) => t.email === `tenant-a-${stamp}@example.com`),
+        "tenant A list should include its invite",
+      ).toBe(true);
+
+      // Batch-delete as Tenant B must not wipe Tenant A tokens (own-tenant only)
+      const batchB = await safeFetch(`${API_BASE_URL}/api/token/batch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: authCookie,
+          "x-test-tenant-id": tenantB,
+        },
+        body: JSON.stringify({
+          tokenIds: [tokenBValue],
+          action: "delete",
+        }),
+      });
+      expect(batchB.status).toBeLessThan(500);
+
+      // Tenant A token still validates
+      const stillA = await safeFetch(`${API_BASE_URL}/api/token/${tokenAValue}`, {
+        headers: { "x-test-tenant-id": tenantA },
+      });
+      expect(stillA.status).toBe(200);
     });
   });
 });

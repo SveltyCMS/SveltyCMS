@@ -8,7 +8,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/seed";
+import { prepareTestUser, seedTestUsers, TEST_USERS } from "../helpers/api";
 
 const DEVELOPER_EMAIL = TEST_USERS.developer.email;
 const ACTION_TIMEOUT = 15_000;

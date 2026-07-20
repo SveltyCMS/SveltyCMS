@@ -10,6 +10,7 @@
  */
 
 import type { FieldInstance } from "@src/content/types";
+import type { SchemaHooks } from "@src/content/schema-hooks";
 import { registerForJsonRender } from "@src/services/json-render/catalog";
 import type { WidgetDefinition, WidgetFactory } from "@widgets/types";
 import type { BaseIssue, BaseSchema } from "valibot";
@@ -123,6 +124,12 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 
   /** Optional json-render configuration for AI-native generative layouts. */
   jsonRender?: boolean | Record<string, unknown>;
+
+  /**
+   * Widget-level lifecycle hooks that run on every write path.
+   * These are invoked alongside schema-level hooks for every field of this widget type.
+   */
+  hooks?: SchemaHooks;
 }
 
 /**
@@ -223,6 +230,8 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
     getTranslatablePaths: config.getTranslatablePaths,
     // json-render integration
     jsonRender: config.jsonRender,
+    // Widget-level lifecycle hooks
+    hooks: config.hooks,
     // ... other definition properties like GraphqlSchema
   };
 

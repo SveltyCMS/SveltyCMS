@@ -175,7 +175,10 @@ export async function handleDashboardRoutes(
       }
 
       case "health":
-        return rawResponse(event, (await cms.system.getHealth()) || { status: "healthy" });
+        // Delegate to the public /api/health endpoint
+        const healthUrl = new URL("/api/health", event.url.origin);
+        const healthRes = await event.fetch(healthUrl.toString());
+        return rawResponse(event, await healthRes.json());
 
       case "metrics":
       case "unified": {

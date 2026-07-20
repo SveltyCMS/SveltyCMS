@@ -10,7 +10,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../../helpers/database";
+import { resetAndSeedDatabase } from "../helpers/api";
 
 test.describe("Universal Accessibility Audits", () => {
   test.beforeEach(async ({ page }) => {

@@ -28,6 +28,7 @@ import { type LoggableValue, logger } from "@utils/logger";
 import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.server";
 import { resolveMediaPublicPath } from "@utils/media/media-utils";
 import type { Actions, PageServerLoad } from "./$types";
+import { matchesJsonPathFilter } from "@utils/json-path-filter";
 
 /**
  * 🚀 Fast serializer: converts _id/parent ObjectIds to strings.
@@ -81,8 +82,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     const folderId = url.searchParams.get("folderId"); // Get folderId from URL
     const recursive = url.searchParams.get("recursive") === "true";
+    // Server-side JSON path filter (shareable via URL; same syntax as client filter)
+    const jsonPath = (url.searchParams.get("jsonPath") || url.searchParams.get("jsonpath") || "")
+      .trim()
+      .slice(0, 500);
     logger.info(
-      `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive})`,
+      `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive}${jsonPath ? `, jsonPath` : ""})`,
     );
 
     // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
@@ -137,6 +142,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             sortField: "updatedAt",
             sortDirection: "desc",
             user, // Pass user for ownership filtering
+            // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
+            ...(jsonPath ? { jsonPath } : {}),
           },
           recursive,
         );
@@ -211,7 +218,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    logger.info(`Fetched ${processedMedia.length} media items for folder ${folderId || "root"}`);
+    // Optional server-side JSON path filter (reduces payload when linked via ?jsonPath=)
+    let filteredMedia = processedMedia;
+    if (jsonPath) {
+      filteredMedia = processedMedia.filter((item) => matchesJsonPathFilter(item, jsonPath));
+      logger.info(
+        `JSON path filter "${jsonPath}" reduced media ${processedMedia.length} → ${filteredMedia.length}`,
+      );
+    }
+
+    logger.info(`Fetched ${filteredMedia.length} media items for folder ${folderId || "root"}`);
     logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
 
     // 🚀 Check which media items are referenced by published content
@@ -220,14 +236,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     try {
       const mediaService = new MediaService(dbAdapter);
       const publishedRefResults = await Promise.allSettled(
-        processedMedia.map((item) =>
+        filteredMedia.map((item) =>
           mediaService.isReferencedByPublishedContent(item._id as string, null),
         ),
       );
       for (let i = 0; i < publishedRefResults.length; i++) {
         const result = publishedRefResults[i];
         if (result.status === "fulfilled" && result.value.referenced) {
-          publishedMediaIds.push(processedMedia[i]._id as string);
+          publishedMediaIds.push(filteredMedia[i]!._id as string);
         }
       }
       logger.info(`Found ${publishedMediaIds.length} media items referenced by published content`);
@@ -251,10 +267,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                 ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
                 : undefined,
         },
-        media: processedMedia,
+        media: filteredMedia,
         systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[],
         currentFolder: currentFolder as SystemVirtualFolder | null,
         publishedMediaIds,
+        /** Echo server-applied JSON path filter for client sync / shareable URLs */
+        jsonPathFilter: jsonPath || "",
       }),
     );
 

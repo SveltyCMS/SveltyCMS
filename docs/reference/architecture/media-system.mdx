@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-07-16"
+updated: "2026-07-20"
 tags:
   - "architecture"
   - "media"
@@ -111,6 +111,65 @@ graph TB
     MS --> DB
     CS --> STORE
 ```
+
+---
+
+## JSON Path Media Filter
+
+Gallery filtering supports a small JSON-path expression language (client + server + DB).
+
+| Layer        | Location                               | Behavior                                                       |
+| :----------- | :------------------------------------- | :------------------------------------------------------------- |
+| **Client**   | `+page.svelte` + `json-path-filter.ts` | Instant filter on loaded items                                 |
+| **Server**   | `+page.server.ts` `?jsonPath=`         | Passes `jsonPath` into `getByFolder`; post-filters SSR payload |
+| **Database** | `media-json-path.ts` + adapters        | Native pushdown for `metadata.*` on large libraries            |
+
+### Syntax
+
+```
+metadata.camera = Canon
+metadata.camera ~ canon
+metadata.iso >= 400
+metadata.tags[0] = nature
+metadata.camera = Canon; metadata.iso > 100
+```
+
+Operators: `=` / `==`, `!=`, `~` / `*=` (contains), `>`, `<`, `>=`, `<=`. Multi-clause AND via `;` or `&&`.
+
+Shareable URL example: `/mediagallery?folderId=…&jsonPath=metadata.camera%20%3D%20Canon`
+
+### DB-native pushdown (large libraries)
+
+When `options.jsonPath` is set on `media.files.getByFolder`:
+
+| Adapter           | Mechanism                                       |
+| :---------------- | :---------------------------------------------- |
+| **SQLite**        | JSON1 `json_extract(metadata, '$.…')`           |
+| **PostgreSQL**    | jsonb `metadata->>` / `metadata#>>`             |
+| **MariaDB/MySQL** | `JSON_UNQUOTE(JSON_EXTRACT(metadata, …))`       |
+| **MongoDB**       | Dotted-path filters + case-insensitive `$regex` |
+
+Only simple `metadata.*` paths (no array indices) are pushed to the DB. Array paths (`metadata.tags[0]`) and non-metadata fields stay as in-memory post-filters so pagination remains correct when every clause is native.
+
+Implementation:
+
+- Parser: `src/utils/json-path-filter.ts`
+- SQL/Mongo builders: `src/databases/core/media-json-path.ts`
+- Unit: `tests/unit/utils/json-path-filter.test.ts`, `tests/unit/databases/media-json-path.test.ts`
+- Integration: `tests/integration/api/media-jsonpath.test.ts` (`?jsonPath=` reduces load payload)
+
+---
+
+## Upload Progress & Cancel
+
+| Feature        | Implementation                                                |
+| :------------- | :------------------------------------------------------------ |
+| Progress %     | XHR `upload.progress` in `upload-client.ts`                   |
+| Per-file batch | Sequential upload when `onFileProgress` / `sequential: true`  |
+| Cancel         | `AbortSignal` + `MediaUploadHandle.cancel()`                  |
+| UI             | Gallery toolbar + `local-upload.svelte` progress bar + Cancel |
+
+Large batches still use `/api/media/stream` when over `STREAM_UPLOAD_THRESHOLD_BYTES` (10 MB).
 
 ---
 

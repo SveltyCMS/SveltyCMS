@@ -26,6 +26,7 @@ import {
   createSAMLConnection,
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions } from "@src/databases/auth/permissions";
+import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
@@ -274,18 +275,17 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
     return { user, session };
   }
 
+  // Never mint a fake session — that poisons E2E/integration cookies
+  // (`test-session-*`) and masks missing seed/admin. Callers must seed first.
   logger.warn(
-    `[BypassDebug] getUserByEmail failed to find user or missing _id. Falling back to dummy mock session.`,
+    `[BypassDebug] getUserByEmail failed to find user or missing _id. Refusing dummy session.`,
+    { email: requestedEmail, tenantId },
   );
-  return {
-    user: {
-      _id: "system",
-      role: "admin",
-      isAdmin: true,
-      email: requestedEmail,
-    },
-    session: { _id: "test-session-" + Date.now(), user_id: "system" },
-  };
+  throw new AppError(
+    `Test login bypass: user not found for ${requestedEmail}. Seed admin via /api/testing action=seed first.`,
+    401,
+    "TEST_USER_NOT_SEEDED",
+  );
 }
 
 /**
@@ -389,7 +389,7 @@ export async function handleUpdateUserAttributesRoute(
         byEmail?.success && byEmail.data
           ? byEmail.data
           : byEmail && typeof byEmail === "object" && "_id" in (byEmail as object)
-            ? (byEmail as { _id: string })
+            ? (byEmail as unknown as { _id: string })
             : null;
       const emailId = emailUser && (emailUser as { _id?: string })._id;
       if (emailId && String(emailId) !== resolvedId) {
@@ -411,7 +411,7 @@ export async function handleUpdateUserAttributesRoute(
     event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
     event.cookies.get(SESSION_COOKIE_NAME);
   if (targetId === event.locals.user?._id && currentSessionId && result.data) {
-    primeSessionMemoryCache(currentSessionId, result.data);
+    primeSessionMemoryCache(currentSessionId, result.data as User);
     // Also clear the Redis cache key so it's re-read from DB on next cache miss
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");

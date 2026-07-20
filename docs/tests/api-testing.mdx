@@ -27,7 +27,7 @@ Unit-level dispatcher checks use thin shared helpers (`invokeApi` in `tests/unit
 
 SveltyCMS is designed so test runs never touch live user data. The safety contract is:
 
-1. **Config Isolation**: Local integration/E2E/precheck use **`config/private.test.ts` only**. They must never read or write the developer's **`config/private.ts`** (live CMS DB — e.g. `sveltycms.db`). See `src/utils/private-config-policy.ts`.
+1. **Config Isolation**: Local integration/E2E/hooks use **`config/private.test.ts` only**. They must never read or write the developer's **`config/private.ts`** (live CMS DB — e.g. `sveltycms.db`). See `src/utils/private-config-policy.ts`.
 2. **Ephemeral Mirror Only**: CI may create a short-lived `config/private.ts` on the runner as a mirror of the test config — never committed or pushed.
 3. **Test Mode Gate**: `/api/testing` is inactive unless `TEST_MODE=true` and a valid `TEST_API_SECRET` is provided.
 4. **Loopback Lockdown**: Local black-box jobs use `127.0.0.1` to avoid IPv4/IPv6 drift and keep the test API loopback-only.
@@ -53,7 +53,7 @@ Our API tests operate at the **integration** level. Unlike unit tests, they boot
 
 1. **Fail-Closed Dispatcher**: Unmapped or unauthorized routes must reject by default.
 2. **Testing API (`/api/testing`)**: Handles reset, seed, and isolated fixture orchestration without direct adapter imports inside black-box tests.
-3. **Integration Runner**: `scripts/run-integration-tests.ts` provisions the target database, starts the preview server, and executes the suite.
+3. **Integration harness**: `tests/integration/harness.ts` provisions `config/private.test.ts`, starts the preview server, and seeds via `/api/testing`. Run with `bun test --timeout 300000 tests/integration/`.
 4. **Real Authentication**: Tests obtain cookies via `/api/auth/login` and then hit the same endpoints a browser or API consumer would use.
 
 ---
@@ -110,20 +110,20 @@ bun run test:integration
 Prefer **SQLite + skip rebuild** when the production bundle is already current:
 
 ```bash
-# Fast local loop (~1 min SQLite once preview artifacts exist)
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+# Fast local loop (SQLite once build/ exists)
+bun test --timeout 300000 tests/integration/
 
-# API suite only (when runner supports --suite)
-bun run scripts/run-integration-tests.ts --db=sqlite --suite=api --no-build
+# API suite only
+bun test --timeout 300000 tests/integration/api/
 
-# Full matrix parity (slower; use before PR that touches adapters/auth)
-bun run scripts/run-integration-tests.ts --db=postgresql
-bun run scripts/run-integration-tests.ts --db=mariadb
-bun run scripts/run-integration-tests.ts --db=mongodb
+# Full matrix parity (Docker profile up; slower — adapters/auth PRs)
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/
+DB_TYPE=mariadb bun test --timeout 300000 tests/integration/
+DB_TYPE=mongodb bun test --timeout 300000 tests/integration/
 ```
 
 > [!TIP]
-> First run after a clean checkout needs `bun run build` (or omit `--no-build`). Day-to-day, `--db=sqlite --no-build` is the short path.
+> First run after a clean checkout needs `bun run build` (or `bun run test:integration`). Day-to-day, reuse `build/` and run `bun test --timeout 300000 tests/integration/`.
 
 ### Bulk user HTTP path
 

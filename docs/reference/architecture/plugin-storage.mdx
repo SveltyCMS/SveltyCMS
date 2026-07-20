@@ -1,0 +1,52 @@
+---
+path: "docs/reference/architecture/plugin-storage.mdx"
+title: "Plugin Storage"
+description: "Shared JSON record store for plugins — zero per-plugin tables across all adapters."
+---
+
+# Plugin Storage
+
+Plugins persist arbitrary JSON records without creating custom tables. All adapters share the `plugin_storage` collection/table, scoped by `(plugin, collection, tenantId)`.
+
+## Usage
+
+```ts
+// LocalCMS / server
+const rec = await cms.pluginStorage.createRecord("seo-audit", "reports", {
+  score: 95,
+  url: "https://example.com",
+});
+
+const page = await cms.pluginStorage.listRecords("seo-audit", "reports", {
+  limit: 20,
+  filter: { score: 95 }, // equality filter on data fields (in-memory)
+});
+
+await cms.pluginStorage.deleteRecord("seo-audit", "reports", rec._id);
+```
+
+## Schema
+
+| Column                    | Purpose                              |
+| :------------------------ | :----------------------------------- |
+| `_id`                     | Primary key                          |
+| `plugin`                  | Plugin id                            |
+| `collection`              | Logical collection within the plugin |
+| `tenantId`                | Multi-tenant isolation               |
+| `data`                    | JSON payload                         |
+| `createdAt` / `updatedAt` | Timestamps                           |
+
+## Implementation
+
+| Layer       | Path                                             |
+| :---------- | :----------------------------------------------- |
+| Types       | `src/plugins/storage/types.ts`                   |
+| Adapter     | `src/plugins/storage/plugin-storage-adapter.ts`  |
+| SDK         | `PluginStorageNamespace` → `cms.pluginStorage`   |
+| SQL schemas | exported as `pluginStorage` on SQLite/PG/MariaDB |
+| Mongo       | `src/databases/mongodb/plugin-storage.ts`        |
+
+## Tests
+
+- Unit: `tests/unit/plugins/plugin-storage-adapter.test.ts`
+- Integration: `tests/integration/api/outbox-plugin-storage.test.ts`

@@ -6,7 +6,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
-import { purgeTrash, seedTrash } from "../../helpers/seed";
+import { purgeTrash, seedTrash } from "../helpers/api";
 
 const ACTION_TIMEOUT = 20_000;
 

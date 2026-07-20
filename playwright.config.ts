@@ -87,6 +87,17 @@ export default defineConfig({
     bypassCSP: true,
   },
 
+  // Auto-start Vite dev server when running in isolation (no PLAYWRIGHT_TEST_BASE_URL set)
+  webServer: process.env.PLAYWRIGHT_TEST_BASE_URL
+    ? undefined
+    : {
+        command: "bun run dev",
+        port: 5173,
+        timeout: 120_000,
+        reuseExistingServer: true,
+        env: { PLAYWRIGHT_TEST: "1", TEST_MODE: "true" },
+      },
+
   globalSetup: "./tests/e2e/global.setup.ts",
 
   projects: [

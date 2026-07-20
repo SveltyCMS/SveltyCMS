@@ -1,0 +1,64 @@
+---
+path: "docs/reference/architecture/schema-lifecycle-hooks.mdx"
+title: "Schema Lifecycle Hooks"
+description: "beforeValidate / afterValidate transforms on collection create and update."
+---
+
+# Schema Lifecycle Hooks
+
+Optional transforms on every document write path (Local API, HTTP, admin) for a collection schema.
+
+## Order on create / update
+
+1. Sanitize field inputs
+2. **`beforeValidate`** — normalize (trim, slugify, defaults)
+3. Numeric range gate (`validateNumericFields`)
+4. **`afterValidate`** — computed fields after the gate
+5. Plugin / collection `beforeSave` lifecycle
+6. `modifyRequest` (widget validation & transforms)
+7. Persist (`insert` / `update` uses the **final** mutated payload)
+8. `afterSave` + transactional outbox emit
+
+## Defining hooks
+
+```ts
+import type { Schema } from "@src/content/types";
+
+const posts: Schema = {
+  _id: "posts",
+  name: "Posts",
+  fields: [/* ... */],
+  hooks: {
+    beforeValidate: (data) => ({
+      ...data,
+      slug:
+        data.slug ||
+        String(data.title || "")
+          .toLowerCase()
+          .replace(/\s+/g, "-"),
+    }),
+    afterValidate: (data) => ({
+      ...data,
+      searchKey: `${data.title}:${data.slug}`,
+    }),
+  },
+};
+```
+
+Hooks may be **async**. They must return the data object (not throw for rejection — use validation rules).
+
+## Pure runners (unit-test friendly)
+
+```ts
+import {
+  applyBeforeValidate,
+  applyAfterValidate,
+  applySchemaHookPipeline,
+} from "@src/content/schema-hooks";
+```
+
+## Implementation
+
+- Types + runners: `src/content/schema-hooks.ts`
+- Wired: `src/services/sdk/namespaces/collections-namespace.ts` (`create` / `update`)
+- Tests: `tests/unit/content/schema-hooks.test.ts`

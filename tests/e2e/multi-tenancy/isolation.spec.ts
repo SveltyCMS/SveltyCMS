@@ -29,7 +29,7 @@
 
 import { test, expect } from "@playwright/test";
 import { ensureAuthenticated } from "../helpers/test-auth";
-import { TEST_API_HEADERS } from "../helpers/test-api";
+import { TEST_API_HEADERS } from "../../helpers/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

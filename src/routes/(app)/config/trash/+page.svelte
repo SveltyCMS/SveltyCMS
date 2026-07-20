@@ -131,7 +131,7 @@ onMount(loadTrash);
 										<td class="py-3">
 											<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 										</td>
-										<td class="py-3">{formatDisplayDate(item.deletedAt)}</td>
+										<td class="py-3">{formatDisplayDate(item.deletedAt || "")}</td>
 										<td class="py-3">{item.deletedBy || "System"}</td>
 										<td class="py-3 text-end">
 											<Button

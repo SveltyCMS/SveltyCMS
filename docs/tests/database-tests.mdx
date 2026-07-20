@@ -58,7 +58,7 @@ To maximize performance, SveltyCMS supports parallel E2E testing using a **Datab
 
 SveltyCMS enforces a hard boundary between production and testing:
 
-1. **TEST_MODE**: Enabled for integration / E2E / precheck harnesses (`private-config-policy.ts`).
+1. **TEST_MODE**: Enabled for integration / E2E / local harnesses (`private-config-policy.ts`).
 2. **Config Redirect**: Automated runs load **`config/private.test.ts` only** — never the developer's live `config/private.ts` (user DB risk).
 3. **Safety Guard**: `config-state.ts` fails if `TEST_MODE` uses a non-isolated `DB_NAME` or a name equal to live `private.ts`.
 4. **Triple-Lock Security**: Testing routes are stripped from production builds and require a cryptographic handshake for activation.
@@ -110,9 +110,9 @@ sequenceDiagram
 SQLite is the fastest local path and uses `config/private.test.ts` plus test database names only:
 
 ```bash
-bun run scripts/run-integration-tests.ts --db=sqlite
-bun run scripts/run-integration-tests.ts --db=sqlite --suite=api
-bun run scripts/run-integration-tests.ts --db=sqlite --suite=db
+bun test --timeout 300000 tests/integration/
+bun test --timeout 300000 tests/integration/api/
+bun test --timeout 300000 tests/integration/databases/
 ```
 
 ### 2. Docker-Backed Adapter Suites
@@ -136,9 +136,9 @@ docker compose -f tests/docker-compose.yml --profile redis up -d
 Then run:
 
 ```bash
-bun run scripts/run-integration-tests.ts --db=mongodb
-bun run scripts/run-integration-tests.ts --db=postgresql
-bun run scripts/run-integration-tests.ts --db=mariadb
+DB_TYPE=mongodb bun test --timeout 300000 tests/integration/
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/
+DB_TYPE=mariadb bun test --timeout 300000 tests/integration/
 ```
 
 ### 3. 4-DB Matrix (CI by default)
@@ -146,9 +146,10 @@ bun run scripts/run-integration-tests.ts --db=mariadb
 The **4-adapter integration + bench-core matrix runs in GitHub CI** (`ci.yml` `db-tests` / `bench-core`). Local pre-push does **not** run it by default (keeps the gate fast and avoids accidental live-config misuse).
 
 ```bash
-bun run verify:push                                    # local push gate (no DB matrix)
-bun run scripts/precheck.ts --tier=push --include-db-tasks  # opt-in local matrix
-bun run verify:full                                    # full local CI parity (manual)
+bun run gate                                           # local push gate (build + SQLite)
+# Multi-DB local matrix (Docker profiles required; CI is authoritative)
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/
+bun run test:doctor                                    # unit + SQLite integration + gate map
 ```
 
 Env blocks and credentials: `src/utils/test-db-credentials.ts` (`sveltycms_test` / `benchmark_shared` — never the live `sveltycms.db` from `private.ts`).

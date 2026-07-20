@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../../../src/utils/v8-shim";
 
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
+import { isDockerRunning } from "../helpers/docker";
 
 // @ts-ignore - optional test config generated at runtime
 const imported = await import("../../../config/private.test").catch(() => ({
@@ -30,48 +31,17 @@ const privateConfig =
   (imported as any).default ||
   {};
 
-const databaseConfig =
+const _databaseConfig =
   (imported as any).database || privateConfig.database || privateConfig.db || {};
 
-const privateEnv = {
-  ...privateConfig,
-  DB_TYPE: process.env.DB_TYPE || privateConfig.DB_TYPE || databaseConfig.type,
-  DB_HOST: process.env.DB_HOST || privateConfig.DB_HOST || databaseConfig.host || "127.0.0.1",
-  DB_PORT: process.env.DB_PORT || privateConfig.DB_PORT || databaseConfig.port || "27017",
-  DB_NAME: process.env.DB_NAME || privateConfig.DB_NAME || databaseConfig.name || "sveltycms_test",
-  DB_USER: process.env.DB_USER || privateConfig.DB_USER || databaseConfig.user || "",
-  DB_PASSWORD:
-    process.env.DB_PASSWORD || privateConfig.DB_PASSWORD || databaseConfig.password || "",
-  DB_AUTH_SOURCE:
-    process.env.DB_AUTH_SOURCE || privateConfig.DB_AUTH_SOURCE || databaseConfig.authSource || "",
-} as any;
+const _privateEnv: Record<string, unknown> = {};
 
-console.log("DEBUG: process.env.DB_TYPE =", process.env.DB_TYPE);
-console.log("DEBUG: privateEnv.DB_TYPE =", privateEnv.DB_TYPE);
-
-const isMongo = privateEnv.DB_TYPE === "mongodb";
-const describeMongo = isMongo ? describe : describe.skip;
-
-function buildMongoUri(authSource?: string) {
-  const host = privateEnv.DB_HOST || "127.0.0.1";
-  let port = privateEnv.DB_PORT || "27017";
-
-  // Defensive guard in case config/private.test.ts was generated from another DB job.
-  if (port === 3306 || port === "3306") {
-    port = "27017";
-  }
-
-  const dbName = privateEnv.DB_NAME || "sveltycms_test";
-
-  if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
-    const user = encodeURIComponent(privateEnv.DB_USER);
-    const password = encodeURIComponent(privateEnv.DB_PASSWORD);
-    const source = encodeURIComponent(authSource || privateEnv.DB_AUTH_SOURCE || dbName);
-
-    return `mongodb://${user}:${password}@${host}:${port}/${dbName}?authSource=${source}`;
-  }
-
-  return `mongodb://${host}:${port}/${dbName}`;
+// In-process adapter suite: open our own Mongo connection when Docker is up.
+// Do NOT require CMS DB_TYPE=mongodb (that gate left 21 local skips while docker ps was healthy).
+const mongoDockerRunning = isDockerRunning("mongo");
+const describeMongo = mongoDockerRunning ? describe : describe.skip;
+if (!mongoDockerRunning) {
+  console.log("⏭️ MongoDB adapter suite skipped — no Docker container matching 'mongo'");
 }
 
 describeMongo("MongoDB Adapter Integration", () => {
@@ -82,8 +52,6 @@ describeMongo("MongoDB Adapter Integration", () => {
   const QUERY_COLLECTION = "test_nosql_query";
 
   beforeAll(async () => {
-    if (!isMongo) return;
-
     try {
       const { MongoDBAdapter } = await import("../../../src/databases/mongodb/mongo-db-adapter");
 
@@ -93,42 +61,15 @@ describeMongo("MongoDB Adapter Integration", () => {
         throw new Error("Failed to initialize MongoDB adapter");
       }
 
-      const dbName = privateEnv.DB_NAME || "sveltycms_test";
-      const primaryUri = buildMongoUri(dbName);
-      const adminFallbackUri = buildMongoUri("admin");
-      const noAuthUri = buildMongoUri(undefined)
-        .replace(/\/\/[^:@/]+:[^@/]+@/, "//")
-        .replace(/\?authSource=.*/, "");
+      // Docker mongo:latest — no auth by default (tests/docker-compose.yml).
+      const noAuthUri = "mongodb://127.0.0.1:27017/sveltycms_test";
 
-      console.log(
-        "DEBUG: Attempting MongoDB connection to:",
-        primaryUri.replace(/:\/\/([^:]+):([^@]+)@/, "://$1:****@"),
-      );
+      console.log("DEBUG: Attempting MongoDB connection to:", noAuthUri);
 
-      let result = await db.connect(primaryUri, {
+      const result = await db.connect(noAuthUri, {
         serverSelectionTimeoutMS: 8000,
         connectTimeoutMS: 8000,
       } as any);
-
-      if (!result?.success && privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
-        console.warn("DEBUG: MongoDB app-db auth failed. Trying admin authSource fallback...");
-
-        await db.disconnect?.().catch(() => {});
-        result = await db.connect(adminFallbackUri, {
-          serverSelectionTimeoutMS: 8000,
-          connectTimeoutMS: 8000,
-        } as any);
-      }
-
-      if (!result?.success && !privateEnv.DB_USER && !privateEnv.DB_PASSWORD) {
-        console.warn("DEBUG: MongoDB unauthenticated connection fallback...");
-
-        await db.disconnect?.().catch(() => {});
-        result = await db.connect(noAuthUri, {
-          serverSelectionTimeoutMS: 8000,
-          connectTimeoutMS: 8000,
-        } as any);
-      }
 
       if (!result?.success) {
         throw new Error(
@@ -148,12 +89,8 @@ describeMongo("MongoDB Adapter Integration", () => {
       await db.ensureAuth?.();
     } catch (err) {
       console.error("MongoDB setup failed.", err);
-
-      if (process.env.CI === "true") {
-        throw err;
-      }
-
       db = null;
+      throw err;
     }
   }, 60000);
 

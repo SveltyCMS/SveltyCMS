@@ -1,30 +1,129 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Push — Fast Gate (change-scoped, ~1–3 min typical)
-# =============================================================================
-# Test ownership (never re-run pre-commit suites):
-#   • Security regression → pre-commit only (excluded from push unit run)
-#   • Smart unit tests    → this hook only
-#   • HTTP integration    → CI only (opt-in: --include-db-tasks)
+# SveltyCMS Pre-Push — Build → SQLite Integration (~5 min)
 #
-# Also: Diff base = @{upstream}/origin/next; typecheck/imports/slop when needed;
-# one production build when source/infra changes; deploy double-build only when
-# vite/testing-strip paths change.
+# Pre-commit already ran: format, lint, unit tests.
+# This hook builds the project and runs the SQLite integration test suite.
+# Multi-DB matrix, E2E, and full audits run in CI only.
 #
-# Opt in heavier local: bun run scripts/precheck.ts --tier=push --include-db-tasks
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push'.
+# POLICY: --no-verify is blocked by git-safe.ts by default.
+#
+# Flags:
+#   --only-failures   Skip build, re-run only previously failed suites via test:smart
 # =============================================================================
-set -euo pipefail
+set -u
+[ "${CI:-false}" = "true" ] && exit 0
 
-if [ "${CI:-false}" = "true" ]; then
-    echo "⏩ CI environment detected. Bypassing pre-push gates."
-    exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/lib.sh"
+
+require_bun
+header "Pre-Push"
+
+ONLY_FAILURES=false
+
+# Parse optional arguments
+for arg in "$@"; do
+  case "$arg" in
+    --only-failures)
+      ONLY_FAILURES=true
+      ;;
+  esac
+done
+
+# ── Smart skip: if only docs changed, skip build + integration ────────────
+if ! has_changes '\.(md|mdx)$' || has_changes '\.(ts|js|svelte|css|json)$'; then
+  HAS_CODE_CHANGES=true
+else
+  HAS_CODE_CHANGES=false
 fi
 
-echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║   SveltyCMS Pre-Push — Fast Gate + Progress Dashboard       ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+if [ "$ONLY_FAILURES" = true ]; then
+  info "Running only previously failed suites (--only-failures)"
+  echo ""
+  TOTAL=1; OK=0
+  if run "🔁  Smart retry (failed suites)" bun run test:smart --only-failures; then
+    OK=$((OK + 1))
+  fi
+  summary "$OK" "$TOTAL"
+  exit $?
+fi
+
+if [ "$HAS_CODE_CHANGES" = false ]; then
+  warn "Only docs changed — skipping build and integration tests"
+  echo ""
+  summary 1 1
+  exit 0
+fi
+
+info "Pre-commit already verified: format, lint, unit tests."
+info "Pre-push: build + SQLite integration tests"
 echo ""
 
-bun run verify:push
+TOTAL=2; OK=0
+
+# Step 1 — Production build
+if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true bun run build; then
+  OK=$((OK + 1))
+fi
+
+# Step 2 — SQLite integration tests (with summary extraction)
+STEP=$((STEP + 1))
+label="🗄️  Integration tests (SQLite)"
+padded="$(pad "$label")"
+outfile="${TMPDIR}/svelty-hook.$$.${STEP}"
+start_s=$(date +%s 2>/dev/null || echo 0)
+
+printf "  ${padded}  running     "
+bun test --timeout 300000 tests/integration/ > "$outfile" 2>&1 &
+pid=$!
+
+while kill -0 "$pid" 2>/dev/null; do
+  sleep 1
+  now=$(date +%s 2>/dev/null || echo 0)
+  printf "\r  ${padded}  running %2d sec" $(( now - start_s ))
+done
+
+wait "$pid"
+code=$?
+elapsed_s=$(( $(date +%s) - start_s ))
+elapsed_str="${elapsed_s}s"
+[ "$elapsed_s" -le 1 ] && elapsed_str="<1s"
+[ "$elapsed_s" -ge 60 ] && elapsed_str="$(( elapsed_s / 60 ))m$(( elapsed_s % 60 ))s"
+
+printf "\r\033[K"
+
+# Extract test summary line (e.g. "42 passed, 3 failed, 212 tests")
+summary_line=$(grep -oE '[0-9]+ passed[,]? [0-9]+ failed(, [0-9]+ tests)?' "$outfile" 2>/dev/null | tail -1)
+if [ -z "$summary_line" ]; then
+  summary_line=$(grep -oE '[0-9]+ test(s)? (passed|failed)' "$outfile" 2>/dev/null | tail -1)
+fi
+
+if [ "$code" -eq 0 ]; then
+  result_line="${GREEN}✔${NC}"
+  OK=$((OK + 1))
+else
+  result_line="${RED}✘${NC}"
+fi
+
+if [ -n "$summary_line" ]; then
+  printf '%b\n' "  ${padded}  ${elapsed_str}  ${result_line}  ${DIM}${summary_line}${NC}"
+else
+  printf '%b\n' "  ${padded}  ${elapsed_str}  ${result_line}"
+fi
+
+# On failure, show error summary
+if [ "$code" -ne 0 ]; then
+  fails=$(grep -E "^❯|FAIL|FAILED|✗" "$outfile" 2>/dev/null | grep -v "node_modules" | head -20)
+  if [ -n "$fails" ]; then
+    printf '%b\n' "  ${BOLD}Failing tests:${NC}"
+    printf '%s\n' "$fails" | while IFS= read -r line; do
+      printf '%b\n' "    ${RED}✘${NC}  $line"
+    done
+  fi
+  info "Run ${BOLD}bun test --timeout 300000 tests/integration/ --reporter=verbose${NC} for full output."
+fi
+
+rm -f "$outfile"
+
+summary "$OK" "$TOTAL"

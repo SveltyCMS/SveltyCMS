@@ -14,16 +14,38 @@ import {
   readSessionCookie,
 } from "@src/databases/auth/constants";
 
-describe("isSecureCookieContext", () => {
-  const original = { ...process.env };
+/**
+ * Env helpers — prefer structured save/restore (Bun test does not implement vi.stubEnv).
+ * When running under full Vitest with stubEnv, this remains correct and isolation-safe.
+ */
+function withEnv(patch: Record<string, string | undefined>, fn: () => void) {
+  const keys = Object.keys(patch);
+  const prior: Record<string, string | undefined> = {};
+  for (const k of keys) {
+    prior[k] = process.env[k];
+    const v = patch[k];
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
+  try {
+    fn();
+  } finally {
+    for (const k of keys) {
+      if (prior[k] === undefined) delete process.env[k];
+      else process.env[k] = prior[k];
+    }
+  }
+}
 
+describe("isSecureCookieContext", () => {
   beforeEach(() => {
     delete process.env.TEST_MODE;
     process.env.NODE_ENV = "development";
   });
 
   afterEach(() => {
-    process.env = { ...original };
+    delete process.env.TEST_MODE;
+    process.env.NODE_ENV = "development";
   });
 
   it("treats https as secure regardless of host", () => {
@@ -32,10 +54,11 @@ describe("isSecureCookieContext", () => {
   });
 
   it("never forces Secure cookies on loopback over http (CI / E2E)", () => {
-    process.env.NODE_ENV = "production";
-    for (const host of ["localhost", "127.0.0.1", "::1", "[::1]", "app.localhost"]) {
-      expect(isSecureCookieContext("http:", host), host).toBe(false);
-    }
+    withEnv({ NODE_ENV: "production", TEST_MODE: undefined }, () => {
+      for (const host of ["localhost", "127.0.0.1", "::1", "[::1]", "app.localhost"]) {
+        expect(isSecureCookieContext("http:", host), host).toBe(false);
+      }
+    });
   });
 
   it("respects forceInsecure even on https", () => {
@@ -43,20 +66,21 @@ describe("isSecureCookieContext", () => {
   });
 
   it("is insecure on http + TEST_MODE for non-loopback", () => {
-    process.env.TEST_MODE = "true";
-    process.env.NODE_ENV = "production";
-    expect(isSecureCookieContext("http:", "cms.internal")).toBe(false);
+    withEnv({ TEST_MODE: "true", NODE_ENV: "production" }, () => {
+      expect(isSecureCookieContext("http:", "cms.internal")).toBe(false);
+    });
   });
 
   it("is secure on http production non-loopback without TEST_MODE", () => {
-    process.env.NODE_ENV = "production";
-    delete process.env.TEST_MODE;
-    expect(isSecureCookieContext("http:", "cms.example.com")).toBe(true);
+    withEnv({ NODE_ENV: "production", TEST_MODE: undefined }, () => {
+      expect(isSecureCookieContext("http:", "cms.example.com")).toBe(true);
+    });
   });
 
   it("is insecure in non-production on plain http", () => {
-    process.env.NODE_ENV = "development";
-    expect(isSecureCookieContext("http:", "cms.example.com")).toBe(false);
+    withEnv({ NODE_ENV: "development" }, () => {
+      expect(isSecureCookieContext("http:", "cms.example.com")).toBe(false);
+    });
   });
 });
 

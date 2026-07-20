@@ -19,8 +19,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, loginAsAdmin } from "../../helpers/auth";
-import { seedInviteToken } from "../../helpers/seed";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
+import { seedInviteToken } from "../helpers/api";
+import { TEST_API_HEADERS } from "../helpers/api";
 
 const ACTION_TIMEOUT = 15_000;
 

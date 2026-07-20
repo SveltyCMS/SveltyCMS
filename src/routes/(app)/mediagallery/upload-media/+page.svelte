@@ -37,7 +37,7 @@ function handleUploadComplete() {
 <AdminPageShell title={uploadMedia_title()} icon="bi:images" showBackButton={true} backUrl="/mediagallery">
 <div class="wrapper" data-testid="upload-media-page">
 	<Tabs value={tabSet} onValueChange={(e) => (tabSet = e.value)}>
-		<Tabs.List class="flex border-b border-surface-200-800 font-bold" data-testid="upload-media-tabs">
+		<Tabs.List class="flex border-b border-surface-200-800 font-bold" {...{ 'data-testid': 'upload-media-tabs' }}>
 			<Tabs.Trigger value="0" class="flex-1" data-testid="upload-tab-local">
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:database" width="24"></iconify-icon>

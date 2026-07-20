@@ -3,16 +3,19 @@ name: CI
 # CI Workflow for SveltyCMS
 #
 # Local developer entry points:
-#   bun run verify:push     # pre-push hook (static analysis, unit tests, build)
-#   bun run scripts/precheck.ts --plan    # inspect what WOULD run (dry-run)
-#   bun run scripts/precheck.ts --tier=push --include-db-tasks  # optional DB matrix
+#   bun run test:all        # unit + integration (SQLite)
+#   bun run test:e2e        # full E2E suite
+#   bun run security        # OWASP scanner
 #
 # This workflow is the authoritative full matrix.
 # Local hooks intentionally omit DB matrix, benchmarks, and E2E.
-# on push tier by default. Use --include-db-tasks to opt in locally.
 #
-# Job-to-local-task mapping is maintained via ciJob fields in
-# scripts/precheck-shared.ts (BaseTasks / createDbTasks).
+# Local tasks map to ci.yml jobs:
+#   format + lint → whitebox
+#   test:unit → whitebox unit
+#   build → build
+#   test:integration → db-tests
+#   test:e2e → e2e
 
 on:
   push:
@@ -278,7 +281,7 @@ jobs:
           PASSWORD_MIN_LENGTH: 8
           PORT: "4173"
         run: |
-          bun run scripts/run-integration-tests.ts --db=${{ matrix.db }} --no-build
+          bun test tests/integration/
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
@@ -293,78 +296,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Upload Integration Results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: db-results-${{ matrix.db }}
-          path: tests/test-results/integration-${{ matrix.db }}.json
-          if-no-files-found: ignore
-          retention-days: 7
-
   # ------------------------------------------------
-  # 8. DB Summary — cross-adapter results dashboard
-  # ------------------------------------------------
-  db-summary:
-    name: 📋 DB Summary
-    needs: [db-tests]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: db-results-*
-          path: tests/test-results
-          merge-multiple: true
-
-      - name: Generate DB Summary
-        run: |
-          echo "## Multi-DB Integration Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Adapter | Passed | Failed | Total |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          ANY_FAIL=0
-          for f in tests/test-results/integration-*.json; do
-            if [ -f "$f" ]; then
-              db=$(echo "$f" | sed 's/.*integration-\(.*\)\.json/\1/')
-              passed=$(node -e "const j=require('./$f'); process.stdout.write(String(j.passed??0))")
-              failed=$(node -e "const j=require('./$f'); process.stdout.write(String(j.failed??0))")
-              total=$(node -e "const j=require('./$f'); process.stdout.write(String(j.total??0))")
-              if [ "$failed" = "0" ]; then
-                icon="✅"
-              else
-                icon="❌"
-                ANY_FAIL=1
-              fi
-              echo "| $icon $db | $passed | $failed | $total |" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-          echo "" >> $GITHUB_STEP_SUMMARY
-          # Expand per-adapter failure snippets for faster triage
-          for f in tests/test-results/integration-*.json; do
-            if [ -f "$f" ]; then
-              node -e '
-                const fs = require("fs");
-                const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-                if (!j.failed || !j.failures?.length) process.exit(0);
-                let md = "\n<details open><summary>❌ " + j.db + " failures</summary>\n\n";
-                md += "| File | Error |\n|------|-------|\n";
-                for (const x of j.failures.slice(0, 20)) {
-                  const err = (x.stderr || "").split("\n").map(s => s.trim()).find(Boolean) || "";
-                  md += "| `" + x.file + "` | " + err.replace(/\|/g, "\\|").slice(0, 140) + " |\n";
-                }
-                md += "\n</details>\n";
-                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
-              ' "$f" || true
-            fi
-          done
-          if [ "$ANY_FAIL" = "1" ]; then
-            echo "::error::One or more DB adapters failed integration tests — see Multi-DB Integration Results above"
-          fi
-
-  # ------------------------------------------------
-  # 9. Core Benchmarks (fast perf gate per DB adapter)
+  # 8. Core Benchmarks (fast perf gate per DB adapter)
   # ------------------------------------------------
   bench-core:
     name: 📊 Bench (${{ matrix.db }})
@@ -406,7 +339,7 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port || '' }}
-          DB_NAME: ${{ matrix.db == 'sqlite' && 'benchmark_shared' || 'sveltycms_test' }}
+          DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db_user }}
           DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
@@ -490,20 +423,18 @@ jobs:
     env:
       DB_TYPE: sqlite
       DB_HOST: 127.0.0.1
-      DB_NAME: e2e_auth_test
+      DB_NAME: sveltycms_test
       DB_USER: ""
       DB_PASSWORD: ""
       PASSWORD_MIN_LENGTH: 8
       TEST_MODE: "true"
       SKIP_TEST_CLEANUP: "true"
       ADMIN_PASSWORD: Password123!
-      JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
-      ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+      JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
+      ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
       TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
       HOST: 127.0.0.1
       PORT: 4173
-      # index.cjs defaults ORIGIN to https://demo.sveltycms.com which breaks SvelteKit
-      # remote CSRF (Origin header must match request URL origin for completeSetup).
       ORIGIN: http://127.0.0.1:4173
     steps:
       - uses: actions/checkout@v7
@@ -533,17 +464,17 @@ jobs:
 
       - name: Initialize and Start Preview Server
         run: |
-          mkdir -p config config/database config/collections tests/e2e/.auth logs mediaFolder
+          mkdir -p config config/database tests/e2e/.auth logs mediaFolder
 
           cat > config/private.test.ts <<EOF
           export const privateEnv = {
             DB_TYPE: "sqlite",
             DB_HOST: "127.0.0.1",
-            DB_NAME: "e2e_auth_test",
+            DB_NAME: "sveltycms_test",
             DB_USER: "",
             DB_PASSWORD: "",
-            JWT_SECRET_KEY: "Auth-Setup-JWT-Secret-Key-2026-32ch",
-            ENCRYPTION_KEY: "Auth-Setup-Encryption-Key-2026-32ch",
+            JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",
+            ENCRYPTION_KEY: "Integration-Encryption-Key-2026-32ch",
             TEST_API_SECRET: "${TEST_API_SECRET}",
             PASSWORD_MIN_LENGTH: 8,
             USE_REDIS: false,
@@ -557,8 +488,6 @@ jobs:
 
           cp config/private.test.ts config/private.ts
 
-          # Overwrite the random test-secret.txt with the actual repo secret only if it is set
-          # so test-orch.ts and the server agree on TEST_API_SECRET
           if [ -n "${TEST_API_SECRET}" ]; then
             echo "${TEST_API_SECRET}" > tests/e2e/.auth/test-secret.txt
           else
@@ -576,8 +505,16 @@ jobs:
           fi
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          trap "kill $SERVER_PID 2>/dev/null || true" INT TERM
+          trap "kill $SERVER_PID 2>/dev/null || true" INT TERM EXIT
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
+          # Quick verification that the process is still alive after wait-on
+          # (listening socket + config loading can race — detect exits early)
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "❌ Server process exited after listen — crash in preview.log:"
+            tail -100 preview.log
+            exit 1
+          fi
+          echo "✅ Server process alive (PID $SERVER_PID)"
           echo "PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173" >> $GITHUB_ENV
           echo "ORIGIN=${ORIGIN}" >> $GITHUB_ENV
 
@@ -726,15 +663,15 @@ jobs:
         env:
           DB_TYPE: sqlite
           DB_HOST: 127.0.0.1
-          DB_NAME: e2e_auth_test
+          DB_NAME: sveltycms_test
           DB_USER: ""
           DB_PASSWORD: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
-          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026-32ch
-          ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
+          JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
           TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
           HOST: 127.0.0.1
           PORT: 4173

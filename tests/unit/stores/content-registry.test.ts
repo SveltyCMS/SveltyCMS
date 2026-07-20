@@ -91,8 +91,9 @@ describe("ContentRegistry", () => {
     });
 
     it("should start with zero nodes and collections", () => {
-      expect(contentStore.nodeCount).toBeGreaterThanOrEqual(0);
-      expect(contentStore.collectionCount).toBeGreaterThanOrEqual(0);
+      // Fresh content store should have 0 nodes and 0 collections
+      expect(contentStore.nodeCount).toBe(0);
+      expect(contentStore.collectionCount).toBe(0);
     });
   });
 

@@ -347,6 +347,21 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			UNIQUE INDEX plugin_tenant_unique (pluginId, tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+    // Plugin Storage
+    `CREATE TABLE IF NOT EXISTS plugin_storage (
+			_id VARCHAR(36) PRIMARY KEY,
+			plugin VARCHAR(255) NOT NULL,
+			collection VARCHAR(255) NOT NULL,
+			tenantId VARCHAR(36),
+			data JSON NOT NULL,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX plugin_storage_plugin_idx (plugin),
+			INDEX plugin_storage_collection_idx (collection),
+			INDEX plugin_storage_tenant_idx (tenantId),
+			INDEX plugin_storage_plugin_collection_idx (plugin, collection)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
     // Plugin Migrations
     `CREATE TABLE IF NOT EXISTS plugin_migrations (
 			_id VARCHAR(36) PRIMARY KEY,
@@ -407,6 +422,26 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX status_idx (status),
 			INDEX next_run_idx (nextRunAt),
 			INDEX tenant_idx (tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Transactional outbox
+    `CREATE TABLE IF NOT EXISTS svelty_outbox (
+			_id VARCHAR(36) PRIMARY KEY,
+			tenantId VARCHAR(36),
+			eventType VARCHAR(255) NOT NULL,
+			aggregateType VARCHAR(255) NOT NULL,
+			aggregateId VARCHAR(255) NOT NULL,
+			payload JSON NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			deliveredAt DATETIME,
+			attempts INT NOT NULL DEFAULT 0,
+			lastError TEXT,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX outbox_status_idx (status),
+			INDEX outbox_tenant_idx (tenantId),
+			INDEX outbox_event_type_idx (eventType),
+			INDEX outbox_created_at_idx (createdAt)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
     // 404 Logs

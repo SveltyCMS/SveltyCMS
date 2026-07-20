@@ -1,3 +1,8 @@
+/**
+ * @file tests/unit/services/local-cms.test.ts
+ * @description Tests for LocalCMS — the zero-latency internal SDK bridge.
+ */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LocalCMS } from "@src/services/sdk";
 

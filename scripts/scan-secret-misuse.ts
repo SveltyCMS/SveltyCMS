@@ -72,12 +72,14 @@ const EXPOSURE_PATTERNS: { pattern: RegExp; name: string }[] = [
 const BENCHMARK_SECRET_ALLOWLIST = [
   "scripts/benchmark-matrix/",
   "scripts/setup-system.ts",
-  "scripts/run-integration-tests.ts",
-  "scripts/run-security-audit-auth.ts",
+  "scripts/security/auth.ts",
+  "scripts/security-audit.ts",
   "scripts/scan-secret-misuse.ts",
+  "scripts/test-doctor.ts",
+  "scripts/run-e2e.ts",
   "tests/benchmarks/",
   "tests/e2e/",
-  "scripts/security-audit.ts",
+  "tests/integration/",
   "tests/unit/",
 ];
 

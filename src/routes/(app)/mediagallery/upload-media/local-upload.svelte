@@ -1,10 +1,10 @@
-<!-- 
+<!--
 @files src/routes/(app)/mediagallery/uploadMedia/LocalUpload.svelte
 @component
 **This page is used to local upload media to the media gallery**
 
 ## Props
-- 
+-
 
 ### Features:
 - Drag and drop file upload
@@ -13,7 +13,7 @@
 - Thumbnail generation
 - File upload progress
 - Cancel upload
-	
+
 -->
 <script lang="ts">
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
@@ -23,7 +23,7 @@ import { logger } from "@utils/logger";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
 import { optimizeImage } from "@src/utils/media/webgpu-processor";
-import { uploadMediaFiles } from "@utils/media/upload-client";
+import { uploadMediaFilesHandle } from "@utils/media/upload-client";
 	import Button from '@components/ui/button.svelte';
 
 interface Props {
@@ -43,7 +43,9 @@ let input: HTMLInputElement | null = $state(null);
 let dropZone: HTMLDivElement | null = $state(null);
 let uploadProgress = $state(0);
 let uploadSpeed = $state(0);
+let uploadFileLabel = $state("");
 let isUploading = $state(false);
+let uploadCancel: (() => void) | null = $state(null);
 let optimizeBeforeUpload = $state(true); // Default to on for 2026 performance
 let optimizationStats = $state({ saved: 0, count: 0 });
 
@@ -283,23 +285,42 @@ async function uploadLocalFiles() {
         }
     }
 
-	try {
-		let lastProgressLoaded = 0;
-		const result = await uploadMediaFiles(filesToUpload, {
-			formActionUrl: "/mediagallery?/upload",
-			folder,
-			onProgress: (percent) => {
-				uploadProgress = percent;
-				const currentTime = Date.now();
-				const timeDiff = (currentTime - startTime) / 1000;
-				const estimatedLoaded = (percent / 100) * filesToUpload.reduce((sum, file) => sum + file.size, 0);
-				const loadedDiff = estimatedLoaded - lastProgressLoaded;
-				uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
-				lastProgressLoaded = estimatedLoaded;
-			},
-		});
+	const controller = new AbortController();
+	let lastProgressLoaded = 0;
+	const handle = uploadMediaFilesHandle(filesToUpload, {
+		formActionUrl: "/mediagallery?/upload",
+		folder,
+		sequential: filesToUpload.length > 1,
+		signal: controller.signal,
+		onProgress: (percent) => {
+			uploadProgress = percent;
+			const currentTime = Date.now();
+			const timeDiff = (currentTime - startTime) / 1000;
+			const estimatedLoaded =
+				(percent / 100) * filesToUpload.reduce((sum, file) => sum + file.size, 0);
+			const loadedDiff = estimatedLoaded - lastProgressLoaded;
+			uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
+			lastProgressLoaded = estimatedLoaded;
+		},
+		onFileProgress: (fp) => {
+			uploadProgress = fp.overallPercent;
+			uploadFileLabel =
+				filesToUpload.length > 1
+					? `${fp.fileIndex + 1}/${fp.fileCount}: ${fp.fileName}`
+					: fp.fileName;
+		},
+	});
+	uploadCancel = () => {
+		controller.abort();
+		handle.cancel();
+	};
 
-		if (result.success) {
+	try {
+		const result = await handle.promise;
+
+		if (result.aborted) {
+			toast.info("Upload cancelled");
+		} else if (result.success) {
 			toast.success("Files uploaded successfully");
 			handleCancel();
 			onUploadComplete();
@@ -316,6 +337,9 @@ async function uploadLocalFiles() {
 		});
 	} finally {
 		isUploading = false;
+		uploadCancel = null;
+		uploadProgress = 0;
+		uploadFileLabel = "";
 	}
 }
 </script>
@@ -327,23 +351,23 @@ async function uploadLocalFiles() {
 		ondrop={handleFileDrop}
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
-		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-secondary-50 dark:border-surface-500 dark:bg-surface-700"
+		class="mt-2 flex h-50 w-full max-w-full select-none flex-col items-center justify-center gap-4 overflow-x-auto rounded border-2 border-dashed border-surface-600 bg-secondary-50 px-2 sm:flex-row dark:border-surface-500 dark:bg-surface-700"
 		role="region"
 		aria-label="File drop zone"
 	>
-		<div class="grid grid-cols-6 items-center p-4">
-			<iconify-icon icon="fa6-solid:file-arrow-up" width={24}></iconify-icon>
+		<div class="flex w-full flex-col items-center gap-4 p-4 sm:flex-row">
+			<iconify-icon icon="fa6-solid:file-arrow-up" width={32} class="shrink-0 sm:w-12"></iconify-icon>
 
-			<div class="col-span-5 space-y-4 text-center">
+			<div class="min-w-0 flex-1 space-y-4 text-center sm:text-start">
 				<p class="font-bold">
 					<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
 					Drag files here to upload
 				</p>
 
-                <label class="flex items-center gap-2 cursor-pointer justify-center mt-2">
-                    <input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm"  aria-label="Input" />
-                    <span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
-                </label>
+				<label class="flex items-center gap-2 cursor-pointer justify-center mt-2 sm:justify-start">
+					<input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm"  aria-label="Input" />
+					<span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
+				</label>
 
 				<p class="text-sm opacity-75">Multiple files allowed</p>
 
@@ -371,9 +395,9 @@ async function uploadLocalFiles() {
 		</p>
 	</div>
 	<!-- Grid View State -->
-	<div class="flex flex-col space-y-4">
+	<div class="flex flex-col space-y-4 overflow-x-auto pb-2">
 		<!-- File Grid -->
-		<div class="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+		<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
 			{#each files as file (file.name + file.size)}
 				{const fileKey = `${file.name}-${file.size}`}
 				{const previewUrl = objectUrls.get(fileKey)}
@@ -445,19 +469,19 @@ async function uploadLocalFiles() {
 			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading} class="dark:">
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
-					<span>Uploading... {uploadProgress}%</span>
+					<span class="truncate">Uploading... {uploadProgress}%</span>
 				{:else}
 					<iconify-icon icon="mingcute:check-fill" width={24}></iconify-icon>
-					<span>Upload {files.length} File{files.length !== 1 ? 's' : ''}</span>
+					<span class="truncate">Upload {files.length} File{files.length !== 1 ? 's' : ''}</span>
 				{/if}
 			</Button>
 		</div>
 	</div>
 {/if}
 
-<!-- Upload Progress Overlay (Optional, or keep inline in button) -->
-{#if isUploading}
-	<div class="mt-4 w-full rounded border border-surface-400 bg-surface-100 p-4 dark:bg-surface-700">
+	<!-- Upload Progress Overlay (Optional, or keep inline in button) -->
+	{#if isUploading}
+		<div class="mt-4 w-full overflow-x-auto rounded border border-surface-400 bg-surface-100 p-4 dark:bg-surface-700">
 		<!-- Progress Bar -->
 		<div
 			class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600"
@@ -469,8 +493,21 @@ async function uploadLocalFiles() {
 		>
 			<div class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-300" style="width: {uploadProgress}%"></div>
 		</div>
-		<div class="flex items-center justify-between text-xs text-surface-600 dark:text-surface-50">
+		<div class="flex flex-wrap items-center justify-between gap-2 text-xs text-surface-600 dark:text-surface-50">
 			<span>Speed: {formatBytes(uploadSpeed)}/s</span>
+			{#if uploadFileLabel}
+				<span class="max-w-48 truncate" title={uploadFileLabel}>{uploadFileLabel}</span>
+			{/if}
+			<span class="tabular-nums font-medium">{uploadProgress}%</span>
+			<Button
+				variant="outline"
+				size="sm"
+				type="button"
+				onclick={() => uploadCancel?.()}
+				aria-label="Cancel upload"
+			>
+				Cancel
+			</Button>
 		</div>
 	</div>
 {/if}

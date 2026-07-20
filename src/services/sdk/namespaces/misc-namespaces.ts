@@ -787,3 +787,66 @@ async function saveTempPayload(data: any): Promise<string> {
   const save = await getTempStoreSave();
   return save(data);
 }
+
+/**
+ * PluginStorage Namespace
+ *
+ * Exposes plugin storage operations via the LocalCMS SDK, allowing plugins
+ * to persist arbitrary JSON records scoped by (plugin, collection) without
+ * creating custom database tables.
+ */
+export class PluginStorageNamespace extends BaseNamespace {
+  private _adapter: any = null;
+
+  private async _getAdapter() {
+    if (!this._adapter) {
+      const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+      this._adapter = new PluginStorageAdapterImpl(this._dbAdapter);
+    }
+    return this._adapter;
+  }
+
+  async createRecord(
+    plugin: string,
+    collection: string,
+    data: any,
+    options?: { tenantId?: string },
+  ) {
+    const adapter = await this._getAdapter();
+    return adapter.createRecord(plugin, collection, data, options);
+  }
+
+  async getRecord(
+    plugin: string,
+    collection: string,
+    recordId: string,
+    options?: { tenantId?: string },
+  ) {
+    const adapter = await this._getAdapter();
+    return adapter.getRecord(plugin, collection, recordId, options);
+  }
+
+  async listRecords(
+    plugin: string,
+    collection: string,
+    options?: {
+      tenantId?: string;
+      limit?: number;
+      offset?: number;
+      filter?: Record<string, unknown>;
+    },
+  ) {
+    const adapter = await this._getAdapter();
+    return adapter.listRecords(plugin, collection, options);
+  }
+
+  async deleteRecord(
+    plugin: string,
+    collection: string,
+    recordId: string,
+    options?: { tenantId?: string },
+  ) {
+    const adapter = await this._getAdapter();
+    return adapter.deleteRecord(plugin, collection, recordId, options);
+  }
+}

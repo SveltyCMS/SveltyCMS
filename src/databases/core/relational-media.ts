@@ -22,6 +22,7 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import * as utils from "./relational-utils";
+import { buildMediaJsonPathSqlConditions, resolveMediaJsonSqlDialect } from "./media-json-path";
 
 export class RelationalMediaModule implements IMediaAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -115,6 +116,26 @@ export class RelationalMediaModule implements IMediaAdapter {
                   like(this.schema.mediaItems.path, "global/%"),
                 );
                 if (userConditions) conditions.push(userConditions);
+              }
+            }
+
+            // DB-native JSON path (SQLite JSON1 / PG jsonb / MariaDB JSON) for large libraries
+            const jsonPathExpr = options?.jsonPath?.trim();
+            if (jsonPathExpr) {
+              const dialect = resolveMediaJsonSqlDialect(this.adapter as any);
+              const { conditions: jsonConds, unhandled } = buildMediaJsonPathSqlConditions(
+                dialect,
+                jsonPathExpr,
+              );
+              for (const c of jsonConds) conditions.push(c as any);
+              if (unhandled) {
+                logger.debug(
+                  `[media] jsonPath has clauses not pushed to SQL (${dialect}); in-memory filter still applies`,
+                );
+              } else if (jsonConds.length > 0) {
+                logger.debug(
+                  `[media] applied ${jsonConds.length} native JSON path condition(s) (${dialect})`,
+                );
               }
             }
 

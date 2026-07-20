@@ -29,7 +29,7 @@ import {
 const { data }: { data: any } = $props();
 
 // Define the Widget type
-interface Widget {
+	interface Widget {
 	canDisable: boolean;
 	dependencies: string[];
 	description?: string;
@@ -142,7 +142,16 @@ async function loadWidgets() {
 		if (!result.success) {
 			throw new Error(result.message || "Failed to load widgets");
 		}
-		widgets = unwrapWidgetList(result);
+		widgets = unwrapWidgetList(result).map((w) => ({
+			name: w.name,
+			icon: w.icon ?? 'mdi:puzzle',
+			isCore: w.isCore ?? false,
+			isActive: w.isActive,
+			canDisable: w.canDisable ?? true,
+			dependencies: w.dependencies ?? [],
+			description: w.description,
+			pillar: w.pillar,
+		}));
 
 		console.info("Loaded widgets:", {
 			total: widgets.length,

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-19"
+updated: "2026-07-20"
 tags:
   - "testing"
   - "status"
@@ -20,7 +20,7 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > Deep inventories and “what we shipped when” live in **[Test Status Archive](./test-status-archive.mdx)**.
 
-**Dashboard updated:** 2026-07-19 (A++ suite + residual config/user goldens green; redirectsMV primary store)
+**Dashboard updated:** 2026-07-20 (A++ suite + residual config/user goldens green; redirectsMV primary store)
 
 ---
 
@@ -50,19 +50,20 @@ tags:
 
 **Gates (local → CI)**
 
-| When       | What runs (summary)                                                                   |
-| ---------- | ------------------------------------------------------------------------------------- |
-| Pre-commit | Format/lint/slop on staged + fast security set                                        |
-| Pre-push   | Unit (smart), build when needed, **SQLite smoke if DB/plugin/hooks change**, P0 check |
-| CI         | Matrix: lint/types/unit → build → integration × DBs → E2E prep + 6 grep groups        |
+| When       | What runs (summary)                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| Pre-commit | 1. Database safety (`check-test-db-safety.ts`) 2. Format + lint 3. Lint-staged 4. Unit tests |
+| Pre-push   | 1. Production build (4 adapters) 2. `bun test tests/integration/` (`bun run gate`)           |
+| Manual     | `bun run test:doctor` (gate map + unit + SQLite integration) · `bun run test:security`       |
+| CI         | Matrix whitebox → build → db-tests (4 DBs) → E2E prep + named groups → benchmarks            |
 
 **CI smart reporting** (job Summary tab + annotations):
 
-| Job                   | Reporter                                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| E2E prep / E2E shards | `scripts/ci-report-playwright.ts` — pass/fail counts, first error, fix hints, `preview.log` tail |
-| Integration per DB    | runner writes table + failure stderr; `db-summary` aggregates adapters                           |
-| All Green             | `scripts/ci-report-all-green.ts` — job matrix + fix order                                        |
+| Job                           | Reporter                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| E2E prep / E2E shards         | `scripts/ci-report-playwright.ts` — pass/fail counts, first error, fix hints, `preview.log` tail |
+| `bun test tests/integration/` | bun test native output — per-file ✓/×, summary, no custom JSON                                   |
+| All Green                     | `scripts/ci-report-all-green.ts` — job matrix + fix order                                        |
 
 Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status-archive.mdx#4-ci-pipeline-gates)
 
@@ -231,11 +232,11 @@ Resolved historical items are **not** listed here — see [archive gaps](./test-
 ## 5. What to run locally
 
 ```bash
-# Daily / before commit
-bun run gate:fast
+# Pre-commit (full suite)
+bun run precommit
 
-# Before push (matches pre-push spirit)
-bun run verify:push
+# Before push
+bun run prepush
 
 # Unit only
 bun run test:unit
@@ -244,16 +245,16 @@ bun run test:unit
 bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
 
 # Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+bun test tests/integration/
 
 # E2E CI-parity (preview :4173 — not Vite)
 bun run test:e2e
 
 # Focused residual config/user goldens (example)
-bun run scripts/run-e2e-ci.ts --no-build --project=chromium "--grep=redirects|Edit User Details|website tokens|automations|workflows|webhooks|Dashboard shell|create role"
+bun run test:e2e --project=chromium "--grep=redirects|Edit User Details|website tokens|automations|workflows|webhooks|Dashboard shell|create role"
 
-# Full local CI-ish (incl. E2E — slow)
-bun run ci:local
+# Smart test selector (auto-detects from git diff)
+bun run test:smart
 ```
 
 Safety: tests must never point at production DBs — see test-config safety guards in [git-workflow.mdx](./git-workflow.mdx).

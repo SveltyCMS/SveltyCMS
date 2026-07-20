@@ -246,9 +246,9 @@ describe("User API Extended Integration", () => {
     });
 
     it("should reject upload exceeding max file size", async () => {
-      // Keep payload moderate (~2MB over typical limits) so the process is not OOM-killed
-      // in CI (a prior 16MB body closed the socket and poisoned adminCookie for later suites).
-      const bigBytes = new Uint8Array(2 * 1024 * 1024 + 1024);
+      // Use payload just over the 524288-byte (0.5MB) server limit so the server
+      // rejects it cleanly without OOM or socket-closure issues.
+      const bigBytes = new Uint8Array(524288 + 1024);
       bigBytes.fill(0x00);
       bigBytes.set(tinyPngBytes().slice(0, 8), 0);
 

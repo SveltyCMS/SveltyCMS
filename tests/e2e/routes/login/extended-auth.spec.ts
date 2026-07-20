@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { resetAndSeedDatabase } from "../../helpers/database";
-import { ADMIN_CREDENTIALS } from "../../helpers/auth";
-
-import { prepareLoginForm, enable2FAForTestUser } from "../../helpers/auth";
+import { resetAndSeedDatabase, seedExpiredPasswordReset } from "../../helpers/api";
+import { ADMIN_CREDENTIALS, prepareLoginForm, enable2FAForTestUser } from "../../helpers/auth";
 
 test.describe("Extended Authentication UI Flows", () => {
   // Ensure we start with a clean state
@@ -11,6 +9,33 @@ test.describe("Extended Authentication UI Flows", () => {
   test.beforeEach(async ({ page }) => {
     await resetAndSeedDatabase(page);
     await prepareLoginForm(page);
+  });
+
+  test("Expired reset-password token shows Link expired toast", async ({ page }) => {
+    const seeded = await seedExpiredPasswordReset(page, {
+      email: ADMIN_CREDENTIALS.email,
+    });
+
+    // URL effect opens reset form (P_WFORGOT + P_WRESET) with hidden token/email
+    await page.goto(
+      `/login?token=${encodeURIComponent(seeded.token)}&email=${encodeURIComponent(seeded.email)}`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    const resetForm = page.locator('form[aria-label="Reset password"]');
+    await expect(resetForm).toBeVisible({ timeout: 15_000 });
+
+    // Strong password to pass client validation before server rejects expired token
+    const newPassword = "ExpiredTokenTest9!";
+    await page.locator("#passwordreset").fill(newPassword);
+    await page.locator("#confirm_passwordreset").fill(newPassword);
+
+    await resetForm.locator('button[type="submit"]').click();
+
+    const toast = page.locator('.toast, [role="alert"]').first();
+    await expect(toast).toBeVisible({ timeout: 15_000 });
+    const text = ((await toast.textContent()) || "").toLowerCase();
+    expect(text).toMatch(/link expired|expired|request a new/);
   });
 
   test("Forgot Password Flow", async ({ page }) => {

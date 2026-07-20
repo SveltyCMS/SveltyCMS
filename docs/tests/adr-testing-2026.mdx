@@ -64,7 +64,7 @@ This ADR locks **how** admin/product routes are tested and structured so UI refa
 | Rule                  | Practice                                                                                                      |
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
 | **Forbidden**         | `test.skip` because a list is empty, no sample data, or “install-specific empty state”                        |
-| **Required**          | Seed via `POST /api/testing` (`tests/e2e/helpers/seed.ts` + `handlers/testing.ts`)                            |
+| **Required**          | Seed via `POST /api/testing` (`tests/e2e/helpers/api.ts` + `handlers/testing.ts`)                             |
 | **Allowed hard-fail** | Optional external fixtures (Docker Postgres, real IdP) after seed returns structured `503` / unavailable code |
 | **Policy text**       | [AGENTS.md](../../AGENTS.md)                                                                                  |
 
@@ -86,7 +86,7 @@ Shared helpers (implemented):
 
 | Helper           | Path                                                                                      |
 | ---------------- | ----------------------------------------------------------------------------------------- |
-| Seeds            | `tests/e2e/helpers/seed.ts` — `seedWebhook`, `seedAutomation`, `enablePlugin`, …          |
+| Seeds            | `tests/e2e/helpers/api.ts` — `seedWebhook`, `seedAutomation`, `enablePlugin`, …           |
 | Confirm modal    | `tests/e2e/helpers/confirm-modal.ts`                                                      |
 | Migration wizard | `tests/e2e/helpers/migration-wizard.ts` — `ensureSmartImporterReady` (hard-fail, no skip) |
 
@@ -95,6 +95,11 @@ Testing API actions (behind fail-closed gate only):
 | Action                                  | Purpose                                                  |
 | --------------------------------------- | -------------------------------------------------------- |
 | `seed-webhook` / `delete-webhook`       | Webhook list fixtures                                    |
+| `seed-expired-password-reset`           | Past-expiry `password_reset` token (TOKEN_EXPIRED toast) |
+| `seed-media-with-metadata`              | Media rows with distinct `metadata` for `?jsonPath=`     |
+| `outbox-emit` / `outbox-process-batch`  | Transactional outbox fixtures                            |
+| `outbox-tx-rollback`                    | Outbox row rolled back with failed SQL transaction       |
+| `plugin-storage-*`                      | Plugin storage create/get/list/delete                    |
 | `seed-automation` / `delete-automation` | Automation list / search fixtures                        |
 | `seed-trash` / `purge-trash`            | Soft-deleted entry for restore golden E2E                |
 | `enable-plugin`                         | Core plugin enable for wizard E2E (`pluginId` sanitized) |
@@ -145,7 +150,7 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 | Env allowlist         | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` / `SVELTY_BENCHMARK_SUITE` — **not** bare `NODE_ENV=test` | same                        |
 | Secret                | Timing-safe `x-test-secret` vs `TEST_API_SECRET`                                                        | same + `route-access-audit` |
 | Authz bypass          | Same production hard-gate in `applyTestBypassFromRequest`                                               | `test-bypass.server.ts`     |
-| Bundle strip          | Vite `testBackdoorStripperPlugin` + `verify-prod-build-backdoor`                                        | unit + precheck             |
+| Bundle strip          | Vite `testBackdoorStripperPlugin` + `verify-prod-build-backdoor`                                        | unit + CI build             |
 | Shared entry          | `assertTestingApiAllowed` used by `handleTestingRoutes`                                                 | no weaker second gate       |
 
 **Agents:** Do not add seed routes outside this handler. Do not weaken the gate. Do not commit production secrets. Known e2e default secret strings are rejected outside an explicit test env.
@@ -159,13 +164,13 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 | CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                          |
 | Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                     |
 | Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                    |
-| E2E seeds              | `tests/e2e/helpers/seed.ts`                                                                                       |
+| E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                        |
 | Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                              |
 | Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                       |
 | Prod strip proof       | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                                                           |
 | Smart Test Selector    | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering                               |
 | **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                    |
-| Integration runner     | `scripts/run-integration-tests.ts` — crash detect + full restart + seed isolation                                 |
+| Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                               |
 | E2E CI-parity runner   | `bun run test:e2e` → `run-e2e-ci.ts` (preview :4173, harness pre-check). Dev: `run-e2e-dev.ts` (strictPort :5173) |
 
 ---
@@ -174,15 +179,15 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 Enterprise stability rules that every layer must honor:
 
-| Rule                   | Unit                            | Integration                           | E2E                             |
-| ---------------------- | ------------------------------- | ------------------------------------- | ------------------------------- | ------------- | --------------------- |
-| **One identity**       | `@tests/harness`                | seed uses harness emails              | `helpers/auth.ts` → harness     |
-| **Right altitude**     | pure logic / gates              | HTTP + multi-DB                       | golden journeys only            |
-| **No soft-skip empty** | n/a                             | n/a                                   | seed or hard-fail               |
-| **Crash isolation**    | n/a                             | detect socket death → restart         | storageState fail-closed        |
-| **Local = CI binary**  | Vitest                          | preview `node build`                  | `test:e2e` = preview :4173      |
-| **P0 floors**          | `test:unit:coverage` thresholds | multi-DB matrix in CI                 | P0 journeys in `p0-manifest.ts` |
-| **Push smoke**         | smart unit + security           | auto SQLite smoke when `src/databases | plugins                         | hooks` change | not on push (CI-only) |
+| Rule                   | Unit                            | Integration                           | E2E                                     |
+| ---------------------- | ------------------------------- | ------------------------------------- | --------------------------------------- | ------------- | --------------------- |
+| **One identity**       | `@tests/harness`                | seed uses harness emails              | `helpers/auth.ts` → harness             |
+| **Right altitude**     | pure logic / gates              | HTTP + multi-DB                       | golden journeys only                    |
+| **No soft-skip empty** | n/a                             | n/a                                   | seed or hard-fail                       |
+| **Crash isolation**    | n/a                             | detect socket death → restart         | storageState fail-closed                |
+| **Local = CI binary**  | Vitest                          | preview `node build`                  | `test:e2e` = preview :4173              |
+| **P0 floors**          | `test:unit:coverage` thresholds | multi-DB matrix in CI                 | P0 journeys in `critical-test-paths.ts` |
+| **Push smoke**         | smart unit + security           | auto SQLite smoke when `src/databases | plugins                                 | hooks` change | not on push (CI-only) |
 
 **Commands (canonical):**
 

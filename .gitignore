@@ -37,6 +37,7 @@ vite.config.ts.timestamp-*
 # Backup folder under config
 /config/backup/
 /config/database
+/config/test-database/
 
 # SveltyCMS
 /tmp

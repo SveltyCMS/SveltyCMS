@@ -79,6 +79,8 @@ export const SQL_TABLE_ALIASES: Record<string, string> = {
   pluginStates: "pluginStates",
   plugin_migrations: "pluginMigrations",
   pluginMigrations: "pluginMigrations",
+  plugin_storage: "pluginStorage",
+  pluginStorage: "pluginStorage",
   tenants: "tenants",
   system_tenants: "tenants",
   "404_logs": "fourOhFourLogs",
@@ -91,6 +93,8 @@ export const SQL_TABLE_ALIASES: Record<string, string> = {
   redirectsMV: "redirectsMV",
   svelty_jobs: "sveltyJobs",
   sveltyJobs: "sveltyJobs",
+  svelty_outbox: "sveltyOutbox",
+  sveltyOutbox: "sveltyOutbox",
   system_virtual_folders: "systemVirtualFolders",
   systemVirtualFolders: "systemVirtualFolders",
 };
@@ -115,6 +119,8 @@ export const SYSTEM_COLLECTIONS = new Set([
   "workflowDefinitions",
   "workflow_instances",
   "workflowInstances",
+  "svelty_outbox",
+  "sveltyOutbox",
 ]);
 
 export const SYSTEM_NAME_MAP = new Map<string, string>();
@@ -299,6 +305,20 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
+  sveltyOutbox: [
+    "_id",
+    "tenantId",
+    "eventType",
+    "aggregateType",
+    "aggregateId",
+    "payload",
+    "status",
+    "createdAt",
+    "deliveredAt",
+    "attempts",
+    "lastError",
+    "updatedAt",
+  ],
   websiteTokens: [
     "_id",
     "name",
@@ -360,6 +380,7 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
+  pluginStorage: ["_id", "plugin", "collection", "tenantId", "data", "createdAt", "updatedAt"],
   tenants: [
     "_id",
     "name",

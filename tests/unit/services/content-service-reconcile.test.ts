@@ -1,3 +1,8 @@
+/**
+ * @file tests/unit/services/content-service-reconcile.test.ts
+ * @description Tests for content service reconciliation between code and GUI schemas.
+ */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies

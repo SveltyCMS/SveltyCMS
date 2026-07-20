@@ -128,6 +128,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			dialogClass,
 		)}
 		{...dialog.dialogAria}
+		aria-modal="true"
 		{...rest}
 	>
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->

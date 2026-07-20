@@ -58,7 +58,8 @@ SveltyCMS security architecture includes:
 ### Authentication & Access Control
 
 - **[Authentication System](/docs/reference/security/authentication-system.mdx)** - Enterprise-grade authentication with 3-layer caching, automatic session rotation, multi-tenancy, API Keys, Magic Links, Guest Auth, and WebAuthn/Passkeys
-- **[Login Security](/docs/reference/security/login-security.mdx)** - IP resolution, rate limiter secrets, OAuth HMAC validation, session/device tracking, and accessibility fixes.
+- **[Login Security](/docs/reference/security/login-security.mdx)** - IP resolution, rate limiter secrets, OAuth HMAC validation, session/device tracking, password-reset token expiry codes, and accessibility fixes.
+- **[License Gate Inventory](/docs/reference/security/license-endpoint-inventory.mdx)** - Marketplace license checks, fail-open/fail-closed policy, plugin/widget gate map.
 - **[Access Management](/docs/guides/configuration/access-management.mdx)** - Roles, Granular Permissions, and Website Token management
   - Session management
   - Token-based authentication
@@ -350,7 +351,7 @@ SveltyCMS includes comprehensive security testing:
 bun test tests/unit/utils/security.test.ts
 
 # Account lockout and session security tests
-bun test tests/unit/auth-lockout.test.ts
+bun x vitest run tests/unit/auth/auth-lockout.test.ts
 
 # Middleware security (firewall, rate-limit, auth)
 bun test tests/unit/hooks/

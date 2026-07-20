@@ -845,10 +845,12 @@ export class CacheService {
     key: string,
     value: any,
     ttl = 0,
-    tenantId: string | null = "global",
+    tenantId?: string | null,
     _category = CacheCategory.GENERAL,
     tags: string[] = [],
   ): Promise<void> {
+    // Align with get()/buildKey: undefined|null|"" → "default" so set+get without
+    // an explicit tenantId always round-trip on the same full key.
     const fullKey = this.generateKey(key, tenantId);
     // 🚀 ADAPTIVE TTL: Use per-category TTL profile when no explicit TTL given.
     // Explicit ttl=0 means "use the category default". Explicit ttl>0 always wins.
@@ -1052,7 +1054,14 @@ export class CacheService {
     cacheMetrics.recordClear(pattern, CacheCategory.GENERAL, tenantId);
     if (this.isL2Ready()) {
       try {
-        const fullPattern = this.generateKey(pattern, tenantId) + "*";
+        // Wildcard tenant → SCAN every tenant namespace; else scope to one tenant.
+        // Strip trailing globs from the logical pattern, then append a single `*`.
+        const isWildcardTenant =
+          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+        const patternCore = pattern.replace(/[*?]+$/, "");
+        const fullPattern = isWildcardTenant
+          ? `tenant:*:${patternCore}*`
+          : `${this.generateKey(patternCore, tenantId)}*`;
         let cursor = "0";
         do {
           const reply = await this.l2.scan(cursor, {
@@ -1128,15 +1137,12 @@ export class CacheService {
   }
 
   private buildKey(key: string, tenantId: string | null = "default"): string {
-    // Check for MULTI_TENANT setting (memoized in settings-service sync)
-    // We import it dynamically if needed, but for sync core performance we check global context if available
-    const isMultiTenant = (globalThis as any).__mockMultiTenant ?? false;
-
-    if (isMultiTenant) {
-      return `tenant:${tenantId || "default"}:${key}`;
-    }
-
-    return key;
+    // Always namespace by tenant. Callers that pass distinct tenantIds must never
+    // collide in L1/L2 even when MULTI_TENANT is false at boot (defense-in-depth).
+    // Omitted/null/empty tenantId → stable `tenant:default:…` keys (matches get()/set()).
+    const tid =
+      tenantId === undefined || tenantId === null || tenantId === "" ? "default" : String(tenantId);
+    return `tenant:${tid}:${key}`;
   }
 
   private clearLocalL1ByTags(tags: string[], _tenantId: string | null) {
@@ -1212,6 +1218,41 @@ export class CacheService {
   }
 
   private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
+    // Strip trailing globs so we can prefix-match stored keys.
+    const lastChar = pattern[pattern.length - 1];
+    const patternPrefix =
+      lastChar === "*" || lastChar === "?" ? pattern.replace(/[*?]+$/, "") : pattern;
+
+    // Wildcard tenant (`*` / null / undefined / ""): match the logical key under
+    // any `tenant:<id>:` namespace. generateKey("*", …) would produce a literal
+    // `tenant:*:…` prefix that never matches real keys (tenant:default:…).
+    const isWildcardTenant =
+      tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+
+    if (isWildcardTenant) {
+      this._isBulkClearing = true;
+      const deletedKeys: string[] = [];
+      try {
+        for (const key of this.l1.keys()) {
+          // full key shape: tenant:<tid>:<logicalKey>
+          const sep = key.indexOf(":", "tenant:".length);
+          if (sep === -1) continue;
+          const logicalKey = key.slice(sep + 1);
+          if (logicalKey.startsWith(patternPrefix)) {
+            this.l1.delete(key);
+            deletedKeys.push(key);
+          }
+        }
+      } finally {
+        this._isBulkClearing = false;
+      }
+      for (let i = 0; i < deletedKeys.length; i++) {
+        this.cleanupTagsForKey(deletedKeys[i]);
+        this.removeFromPrefixMap(deletedKeys[i]);
+      }
+      return;
+    }
+
     const fullPattern = this.generateKey(pattern, tenantId);
 
     // 🚀 PREFIX MAP FAST PATH: Find the deepest matching bucket and scan only its keys.
@@ -1247,9 +1288,11 @@ export class CacheService {
       const deletedKeys: string[] = [];
       try {
         // Fast-path: skip regex for common non-glob patterns (most cache keys)
-        const lastChar = fullPattern[fullPattern.length - 1];
+        const fullLastChar = fullPattern[fullPattern.length - 1];
         const matchPrefix =
-          lastChar === "*" || lastChar === "?" ? fullPattern.replace(/[*?]+$/, "") : fullPattern;
+          fullLastChar === "*" || fullLastChar === "?"
+            ? fullPattern.replace(/[*?]+$/, "")
+            : fullPattern;
         for (const key of bestBucket) {
           if (key.startsWith(matchPrefix)) {
             this.l1.delete(key);
@@ -1273,9 +1316,11 @@ export class CacheService {
     }
 
     // FALLBACK: Only used when no prefix bucket exists (should be rare)
-    const lastChar = fullPattern[fullPattern.length - 1];
+    const fullLastChar = fullPattern[fullPattern.length - 1];
     const fallbackPrefix =
-      lastChar === "*" || lastChar === "?" ? fullPattern.replace(/[*?]+$/, "") : fullPattern;
+      fullLastChar === "*" || fullLastChar === "?"
+        ? fullPattern.replace(/[*?]+$/, "")
+        : fullPattern;
     // Use iterator to avoid full Array.from when possible
     for (const key of this.l1.keys()) {
       if (key.startsWith(fallbackPrefix)) {

@@ -77,7 +77,9 @@ export function normalizeCollectionName(collection: string): string {
   if (
     collection.startsWith("media_") ||
     collection.startsWith("auth_") ||
-    collection.startsWith("system_")
+    collection.startsWith("system_") ||
+    collection.startsWith("svelty_") ||
+    collection.startsWith("plugin_")
   ) {
     return collection;
   }

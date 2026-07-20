@@ -639,17 +639,26 @@ async function resetPWInternal(event: RequestEvent, input: any) {
   if (!auth) return { success: false, message: "Authentication system unavailable." };
 
   const password = input.password as string;
+  const confirmPassword = (input.confirmPassword ?? input.confirm_password) as string;
   const token = input.token as string;
   const email = input.email as string;
 
-  const result = safeParse(resetFormSchema, { password, token, email });
+  const result = safeParse(resetFormSchema, { password, confirmPassword, token, email });
   if (!result.success) return { success: false, errors: flatten(result.issues).nested };
   const { password: p, token: t, email: e } = result.output;
 
   const user = await auth.checkUser({ email: e });
-  if (!user?._id) return { success: false, message: "Invalid reset link." };
+  if (!user?._id)
+    return { success: false, message: "Invalid reset link.", code: "TOKEN_NOT_FOUND" };
   const v = await auth.consumeToken(t, user._id, "password_reset");
-  if (!v.status) return { success: false, message: v.message || "Invalid reset link." };
+  if (!v.status) {
+    return {
+      success: false,
+      message: v.message || "Invalid reset link.",
+      // Surface TOKEN_EXPIRED / TOKEN_ALREADY_CONSUMED for precise UI toasts
+      code: v.code || "TOKEN_INVALID",
+    };
+  }
   if (p.length < 8) return { success: false, message: "Password too weak." };
 
   await auth.invalidateAllUserSessions(user._id);

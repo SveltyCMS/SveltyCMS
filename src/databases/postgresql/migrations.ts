@@ -342,6 +342,21 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     `CREATE INDEX IF NOT EXISTS plugin_states_tenant_idx ON plugin_states ("tenantId")`,
     `CREATE UNIQUE INDEX IF NOT EXISTS plugin_states_plugin_tenant_unique ON plugin_states ("pluginId", "tenantId")`,
 
+    // Plugin Storage
+    `CREATE TABLE IF NOT EXISTS plugin_storage (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"plugin" VARCHAR(255) NOT NULL,
+			"collection" VARCHAR(255) NOT NULL,
+			"tenantId" VARCHAR(36),
+			"data" JSONB NOT NULL DEFAULT '{}',
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS plugin_storage_plugin_idx ON plugin_storage ("plugin")`,
+    `CREATE INDEX IF NOT EXISTS plugin_storage_collection_idx ON plugin_storage ("collection")`,
+    `CREATE INDEX IF NOT EXISTS plugin_storage_tenant_idx ON plugin_storage ("tenantId")`,
+    `CREATE INDEX IF NOT EXISTS plugin_storage_plugin_collection_idx ON plugin_storage ("plugin", "collection")`,
+
     // Plugin Migrations
     `CREATE TABLE IF NOT EXISTS plugin_migrations (
 			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -430,6 +445,26 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     `CREATE INDEX IF NOT EXISTS svelty_jobs_status_idx ON svelty_jobs (status)`,
     `CREATE INDEX IF NOT EXISTS svelty_jobs_next_run_idx ON svelty_jobs ("nextRunAt")`,
     `CREATE INDEX IF NOT EXISTS svelty_jobs_tenant_idx ON svelty_jobs ("tenantId")`,
+
+    // Transactional outbox
+    `CREATE TABLE IF NOT EXISTS svelty_outbox (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"tenantId" VARCHAR(36),
+			"eventType" VARCHAR(255) NOT NULL,
+			"aggregateType" VARCHAR(255) NOT NULL,
+			"aggregateId" VARCHAR(255) NOT NULL,
+			"payload" JSONB NOT NULL DEFAULT '{}',
+			"status" VARCHAR(50) NOT NULL DEFAULT 'pending',
+			"deliveredAt" TIMESTAMP WITH TIME ZONE,
+			"attempts" INT NOT NULL DEFAULT 0,
+			"lastError" TEXT,
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS outbox_status_idx ON svelty_outbox (status)`,
+    `CREATE INDEX IF NOT EXISTS outbox_tenant_idx ON svelty_outbox ("tenantId")`,
+    `CREATE INDEX IF NOT EXISTS outbox_event_type_idx ON svelty_outbox ("eventType")`,
+    `CREATE INDEX IF NOT EXISTS outbox_created_at_idx ON svelty_outbox ("createdAt")`,
 
     // 404 Logs
     `CREATE TABLE IF NOT EXISTS "404_logs" (

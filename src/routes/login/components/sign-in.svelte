@@ -421,7 +421,7 @@ async function handleForgotSubmit(event: Event) {
 // ---------------------------------------------------------------------------
 
 const resetForm = new Form(
-	{ password: "", confirm_password: "", token: "", email: "" },
+	{ password: "", confirmPassword: "", token: "", email: "" },
 	resetFormSchema,
 );
 
@@ -437,22 +437,46 @@ async function handleResetSubmit(event: Event) {
 		const { resetPW: remoteResetPW } = await import("../auth.remote");
 		const result = (await remoteResetPW({
 			password: resetForm.data.password,
+			confirmPassword: resetForm.data.confirmPassword,
 			token: resetForm.data.token,
 			email: resetForm.data.email
 		})) as any;
 		isSubmitting = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
+
+		if (!result?.success) {
+			const code = result?.code as string | undefined;
+			const description =
+				code === "TOKEN_EXPIRED"
+					? "This reset link has expired. Request a new one from “Forgot password”."
+					: code === "TOKEN_ALREADY_CONSUMED"
+						? "This reset link was already used. Request a new one if you still need access."
+						: result?.message || "Failed to reset password.";
+			toast.error({
+				title:
+					code === "TOKEN_EXPIRED"
+						? "Link expired"
+						: code === "TOKEN_ALREADY_CONSUMED"
+							? "Link already used"
+							: "Reset Failed",
+				description,
+			});
+			wiggle(resetFormElement);
+			return;
+		}
+
 		P_WRESET = false;
 		P_WFORGOT = false;
-
 		toast.success({
 			title: "Password Reset Successful",
 			description: "You can now sign in with your new password",
 		});
-		if (result.success && result.redirectPath) {
+		if (result.redirectPath) {
 			goto(result.redirectPath);
 		}
 	} catch (error: any) {
 		isSubmitting = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
 		toast.error({
 			title: "Reset Failed",
 			description: error?.message || "Failed to reset password."
@@ -985,9 +1009,9 @@ $effect(() => {
 						<!-- Confirm password -->
 						<FloatingInput
 							id="confirm_passwordreset"
-							name="confirm_password"
+							name="confirmPassword"
 							type="security"
-							bind:value={resetForm.data.confirm_password}
+							bind:value={resetForm.data.confirmPassword}
 							bind:showPassword
 							autocomplete="new-password"
 							label={confirm_password?.() || form_confirmpassword?.()}
@@ -995,14 +1019,14 @@ $effect(() => {
 							iconColor="black"
 							textColor="black"
 							passwordIconColor="black"
-							invalid={!!resetForm.errors.confirm_password}
-							errorMessage={resetForm.errors.confirm_password?.[0] || ''}
+							invalid={!!resetForm.errors.confirmPassword}
+							errorMessage={resetForm.errors.confirmPassword?.[0] || ''}
 						/>
 
 						<!-- Password Strength Indicator -->
 						<PasswordStrength
 							password={resetForm.data.password}
-							confirmPassword={resetForm.data.confirm_password}
+							confirmPassword={resetForm.data.confirmPassword}
 						/>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">

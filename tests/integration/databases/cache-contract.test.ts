@@ -110,12 +110,16 @@ describe("Cache Contract — Tenant Isolation", () => {
     const valueA = await cacheService.get(KEY, "tenant-a");
     const valueB = await cacheService.get(KEY, "tenant-b");
 
-    // Both should retrieve their own tenant's value
-    if (valueA !== null && valueB !== null) {
-      expect(valueA).toBe("tenant-a-value");
-      expect(valueB).toBe("tenant-b-value");
-      expect(valueA).not.toBe(valueB);
-    }
+    expect(valueA).toBe("tenant-a-value");
+    expect(valueB).toBe("tenant-b-value");
+    expect(valueA).not.toBe(valueB);
+
+    // Key generator must physically separate namespaces
+    const fullA = cacheService.generateKey(KEY, "tenant-a");
+    const fullB = cacheService.generateKey(KEY, "tenant-b");
+    expect(fullA).not.toBe(fullB);
+    expect(fullA).toContain("tenant-a");
+    expect(fullB).toContain("tenant-b");
   });
 });
 

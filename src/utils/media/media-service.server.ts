@@ -13,6 +13,7 @@ import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
 import { AppError } from "@utils/error-handling";
 import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
+import { processImageWithPresets, type ImageVariant } from "@src/services/media/image-processor";
 import type {
   IDBAdapter,
   DatabaseError,
@@ -372,6 +373,73 @@ export class MediaService {
     }
   }
 
+  /**
+   * Fire-and-forget variant generation for streamed (large file) uploads.
+   * Re-reads the file from storage, generates responsive variants, and
+   * updates the media record with variant metadata asynchronously.
+   */
+  private generateVariantsForStreamedFile(
+    hash: string,
+    relPath: string,
+    _mimeType: string,
+    _filename: string,
+    uploadResult: DatabaseResult<MediaItem>,
+    tenantId?: DatabaseId | null,
+  ): void {
+    // Defer to microtask to avoid blocking the response
+    Promise.resolve().then(async () => {
+      try {
+        const { getFile } = await import("./media-storage.server");
+        const fileBuffer = await getFile(relPath);
+        const { processImageWithPresets } = await import("@src/services/media/image-processor");
+        const variants = await processImageWithPresets(
+          fileBuffer,
+          hash,
+          ["thumbnail", "card", "default"],
+          tenantId,
+        );
+
+        if (!uploadResult.success) {
+          logger.warn("[MediaService] Cannot generate variants — upload result indicates failure");
+          return;
+        }
+        if (variants.length > 0 && uploadResult.data) {
+          const recordId = (uploadResult.data as any)._id;
+          if (recordId) {
+            await this.db.crud.update(
+              "media_items",
+              recordId as DatabaseId,
+              {
+                metadata: {
+                  imageVariants: variants.map((v) => ({
+                    preset: v.preset,
+                    width: v.width,
+                    height: v.height,
+                    format: v.format,
+                    quality: v.quality,
+                    path: v.path,
+                    size: v.size,
+                  })),
+                },
+              } as unknown as EntityUpdate<DbMediaItem>,
+            );
+            logger.info("[Media] Variants generated for streamed upload", {
+              hash: hash.slice(0, 12),
+              count: variants.length,
+            });
+          }
+        }
+      } catch (err) {
+        logger.warn(
+          "[Media] Background variant generation for streamed upload failed — original intact",
+          {
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+      }
+    });
+  }
+
   private async ensureOriginalOnDisk(
     hash: string,
     filename: string,
@@ -443,6 +511,7 @@ export class MediaService {
         // Extract image dimensions + generate derivatives for image files
         let imageMetadata: Record<string, unknown> = {};
         let imageThumbnails: Record<string, unknown> = {};
+        let imageVariants: ImageVariant[] = [];
         if (effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)) {
           try {
             const sharpMod = await import("sharp");
@@ -460,6 +529,27 @@ export class MediaService {
               ext,
               tenantId || "global",
             );
+
+            // 🚀 Generate responsive image variants (resilient — original already saved)
+            try {
+              imageVariants = await processImageWithPresets(
+                buffer,
+                hash,
+                ["thumbnail", "card", "default"],
+                tenantId,
+              );
+              if (imageVariants.length > 0) {
+                logger.info("[Media] Responsive variants generated", {
+                  hash: hash.slice(0, 12),
+                  count: imageVariants.length,
+                });
+              }
+            } catch (variantErr) {
+              logger.warn("[Media] Responsive variant generation failed — original intact", {
+                error: variantErr instanceof Error ? variantErr.message : String(variantErr),
+              });
+              // Continue — the original file is already saved and users can still access it.
+            }
           } catch (e) {
             logger.warn("[Media] Derivative generation skipped", e);
           }
@@ -487,6 +577,21 @@ export class MediaService {
             ) as unknown as MediaItem,
           };
         }
+        const recordMetadata =
+          imageVariants.length > 0
+            ? {
+                ...imageMetadata,
+                imageVariants: imageVariants.map((v) => ({
+                  preset: v.preset,
+                  width: v.width,
+                  height: v.height,
+                  format: v.format,
+                  quality: v.quality,
+                  path: v.path,
+                  size: v.size,
+                })),
+              }
+            : imageMetadata;
         return (await this.files.upload(
           {
             filename: file.name,
@@ -497,7 +602,7 @@ export class MediaService {
             path: relPath,
             createdBy: _userId as DatabaseId,
             updatedBy: _userId as DatabaseId,
-            metadata: imageMetadata,
+            metadata: recordMetadata,
             thumbnails: imageThumbnails,
             access: _access,
             folderId,
@@ -570,7 +675,7 @@ export class MediaService {
           };
         }
 
-        return (await this.files.upload(
+        const uploadResult = await this.files.upload(
           {
             filename: file.name,
             originalFilename: file.name,
@@ -587,7 +692,26 @@ export class MediaService {
             tenantId: tenantId ?? undefined,
           } as unknown as EntityCreate<DbMediaItem>,
           tenantId ?? undefined,
-        )) as unknown as DatabaseResult<MediaItem>;
+        );
+
+        // For large streamed files, try variant generation by re-reading from storage.
+        // This is fire-and-forget: failure does not affect the upload response.
+        if (
+          file.type.startsWith("image/") &&
+          !isSvgFile(file.type, file.name) &&
+          uploadResult.success
+        ) {
+          this.generateVariantsForStreamedFile(
+            hash,
+            relPath,
+            file.type,
+            file.name,
+            uploadResult as unknown as DatabaseResult<MediaItem>,
+            tenantId,
+          );
+        }
+
+        return uploadResult as unknown as DatabaseResult<MediaItem>;
       }
     } catch (err: unknown) {
       this.mapFileSystemError(err);
@@ -633,6 +757,28 @@ export class MediaService {
       }) as unknown[];
     } else {
       item.versions = [];
+    }
+
+    // Process responsive image variants from metadata
+    if (item.metadata?.imageVariants) {
+      const enrichedVariants = (item.metadata.imageVariants as ImageVariant[]).map(
+        (v: ImageVariant) => ({
+          ...v,
+          url: getUrl(v.path, prefix),
+        }),
+      );
+      // Rebuild thumbnails entries for the variant paths so mediaUrl() can resolve them
+      for (const variant of enrichedVariants) {
+        const thumbKey = `${variant.preset}-${variant.width}`;
+        if (!item.thumbnails?.[thumbKey]) {
+          if (!item.thumbnails) item.thumbnails = {};
+          (item.thumbnails as Record<string, any>)[thumbKey] = {
+            url: variant.url,
+            width: variant.width,
+            height: variant.height,
+          };
+        }
+      }
     }
 
     return item;
@@ -685,6 +831,27 @@ export class MediaService {
   }
 
   public async deleteMedia(fileId: string, tenantId?: DatabaseId | null): Promise<void> {
+    // Fetch the media record before deletion to get the hash for variant cleanup
+    try {
+      const existing = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: fileId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      if (existing.success && existing.data?.hash) {
+        // Clean up responsive image variants asynchronously
+        const { deleteAllVariants } = await import("@src/services/media/image-variant-storage");
+        deleteAllVariants(existing.data.hash, tenantId?.toString()).catch((err) => {
+          logger.warn("[Media] Variant cleanup failed during delete", {
+            fileId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+    } catch {
+      // Ignore errors during pre-delete lookup — the actual delete should still proceed
+    }
+
     const res = await this.files.delete(fileId as DatabaseId, tenantId ?? undefined);
     if (!res.success) throw new Error(res.message);
   }
@@ -1298,14 +1465,54 @@ export class MediaService {
       // the file under a new hash/path.
       const { hashFileContent } = await import("./media-processing.server");
       let hash = "";
+      let buffer: Buffer | null = null;
       if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
-        const buffer = Buffer.from(await file.arrayBuffer());
+        buffer = Buffer.from(await file.arrayBuffer());
         hash = await hashFileContent(buffer);
       } else {
         const { hashStream } = await import("./media-processing.server");
         const [s1] = file.stream().tee();
         hash = await hashStream(s1);
       }
+
+      // Generate responsive variants for small files (buffer available)
+      let versionVariants: ImageVariant[] = [];
+      if (buffer && file.type.startsWith("image/") && !isSvgFile(file.type, file.name)) {
+        try {
+          const { processImageWithPresets } = await import("@src/services/media/image-processor");
+          versionVariants = await processImageWithPresets(
+            buffer,
+            hash,
+            ["thumbnail", "card", "default"],
+            tenantId,
+          );
+          if (versionVariants.length > 0) {
+            logger.info("[Media] Variants generated for version upload", {
+              hash: hash.slice(0, 12),
+              count: versionVariants.length,
+            });
+          }
+        } catch (variantErr) {
+          logger.warn("[Media] Variant generation failed during version upload — original intact", {
+            error: variantErr instanceof Error ? variantErr.message : String(variantErr),
+          });
+        }
+      }
+
+      const versionMetadata =
+        versionVariants.length > 0
+          ? {
+              imageVariants: versionVariants.map((v) => ({
+                preset: v.preset,
+                width: v.width,
+                height: v.height,
+                format: v.format,
+                quality: v.quality,
+                path: v.path,
+                size: v.size,
+              })),
+            }
+          : {};
 
       // Check if hash is exactly the same as current: if so, no-op or proceed.
       const uploadRes = await this.files.upload(
@@ -1318,7 +1525,7 @@ export class MediaService {
           path: buildOriginalRelPath(hash, file.name),
           createdBy: userId,
           updatedBy: userId,
-          metadata: {},
+          metadata: versionMetadata,
           thumbnails: {},
           access: existing.access || "public",
           tenantId: tenantId ?? undefined,

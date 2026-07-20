@@ -54,7 +54,7 @@ tags:
 | Fail-closed unknown API             | namespace ownership + dispatcher matrix   | security negatives / contract                                           |
 | Multi-tenant isolation (when MT on) | tenant unit                               | isolation + contract                                                    |
 
-P0 manifest: `tests/p0-manifest.ts` · validate: `bun run scripts/validate-p0-coverage.ts`
+Critical test manifest: `tests/critical-test-paths.ts` (manifest + validation combined; `validate-p0-coverage.ts` is a ghost reference — the `critical-test-paths.ts` file is the single source of truth)
 
 ### P1 — Admin goldens (unit gate + one E2E journey)
 
@@ -113,7 +113,7 @@ bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/cli
 Run integration (server must be up via runner):
 
 ```bash
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+bun test --timeout 300000 tests/integration/
 # bun test tests/integration/api/session-page-load.test.ts tests/integration/api/webhooks.test.ts tests/integration/api/automations.test.ts tests/integration/api/config-admin-surface.test.ts
 ```
 

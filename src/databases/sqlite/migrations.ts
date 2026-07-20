@@ -273,6 +273,21 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
       );
 
+      CREATE TABLE IF NOT EXISTS "plugin_storage" (
+        "_id" TEXT PRIMARY KEY,
+        "plugin" TEXT NOT NULL,
+        "collection" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "data" TEXT NOT NULL DEFAULT '{}',
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE INDEX IF NOT EXISTS "idx_plugin_storage_plugin" ON "plugin_storage" ("plugin");
+      CREATE INDEX IF NOT EXISTS "idx_plugin_storage_collection" ON "plugin_storage" ("collection");
+      CREATE INDEX IF NOT EXISTS "idx_plugin_storage_tenant" ON "plugin_storage" ("tenantId");
+      CREATE INDEX IF NOT EXISTS "idx_plugin_storage_plugin_collection" ON "plugin_storage" ("plugin", "collection");
+
       CREATE TABLE IF NOT EXISTS "plugin_migrations" (
         "_id" TEXT PRIMARY KEY,
         "pluginId" TEXT NOT NULL,
@@ -297,6 +312,25 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
       );
+
+      CREATE TABLE IF NOT EXISTS "svelty_outbox" (
+        "_id" TEXT PRIMARY KEY,
+        "tenantId" TEXT,
+        "eventType" TEXT NOT NULL,
+        "aggregateType" TEXT NOT NULL,
+        "aggregateId" TEXT NOT NULL,
+        "payload" TEXT NOT NULL DEFAULT '{}',
+        "status" TEXT NOT NULL DEFAULT 'pending',
+        "deliveredAt" INTEGER,
+        "attempts" INTEGER NOT NULL DEFAULT 0,
+        "lastError" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+      CREATE INDEX IF NOT EXISTS "idx_outbox_status" ON "svelty_outbox" ("status");
+      CREATE INDEX IF NOT EXISTS "idx_outbox_tenant" ON "svelty_outbox" ("tenantId");
+      CREATE INDEX IF NOT EXISTS "idx_outbox_event_type" ON "svelty_outbox" ("eventType");
+      CREATE INDEX IF NOT EXISTS "idx_outbox_created_at" ON "svelty_outbox" ("createdAt");
 
       CREATE TABLE IF NOT EXISTS "tenants" (
         "_id" TEXT PRIMARY KEY,

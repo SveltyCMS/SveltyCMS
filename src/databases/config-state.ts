@@ -10,6 +10,7 @@ import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isIsolatedTestDbName } from "@utils/test-db-safety";
+import { isCiRunner } from "@utils/private-config-policy";
 import { safeParse, type InferOutput } from "valibot";
 
 /** Read env at runtime — production builds inline bare `process.env.*` to `{}`. */
@@ -259,22 +260,28 @@ async function enforceTestSafety(config: any) {
       logger.error(msg);
       throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
     }
-    // Never connect to the same DB as live config/private.ts (user data)
-    try {
-      const fs = await import("node:fs");
-      const livePath = `${process.cwd()}/config/private.ts`;
-      if (fs.existsSync(livePath)) {
-        const live = fs.readFileSync(livePath, "utf8");
-        const liveDb = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
-        if (liveDb && liveDb === dbName) {
-          const msg = `SAFETY VIOLATION: Test mode DB_NAME '${dbName}' matches live config/private.ts. Refusing to use user database for tests.`;
-          logger.error(msg);
-          throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+    // CI runners create an ephemeral config/private.ts as a mirror of
+    // config/private.test.ts. The live-vs-test comparison below is meant
+    // to protect local developer machines, where private.ts may point at
+    // a real deployment. In CI, private.ts IS the test config — skip.
+    if (!isCiRunner(process.env)) {
+      // Never connect to the same DB as live config/private.ts (user data)
+      try {
+        const fs = await import("node:fs");
+        const livePath = `${process.cwd()}/config/private.ts`;
+        if (fs.existsSync(livePath)) {
+          const live = fs.readFileSync(livePath, "utf8");
+          const liveDb = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
+          if (liveDb && liveDb === dbName) {
+            const msg = `SAFETY VIOLATION: Test mode DB_NAME '${dbName}' matches live config/private.ts. Refusing to use user database for tests.`;
+            logger.error(msg);
+            throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+          }
         }
+      } catch (err) {
+        if (err instanceof AppError) throw err;
+        /* ignore read errors */
       }
-    } catch (err) {
-      if (err instanceof AppError) throw err;
-      /* ignore read errors */
     }
   }
 }
