@@ -346,6 +346,6 @@ export async function startIntegrationServer(): Promise<void> {
  * which handles cleanup via process exit, so this is a no-op.
  */
 export async function stopIntegrationServer(): Promise<void> {
-  // Server lifecycle managed by scripts/start-integration-server.ts
+  // Server lifecycle managed by scripts/start-integration-server.ts — no-op
   serverPromise = null;
 }

@@ -121,6 +121,8 @@ export const SYSTEM_COLLECTIONS = new Set([
   "workflowInstances",
   "svelty_outbox",
   "sveltyOutbox",
+  "plugin_storage",
+  "pluginStorage",
 ]);
 
 export const SYSTEM_NAME_MAP = new Map<string, string>();
