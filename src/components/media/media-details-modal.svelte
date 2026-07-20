@@ -17,11 +17,13 @@
 			import Select from '@components/ui/select.svelte';
 			import Badge from '@components/ui/badge.svelte';
 			import Tabs from '@components/ui/tabs.svelte';
-	  import { fade } from "svelte/transition";
-	  import { formatBytes } from "@utils/utils";
-	  import { toast } from "@src/stores/toast.svelte.ts";
-	  import { mediaUrl } from "@utils/media/media-utils";
-	  import { debounce } from "@utils/debounce";
+  import { fade } from "svelte/transition";
+  import { formatBytes } from "@utils/utils";
+  import { toast } from "@src/stores/toast.svelte.ts";
+  import { mediaUrl } from "@utils/media/media-utils";
+  import { debounce } from "@utils/debounce";
+  import { page } from '$app/state';
+  import { invalidateAll } from '$app/navigation';
 
   // Props
   let {
@@ -182,27 +184,96 @@
     }
   });
 
-  	// ── Inline editable asset field helpers ─────────────────────────────────────
-  	function startEditName() {
-  		editName = file.metadata?.name || file.filename || '';
-  		isEditingName = true;
-  		nameSaveStatus = 'idle';
-  	}
-  	// saveName replaced by debouncedSaveName — fires automatically on input
+  // ── Inline editable asset field helpers ─────────────────────────────────────
+  function startEditName() {
+    editName = file.metadata?.name || file.filename || '';
+    isEditingName = true;
+  }
+  async function saveName() {
+    if (!file?._id) return;
+    isSavingName = true;
+    try {
+      await invalidateAll();
+      const response = await fetch(`/api/media/${file._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
+        body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
+      });
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: { ...file.metadata, name: editName } };
+        onUpdate(file);
+        toast.success('Name saved');
+      } else {
+        toast.error(body?.error || 'Failed to save name');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save name');
+    } finally {
+      isSavingName = false;
+      isEditingName = false;
+    }
+  }
 
-  	function startEditAlt() {
-  		editAlt = file.metadata?.alt || '';
-  		isEditingAlt = true;
-  		altSaveStatus = 'idle';
-  	}
-  	// saveAlt replaced by debouncedSaveAlt — fires automatically on input
+  function startEditAlt() {
+    editAlt = file.metadata?.alt || '';
+    isEditingAlt = true;
+  }
+  async function saveAlt() {
+    if (!file?._id) return;
+    isSavingAlt = true;
+    try {
+      await invalidateAll();
+      const response = await fetch(`/api/media/${file._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
+        body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
+      });
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: { ...file.metadata, alt: editAlt } };
+        onUpdate(file);
+        toast.success('Alt text saved');
+      } else {
+        toast.error(body?.error || 'Failed to save alt text');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save alt text');
+    } finally {
+      isSavingAlt = false;
+      isEditingAlt = false;
+    }
+  }
 
-  	function startEditCaption() {
-  		editCaption = file.metadata?.caption || '';
-  		isEditingCaption = true;
-  		captionSaveStatus = 'idle';
-  	}
-  	// saveCaption replaced by debouncedSaveCaption — fires automatically on input
+  function startEditCaption() {
+    editCaption = file.metadata?.caption || '';
+    isEditingCaption = true;
+  }
+  async function saveCaption() {
+    if (!file?._id) return;
+    isSavingCaption = true;
+    try {
+      await invalidateAll();
+      const response = await fetch(`/api/media/${file._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
+        body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
+      });
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: { ...file.metadata, caption: editCaption } };
+        onUpdate(file);
+        toast.success('Caption saved');
+      } else {
+        toast.error(body?.error || 'Failed to save caption');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save caption');
+    } finally {
+      isSavingCaption = false;
+      isEditingCaption = false;
+    }
+  }
 
   // ── Info Tab logic ──────────────────────────────────────────────────────────
   async function handleAddTag(e: KeyboardEvent | MouseEvent) {
@@ -211,6 +282,7 @@
 
     isSavingTags = true;
     try {
+      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       if (currentTags.includes(newTagInput.trim())) {
         toast.error("Tag already exists");
@@ -224,20 +296,18 @@
 
       const response = await fetch(`/api/media/${file._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": page.data.csrfToken ?? "" },
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          newTagInput = "";
-          toast.success("Tag added successfully");
-        }
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: updatedMetadata };
+        onUpdate(file);
+        newTagInput = "";
+        toast.success("Tag added successfully");
       } else {
-        toast.error("Failed to add tag");
+        toast.error(body?.message || "Failed to add tag");
       }
     } catch (err) {
       toast.error("An error occurred while adding tag");
@@ -250,6 +320,7 @@
     if (!file?._id) return;
 
     try {
+      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       const updatedMetadata = {
         ...file.metadata,
@@ -258,19 +329,17 @@
 
       const response = await fetch(`/api/media/${file._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": page.data.csrfToken ?? "" },
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          toast.success("Tag removed");
-        }
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: updatedMetadata };
+        onUpdate(file);
+        toast.success("Tag removed");
       } else {
-        toast.error("Failed to remove tag");
+        toast.error(body?.message || "Failed to remove tag");
       }
     } catch (err) {
       toast.error("An error occurred while removing tag");

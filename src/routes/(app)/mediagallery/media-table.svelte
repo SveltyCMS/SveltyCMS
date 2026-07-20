@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+import { untrack } from "svelte";
 import {
 	createSmartTable,
 	pinCellClass,
@@ -71,16 +72,19 @@ const smartTable = createSmartTable({
 		String((row as MediaBase | MediaImage)._id?.toString() || (row as MediaBase | MediaImage).filename || ""),
 });
 
+// Columns are static — set once on mount, not reactive to filteredFiles
+smartTable.setColumns([
+	{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
+	{ key: "preview", label: "Preview", sortable: false, align: "start" },
+	{ key: "filename", label: "Name", sortable: true, align: "start" },
+	{ key: "size", label: "Size", sortable: true, align: "end" },
+	{ key: "type", label: "Type", sortable: true, align: "end" },
+	{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
+]);
+
 $effect(() => {
-	smartTable.setRows(filteredFiles as unknown as Record<string, unknown>[]);
-	smartTable.setColumns([
-		{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
-		{ key: "preview", label: "Preview", sortable: false, align: "start" },
-		{ key: "filename", label: "Name", sortable: true, align: "start" },
-		{ key: "size", label: "Size", sortable: true, align: "end" },
-		{ key: "type", label: "Type", sortable: true, align: "end" },
-		{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
-	]);
+	const files = filteredFiles;
+	untrack(() => smartTable.setRows(files as unknown as Record<string, unknown>[]));
 });
 
 const paginatedFiles = $derived(smartTable.rows as unknown as (MediaBase | MediaImage)[]);
@@ -210,7 +214,7 @@ function onUpdateRowsPerPage(rows: number) {
 					<div class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						Name
 					</div>
-					<div class="w-9 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
+					<div class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						<span class="sr-only">Actions</span>
 					</div>
 				</div>

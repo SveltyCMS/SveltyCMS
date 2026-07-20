@@ -12,6 +12,7 @@
 
 <script lang="ts">
 import { onMount } from "svelte";
+import { slide } from "svelte/transition";
 import { invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
 import type { PageData } from "./$types";
@@ -65,6 +66,7 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	let sortBy = $state("newest");
+	let mobileFiltersExpanded = $state(false);
 	/** Breadcrumb folder key currently highlighted as media drop target (`root` | folderId) */
 	let breadcrumbDropKey = $state<string | null>(null);
 	let isMovingMedia = $state(false);
@@ -579,7 +581,7 @@ async function handleOpenFileDetails(file: any) {
 }
 
 function handleUpdateImage(updatedFile: MediaImage) {
-  if (!updatedFile?._id) return;
+	if (!updatedFile?._id) return;
 	const index = files.findIndex((f) => f._id === updatedFile._id);
 	if (index !== -1) {
 		files[index] = updatedFile;
@@ -643,7 +645,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
 			</Button>
 
-			<input aria-label="Search media"
+			<input aria-label="Upload media files"
 				type="file"
 				multiple
 				class="hidden"
@@ -689,199 +691,221 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 		{/if}
 
+		<!-- Breadcrumb — always visible, sits between heading and toolbar -->
+		<div class="shrink-0 px-2 sm:px-3">
+			<nav
+				class="flex min-w-0 items-center gap-2.5 overflow-x-auto border-b border-surface-200 py-2.5 text-base text-surface-500 dark:border-surface-800 dark:text-surface-400"
+				aria-label="Folder path"
+			>
+				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
+					{#if i > 0}
+						<iconify-icon
+							icon="mdi:chevron-right"
+							width="16"
+							class="shrink-0 text-surface-400 dark:text-surface-500"
+							aria-hidden="true"
+						></iconify-icon>
+					{/if}
+					{#if i === breadcrumbs.length - 1}
+						<span
+							class="flex shrink-0 items-center gap-1 font-medium text-surface-800 dark:text-surface-100"
+							aria-current="page"
+						>
+							{#if i === 0}<iconify-icon icon="mdi:home" width="16" class="shrink-0" aria-hidden="true"></iconify-icon>{/if}
+							<span class="max-w-48 truncate sm:max-w-[16rem]">{crumb.name}</span>
+						</span>
+					{:else}
+						<a
+							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+							class="flex shrink-0 items-center gap-1 hover:text-primary-500"
+							data-preload="hover"
+						>
+							{#if i === 0}<iconify-icon icon="mdi:home" width="16" class="shrink-0" aria-hidden="true"></iconify-icon>{/if}
+							<span class="max-w-48 truncate sm:max-w-[16rem]">{crumb.name}</span>
+						</a>
+					{/if}
+				{/each}
+			</nav>
+		</div>
+
 		<!-- Toolbar -->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
-			<div
-				class="flex flex-col gap-2.5 py-3 sm:flex-row sm:items-center sm:gap-3"
-			>
-			<div class="relative min-w-0 w-full sm:flex-1">
-				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
-				<Input
-					id="media-gallery-search"
-					bind:value={globalSearchValue}
-					type="search"
-					placeholder="Search media... (Mod+F)"
-					class="w-full ps-9 dark:border-surface-700/60 focus-visible:ring-1"
-					aria-label="Search media assets"
-				/>
+
+			<!-- Mobile toolbar: search + expand button, then collapsible filters -->
+			<div class="flex flex-col gap-1.5 py-2 sm:hidden">
+				<div class="flex items-center gap-2">
+					<div class="relative min-w-0 flex-1">
+						<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
+						<Input
+							id="media-gallery-search"
+							bind:value={globalSearchValue}
+							type="search"
+							placeholder="Search media... (Mod+F)"
+							class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
+							aria-label="Search media assets"
+						/>
+						<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onclick={() => (showAdvancedSearch = true)}
+								aria-label="Advanced search and filters"
+								class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+							>
+								<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
+							</Button>
+						</span>
+					</div>
+					<Button
+						type="button"
+						variant="outline"
+						size="md"
+						onclick={() => (mobileFiltersExpanded = !mobileFiltersExpanded)}
+						aria-label={mobileFiltersExpanded ? 'Hide filters' : 'Show filters'}
+						aria-expanded={mobileFiltersExpanded}
+						class="h-10 w-10 shrink-0 px-0!"
+					>
+						<iconify-icon
+							icon="mdi:chevron-down"
+							width="18"
+							class="transition-transform duration-200 {mobileFiltersExpanded ? 'rotate-180' : ''}"
+						></iconify-icon>
+					</Button>
+				</div>
+
+				{#if mobileFiltersExpanded}
+					<div transition:slide={{ duration: 200 }} class="flex flex-col gap-1.5 pb-1">
+						<div class="flex gap-2">
+							{#if view === 'grid'}
+								<label for="media-type-filter-m" class="sr-only">Filter by media type</label>
+								<Select id="media-type-filter-m" bind:value={selectedMediaType} options={mediaTypeOptions} placeholder="Type" class="flex-1" />
+							{/if}
+							<label for="sort-by-filter-m" class="sr-only">Sort by</label>
+							<Select id="sort-by-filter-m" bind:value={sortBy} options={sortOptions} placeholder="Sort" class="flex-1" />
+						</div>
+						<div class="flex items-center gap-2">
+							<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+								<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} class="h-10! w-10! px-0!">
+									<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
+								</Button>
+								<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-l border-surface-300 dark:border-surface-600">
+									<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
+								</Button>
+							</div>
+							{#if view === 'grid'}
+								<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+									{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
+										<Button
+											type="button"
+											variant={gridSize === size ? 'primary' : 'ghost'}
+											size="md"
+											onclick={() => (gridSize = size)}
+											aria-label="{size} grid"
+											aria-pressed={gridSize === size}
+											class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''}"
+										>
+											{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
+										</Button>
+									{/each}
+								</div>
+								<Button
+									type="button"
+									variant={isSelectionMode ? 'primary' : 'outline'}
+									size="md"
+									onclick={() => (isSelectionMode = !isSelectionMode)}
+									aria-label="Toggle selection mode"
+									aria-pressed={isSelectionMode}
+									class="h-10 px-3"
+								>
+									{isSelectionMode ? 'Done' : 'Select'}
+								</Button>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 
-			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-				{#if view === 'grid'}
-					<label for="media-type-filter" class="sr-only">Filter by media type</label>
-					<Select
-						id="media-type-filter"
-						bind:value={selectedMediaType}
-						options={mediaTypeOptions}
-						placeholder="Type"
-						class="w-full sm:w-28"
+			<!-- Desktop toolbar: single row -->
+			<div class="hidden items-center gap-2 py-2 sm:flex">
+				<div class="relative min-w-0 flex-1">
+					<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50" width="18"></iconify-icon>
+					<Input
+						id="media-gallery-search-desktop"
+						bind:value={globalSearchValue}
+						type="search"
+						placeholder="Search media... (Mod+F)"
+						class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
+						aria-label="Search media assets"
 					/>
-				{/if}
-
-				<label for="sort-by-filter" class="sr-only">Sort by</label>
-				<Select
-					id="sort-by-filter"
-					bind:value={sortBy}
-					options={sortOptions}
-					placeholder="Sort"
-					class="w-full sm:w-36"
-				/>
-
-				<Button
-					variant={searchCriteria ? 'tertiary' : 'ghost'}
-					size="sm"
-					onclick={() => showAdvancedSearch = true}
-					aria-label="Advanced Search"
-					class="h-10 text-sm {searchCriteria ? 'preset-filled-tertiary-500 text-white' : ''}"
-				>
-					<iconify-icon icon="mdi:filter-variant" width="18"></iconify-icon>
-					<span class="hidden sm:inline">{searchCriteria ? 'Filtered' : 'Filter'}</span>
-				</Button>
-
-				<!--
-					Native <button> toggles (not Button component): guarantees aria-label,
-					aria-pressed, data-testid and onclick stay on the DOM node for E2E/a11y.
-				-->
-				<div class="flex h-10 items-center gap-0.5" role="group" aria-label="View mode">
-					<button
-						type="button"
-						onclick={() => (view = 'grid')}
-						class="btn relative inline-flex h-10 w-10 min-w-0 items-center justify-center p-0! text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'grid'
-							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
-							: 'text-surface-500 dark:text-surface-400'}"
-						aria-label="Grid view"
-						aria-pressed={view === 'grid' ? 'true' : 'false'}
-						data-testid="media-view-grid"
-					>
-						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
-					</button>
-					<button
-						type="button"
-						onclick={() => (view = 'table')}
-						class="btn relative inline-flex h-10 w-10 min-w-0 items-center justify-center p-0! text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
-							? 'border-b-2 border-primary-500 text-surface-800 dark:text-surface-100'
-							: 'text-surface-500 dark:text-surface-400'}"
-						aria-label="Table view"
-						aria-pressed={view === 'table' ? 'true' : 'false'}
-						data-testid="media-view-table"
-					>
-						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"></iconify-icon>
-					</button>
+					<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onclick={() => (showAdvancedSearch = true)}
+							aria-label="Advanced search and filters"
+							class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+						>
+							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
+						</Button>
+					</span>
 				</div>
 
 				{#if view === 'grid'}
+					<div class="w-28 shrink-0">
+						<label for="media-type-filter" class="sr-only">Filter by media type</label>
+						<Select id="media-type-filter" bind:value={selectedMediaType} options={mediaTypeOptions} placeholder="Type" />
+					</div>
+				{/if}
+
+				<div class="w-36 shrink-0">
+					<label for="sort-by-filter" class="sr-only">Sort by</label>
+					<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="Sort" />
+				</div>
+
+				<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+					<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} data-testid="media-view-grid" class="h-10! w-10! px-0!">
+						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
+					</Button>
+					<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} data-testid="media-view-table" class="h-10! w-10! px-0! border-l border-surface-300 dark:border-surface-600">
+						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"></iconify-icon>
+					</Button>
+				</div>
+
+				{#if view === 'grid'}
+					<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
+							<Button
+								type="button"
+								variant={gridSize === size ? 'primary' : 'ghost'}
+								size="md"
+								onclick={() => (gridSize = size)}
+								aria-label="{size} grid"
+								aria-pressed={gridSize === size}
+								class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''}"
+							>
+								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
+							</Button>
+						{/each}
+					</div>
+
 					<Button
-						variant={isSelectionMode ? 'surface' : 'ghost'}
-						color={isSelectionMode ? 'var(--color-primary-500)' : undefined}
+						type="button"
+						variant={isSelectionMode ? 'primary' : 'outline'}
+						size="md"
 						onclick={() => (isSelectionMode = !isSelectionMode)}
 						aria-label="Toggle selection mode"
 						aria-pressed={isSelectionMode}
 						data-testid="media-selection-toggle"
-						class="h-10 text-sm"
+						class="h-10 shrink-0 text-sm"
 					>
-						<span class="sm:hidden">{isSelectionMode ? 'Done' : 'Select'}</span>
-						<span class="hidden sm:inline">{isSelectionMode ? 'Exit Selection' : 'Select'}</span>
+						{isSelectionMode ? 'Exit Selection' : 'Select'}
 					</Button>
 				{/if}
 			</div>
-			</div>
+
 		</div>
-
-		<!--
-			Breadcrumbs are first-class drop targets (same move API as the sidebar tree).
-			Desktop: drop groups on a sidebar folder OR any ancestor crumb — identical result.
-			Mobile: sidebar is tight, so crumbs are the main drop/tap path for parents.
-		-->
-		{#if breadcrumbs.length > 1}
-			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
-				<nav
-					class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-200 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-800 dark:text-surface-400"
-					aria-label="Folder path — drop media on a parent to move (same as sidebar folders)"
-				>
-					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-						{@const isLast = i === breadcrumbs.length - 1}
-						{@const dropKey = crumbDropKey(crumb.folderId)}
-						{@const isDropTarget = !isLast && breadcrumbDropKey === dropKey}
-						{@const canReceiveMove = !isLast}
-
-						{#if i > 0}
-							<iconify-icon
-								icon="mdi:chevron-right"
-								width="16"
-								class="shrink-0 text-surface-400 dark:text-surface-500"
-								aria-hidden="true"
-							></iconify-icon>
-						{/if}
-
-						{#if isLast}
-							<span
-								class="max-w-48 shrink-0 truncate rounded-md px-2 py-2 font-medium text-surface-800 sm:max-w-[16rem] sm:px-1 sm:py-0 dark:text-surface-100"
-								aria-current="page"
-							>{crumb.name}</span>
-						{:else}
-							<a
-								href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
-								class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
-									{isDropTarget
-										? 'bg-primary-500/20 text-primary-600 ring-1 ring-inset ring-primary-500/70 dark:text-primary-500'
-										: selectedFiles.size > 0
-											? 'bg-surface-100 text-surface-800 hover:bg-primary-500/15 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
-											: 'hover:text-primary-500'}"
-								data-preload="hover"
-								data-media-drop-target={dropKey}
-								data-testid={`media-breadcrumb-${dropKey}`}
-								aria-label={selectedFiles.size > 0
-									? `Move ${selectedFiles.size} selected to ${crumb.name}`
-									: `Open folder ${crumb.name}`}
-								title={selectedFiles.size > 0
-									? `Move selection to ${crumb.name}`
-									: canReceiveMove
-										? `Drop media here (or open) — same as sidebar`
-										: crumb.name}
-								ondragover={(e) => handleBreadcrumbDragOver(e, crumb.folderId)}
-								ondragleave={(e) => handleBreadcrumbDragLeave(e, crumb.folderId)}
-								ondrop={(e) => handleBreadcrumbDrop(e, crumb.folderId, crumb.name)}
-								onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
-							>
-								{#if isDropTarget || selectedFiles.size > 0}
-									<iconify-icon
-										icon={isDropTarget ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
-										width="16"
-										class="shrink-0 {isDropTarget ? 'text-primary-500' : 'opacity-70'}"
-										aria-hidden="true"
-									></iconify-icon>
-								{/if}
-								<span class="truncate">{crumb.name}</span>
-							</a>
-						{/if}
-					{/each}
-				</nav>
-
-				{#if selectedFiles.size > 0}
-					<p
-						class="pb-2 text-[11px] leading-tight text-surface-500 dark:text-surface-400"
-						role="status"
-					>
-						<span class="sm:hidden">
-							Tap a parent folder above, or drop onto it, to move {selectedFiles.size}
-							{selectedFiles.size === 1 ? 'item' : 'items'}
-						</span>
-						<span class="hidden sm:inline">
-							Drop {selectedFiles.size}
-							{selectedFiles.size === 1 ? 'item' : 'items'} on a sidebar folder or breadcrumb parent to move
-						</span>
-					</p>
-				{/if}
-			</div>
-		{:else if selectedFiles.size > 0}
-			<!-- At media root: only sidebar folders are valid destinations for a group move -->
-			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-move-hint">
-				<p class="border-b border-surface-200 py-2 text-[11px] leading-tight text-surface-500 dark:border-surface-800 dark:text-surface-400" role="status">
-					Drop {selectedFiles.size}
-					{selectedFiles.size === 1 ? 'item' : 'items'} on a folder in the sidebar to move
-				</p>
-			</div>
-		{/if}
 
 		<!-- Content — data-view is the canonical E2E signal for grid/table mode -->
 		<div
