@@ -60,24 +60,39 @@ info "Pre-commit already verified: format, lint, unit tests."
 info "Pre-push: build + CVE audit + secret scan + SQLite integration"
 echo ""
 
-TOTAL=4; OK=0
+TOTAL=7; OK=0
 
 # Step 1 — Production build
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true bun run build; then
   OK=$((OK + 1))
 fi
 
-# Step 2 — CVE audit (info only — cookie low vuln blocked on SvelteKit upstream)
+# Step 2 — Quality gate (TypeScript + Svelte check — mirrors CI whitebox)
+if run "✅  Quality Gate (check)" bun run check; then
+  OK=$((OK + 1))
+fi
+
+# Step 3 — CVE audit (info only — cookie low vuln blocked on SvelteKit upstream)
 # bun audit --severity=high exits 1 even for low severity (bun bug), so we show output but don't block.
 bun audit --severity=high 2>&1 || true
 OK=$((OK + 1))
 
-# Step 3 — Secret misuse scan (catches before CI fails)
+# Step 4 — Secret misuse scan (mirrors CI whitebox)
 if run "🔑  Secret Misuse Scan" bun run scripts/scan-secret-misuse.ts --strict; then
   OK=$((OK + 1))
 fi
 
-# Step 4 — SQLite integration tests (with summary extraction)
+# Step 5 — Tenant isolation gate (mirrors CI whitebox)
+if run "🛡️  Tenant Isolation Gate" bun run test:tenant; then
+  OK=$((OK + 1))
+fi
+
+# Step 6 — Deploy backdoor probe (mirrors CI whitebox)
+if run "🚪  Deploy Backdoor Probe" bun run scripts/probe-deploy-testing-api.ts; then
+  OK=$((OK + 1))
+fi
+
+# Step 7 — SQLite integration tests (with summary extraction)
 STEP=$((STEP + 1))
 label="🗄️  Integration tests (SQLite)"
 padded="$(pad "$label")"

@@ -152,7 +152,7 @@ describe("getRemainingTime", () => {
   });
 
   it("should return hours and minutes for 1-24h remaining", () => {
-    const future = new Date(Date.now() + 2.5 * 60 * 60 * 1000); // 2h 30m
+    const future = new Date(Date.now() + 2.5 * 60 * 60 * 1000 + 2000); // 2h 30m + 2s buffer
     const result = getRemainingTime(future);
     expect(result).toBe("2h 30m");
   });
