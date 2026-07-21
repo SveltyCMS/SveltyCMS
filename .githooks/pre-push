@@ -88,7 +88,7 @@ if run "🛡️  Tenant Isolation Gate" bun run test:tenant; then
 fi
 
 # Step 6 — Deploy backdoor probe (mirrors CI whitebox)
-if run "🚪  Deploy Backdoor Probe" bun run scripts/probe-deploy-testing-api.ts; then
+if run "🚪  Deploy Backdoor Probe" bun run scripts/probe-deploy-testing-api.ts --skip-build; then
   OK=$((OK + 1))
 fi
 
