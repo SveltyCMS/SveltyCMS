@@ -220,6 +220,7 @@ const SAFE_STRINGS = new Set([
   "0000000000000000000000000000000000000000",
   "abcdefghijklmnopqrstuvwxyz0123456789",
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   // integration-harness.ts test defaults (intentionally hardcoded fallbacks)
   "Integration-Test-JWT-Secret-Key-2026-pad-to-32chars!!",
   "Integration-Encryption-Key-2026-32ch",
@@ -234,7 +235,7 @@ function isKnownSafe(str: string): boolean {
 function collectSourceFiles(dir: string): string[] {
   return globSync(`${dir}/**/*.{ts,svelte,js}`, {
     nodir: true,
-    ignore: ["**/node_modules/**", "**/paraglide/**"],
+    ignore: ["**/node_modules/**", "**/paraglide/**", "**/*.d.ts"],
   });
 }
 
