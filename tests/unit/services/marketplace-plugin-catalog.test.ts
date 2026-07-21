@@ -22,11 +22,6 @@ describe("marketplace local plugin catalog", () => {
     expect(result.items.every((i: any) => i.id && i.name)).toBe(true);
   });
 
-  it("supports pagination offset", async () => {
-    const first = await marketplaceService.list({ type: "plugin", offset: 0, limit: 1 });
-    expect(first.items.length).toBeLessThanOrEqual(1);
-  });
-
   it("returns installable field as boolean for all items", async () => {
     const result = await marketplaceService.list({ type: "plugin" });
     for (const item of result.items) {

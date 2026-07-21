@@ -38,7 +38,7 @@ export interface MockEventOptions {
     has: (k: string) => boolean;
   };
   /** Pass `null` for unauthenticated. Omit for default admin-like user. */
-  user?: Record<string, unknown> | null;
+  user?: Record<string, any> | null;
   /** Pass `null` for missing tenant. Omit for default `"t1"`. */
   tenantId?: string | null;
   roles?: Array<Record<string, unknown>>;

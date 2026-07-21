@@ -68,15 +68,6 @@ const testDbConfig: DatabaseConfig = {
   password: process.env.DB_PASSWORD || "",
 };
 
-const _testSmtpConfig = {
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number.parseInt(process.env.SMTP_PORT || "587", 10),
-  user: process.env.SMTP_USER || "test@example.com",
-  password: process.env.SMTP_PASS || "test-password",
-  from: process.env.SMTP_MAIL_FROM || "noreply@example.com",
-  secure: process.env.SMTP_SECURE === "true",
-};
-
 const testAdminUser = {
   username: "admin",
   email: "admin@example.com",

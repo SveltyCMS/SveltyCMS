@@ -62,8 +62,8 @@ describe("matchesPluginStorageFilter", () => {
     plugin: "seo",
     collection: "reports",
     data: { score: 90, url: "https://a.test" },
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
+    createdAt: "2026-01-01T00:00:00.000Z" as any,
+    updatedAt: "2026-01-01T00:00:00.000Z" as any,
   };
 
   it("matches empty filter", () => {

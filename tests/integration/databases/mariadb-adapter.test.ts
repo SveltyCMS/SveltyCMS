@@ -15,7 +15,6 @@ const { privateEnv: _privateEnv } = (await import("../../../config/private.test"
   _privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
 }))) as any;
 
-const _isMariaDB = process.env.DB_TYPE === "mariadb";
 // In-process adapter suite: run whenever MariaDB Docker is available (not only DB_TYPE=mariadb).
 const mariadbDockerRunning = isDockerRunning("mariadb");
 const describeMariaDB = mariadbDockerRunning ? describe : describe.skip;
