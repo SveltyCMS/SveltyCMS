@@ -57,17 +57,27 @@ if [ "$HAS_CODE_CHANGES" = false ]; then
 fi
 
 info "Pre-commit already verified: format, lint, unit tests."
-info "Pre-push: build + SQLite integration tests"
+info "Pre-push: build + CVE audit + secret scan + SQLite integration"
 echo ""
 
-TOTAL=2; OK=0
+TOTAL=4; OK=0
 
 # Step 1 — Production build
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true bun run build; then
   OK=$((OK + 1))
 fi
 
-# Step 2 — SQLite integration tests (with summary extraction)
+# Step 2 — CVE audit (catches dependency vulns before CI)
+if run "🔒  CVE Dependency Audit" bun audit --severity=high; then
+  OK=$((OK + 1))
+fi
+
+# Step 3 — Secret misuse scan (catches before CI fails)
+if run "🔑  Secret Misuse Scan" bun run scripts/scan-secret-misuse.ts --strict; then
+  OK=$((OK + 1))
+fi
+
+# Step 4 — SQLite integration tests (with summary extraction)
 STEP=$((STEP + 1))
 label="🗄️  Integration tests (SQLite)"
 padded="$(pad "$label")"
