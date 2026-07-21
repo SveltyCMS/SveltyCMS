@@ -130,6 +130,19 @@ describe("CacheService (Whitebox)", () => {
       expect(keyB).toContain("tenant-b");
       expect(keyA).not.toBe(keyB);
     });
+
+    it("clearByTags is tenant-partitioned in L1 (same tag name, different tenants)", async () => {
+      await service.set("tagged-keep", { v: 1 }, 60, "tenant-a", undefined, ["shared-tag"]);
+      await service.set("tagged-drop", { v: 2 }, 60, "tenant-a", undefined, ["drop-me"]);
+      await service.set("tagged-other", { v: 3 }, 60, "tenant-b", undefined, ["drop-me"]);
+
+      await service.clearByTags(["drop-me"], "tenant-a");
+
+      expect(await service.get("tagged-keep", "tenant-a")).toEqual({ v: 1 });
+      expect(await service.get("tagged-drop", "tenant-a")).toBeUndefined();
+      // Cross-tenant same tag must survive
+      expect(await service.get("tagged-other", "tenant-b")).toEqual({ v: 3 });
+    });
   });
 
   // ── TTL Expiration ──────────────────────────────────────────────────────

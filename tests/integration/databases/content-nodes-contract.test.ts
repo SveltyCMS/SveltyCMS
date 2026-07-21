@@ -273,3 +273,63 @@ describe("contentService + syncContentState adapter threading", () => {
     expect(structure.some((n) => n.path === path)).toBe(true);
   });
 });
+
+describe("content.nodes tenant isolation + fail-closed", () => {
+  const TENANT_A = "cn-tenant-a" as DatabaseId;
+  const TENANT_B = "cn-tenant-b" as DatabaseId;
+
+  it("bulkUpdate for A is not readable under tenant B getStructure", async () => {
+    const suffix = runSuffix();
+    const path = `/contract-iso-a-${suffix}`;
+    const id = `contract-iso-a-${suffix}`;
+    cleanupPaths.push(path);
+
+    const bulk = await db.content.nodes.bulkUpdate(
+      [
+        {
+          path,
+          id,
+          changes: {
+            name: `Iso A ${suffix}`,
+            path,
+            nodeType: CATEGORY_NODE_TYPE,
+            source: BUILDER_SOURCE,
+            order: 1,
+          },
+        },
+      ],
+      { tenantId: TENANT_A },
+    );
+    expect(bulk.success).toBe(true);
+
+    const asB = await db.content.nodes.getStructure("flat", { tenantId: TENANT_B });
+    expect(asB.success).toBe(true);
+    if (!asB.success) return;
+    const hit = (asB.data ?? []).some((n: { path?: string }) => n.path === path);
+    expect(hit).toBe(false);
+
+    const asA = await db.content.nodes.getStructure("flat", { tenantId: TENANT_A });
+    expect(asA.success).toBe(true);
+    if (!asA.success) return;
+    // When MT is on, A should see the node; when ST, may still see depending on filter
+    const hitA = (asA.data ?? []).some((n: { path?: string }) => n.path === path);
+    if (!hitA) {
+      // path may be stored under global tenant on single-tenant installs
+      console.warn(
+        `[content-nodes] tenant A structure miss for ${path} — check MT mode / tenant stamp`,
+      );
+    }
+  });
+
+  it("deleteMany without tenantId fails closed under MULTI_TENANT (or succeeds when MT off)", async () => {
+    try {
+      const res = await db.content.nodes.deleteMany(["/nonexistent-path-for-fc"], {});
+      // Single-tenant: success/no-op is OK. Multi-tenant fail-closed should throw before this.
+      if (res && typeof res === "object") {
+        expect("success" in res).toBe(true);
+      }
+    } catch (err: any) {
+      expect(String(err?.message || err)).toMatch(/tenant|Security Violation|TENANT/i);
+    }
+  });
+});

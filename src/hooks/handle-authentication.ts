@@ -510,7 +510,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   if (isSystemUser) return resolve(event);
 
   try {
+    // Raw adapter first; re-bound after tenant resolution (forTenant inject).
     locals.dbAdapter = dbAdapter;
+    (locals as any).dbAdapterUnscoped = dbAdapter;
     if (!dbAdapter) return await resolve(event);
 
     const { multiTenant, isDemoMode } = getCachedSettings();
@@ -539,6 +541,19 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       if (explicitTenant && explicitTenant.length > 0 && explicitTenant !== "null") {
         locals.tenantId = explicitTenant as DatabaseId;
       }
+    }
+
+    // 🛡️ Request-scoped tenant binding (early — refined after session/user load).
+    // System/scheduler: use locals.dbAdapterUnscoped + bypassTenantCheck.
+    {
+      const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
+      const bound = bindRequestDbAdapter(
+        dbAdapter,
+        locals.tenantId as DatabaseId,
+        multiTenant || testMode,
+      );
+      locals.dbAdapter = bound.dbAdapter as any;
+      (locals as any).dbAdapterUnscoped = bound.dbAdapterUnscoped;
     }
 
     const authHeader = event.request.headers.get("Authorization");
@@ -593,6 +608,19 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           locals.user = user;
           locals.session_id = sessionId as DatabaseId;
           locals.permissions = user.permissions || [];
+          // Prefer host/header tenant; if only user.tenantId is set, bind that for MT.
+          if (!locals.tenantId && user.tenantId) {
+            locals.tenantId = user.tenantId as DatabaseId;
+          }
+          if ((multiTenant || testMode) && locals.tenantId) {
+            const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
+            const bound = bindRequestDbAdapter(
+              (locals as any).dbAdapterUnscoped || dbAdapter,
+              locals.tenantId as DatabaseId,
+              true,
+            );
+            locals.dbAdapter = bound.dbAdapter as any;
+          }
           await handleSessionRotation(event, user, sessionId);
         } else {
           logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
@@ -754,10 +782,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             logger.debug(`[Auth] Authenticated via API Token (Cache Hit)`);
           } else {
             metricsService.incrementAuthValidations();
-            const res = await dbAdapter.system.websiteTokens.getByTokenHash(
-              tokenHash,
-              locals.tenantId as DatabaseId,
-            );
+            const res = await dbAdapter.system.websiteTokens.getByTokenHash(tokenHash, {
+              tenantId: locals.tenantId as DatabaseId,
+              // Auth bootstrap: allow lookup when tenant not yet resolved (single-tenant)
+              ...(locals.tenantId ? {} : { bypassTenantCheck: true }),
+            });
 
             if (res.success && res.data) {
               const token = res.data;
@@ -871,7 +900,15 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         permissions: locals.permissions,
         requestId: locals.requestId,
       },
-      () => resolve(event),
+      async () => {
+        // Full async tree can use getRequestDbAdapter() when tenant-bound.
+        const bound = locals.dbAdapter as any;
+        if (bound && typeof bound === "object" && "boundTenantId" in bound) {
+          const { runWithTenantAdapter } = await import("@src/databases/tenant-adapter");
+          return runWithTenantAdapter(bound, () => resolve(event));
+        }
+        return resolve(event);
+      },
     );
   } catch (err) {
     if (url.pathname.startsWith("/api/")) return handleApiError(err, event);

@@ -15,7 +15,7 @@ import {
   EDITOR_CREDENTIALS as HARNESS_EDITOR,
   TEST_PASSWORD,
 } from "../../harness/fixtures";
-import { TEST_API_HEADERS } from "./test-api";
+import { TEST_API_HEADERS } from "./api";
 
 /**
  * Login credentials — harness is source of truth; env can override in CI.

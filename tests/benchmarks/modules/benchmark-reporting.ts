@@ -173,6 +173,7 @@ export async function reportBenchmark(
       dbType,
       redisEnabled,
       phase,
+      metric: result.name,
       avgMs: result.avgMs,
       p95Ms: result.p95Ms || 0,
       rps: result.rps || 0,
@@ -314,7 +315,8 @@ function buildRunSummaryRows(
     const testFile = normalizeTestFile(entry.testFile);
     const testId = testFile.replace(/^tests\/benchmarks\//, "").replace(/\.test\.ts$/i, "");
     const phase = inferPhase(testFile, entry.phase);
-    const history = loadHistory(testId, db, redis, phase);
+    // Metric-keyed history — never trend BULK INSERT against INSERT
+    const history = loadHistory(testId, db, redis, phase, entry.metric);
     const prior = history.slice(0, -1);
     const trend = analyzeTrend(
       {
@@ -711,6 +713,7 @@ export async function finalizeReport(
         dbType: db,
         redisEnabled: redis,
         phase,
+        metric: current.metric,
         avgMs: current.avgMs,
         p95Ms: current.p95Ms || 0,
         rps: current.rps || 0,
@@ -720,8 +723,25 @@ export async function finalizeReport(
 
       if (!shouldRecord()) continue;
 
-      const sqliteHistory = loadHistory(testId, db, redis, phase);
-      const prior = sqliteHistory.slice(0, -1);
+      // Prefer same-mode jsonl series for this exact metric (docs contract).
+      // Fall back to metric-keyed sqlite history.
+      const prevJsonl = previousSameMode.filter((e) => {
+        const ef = normalizeTestFile(e.testFile);
+        const et =
+          ef.replace(/^tests\/benchmarks\//, "").replace(/\.test\.ts$/i, "") === testId ||
+          e.testFile === current.testFile ||
+          e.testFile === testId;
+        return et && e.metric === current.metric && (e.db || db) === db;
+      });
+      const jsonlPrior = prevJsonl.slice(-7).map((e) => ({
+        avgMs: e.avgMs,
+        p95Ms: e.p95Ms || 0,
+        rps: e.rps || 0,
+        runMode: e.runMode,
+      }));
+      const sqliteHistory = loadHistory(testId, db, redis, phase, current.metric);
+      const sqlitePrior = sqliteHistory.slice(0, -1);
+      const prior = jsonlPrior.length > 0 ? jsonlPrior : sqlitePrior;
       const trend = analyzeTrend(
         {
           name: current.metric,
@@ -729,14 +749,13 @@ export async function finalizeReport(
           p95Ms: current.p95Ms || 0,
           rps: current.rps || 0,
         },
-        prior.length > 0 ? prior : sqliteHistory,
+        prior,
         testId,
         db,
         redis,
         phase,
       );
 
-      const prevJsonl = previousSameMode.filter((e) => `${e.testFile}:${e.metric}` === key);
       const rootCause = classifyRootCause(
         trend.deltaPct,
         trend.p95DeltaPct,
@@ -765,7 +784,6 @@ export async function finalizeReport(
         deltaPct: trend.deltaPct,
         icon,
       });
-      void prevJsonl;
     }
 
     if (shouldRecord()) {

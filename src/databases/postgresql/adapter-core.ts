@@ -612,18 +612,29 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
-        const tenantFilter = utils.buildRawTenantFilter(options, "postgres");
-
+        // Identifiers may be embedded; values (_id, amount, tenantId) are always bound.
+        const safeField = utils.assertSafeSqlIdentifier(field);
+        const amountNum = utils.assertFiniteAmount(amount);
+        const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
+
+        // $1 = id, $2 = amount, $3 = tenantId (optional)
+        const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+          options,
+          "postgres",
+          { paramIndex: 3 },
+        );
+        const params: unknown[] = [idStr, amountNum, ...tenantParams];
+
         const sqlQuery = dataCol
-          ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${field}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${field}')::numeric, 0) + ${amount})), "updatedAt" = now() WHERE "${idCol.name}" = '${String(id)}'${tenantFilter} RETURNING *`
-          : `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = now() WHERE "${idCol.name}" = '${String(id)}'${tenantFilter} RETURNING *`;
+          ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${safeField}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${safeField}')::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
+          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
 
         let rows: any[] = [];
         for (let attempt = 0; attempt < 5 && rows.length === 0; attempt++) {
           if (attempt > 0) await new Promise((r) => setTimeout(r, 10 * attempt));
           try {
-            rows = (await this.raw.execute(sqlQuery)) || [];
+            rows = (await this.raw.execute(sqlQuery, params)) || [];
           } catch (err: any) {
             if (err?.message?.includes("too many clients") || err?.code === "53300") {
               await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
@@ -633,7 +644,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           }
         }
         if (rows.length === 0) {
-          throw new Error(`Entry not found after increment: ${String(id)}`);
+          throw new Error(`Entry not found after increment: ${idStr}`);
         }
         return rows[0] as Record<string, unknown>;
       },

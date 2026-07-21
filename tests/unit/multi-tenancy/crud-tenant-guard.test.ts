@@ -1,24 +1,19 @@
 // @ts-nocheck
 /**
  * @file tests/unit/multi-tenancy/crud-tenant-guard.test.ts
- * @description Tests for crud-tenant-guard.ts — the transparent proxy that auto-injects
- * tenantId into all CRUD operations when MULTI_TENANT is enabled.
+ * @description Fail-closed tenant guard for CRUD (no synthetic tenantId="global").
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ICrudAdapter } from "@src/databases/db-interface";
 
-// We mock isMultiTenantEnabled to control multi-tenant mode per test
-vi.mock("@utils/tenant", () => ({
-  isMultiTenantEnabled: vi.fn(() => true),
-  isValidTenantId: vi.fn(() => true),
-  getTenantIdFromHostname: vi.fn(() => "test-tenant"),
-  resetMultiTenantCache: vi.fn(),
-}));
-
-// Mock settings-service used by isMultiTenantEnabled
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn(() => true),
+vi.mock("@src/databases/config-state", () => ({
+  getPrivateEnv: () => (globalThis as any).__privateEnv,
+  setPrivateEnv: (env: any) => {
+    (globalThis as any).__privateEnv = env;
+  },
+  loadPrivateConfig: () => Promise.resolve((globalThis as any).__privateEnv),
+  clearPrivateConfigCache: () => {},
 }));
 
 describe("crud-tenant-guard", () => {
@@ -26,19 +21,15 @@ describe("crud-tenant-guard", () => {
   let guard: ICrudAdapter;
 
   beforeEach(async () => {
-    // Dynamically import to pick up fresh mocks
+    (globalThis as any).__privateEnv = { MULTI_TENANT: true };
+
     const { createTenantGuardedCrud, resetGuardCache } =
       await import("@src/databases/crud-tenant-guard");
+    const { resetSafeQueryCache } = await import("@src/utils/security/safe-query");
 
-    // Reset internal caches between tests
     resetGuardCache();
+    resetSafeQueryCache();
 
-    // Reset mock state — import the mock directly to set return value
-    const tenantMock = await import("@utils/tenant");
-    (tenantMock.isMultiTenantEnabled as any).mockReturnValue(true);
-    (tenantMock as any).resetMultiTenantCache();
-
-    // Create a mock inner adapter that records all calls
     mockInner = {
       find: vi.fn().mockResolvedValue({ success: true, data: [] }),
       findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
@@ -60,114 +51,60 @@ describe("crud-tenant-guard", () => {
       atomicIncrement: vi.fn().mockResolvedValue({ success: true, data: { _id: "1", count: 2 } }),
     };
 
-    guard = createTenantGuardedCrud(mockInner, "inject");
+    // Default boot mode is reject (fail-closed)
+    guard = createTenantGuardedCrud(mockInner, "reject");
   });
 
-  // ─── P0: Auto-inject on reads ────────────────────────────────────
-
-  describe("read operations (P0)", () => {
-    it("injects tenantId into find options when missing", async () => {
-      await guard.find("posts", {});
-      expect(mockInner.find).toHaveBeenCalledWith("posts", {}, { tenantId: "global" });
+  describe("fail-closed under MULTI_TENANT", () => {
+    it("throws on find when tenantId is missing", async () => {
+      await expect(guard.find("posts", {})).rejects.toThrow(/Security Violation|tenant/i);
+      expect(mockInner.find).not.toHaveBeenCalled();
     });
 
-    it("injects tenantId into findMany options when missing", async () => {
-      await guard.findMany("posts", {});
-      expect(mockInner.findMany).toHaveBeenCalledWith("posts", {}, { tenantId: "global" });
+    it("throws on insert when tenantId is missing", async () => {
+      await expect(guard.insert("posts", { title: "Hello" })).rejects.toThrow(
+        /Security Violation|tenant/i,
+      );
+      expect(mockInner.insert).not.toHaveBeenCalled();
     });
 
-    it("injects tenantId into findOne options when missing", async () => {
-      await guard.findOne("posts" as any, { _id: "1" });
-      expect(mockInner.findOne).toHaveBeenCalledWith("posts", { _id: "1" }, { tenantId: "global" });
-    });
-
-    it("preserves existing tenantId in options", async () => {
+    it("allows find with explicit tenantId", async () => {
       await guard.find("posts", {}, { tenantId: "tenant-a" as any });
       expect(mockInner.find).toHaveBeenCalledWith("posts", {}, { tenantId: "tenant-a" });
     });
 
-    it("skips injection when bypassTenantCheck is true", async () => {
-      await guard.find("posts", {}, { bypassTenantCheck: true });
-      expect(mockInner.find).toHaveBeenCalledWith("posts", {}, { bypassTenantCheck: true });
-    });
-  });
-
-  // ─── P0: Auto-inject on writes ────────────────────────────────────
-
-  describe("write operations (P0)", () => {
-    it("injects tenantId into insert data AND options", async () => {
-      await guard.insert("posts", { title: "Hello" });
+    it("copies options.tenantId into insert data when data omits it", async () => {
+      await guard.insert("posts", { title: "Hello" }, { tenantId: "tenant-a" as any });
       expect(mockInner.insert).toHaveBeenCalledWith(
         "posts",
-        { title: "Hello", tenantId: "global" },
-        { tenantId: "global" },
-      );
-    });
-
-    it("injects tenantId into insertMany items AND options", async () => {
-      await guard.insertMany("posts", [{ title: "A" }, { title: "B" }]);
-      const data = mockInner.insertMany.mock.calls[0][1];
-      expect(data[0].tenantId).toBe("global");
-      expect(data[1].tenantId).toBe("global");
-      expect(mockInner.insertMany.mock.calls[0][2]).toEqual({ tenantId: "global" });
-    });
-
-    it("injects tenantId into update data AND options", async () => {
-      await guard.update("posts", "1", { title: "Updated" });
-      expect(mockInner.update).toHaveBeenCalledWith(
-        "posts",
-        "1",
-        { title: "Updated", tenantId: "global" },
-        { tenantId: "global" },
+        { title: "Hello", tenantId: "tenant-a" },
+        { tenantId: "tenant-a" },
       );
     });
 
     it("preserves existing tenantId in write data", async () => {
-      await guard.insert("posts", { title: "Hello", tenantId: "tenant-a" });
+      await guard.insert(
+        "posts",
+        { title: "Hello", tenantId: "tenant-a" },
+        { tenantId: "tenant-a" as any },
+      );
       expect(mockInner.insert).toHaveBeenCalledWith(
         "posts",
         { title: "Hello", tenantId: "tenant-a" },
-        { tenantId: "global" }, // options still injected
+        { tenantId: "tenant-a" },
       );
     });
 
-    it("injects tenantId into updateMany data AND options", async () => {
-      await guard.updateMany("posts", { status: "draft" }, { status: "published" });
-      expect(mockInner.updateMany).toHaveBeenCalledWith(
-        "posts",
-        { status: "draft" },
-        { status: "published", tenantId: "global" },
-        { tenantId: "global" },
-      );
+    it("allows branded systemScope for system ops", async () => {
+      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+      const opts = withSystemScope("scheduler");
+      await guard.find("posts", {}, opts as any);
+      expect(mockInner.find).toHaveBeenCalledWith("posts", {}, opts);
     });
   });
 
-  // ─── P0: Reject mode ─────────────────────────────────────────────
-
-  describe("reject mode (P0)", () => {
-    it("throws on writes when tenantId is missing in reject mode", async () => {
-      const { createTenantGuardedCrud, resetGuardCache } =
-        await import("@src/databases/crud-tenant-guard");
-      resetGuardCache();
-      const strictGuard = createTenantGuardedCrud(mockInner, "reject");
-      await expect(strictGuard.insert("posts", { title: "Hello" })).rejects.toThrow(/tenantId/);
-    });
-
-    it("allows writes with bypassTenantCheck in reject mode", async () => {
-      const { createTenantGuardedCrud, resetGuardCache } =
-        await import("@src/databases/crud-tenant-guard");
-      resetGuardCache();
-      const strictGuard = createTenantGuardedCrud(mockInner, "reject");
-      await expect(
-        strictGuard.insert("posts", { title: "Hello" }, { bypassTenantCheck: true }),
-      ).resolves.toBeDefined();
-    });
-  });
-
-  // ─── P1: bypass mode ──────────────────────────────────────────────
-
-  describe("bypass mode (P1)", () => {
-    it("passes through all operations unchanged in bypass mode", async () => {
+  describe("bypass mode", () => {
+    it("passes through unchanged", async () => {
       const { createTenantGuardedCrud } = await import("@src/databases/crud-tenant-guard");
       const bypassGuard = createTenantGuardedCrud(mockInner, "bypass");
       await bypassGuard.find("posts", {});
@@ -175,24 +112,23 @@ describe("crud-tenant-guard", () => {
     });
   });
 
-  // ─── P1: Multi-tenant off ─────────────────────────────────────────
-
-  describe("multi-tenant disabled (P1)", () => {
-    it("passes through without injection when multi-tenant is off", async () => {
-      const tenantMock = await import("@utils/tenant");
-      (tenantMock.isMultiTenantEnabled as any).mockReturnValue(false);
-      (tenantMock as any).resetMultiTenantCache();
-
+  describe("multi-tenant disabled", () => {
+    it("passes through without requiring tenantId", async () => {
+      (globalThis as any).__privateEnv = { MULTI_TENANT: false };
       const { createTenantGuardedCrud, resetGuardCache } =
         await import("@src/databases/crud-tenant-guard");
+      const { resetSafeQueryCache } = await import("@src/utils/security/safe-query");
       resetGuardCache();
-      const noMtGuard = createTenantGuardedCrud(mockInner, "inject");
+      resetSafeQueryCache();
 
+      const noMtGuard = createTenantGuardedCrud(mockInner, "reject");
+      // When MT is off, guard returns inner adapter directly — no wrapper layer.
+      // Calls pass through with caller's exact arguments.
       await noMtGuard.find("posts", {});
-      expect(mockInner.find).toHaveBeenCalledWith("posts", {}, undefined);
+      expect(mockInner.find).toHaveBeenCalledWith("posts", {});
 
       await noMtGuard.insert("posts", { title: "Hello" });
-      expect(mockInner.insert).toHaveBeenCalledWith("posts", { title: "Hello" }, undefined);
+      expect(mockInner.insert).toHaveBeenCalledWith("posts", { title: "Hello" });
     });
   });
 });

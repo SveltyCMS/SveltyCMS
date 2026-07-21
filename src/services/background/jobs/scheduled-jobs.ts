@@ -28,10 +28,13 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
     }
   }
 
+  const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+  const systemOpts = withSystemScope("scheduler");
+
   // 3. Find scheduled items
   const result = await db.content.nodes.getStructure("flat", {
     filter: { status: StatusTypes.schedule } as any,
-    bypassTenantCheck: true,
+    ...systemOpts,
   });
 
   if (!(result.success && result.data)) return;
@@ -49,7 +52,7 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
 
   // 4a. Validate relation fields — ensure no referenced entries are still draft
   const allNodesResult = await db.content.nodes.getStructure("flat", {
-    bypassTenantCheck: true,
+    ...systemOpts,
   });
   const nodeStatusById = new Map<string, string>();
   if (allNodesResult.success && allNodesResult.data) {

@@ -5,7 +5,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../helpers/api";
+import { resetAndSeedDatabase } from "../../helpers/api";
 import { enableBrandedLogin, getAdminTheme, resetAdminTheme } from "../../helpers/theme";
 import { openLoginSignInForm } from "../../helpers/visual";
 

@@ -64,7 +64,7 @@ describe("dashboard +page.server load", () => {
   });
 
   it("returns pageData.user and availableWidgets array for admin", async () => {
-    const data = await load({ locals: makeLocals() } as any);
+    const data: any = await load({ locals: makeLocals() } as any);
     expect(data.pageData.user.id).toBe("u1");
     expect(data.pageData.isAdmin).toBe(true);
     expect(Array.isArray(data.availableWidgets)).toBe(true);
@@ -77,7 +77,7 @@ describe("dashboard +page.server load", () => {
   });
 
   it("allows non-admin with dashboard:read permission", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: makeLocals({
         isAdmin: false,
         // user.role must not be "admin" — load treats role===admin as isAdmin

@@ -110,9 +110,14 @@ export const paths = {
   get benchmark() {
     const root = cwd();
     return {
-      collections: path.join(root, "config", "collections", "test"),
-      compiled: path.join(root, ".compiledCollections", "test"),
-      sandboxCompiled: path.join(root, ".compiledCollections", "test", "_local_sandbox"),
+      collections: path.join(root, "config", "test-collections"),
+      compiled: path.join(root, ".compiledCollections", "test-collections"),
+      sandboxCompiled: path.join(
+        root,
+        ".compiledCollections",
+        "test-collections",
+        "_local_sandbox",
+      ),
       sandboxMedia: path.join(root, "config", "benchmark-sandbox", "media"),
     };
   },

@@ -71,7 +71,7 @@ describe("path-resolver privateConfig isolation", () => {
       const { paths } = await import("@utils/path-resolver");
       expect(paths.privateConfig.replace(/\\/g, "/")).toMatch(/config\/private\.test\.ts$/);
       expect(paths.privateConfigLive.replace(/\\/g, "/")).toMatch(/config\/private\.ts$/);
-      expect(paths.benchmark.collections.replace(/\\/g, "/")).toMatch(/config\/collections\/test$/);
+      expect(paths.benchmark.collections.replace(/\\/g, "/")).toMatch(/config\/test-collections$/);
     } finally {
       if (prev === undefined) delete process.env.TEST_MODE;
       else process.env.TEST_MODE = prev;

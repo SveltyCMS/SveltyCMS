@@ -175,8 +175,13 @@ export async function handleTestingRoutes(
     const params = await request.json().catch(() => ({}));
     const action = params.action || event.url.searchParams.get("action");
 
-    // Avoid logging secrets; only action names + tenant for benchmark visibility
-    if (runtimeEnv?.TEST_MODE === "true" || runtimeEnv?.BENCHMARK_DEBUG === "true") {
+    // Suppress action logging in benchmark mode unless BENCHMARK_DEBUG is set
+    const isBenchSuite =
+      runtimeEnv?.SVELTY_BENCHMARK_SUITE === "true" || runtimeEnv?.BENCHMARK === "true";
+    if (
+      (runtimeEnv?.TEST_MODE === "true" || runtimeEnv?.BENCHMARK_DEBUG === "true") &&
+      !isBenchSuite
+    ) {
       process.stderr.write(
         `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
       );
@@ -614,6 +619,21 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, data: result });
     }
 
+    if (action === "cache-invalidate") {
+      const pattern = params.pattern || "*";
+      try {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        if (pattern === "*") {
+          await cacheService.invalidateAll();
+        } else {
+          await cacheService.clearByPattern(pattern);
+        }
+        return rawResponse({ success: true, pattern });
+      } catch (err: any) {
+        return rawResponse({ success: false, message: err.message }, 500);
+      }
+    }
+
     if (action === "create-collection" || action === "bulk-create-collections") {
       const schemas =
         action === "bulk-create-collections"
@@ -649,8 +669,10 @@ export async function handleTestingRoutes(
               `[testing] Content node upsert result for ${collectionId}: ${upsertRes.success ? "OK" : "FAILED"}`,
             );
             if (!upsertRes.success) {
-              logger.error(
-                `[testing] Upsert failed for ${collectionId}: ${upsertRes.message || "unknown"}`,
+              // Expected during parallel seed — duplicate collection upsert is normal.
+              // Don't spam ERROR with full SQL dumps.
+              logger.debug(
+                `[testing] Upsert conflict for ${collectionId} (expected in parallel seed)`,
               );
             }
           }
@@ -1667,6 +1689,34 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, purged: entryId, collectionId });
     }
 
+    /**
+     * seed-invite-token — create a registration (user_invite) token for token-list E2E.
+     * Body: { action, email?, role? }
+     */
+    if (action === "seed-invite-token") {
+      const email = String(params.email || `invite_${generateUUID().slice(0, 8)}@example.com`)
+        .toLowerCase()
+        .trim();
+      const role = String(params.role || "editor");
+      const { auth: authFacade } = await import("@src/databases/db");
+      if (!authFacade) {
+        throw new AppError("Auth facade unavailable for seed-invite-token", 503);
+      }
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const token = await authFacade.createToken({
+        user_id: "pending" as any,
+        expires,
+        type: "user_invite",
+        email,
+        role,
+        tenantId,
+      } as any);
+      if (!token || typeof token !== "string") {
+        throw new AppError("Failed to create user_invite token", 500);
+      }
+      return rawResponse({ success: true, token, email, role, expires, type: "user_invite" });
+    }
+
     // ── Password-reset / media gallery test seeds ───────────────────────────
     if (action === "seed-expired-password-reset") {
       const email = String(params.email || "admin@example.com")
@@ -1771,7 +1821,7 @@ export async function handleTestingRoutes(
           createdBy: userId,
           updatedBy: userId,
         };
-        const res = await upload(file as any, tenantId);
+        const res = await upload(file as any, { tenantId });
         if (!res?.success || !res.data) {
           throw new AppError(
             `seed-media-with-metadata upload failed: ${(res as any)?.message || "unknown"}`,

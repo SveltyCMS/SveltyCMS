@@ -3,7 +3,7 @@
  * @description Unified dashboard API handler for metrics, system info, and content insights.
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import { metricsService } from "@src/services/observability/metrics-service";
@@ -556,8 +556,11 @@ export async function handleDashboardRoutes(
         throw new AppError(`Dashboard action '${query.method}' not implemented`, 404);
     }
   } catch (err: any) {
-    console.error(`[DashboardRoute Error] ${segments.join("/")}:`, err);
-    if (err instanceof AppError) throw err;
+    // Expected AppErrors (validation, not found) should not log noisy traces
+    if (!isAppError(err)) {
+      console.error(`[DashboardRoute Error] ${segments.join("/")}:`, err);
+    }
+    if (isAppError(err)) throw err;
     throw new AppError(err.message || "Dashboard operation failed", 500);
   }
 }

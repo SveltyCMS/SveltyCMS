@@ -70,7 +70,10 @@ declare global {
       cspNonce?: string;
       customCss: string;
       darkMode: boolean;
+      /** Tenant-scoped adapter when MULTI_TENANT + tenantId (use for request DB work). */
       dbAdapter?: DatabaseAdapter | null;
+      /** Raw adapter without tenant injection (scheduler, migrations, cross-tenant admin). */
+      dbAdapterUnscoped?: DatabaseAdapter | null;
       degradedServices?: string[];
       getSession: () => Promise<import("@auth/core/types").Session | null>;
       hasManageUsersPermission: boolean;

@@ -16,7 +16,7 @@ vi.mock("node:fs/promises", () => ({
 // Mock node:fs for createWriteStream (used by uploadFile streaming path)
 vi.mock("node:fs", () => ({
   createWriteStream: vi.fn(() => ({
-    write: vi.fn((chunk, cb) => cb?.()),
+    write: vi.fn((_chunk, cb) => cb?.()),
     end: vi.fn((cb) => cb?.()),
     on: vi.fn(),
     once: vi.fn(),

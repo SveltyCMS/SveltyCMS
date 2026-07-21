@@ -1,200 +1,165 @@
 /**
  * @file src/databases/crud-tenant-guard.ts
- * @description Tenant-enforcing proxy wrapper for CRUD operations.
+ * @description Tenant-enforcing proxy wrapper for CRUD and domain namespaces.
  *
- * When MULTI_TENANT is enabled, this proxy automatically injects tenantId
- * into all operations, ensuring plugins, widgets, and extensions are
- * tenant-safe without requiring code changes.
+ * When MULTI_TENANT is enabled, missing tenant context fails closed (reject).
+ * We no longer invent tenantId="global" — that masked cross-tenant bugs.
  *
- * Three enforcement modes:
- * - "inject": Auto-add tenantId to options and data if missing (default)
- * - "reject": Throw error if tenantId is missing (strict mode)
- * - "bypass": Skip enforcement (for system-level operations)
+ * Modes:
+ * - "reject" (default): throw if tenantId missing under MULTI_TENANT
+ * - "inject": only fill tenantId from ambient context if already partial; still rejects empty
+ * - "bypass": no enforcement
+ *
+ * ### Performance:
+ * - Sync MULTI_TENANT check via safe-query cache (no await on hot path)
+ * - Single-tenant: early return, zero allocations
  */
 
 import type { ICrudAdapter, BaseQueryOptions } from "./db-interface";
 import type { DatabaseId } from "../content/types";
+import {
+  assertTenantContext,
+  isMultiTenantMode,
+  resetSafeQueryCache,
+} from "@src/utils/security/safe-query";
+import { hasTenantBypass } from "./system-tenant-scope";
 
 export type TenantGuardMode = "inject" | "reject" | "bypass";
 
-// Lazy-loaded logger — avoids circular deps at module init
-let _logger: any = null;
-async function getLogger() {
-  if (!_logger) {
-    try {
-      const mod = await import("@utils/logger");
-      _logger = mod.logger;
-    } catch {
-      _logger = { warn: () => {}, info: () => {} };
-    }
-  }
-  return _logger;
-}
-
-// Memoized multi-tenant check — lazily evaluated, cached for 5s
-let _mtCached: boolean | null = null;
-let _mtCachedAt = 0;
-
-/** Reset cached multi-tenant state (for testing). */
+/** Reset tenant guard + safe-query MULTI_TENANT caches (tests). */
 export function resetGuardCache(): void {
-  _mtCached = null;
-  _mtCachedAt = 0;
+  resetSafeQueryCache();
 }
 
-async function isMultiTenant(): Promise<boolean> {
-  const now = Date.now();
-  if (_mtCached !== null && now - _mtCachedAt < 5000) return _mtCached;
-
-  try {
-    const { isMultiTenantEnabled } = await import("@utils/tenant");
-    _mtCached = isMultiTenantEnabled();
-    _mtCachedAt = now;
-    return _mtCached;
-  } catch {
-    return false;
-  }
-}
-
-async function enforceOptions<T extends BaseQueryOptions | undefined>(
+function enforceOptionsSync<T extends BaseQueryOptions | undefined>(
   options: T,
   mode: TenantGuardMode,
   operation?: string,
-): Promise<T> {
+): T {
   if (mode === "bypass") return options;
-  if (!(await isMultiTenant())) return options;
+  if (!isMultiTenantMode()) return options;
 
-  if (options?.bypassTenantCheck) return options;
-  if (options?.tenantId !== undefined) return options;
+  if (hasTenantBypass(options)) return options;
 
-  if (mode === "reject") {
-    throw new Error(
-      `Tenant guard: MULTI_TENANT is enabled but no tenantId provided for ${operation || "unknown"}. ` +
-        "Pass tenantId in options or use bypassTenantCheck for system-level operations.",
-    );
-  }
+  // Fail-closed: never invent a synthetic "global" tenant.
+  assertTenantContext(options, operation || "crud");
 
-  // mode === "inject" — log warning and use "global" as fallback
-  const logger = await getLogger();
-  logger.warn(
-    `[TenantGuard] Injected tenantId="global" for ${operation || "unknown"} — caller did not provide tenant context. ` +
-      "Pass tenantId explicitly or set bypassTenantCheck=true if intentional.",
-  );
-
-  return { ...options, tenantId: "global" as unknown as DatabaseId } as T;
+  return options;
 }
 
-async function injectDataTenantId<T extends Record<string, unknown>>(
+function enforceDataTenantIdSync<T extends Record<string, unknown>>(
   data: T,
+  options: BaseQueryOptions | undefined,
   operation?: string,
-): Promise<T> {
-  if (!(await isMultiTenant())) return data;
-  if (data.tenantId !== undefined) return data;
+): T {
+  if (!isMultiTenantMode()) return data;
+  if (hasTenantBypass(options)) return data;
 
-  const logger = await getLogger();
-  logger.warn(
-    `[TenantGuard] Injected tenantId="global" into data for ${operation || "unknown"} — data had no tenant context.`,
-  );
+  if (data.tenantId !== undefined && data.tenantId !== null && data.tenantId !== "") {
+    return data;
+  }
 
-  return { ...data, tenantId: "global" as unknown as DatabaseId };
+  // Prefer options.tenantId when data omitted it (write paths).
+  if (options?.tenantId !== undefined && options?.tenantId !== null && options.tenantId !== "") {
+    return { ...data, tenantId: options.tenantId as DatabaseId };
+  }
+
+  assertTenantContext(options, operation || "crud.write");
+  return data;
 }
 
 /**
  * Wraps an ICrudAdapter with tenant enforcement.
- * Read operations: injects tenantId into query options
- * Write operations: injects tenantId into both options AND data
- *
- * All methods are async-safe — the guard checks MULTI_TENANT lazily
- * with a 5-second cache to avoid repeated settings-service lookups.
+ * All methods are sync-check on the hot path (no async MULTI_TENANT lookup).
  */
 export function createTenantGuardedCrud(
   inner: ICrudAdapter,
-  mode: TenantGuardMode = "inject",
+  mode: TenantGuardMode = "reject",
 ): ICrudAdapter {
+  // Single-tenant / benchmark: return inner directly.
+  // Multi-tenancy is rarely used; don't tax every CRUD call with wrapper layers.
+  if (!isMultiTenantMode()) return inner;
+
   const g = <T extends BaseQueryOptions | undefined>(o: T, op: string) =>
-    enforceOptions(o, mode, op);
-  const d = <T extends Record<string, unknown>>(data: T, op: string) =>
-    injectDataTenantId(data, op);
+    enforceOptionsSync(o, mode, op);
+  const d = <T extends Record<string, unknown>>(
+    data: T,
+    options: BaseQueryOptions | undefined,
+    op: string,
+  ) => enforceDataTenantIdSync(data, options, op);
 
   return {
     aggregate: async (collection, pipeline, options) =>
-      inner.aggregate(collection, pipeline, await g(options, "aggregate")),
+      inner.aggregate(collection, pipeline, g(options, "aggregate")),
 
     count: async (collection, query, options) =>
-      inner.count(collection, query, await g(options, "count")),
+      inner.count(collection, query, g(options, "count")),
 
     exists: async (collection, query, options) =>
-      inner.exists(collection, query, await g(options, "exists")),
+      inner.exists(collection, query, g(options, "exists")),
 
-    find: async (collection, query, options) =>
-      inner.find(collection, query, await g(options, "find")),
+    find: async (collection, query, options) => inner.find(collection, query, g(options, "find")),
 
     findByIds: async (collection, ids, options) =>
-      inner.findByIds(collection, ids, await g(options, "findByIds")),
+      inner.findByIds(collection, ids, g(options, "findByIds")),
 
     findMany: async (collection, query, options) =>
-      inner.findMany(collection, query, await g(options, "findMany")),
+      inner.findMany(collection, query, g(options, "findMany")),
 
     findOne: async (collection, query, options) =>
-      inner.findOne(collection, query, await g(options, "findOne")),
+      inner.findOne(collection, query, g(options, "findOne")),
 
     streamMany: async (collection, query, options) =>
-      inner.streamMany(collection, query, await g(options, "streamMany")),
+      inner.streamMany(collection, query, g(options, "streamMany")),
 
-    insert: async (collection, data, options) =>
-      inner.insert(
-        collection,
-        await d(data, `${collection}.insert`),
-        await g(options, `${collection}.insert`),
-      ),
-
-    insertMany: async (collection, data, options) => {
-      const guarded: any[] = [];
-      for (const item of data) {
-        guarded.push(await d(item, `${collection}.insertMany`));
-      }
-      return inner.insertMany(collection, guarded, await g(options, `${collection}.insertMany`));
+    insert: async (collection, data, options) => {
+      const opts = g(options, `${collection}.insert`);
+      return inner.insert(collection, d(data as any, opts, `${collection}.insert`), opts);
     },
 
-    update: async (collection, id, data, options) =>
-      inner.update(
-        collection,
-        id,
-        await d(data, `${collection}.update`),
-        await g(options, `${collection}.update`),
-      ),
+    insertMany: async (collection, data, options) => {
+      const opts = g(options, `${collection}.insertMany`);
+      const guarded = data.map((item) => d(item as any, opts, `${collection}.insertMany`));
+      return inner.insertMany(collection, guarded, opts);
+    },
 
-    updateMany: async (collection, query, data, options) =>
-      inner.updateMany(
+    update: async (collection, id, data, options) => {
+      const opts = g(options, `${collection}.update`);
+      return inner.update(collection, id, d(data as any, opts, `${collection}.update`), opts);
+    },
+
+    updateMany: async (collection, query, data, options) => {
+      const opts = g(options, `${collection}.updateMany`);
+      return inner.updateMany(
         collection,
         query,
-        await d(data, `${collection}.updateMany`),
-        await g(options, `${collection}.updateMany`),
-      ),
+        d(data as any, opts, `${collection}.updateMany`),
+        opts,
+      );
+    },
 
-    upsert: async (collection, query, data, options) =>
-      inner.upsert(
-        collection,
-        query,
-        await d(data, `${collection}.upsert`),
-        await g(options, `${collection}.upsert`),
-      ),
+    upsert: async (collection, query, data, options) => {
+      const opts = g(options, `${collection}.upsert`);
+      return inner.upsert(collection, query, d(data as any, opts, `${collection}.upsert`), opts);
+    },
 
     upsertMany: async (collection, items, options) => {
-      const guarded: any[] = [];
-      for (const { query, data } of items) {
-        guarded.push({ query, data: await d(data, `${collection}.upsertMany`) });
-      }
-      return inner.upsertMany(collection, guarded, await g(options, `${collection}.upsertMany`));
+      const opts = g(options, `${collection}.upsertMany`);
+      const guarded = items.map(({ query, data }) => ({
+        query,
+        data: d(data as any, opts, `${collection}.upsertMany`),
+      }));
+      return inner.upsertMany(collection, guarded, opts);
     },
 
     delete: async (collection, id, options) =>
-      inner.delete(collection, id, await g(options, `${collection}.delete`)),
+      inner.delete(collection, id, g(options, `${collection}.delete`)),
 
     deleteMany: async (collection, query, options) =>
-      inner.deleteMany(collection, query, await g(options, `${collection}.deleteMany`)),
+      inner.deleteMany(collection, query, g(options, `${collection}.deleteMany`)),
 
     restore: async (collection, id, options) =>
-      inner.restore(collection, id, await g(options, `${collection}.restore`)),
+      inner.restore(collection, id, g(options, `${collection}.restore`)),
 
     atomicIncrement: async (collection, id, field, amount, options) =>
       inner.atomicIncrement!(
@@ -202,7 +167,42 @@ export function createTenantGuardedCrud(
         id,
         field,
         amount,
-        await g(options, `${collection}.atomicIncrement`),
+        g(options, `${collection}.atomicIncrement`),
       ),
   };
+}
+
+/**
+ * Wrap a domain namespace (auth/content/media/…) so every method that takes
+ * an options object is tenant-checked under MULTI_TENANT.
+ * Methods without a trailing options bag are left unchanged.
+ */
+export function createTenantGuardedNamespace<T extends object>(
+  namespace: T,
+  mode: TenantGuardMode = "reject",
+  label = "namespace",
+): T {
+  if (!namespace || typeof namespace !== "object") return namespace;
+
+  // Single-tenant / benchmark: return namespace directly — zero Proxy overhead.
+  if (!isMultiTenantMode()) return namespace;
+
+  return new Proxy(namespace, {
+    get(target, prop, receiver) {
+      const original = Reflect.get(target, prop, receiver);
+      if (typeof original !== "function") return original;
+
+      return (...args: any[]) => {
+        if (mode === "bypass") {
+          return original.apply(target, args);
+        }
+
+        const last = args[args.length - 1];
+        if (last && typeof last === "object" && !Array.isArray(last)) {
+          args[args.length - 1] = enforceOptionsSync(last, mode, `${label}.${String(prop)}`);
+        }
+        return original.apply(target, args);
+      };
+    },
+  }) as T;
 }

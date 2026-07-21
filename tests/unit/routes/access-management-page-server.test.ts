@@ -41,7 +41,7 @@ describe("access-management +page.server load", () => {
   });
 
   it("returns roles and permissions for admin", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: {
         user: { _id: { toString: () => "u1" }, email: "a@b.co", role: "admin" },
         isAdmin: true,

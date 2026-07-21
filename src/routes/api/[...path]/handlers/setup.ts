@@ -10,7 +10,7 @@
  * - System reinitialization for recovery scenarios
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -66,8 +66,11 @@ export async function handleSetupRoutes(
         throw new AppError(`Setup action '${action}' not implemented`, 404);
     }
   } catch (err: any) {
-    console.error(`[SetupRoute Error] ${action}:`, err);
-    if (err instanceof AppError) throw err;
+    // Expected AppErrors (setup already complete, etc.) should not log noisy traces
+    if (!isAppError(err)) {
+      console.error(`[SetupRoute Error] ${action}:`, err);
+    }
+    if (isAppError(err)) throw err;
     throw new AppError(err.message || "Setup operation failed", 500);
   }
 }

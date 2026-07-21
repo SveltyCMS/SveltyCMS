@@ -12,12 +12,14 @@
 
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
-import { seedTestUsers, TEST_USERS } from "../helpers/api";
+import { seedTestUsers, TEST_USERS } from "../../helpers/api";
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
   admin: ADMIN_CREDENTIALS,
-  ...TEST_USERS,
+  developer: TEST_USERS.developer,
+  editor: TEST_USERS.editor,
+  viewer: TEST_USERS.viewer,
 };
 
 // Use shared loginAs helper instead of custom login function
@@ -250,7 +252,10 @@ test.describe("Role-Based Access Control", () => {
   });
 
   test("Verify all roles can login and logout", async ({ page }) => {
-    for (const [roleName, user] of Object.entries(USERS)) {
+    const roleEntries = Object.entries(USERS) as Array<
+      [string, { email: string; password: string }]
+    >;
+    for (const [roleName, user] of roleEntries) {
       console.log(`[RBAC] Testing login/logout for role: ${roleName}`);
 
       try {

@@ -25,11 +25,15 @@ import { describe, it, expect } from "vitest";
  * @param userTenantId - The tenantId from locals (or undefined/null if not set)
  * @returns true if access is allowed, throws AppError-like object if denied
  */
+type FileServerTenantResult =
+  | { allowed: true; status?: never; code?: never }
+  | { allowed: false; status: number; code: string };
+
 function simulateFileServerTenantCheck(
   isMultiTenant: boolean,
   filePath: string,
   userTenantId: string | null | undefined,
-): { allowed: true } | { allowed: false; status: number; code: string } {
+): FileServerTenantResult {
   const pathTenant = filePath.split("/")[0];
 
   // 🛡️ Tenant access control
@@ -41,6 +45,15 @@ function simulateFileServerTenantCheck(
   }
 
   return { allowed: true };
+}
+
+/** Narrow denied results so status/code are typed without casts at every call site. */
+function expectDenied(result: FileServerTenantResult): asserts result is {
+  allowed: false;
+  status: number;
+  code: string;
+} {
+  expect(result.allowed).toBe(false);
 }
 
 // ─── Multi-Tenant Disabled ────────────────────────────────────────────────
@@ -95,20 +108,20 @@ describe("File Server: Multi-Tenant Enabled — Matching Tenant", () => {
 describe("File Server: Multi-Tenant Enabled — Non-Matching Tenant", () => {
   it("should block access when user tenantId does not match path tenant", () => {
     const result = simulateFileServerTenantCheck(true, "tenant-a/abc123/image.jpg", "tenant-b");
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
     expect(result.code).toBe("TENANT_MISMATCH");
   });
 
   it("should block access from one tenant to another tenant's nested files", () => {
     const result = simulateFileServerTenantCheck(true, "acme-corp/images/logo.png", "other-corp");
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 
   it("should block access to tenant files when path tenant is completely different", () => {
     const result = simulateFileServerTenantCheck(true, "tenant-z/secret.docx", "tenant-a");
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 });
@@ -118,27 +131,27 @@ describe("File Server: Multi-Tenant Enabled — Non-Matching Tenant", () => {
 describe("File Server: Multi-Tenant Enabled — Missing TenantId", () => {
   it("should block access when user tenantId is null", () => {
     const result = simulateFileServerTenantCheck(true, "tenant-a/abc123/image.jpg", null);
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
     expect(result.code).toBe("TENANT_MISMATCH");
   });
 
   it("should block access when user tenantId is undefined", () => {
     const result = simulateFileServerTenantCheck(true, "tenant-a/abc123/image.jpg", undefined);
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
     expect(result.code).toBe("TENANT_MISMATCH");
   });
 
   it("should block access to any tenant-scoped file with missing tenantId", () => {
     const result = simulateFileServerTenantCheck(true, "some-tenant/document.pdf", undefined);
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 
   it("should block access even if file exists but tenantId is missing", () => {
     const result = simulateFileServerTenantCheck(true, "tenant-a/abc123/image.jpg", null);
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 });
@@ -200,7 +213,7 @@ describe("File Server: Edge Cases", () => {
     const result = simulateFileServerTenantCheck(true, "logo.png", "tenant-a");
     // pathTenant = "logo.png", enters the check.
     // userTenantId = "tenant-a" !== "logo.png" && !== "global" → blocked
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 
@@ -210,7 +223,7 @@ describe("File Server: Edge Cases", () => {
     // defense-in-depth — without tenant context we can't determine ownership
     // and must fail closed.
     const result = simulateFileServerTenantCheck(true, "logo.png", undefined);
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 
@@ -219,13 +232,13 @@ describe("File Server: Edge Cases", () => {
     // If the admin wants all-tenants-accessible files, they should use "global/" prefix.
     const result = simulateFileServerTenantCheck(true, "all/shared-file.pdf", "tenant-a");
     // pathTenant = "all", userTenantId = "tenant-a" → not matching → blocked
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 
   it("should enforce tenant check on short file paths", () => {
     const result = simulateFileServerTenantCheck(true, "a/file.txt", "b");
-    expect(result.allowed).toBe(false);
+    expectDenied(result);
     expect(result.status).toBe(403);
   });
 

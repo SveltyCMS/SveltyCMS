@@ -206,6 +206,10 @@ export async function handleVirtualCollectionsRoutes(
     if (err instanceof FederationError) {
       throw new AppError(err.message, err.status, err.code);
     }
+    // SDK methods throw plain Error when plugin is not enabled (e.g. assertEnabled)
+    if (err instanceof Error && err.message?.includes("not enabled")) {
+      throw new AppError(err.message, 503, "PLUGIN_NOT_ENABLED");
+    }
     throw err;
   }
 }

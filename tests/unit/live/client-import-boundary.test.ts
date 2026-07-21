@@ -37,7 +37,7 @@ const SERVER_ONLY_PATH =
   /(?:^|\/)(?:\+server|\+page\.server|\+layout\.server|\+error\.server)(?:\.|$)|(?:^|\/)[^/]+\.server\.(?:ts|js)$|(?:^|\/)hooks\.server\.(?:ts|js)$|(?:^|\/)hooks\.ws\.(?:ts|js)$|(?:^|\/)handlers\/|(?:^|\/)api\/(?:graphql\/)?(?:\+server|resolvers|loaders|rules|cost)/i;
 
 /** Allowed server-only modules that may live next to client code (bridge files). */
-const SERVER_BRIDGE_ALLOWLIST = new Set([
+const SERVER_BRIDGE_ALLOWLIST = new Set<string>([
   // none under client roots by default — event-bus lives in utils (not scanned)
 ]);
 

@@ -25,7 +25,7 @@ describe("widgets-api", () => {
       status: 200,
       json: async () => ({ success: true, data: { widgets: [{ name: "input", isActive: true }] } }),
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     stubDocumentCookie(() => "csrf_token=widget-csrf");
   });
 

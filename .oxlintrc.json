@@ -1,5 +1,5 @@
 {
-  "ignorePatterns": ["src/types/**", "vendor/**"],
+  "ignorePatterns": ["src/types/**"],
   "rules": {
     "eslint/no-restricted-imports": [
       "warn",

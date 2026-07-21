@@ -280,6 +280,8 @@ export const actions: Actions = {
       if (originalName && originalName !== contentName && oldCollectionPath) {
         fs.renameSync(oldCollectionPath, collectionPath);
       }
+      // Ensure parent directory exists (Node.js writeFileSync does NOT auto-create parents)
+      fs.mkdirSync(path.dirname(collectionPath), { recursive: true });
       fs.writeFileSync(collectionPath, content);
 
       // Compile with tenant ID

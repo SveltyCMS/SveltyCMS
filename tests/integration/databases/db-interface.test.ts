@@ -8,7 +8,7 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-import { afterAll, beforeAll, describe, expect, it, mock } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createSchemaProxy } from "../../../src/databases/core/schema-proxy";
 
 // 🟢 Apply the v8 shim before any MongoDB/Bson imports
@@ -16,24 +16,24 @@ import { createSchemaProxy } from "../../../src/databases/core/schema-proxy";
 import "../../../src/utils/v8-shim";
 
 // 🚀  Aggressively mock SvelteKit and Store environment for standalone adapter tests
-mock.module("$app/environment", () => ({
+vi.mock("$app/environment", () => ({
   browser: false,
   dev: false,
   building: false,
   version: "1.0.0",
 }));
-mock.module("@src/stores/screen-size-store.svelte", () => ({
+vi.mock("@src/stores/screen-size-store.svelte", () => ({
   screenSize: { isMobile: false, isTablet: false, isDesktop: true },
 }));
-mock.module("@src/stores/toast.svelte", () => ({ toast: { show: () => {} } }));
-mock.module("@src/stores/store.svelte", () => ({
+vi.mock("@src/stores/toast.svelte", () => ({ toast: { show: () => {} } }));
+vi.mock("@src/stores/store.svelte", () => ({
   appStore: { isMobile: false },
   app: { isMobile: false },
 }));
-mock.module("@src/stores/widget-store.svelte", () => ({
+vi.mock("@src/stores/widget-store.svelte", () => ({
   widgets: { initialize: () => {} },
 }));
-mock.module("svelte", () => ({
+vi.mock("svelte", () => ({
   mount: () => ({}),
   unmount: () => ({}),
 }));

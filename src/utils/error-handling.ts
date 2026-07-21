@@ -138,11 +138,8 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     } else if (status === 401) {
       logger.debug(`AppError [${requestPath}]: Unauthorized access attempt`);
     } else {
-      const isBenchmark =
-        process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true";
-      if (!isBenchmark) {
-        logger.warn(`AppError [${requestPath}]: ${message}`, { code, details: err.details });
-      }
+      // Client errors (400-level) are not server issues — log at debug level
+      logger.debug(`AppError [${requestPath}]: ${message}`, { code, details: err.details });
     }
   } else if (isHttpError(err)) {
     const body = err.body as { message?: string; __sveltyCode?: string } | undefined;

@@ -18,9 +18,28 @@ async function runLocalApiBenchmark() {
   console.log(`🚀 Starting Local API Performance Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
-    await ensureFullInitialization();
-    const adapter = getDb();
-    if (!adapter) throw new Error("Database not initialized");
+    // Retry init — under multi-DB matrix the previous suite may leave pools half-closed
+    let adapter: ReturnType<typeof getDb> = null;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await ensureFullInitialization();
+        adapter = getDb();
+        if (adapter) {
+          const probe = await adapter.auth.getUserCount();
+          if (probe?.success !== false) break;
+        }
+      } catch (e) {
+        lastErr = e;
+        adapter = null;
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
+    }
+    if (!adapter) {
+      throw new Error(
+        `Database not initialized after retries: ${lastErr instanceof Error ? lastErr.message : lastErr}`,
+      );
+    }
 
     const cms = new LocalCMS(adapter);
 
@@ -28,8 +47,10 @@ async function runLocalApiBenchmark() {
     await (cms.auth as any).getUserCount();
 
     const results = [];
-    const ITERATION_COUNT = 10000;
-    const WARMUP_COUNT = 500;
+    // Matrix mode: shorter runs avoid double-pool exhaustion vs shared server
+    const matrix = process.env.BENCHMARK_MATRIX === "1";
+    const ITERATION_COUNT = matrix ? 2000 : 10000;
+    const WARMUP_COUNT = matrix ? 100 : 500;
 
     // 1. Baseline: Direct Adapter Call
     console.log("   → Measuring Direct Adapter (Baseline)...");

@@ -26,6 +26,12 @@ import { fileURLToPath } from "node:url";
 import { getDockerDefaultDbCredentials } from "../../src/utils/test-db-credentials.ts";
 import { isConfigSourceSafeForTesting } from "../../src/utils/test-db-safety.ts";
 import { isCiRunner } from "../../src/utils/private-config-policy.ts";
+import {
+  DEFAULT_INTEGRATION_ENCRYPTION,
+  DEFAULT_INTEGRATION_JWT,
+  DEFAULT_INTEGRATION_TEST_API_SECRET,
+  pinIntegrationSecrets,
+} from "../../scripts/integration-harness.ts";
 
 // ── Derived paths ───────────────────────────────────────────────────────────
 
@@ -79,9 +85,11 @@ function generatePrivateTestConfig(privateTestPath: string) {
   const dbPortValue =
     db.type === "sqlite" || !db.port ? "undefined" : String(Number.parseInt(db.port, 10));
 
-  const jwt = process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
-  const enc = process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
-  const testSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+  // Shared with scripts/run-integration.ts — pin once; never mint a second secret.
+  const secrets = pinIntegrationSecrets();
+  const jwt = secrets.jwt || DEFAULT_INTEGRATION_JWT;
+  const enc = secrets.encryption || DEFAULT_INTEGRATION_ENCRYPTION;
+  const testSecret = secrets.testApiSecret || DEFAULT_INTEGRATION_TEST_API_SECRET;
 
   const content = `/**
  * Auto-generated test config for integration tests.
@@ -166,7 +174,7 @@ async function waitForServerReady(maxAttempts = 60): Promise<boolean> {
     "idle",
     "initializing",
   ]);
-  const testApiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+  const testApiSecret = process.env.TEST_API_SECRET || DEFAULT_INTEGRATION_TEST_API_SECRET;
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -260,7 +268,7 @@ async function ensureServerRunning(): Promise<void> {
 async function testingAction(action: "reset" | "seed", preset?: string): Promise<void> {
   let lastError: Error | null = null;
   const maxRetries = 5;
-  const testApiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+  const testApiSecret = process.env.TEST_API_SECRET || DEFAULT_INTEGRATION_TEST_API_SECRET;
 
   for (let i = 0; i < maxRetries; i++) {
     try {

@@ -89,7 +89,10 @@ async function listSourceCollectionFiles(userCollections: string): Promise<strin
       if (entry.isDirectory()) {
         const { isBenchmarkRuntime } = await import("@utils/benchmark-runtime.ts");
         const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths.ts");
-        if (!isBenchmarkRuntime() && (entry.name === "test" || isBenchmarkRelativePath(rel))) {
+        if (
+          !isBenchmarkRuntime() &&
+          (entry.name === "test-collections" || isBenchmarkRelativePath(rel))
+        ) {
           continue;
         }
         await walk(full, rel);

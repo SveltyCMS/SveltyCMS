@@ -7,7 +7,7 @@
  *   - Tests sign out, login, and forgot password flows
  */
 import { expect, test } from "@playwright/test";
-import { TEST_API_HEADERS } from "../helpers/api";
+import { TEST_API_HEADERS } from "../../helpers/api";
 
 /** Dismiss cookie consent banner if visible. Uses force:true to bypass z-index interception. */
 async function dismissCookieConsent(page: any) {

@@ -218,4 +218,28 @@ describe("relational-utils — tenant filter centralization", () => {
     expect(utils.buildRawTenantFilter({ tenantId: "global" as any })).toBe("");
     expect(utils.buildRawTenantFilter({ tenantId: undefined })).toBe("");
   });
+
+  it("buildRawTenantClause uses bound placeholders per dialect", () => {
+    expect(utils.buildRawTenantClause({ tenantId: "t-1" as any }, "sqlite")).toEqual({
+      sql: ` AND "tenantId" = ?`,
+      params: ["t-1"],
+    });
+    expect(utils.buildRawTenantClause({ tenantId: "t-2" as any }, "mysql")).toEqual({
+      sql: " AND `tenantId` = ?",
+      params: ["t-2"],
+    });
+    expect(
+      utils.buildRawTenantClause({ tenantId: "t-3" as any }, "postgres", { paramIndex: 3 }),
+    ).toEqual({
+      sql: ` AND "tenantId" = $3`,
+      params: ["t-3"],
+    });
+  });
+
+  it("assertSafeSqlIdentifier / assertFiniteAmount guard atomicIncrement inputs", () => {
+    expect(utils.assertSafeSqlIdentifier("viewCount")).toBe("viewCount");
+    expect(utils.assertFiniteAmount(5)).toBe(5);
+    expect(() => utils.assertSafeSqlIdentifier("a;drop table")).toThrow(/Invalid SQL identifier/);
+    expect(() => utils.assertFiniteAmount(Number.NaN)).toThrow(/finite number/);
+  });
 });

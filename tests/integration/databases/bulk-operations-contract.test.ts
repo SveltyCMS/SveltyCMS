@@ -259,7 +259,7 @@ describe("Atomic Operations Contract — All Adapters", () => {
     });
 
     it("atomically increments a numeric field", async () => {
-      if (typeof db.crud.atomicIncrement !== "function") return;
+      expect(typeof db.crud.atomicIncrement).toBe("function");
 
       const result = await db.crud.atomicIncrement(TEST_COLLECTION, INC_ID, "count", 5, tenantOpts);
 
@@ -276,7 +276,7 @@ describe("Atomic Operations Contract — All Adapters", () => {
     });
 
     it("handles concurrent increments without lost updates", async () => {
-      if (typeof db.crud.atomicIncrement !== "function") return;
+      expect(typeof db.crud.atomicIncrement).toBe("function");
 
       // Fire 5 concurrent increments of 1 each
       await Promise.all(

@@ -86,7 +86,7 @@ describe("collectionbuilder +page.server load", () => {
   });
 
   it("returns user + contentStructure for admin with permission", async () => {
-    const data = await load({ locals: makeLocals() } as any);
+    const data: any = await load({ locals: makeLocals() } as any);
     expect(data.user.id).toBe("u1");
     expect(data.user.email).toBe("admin@test.com");
     expect(Array.isArray(data.contentStructure)).toBe(true);
@@ -116,7 +116,7 @@ describe("collectionbuilder +page.server load", () => {
         translations: [],
       },
     ]);
-    const data = await load({ locals: makeLocals() } as any);
+    const data: any = await load({ locals: makeLocals() } as any);
     expect(typeof data.contentStructure[0]._id).toBe("string");
   });
 

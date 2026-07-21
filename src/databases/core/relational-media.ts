@@ -15,14 +15,15 @@ import type {
   MediaItem,
   CmsMediaMetadata,
   PaginatedResult,
-  PaginationOptions,
   EntityCreate,
   IMediaAdapter,
   BaseQueryOptions,
+  MediaQueryOptions,
   ISqlAdapter,
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import { buildMediaJsonPathSqlConditions, resolveMediaJsonSqlDialect } from "./media-json-path";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 
 export class RelationalMediaModule implements IMediaAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -57,56 +58,48 @@ export class RelationalMediaModule implements IMediaAdapter {
     return {
       upload: async (
         file: EntityCreate<MediaItem>,
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaItem>> => {
-        return this.crud.insert("media_items", file, {
-          tenantId: tenantId as any,
-        });
+        assertTenantContext(options, "media.files.upload");
+        return this.crud.insert("media_items", file, options);
       },
 
       uploadMany: async (
         files: EntityCreate<MediaItem>[],
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaItem[]>> => {
-        return this.crud.insertMany("media_items", files, {
-          tenantId: tenantId as any,
-        });
+        assertTenantContext(options, "media.files.uploadMany");
+        return this.crud.insertMany("media_items", files, options);
       },
 
       delete: async (
         fileId: DatabaseId,
-        _tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<void>> => {
-        return this.crud.delete("media_items", fileId);
+        assertTenantContext(options, "media.files.delete");
+        return this.crud.delete("media_items", fileId, options);
       },
 
       deleteMany: async (
         fileIds: DatabaseId[],
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<{ deletedCount: number }>> => {
-        return this.crud.deleteMany("media_items", { _id: { $in: fileIds } } as any, {
-          tenantId: tenantId as any,
-        });
+        assertTenantContext(options, "media.files.deleteMany");
+        return this.crud.deleteMany("media_items", { _id: { $in: fileIds } } as any, options);
       },
 
       getByFolder: async (
         folderId?: DatabaseId,
-        options?: PaginationOptions,
-        _recursive?: boolean,
-        tenantId?: string | null | null,
-        dbOptions?: BaseQueryOptions,
+        options?: MediaQueryOptions,
       ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
         return this.adapter.wrap(
           async () => {
+            assertTenantContext(options, "media.files.getByFolder");
             const conditions = folderId
               ? [eq(this.schema.mediaItems.folderId, folderId as string)]
               : [isNull(this.schema.mediaItems.folderId)];
 
-            if (tenantId !== undefined) {
-              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
-                tenantId: tenantId as any,
-              });
-            }
+            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             if (options?.user) {
               const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
@@ -119,7 +112,6 @@ export class RelationalMediaModule implements IMediaAdapter {
               }
             }
 
-            // DB-native JSON path (SQLite JSON1 / PG jsonb / MariaDB JSON) for large libraries
             const jsonPathExpr = options?.jsonPath?.trim();
             if (jsonPathExpr) {
               const dialect = resolveMediaJsonSqlDialect(this.adapter as any);
@@ -139,7 +131,7 @@ export class RelationalMediaModule implements IMediaAdapter {
               }
             }
 
-            let q = this.getDb(dbOptions)
+            let q = this.getDb(options)
               .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
               .from(this.schema.mediaItems)
               .$dynamic();
@@ -156,7 +148,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             q = q.limit(limit).offset(offset);
 
             const results = await q;
-            const [countResult] = await this.getDb(dbOptions)
+            const [countResult] = await this.getDb(options)
               .select({ count: count() })
               .from(this.schema.mediaItems)
               .where(and(...conditions));
@@ -174,16 +166,16 @@ export class RelationalMediaModule implements IMediaAdapter {
           },
           "GET_FILES_BY_FOLDER_FAILED",
           undefined,
-          { transaction: dbOptions?.transaction },
+          { transaction: options?.transaction },
         );
       },
 
       search: async (
         query: string,
-        options?: PaginationOptions,
-        tenantId?: string | null,
+        options?: MediaQueryOptions,
       ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
         return this.adapter.wrap(async () => {
+          assertTenantContext(options, "media.files.search");
           const isPg = (this.adapter as any).dialect === "postgresql";
           const op = isPg ? ilike : like;
           const qry = `%${query}%`;
@@ -194,7 +186,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             ) as any,
           ];
 
-          if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+          utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
           if (options?.user) {
             const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
@@ -244,11 +236,12 @@ export class RelationalMediaModule implements IMediaAdapter {
 
       getMetadata: async (
         fileIds: DatabaseId[],
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>> => {
         return this.adapter.wrap(async () => {
+          assertTenantContext(options, "media.files.getMetadata");
           const conditions = [inArray(this.schema.mediaItems._id, fileIds as string[])];
-          if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+          utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
           const results = await this.db
             .select({
@@ -269,16 +262,13 @@ export class RelationalMediaModule implements IMediaAdapter {
       updateMetadata: async (
         fileId: DatabaseId,
         metadata: Partial<CmsMediaMetadata>,
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaItem>> => {
         return this.adapter.wrap(
           async () => {
+            assertTenantContext(options, "media.files.updateMetadata");
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            if (tenantId !== undefined) {
-              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
-                tenantId: tenantId as any,
-              });
-            }
+            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             const [existing] = await this.db
               .select({ metadata: this.schema.mediaItems.metadata })
@@ -308,17 +298,14 @@ export class RelationalMediaModule implements IMediaAdapter {
 
       move: async (
         fileIds: DatabaseId[],
-        targetFolderId?: DatabaseId,
-        tenantId?: string | null,
+        targetFolderId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<{ movedCount: number }>> => {
         return this.adapter.wrap(
           async () => {
+            assertTenantContext(options, "media.files.move");
             const conditions = [inArray(this.schema.mediaItems._id, fileIds as string[])];
-            if (tenantId !== undefined) {
-              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
-                tenantId: tenantId as any,
-              });
-            }
+            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             const results = await this.db
               .update(this.schema.mediaItems)
@@ -340,11 +327,12 @@ export class RelationalMediaModule implements IMediaAdapter {
 
       getByHash: async (
         hash: string,
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaItem | null>> => {
         return this.adapter.wrap(async () => {
+          assertTenantContext(options, "media.files.getByHash");
           const conditions = [eq(this.schema.mediaItems.hash, hash)];
-          if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+          utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
           const [item] = await this.db
             .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
             .from(this.schema.mediaItems)
@@ -356,16 +344,13 @@ export class RelationalMediaModule implements IMediaAdapter {
 
       restore: async (
         fileId: DatabaseId,
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<void>> => {
         return this.adapter.wrap(
           async () => {
+            assertTenantContext(options, "media.files.restore");
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            if (tenantId !== undefined) {
-              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
-                tenantId: tenantId as any,
-              });
-            }
+            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             await this.db
               .update(this.schema.mediaItems)
@@ -384,16 +369,13 @@ export class RelationalMediaModule implements IMediaAdapter {
       duplicate: async (
         fileId: DatabaseId,
         newName?: string,
-        tenantId?: string | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaItem>> => {
         return this.adapter.wrap(
           async () => {
+            assertTenantContext(options, "media.files.duplicate");
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            if (tenantId !== undefined) {
-              utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, {
-                tenantId: tenantId as any,
-              });
-            }
+            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             const [existing] = await this.db
               .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
@@ -428,51 +410,52 @@ export class RelationalMediaModule implements IMediaAdapter {
     return {
       create: async (
         folder: EntityCreate<MediaFolder>,
-        tenantId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaFolder>> => {
-        return this.crud.insert(
-          "system_virtual_folders",
-          { ...folder, type: "folder" },
-          { tenantId: tenantId as any },
-        );
+        assertTenantContext(options, "media.folders.create");
+        return this.crud.insert("system_virtual_folders", { ...folder, type: "folder" }, options);
       },
 
       createMany: async (
         folders: EntityCreate<MediaFolder>[],
-        tenantId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaFolder[]>> => {
+        assertTenantContext(options, "media.folders.createMany");
         return this.crud.insertMany(
           "system_virtual_folders",
           folders.map((f) => ({ ...f, type: "folder" })),
-          { tenantId: tenantId as any },
+          options,
         );
       },
 
       delete: async (
         folderId: DatabaseId,
-        tenantId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<void>> => {
-        return this.crud.delete("system_virtual_folders", folderId, {
-          tenantId: tenantId as any,
-        });
+        assertTenantContext(options, "media.folders.delete");
+        return this.crud.delete("system_virtual_folders", folderId, options);
       },
 
       deleteMany: async (
         folderIds: DatabaseId[],
-        tenantId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<{ deletedCount: number }>> => {
-        return this.crud.deleteMany("system_virtual_folders", { _id: { $in: folderIds } } as any, {
-          tenantId: tenantId as any,
-        });
+        assertTenantContext(options, "media.folders.deleteMany");
+        return this.crud.deleteMany(
+          "system_virtual_folders",
+          { _id: { $in: folderIds } } as any,
+          options,
+        );
       },
 
       getTree: async (
         _maxDepth?: number,
-        tenantId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaFolder[]>> => {
         return this.adapter.wrap(async () => {
+          assertTenantContext(options, "media.folders.getTree");
           const conditions = [eq(this.schema.systemVirtualFolders.type, "folder")];
-          if (tenantId) conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId));
+          utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
           const results = await this.db
             .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
             .from(this.schema.systemVirtualFolders)
@@ -483,8 +466,7 @@ export class RelationalMediaModule implements IMediaAdapter {
 
       getFolderContents: async (
         folderId?: DatabaseId,
-        _options?: PaginationOptions,
-        tenantId?: DatabaseId | null,
+        options?: MediaQueryOptions,
       ): Promise<
         DatabaseResult<{
           folders: MediaFolder[];
@@ -493,16 +475,20 @@ export class RelationalMediaModule implements IMediaAdapter {
         }>
       > => {
         return this.adapter.wrap(async () => {
+          assertTenantContext(options, "media.folders.getFolderContents");
           const folderConditions = folderId
             ? [eq(this.schema.systemVirtualFolders.parentId, folderId as string)]
             : [isNull(this.schema.systemVirtualFolders.parentId)];
-          if (tenantId)
-            folderConditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId));
+          utils.applyTenantFilter(
+            folderConditions,
+            this.schema.systemVirtualFolders.tenantId,
+            options,
+          );
 
           const fileConditions = folderId
             ? [eq(this.schema.mediaItems.folderId, folderId as string)]
             : [isNull(this.schema.mediaItems.folderId)];
-          if (tenantId) fileConditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+          utils.applyTenantFilter(fileConditions, this.schema.mediaItems.tenantId, options);
 
           const folders = await this.db
             .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
@@ -523,14 +509,15 @@ export class RelationalMediaModule implements IMediaAdapter {
 
       move: async (
         folderId: DatabaseId,
-        targetParentId?: DatabaseId,
-        tenantId?: DatabaseId | null,
+        targetParentId?: DatabaseId | null,
+        options?: BaseQueryOptions,
       ): Promise<DatabaseResult<MediaFolder>> => {
+        assertTenantContext(options, "media.folders.move");
         return this.crud.update(
           "system_virtual_folders",
           folderId,
           { parentId: targetParentId || null } as any,
-          { tenantId: tenantId as any },
+          options,
         );
       },
     };

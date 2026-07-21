@@ -951,7 +951,7 @@ export async function exportResult(r: any) {
     runId: _currentRunId,
     testFile: testFile || "unknown",
     metric: r.name,
-    layer: r.layer || "unknown",
+    layer: r.layer || undefined,
     avgMs: r.avgMs ?? 0,
     p95Ms: r.p95Ms ?? 0,
     rps: r.rps ?? 0,

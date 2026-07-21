@@ -662,7 +662,7 @@ export async function handleCollectionIncrement(
 
   // Invalidate cache so subsequent reads get the new value
   try {
-    await cms.db.monitoring.cache.invalidateCollection(collectionId, tenantId);
+    await cms.db.monitoring.cache.invalidateCollection(collectionId, { tenantId });
   } catch {
     /* ignore */
   }

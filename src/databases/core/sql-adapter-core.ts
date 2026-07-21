@@ -411,7 +411,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
+          // Convert ISO date strings to Date objects for Drizzle timestamp_ms columns
           if (
+            typeof val === "string" &&
+            val.length > 5 &&
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
+          ) {
+            const ts = Date.parse(val);
+            if (!isNaN(ts)) {
+              val = new Date(ts);
+            }
+          } else if (
             this.shouldJsonSerializeInPrepare &&
             typeof val === "object" &&
             val !== null &&

@@ -1,51 +1,116 @@
 /**
- * @file src/utils/security/safeQuery.ts
- * @description Utility to enforce strict tenant isolation in database queries.
+ * @file src/utils/security/safe-query.ts
+ * @description Tenant isolation helpers shared by Mongo and SQL adapters.
  *
- * Prevents "Data Leakage" bugs by ensuring every query has a tenantId
- * when running in Multi-Tenant mode.
+ * ### Security model
+ * - When MULTI_TENANT is on, every query must carry a real tenantId (or explicit bypass).
+ * - Fail-closed: missing tenant context throws TENANT_CONTEXT_MISSING.
+ * - Soft-delete boundary is applied by default for Mongo-style filters.
+ *
+ * ### Performance
+ * - MULTI_TENANT flag is cached (5s TTL). Single-tenant / benchmark paths are near-zero cost.
+ * - bypassSafeQuery skips all checks and allocations (ultra-fast path).
  */
 
 import { getPrivateEnv } from "@src/databases/config-state";
+import { hasTenantBypass, type SystemTenantScope } from "@src/databases/system-tenant-scope";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 
-interface SafeQueryOptions {
-  bypassTenantCheck?: boolean; // Bypass check (e.g. for System Admin queries)
-  includeDeleted?: boolean; // Whether to include soft-deleted items
-  bypassSafeQuery?: boolean; // 🚀 ULTRA FAST PATH: Skip all checks and allocations
+export interface SafeQueryOptions {
+  /** @deprecated Prefer systemScope via withSystemScope / createSystemTenantScope. */
+  bypassTenantCheck?: boolean;
+  /** Branded system capability (scheduler, setup, testing, …). */
+  systemScope?: SystemTenantScope;
+  includeDeleted?: boolean;
+  /** Skip all checks and allocations (hot paths / system). */
+  bypassSafeQuery?: boolean;
+  tenantId?: string | null;
 }
 
+/** Minimal options bag used by SQL adapters (BaseQueryOptions-compatible). */
+export interface TenantScopedOptions {
+  tenantId?: string | null | undefined;
+  /** @deprecated Prefer systemScope. */
+  bypassTenantCheck?: boolean;
+  systemScope?: SystemTenantScope;
+  bypassSafeQuery?: boolean;
+}
+
+const PII_KEYS = new Set(["email", "security", "username", "name", "phone", "token", "secret"]);
+
 let cachedIsMultiTenant: boolean | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 5_000;
+
+/**
+ * Reset MULTI_TENANT cache (unit tests / config reloads).
+ */
+export function resetSafeQueryCache(): void {
+  cachedIsMultiTenant = null;
+  cachedAt = 0;
+}
+
+/**
+ * Sync, cached MULTI_TENANT detection. Hot-path safe (no await).
+ */
+export function isMultiTenantMode(): boolean {
+  const now = Date.now();
+  if (cachedIsMultiTenant !== null && now - cachedAt < CACHE_TTL_MS) {
+    return cachedIsMultiTenant;
+  }
+  try {
+    const privateEnv = getPrivateEnv() as { MULTI_TENANT?: boolean | string } | null;
+    cachedIsMultiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === "true";
+  } catch {
+    cachedIsMultiTenant = false;
+  }
+  cachedAt = now;
+  return cachedIsMultiTenant;
+}
+
+function hasUsableTenantId(tenantId: unknown): boolean {
+  return tenantId !== undefined && tenantId !== null && tenantId !== "";
+}
+
+/**
+ * Fail-closed tenant gate for SQL + Mongo parity.
+ * Zero work when single-tenant, bypassed, or tenantId already present.
+ */
+export function assertTenantContext(
+  options?: TenantScopedOptions | null,
+  operation = "query",
+): void {
+  // System scope (branded) or legacy bypass / ultra-fast path
+  if (hasTenantBypass(options)) return;
+  if (hasUsableTenantId(options?.tenantId)) {
+    // Having tenantId present is always safe to proceed (single-tenant stamping ok).
+    return;
+  }
+  if (!isMultiTenantMode()) return;
+
+  logger.error(`[TenantContext] Security Violation on ${operation}: MULTI_TENANT without tenantId`);
+  throw new AppError(
+    `Security Violation: Attempted to execute ${operation} without tenant context in Multi-Tenant mode.`,
+    500,
+    "TENANT_CONTEXT_MISSING",
+  );
+}
 
 /**
  * Validates that a query object includes a tenantId if Multi-Tenancy is enabled.
- * Also enforces Soft Delete boundaries by default.
- *
- * @param query - The query object (e.g. Mongoose filter)
- * @param tenantId - The tenantId from the context (Event/Session)
- * @param options - Options to bypass checks
+ * Also enforces Soft Delete boundaries by default (Mongo-style filters).
  */
 export function safeQuery<T extends Record<string, any>>(
   query: T,
   tenantId?: string | null,
   options: SafeQueryOptions = {},
 ): T {
-  // 🚀 ULTRA FAST PATH: If bypassed, return immediately without any allocations
   if (options.bypassSafeQuery) return query;
 
-  // 1. Get private config (Cached for performance, but bypassed in TEST_MODE)
-  if (cachedIsMultiTenant === null || process.env.TEST_MODE === "true") {
-    const privateEnv = getPrivateEnv() as any;
-    cachedIsMultiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === "true";
-  }
+  const isMultiTenant = isMultiTenantMode();
 
-  const isMultiTenant = cachedIsMultiTenant;
-
-  // 🛡️ SECURITY: If multi-tenancy is enabled but no tenantId provided, it's a violation
-  if (isMultiTenant && !tenantId && !options.bypassTenantCheck) {
-    // Redact PII fields before logging
-    const PII_KEYS = new Set(["email", "security", "username", "name", "phone", "token", "secret"]);
+  if (isMultiTenant && !hasUsableTenantId(tenantId) && !hasTenantBypass(options)) {
     const redactedQuery = Object.fromEntries(
       Object.entries(query).map(([k, v]) => [k, PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v]),
     );
@@ -59,21 +124,17 @@ export function safeQuery<T extends Record<string, any>>(
     );
   }
 
-  // 2. Prepare the base query with tenantId if needed
-  // We only clone if we actually need to change something
   let secureQuery: any = query;
   let hasChanges = false;
 
-  if (tenantId !== undefined && !options.bypassTenantCheck && query.tenantId !== tenantId) {
+  if (hasUsableTenantId(tenantId) && !hasTenantBypass(options) && query.tenantId !== tenantId) {
     secureQuery = { ...query };
     secureQuery.tenantId = tenantId;
     hasChanges = true;
   }
 
-  // 3. Enforce Soft Delete boundary — always applies unless explicitly opted out
   if (!options.includeDeleted) {
     if (!hasChanges) secureQuery = { ...query };
-    // Match active rows and legacy docs missing isDeleted (MongoDB $ne: true)
     secureQuery.isDeleted = { $ne: true };
   }
 

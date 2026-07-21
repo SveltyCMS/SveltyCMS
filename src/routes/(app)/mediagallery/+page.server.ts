@@ -134,19 +134,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       if (typeof getByFolder !== "function") {
         logger.warn("media.files.getByFolder is unavailable — returning empty media list");
       } else {
-        const mediaResult = await getByFolder(
-          folderId as DatabaseId | undefined,
-          {
-            pageSize: 100,
-            page: 1,
-            sortField: "updatedAt",
-            sortDirection: "desc",
-            user, // Pass user for ownership filtering
-            // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
-            ...(jsonPath ? { jsonPath } : {}),
-          },
+        const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
+          pageSize: 100,
+          page: 1,
+          sortField: "updatedAt",
+          sortDirection: "desc",
           recursive,
-        );
+          user, // Pass user for ownership filtering
+          // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
+          ...(jsonPath ? { jsonPath } : {}),
+        });
         if (mediaResult?.success && mediaResult.data) {
           allMediaResults = (mediaResult.data.items as unknown as Record<string, unknown>[]) || [];
         }

@@ -181,8 +181,12 @@ export class MongoThemeMethods {
    * Cached with 300s TTL since active theme is accessed on every page load
    * @returns {Promise<DatabaseResult<Theme | null>>} The active theme object or null if none is active.
    */
-  async getActive(tenantId?: string | null): Promise<DatabaseResult<Theme | null>> {
-    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+  async getActive(options?: {
+    tenantId?: string | null;
+    bypassTenantCheck?: boolean;
+  }): Promise<DatabaseResult<Theme | null>> {
+    const effectiveTenantId =
+      options?.tenantId === undefined ? null : (options.tenantId as string | null);
     const cacheKey = `theme:active:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
 
     try {
@@ -207,12 +211,19 @@ export class MongoThemeMethods {
   }
 
   /**
-   * Retrieves the default theme.
-   * @param {string} tenantId - Optional tenant ID.
-   * @returns {Promise<DatabaseResult<Theme>>} The default theme.
+   * Retrieves the default theme (options-last; tenantId on options bag).
    */
-  async getDefaultTheme(tenantId?: string | null): Promise<DatabaseResult<Theme>> {
-    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+  async getDefaultTheme(options?: {
+    tenantId?: string | null;
+    bypassTenantCheck?: boolean;
+    systemScope?: import("../system-tenant-scope").SystemTenantScope;
+  }): Promise<DatabaseResult<Theme>> {
+    const { assertTenantContext } = await import("@src/utils/security/safe-query");
+    // Fail-closed under MT: tenantId or withSystemScope(...) required (no auto-bypass)
+    assertTenantContext(options as any, "system.themes.getDefaultTheme");
+
+    const effectiveTenantId =
+      options?.tenantId === undefined ? null : (options.tenantId as string | null);
     const cacheKey = `theme:default:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
 
     return withCache(
@@ -247,8 +258,11 @@ export class MongoThemeMethods {
   }
 
   // Wrapper methods to match DatabaseResult interface requirement if needed by IDBAdapter
-  async getActiveTheme(tenantId?: string | null): Promise<DatabaseResult<Theme>> {
-    const result = await this.getActive(tenantId);
+  async getActiveTheme(options?: {
+    tenantId?: string | null;
+    bypassTenantCheck?: boolean;
+  }): Promise<DatabaseResult<Theme>> {
+    const result = await this.getActive(options);
     if (!result.success || !result.data) {
       return {
         success: false,
@@ -264,8 +278,12 @@ export class MongoThemeMethods {
    * Cached with 300s TTL since theme list is frequently accessed in admin UI
    * @returns {Promise<DatabaseResult<Theme[]>>} An array of theme objects.
    */
-  async getAllThemes(tenantId?: string | null): Promise<DatabaseResult<Theme[]>> {
-    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+  async getAllThemes(options?: {
+    tenantId?: string | null;
+    bypassTenantCheck?: boolean;
+  }): Promise<DatabaseResult<Theme[]>> {
+    const effectiveTenantId =
+      options?.tenantId === undefined ? null : (options.tenantId as string | null);
     const cacheKey = `theme:all:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
 
     try {

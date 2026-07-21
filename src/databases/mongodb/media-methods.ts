@@ -7,21 +7,22 @@
  * Relies on Dependency Injection for testability.
  */
 
-import { safeQuery } from "@src/utils/security/safe-query";
 import { logger } from "@utils/logger";
 import type mongoose from "mongoose";
 import type { Model, QueryFilter } from "mongoose";
 import type {
+  BaseQueryOptions,
   DatabaseId,
   DatabaseResult,
   MediaItem,
   CmsMediaMetadata,
+  MediaQueryOptions,
   PaginatedResult,
-  PaginationOptions,
 } from "../db-interface";
 import { type IMedia, mediaSchema } from "./media";
 import { CacheCategory, invalidateCategoryCache, withCache } from "./mongodb-cache-utils";
 import { createDatabaseError, generateId } from "./mongodb-utils";
+import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
 
 // Define model types for dependency injection
 type MediaModelType = Model<IMedia>;
@@ -57,16 +58,19 @@ export class MongoMediaMethods {
   /// Uploads multiple media files in a single, efficient batch operation
   async uploadMany(
     files: Omit<MediaItem, "_id">[],
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<MediaItem[]>> {
     try {
-      // Ensure files are injected with the correct tenantId if provided
-      const filesWithTenant = tenantId ? files.map((f) => ({ ...f, tenantId })) : files;
+      assertTenantContext(options, "media.uploadMany");
+      const tenantId = options?.tenantId;
+      const filesWithTenant =
+        tenantId !== undefined && tenantId !== null
+          ? files.map((f) => ({ ...f, tenantId }))
+          : files;
       const result = await this.mediaModel.insertMany(filesWithTenant, {
         lean: true,
       });
 
-      // Invalidate media caches
       await invalidateCategoryCache(CacheCategory.MEDIA);
 
       return {
@@ -89,9 +93,10 @@ export class MongoMediaMethods {
   // Deletes multiple media files in a single batch operation
   async deleteMany(
     fileIds: DatabaseId[],
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     try {
+      assertTenantContext(options, "media.deleteMany");
       if (fileIds.length === 0) {
         return { success: true, data: { deletedCount: 0 } };
       }
@@ -99,11 +104,11 @@ export class MongoMediaMethods {
         {
           _id: { $in: fileIds } as unknown as QueryFilter<IMedia>["_id"],
         },
-        tenantId,
+        options?.tenantId as string,
+        options,
       );
       const result = await this.mediaModel.deleteMany(query);
 
-      // Invalidate media caches
       await invalidateCategoryCache(CacheCategory.MEDIA);
 
       return { success: true, data: { deletedCount: result.deletedCount } };
@@ -124,9 +129,10 @@ export class MongoMediaMethods {
   async updateMetadata(
     fileId: DatabaseId,
     metadata: Partial<CmsMediaMetadata>,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<MediaItem | null>> {
     try {
+      assertTenantContext(options, "media.updateMetadata");
       const updateData = Object.entries(metadata).reduce(
         (acc, [key, value]) => {
           acc[`metadata.${key}`] = value;
@@ -136,14 +142,13 @@ export class MongoMediaMethods {
       );
 
       updateData.updatedAt = new Date();
-      const query = safeQuery({ _id: fileId }, tenantId);
+      const query = safeQuery({ _id: fileId }, options?.tenantId as string, options);
 
       const result = await this.mediaModel
         .findOneAndUpdate(query as any, { $set: updateData }, { returnDocument: "after" })
         .lean()
         .exec();
 
-      // Invalidate media caches
       await invalidateCategoryCache(CacheCategory.MEDIA);
 
       return { success: true, data: result as unknown as MediaItem | null };
@@ -159,19 +164,20 @@ export class MongoMediaMethods {
   // Moves multiple files to a different folder
   async move(
     fileIds: DatabaseId[],
-    targetFolderId?: DatabaseId,
-    tenantId?: string | null,
+    targetFolderId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ movedCount: number }>> {
     try {
+      assertTenantContext(options, "media.move");
       const query = safeQuery(
         { _id: { $in: fileIds } as unknown as QueryFilter<IMedia>["_id"] },
-        tenantId,
+        options?.tenantId as string,
+        options,
       );
       const result = await this.mediaModel.updateMany(query as any, {
-        $set: { folderId: targetFolderId as string, updatedAt: new Date() },
+        $set: { folderId: (targetFolderId ?? null) as string, updatedAt: new Date() },
       });
 
-      // Invalidate media caches
       await invalidateCategoryCache(CacheCategory.MEDIA);
 
       return { success: true, data: { movedCount: result.modifiedCount } };
@@ -187,12 +193,14 @@ export class MongoMediaMethods {
   // Retrieves metadata for multiple files
   async getMetadata(
     fileIds: DatabaseId[],
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>> {
     try {
+      assertTenantContext(options, "media.getMetadata");
       const query = safeQuery(
         { _id: { $in: fileIds } as unknown as QueryFilter<IMedia>["_id"] },
-        tenantId,
+        options?.tenantId as string,
+        options,
       );
       const results = await this.mediaModel
         .find(query as any, { metadata: 1 })
@@ -217,10 +225,11 @@ export class MongoMediaMethods {
   async duplicate(
     fileId: DatabaseId,
     newName?: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
-      const query = safeQuery({ _id: fileId }, tenantId);
+      assertTenantContext(options, "media.duplicate");
+      const query = safeQuery({ _id: fileId }, options?.tenantId as string, options);
       const existing = await this.mediaModel
         .findOne(query as any)
         .lean()
@@ -237,6 +246,7 @@ export class MongoMediaMethods {
         ...existing,
         _id: generateId(),
         filename: newName || `${existing.filename}_copy`,
+        tenantId: options?.tenantId ?? (existing as any).tenantId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -259,13 +269,13 @@ export class MongoMediaMethods {
   // Retrieves folders for the tenant (placeholder for more complex tree logic if needed)
   async getFolders(
     parentId?: DatabaseId,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<any[]>> {
     try {
+      assertTenantContext(options, "media.getFolders");
       const query: Record<string, unknown> = parentId ? { parentId } : {};
-      const secureQuery = safeQuery(query as any, tenantId);
+      const secureQuery = safeQuery(query as any, options?.tenantId as string, options);
 
-      // We use the 'media_folders' collection indirectly via this.mediaModel.db
       const folderModel = this.mediaModel.db.model("media_folders");
       const folders = await folderModel.find(secureQuery).lean().exec();
 
@@ -282,10 +292,9 @@ export class MongoMediaMethods {
   // Retrieves a paginated list of media files, optionally filtered by folder
   async getFiles(
     folderId?: DatabaseId,
-    options: PaginationOptions = {},
-    recursive = false,
-    tenantId?: string | null,
+    options: MediaQueryOptions = {},
   ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
+    assertTenantContext(options, "media.getFiles");
     const {
       page = 1,
       pageSize = 25,
@@ -293,38 +302,34 @@ export class MongoMediaMethods {
       sortDirection = "desc",
       user,
       jsonPath,
+      recursive = false,
+      tenantId,
+      includeLegacyUntenanted = false,
     } = options;
 
-    // Determine if we should filter by user ownership
-    // Admins see all files, others see only their own
     const userId = user?._id?.toString();
     const isAdmin = user?.role === "admin" || user?.isAdmin === true;
     const shouldFilterByUser = user && !isAdmin;
 
-    // Native JSON path changes result set — include in cache key
     const jsonPathKey = jsonPath?.trim() ? `:jp:${jsonPath.trim().slice(0, 120)}` : "";
-    const cacheKey = `media:files:${folderId || "root"}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || "no-tenant"}${shouldFilterByUser ? `:user:${userId}` : ""}${jsonPathKey}`;
+    const cacheKey = `media:files:${folderId || "root"}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || "no-tenant"}${shouldFilterByUser ? `:user:${userId}` : ""}${jsonPathKey}:leg:${includeLegacyUntenanted ? 1 : 0}`;
 
     const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
       try {
         let query: Record<string, unknown> = {};
         if (recursive) {
-          // Fetch ALL files, ignoring folderId
           query = {};
         } else {
-          query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
+          query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } };
         }
 
-        // Apply user ownership filter if necessary
         if (shouldFilterByUser) {
-          // ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
           query = {
             ...query,
             $or: [{ createdBy: userId }, { user: userId }, { path: /^global\// }],
           };
         }
 
-        // DB-native metadata path filter (large libraries)
         if (jsonPath?.trim()) {
           const { buildMediaJsonPathMongoFilter } = await import("../core/media-json-path");
           const { filter: jpFilter } = buildMediaJsonPathMongoFilter(jsonPath.trim());
@@ -333,15 +338,18 @@ export class MongoMediaMethods {
           }
         }
 
-        // Apply tenant isolation and security
         const secureQuery = safeQuery(
           query as unknown as import("../db-interface").QueryFilter<MediaItem>,
-          tenantId,
+          tenantId as string,
+          options,
         );
 
-        // Add fallback for legacy/untenanted media if tenantId is provided
-        if (tenantId && (secureQuery as Record<string, unknown>).tenantId === tenantId) {
-          // Allow items matching tenantId OR having no tenantId (legacy/system)
+        // Legacy untenanted rows only when explicitly requested (default: fail-closed scope)
+        if (
+          includeLegacyUntenanted &&
+          tenantId &&
+          (secureQuery as Record<string, unknown>).tenantId === tenantId
+        ) {
           (secureQuery as Record<string, unknown>).tenantId = {
             $in: [tenantId, null, undefined],
           };

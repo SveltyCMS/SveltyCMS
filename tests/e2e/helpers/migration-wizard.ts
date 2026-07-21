@@ -7,7 +7,7 @@
  */
 
 import { expect, type Page } from "@playwright/test";
-import { enablePlugin } from "./seed";
+import { enablePlugin } from "./api";
 
 const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
 

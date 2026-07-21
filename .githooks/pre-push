@@ -73,15 +73,17 @@ label="🗄️  Integration tests (SQLite)"
 padded="$(pad "$label")"
 outfile="${TMPDIR}/svelty-hook.$$.${STEP}"
 start_s=$(date +%s 2>/dev/null || echo 0)
+estimate_s=$(get_estimate_sec "$label")
 
-printf "  ${padded}  running     "
+printf "  ${padded}  ETA ~${estimate_s}s        "
 bun test --timeout 300000 tests/integration/ > "$outfile" 2>&1 &
 pid=$!
 
 while kill -0 "$pid" 2>/dev/null; do
   sleep 1
   now=$(date +%s 2>/dev/null || echo 0)
-  printf "\r  ${padded}  running %2d sec" $(( now - start_s ))
+  elapsed=$(( now - start_s ))
+  printf "\r  ${padded}  ETA ~${estimate_s}s  ${elapsed}s elapsed "
 done
 
 wait "$pid"

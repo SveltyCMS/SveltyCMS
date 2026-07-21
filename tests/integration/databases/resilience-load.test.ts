@@ -1,14 +1,15 @@
 /**
  * @file tests/integration/databases/resilience-load.test.ts
- * @description Progressive System Load & Resilience Test
+ * @description Progressive load test of the **resilience wrapper** (in-memory simulated ops).
  *
- * Runs progressive load tests to determine system limits without crashing.
+ * ⚠️ This is NOT a live database adapter test. It stress-tests retry/backoff/
+ * circuit-breaker behavior around a fake async op. For real DB resilience,
+ * use adapter contract suites + benchmarks.
+ *
  * Levels: TINY -> LOW -> MEDIUM -> HIGH -> EXTREME
  *
- * @note This test requires Bun runtime for the resilience module's internal
- * timing and retry mechanisms. Runs under vitest with bun:test compatibility
- * shims via bun-preload. Uses dynamic import for the resilience module to
- * avoid SvelteKit environment dependency issues.
+ * @note Prefer renaming to resilience-wrapper.test.ts in a future move;
+ * path kept for CI/test-map stability.
  */
 
 import { beforeAll, describe, expect, it, vi } from "vitest";

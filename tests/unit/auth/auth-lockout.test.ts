@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Auth } from "@src/databases/auth";
 import type { SessionStore, User } from "@src/databases/auth/types";
+// User imported for DatabaseId-branded _id casts in harness seeds
 import { hashPassword } from "@utils/security/crypto";
 import { dateToISODateString } from "@src/utils/date";
 import { createLockedUser } from "./utils/auth-test-utils";
@@ -114,7 +115,7 @@ describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
   it("rejects authentication while account is locked", async () => {
     const locked = createLockedUser(5, 15);
     const { auth, createSession } = createAuthHarness({
-      _id: locked._id,
+      _id: locked._id as User["_id"],
       email: locked.email,
       password: passwordHash,
       failedAttempts: locked.failedAttempts,

@@ -106,9 +106,27 @@ export interface CloudStorageConfig {
   storageType: StorageType;
 }
 
+/**
+ * Prefer process.env.MEDIA_FOLDER under any benchmark/test harness so matrix
+ * isolation cannot be overridden by a stale DB setting (`mediaFolder`).
+ * Applies to both local sandbox and ci-fresh wizard profiles.
+ */
+function resolveConfiguredMediaFolder(): string {
+  const envFolder = process.env.MEDIA_FOLDER?.trim();
+  const harness =
+    process.env.BENCHMARK_LOCAL_SANDBOX === "1" ||
+    process.env.BENCHMARK_PROFILE === "local" ||
+    process.env.BENCHMARK_PROFILE === "ci-fresh" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.SVELTY_BENCHMARK_SUITE === "true" ||
+    process.env.TEST_MODE === "true";
+  if (harness && envFolder) return envFolder;
+  return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
+}
+
 export function getConfig(): CloudStorageConfig {
   const storageType = (getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local") as StorageType;
-  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "";
+  const mediaFolder = resolveConfiguredMediaFolder() || "";
   const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "").replace(/\/+$/, "");
 
   return {
@@ -126,7 +144,7 @@ export function getConfig(): CloudStorageConfig {
 }
 
 function resolveMediaRoot(): string {
-  return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
+  return resolveConfiguredMediaFolder();
 }
 
 export function getPath(config: CloudStorageConfig, relativePath: string, prefix?: string): string {

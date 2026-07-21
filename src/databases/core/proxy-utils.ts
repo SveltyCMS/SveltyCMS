@@ -6,7 +6,7 @@
  *
  * ### Features:
  * - Self-healing root adapter proxy (survives Vite HMR, auto-recovers on connection loss)
- * - Tenant-injecting namespace proxy (auto-injects tenantId into options)
+ * - Tenant-injecting namespace proxy (deep: media.files, system.jobs, content.nodes, …)
  * - Hot-swap lazy namespace definer (Object.defineProperty swap for zero Proxy tax)
  */
 
@@ -32,7 +32,7 @@ export function createSelfHealingProxy<T extends object>(
   sharedCache?: Map<string, any>,
 ): T {
   const proxyCache = sharedCache ?? new Map<string, any>();
-  const boundFunctionsCache = new WeakMap<any, Map<string | symbol, Function>>();
+  const boundFunctionsCache = new WeakMap<object, Map<string | symbol, Function>>();
 
   const createProxy = (targetProp?: string): any => {
     const cacheKey = targetProp || "root";
@@ -89,7 +89,7 @@ export function createSelfHealingProxy<T extends object>(
             );
           }
           const target = targetProp ? (inst as any)[targetProp] : inst;
-          const fn = target[prop];
+          const fn = target?.[prop];
           if (typeof fn !== "function") {
             throw new Error(
               `Property '${String(prop)}' is not a function on ${String(targetProp || "adapter")}`,
@@ -111,31 +111,70 @@ export function createSelfHealingProxy<T extends object>(
 // 2. TENANT-INJECTING NAMESPACE PROXY
 // ============================================================================
 
+/** Marker so we never double-wrap an already tenant-injected proxy. */
+const TENANT_PROXY = Symbol.for("svelty.tenantProxy");
+
 /**
- * Wraps a namespace object in a Proxy that auto-injects `tenantId` into the
- * last argument of every function call (assuming it's an options object).
- * If the last arg is not a plain object, appends `{ tenantId }` as a new arg.
+ * Deep-wrap a namespace so every method gets tenantId in the last options bag.
+ * Nested objects (media.files, system.websiteTokens, content.nodes, …) recurse.
  *
- * @param namespace    The raw namespace object (e.g., adapter.crud)
- * @param injectTenant Function that merges tenantId into existing options
+ * - Last arg plain object (not Array/Date) → merge injectTenant(last)
+ * - Else → append injectTenant({})
+ * - Skips re-wrapping (TENANT_PROXY marker)
+ * - injectTenant itself decides bypass (systemScope / bypassTenantCheck) vs stamp tenantId
+ *
+ * Used by {@link forTenant} in tenant-adapter.ts for request-scoped MT binding.
  */
 export function createTenantInjectingProxy(
   namespace: any,
   injectTenant: (options?: Record<string, any>) => Record<string, any>,
 ): any {
+  if (!namespace || typeof namespace !== "object") return namespace;
+  // Already a tenant proxy — do not nest injectors
+  if ((namespace as any)[TENANT_PROXY]) return namespace;
+
+  const nestedCache = new Map<string | symbol, any>();
+
   return new Proxy(namespace, {
-    get(target, prop) {
-      const original = target[prop];
-      if (typeof original !== "function") return original;
-      return (...args: any[]) => {
-        const lastArg = args[args.length - 1];
-        if (lastArg && typeof lastArg === "object" && !Array.isArray(lastArg)) {
-          args[args.length - 1] = injectTenant(lastArg);
-        } else {
-          args.push(injectTenant({}));
-        }
-        return original.apply(target, args);
-      };
+    get(target, prop, receiver) {
+      if (prop === TENANT_PROXY) return true;
+
+      const original = Reflect.get(target, prop, receiver);
+
+      if (typeof original === "function") {
+        return (...args: any[]) => {
+          const lastArg = args[args.length - 1];
+          if (
+            lastArg &&
+            typeof lastArg === "object" &&
+            !Array.isArray(lastArg) &&
+            !(lastArg instanceof Date)
+          ) {
+            // Options-last (or filter/data object): merge tenant into last bag
+            args[args.length - 1] = injectTenant(lastArg);
+          } else {
+            // No options bag — append default { tenantId } (or empty inject result)
+            args.push(injectTenant({}));
+          }
+          return original.apply(target, args);
+        };
+      }
+
+      // Nested namespace (e.g. media.files, system.jobs) — recurse + cache
+      if (
+        original &&
+        typeof original === "object" &&
+        !Array.isArray(original) &&
+        !(original instanceof Date) &&
+        !(original instanceof Promise)
+      ) {
+        if (nestedCache.has(prop)) return nestedCache.get(prop);
+        const nested = createTenantInjectingProxy(original, injectTenant);
+        nestedCache.set(prop, nested);
+        return nested;
+      }
+
+      return original;
     },
   });
 }
@@ -184,22 +223,24 @@ export function defineLazyNamespace<T extends object>(
       if (proxyInstance) return proxyInstance;
 
       proxyInstance = new Proxy({} as T, {
-        get: (_target, prop: string) => {
-          if (nestedNamespaces[prop]) {
+        get: (_target, prop: string | symbol) => {
+          const propKey = String(prop);
+
+          if (nestedNamespaces[propKey]) {
             return new Proxy(
               {},
               {
                 get:
-                  (_nestedTarget, nestedProp: string) =>
+                  (_nestedTarget, nestedProp: string | symbol) =>
                   async (...args: any[]) => {
                     const targetInstance = await getInstance();
-                    const nested = (targetInstance as any)[prop];
-                    if (!nested || typeof nested[nestedProp] !== "function") {
+                    const nested = (targetInstance as any)[propKey];
+                    if (!nested || typeof nested[nestedProp as string] !== "function") {
                       throw new Error(
-                        `Method '${String(nestedProp)}' not found on '${property}.${String(prop)}'`,
+                        `Method '${String(nestedProp)}' not found on '${property}.${propKey}'`,
                       );
                     }
-                    return nested[nestedProp].apply(nested, args);
+                    return nested[nestedProp as string].apply(nested, args);
                   },
               },
             );

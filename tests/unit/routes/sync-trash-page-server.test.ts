@@ -23,7 +23,7 @@ describe("sync +page.server", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("allows admin", async () => {
-    const data = await loadSync({
+    const data: any = await loadSync({
       locals: { user: { _id: "u1", email: "a@b.co" }, isAdmin: true },
     } as any);
     expect(data.user.email).toBe("a@b.co");

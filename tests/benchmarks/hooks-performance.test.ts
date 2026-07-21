@@ -78,7 +78,7 @@ async function runHooksAudit() {
     await ensureStableTestData();
     await stabilize(3000);
 
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    const secret = process.env.TEST_API_SECRET || crypto.randomUUID();
     const results = [];
     const compStats: Array<{
       orig: number | null;
@@ -97,9 +97,11 @@ async function runHooksAudit() {
     const isSqlite = dbType.includes("sqlite");
     const isMongo = dbType === "mongodb";
 
-    const baseIterationsHttp = isSqlite ? 20 : isMongo ? 600 : 200;
-    const baseIterationsPost = isSqlite ? 10 : isMongo ? 150 : 50;
-    const maxTotalRuns = isSqlite ? 1 : isMongo ? 3 : 1;
+    // SQLite HTTP is fast — need enough iterations for statistical significance.
+    // Too few (previously 20) caused wild Static Asset variance (0.06 vs 0.6 ms).
+    const baseIterationsHttp = isSqlite ? 100 : isMongo ? 600 : 200;
+    const baseIterationsPost = isSqlite ? 50 : isMongo ? 150 : 50;
+    const maxTotalRuns = isSqlite ? 3 : isMongo ? 3 : 1;
 
     // 🚀 FIXED: Pre-allocate an oversized array of unique UUID records to protect
     // against cross-run index collision when warmup + multiple runs exhaust the pool.
@@ -121,11 +123,7 @@ async function runHooksAudit() {
 
       const currentIterations =
         scenario.method === "POST" ? baseIterationsPost : baseIterationsHttp;
-      const targetConcurrency = isSqlite
-        ? 1
-        : isMongo
-          ? scenario.concurrency
-          : Math.min(scenario.concurrency, 4);
+      const targetConcurrency = isSqlite ? 1 : Math.min(scenario.concurrency, 4);
 
       const requestConfig = {
         method: scenario.method,

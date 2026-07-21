@@ -119,6 +119,9 @@ jobs:
           - task: 04-unit
             name: ⚡ Unit Tests
             run: bun run test:unit
+          - task: 04b-tenant-gate
+            name: 🛡️ Tenant Isolation Gate
+            run: bun run test:tenant
           - task: 05-cve-audit
             name: 🔒 CVE Dependency Audit
             run: |
@@ -464,7 +467,7 @@ jobs:
 
       - name: Initialize and Start Preview Server
         run: |
-          mkdir -p config config/database config/test-database tests/e2e/.auth logs mediaFolder
+          mkdir -p config config/database config/test-database tests/e2e/.auth logs mediaFolder config/collections
 
           cat > config/private.test.ts <<EOF
           export const privateEnv = {

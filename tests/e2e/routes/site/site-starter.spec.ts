@@ -5,7 +5,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { TEST_API_HEADERS } from "../helpers/api";
+import { TEST_API_HEADERS } from "../../helpers/api";
 
 test.describe("Site Starter", () => {
   test.beforeAll(async ({ request }) => {

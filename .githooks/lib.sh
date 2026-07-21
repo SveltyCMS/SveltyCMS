@@ -26,6 +26,21 @@ HOOK_START=$(date +%s 2>/dev/null || echo 0)
 TMPDIR="${TMPDIR:-/tmp}"
 LABEL_W=40
 
+# ── Estimated durations for known steps (seconds) ──────────────────
+# Used to show ETA when a step starts. Calibrated from real runs.
+get_estimate_sec() {
+  local label="$1"
+  case "$label" in
+    *Database*safety*)  echo 2  ;;
+    *Format*|*lint*)    echo 3  ;;
+    *Lint-staged*)      echo 3  ;;
+    *Unit*)             echo 38 ;;
+    *Build*|*build*)    echo 90 ;;
+    *Integration*)      echo 150 ;;
+    *)                  echo 30 ;;
+  esac
+}
+
 pad() {
   local s="$1"; local len=${#s}
   if [ "$len" -ge "$LABEL_W" ]; then printf "%s" "$s"; return; fi
@@ -57,8 +72,11 @@ run() {
   local start_s
   start_s=$(date +%s 2>/dev/null || echo 0)
 
+  local estimate_s
+  estimate_s=$(get_estimate_sec "$label")
+
   # Run in background — capture output, show live ETA on the same line
-  printf "  ${padded}  running     "
+  printf "  ${padded}  ETA ~${estimate_s}s        "
   "$@" > "$outfile" 2>&1 &
   local pid=$!
 
@@ -66,7 +84,8 @@ run() {
     sleep 1
     local now
     now=$(date +%s 2>/dev/null || echo 0)
-    printf "\r  ${padded}  running %2d sec" $(( now - start_s ))
+    local elapsed=$(( now - start_s ))
+    printf "\r  ${padded}  ETA ~${estimate_s}s  ${elapsed}s elapsed "
   done
 
   wait "$pid"

@@ -9,7 +9,12 @@
  * - MongoDB: no MONGO_INITDB_ROOT_* → no authentication
  */
 
-import { getLocalSandboxMediaRel, resolveBenchmarkProfile } from "./benchmark-sandbox";
+import { mkdirSync } from "node:fs";
+import {
+  getLocalSandboxMediaRel,
+  getLocalSandboxMediaRoot,
+  resolveBenchmarkProfile,
+} from "./benchmark-sandbox";
 
 export interface TestDbCredentials {
   user: string;
@@ -108,9 +113,19 @@ export function getBenchmarkTestEnv(
     ...overrides,
   };
 
+  // Always isolate media under the sandbox for benchmarks (local + ci-fresh).
+  // Without this, ci-fresh wizard defaults can leave MEDIA_FOLDER missing/unwritable
+  // and HTTP upload warmups fail 8/8.
   if (profile === "local") {
     env.BENCHMARK_LOCAL_SANDBOX = "1";
+  }
+  if (!env.MEDIA_FOLDER) {
     env.MEDIA_FOLDER = getLocalSandboxMediaRel();
+  }
+  try {
+    mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
+  } catch {
+    /* ignore mkdir races */
   }
 
   return env;

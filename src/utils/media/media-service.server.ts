@@ -556,7 +556,9 @@ export class MediaService {
         }
 
         // 1. Check for existing file by hash (Deduplication)
-        const existing = await this.files.getByHash(hash, tenantId ?? undefined);
+        const existing = await this.files.getByHash(hash, {
+          tenantId: tenantId ?? undefined,
+        });
         if (existing.success && existing.data) {
           const record = existing.data;
           const patch: Record<string, unknown> = {};
@@ -608,7 +610,7 @@ export class MediaService {
             folderId,
             tenantId: tenantId ?? undefined,
           } as unknown as EntityCreate<DbMediaItem>,
-          tenantId ?? undefined,
+          { tenantId: tenantId ?? undefined },
         )) as unknown as DatabaseResult<MediaItem>;
       } else {
         // Large file: Stream it!
@@ -653,7 +655,9 @@ export class MediaService {
         const hash = await hashPromise;
         const relPath = await this.ensureOriginalOnDisk(hash, file.name, s2, tenantId);
 
-        const existing = await this.files.getByHash(hash, tenantId ?? undefined);
+        const existing = await this.files.getByHash(hash, {
+          tenantId: tenantId ?? undefined,
+        });
         if (existing.success && existing.data) {
           const record = existing.data;
           const patch: Record<string, unknown> = {};
@@ -691,7 +695,7 @@ export class MediaService {
             folderId,
             tenantId: tenantId ?? undefined,
           } as unknown as EntityCreate<DbMediaItem>,
-          tenantId ?? undefined,
+          { tenantId: tenantId ?? undefined },
         );
 
         // For large streamed files, try variant generation by re-reading from storage.
@@ -852,7 +856,9 @@ export class MediaService {
       // Ignore errors during pre-delete lookup — the actual delete should still proceed
     }
 
-    const res = await this.files.delete(fileId as DatabaseId, tenantId ?? undefined);
+    const res = await this.files.delete(fileId as DatabaseId, {
+      tenantId: tenantId ?? undefined,
+    });
     if (!res.success) throw new Error(res.message);
   }
 
@@ -1172,7 +1178,7 @@ export class MediaService {
           originalId: id,
           tenantId: tenantId ?? undefined,
         } as unknown as EntityCreate<DbMediaItem>,
-        tenantId ?? undefined,
+        { tenantId: tenantId ?? undefined },
       );
       if (!uploadResult.success || !uploadResult.data)
         throw new Error("Failed to create new media record");
@@ -1533,7 +1539,7 @@ export class MediaService {
           arrayBuffer:
             typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
         } as unknown as EntityCreate<DbMediaItem>,
-        tenantId ?? undefined,
+        { tenantId: tenantId ?? undefined },
       );
 
       if (!uploadRes.success || !uploadRes.data) {

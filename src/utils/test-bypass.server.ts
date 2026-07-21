@@ -156,8 +156,9 @@ export function applyTestBypassFromRequest(
     locals.__testBypass = true;
   }
 
-  // 5. Tenant Injection — sanitized
-  const tenantHeader = request.headers.get("x-tenant-id");
+  // 5. Tenant Injection — sanitized (supports both x-tenant-id and x-test-tenant-id)
+  const tenantHeader =
+    request.headers.get("x-tenant-id") || request.headers.get("x-test-tenant-id");
   if (tenantHeader && /^[a-zA-Z0-9_-]+$/.test(tenantHeader)) {
     locals.tenantId = tenantHeader as BypassLocals["tenantId"];
   }

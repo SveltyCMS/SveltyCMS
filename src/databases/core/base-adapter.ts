@@ -223,7 +223,7 @@ export abstract class BaseAdapter {
       process.env.BENCHMARK_DEBUG === "true";
 
     if (shouldLog || process.env.BENCHMARK_DEBUG === "true") {
-      console.error("DEBUG ERROR STACK:", error);
+      logger.debug("DEBUG ERROR STACK:", error);
     }
     if (shouldLog) {
       // 🛡️ NOISE REDUCTION: For benchmarks, don't dump the full error object as it contains massive queries/data
@@ -235,7 +235,7 @@ export abstract class BaseAdapter {
               ? (error as any).message || "Object error"
               : String(error)
           : error;
-      logger.error(`[Adapter Error] Code: ${code}`, logPayload);
+      logger.debug(`[Adapter Error] Code: ${code}`, logPayload);
     }
     let errorString = String(error);
     if (error instanceof Error) {
@@ -250,7 +250,7 @@ export abstract class BaseAdapter {
     const errMessage = message || errorString;
 
     if (shouldLog) {
-      logger.error(`Database adapter error [${code}]:`, errMessage);
+      logger.debug(`Database adapter error [${code}]:`, errMessage);
     }
 
     return {

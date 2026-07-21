@@ -43,7 +43,19 @@ jobSchema.index({ tenantId: 1, status: 1 });
 
 // Static methods
 jobSchema.statics = {
-  async getNextReady(limit = 10, tenantId: string | null = null): Promise<DatabaseResult<Job[]>> {
+  async getNextReady(
+    limit = 10,
+    options?: {
+      tenantId?: string | null;
+      bypassTenantCheck?: boolean;
+      systemScope?: import("../system-tenant-scope").SystemTenantScope;
+    },
+  ): Promise<DatabaseResult<Job[]>> {
+    const { assertTenantContext } = await import("@src/utils/security/safe-query");
+    // Fail-closed under MT: withSystemScope("scheduler") or tenantId required
+    assertTenantContext(options as any, "system.jobs.getNextReady");
+
+    const tenantId = options?.tenantId ?? null;
     try {
       const query: any = {
         status: "pending",
@@ -109,7 +121,10 @@ jobSchema.statics = {
 };
 
 export type JobModelType = Model<Job> & {
-  getNextReady(limit?: number, tenantId?: string | null): Promise<DatabaseResult<Job[]>>;
+  getNextReady(
+    limit?: number,
+    options?: { tenantId?: string | null; bypassTenantCheck?: boolean },
+  ): Promise<DatabaseResult<Job[]>>;
   list(
     options?: PaginationOption & { status?: string; taskType?: string },
   ): Promise<DatabaseResult<Job[]>>;

@@ -120,7 +120,8 @@ async function pollAndProcess(): Promise<void> {
   }
 
   try {
-    const result = await db.system.jobs.getNextReady(10);
+    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+    const result = await db.system.jobs.getNextReady(10, withSystemScope("scheduler"));
     if (!result.success || !result.data || result.data.length === 0) {
       // No jobs — transition to idle interval
       consecutiveEmptyPolls++;

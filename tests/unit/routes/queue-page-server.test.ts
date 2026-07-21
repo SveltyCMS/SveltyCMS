@@ -40,7 +40,7 @@ describe("queue +page.server load", () => {
   });
 
   it("returns jobs and stats for admin", async () => {
-    const data = await load({
+    const data: any = await load({
       url: new URL("http://localhost/config/queue"),
       locals: {
         user: { _id: "u1", role: "admin" },

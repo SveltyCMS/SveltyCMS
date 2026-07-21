@@ -6,6 +6,7 @@
  * No duplicate seed logic — just thin HTTP wrappers.
  */
 import type { APIRequestContext, Page } from "@playwright/test";
+import { TEST_PASSWORD, USERS } from "../../harness/fixtures";
 
 // ── Shared constants ───────────────────────────────────────────────────
 
@@ -380,6 +381,140 @@ export async function resetToSetupMode(baseUrl?: string) {
     body: JSON.stringify({ action: "reset-to-state", state: "setup" }),
   });
   if (!res.ok) throw new Error(`resetToSetupMode failed: ${res.status} ${await res.text()}`);
+}
+
+// ── User / trash / settings fixtures (AGENTS.md testing-API helpers) ─────
+
+/** Canonical role fixtures used by user-management & RBAC E2E. */
+export const TEST_USERS = {
+  admin: { email: USERS.admin.email, password: USERS.admin.password, role: "admin" as const },
+  developer: {
+    email: USERS.developer.email,
+    password: USERS.developer.password,
+    role: "developer" as const,
+  },
+  editor: { email: USERS.editor.email, password: USERS.editor.password, role: "editor" as const },
+  viewer: { email: USERS.viewer.email, password: USERS.viewer.password, role: "viewer" as const },
+};
+
+export type TestUserKey = keyof typeof TEST_USERS;
+
+/** Ensure a named fixture user exists (create or unblock). */
+export async function prepareTestUser(page: Requestish, key: TestUserKey | string) {
+  const fixture =
+    key in TEST_USERS
+      ? TEST_USERS[key as TestUserKey]
+      : { email: String(key), password: TEST_PASSWORD, role: "editor" };
+  return postTesting(page, {
+    action: "prepare-test-user",
+    email: fixture.email,
+    password: fixture.password,
+    role: fixture.role,
+    username: fixture.email.split("@")[0],
+  });
+}
+
+/** Seed developer/editor/viewer fixtures (idempotent via prepare-test-user). */
+export async function seedTestUsers(page: Requestish) {
+  for (const key of ["developer", "editor", "viewer"] as const) {
+    await prepareTestUser(page, key);
+  }
+  return { success: true };
+}
+
+/** Bulk-create users for pagination E2E. */
+export async function seedBulkUsers(
+  page: Requestish,
+  countOrOptions:
+    | number
+    | { count?: number; role?: string; prefix?: string; password?: string } = {},
+) {
+  const options =
+    typeof countOrOptions === "number" ? { count: countOrOptions } : (countOrOptions ?? {});
+  return postTesting(page, {
+    action: "bulk-create-users",
+    count: options.count ?? 12,
+    role: options.role ?? "editor",
+    prefix: options.prefix,
+    password: options.password ?? TEST_PASSWORD,
+  });
+}
+
+/** Update a private setting (e.g. USE_2FA) for fixture state. */
+export async function setTestSetting(page: Requestish, key: string, value: unknown) {
+  return postTesting(page, { action: "set-setting", key, value });
+}
+
+/** Seed soft-deleted entry for trash restore E2E. */
+export async function seedTrash(
+  page: Requestish,
+  options: { collectionId?: string; entryId?: string; title?: string } = {},
+) {
+  const body = await postTesting(page, {
+    action: "seed-trash",
+    collectionId: options.collectionId,
+    entryId: options.entryId,
+    title: options.title,
+  });
+  return {
+    collectionId: String(body.collectionId || options.collectionId || "e2e_trash_fixture"),
+    entryId: String(body.entryId || options.entryId || ""),
+    title: String(body.title || options.title || ""),
+  };
+}
+
+/** Permanently purge a trash fixture entry. */
+export async function purgeTrash(
+  page: Requestish,
+  collectionIdOrOpts: string | { collectionId: string; entryId: string },
+  entryId?: string,
+) {
+  const collectionId =
+    typeof collectionIdOrOpts === "string" ? collectionIdOrOpts : collectionIdOrOpts.collectionId;
+  const id =
+    typeof collectionIdOrOpts === "string" ? String(entryId || "") : collectionIdOrOpts.entryId;
+  return postTesting(page, {
+    action: "purge-trash",
+    collectionId,
+    entryId: id,
+  });
+}
+
+/**
+ * Seed a registration invite token (user_invite) for token-list E2E.
+ * Uses testing seed-invite-token action.
+ */
+export async function seedInviteToken(
+  page: Requestish,
+  options: { email?: string; role?: string } = {},
+): Promise<{ token: string; email: string }> {
+  const email = options.email || `invite_${Date.now()}@example.com`;
+  const body = await postTesting(page, {
+    action: "seed-invite-token",
+    email,
+    role: options.role || "editor",
+  });
+  if (!body.token) {
+    throw new Error(`seed-invite-token missing token: ${JSON.stringify(body).slice(0, 300)}`);
+  }
+  return { token: String(body.token), email: String(body.email || email) };
+}
+
+/**
+ * Optional infrastructure gate for UDH Postgres fixtures etc.
+ * REQUIRE_OPTIONAL_INFRA=true → hard-fail; otherwise skip via provided skip fn.
+ */
+export function handleOptionalInfraUnavailable(
+  kind: string,
+  message: string,
+  skip: (condition: boolean, description: string) => void,
+): void {
+  const requireInfra =
+    process.env.REQUIRE_OPTIONAL_INFRA === "true" || process.env.REQUIRE_OPTIONAL_INFRA === "1";
+  if (requireInfra) {
+    throw new Error(`[optional-infra:${kind}] ${message}`);
+  }
+  skip(true, `[optional-infra:${kind}] ${message}`);
 }
 
 // Re-export for convenience

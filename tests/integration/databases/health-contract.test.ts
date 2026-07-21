@@ -11,27 +11,29 @@ let db: any = null;
 let adapter: any = null;
 
 beforeAll(async () => {
-  await ensureFullInitialization();
   const result = await ensureFullInitialization();
   db = getDb();
   adapter = result?.adapter || db;
   if (!db) throw new Error("Database not initialized");
+  // Core identity surface — hard-required (no soft-pass)
+  expect(typeof adapter.isConnected).toBe("function");
+  expect(typeof adapter.type).toBe("string");
+  expect(adapter.type.length).toBeGreaterThan(0);
 });
 
 describe("Connection Health Contract — All Adapters", () => {
   it("isConnected returns true after initialization", () => {
-    if (typeof adapter.isConnected !== "function") return;
+    expect(typeof adapter.isConnected).toBe("function");
     expect(adapter.isConnected()).toBe(true);
   });
 
   it("type is a non-empty string", () => {
-    if (!adapter.type) return;
     expect(typeof adapter.type).toBe("string");
     expect(adapter.type.length).toBeGreaterThan(0);
   });
 
   it("getVersion returns a version string", async () => {
-    if (typeof adapter.getVersion !== "function") return;
+    expect(typeof adapter.getVersion).toBe("function");
     const result = await adapter.getVersion();
     validateDatabaseResult(result, { operation: "getVersion" });
     expect(result.success).toBe(true);
@@ -40,21 +42,21 @@ describe("Connection Health Contract — All Adapters", () => {
   });
 
   it("getCapabilities returns expected structure", () => {
-    if (typeof adapter.getCapabilities !== "function") return;
+    expect(typeof adapter.getCapabilities).toBe("function");
     const caps = adapter.getCapabilities();
     expect(caps).toBeDefined();
     expect(typeof caps).toBe("object");
   });
 
   it("isEmpty returns boolean", async () => {
-    if (typeof adapter.isEmpty !== "function") return;
+    expect(typeof adapter.isEmpty).toBe("function");
     const result = await adapter.isEmpty();
     validateDatabaseResult(result, { operation: "isEmpty" });
     expect(typeof result.data).toBe("boolean");
   });
 
   it("getConnectionHealth returns health status", async () => {
-    if (typeof adapter.getConnectionHealth !== "function") return;
+    expect(typeof adapter.getConnectionHealth).toBe("function");
     const result = await adapter.getConnectionHealth();
     validateDatabaseResult(result, { operation: "getConnectionHealth", allowNullData: true });
     if (result.success && result.data) {
@@ -63,8 +65,12 @@ describe("Connection Health Contract — All Adapters", () => {
     }
   });
 
-  it("getPoolDiagnostics returns pool stats (networked DBs)", async () => {
-    if (typeof adapter.getPoolDiagnostics !== "function") return;
+  it("getPoolDiagnostics returns pool stats (networked DBs) or structured skip", async () => {
+    // Optional on SQLite (single connection) — if present, must return valid shape
+    if (typeof adapter.getPoolDiagnostics !== "function") {
+      expect(adapter.type).toBe("sqlite");
+      return;
+    }
     const result = await adapter.getPoolDiagnostics();
     if (result && typeof result === "object") {
       validateDatabaseResult(result, {
@@ -76,7 +82,7 @@ describe("Connection Health Contract — All Adapters", () => {
   });
 
   it("queryBuilder returns a builder for a collection", () => {
-    if (typeof adapter.queryBuilder !== "function") return;
+    expect(typeof adapter.queryBuilder).toBe("function");
     const builder = adapter.queryBuilder("system_preferences");
     expect(builder).toBeDefined();
     expect(typeof builder.where).toBe("function");

@@ -75,11 +75,11 @@ function makeEvent(
 
 describe("user +page.server load", () => {
   beforeEach(() => {
-    vi.mocked(getUntypedSetting).mockReturnValue(false);
+    vi.mocked(getUntypedSetting).mockResolvedValue(false as never);
   });
 
   it("redacts password and exposes permissions from locals", async () => {
-    const data = await load(makeEvent());
+    const data: any = await load(makeEvent());
     expect(data.user?.password).toBe("[REDACTED]");
     expect(data.user?._id).toBe("user-1");
     expect(data.user?.permissions).toEqual(["user:read", "config:settings"]);
@@ -88,7 +88,7 @@ describe("user +page.server load", () => {
   });
 
   it("falls back to role permissions when locals.permissions is empty", async () => {
-    const data = await load(
+    const data: any = (await load(
       makeEvent({
         permissions: [],
         user: {
@@ -100,36 +100,36 @@ describe("user +page.server load", () => {
           permissions: [],
         },
       }),
-    );
+    )) as any;
     // role key matches roles[0]._id stringified via toString or name
     expect(Array.isArray(data.user?.permissions)).toBe(true);
   });
 
   it("grants adminArea permission for manage-users non-admin", async () => {
-    const data = await load(
+    const data: any = (await load(
       makeEvent({
         isAdmin: false,
         hasManageUsersPermission: true,
       }),
-    );
+    )) as any;
     expect(data.permissions["config/adminArea"].hasPermission).toBe(true);
     expect(data.isAdmin).toBe(false);
   });
 
   it("denies adminArea for plain users", async () => {
-    const data = await load(
+    const data: any = (await load(
       makeEvent({
         isAdmin: false,
         hasManageUsersPermission: false,
       }),
-    );
+    )) as any;
     expect(data.permissions["config/adminArea"].hasPermission).toBe(false);
     expect(data.adminData).toBeNull();
   });
 
   it("exposes is2FAEnabledGlobal from settings", async () => {
-    vi.mocked(getUntypedSetting).mockReturnValue(true);
-    const data = await load(makeEvent());
+    vi.mocked(getUntypedSetting).mockResolvedValue(true as never);
+    const data: any = await load(makeEvent());
     expect(data.is2FAEnabledGlobal).toBe(true);
   });
 
@@ -138,7 +138,7 @@ describe("user +page.server load", () => {
     vi.mocked(getAuthenticatedUser).mockImplementationOnce(() => {
       throw new Error("boom");
     });
-    const data = await load(makeEvent());
+    const data: any = await load(makeEvent());
     expect(data.user).toBeNull();
     expect(data.error).toMatch(/Internal Server Error/i);
     expect(data.permissions["config/adminArea"].hasPermission).toBe(false);

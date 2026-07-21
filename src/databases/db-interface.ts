@@ -29,6 +29,14 @@ import type {
 } from "../content/types";
 import type { ApiKey, Role, Session, Token, User } from "./auth/types";
 import { BaseAdapter } from "./core/base-adapter";
+import type { SystemTenantScope } from "./system-tenant-scope";
+export type { SystemScopeReason, SystemTenantScope } from "./system-tenant-scope";
+export {
+  createSystemTenantScope,
+  hasTenantBypass,
+  isSystemTenantScope,
+  withSystemScope,
+} from "./system-tenant-scope";
 
 /** * Utility Types for DRY CRUD Operations
  * Strips managed fields from entities when creating or updating.
@@ -130,6 +138,15 @@ export interface PaginatedResult<T> {
 
 export interface BaseQueryOptions {
   tenantId?: DatabaseId | null;
+  /**
+   * Branded system capability — only from `createSystemTenantScope` / `withSystemScope`.
+   * Prefer this over `bypassTenantCheck` for MULTI_TENANT system paths.
+   */
+  systemScope?: SystemTenantScope;
+  /**
+   * @deprecated Use `systemScope: createSystemTenantScope(reason)` or `withSystemScope(reason)`.
+   * Bare boolean is a forgeable escape hatch; lint bans new product use.
+   */
   bypassTenantCheck?: boolean;
   includeDeleted?: boolean;
   bypassSafeQuery?: boolean; // 🚀 ULTRA FAST PATH: Skip all security and allocation checks
@@ -141,7 +158,37 @@ export interface BaseQueryOptions {
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object
   filter?: any; // 🚀 FLEXIBILITY: Allow arbitrary filters for structure/bulk queries
+  /**
+   * Media only: when true under MULTI_TENANT, include documents with missing/null tenantId
+   * alongside the scoped tenant (legacy untenanted rows). Default false (fail-closed).
+   */
+  includeLegacyUntenanted?: boolean;
 }
+
+/**
+ * Build a last-arg options bag with tenantId.
+ * Prefer this over positional tenantId (options-last contract for all adapters).
+ *
+ * @example
+ * await media.files.getByHash(hash, withTenant(tenantId));
+ * await system.virtualFolder.getAll(withTenant(tenantId, { includeDeleted: true }));
+ */
+export function withTenant(
+  tenantId?: DatabaseId | null,
+  extra?: Omit<BaseQueryOptions, "tenantId">,
+): BaseQueryOptions {
+  return { ...extra, tenantId };
+}
+
+/**
+ * Media list/query options — always last-arg options bag (no positional tenantId).
+ * Extends pagination so getByFolder/search share one options type.
+ */
+export type MediaQueryOptions = BaseQueryOptions &
+  PaginationOptions & {
+    recursive?: boolean;
+    search?: string;
+  };
 
 export interface FindOptions<T> extends BaseQueryOptions {
   limit?: number;
@@ -859,77 +906,68 @@ export interface IFtsAdapter {
 
 export interface IMediaAdapter {
   files: {
+    /** Last arg is always options (tenantId lives on BaseQueryOptions — never positional). */
     upload(
       file: EntityCreate<MediaItem>,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaItem>>;
-    getByHash(
-      hash: string,
-      tenantId?: DatabaseId | null,
-    ): Promise<DatabaseResult<MediaItem | null>>;
+    getByHash(hash: string, options?: BaseQueryOptions): Promise<DatabaseResult<MediaItem | null>>;
     uploadMany(
       files: EntityCreate<MediaItem>[],
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaItem[]>>;
-    restore(fileId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
-    delete(fileId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
+    restore(fileId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
+    delete(fileId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
     deleteMany(
       fileIds: DatabaseId[],
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
     getByFolder(
       folderId?: DatabaseId,
-      options?: PaginationOptions,
-      recursive?: boolean,
-      tenantId?: DatabaseId | null,
+      options?: MediaQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
     search(
       query: string,
-      options?: PaginationOptions,
-      tenantId?: DatabaseId | null,
+      options?: MediaQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
     getMetadata(
       fileIds: DatabaseId[],
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>>;
     updateMetadata(
       fileId: DatabaseId,
       metadata: Partial<CmsMediaMetadata>,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaItem>>;
     move(
       fileIds: DatabaseId[],
-      targetFolderId?: DatabaseId,
-      tenantId?: DatabaseId | null,
+      targetFolderId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ movedCount: number }>>;
     duplicate(
       fileId: DatabaseId,
       newName?: string,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaItem>>;
   };
   folders: {
     create(
       folder: EntityCreate<MediaFolder>,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaFolder>>;
     createMany(
       folders: EntityCreate<MediaFolder>[],
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaFolder[]>>;
-    delete(folderId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
+    delete(folderId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
     deleteMany(
       folderIds: DatabaseId[],
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
-    getTree(
-      maxDepth?: number,
-      tenantId?: DatabaseId | null,
-    ): Promise<DatabaseResult<MediaFolder[]>>;
+    getTree(maxDepth?: number, options?: BaseQueryOptions): Promise<DatabaseResult<MediaFolder[]>>;
     getFolderContents(
       folderId?: DatabaseId,
-      options?: PaginationOptions,
-      tenantId?: DatabaseId | null,
+      options?: MediaQueryOptions,
     ): Promise<
       DatabaseResult<{
         folders: MediaFolder[];
@@ -939,8 +977,8 @@ export interface IMediaAdapter {
     >;
     move(
       folderId: DatabaseId,
-      targetParentId?: DatabaseId,
-      tenantId?: DatabaseId | null,
+      targetParentId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<MediaFolder>>;
   };
   setupMediaModels(): Promise<void>;
@@ -968,12 +1006,20 @@ export interface IContentAdapter {
     ): Promise<DatabaseResult<ContentNodeType[]>>;
     upsertContentStructureNode(
       node: EntityCreate<ContentNodeType>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNodeType>>;
-    create(node: EntityCreate<ContentNodeType>): Promise<DatabaseResult<ContentNodeType>>;
-    createMany(nodes: EntityCreate<ContentNodeType>[]): Promise<DatabaseResult<ContentNodeType[]>>;
+    create(
+      node: EntityCreate<ContentNodeType>,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentNodeType>>;
+    createMany(
+      nodes: EntityCreate<ContentNodeType>[],
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentNodeType[]>>;
     update(
       path: string,
       changes: Partial<ContentNodeType>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNodeType>>;
     bulkUpdate(
       updates: {
@@ -989,14 +1035,16 @@ export interface IContentAdapter {
         expectedId: string;
         changes: Partial<ContentNodeType>;
       }[],
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ fixed: number }>>;
-    delete(path: string): Promise<DatabaseResult<void>>;
+    delete(path: string, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
     deleteMany(
       paths: string[],
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
     reorder(
       nodeUpdates: Array<{ path: string; newOrder: number }>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNodeType[]>>;
     reorderStructure(
       items: Array<{
@@ -1005,6 +1053,7 @@ export interface IContentAdapter {
         order: number;
         path: string;
       }>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
   };
   revisions: {
@@ -1092,39 +1141,40 @@ export interface ISystemAdapter {
     }): Promise<DatabaseResult<void>>;
   };
   virtualFolder: {
+    /** Last arg is always options (tenantId on BaseQueryOptions). */
     create(
       folder: EntityCreate<SystemVirtualFolder>,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<SystemVirtualFolder>>;
     getById(
       folderId: DatabaseId,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<SystemVirtualFolder | null>>;
     getByParentId(
       parentId: DatabaseId | null,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<SystemVirtualFolder[]>>;
-    getAll(tenantId?: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>>;
+    getAll(options?: BaseQueryOptions): Promise<DatabaseResult<SystemVirtualFolder[]>>;
     update(
       folderId: DatabaseId,
       updateData: Partial<SystemVirtualFolder>,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<SystemVirtualFolder>>;
     addToFolder(
       contentId: DatabaseId,
       folderPath: string,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
     getContents(
       folderPath: string,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>>;
     ensure(
       folder: EntityCreate<SystemVirtualFolder>,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<SystemVirtualFolder>>;
-    delete(folderId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
-    exists(path: string, tenantId?: DatabaseId | null): Promise<DatabaseResult<boolean>>;
+    delete(folderId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
+    exists(path: string, options?: BaseQueryOptions): Promise<DatabaseResult<boolean>>;
   };
   tenants: {
     create(tenant: EntityCreate<Tenant> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>>;
@@ -1138,65 +1188,69 @@ export interface ISystemAdapter {
   };
   themes: {
     setupThemeModels(options?: BaseQueryOptions): Promise<void>;
-    getActive(): Promise<DatabaseResult<Theme | null>>;
-    setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>;
-    install(theme: EntityCreate<Theme>): Promise<DatabaseResult<Theme>>;
-    uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>>;
+    getActive(options?: BaseQueryOptions): Promise<DatabaseResult<Theme | null>>;
+    setDefault(themeId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
+    install(theme: EntityCreate<Theme>, options?: BaseQueryOptions): Promise<DatabaseResult<Theme>>;
+    uninstall(themeId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
     update(
       themeId: DatabaseId,
       theme: Partial<EntityCreate<Theme>>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Theme>>;
     getAllThemes(options?: BaseQueryOptions): Promise<Theme[]>;
     storeThemes(themes: Theme[], options?: BaseQueryOptions): Promise<void>;
     ensure(theme: EntityCreate<Theme>, options?: BaseQueryOptions): Promise<Theme>;
-    getDefaultTheme(tenantId?: DatabaseId | null): Promise<DatabaseResult<Theme | null>>;
+    getDefaultTheme(options?: BaseQueryOptions): Promise<DatabaseResult<Theme | null>>;
   };
   websiteTokens: {
     create(
       token: Omit<WebsiteToken, "_id" | "createdAt">,
-      tenantId?: DatabaseId | string | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<WebsiteToken>>;
     getAll(
-      options: {
+      options?: BaseQueryOptions & {
         limit?: number;
         skip?: number;
         sort?: string;
         order?: string;
       },
-      tenantId?: DatabaseId | string | null,
     ): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
     getByName(
       name: string,
-      tenantId?: DatabaseId | string | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<WebsiteToken | null>>;
     getByToken(
       token: string,
-      tenantId?: DatabaseId | string | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<WebsiteToken | null>>;
     getByTokenHash(
       tokenHash: string,
-      tenantId?: DatabaseId | string | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<WebsiteToken | null>>;
     getById(
       tokenId: DatabaseId,
-      tenantId?: DatabaseId | string | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<WebsiteToken | null>>;
-    delete(
-      tokenId: DatabaseId,
-      tenantId?: DatabaseId | string | null,
-    ): Promise<DatabaseResult<void>>;
+    delete(tokenId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
   };
   jobs: {
-    create(job: EntityCreate<Job>): Promise<DatabaseResult<Job>>;
-    getById(jobId: DatabaseId): Promise<DatabaseResult<Job | null>>;
-    getNextReady(limit?: number, tenantId?: DatabaseId | null): Promise<DatabaseResult<Job[]>>;
+    create(job: EntityCreate<Job>, options?: BaseQueryOptions): Promise<DatabaseResult<Job>>;
+    getById(jobId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<Job | null>>;
+    getNextReady(limit?: number, options?: BaseQueryOptions): Promise<DatabaseResult<Job[]>>;
     list(
-      options?: PaginationOption & { status?: string; taskType?: string },
+      options?: PaginationOption & BaseQueryOptions & { status?: string; taskType?: string },
     ): Promise<DatabaseResult<Job[]>>;
-    count(filter?: Record<string, unknown>): Promise<DatabaseResult<number>>;
-    update(jobId: DatabaseId, data: Partial<EntityCreate<Job>>): Promise<DatabaseResult<Job>>;
-    delete(jobId: DatabaseId): Promise<DatabaseResult<void>>;
-    cleanup(olderThan: Date): Promise<DatabaseResult<number>>;
+    count(
+      filter?: Record<string, unknown>,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<number>>;
+    update(
+      jobId: DatabaseId,
+      data: Partial<EntityCreate<Job>>,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<Job>>;
+    delete(jobId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
+    cleanup(olderThan: Date, options?: BaseQueryOptions): Promise<DatabaseResult<number>>;
   };
   widgets: {
     setupWidgetModels(): Promise<void>;
@@ -1221,21 +1275,13 @@ export interface IMonitoringAdapter {
     clear(tags?: string[]): Promise<DatabaseResult<void>>;
     invalidateCollection(
       collection: string,
-      tenantId?: DatabaseId | null,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
-    invalidateCategory(
-      category: string,
-      tenantId?: DatabaseId | null,
-    ): Promise<DatabaseResult<void>>;
-    /**
-     * Gets the current content version for a tenant or system-wide.
-     */
-    getVersion(tenantId?: DatabaseId | null): Promise<DatabaseResult<number>>;
-    /**
-     * Atomically increments the content version.
-     * Returns the new version number.
-     */
-    incrementVersion(tenantId?: DatabaseId | null): Promise<DatabaseResult<number>>;
+    invalidateCategory(category: string, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
+    /** Content version for tenant (options.tenantId) or system-wide. */
+    getVersion(options?: BaseQueryOptions): Promise<DatabaseResult<number>>;
+    /** Atomically increments content version; returns new version. */
+    incrementVersion(options?: BaseQueryOptions): Promise<DatabaseResult<number>>;
   };
   getConnectionPoolStats?(): Promise<DatabaseResult<ConnectionPoolStats>>;
   performance: {

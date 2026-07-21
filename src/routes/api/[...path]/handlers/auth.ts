@@ -10,7 +10,7 @@
  * - Test-mode bypass for integration/E2E suites
  */
 
-import { AppError, rethrow } from "@utils/error-handling";
+import { AppError, rethrow, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
@@ -148,8 +148,11 @@ export async function handleAuthUserRoutes(
     }
   } catch (err: any) {
     rethrow(err);
-    console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
-    if (err instanceof AppError) throw err;
+    // Expected AppErrors (validation, method not allowed) should not log noisy traces
+    if (!isAppError(err)) {
+      console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
+    }
+    if (isAppError(err)) throw err;
     throw new AppError(err.message || "Authentication operation failed", 500);
   }
 }

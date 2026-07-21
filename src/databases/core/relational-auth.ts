@@ -24,6 +24,7 @@ import type {
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 
 export class RelationalAuthModule implements IAuthAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -319,64 +320,60 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
+        // Fail-closed under MULTI_TENANT (parity with Mongo safeQuery)
+        assertTenantContext(options, "auth.getUserById");
+
         const idCond = eq(this.schema.authUsers._id, String(userId));
-        const applyTenant =
-          !utils.shouldBypassTenantCheck(options) &&
-          options?.tenantId !== undefined &&
-          options.tenantId !== null &&
-          options.tenantId !== "";
-        const conditions = applyTenant
-          ? [idCond, eq(this.schema.authUsers.tenantId, options!.tenantId as string)]
-          : [idCond];
-        let [result] = await this.getDb(options)
+        const conditions = [idCond];
+        utils.applyTenantFilter(conditions, this.schema.authUsers.tenantId, options);
+
+        const [result] = await this.getDb(options)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
-        // Fallback by id only when tenant filter missed (null vs unset tenant rows)
-        if (!result && applyTenant) {
-          [result] = await this.getDb(options)
-            .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
-            .from(this.schema.authUsers)
-            .where(idCond)
-            .limit(1);
-        }
-        // 🚀 Optimized mapper
+        // No unscoped id-only fallback — that was a cross-tenant leak under MT.
         return result ? this.mapUser(result) : null;
       },
       "GET_USER_BY_ID_FAILED",
       undefined,
-      { transaction: options?.transaction, bypassSafeQuery: true }, // 🛡️ INTERNAL BYPASS
+      { transaction: options?.transaction },
     );
   }
 
-  async getUserByEmail(criteria: {
-    email: string;
-    tenantId?: DatabaseId | null;
-  }): Promise<DatabaseResult<User | null>> {
+  async getUserByEmail(
+    criteria: {
+      email: string;
+      tenantId?: DatabaseId | null;
+    },
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
+        // Prefer criteria.tenantId, else options — same fail-closed model as Mongo.
+        const scoped: BaseQueryOptions = {
+          ...options,
+          tenantId: criteria.tenantId !== undefined ? criteria.tenantId : options?.tenantId,
+          bypassTenantCheck: options?.bypassTenantCheck,
+          bypassSafeQuery: options?.bypassSafeQuery,
+        };
+        assertTenantContext(scoped, "auth.getUserByEmail");
+
         const email = normalizeEmail(criteria.email);
         const conditions = [eq(this.schema.authUsers.email, email)];
-        if (criteria.tenantId !== undefined) {
-          conditions.push(
-            criteria.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, criteria.tenantId as string),
-          );
-        }
-        const results = await this.getDb()
+        utils.applyTenantFilter(conditions, this.schema.authUsers.tenantId, scoped);
+
+        const results = await this.getDb(scoped)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
-        // 🚀 Optimized mapper
         return results.length > 0 ? this.mapUser(results[0]) : null;
       },
       "GET_USER_BY_EMAIL_FAILED",
       undefined,
-      { bypassSafeQuery: true },
-    ); // 🛡️ INTERNAL BYPASS
+      { transaction: options?.transaction },
+    );
   }
 
   async getAllUsers(

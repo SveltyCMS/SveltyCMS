@@ -439,7 +439,7 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
   const fs = await import("node:fs/promises");
   const baseDir = path.resolve(process.cwd(), "config", "collections");
   await fs.mkdir(baseDir, { recursive: true });
-  const testDir = path.join(baseDir, "test");
+  const testDir = path.resolve(process.cwd(), "config", "test-collections");
   let testDirEnsured = false;
 
   const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
@@ -456,10 +456,11 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     if (!Array.isArray(schema.fields) || schema.fields.length === 0) continue;
 
     const fileName = `${slug}.ts`;
-    // 🧪 Route bench/test/mock collections to test/ subdirectory
-    // These are created by the benchmark matrix and should not pollute config/collections/
+    // 🧪 Route bench/test/mock/openapi collections to config/test-collections/
+    // These are created by the benchmark matrix or integration tests and should not pollute config/collections/
+    const TEST_COLLECTION_PREFIXES = ["bench", "mock", "test", "openapi"];
     const isTestCollection =
-      slug.startsWith("bench") || slug.startsWith("mock") || slug.startsWith("test");
+      TEST_COLLECTION_PREFIXES.some((p) => slug.startsWith(p)) || slug === "openapitarget";
     const targetDir = isTestCollection ? testDir : baseDir;
     // Only create test/ dir when a test collection actually needs to be written
     if (isTestCollection && !testDirEnsured) {
@@ -475,7 +476,7 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     } catch {}
 
     const content = `/**
- * @file ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}
+ * @file ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}
  * @description ${schema.name || slug} — regenerated from database.
  */
 import type { Schema } from '@src/content/types';
@@ -486,7 +487,7 @@ export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: 
     assertLiveDataWriteAllowed(filePath);
     await fs.writeFile(filePath, content, "utf-8");
     logger.info(
-      `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}`,
+      `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}`,
     );
   }
 

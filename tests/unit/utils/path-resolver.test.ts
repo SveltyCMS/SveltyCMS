@@ -50,17 +50,19 @@ describe("path-resolver", () => {
   });
 
   describe("benchmark paths", () => {
-    it("benchmark.collections is under config/collections/test", () => {
-      expect(paths.benchmark.collections).toBe(path.join(CWD, "config", "collections", "test"));
+    it("benchmark.collections is under config/test-collections", () => {
+      expect(paths.benchmark.collections).toBe(path.join(CWD, "config", "test-collections"));
     });
 
-    it("benchmark.compiled is under .compiledCollections/test", () => {
-      expect(paths.benchmark.compiled).toBe(path.join(CWD, ".compiledCollections", "test"));
+    it("benchmark.compiled is under .compiledCollections/test-collections", () => {
+      expect(paths.benchmark.compiled).toBe(
+        path.join(CWD, ".compiledCollections", "test-collections"),
+      );
     });
 
-    it("benchmark.sandboxCompiled is under .compiledCollections/test/_local_sandbox", () => {
+    it("benchmark.sandboxCompiled is under .compiledCollections/test-collections/_local_sandbox", () => {
       expect(paths.benchmark.sandboxCompiled).toBe(
-        path.join(CWD, ".compiledCollections", "test", "_local_sandbox"),
+        path.join(CWD, ".compiledCollections", "test-collections", "_local_sandbox"),
       );
     });
   });

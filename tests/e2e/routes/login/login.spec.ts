@@ -8,7 +8,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../helpers/api";
+import { resetAndSeedDatabase } from "../../helpers/api";
 
 test.describe("Login and Logout Flow", () => {
   // Ensure we start with a clean state for the login test

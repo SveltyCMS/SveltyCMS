@@ -122,17 +122,14 @@ export class MediaNamespace {
       );
     }
 
-    const result = await getByFolder(
-      folderId as DatabaseId,
-      {
-        pageSize: limit,
-        page: 1,
-        sortField: "updatedAt",
-        sortDirection: "desc",
-      },
+    const result = await getByFolder(folderId as DatabaseId, {
+      pageSize: limit,
+      page: 1,
+      sortField: "updatedAt",
+      sortDirection: "desc",
       recursive,
-      tenantId as DatabaseId,
-    );
+      tenantId: tenantId as DatabaseId,
+    });
 
     if (result.success && result.data?.items) {
       result.data.items = result.data.items.map(
@@ -313,7 +310,7 @@ export class MediaNamespace {
       const result = await this._dbAdapter.media.files.move(
         ids as DatabaseId[],
         (targetFolderId || null) as DatabaseId,
-        tenantId as DatabaseId,
+        tenantId != null ? { tenantId: tenantId as DatabaseId } : { bypassTenantCheck: true },
       );
 
       if (result.success) {

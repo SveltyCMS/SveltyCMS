@@ -58,9 +58,11 @@ async function runCacheAudit() {
 
     // Pre-serialized request payloads to protect micro-timing windows
     const coldInvalidateBody = JSON.stringify({
+      action: "cache-invalidate",
       pattern: "collection:BenchmarkStable:*",
     });
     const bulkInvalidateBody = JSON.stringify({
+      action: "cache-invalidate",
       pattern: "collection:BenchmarkStable:bench-shared-*",
     });
 
@@ -75,7 +77,7 @@ async function runCacheAudit() {
       silent: true,
       onIteration: async () => {
         // STEP 1: Invalidate out-of-band to guarantee cache miss
-        const purgeRes = await fetch(`${baseUrl}/api/system/cache/invalidate`, {
+        const purgeRes = await fetch(`${baseUrl}/api/testing`, {
           method: "POST",
           headers: jsonHeaders,
           body: coldInvalidateBody,
@@ -128,7 +130,7 @@ async function runCacheAudit() {
       concurrency: 1,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/system/cache/invalidate`, {
+        const res = await fetch(`${baseUrl}/api/testing`, {
           method: "POST",
           headers: jsonHeaders,
           body: bulkInvalidateBody,

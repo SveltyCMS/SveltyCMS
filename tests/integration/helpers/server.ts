@@ -318,6 +318,8 @@ const HEALTHY_SYSTEM_STATES = [
   "IDLE",
 ];
 
+// Prefer orchestrator-pinned env (run-integration / start-integration-server).
+// Fallback matches scripts/integration-harness DEFAULT — never a fresh UUID.
 const TEST_API_SECRET =
   process.env.TEST_API_SECRET ||
   (globalThis as any).process?.env?.TEST_API_SECRET ||

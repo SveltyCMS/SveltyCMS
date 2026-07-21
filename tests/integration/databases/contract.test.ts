@@ -56,6 +56,21 @@ function headers(
 }
 
 // ---------------------------------------------------------------------------
+// Suite lifecycle — single reset at start/end (gates reuse prepare with skipReset)
+// ---------------------------------------------------------------------------
+
+let suiteAdminCookie = "";
+
+beforeAll(async () => {
+  await cleanupTestDatabase();
+  suiteAdminCookie = await prepareAuthenticatedContext();
+}, 180_000);
+
+afterAll(async () => {
+  await cleanupTestDatabase();
+});
+
+// ---------------------------------------------------------------------------
 // Gate 1 — Auth Contract
 // ---------------------------------------------------------------------------
 
@@ -63,12 +78,8 @@ describe("Auth Contract", () => {
   let adminCookie: string;
 
   beforeAll(async () => {
-    await cleanupTestDatabase();
-    adminCookie = await prepareAuthenticatedContext();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
+    // Fresh session for logout test isolation (skip full DB reset)
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
   });
 
   it("should return a session cookie on successful admin login", () => {
@@ -142,12 +153,8 @@ describe("Collection / Config Contract", () => {
   let adminCookie: string;
 
   beforeAll(async () => {
-    await cleanupTestDatabase();
-    adminCookie = await prepareAuthenticatedContext();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
+    // Logout in gate 1 may invalidate suite cookie — re-login without DB wipe
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
   });
 
   it("should plan and apply configuration promotion with planId", async () => {
@@ -204,12 +211,7 @@ describe("User Batch Contract", () => {
   const testEmail = `batch_contract_${DB_TYPE}_${Date.now()}@test.com`;
 
   beforeAll(async () => {
-    await cleanupTestDatabase();
-    adminCookie = await prepareAuthenticatedContext();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
   });
 
   it("should create a new user", async () => {
@@ -236,7 +238,8 @@ describe("User Batch Contract", () => {
   });
 
   it("should perform batch action on the user (block/disable)", async () => {
-    if (!createdUserId) return; // skip if creation failed
+    // User create is hard-asserted above; batch must succeed for a real id
+    expect(createdUserId).toBeTruthy();
 
     const res = await safeFetch(`${API_BASE}/api/user/batch`, {
       method: "POST",
@@ -247,17 +250,14 @@ describe("User Batch Contract", () => {
       }),
     });
 
-    // Accept 200 (success) or 400 if the batch action doesn't exist yet
-    expect([200, 201, 400, 404, 501]).toContain(res.status);
-
-    if (res.status === 200) {
-      const data = await res.json();
-      expect(data.success !== false).toBe(true);
-    }
+    // batchAction → successResponse (200); AppError path is 400 only on invalid input
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
   });
 
   it("should batch unblock/activate the user", async () => {
-    if (!createdUserId) return;
+    expect(createdUserId).toBeTruthy();
 
     const res = await safeFetch(`${API_BASE}/api/user/batch`, {
       method: "POST",
@@ -268,13 +268,9 @@ describe("User Batch Contract", () => {
       }),
     });
 
-    // Accept 200 (success) or graceful error if action not implemented
-    expect([200, 201, 400, 404, 501]).toContain(res.status);
-
-    if (res.status === 200) {
-      const data = await res.json();
-      expect(data.success !== false).toBe(true);
-    }
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
   });
 
   it("should reject batch action without authentication", async () => {
@@ -297,13 +293,7 @@ describe("User Batch Contract", () => {
 // ---------------------------------------------------------------------------
 
 describe("Setup Gating Contract", () => {
-  beforeAll(async () => {
-    await cleanupTestDatabase();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
-  });
+  // Uses suite lifecycle (setup already complete after prepareAuthenticatedContext)
 
   it("should report setup status via health endpoint", async () => {
     const res = await safeFetch(`${API_BASE}/api/system/health`, {
@@ -325,9 +315,8 @@ describe("Setup Gating Contract", () => {
       body: JSON.stringify({}),
     });
 
-    // After setup completion, this endpoint must NOT return 200
-    // 403 = blocked (setup already done), 400 = bad request, 401 = no auth
-    expect(res.status).not.toBe(200);
+    // After setup: must be blocked — 403 preferred; 401/400 acceptable; 500 is a failure
+    expect([401, 403, 400]).toContain(res.status);
   });
 
   it("should block /api/setup/seed after setup is finished", async () => {
@@ -341,8 +330,8 @@ describe("Setup Gating Contract", () => {
       }),
     });
 
-    // After setup completion, seeding must be blocked
-    expect(res.status).not.toBe(200);
+    // After setup completion, seeding must be blocked (not 200/5xx)
+    expect([401, 403, 400]).toContain(res.status);
   });
 
   it("should return structured error JSON on blocked setup endpoints", async () => {
@@ -368,11 +357,7 @@ describe("Fail-Closed Contract", () => {
   let adminCookie: string;
 
   beforeAll(async () => {
-    adminCookie = await prepareAuthenticatedContext();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
   });
 
   it("should return 403 for unknown API namespace (fail-closed)", async () => {
@@ -439,20 +424,16 @@ describe("Media Permissions Contract", () => {
   let adminCookie: string;
 
   beforeAll(async () => {
-    await cleanupTestDatabase();
-    adminCookie = await prepareAuthenticatedContext();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
   });
 
   it("should allow admin to list media (media:read)", async () => {
     const res = await safeFetch(`${API_BASE}/api/media`, {
       headers: headers({ Cookie: adminCookie }),
     });
-    // Admin can list media — 200 (with data) or 404 (empty) or 204 (no content)
-    expect([200, 204, 404]).toContain(res.status);
+    // List endpoint returns 200 with list (possibly empty); 204 no-content ok
+    expect([200, 204]).toContain(res.status);
+    expect(res.status).toBeLessThan(500);
 
     if (res.status === 200) {
       const data = await res.json();
@@ -500,12 +481,15 @@ describe("Media Permissions Contract", () => {
       body: formData,
     });
 
-    // Admin can upload — 200/201 (success), or 400/413 if server restricts uploads
-    expect([200, 201, 202, 400, 413]).toContain(res.status);
+    // handleMediaUpload → successResponse (200). Client errors: 400 (bad multipart /
+    // empty files). Payload limits may surface as 413. Never 5xx for admin PNG.
+    expect([200, 400, 413]).toContain(res.status);
+    expect(res.status).toBeLessThan(500);
 
-    if (res.status === 200 || res.status === 201 || res.status === 202) {
+    if (res.status === 200) {
       const data = await res.json();
       expect(data).toBeDefined();
+      expect(data.success !== false).toBe(true);
     }
   });
 
@@ -525,9 +509,11 @@ describe("Media Permissions Contract", () => {
       method: "DELETE",
       headers: headers({ Cookie: adminCookie }),
     });
-    // Admin should be able to attempt the deletion.
-    // The file doesn't exist, so 404 is expected if permission passes.
-    // 403 would mean permission was denied.
-    expect([200, 202, 204, 404]).toContain(res.status);
+    // Admin delete missing id: successResponse 200 (soft) or explicit 404 — not 5xx
+    expect([200, 404]).toContain(res.status);
+    expect(res.status).toBeLessThan(500);
   });
 });
+
+// Silence unused suite cookie warning if tree-shaken
+void suiteAdminCookie;

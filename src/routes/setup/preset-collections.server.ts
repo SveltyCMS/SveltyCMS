@@ -68,8 +68,8 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        // Only recurse into test/ (handled by cleanupAllBenchmarkWorkspaces) or full wipe
-        if (entry.name === "test") continue;
+        // Only recurse into test-collections/ (handled by cleanupAllBenchmarkWorkspaces) or full wipe
+        if (entry.name === "test-collections") continue;
         if (wipeAll) {
           await fs.rm(pathMod.join(dir, entry.name), {
             recursive: true,

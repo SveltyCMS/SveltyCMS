@@ -262,13 +262,21 @@ export async function ensureFullInitialization(): Promise<any | null> {
       if (!adapter) throw new Error("Failed to load database adapter");
       logger.info(`[Boot] Adapter loaded. Connecting...`);
 
-      // 🛡️ Wrap CRUD with tenant guard to auto-inject tenantId
-      // This protects all plugins, widgets, and extensions from
-      // accidentally writing unscoped data when MULTI_TENANT is enabled.
+      // 🛡️ Fail-closed tenant guard (MULTI_TENANT): never invent tenantId="global".
+      // Wraps crud + domain namespaces so plugins/widgets cannot run unscoped.
+      // Single-tenant / benchmarks: guard returns inner adapter directly (zero overhead).
       try {
-        const { createTenantGuardedCrud } = await import("./crud-tenant-guard");
+        const { createTenantGuardedCrud, createTenantGuardedNamespace } =
+          await import("./crud-tenant-guard");
         const originalCrud = adapter.crud;
-        (adapter as any).crud = createTenantGuardedCrud(originalCrud, "inject");
+        (adapter as any).crud = createTenantGuardedCrud(originalCrud, "reject");
+
+        for (const ns of ["auth", "content", "media", "collection", "system"] as const) {
+          const original = (adapter as any)[ns];
+          if (original && typeof original === "object") {
+            (adapter as any)[ns] = createTenantGuardedNamespace(original, "reject", ns);
+          }
+        }
       } catch (e) {
         logger.warn(`[Boot] Tenant guard not applied (non-fatal): ${e}`);
       }

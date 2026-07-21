@@ -668,7 +668,15 @@ export default defineConfig(() => ({
       adapter: adapter({ out: "build", precompress: true }),
       experimental: { remoteFunctions: true },
       alias: pathAliases,
-      csrf: { trustedOrigins: ["http://127.0.0.1:4173"] },
+      // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
+      csrf: {
+        trustedOrigins: [
+          "http://127.0.0.1:4173",
+          "http://localhost:4173",
+          ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
+          ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
+        ],
+      },
     }),
     liteRtWasmPlugin(),
     sveltyCmsPlugin(),

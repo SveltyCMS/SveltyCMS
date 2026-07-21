@@ -32,7 +32,6 @@ describe("uploadMediaFilesHandle sequential progress", () => {
 
   beforeEach(() => {
     MockXHR.instances = [];
-    // @ts-expect-error test stub
     globalThis.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest;
   });
 

@@ -1481,18 +1481,26 @@ export class CollectionsNamespace {
         const txResult = await adapter.transaction(async (tx: any) => run({ transaction: tx }));
         // Adapter may wrap as { success, data } — unwrap if the write result is nested
         if (txResult && typeof txResult === "object" && "success" in txResult) {
-          // When transaction wraps the inner DatabaseResult as data, prefer inner
-          if (
+          // Some adapters (MongoDB standalone) return { success: false } instead of throwing
+          // when transactions are unsupported — fall back to sequential writes
+          if (!txResult.success) {
+            logger.debug(
+              `[Collections] transaction returned ${txResult.code || txResult.message}, falling back for ${action}`,
+            );
+          } else if (
             txResult.success &&
             txResult.data &&
             typeof txResult.data === "object" &&
             "success" in txResult.data
           ) {
+            // When transaction wraps the inner DatabaseResult as data, prefer inner
             return txResult.data;
+          } else {
+            return txResult;
           }
+        } else {
           return txResult;
         }
-        return txResult;
       } catch (err) {
         // Mongo without replica set / unsupported TX → sequential fallback
         logger.debug(

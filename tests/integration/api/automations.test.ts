@@ -15,7 +15,6 @@ import {
   testFixtures,
 } from "../helpers/test-setup";
 import {
-  API_BASE_URL,
   authGet,
   authJson,
   ensureEditorUser,
@@ -133,6 +132,3 @@ describe("Automations API (headless HTTP)", () => {
     });
   });
 });
-
-// silence unused if tree-shaken
-void API_BASE_URL;

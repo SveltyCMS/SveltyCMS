@@ -38,7 +38,7 @@ describe("automations-api mutations attach CSRF", () => {
       status: 200,
       json: async () => ({ success: true, data: { id: "a1" } }),
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     stubDocumentCookie(() => "csrf_token=auto-csrf");
   });
 

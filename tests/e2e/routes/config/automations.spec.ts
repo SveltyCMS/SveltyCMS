@@ -7,7 +7,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
-import { deleteAutomation, seedAutomation } from "../helpers/api";
+import { deleteAutomation, seedAutomation } from "../../helpers/api";
 import {
   dismissCookieBannerIfPresent,
   waitForAdminShell,

@@ -22,8 +22,22 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
  * Resolves a target directory against the base media folder and ensures
  * it does not escape the root directory (prevents path traversal attacks).
  */
+function resolveMediaFolderBase(): string {
+  // Benchmark matrix: env wins over stale public settings / publicEnv singleton
+  const envFolder = process.env.MEDIA_FOLDER?.trim();
+  if (
+    envFolder &&
+    (process.env.BENCHMARK_LOCAL_SANDBOX === "1" ||
+      process.env.BENCHMARK_PROFILE === "local" ||
+      process.env.BENCHMARK === "true")
+  ) {
+    return envFolder;
+  }
+  return publicEnv.MEDIA_FOLDER || "mediaFolder";
+}
+
 function getSafeJailedPath(subFolder?: string): string {
-  const baseMediaDir = path.resolve(process.cwd(), publicEnv.MEDIA_FOLDER);
+  const baseMediaDir = path.resolve(process.cwd(), resolveMediaFolderBase());
 
   if (!subFolder || !subFolder.trim()) {
     return baseMediaDir;
@@ -129,7 +143,7 @@ export async function deleteDirectory(folder: string, force = false) {
     const directoryPath = getSafeJailedPath(folder);
 
     // Optional guard: Prevent accidental deletion of the root media folder itself
-    if (directoryPath === path.resolve(process.cwd(), publicEnv.MEDIA_FOLDER)) {
+    if (directoryPath === path.resolve(process.cwd(), resolveMediaFolderBase())) {
       throw new Error("Cannot delete the root media directory.");
     }
 

@@ -45,8 +45,6 @@ describeMongo("MongoDB Adapter Integration", () => {
       // Docker mongo:latest — no auth by default (tests/docker-compose.yml).
       const noAuthUri = "mongodb://127.0.0.1:27017/sveltycms_test";
 
-      console.log("DEBUG: Attempting MongoDB connection to:", noAuthUri);
-
       const result = await db.connect(noAuthUri, {
         serverSelectionTimeoutMS: 8000,
         connectTimeoutMS: 8000,
@@ -57,12 +55,6 @@ describeMongo("MongoDB Adapter Integration", () => {
           `Failed to connect to MongoDB: ${(result as any)?.message || "unknown error"}`,
         );
       }
-
-      console.log("DEBUG: MongoDB Connected successfully");
-      console.log("DEBUG: Adapter connection readyState =", (db as any).connection?.readyState);
-      console.log("DEBUG: Adapter DB Name =", (db as any).connection?.name);
-      console.log("DEBUG: Adapter Host =", (db as any).connection?.host);
-      console.log("DEBUG: Adapter Port =", (db as any).connection?.port);
 
       await db.ensureSystem?.();
       await db.ensureContent?.();
@@ -142,8 +134,6 @@ describeMongo("MongoDB Adapter Integration", () => {
         tenantId: TEST_TENANT,
       });
 
-      console.log("DEBUG 1: Insert Result:", JSON.stringify(insertRes, null, 2));
-
       expect(insertRes.success).toBe(true);
       if (!insertRes.success || !insertRes.data) {
         throw new Error(`Mongo insert failed: ${(insertRes as any).message || "unknown error"}`);
@@ -163,8 +153,6 @@ describeMongo("MongoDB Adapter Integration", () => {
         { tenantId: TEST_TENANT },
       );
 
-      console.log("DEBUG 2: FindOne Result:", JSON.stringify(findRes, null, 2));
-
       expect(findRes.success).toBe(true);
       if (!findRes.success || !findRes.data) {
         throw new Error(
@@ -183,8 +171,6 @@ describeMongo("MongoDB Adapter Integration", () => {
         } as any,
         { tenantId: TEST_TENANT },
       );
-
-      console.log("DEBUG 3: Update Result:", JSON.stringify(updateRes, null, 2));
 
       expect(updateRes.success).toBe(true);
       if (!updateRes.success) {
@@ -219,8 +205,6 @@ describeMongo("MongoDB Adapter Integration", () => {
         } as any,
         { tenantId: TEST_TENANT },
       );
-
-      console.log("DEBUG 4: Count Result:", JSON.stringify(countRes, null, 2));
 
       expect(countRes.success).toBe(true);
       if (!countRes.success) {
@@ -310,8 +294,6 @@ describeMongo("MongoDB Adapter Integration", () => {
         } as any,
         { tenantId: TEST_TENANT },
       );
-
-      console.log("DEBUG 5: CRUD $in Result:", JSON.stringify(res, null, 2));
 
       expect(res.success).toBe(true);
       if (!res.success || !res.data) {

@@ -59,7 +59,7 @@ describe("redirects +page.server load", () => {
   });
 
   it("returns redirects for admin from redirectsMV", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: {
         user: { _id: { toString: () => "u1" }, email: "a@b.co", role: "admin" },
         isAdmin: true,
