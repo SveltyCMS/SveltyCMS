@@ -1071,7 +1071,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Smart runner crashed:", err);
-  process.exit(1);
-});
+// ── Guard: skip main() when imported as a module (e.g. by unit tests) ──
+// Test files set globalThis.__TEST_SMART_IMPORT before import to suppress.
+if (!(globalThis as any).__TEST_SMART_IMPORT) {
+  main().catch((err) => {
+    console.error("Smart runner crashed:", err);
+    process.exit(1);
+  });
+}
