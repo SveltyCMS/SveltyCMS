@@ -251,6 +251,11 @@
     "mysql2": "^3.23.1",
     "postgres": "^3.4.9"
   },
+  "overrides": {
+    "cookie": ">=0.7.0",
+    "fast-uri": ">=3.1.2",
+    "shell-quote": ">=1.8.5"
+  },
   "engines": {
     "node": ">=24.0.0"
   }

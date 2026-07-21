@@ -234,7 +234,7 @@ function isKnownSafe(str: string): boolean {
 function collectSourceFiles(dir: string): string[] {
   return globSync(`${dir}/**/*.{ts,svelte,js}`, {
     nodir: true,
-    ignore: "**/node_modules/**",
+    ignore: ["**/node_modules/**", "**/paraglide/**"],
   });
 }
 

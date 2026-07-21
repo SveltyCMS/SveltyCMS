@@ -17,12 +17,15 @@ import "../../../src/utils/v8-shim";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { isDockerRunning } from "../helpers/docker";
 
-// In-process adapter suite: open our own Mongo connection when Docker is up.
-// Do NOT require CMS DB_TYPE=mongodb (that gate left 21 local skips while docker ps was healthy).
+// Only run when Docker has the matching DB AND CMS is configured for it.
+// In the CI DB matrix, Docker may be up for fixtures but DB_TYPE won't match.
 const mongoDockerRunning = isDockerRunning("mongo");
-const describeMongo = mongoDockerRunning ? describe : describe.skip;
-if (!mongoDockerRunning) {
-  console.log("⏭️ MongoDB adapter suite skipped — no Docker container matching 'mongo'");
+const mongoDbType = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+const describeMongo = mongoDockerRunning && mongoDbType ? describe : describe.skip;
+if (!mongoDockerRunning || !mongoDbType) {
+  console.log(
+    `⏭️ MongoDB adapter suite skipped — Docker=${mongoDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
+  );
 }
 
 describeMongo("MongoDB Adapter Integration", () => {

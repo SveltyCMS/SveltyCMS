@@ -9,11 +9,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { isDockerRunning } from "../helpers/docker";
 
-// In-process adapter suite: run whenever Postgres Docker is available (not only DB_TYPE=postgresql).
+// Only run when Docker has the matching DB AND CMS is configured for it.
 const pgDockerRunning = isDockerRunning("postgres");
-const describePostgres = pgDockerRunning ? describe : describe.skip;
-if (!pgDockerRunning) {
-  console.log("⏭️ PostgreSQL adapter suite skipped — no Docker container matching 'postgres'");
+const pgDbType = (process.env.DB_TYPE || "").toLowerCase() === "postgresql";
+const describePostgres = pgDockerRunning && pgDbType ? describe : describe.skip;
+if (!pgDockerRunning || !pgDbType) {
+  console.log(
+    `⏭️ PostgreSQL adapter suite skipped — Docker=${pgDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
+  );
 }
 
 describePostgres("PostgreSQL Adapter Integration", () => {

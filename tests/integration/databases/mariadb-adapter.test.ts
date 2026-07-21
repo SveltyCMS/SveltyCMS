@@ -15,11 +15,14 @@ const { privateEnv: _privateEnv } = (await import("../../../config/private.test"
   _privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
 }))) as any;
 
-// In-process adapter suite: run whenever MariaDB Docker is available (not only DB_TYPE=mariadb).
+// Only run when Docker has the matching DB AND CMS is configured for it.
 const mariadbDockerRunning = isDockerRunning("mariadb");
-const describeMariaDB = mariadbDockerRunning ? describe : describe.skip;
-if (!mariadbDockerRunning) {
-  console.log("⏭️ MariaDB adapter suite skipped — no Docker container matching 'mariadb'");
+const mariadbDbType = (process.env.DB_TYPE || "").toLowerCase() === "mariadb";
+const describeMariaDB = mariadbDockerRunning && mariadbDbType ? describe : describe.skip;
+if (!mariadbDockerRunning || !mariadbDbType) {
+  console.log(
+    `⏭️ MariaDB adapter suite skipped — Docker=${mariadbDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
+  );
 }
 
 describeMariaDB("MariaDB Adapter Integration", () => {
