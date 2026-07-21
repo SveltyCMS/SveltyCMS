@@ -76,7 +76,7 @@ start_s=$(date +%s 2>/dev/null || echo 0)
 estimate_s=$(get_estimate_sec "$label")
 
 printf "  ${padded}  ETA ~${estimate_s}s        "
-bun test --timeout 300000 tests/integration/ > "$outfile" 2>&1 &
+bun run scripts/run-integration.ts --no-build > "$outfile" 2>&1 &
 pid=$!
 
 while kill -0 "$pid" 2>/dev/null; do
