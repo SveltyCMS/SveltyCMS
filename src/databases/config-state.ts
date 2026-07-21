@@ -483,6 +483,14 @@ export function getDatabaseConnectionString(): string {
 export function resolveSqlitePath(host: string | undefined, name: string): string {
   const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
 
+  // Test mode: use config/test-database/ to avoid clobbering dev DB
+  const isTest =
+    typeof process !== "undefined" &&
+    (process.env?.TEST_MODE === "true" || process.env?.VITE_TEST_MODE === "true");
+  if (isTest) {
+    return `config/test-database/${finalName}`;
+  }
+
   // If host is an IP or localhost, it's NOT a directory for SQLite
   const isNetworkAddr =
     !host ||

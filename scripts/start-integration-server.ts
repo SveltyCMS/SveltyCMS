@@ -27,9 +27,9 @@ if (!existsSync(entryPoint)) {
   process.exit(1);
 }
 
-// Clean up stale SQLite DB
+// Clean up stale SQLite test database
 if (DB_TYPE === "sqlite") {
-  const dbPath = join(ROOT, "config", "database", `${DB_NAME}.sqlite`);
+  const dbPath = join(ROOT, "config", "test-database", `${DB_NAME}.sqlite`);
   for (const p of [dbPath, dbPath + "-wal", dbPath + "-shm"]) {
     if (existsSync(p)) {
       try {
