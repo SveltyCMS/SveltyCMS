@@ -284,7 +284,7 @@ jobs:
           PASSWORD_MIN_LENGTH: 8
           PORT: "4173"
         run: |
-          bun test tests/integration/
+          bun run scripts/run-integration.ts --no-build
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'

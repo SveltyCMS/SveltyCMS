@@ -699,7 +699,7 @@ export async function finalizeReport(
 
     const previousSameMode = allEntries.filter((e) => e.runMode === runMode && e.runId !== runId);
 
-    for (const [key, entries] of groups) {
+    for (const [_key, entries] of groups) {
       const current = entries[entries.length - 1];
       const testFile = normalizeTestFile(current.testFile);
       const testId = testFile.replace(/^tests\/benchmarks\//, "").replace(/\.test\.ts$/, "");
