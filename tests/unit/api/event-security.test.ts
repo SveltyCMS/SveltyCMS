@@ -126,9 +126,7 @@ describe("Events API Security - Tenant Isolation", () => {
   });
 
   it("sets up event listener without crashing (test mode)", async () => {
-    let _capturedListener: any;
-    vi.spyOn(eventBus, "on").mockImplementation((event: string | symbol, listener: any) => {
-      if (event === "*") _capturedListener = listener;
+    vi.spyOn(eventBus, "on").mockImplementation((_event: string | symbol, _listener: any) => {
       return eventBus;
     });
 

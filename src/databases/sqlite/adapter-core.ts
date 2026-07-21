@@ -113,7 +113,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const viaCause = err?.cause?.code === "SQLITE_ERROR" || err?.cause?.code === "ERR_SQLITE_ERROR";
     const hasMsg =
       err?.message?.includes("no such table") || err?.cause?.message?.includes("no such table");
-    return (direct || viaCause) && hasMsg;
+    // Fallback: message-only match catches Drizzle/SQLite wrapper errors
+    // that lose the SQLITE_ERROR code in the chain
+    return hasMsg || direct || viaCause;
   }
 
   protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {

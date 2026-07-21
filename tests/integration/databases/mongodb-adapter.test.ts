@@ -17,25 +17,6 @@ import "../../../src/utils/v8-shim";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { isDockerRunning } from "../helpers/docker";
 
-// @ts-ignore - optional test config generated at runtime
-const imported = await import("../../../config/private.test").catch(() => ({
-  privateEnv: {} as any,
-  privateConfig: {} as any,
-  database: {} as any,
-  default: {} as any,
-}));
-
-const privateConfig =
-  (imported as any).privateEnv ||
-  (imported as any).privateConfig ||
-  (imported as any).default ||
-  {};
-
-const _databaseConfig =
-  (imported as any).database || privateConfig.database || privateConfig.db || {};
-
-const _privateEnv: Record<string, unknown> = {};
-
 // In-process adapter suite: open our own Mongo connection when Docker is up.
 // Do NOT require CMS DB_TYPE=mongodb (that gate left 21 local skips while docker ps was healthy).
 const mongoDockerRunning = isDockerRunning("mongo");

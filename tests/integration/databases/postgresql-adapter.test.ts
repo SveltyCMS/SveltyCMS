@@ -9,12 +9,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { isDockerRunning } from "../helpers/docker";
 
-// @ts-ignore - optional test config generated at runtime
-const { privateEnv: _privateEnv } = (await import("../../../config/private.test").catch(() => ({
-  _privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
-}))) as any;
-
-const _isPostgres = process.env.DB_TYPE === "postgresql";
 // In-process adapter suite: run whenever Postgres Docker is available (not only DB_TYPE=postgresql).
 const pgDockerRunning = isDockerRunning("postgres");
 const describePostgres = pgDockerRunning ? describe : describe.skip;

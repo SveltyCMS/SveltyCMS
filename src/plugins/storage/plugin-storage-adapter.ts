@@ -113,13 +113,10 @@ export class PluginStorageAdapterImpl implements PluginStorageAdapter {
         ? (JSON.parse(JSON.stringify(data)) as T)
         : (data as T);
 
-    const result = await this.dbAdapter.crud.insert(
-      PLUGIN_STORAGE_COLLECTION,
-      { ...record, data: payloadClone as Record<string, unknown> },
-      {
-        tenantId: toDbId(options?.tenantId),
-      },
-    );
+    const insertPayload: any = { ...record, data: payloadClone as Record<string, unknown> };
+    const result = await this.dbAdapter.crud.insert(PLUGIN_STORAGE_COLLECTION, insertPayload, {
+      tenantId: toDbId(options?.tenantId),
+    });
 
     if (!result.success) {
       throw new Error(`[PluginStorage] Failed to create record: ${result.message}`);

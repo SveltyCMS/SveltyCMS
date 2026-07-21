@@ -122,12 +122,12 @@ describe("Screen Size Store - Enum Values", () => {
   });
 
   it("should have correct string constants", () => {
-    expect(ScreenSize.XS).toBe("xs");
-    expect(ScreenSize.SM).toBe("sm");
-    expect(ScreenSize.MD).toBe("md");
-    expect(ScreenSize.LG).toBe("lg");
-    expect(ScreenSize.XL).toBe("xl");
-    expect(ScreenSize.XXL).toBe("2xl");
+    expect(ScreenSize.XS === "xs").toBe(true);
+    expect(ScreenSize.SM === "sm").toBe(true);
+    expect(ScreenSize.MD === "md").toBe(true);
+    expect(ScreenSize.LG === "lg").toBe(true);
+    expect(ScreenSize.XL === "xl").toBe(true);
+    expect(ScreenSize.XXL === "2xl").toBe(true);
   });
 
   it("should return valid enum values for all widths", () => {

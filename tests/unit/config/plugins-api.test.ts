@@ -20,7 +20,7 @@ describe("plugins-api", () => {
       status: 200,
       json: async () => ({ success: true }),
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as any;
     stubDocumentCookie(() => "csrf_token=plugin-csrf");
   });
 
