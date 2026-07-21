@@ -484,11 +484,22 @@ export function resolveSqlitePath(host: string | undefined, name: string): strin
   const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
 
   // Test mode: use config/test-database/ to avoid clobbering dev DB
+  // Only activate if the directory exists to avoid breaking CI which creates
+  // config/database/ but not config/test-database/
   const isTest =
     typeof process !== "undefined" &&
     (process.env?.TEST_MODE === "true" || process.env?.VITE_TEST_MODE === "true");
   if (isTest) {
-    return `config/test-database/${finalName}`;
+    try {
+      const { existsSync } = require("node:fs");
+      const { join } = require("node:path");
+      const testDir = join(process.cwd(), "config", "test-database");
+      if (existsSync(testDir)) {
+        return `config/test-database/${finalName}`;
+      }
+    } catch {
+      // FS check not available (edge runtime) — fall through
+    }
   }
 
   // If host is an IP or localhost, it's NOT a directory for SQLite

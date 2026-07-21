@@ -464,7 +464,7 @@ jobs:
 
       - name: Initialize and Start Preview Server
         run: |
-          mkdir -p config config/database tests/e2e/.auth logs mediaFolder
+          mkdir -p config config/database config/test-database tests/e2e/.auth logs mediaFolder
 
           cat > config/private.test.ts <<EOF
           export const privateEnv = {
@@ -555,7 +555,7 @@ jobs:
           sleep 2
 
       - name: Archive E2E Environment (single artifact)
-        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/ config/collections/
+        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/ config/test-database/ config/collections/
 
       - uses: actions/upload-artifact@v7
         with:
