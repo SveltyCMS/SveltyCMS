@@ -62,8 +62,24 @@ export function metadataJsonExtractSql(dialect: MediaJsonSqlDialect, relativePat
   return sql`json_extract(metadata, ${path})`;
 }
 
-function stringCompareSql(extract: SQL, op: "eq" | "neq" | "contains", value: string): SQL {
+function stringCompareSql(
+  dialect: MediaJsonSqlDialect,
+  extract: SQL,
+  op: "eq" | "neq" | "contains",
+  value: string,
+): SQL {
   const lowerVal = value.toLowerCase();
+  // MariaDB doesn't support CAST(... AS TEXT) — JSON_UNQUOTE already returns LONGTEXT
+  const skipCast = dialect === "mariadb" || dialect === "mysql";
+  if (skipCast) {
+    if (op === "contains") {
+      return sql`lower(${extract}) LIKE ${"%" + lowerVal + "%"}`;
+    }
+    if (op === "neq") {
+      return sql`lower(${extract}) != ${lowerVal}`;
+    }
+    return sql`lower(${extract}) = ${lowerVal}`;
+  }
   if (op === "contains") {
     return sql`lower(CAST(${extract} AS TEXT)) LIKE ${"%" + lowerVal + "%"}`;
   }
@@ -96,7 +112,7 @@ function clauseToSql(dialect: MediaJsonSqlDialect, clause: JsonPathClause): SQL 
   const extract = metadataJsonExtractSql(dialect, rel);
 
   if (clause.op === "eq" || clause.op === "neq" || clause.op === "contains") {
-    return stringCompareSql(extract, clause.op, clause.value);
+    return stringCompareSql(dialect, extract, clause.op, clause.value);
   }
   return numericCompareSql(extract, clause.op, clause.value);
 }
