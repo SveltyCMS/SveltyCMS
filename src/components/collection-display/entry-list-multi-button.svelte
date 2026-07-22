@@ -486,10 +486,10 @@
 			<Button
 				variant="ghost"
 				data-testid="entry-list-action-{currentAction}"
-				onclick={hasSelections ? handleMainButtonClick : undefined}
+				onclick={handleMainButtonClick}
 				disabled={isProcessing}
 				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200
-					{hasSelections ? 'active:scale-95' : 'pointer-events-none'}
+					active:scale-95
 					{currentConfig.gradient} {currentConfig.textColor}
 					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-e border-white
 					disabled:opacity-50 disabled:cursor-not-allowed"

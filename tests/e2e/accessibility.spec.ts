@@ -8,6 +8,8 @@
 import { test, expect } from "@playwright/test";
 import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";
 
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("focus indicator is visible on keyboard navigation", async ({ page }) => {
   await seedCookieConsent(page);
   await page.goto("/login", { waitUntil: "domcontentloaded" });
@@ -28,11 +30,18 @@ test("focus indicator is visible on keyboard navigation", async ({ page }) => {
   const focusedEl = page.locator(":focus");
   await expect(focusedEl).toBeVisible();
 
-  const { outlineStyle, boxShadow } = await focusedEl.evaluate((el) => {
+  const { outlineStyle, boxShadow, ringShadow } = await focusedEl.evaluate((el) => {
     const style = window.getComputedStyle(el);
-    return { outlineStyle: style.outlineStyle, boxShadow: style.boxShadow };
+    return {
+      outlineStyle: style.outlineStyle,
+      boxShadow: style.boxShadow,
+      ringShadow:
+        style.getPropertyValue("--tw-ring-shadow") ||
+        style.getPropertyValue("--tw-ring-offset-shadow"),
+    };
   });
 
-  const hasFocusRing = outlineStyle !== "none" || (boxShadow !== "none" && boxShadow !== "");
+  const hasFocusRing =
+    outlineStyle !== "none" || (boxShadow !== "none" && boxShadow !== "") || Boolean(ringShadow);
   expect(hasFocusRing).toBe(true);
 });

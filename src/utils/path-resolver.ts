@@ -40,7 +40,13 @@ export const paths = {
 
   /** Global media directory */
   get media(): string {
-    return path.join(cwd(), "mediaFolder", "global");
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+    const baseDir = isTestHarness ? "test-media" : "mediaFolder";
+    return path.join(cwd(), baseDir, "global");
   },
 
   /**
@@ -48,10 +54,20 @@ export const paths = {
    * Falls back to flat collections if no context is set.
    */
   getCollections: (): string => {
+    const customDir = process.env.COLLECTIONS_DIR;
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+
     const tenantId = sveltyContext.getStore()?.tenantId;
-    return tenantId
-      ? path.join(cwd(), "config", tenantId, "collections")
-      : path.join(cwd(), "config", "collections");
+    if (tenantId) {
+      const collName = isTestHarness ? "test-collections" : "collections";
+      return path.join(cwd(), "config", tenantId, collName);
+    }
+    if (customDir) return path.resolve(cwd(), customDir);
+    return path.join(cwd(), "config", isTestHarness ? "test-collections" : "collections");
   },
 
   /**
@@ -68,10 +84,14 @@ export const paths = {
    * Falls back to global media if no context is set.
    */
   getMedia: (): string => {
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+    const baseDir = isTestHarness ? "test-media" : "mediaFolder";
     const tenantId = sveltyContext.getStore()?.tenantId;
-    return tenantId
-      ? path.join(cwd(), "mediaFolder", tenantId)
-      : path.join(cwd(), "mediaFolder", "global");
+    return tenantId ? path.join(cwd(), baseDir, tenantId) : path.join(cwd(), baseDir, "global");
   },
 
   /** Compiled collections output directory */
@@ -118,7 +138,7 @@ export const paths = {
         "test-collections",
         "_local_sandbox",
       ),
-      sandboxMedia: path.join(root, "config", "benchmark-sandbox", "media"),
+      sandboxMedia: path.join(root, "test-media", "benchmark-sandbox"),
     };
   },
 

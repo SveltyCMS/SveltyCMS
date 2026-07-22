@@ -1173,12 +1173,22 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
+      const isTestHarness =
+        process.env.TEST_MODE === "true" ||
+        process.env.VITEST === "true" ||
+        process.env.BUN_TEST === "true" ||
+        process.env.BENCHMARK === "true";
+      const dbName = (config as any).DB_NAME;
+      const isTestDb =
+        isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
+      const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";
+
       dbPath =
         process.env.DB_PATH ||
-        ((config as any).DB_NAME
-          ? `config/database/${(config as any).DB_NAME}.db`
+        (dbName
+          ? `${defaultDbFolder}/${dbName}`
           : isSetupComplete()
-            ? "config/database/sveltycms.db"
+            ? `${defaultDbFolder}/sveltycms.db`
             : ":memory:");
     }
 

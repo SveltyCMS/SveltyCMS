@@ -457,10 +457,16 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
 
     const fileName = `${slug}.ts`;
     // 🧪 Route bench/test/mock/openapi collections to config/test-collections/
-    // These are created by the benchmark matrix or integration tests and should not pollute config/collections/
-    const TEST_COLLECTION_PREFIXES = ["bench", "mock", "test", "openapi"];
+    const TEST_COLLECTION_PREFIXES = ["bench", "mock", "test", "openapi", "iso_"];
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
     const isTestCollection =
-      TEST_COLLECTION_PREFIXES.some((p) => slug.startsWith(p)) || slug === "openapitarget";
+      isTestHarness ||
+      TEST_COLLECTION_PREFIXES.some((p) => slug.startsWith(p)) ||
+      slug === "openapitarget";
     const targetDir = isTestCollection ? testDir : baseDir;
     // Only create test/ dir when a test collection actually needs to be written
     if (isTestCollection && !testDirEnsured) {

@@ -184,6 +184,9 @@ test.describe("System Settings shell", () => {
     }
 
     await input.fill(target);
+    await input.dispatchEvent("input");
+    await input.dispatchEvent("change");
+    await input.dispatchEvent("blur");
     const cachePanel = page.getByTestId("settings-panel-cache");
     const groupSave = cachePanel.getByTestId("settings-group-save");
     await expect(groupSave).toBeEnabled({

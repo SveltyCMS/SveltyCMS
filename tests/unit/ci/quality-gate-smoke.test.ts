@@ -42,7 +42,7 @@ describe("package gate scripts", () => {
 describe("pre-commit hook", () => {
   it("runs format + lint", () => {
     const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
-    expect(hook).toContain("bun run check");
+    expect(hook).toMatch(/(\$RUN_CMD|bun run) check/);
   });
 
   it("runs unit tests", () => {
@@ -59,10 +59,10 @@ describe("pre-commit hook", () => {
 describe("pre-push hook", () => {
   it("runs build + integration (not unit tests)", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
-    expect(prePush).toContain("bun run build");
+    expect(prePush).toMatch(/(\$RUN_CMD|bun run) build/);
     expect(prePush).toContain("COMPILE_ALL_ADAPTERS");
     expect(prePush).not.toContain("test:unit");
-    expect(prePush).toContain("tests/integration/");
+    expect(prePush).toContain("run-integration.ts");
     expect(prePush).not.toContain("run-integration-tests");
   });
 });

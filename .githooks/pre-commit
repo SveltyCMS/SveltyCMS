@@ -17,20 +17,26 @@ require_bun
 TOTAL=4; OK=0
 
 # Step 1 — Database safety
-if run "🛡️  Database safety" bun run scripts/check-test-db-safety.ts; then
+if run "🛡️  Database safety" $RUN_CMD scripts/check-test-db-safety.ts; then
   OK=$((OK + 1))
 fi
 
 # Step 2 — Format + lint
-if run "🔍  Format + lint" bun run check; then
+if run "🔍  Format + lint" $RUN_CMD check; then
   OK=$((OK + 1))
 else
-  bun run format > /dev/null 2>&1
-  warn "Auto-formatted. ${BOLD}git add -A && git commit -m \"$(git log -1 --format=%s)\"${NC}"
+  $RUN_CMD format > /dev/null 2>&1
+  git add -u 2>/dev/null || true
+  if run "🔍  Re-checking after format" $RUN_CMD check; then
+    warn "Files auto-formatted and staged."
+    OK=$((OK + 1))
+  else
+    warn "Lint errors remain after formatting."
+  fi
 fi
 
 # Step 3 — Lint-staged
-if run "⚡  Lint-staged" bun run gate:fast; then
+if run "⚡  Lint-staged" $RUN_CMD gate:fast; then
   OK=$((OK + 1))
 fi
 
@@ -39,7 +45,7 @@ if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
   warn "Only docs changed — skipping unit tests"
   TOTAL=$((TOTAL - 1))
   OK=$((OK + 1))
-elif run "🧪  Unit tests" bun run test:unit; then
+elif run "🧪  Unit tests" $RUN_CMD test:unit; then
   OK=$((OK + 1))
 fi
 

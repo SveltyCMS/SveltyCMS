@@ -47,8 +47,8 @@ export const getDockerDefaultDbCredentials = (dbType: string): TestDbCredentials
 export const getDefaultDbPort = (dbType: string): string => DB_PORTS[dbType] ?? "";
 
 /** DB name used by integration tests and db-tests CI job. */
-export function getIntegrationDbName(): string {
-  return "sveltycms_test";
+export function getIntegrationDbName(dbType = "sqlite"): string {
+  return dbType === "sqlite" ? "sveltycms_test.sqlite" : "sveltycms_test";
 }
 
 /** DB name used by bench-core CI job (isolated SQLite file for benchmarks). */
@@ -64,7 +64,7 @@ export const UDH_BENCHMARK_FIXTURE_DB = "sveltycms_udh_fixture";
 
 /** UDH fixture database for bench-core — mirrors ci.yml bench-core env. */
 export function getBenchmarkUdhPgDatabase(dbType: string): string {
-  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName();
+  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName(dbType);
 }
 
 /** Env block shared by integration runner invocations (local + CI parity). */

@@ -20,6 +20,7 @@ import { expect, test } from "@playwright/test";
 import { ensureAuthenticated } from "../../helpers/test-auth";
 import {
   addInputField,
+  openCollectionEntries,
   openNewCollectionEditor,
   saveCollectionSchema,
   uniqueCollectionFixture,
@@ -71,14 +72,19 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await saveCollectionSchema(page);
 
     const collectionSlug = fixture.slug;
-    await page.goto(`/en/collection/${collectionSlug}`, { waitUntil: "domcontentloaded" });
+    const sidebarLink = page.locator(`a[href*="${collectionSlug}"]`).first();
+    if (await sidebarLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await sidebarLink.click();
+    } else {
+      await openCollectionEntries(page, collectionSlug);
+    }
 
     const createByTestId = page.getByTestId("entry-list-action-create");
     await expect(
       createByTestId,
       `Expected entry list for collection "${collectionSlug}" after schema save`,
     ).toBeVisible({ timeout: 20_000 });
-    await createByTestId.click();
+    await createByTestId.click({ force: true });
 
     await page.getByRole("textbox", { name: "Title" }).fill("Golden Entry");
     await page.getByRole("button", { name: /save/i }).first().click();

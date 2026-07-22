@@ -16,6 +16,9 @@ const MEDIA_DND_MIME = "application/x-sveltycms-media-ids";
 async function openGallery(page: Page) {
   await loginAsAdmin(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  if (page.url().includes("/warming-up")) {
+    await page.waitForURL(/\/mediagallery/, { timeout: 20_000 });
+  }
   await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });

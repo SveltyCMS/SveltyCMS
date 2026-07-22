@@ -34,7 +34,9 @@ test.describe("Permission Management Flow", () => {
 
     const toToggle = Math.min(bodyCount, 3);
     for (let i = 0; i < toToggle; i++) {
-      await cellCheckboxes.nth(i).click({ force: true });
+      const cb = cellCheckboxes.nth(i);
+      await cb.click({ force: true });
+      await cb.dispatchEvent("change");
     }
 
     const saveBtn = page

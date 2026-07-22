@@ -70,6 +70,9 @@ test.describe("RTC preferences", () => {
     await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = section.locator('input[type="checkbox"]');
 
+    // Read initial state so we know what the toggle will send
+    const initialChecked = await checkbox.isChecked();
+
     const apiCall = page.waitForResponse(
       (res) =>
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
@@ -79,8 +82,8 @@ test.describe("RTC preferences", () => {
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 
-    const body = res.request().postDataJSON();
-    const expectedSound = body?.newUserData?.preferences?.rtc?.sound;
+    // After toggling, the expected persisted state is the opposite of initial
+    const expectedSound = !initialChecked;
 
     await expect(async () => {
       await page.reload({ waitUntil: "domcontentloaded" });
@@ -90,7 +93,7 @@ test.describe("RTC preferences", () => {
       .getByTestId("pref-rtc-sound")
       .locator('input[type="checkbox"]')
       .isChecked();
-    expect(checked).toBe(!!expectedSound);
+    expect(checked).toBe(expectedSound);
   });
 
   test("real-time editing toggle sends rtc.enabled", async ({ page }) => {

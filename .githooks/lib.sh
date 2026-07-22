@@ -177,11 +177,34 @@ has_changes() {
   git diff --name-only "$base" -- 2>/dev/null | grep -qE "$patterns"
 }
 
-# ── Check prerequisites ────────────────────────────────────────────
-require_bun() {
-  if ! command -v bun >/dev/null 2>&1; then
-    printf '%b\n' "${RED}❌ bun is not installed${NC}"
-    printf '%b\n' "   Install: ${CYAN}curl -fsSL https://bun.sh/install | bash${NC}"
+# ── Detect Package Manager (Agnostic: bun, pnpm, yarn, npm) ────────
+PM_NAME="bun"
+RUN_CMD="bun run"
+EXEC_CMD="bun x"
+
+detect_pm() {
+  if command -v bun >/dev/null 2>&1; then
+    PM_NAME="bun"
+    RUN_CMD="bun run"
+    EXEC_CMD="bun x"
+  elif command -v pnpm >/dev/null 2>&1; then
+    PM_NAME="pnpm"
+    RUN_CMD="pnpm run"
+    EXEC_CMD="pnpm exec"
+  elif command -v yarn >/dev/null 2>&1; then
+    PM_NAME="yarn"
+    RUN_CMD="yarn run"
+    EXEC_CMD="yarn dlx"
+  elif command -v npm >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then
+    PM_NAME="npm"
+    RUN_CMD="npm run"
+    EXEC_CMD="npx"
+  else
+    printf '%b\n' "${RED}❌ No JavaScript package manager found (bun, pnpm, yarn, npm)${NC}"
     exit 1
   fi
+}
+
+require_bun() {
+  detect_pm
 }

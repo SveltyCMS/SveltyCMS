@@ -17,6 +17,10 @@ async function openMediaGallery(page: import("@playwright/test").Page) {
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/mediagallery");
   }
+  // warming-up redirect: wait for the system to warm up
+  if (page.url().includes("/warming-up")) {
+    await page.waitForURL(/\/mediagallery/, { timeout: 20_000 });
+  }
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 
@@ -29,7 +33,7 @@ async function openMediaGallery(page: import("@playwright/test").Page) {
   ];
   let ok = false;
   for (const m of markers) {
-    if (await m.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    if (await m.isVisible({ timeout: 10_000 }).catch(() => false)) {
       ok = true;
       break;
     }
@@ -95,6 +99,16 @@ test.describe("Media Gallery", () => {
     // Native button — Playwright click is enough; evaluate as belt-and-suspenders
     await tableBtn.click({ force: true });
     // Table view may unmount/remount the content container — wait for re-attach
+    // If Svelte triggers a system error (effect_update_depth_exceeded), recover by reload
+    const systemError = page.getByRole("heading", { name: /system error/i });
+    if (await systemError.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const reloadBtn = page.getByRole("button", { name: /reload page/i });
+      if (await reloadBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await reloadBtn.click();
+        await openMediaGallery(page);
+      }
+      await tableBtn.click({ force: true });
+    }
     await content.waitFor({ state: "attached", timeout: 15_000 });
     await expect(content).toHaveAttribute("data-view", "table", { timeout: 10_000 });
     await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
@@ -139,8 +153,11 @@ test.describe("Media Gallery", () => {
     const actions = cell.locator("[data-testid='media-grid-actions']");
     await expect(actions).toBeVisible({ timeout: 5_000 });
 
-    // Click the delete button — aria-label="Delete {filename}"
-    await actions.getByRole("button", { name: new RegExp(filename) }).click();
+    // Target delete button by exact aria-label to avoid strict-mode violation
+    // (grid actions contain: Details, Edit, Tags, Delete — all named after the filename)
+    const deleteBtn = actions.getByLabel(`Delete ${filename}`, { exact: true });
+    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
+    await deleteBtn.click();
 
     // Confirm dialog appears — click confirm
     const dialog = page.getByRole("dialog");

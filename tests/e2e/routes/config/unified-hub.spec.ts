@@ -71,9 +71,11 @@ test.describe("Unified Data Hub — always-on", () => {
     }
   });
 
-  test("virtual-collections rejects unauthenticated access", async ({ request }) => {
-    const res = await request.get("/api/virtual-collections");
+  test("virtual-collections rejects unauthenticated access", async ({ playwright }) => {
+    const unauthContext = await playwright.request.newContext();
+    const res = await unauthContext.get("http://127.0.0.1:4173/api/virtual-collections");
     expect([401, 403]).toContain(res.status());
+    await unauthContext.dispose();
   });
 
   test("unified-data-hub can be enabled (enable-plugin or UI)", async ({ page }) => {

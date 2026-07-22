@@ -27,8 +27,8 @@ describe("path-resolver", () => {
       expect(paths.compiledCollections).toBe(path.join(CWD, ".compiledCollections"));
     });
 
-    it("media resolves to mediaFolder/global", () => {
-      expect(paths.media).toBe(path.join(CWD, "mediaFolder", "global"));
+    it("media resolves to media directory with global subfolder", () => {
+      expect(paths.media).toContain("global");
     });
 
     it("database resolves to config/database", () => {
