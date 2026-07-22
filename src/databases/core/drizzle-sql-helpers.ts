@@ -382,7 +382,7 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
-  pluginStorage: ["_id", "plugin", "collection", "tenantId", "data", "createdAt", "updatedAt"],
+  pluginStorage: ["_id", "plugin", "collectionName", "tenantId", "data", "createdAt", "updatedAt"],
   tenants: [
     "_id",
     "name",

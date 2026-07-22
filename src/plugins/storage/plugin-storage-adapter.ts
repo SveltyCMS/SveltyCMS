@@ -56,7 +56,7 @@ export function normalizeStorageRecord<T = any>(row: any): StorageRecord<T> | nu
     ...row,
     _id: String(row._id ?? row.id ?? ""),
     plugin: String(row.plugin ?? ""),
-    collection: String(row.collection ?? ""),
+    collectionName: String(row.collectionName ?? ""),
     data: data as T,
   } as StorageRecord<T>;
 }
@@ -101,7 +101,7 @@ export class PluginStorageAdapterImpl implements PluginStorageAdapter {
 
     const record = {
       plugin: plugin.trim(),
-      collection: collection.trim(),
+      collectionName: collection.trim(),
       tenantId: toDbId(options?.tenantId) ?? null,
       data: data as Record<string, unknown>,
     };
@@ -125,7 +125,7 @@ export class PluginStorageAdapterImpl implements PluginStorageAdapter {
     const normalized = normalizeStorageRecord<T>(result.data) ?? {
       _id: String((result.data as any)?._id ?? ""),
       plugin: plugin.trim(),
-      collection: collection.trim(),
+      collectionName: collection.trim(),
       tenantId: options?.tenantId,
       data: payloadClone,
       createdAt: "" as any,
@@ -153,7 +153,7 @@ export class PluginStorageAdapterImpl implements PluginStorageAdapter {
     const query: QueryFilter<any> = {
       _id: recordId as DatabaseId,
       plugin,
-      collection,
+      collectionName: collection,
     };
 
     const result = await this.dbAdapter.crud.findOne(PLUGIN_STORAGE_COLLECTION, query, {
@@ -174,7 +174,7 @@ export class PluginStorageAdapterImpl implements PluginStorageAdapter {
   ): Promise<{ data: StorageRecord<T>[]; total: number }> {
     const query: QueryFilter<any> = {
       plugin,
-      collection,
+      collectionName: collection,
     };
 
     const limit = options?.limit ?? 50;

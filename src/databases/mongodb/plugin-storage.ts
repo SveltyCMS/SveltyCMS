@@ -3,7 +3,7 @@
  * @description MongoDB schema for plugin storage records.
  *
  * Shared collection for arbitrary plugin JSON documents, scoped by
- * (plugin, collection, tenantId) — mirrors the SQL `plugin_storage` table.
+ * (plugin, collectionName, tenantId) — mirrors the SQL `plugin_storage` table.
  */
 
 import { generateId } from "@src/databases/mongodb/mongodb-utils";
@@ -14,7 +14,7 @@ import mongoose, { Schema } from "mongoose";
 export interface PluginStorageDoc {
   _id: string;
   plugin: string;
-  collection: string;
+  collectionName: string;
   tenantId?: string | null;
   data: Record<string, unknown>;
   createdAt: string;
@@ -25,7 +25,7 @@ export const pluginStorageSchema = new Schema<PluginStorageDoc>(
   {
     _id: { type: String, required: true, default: () => generateId() },
     plugin: { type: String, required: true, index: true },
-    collection: { type: String, required: true, index: true },
+    collectionName: { type: String, required: true, index: true },
     tenantId: { type: String, default: null, index: true },
     data: { type: Schema.Types.Mixed, required: true, default: {} },
     createdAt: { type: String, default: () => nowISODateString() },
@@ -39,8 +39,8 @@ export const pluginStorageSchema = new Schema<PluginStorageDoc>(
   },
 );
 
-pluginStorageSchema.index({ plugin: 1, collection: 1, tenantId: 1 });
-pluginStorageSchema.index({ plugin: 1, collection: 1 });
+pluginStorageSchema.index({ plugin: 1, collectionName: 1, tenantId: 1 });
+pluginStorageSchema.index({ plugin: 1, collectionName: 1 });
 
 export type PluginStorageModelType = Model<PluginStorageDoc>;
 

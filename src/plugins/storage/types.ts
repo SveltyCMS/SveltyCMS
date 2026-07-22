@@ -22,8 +22,8 @@ export interface StorageRecord<T = any> {
   _id: string;
   /** Plugin that owns this record (e.g., 'seo-audit', 'pagespeed') */
   plugin: string;
-  /** Logical collection within the plugin (e.g., 'results', 'reports') */
-  collection: string;
+  /** Logical collection name within the plugin (e.g., 'results', 'reports') */
+  collectionName: string;
   /** Tenant isolation (null for single-tenant) */
   tenantId?: string;
   /** Arbitrary JSON payload stored by the plugin */

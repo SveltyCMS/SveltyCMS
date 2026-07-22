@@ -19,15 +19,64 @@
  *   bun run test:doctor --with-e2e
  */
 
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import {
+  buildIntegrationServerEnv,
+  cleanSqliteTestFiles,
+  createIntegrationContext,
+  ensurePortAvailable,
+  stopChildProcessTree,
+  waitForIntegrationHealth,
+  writePrivateTestConfig,
+} from "./integration-harness.ts";
 
 const ROOT = join(import.meta.dirname, "..");
 const args = process.argv.slice(2);
 const LIST_ONLY = args.includes("--list");
 const UNIT_ONLY = args.includes("--unit-only");
 const WITH_E2E = args.includes("--with-e2e");
+
+// Docker container → adapter mapping
+const DOCKER_ADAPTER_MAP: Record<string, { dbType: string; testFile: string }> = {
+  sveltycmsMongodb: {
+    dbType: "mongodb",
+    testFile: "tests/integration/databases/mongodb-adapter.test.ts",
+  },
+  sveltycmsPostgresql: {
+    dbType: "postgresql",
+    testFile: "tests/integration/databases/postgresql-adapter.test.ts",
+  },
+  sveltycmsMariadb: {
+    dbType: "mariadb",
+    testFile: "tests/integration/databases/mariadb-adapter.test.ts",
+  },
+};
+
+function detectDockerDbs(): { dbType: string; testFile: string }[] {
+  try {
+    const ps = execSync('docker ps --format "{{.Names}}"', {
+      encoding: "utf8",
+      timeout: 5000,
+      cwd: ROOT,
+    }).trim();
+    const names = ps
+      .split(/\r?\n/)
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+    const found: { dbType: string; testFile: string }[] = [];
+    for (const [key, val] of Object.entries(DOCKER_ADAPTER_MAP)) {
+      const canonName = key.toLowerCase().replace(/[_-]/g, "");
+      if (names.some((n: string) => n.toLowerCase().replace(/[_-]/g, "") === canonName)) {
+        found.push(val);
+      }
+    }
+    return found;
+  } catch {
+    return [];
+  }
+}
 
 function printGateMap(): void {
   console.log(`
@@ -46,7 +95,7 @@ LOCAL (always safe for live config/private.ts — uses private.test.ts)
     2. bun test --timeout 300000 tests/integration/   (SQLite)
 
   Manual shortcuts
-    bun run test:doctor       ← this command (unit + SQLite integration)
+    bun run test:doctor       ← this command (unit + SQLite + Docker adapters)
     bun run test:unit
     bun run test:security     hooks defense-in-depth / auth / RBAC / file-server
     bun run test:smart        git-diff suite picker
@@ -54,10 +103,11 @@ LOCAL (always safe for live config/private.ts — uses private.test.ts)
     bun run test:e2e:dev      Vite :5173 (fast, not CI-identical)
     bun run test:e2e:quick    reuse existing build
 
-  Multi-DB integration (Docker required except SQLite)
+  Multi-DB integration (auto-detected by test:doctor — Docker must be running)
     docker compose -f tests/docker-compose.yml --profile postgresql up -d
-    DB_TYPE=postgresql bun test --timeout 300000 tests/integration/
-    # same for mongodb | mariadb
+    docker compose -f tests/docker-compose.yml --profile mongodb up -d
+    docker compose -f tests/docker-compose.yml --profile mariadb up -d
+    # test:doctor detects running containers and runs matching adapter tests
 
 GITHUB ACTIONS (.github/workflows/ci.yml) — full matrix
 
@@ -132,11 +182,45 @@ async function main(): Promise<void> {
     );
   }
 
-  console.log("── Running: SQLite integration (harness starts preview) ──\n");
-  const intCode = await run("bun", ["test", "--timeout", "300000", "tests/integration/"], {
-    DB_TYPE: process.env.DB_TYPE || "sqlite",
-    TEST_MODE: "true",
-  });
+  // ── Start preview server for integration tests ────────────────────────────
+
+  console.log("── Starting preview server for integration tests ──\n");
+  const ctx = createIntegrationContext(ROOT);
+  writePrivateTestConfig(ctx);
+  cleanSqliteTestFiles(ctx.root, ctx.dbType, ctx.dbName);
+  await ensurePortAvailable(ctx.port, ctx.apiBaseUrl);
+
+  let server = null;
+  try {
+    server = spawn("node", [buildIndex], {
+      cwd: ROOT,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+      env: buildIntegrationServerEnv(ctx),
+    });
+    server.stdout?.on("data", (d: Buffer) => process.stdout.write(`[server] ${d}`));
+    server.stderr?.on("data", (d: Buffer) => process.stderr.write(`[server] ${d}`));
+
+    await waitForIntegrationHealth(ctx.apiBaseUrl, { testApiSecret: ctx.secrets.testApiSecret });
+    console.log("\n✅ Server ready\n");
+  } catch {
+    await stopChildProcessTree(server, { label: "preview" });
+    console.error("\n❌ Server failed to start. Check build and port 4173.\n");
+    process.exit(1);
+  }
+
+  let intCode = 0;
+  try {
+    console.log("── Running: SQLite integration tests ──\n");
+    intCode = await run("bun", ["test", "--timeout", "300000", "tests/integration/"], {
+      DB_TYPE: process.env.DB_TYPE || "sqlite",
+      TEST_MODE: "true",
+      TEST_API_SECRET: ctx.secrets.testApiSecret,
+    });
+  } finally {
+    await stopChildProcessTree(server, { label: "preview" });
+  }
+
   if (intCode !== 0) {
     console.error("\n❌ Integration tests failed.\n");
     console.error("Tips: free port 4173; ensure config/private.test.ts DB_NAME contains 'test'.");
@@ -155,8 +239,31 @@ async function main(): Promise<void> {
     console.log("\n✔ E2E passed\n");
   }
 
+  // ── Docker adapter tests (in-process, no preview server needed) ────────────
+  const dockerDbs = detectDockerDbs();
+  const dockerLabels: string[] = [];
+  if (dockerDbs.length > 0) {
+    console.log(
+      `── Running: ${dockerDbs.map((d) => d.dbType).join(", ")} adapter tests (Docker) ──\n`,
+    );
+    for (const { dbType, testFile } of dockerDbs) {
+      const label = `${dbType} adapter`;
+      console.log(`  ▶ ${label}`);
+      const code = await run("bun", ["test", "--timeout", "120000", testFile], {
+        DB_TYPE: dbType,
+        TEST_MODE: "true",
+      });
+      if (code !== 0) {
+        console.error(`\n❌ ${label} tests failed.\n`);
+        process.exit(code);
+      }
+      dockerLabels.push(dbType);
+      console.log(`  ✔ ${label} passed\n`);
+    }
+  }
+
   console.log(`━━━ Doctor summary ━━━
-  Local:  unit ✔  integration(sqlite) ✔${WITH_E2E ? "  e2e ✔" : ""}
+  Local:  unit ✔  integration(sqlite) ✔${dockerLabels.map((d) => `  ${d} ✔`).join("")}${WITH_E2E ? "  e2e ✔" : ""}
   CI will still run:  4× DB  ·  4× bench  ·  6× E2E groups
   Before push:        bun run gate   (if you have not built recently)
   Focused re-run:     bun run test:smart

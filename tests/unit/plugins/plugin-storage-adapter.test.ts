@@ -29,7 +29,7 @@ describe("normalizeStorageRecord", () => {
     const rec = normalizeStorageRecord({
       _id: "1",
       plugin: "seo",
-      collection: "r",
+      collectionName: "r",
       data: '{"score":95}',
     });
     expect(rec?.data).toEqual({ score: 95 });
@@ -39,7 +39,7 @@ describe("normalizeStorageRecord", () => {
     const rec = normalizeStorageRecord({
       _id: "1",
       plugin: "seo",
-      collection: "r",
+      collectionName: "r",
       data: JSON.stringify(JSON.stringify({ score: 95 })),
     });
     expect(rec?.data).toEqual({ score: 95 });
@@ -49,7 +49,7 @@ describe("normalizeStorageRecord", () => {
     const rec = normalizeStorageRecord({
       _id: "1",
       plugin: "seo",
-      collection: "r",
+      collectionName: "r",
       data: { score: 10 },
     });
     expect(rec?.data).toEqual({ score: 10 });
@@ -60,7 +60,7 @@ describe("matchesPluginStorageFilter", () => {
   const rec: StorageRecord = {
     _id: "1",
     plugin: "seo",
-    collection: "reports",
+    collectionName: "reports",
     data: { score: 90, url: "https://a.test" },
     createdAt: "2026-01-01T00:00:00.000Z" as any,
     updatedAt: "2026-01-01T00:00:00.000Z" as any,
@@ -95,7 +95,7 @@ describe("PluginStorageAdapterImpl", () => {
     const created = {
       _id: "r1",
       plugin: "seo",
-      collection: "reports",
+      collectionName: "reports",
       data: { score: 1 },
       createdAt: "t",
       updatedAt: "t",
@@ -116,7 +116,7 @@ describe("PluginStorageAdapterImpl", () => {
       PLUGIN_STORAGE_COLLECTION,
       expect.objectContaining({
         plugin: "seo",
-        collection: "reports",
+        collectionName: "reports",
         data: { score: 1 },
       }),
       expect.objectContaining({ tenantId: "ten-1" }),
@@ -130,13 +130,13 @@ describe("PluginStorageAdapterImpl", () => {
   it("getRecord scopes by plugin + collection + id", async () => {
     db.crud.findOne.mockResolvedValue({
       success: true,
-      data: { _id: "r1", plugin: "seo", collection: "reports", data: {} },
+      data: { _id: "r1", plugin: "seo", collectionName: "reports", data: {} },
     });
     const row = await adapter.getRecord("seo", "reports", "r1");
     expect(row?._id).toBe("r1");
     expect(db.crud.findOne).toHaveBeenCalledWith(
       PLUGIN_STORAGE_COLLECTION,
-      expect.objectContaining({ _id: "r1", plugin: "seo", collection: "reports" }),
+      expect.objectContaining({ _id: "r1", plugin: "seo", collectionName: "reports" }),
       expect.any(Object),
     );
   });
@@ -151,8 +151,8 @@ describe("PluginStorageAdapterImpl", () => {
     db.crud.findMany.mockResolvedValue({
       success: true,
       data: [
-        { _id: "a", plugin: "seo", collection: "r", data: { n: 1 } },
-        { _id: "b", plugin: "seo", collection: "r", data: { n: 2 } },
+        { _id: "a", plugin: "seo", collectionName: "r", data: { n: 1 } },
+        { _id: "b", plugin: "seo", collectionName: "r", data: { n: 2 } },
       ],
     });
     const page = await adapter.listRecords("seo", "r", { limit: 10, offset: 0 });
@@ -164,8 +164,8 @@ describe("PluginStorageAdapterImpl", () => {
     db.crud.findMany.mockResolvedValue({
       success: true,
       data: [
-        { _id: "a", plugin: "seo", collection: "r", data: { status: "ok" } },
-        { _id: "b", plugin: "seo", collection: "r", data: { status: "fail" } },
+        { _id: "a", plugin: "seo", collectionName: "r", data: { status: "ok" } },
+        { _id: "b", plugin: "seo", collectionName: "r", data: { status: "fail" } },
       ],
     });
     const page = await adapter.listRecords("seo", "r", {
@@ -185,7 +185,7 @@ describe("PluginStorageAdapterImpl", () => {
   it("deleteRecord permanently deletes when found", async () => {
     db.crud.findOne.mockResolvedValue({
       success: true,
-      data: { _id: "x", plugin: "seo", collection: "r", data: {} },
+      data: { _id: "x", plugin: "seo", collectionName: "r", data: {} },
     });
     db.crud.delete.mockResolvedValue({ success: true });
     expect(await adapter.deleteRecord("seo", "r", "x")).toBe(true);

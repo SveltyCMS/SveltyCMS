@@ -6,7 +6,7 @@ description: "Shared JSON record store for plugins — zero per-plugin tables ac
 
 # Plugin Storage
 
-Plugins persist arbitrary JSON records without creating custom tables. All adapters share the `plugin_storage` collection/table, scoped by `(plugin, collection, tenantId)`.
+Plugins persist arbitrary JSON records without creating custom tables. All adapters share the `plugin_storage` collection/table, scoped by `(plugin, collectionName, tenantId)`.
 
 ## Usage
 
@@ -31,7 +31,7 @@ await cms.pluginStorage.deleteRecord("seo-audit", "reports", rec._id);
 | :------------------------ | :----------------------------------- |
 | `_id`                     | Primary key                          |
 | `plugin`                  | Plugin id                            |
-| `collection`              | Logical collection within the plugin |
+| `collectionName`          | Logical collection within the plugin |
 | `tenantId`                | Multi-tenant isolation               |
 | `data`                    | JSON payload                         |
 | `createdAt` / `updatedAt` | Timestamps                           |

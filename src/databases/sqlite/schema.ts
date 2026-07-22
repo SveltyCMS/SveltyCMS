@@ -484,18 +484,18 @@ export const pluginStorage = sqliteTable(
   {
     _id: uuidPk(),
     plugin: text("plugin", { length: 255 }).notNull(),
-    collection: text("collection", { length: 255 }).notNull(),
+    collectionName: text("collection", { length: 255 }).notNull(),
     tenantId: tenantField(),
     data: text("data", { mode: "json" }).notNull().default({}),
     ...timestamps,
   },
   (table) => ({
     pluginIdx: index("plugin_storage_plugin_idx").on(table.plugin),
-    collectionIdx: index("plugin_storage_collection_idx").on(table.collection),
+    collectionIdx: index("plugin_storage_collection_idx").on(table.collectionName),
     tenantIdx: index("plugin_storage_tenant_idx").on(table.tenantId),
     pluginCollectionIdx: index("plugin_storage_plugin_collection_idx").on(
       table.plugin,
-      table.collection,
+      table.collectionName,
     ),
   }),
 );

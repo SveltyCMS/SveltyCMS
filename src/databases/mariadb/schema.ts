@@ -483,18 +483,18 @@ export const pluginStorage = mysqlTable(
   {
     _id: uuidPk(),
     plugin: varchar("plugin", { length: 255 }).notNull(),
-    collection: varchar("collection", { length: 255 }).notNull(),
+    collectionName: varchar("collection", { length: 255 }).notNull(),
     tenantId: tenantField(),
     data: json("data").notNull(),
     ...timestamps,
   },
   (table) => ({
     pluginIdx: index("plugin_storage_plugin_idx").on(table.plugin),
-    collectionIdx: index("plugin_storage_collection_idx").on(table.collection),
+    collectionIdx: index("plugin_storage_collection_idx").on(table.collectionName),
     tenantIdx: index("plugin_storage_tenant_idx").on(table.tenantId),
     pluginCollectionIdx: index("plugin_storage_plugin_collection_idx").on(
       table.plugin,
-      table.collection,
+      table.collectionName,
     ),
   }),
 );

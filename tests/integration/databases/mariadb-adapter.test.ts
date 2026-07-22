@@ -110,7 +110,6 @@ describeMariaDB("MariaDB Adapter Integration", () => {
       } as any);
       expect(findRes.success).toBe(true);
       if (findRes.success && findRes.data) {
-        console.log("DEBUG findOne data:", JSON.stringify(findRes.data, null, 2));
         const val =
           typeof (findRes.data as any).value === "string"
             ? JSON.parse((findRes.data as any).value)

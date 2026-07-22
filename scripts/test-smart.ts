@@ -322,9 +322,9 @@ const SUITE_RULES: SuiteRule[] = [
       "src/databases/db.ts",
       "src/databases/dbInterface.ts",
     ],
-    // Integration harness auto-starts preview + private.test.ts (SQLite default).
-    // Multi-DB: DB_TYPE=postgresql|mariadb|mongodb bun test --timeout 300000 tests/integration/
-    command: "bun test --timeout 300000 tests/integration/databases/",
+    // List individual files (not contract.test.ts / tenant-isolation.test.ts — they need preview server on :4173)
+    command:
+      "bun test --timeout 300000 tests/integration/databases/adapter-parity.test.ts tests/integration/databases/advanced-crud-contract.test.ts tests/integration/databases/bulk-operations-contract.test.ts tests/integration/databases/cache-contract.test.ts tests/integration/databases/cache-integration.test.ts tests/integration/databases/content-nodes-contract.test.ts tests/integration/databases/db-interface.test.ts tests/integration/databases/error-contract.test.ts tests/integration/databases/health-contract.test.ts tests/integration/databases/resilience-load.test.ts tests/integration/databases/sqlite-adapter.test.ts tests/integration/databases/transaction-contract.test.ts",
   },
   {
     label: "Content Structure Persistence",
@@ -601,8 +601,22 @@ function filterExcludedFiles(cmd: string, excludeList: string[]): string {
 
 async function runCommand(cmd: string, cwd: string): Promise<{ code: number; output: string }> {
   const parts = cmd.split(/\s+/);
-  const bin = parts[0];
-  const args = parts.slice(1);
+
+  // Extract environment variable prefixes (VAR=value) — works cross-platform
+  const envOverrides: Record<string, string> = {};
+  let cmdStart = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const eqIdx = parts[i].indexOf("=");
+    if (eqIdx > 0 && /^[A-Z_][A-Z0-9_]*$/i.test(parts[i].slice(0, eqIdx))) {
+      envOverrides[parts[i].slice(0, eqIdx)] = parts[i].slice(eqIdx + 1);
+      cmdStart = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  const bin = parts[cmdStart];
+  const args = parts.slice(cmdStart + 1);
 
   const CHUNK_SIZE = 20;
 
@@ -633,6 +647,7 @@ async function runCommand(cmd: string, cwd: string): Promise<{ code: number; out
           cwd,
           stdio: "inherit",
           shell: process.platform === "win32",
+          env: { ...process.env, ...envOverrides },
         });
         proc.on("close", (c: number | null) => res(c ?? 0));
       });
@@ -652,6 +667,7 @@ async function runCommand(cmd: string, cwd: string): Promise<{ code: number; out
       cwd,
       stdio: "inherit",
       shell: process.platform === "win32",
+      env: { ...process.env, ...envOverrides },
     });
 
     proc.on("close", (code: number) => {

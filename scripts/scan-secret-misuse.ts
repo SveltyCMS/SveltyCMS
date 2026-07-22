@@ -391,7 +391,10 @@ function scanLine(
       const value = assignMatch[1];
       const varName = line.match(/(?:const|let|var)\s+([A-Z_][A-Z0-9_]{2,})/)?.[1] ?? "";
       if (!isKnownSafe(value) && isHighEntropy(value) && value.length >= 30) {
-        if (!value.startsWith("{") && !value.startsWith("[")) {
+        // Skip URLs and CSS class strings (common false positives)
+        const isUrl = value.startsWith("https://") || value.startsWith("http://");
+        const isCssClass = /^[a-z][-a-z0-9/]+ /.test(value);
+        if (!isUrl && !isCssClass && !value.startsWith("{") && !value.startsWith("[")) {
           findings.push({
             file: relPath,
             line: lineNum,
