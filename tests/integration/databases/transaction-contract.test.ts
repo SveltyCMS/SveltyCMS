@@ -99,7 +99,7 @@ describe("Transaction Contract — All Adapters", () => {
     const id = uid("txn-rollback");
     try {
       await adapter.transaction(async (_txn: any) => {
-        await db.crud.insert(
+        await _txn.insert(
           TEST_COLLECTION,
           {
             _id: id,
@@ -130,7 +130,7 @@ describe("Transaction Contract — All Adapters", () => {
     try {
       await adapter.transaction(async (_txn: any) => {
         // First insert succeeds
-        await db.crud.insert(
+        await _txn.insert(
           TEST_COLLECTION,
           {
             _id: id1,
@@ -141,7 +141,7 @@ describe("Transaction Contract — All Adapters", () => {
           tenantOpts,
         );
         // Second insert uses duplicate ID to force failure
-        await db.crud.insert(
+        await _txn.insert(
           TEST_COLLECTION,
           {
             _id: id1,
