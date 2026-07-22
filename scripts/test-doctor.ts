@@ -25,6 +25,7 @@ import { join } from "node:path";
 import {
   buildIntegrationServerEnv,
   cleanSqliteTestFiles,
+  cleanupTestArtifacts,
   createIntegrationContext,
   ensurePortAvailable,
   stopChildProcessTree,
@@ -185,6 +186,7 @@ async function main(): Promise<void> {
   // ── Start preview server for integration tests ────────────────────────────
 
   console.log("── Starting preview server for integration tests ──\n");
+  cleanupTestArtifacts(ROOT);
   const ctx = createIntegrationContext(ROOT);
   writePrivateTestConfig(ctx);
   cleanSqliteTestFiles(ctx.root, ctx.dbType, ctx.dbName);
@@ -220,6 +222,8 @@ async function main(): Promise<void> {
   } finally {
     await stopChildProcessTree(server, { label: "preview" });
   }
+
+  cleanupTestArtifacts(ROOT);
 
   if (intCode !== 0) {
     console.error("\n❌ Integration tests failed.\n");

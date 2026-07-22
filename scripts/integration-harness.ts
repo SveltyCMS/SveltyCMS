@@ -18,7 +18,7 @@
  */
 
 import { execSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
@@ -252,7 +252,7 @@ export function createIntegrationContext(
   const port = overrides.port ?? process.env.PORT ?? "4173";
   const apiBaseUrl = overrides.apiBaseUrl ?? process.env.API_BASE_URL ?? `http://127.0.0.1:${port}`;
   const dbType = (overrides.dbType ?? process.env.DB_TYPE ?? "sqlite").toLowerCase();
-  const dbName = overrides.dbName ?? process.env.DB_NAME ?? getIntegrationDbName();
+  const dbName = overrides.dbName ?? process.env.DB_NAME ?? getIntegrationDbName(dbType);
   return {
     root,
     port,
@@ -547,4 +547,71 @@ export function detectDockerAdapterHints(): {
       : "no compose DB containers detected — only sqlite + in-process suites";
 
   return { available, detail };
+}
+
+// ── Cleanup ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Remove test artifacts left behind by the integration harness:
+ * - config/private.test.ts (auto-generated test config)
+ * - config/test-database/ (SQLite DB files for tests)
+ * - config/test-collections/ (collection files for tests)
+ * - config/collections/*.ts (preset-generated collection files)
+ * - config/database/*.sqlite / *.db (leftover SQLite DBs from prior runs)
+ * - .compiledCollections/ (compiled collection output)
+ */
+export function cleanupTestArtifacts(root: string): void {
+  const paths = [
+    join(root, "config", "private.test.ts"),
+    join(root, "config", "test-database"),
+    join(root, "config", "test-collections"),
+    join(root, ".compiledCollections"),
+  ];
+  for (const p of paths) {
+    try {
+      rmSync(p, { recursive: true, force: true });
+    } catch {
+      /* ok */
+    }
+  }
+  // Remove generated collection files from config/collections/ (not .gitkeep or .gitignore)
+  const collectionsDir = join(root, "config", "collections");
+  try {
+    if (existsSync(collectionsDir)) {
+      for (const f of readdirSync(collectionsDir)) {
+        if (f.endsWith(".ts") && f !== ".gitkeep") {
+          try {
+            rmSync(join(collectionsDir, f));
+          } catch {
+            /* ok */
+          }
+        }
+      }
+    }
+  } catch {
+    /* ok */
+  }
+  // Remove leftover SQLite DBs from config/database/
+  const dbDir = join(root, "config", "database");
+  try {
+    if (existsSync(dbDir)) {
+      for (const f of readdirSync(dbDir)) {
+        if (
+          f.endsWith(".sqlite") ||
+          f.endsWith(".db") ||
+          f.endsWith("-wal") ||
+          f.endsWith("-shm")
+        ) {
+          try {
+            rmSync(join(dbDir, f));
+          } catch {
+            /* ok */
+          }
+        }
+      }
+    }
+  } catch {
+    /* ok */
+  }
+  console.log("🧹 Test artifacts cleaned");
 }

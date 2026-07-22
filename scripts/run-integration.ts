@@ -25,6 +25,7 @@ import * as v from "valibot";
 import {
   buildIntegrationServerEnv,
   cleanSqliteTestFiles,
+  cleanupTestArtifacts,
   createIntegrationContext,
   detectDockerAdapterHints,
   ensurePortAvailable,
@@ -498,6 +499,7 @@ async function phaseBuild(args: ParsedArgs): Promise<void> {
 
 /** Phase 3: Setup — config, port, server startup. */
 async function phaseSetup(ctx: ValidatedContext): Promise<ChildProcess> {
+  cleanupTestArtifacts(ctx.root);
   writePrivateTestConfig(ctx);
   cleanSqliteTestFiles(ctx.root, ctx.dbType, ctx.dbName);
 
@@ -582,7 +584,7 @@ async function phaseRun(
   return { exitCode, results, flaky };
 }
 
-/** Phase 5: Cleanup — stop server, release port. */
+/** Phase 5: Cleanup — stop server, clean artifacts, release port. */
 async function phaseCleanup(server: ChildProcess, ctx: ValidatedContext): Promise<void> {
   await stopChildProcessTree(null, { label: "bun test", graceMs: 400 });
   await stopChildProcessTree(server, { label: "preview", graceMs: 800 });
@@ -592,6 +594,7 @@ async function phaseCleanup(server: ChildProcess, ctx: ValidatedContext): Promis
   } catch {
     /* ok */
   }
+  cleanupTestArtifacts(ctx.root);
   console.log("\n🧹 Server stopped.");
 }
 
