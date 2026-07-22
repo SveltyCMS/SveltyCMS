@@ -508,7 +508,7 @@ jobs:
           fi
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          trap "kill $SERVER_PID 2>/dev/null || true" INT TERM EXIT
+          trap "kill $SERVER_PID 2>/dev/null || true" INT TERM
           bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 500
           # Quick verification that the process is still alive after wait-on
           # (listening socket + config loading can race — detect exits early)
