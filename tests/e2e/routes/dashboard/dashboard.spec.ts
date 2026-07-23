@@ -84,12 +84,13 @@ async function ensureNWidgets(page: Page, count: number): Promise<number> {
   let n = await page.locator("[data-widget-id]").count();
   if (n >= count) return n;
 
-  // Empty board: try add from empty-state first (do not reset a partial board)
-  if (n === 0) {
-    const reset = page.getByTestId("dashboard-reset-widgets");
-    if (await reset.isVisible({ timeout: 1_500 }).catch(() => false)) {
-      // Only reset when we already have widgets but need a clean reorder baseline later
-    }
+  // Reset layout to restore default widgets if board has fewer than needed
+  const reset = page.getByTestId("dashboard-reset-widgets");
+  if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await reset.click();
+    await page.waitForTimeout(800);
+    n = await page.locator("[data-widget-id]").count();
+    if (n >= count) return n;
   }
 
   for (let i = 0; i < count + 2 && n < count; i++) {

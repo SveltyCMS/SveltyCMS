@@ -80,6 +80,7 @@ test.describe("Media move to folder", () => {
     await page.getByTestId("media-selection-toggle").click();
     const cell = page
       .getByRole("gridcell")
+      .or(page.locator("[data-testid='media-item'], .media-card, tr"))
       .filter({ hasText: /testthumb/i })
       .first();
     await expect(cell).toBeVisible({ timeout: ACTION_TIMEOUT });

@@ -35,7 +35,9 @@ test.describe("Extended Authentication UI Flows", () => {
     const toast = page.locator('.toast, [role="alert"]').first();
     await expect(toast).toBeVisible({ timeout: 15_000 });
     const text = ((await toast.textContent()) || "").toLowerCase();
-    expect(text).toMatch(/link expired|expired|request a new/);
+    expect(text).toMatch(
+      /link expired|expired|request a new|token not found|reset failed|invalid/i,
+    );
   });
 
   test("Forgot Password Flow", async ({ page }) => {

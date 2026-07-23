@@ -159,8 +159,11 @@ test.describe("Media Gallery", () => {
     await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
     await deleteBtn.click();
 
-    // Confirm dialog appears — click confirm
-    const dialog = page.getByRole("dialog");
+    // Confirm dialog appears — click confirm (exclude cookie consent banner from role=dialog)
+    const dialog = page
+      .locator("dialog[open]")
+      .or(page.getByRole("dialog").filter({ hasNotText: /cookie|privacy/i }))
+      .first();
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await dialog.getByRole("button", { name: /confirm/i }).click();
 
