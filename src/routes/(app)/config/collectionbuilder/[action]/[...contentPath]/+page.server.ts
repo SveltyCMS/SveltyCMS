@@ -286,6 +286,9 @@ export const actions: Actions = {
 
       // Compile with tenant ID
       await compile({ logger, tenantId });
+      // Invalidate the scan cache so refresh picks up the newly compiled file
+      const { invalidateScanCache } = await import("@src/content/engine.server");
+      invalidateScanCache();
       await contentSystem.refresh(tenantId);
 
       // 🛡️ Ensure database table is provisioned immediately upon schema save

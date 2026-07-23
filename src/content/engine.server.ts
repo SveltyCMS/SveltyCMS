@@ -191,6 +191,18 @@ export function flushChangedFiles(): string[] {
 const _scanPromises = new Map<string, Promise<Schema[]>>();
 
 /**
+ * Invalidate the compiled-collections scan cache so the next call
+ * to scanCompiledCollections re-reads from disk.
+ */
+export function invalidateScanCache(targetDir?: string): void {
+  if (targetDir) {
+    _scanPromises.delete(targetDir);
+  } else {
+    _scanPromises.clear();
+  }
+}
+
+/**
  * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(targetDir?: string): Promise<Schema[]> {
