@@ -290,11 +290,14 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     );
 
     if (!isBenchmarkRuntime()) {
-      // In test mode, test-collections/ IS the live collections directory — don't filter it out
-      const isTestMode = process.env.TEST_MODE === "true";
+      // Only compile test-collections if explicitly requested via options.userCollections
+      const isExplicitTestTarget = options.userCollections
+        ? options.userCollections.includes("test-collections")
+        : false;
       sourceFiles = sourceFiles.filter(
         (rp) =>
-          (isTestMode || !isBenchmarkRelativePath(rp)) && !isBenchmarkArtifact(path.basename(rp)),
+          (isExplicitTestTarget || !isBenchmarkRelativePath(rp)) &&
+          !isBenchmarkArtifact(path.basename(rp)),
       );
     }
 

@@ -235,7 +235,7 @@ class OutboxServiceImpl {
   ): Promise<OutboxEvent[]> {
     const result = (await db.crud.findMany(this.collectionName, { status: "pending" } as any, {
       limit,
-      sort: { field: "createdAt", direction: "asc" } as any,
+      sort: { createdAt: "asc" },
     })) as unknown as DatabaseResult<OutboxEvent[]>;
 
     return result.success && result.data ? result.data : [];

@@ -488,15 +488,19 @@ export function resolveSqlitePath(host: string | undefined, name: string): strin
   // config/database/ but not config/test-database/
   const isTest =
     typeof process !== "undefined" &&
-    (process.env?.TEST_MODE === "true" || process.env?.VITE_TEST_MODE === "true");
+    (process.env?.TEST_MODE === "true" ||
+      process.env?.VITE_TEST_MODE === "true" ||
+      process.env?.VITEST === "true" ||
+      process.env?.BUN_TEST === "true" ||
+      name.includes("test") ||
+      name.includes("benchmark"));
   if (isTest) {
     try {
-      const { existsSync } = require("node:fs");
+      const { mkdirSync } = require("node:fs");
       const { join } = require("node:path");
       const testDir = join(process.cwd(), "config", "test-database");
-      if (existsSync(testDir)) {
-        return `config/test-database/${finalName}`;
-      }
+      mkdirSync(testDir, { recursive: true });
+      return `config/test-database/${finalName}`;
     } catch {
       // FS check not available (edge runtime) — fall through
     }

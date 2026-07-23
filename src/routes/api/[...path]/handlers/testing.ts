@@ -126,8 +126,9 @@ async function wipeMediaFolder() {
  * Reset system state stores and rate limit buckets.
  */
 async function resetSystemStores() {
-  const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
+  const { resetSystemState, setSystemState } = await import("@src/stores/system/state.svelte.ts");
   resetSystemState();
+  setSystemState("READY", "Test reset completed");
   const { resetInitializationState } = await import("@src/hooks/handle-system-state");
   resetInitializationState();
   try {
@@ -492,6 +493,10 @@ export async function handleTestingRoutes(
         seedHeaders["x-test-session-id"] = sessionId;
         if (seedSetCookie) seedHeaders["Set-Cookie"] = seedSetCookie;
       }
+
+      // Ensure system state transitions to READY after seeding completes
+      const { setSystemState } = await import("@src/stores/system/state.svelte.ts");
+      setSystemState("READY", "Seeded test environment");
 
       return new Response(
         JSON.stringify({

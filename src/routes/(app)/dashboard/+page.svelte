@@ -625,6 +625,7 @@ onMount(() => {
 });
 </script>
 
+<div data-testid="dashboard-widget-registry-ready" data-loaded={registryLoaded}>
 <AdminPageShell title="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config">
 	<WelcomeThemePicker />
 	{#snippet actions()}
@@ -807,6 +808,7 @@ onMount(() => {
 		</section>
 	</div>
 </AdminPageShell>
+</div>
 
 <!-- Import/Export Modal -->
 {#if showImportExport}

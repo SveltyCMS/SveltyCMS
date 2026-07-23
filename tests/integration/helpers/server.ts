@@ -44,6 +44,7 @@ export async function checkServer(): Promise<boolean> {
       "HEALTHY",
       "IDLE",
       "INITIALIZING",
+      "RECOVERY",
     ].includes(status.toUpperCase());
 
     if (!isHealthy) {

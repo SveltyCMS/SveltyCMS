@@ -163,6 +163,8 @@ bulk actions, and predictive preloading.
 				newUrl.searchParams.set(key, String(value));
 			}
 		});
+		// Guard: skip goto if URL hasn't changed to prevent effect_update_depth_exceeded
+		if (newUrl.href === page.url.href) return;
 		goto(newUrl, { keepFocus: true, noScroll: true });
 	}
 
@@ -176,13 +178,19 @@ bulk actions, and predictive preloading.
 	});
 
 	// Keep controller in sync with SSR props
+	// Wrap in untrack to prevent reactive feedback loops when setRows
+	// triggers smart table internal state that re-triggers URL effects
 	$effect(() => {
-		smartTable.setRows(tableData as CollectionEntry[]);
-		smartTable.setPaginationMeta({
-			currentPage: serverPagination.currentPage,
-			pageSize: serverPagination.pageSize,
-			totalItems: serverPagination.totalItems,
-			pagesCount: serverPagination.pagesCount
+		const rows = tableData;
+		const meta = serverPagination;
+		untrack(() => {
+			smartTable.setRows(rows as CollectionEntry[]);
+			smartTable.setPaginationMeta({
+				currentPage: meta.currentPage,
+				pageSize: meta.pageSize,
+				totalItems: meta.totalItems,
+				pagesCount: meta.pagesCount
+			});
 		});
 	});
 

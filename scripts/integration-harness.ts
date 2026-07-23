@@ -45,6 +45,7 @@ export const INTEGRATION_HEALTH_STATES = new Set([
   "degraded",
   "initializing",
   "idle",
+  "recovery",
   "ok",
 ]);
 
@@ -251,7 +252,13 @@ export function createIntegrationContext(
   const secrets = pinIntegrationSecrets();
   const port = overrides.port ?? process.env.PORT ?? "4173";
   const apiBaseUrl = overrides.apiBaseUrl ?? process.env.API_BASE_URL ?? `http://127.0.0.1:${port}`;
-  const dbType = (overrides.dbType ?? process.env.DB_TYPE ?? "sqlite").toLowerCase();
+  let rawDbType = (overrides.dbType ?? process.env.DB_TYPE ?? "sqlite").toLowerCase();
+  if (rawDbType === "postgress" || rawDbType === "postgres" || rawDbType === "pg") {
+    rawDbType = "postgresql";
+  }
+  if (rawDbType === "mongo") rawDbType = "mongodb";
+  if (rawDbType === "maria" || rawDbType === "mysql") rawDbType = "mariadb";
+  const dbType = rawDbType;
   const dbName = overrides.dbName ?? process.env.DB_NAME ?? getIntegrationDbName(dbType);
   return {
     root,
@@ -387,14 +394,20 @@ export async function ensurePortAvailable(
       `⚠️ Port ${port} already has a CMS health endpoint (PID(s): ${pids.join(", ")}). Stopping for a clean run.`,
     );
     for (const pid of pids) killPidTree(pid, true);
-    await sleep(400);
+    for (let i = 0; i < 15; i++) {
+      await sleep(200);
+      if (listListeningPids(port).length === 0) break;
+    }
     return;
   }
 
   if (force) {
     console.warn(`⚠️ FORCE_FREE_PORT: killing non-CMS listener(s) on ${port}: ${pids.join(", ")}`);
     for (const pid of pids) killPidTree(pid, true);
-    await sleep(400);
+    for (let i = 0; i < 15; i++) {
+      await sleep(200);
+      if (listListeningPids(port).length === 0) break;
+    }
     return;
   }
 

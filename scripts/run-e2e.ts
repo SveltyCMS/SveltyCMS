@@ -139,7 +139,7 @@ async function startDevServer(): Promise<ChildProcess> {
   freePort(PORT);
   await sleep(400);
   const proc = spawn(
-    process.platform === "win32" ? "bun.cmd" : "bun",
+    "bun",
     ["x", "vite", "dev", "--port", String(PORT), "--strictPort", "--host", "127.0.0.1"],
     {
       cwd: ROOT,

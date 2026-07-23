@@ -84,11 +84,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     throw redirect(302, newPath);
   }
 
-  if (typedUser.lastAuthMethod === "token") {
-    // Token users go to root on error, or builder if no collections (though they likely shouldn't be in the builder)
-    throw redirect(302, "/");
-  }
-
   try {
     // =================================================================
     // 2. GET COLLECTION SCHEMA
@@ -136,8 +131,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
     if (!currentCollection) {
       const allCols = await contentSystem.getCollections(tenantId);
+      const colPath = collection || "";
       console.log(
-        `[DEBUG-COL] Request collection=${collection}, collectionPath=${collectionPath}, allCols=${JSON.stringify(allCols.map((c) => ({ id: c._id, name: c.name, path: c.path })))}`,
+        `[DEBUG-COL] Request collection=${collection}, collectionPath=/${colPath}, allCols=${JSON.stringify(allCols.map((c) => ({ id: c._id, name: c.name, path: c.path })))}`,
       );
       if (collectionNameOnly?.toLowerCase() === "collections") {
         const allCollections = await contentSystem.getCollections(tenantId);

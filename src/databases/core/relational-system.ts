@@ -773,12 +773,16 @@ export class RelationalSystemModule implements ISystemAdapter {
     },
 
     ensure: async (theme: EntityCreate<Theme>): Promise<Theme> => {
-      const [existing] = await this.db
-        .select()
-        .from(this.schema.themes)
-        .where(eq(this.schema.themes.name, theme.name))
-        .limit(1);
-      if (existing) return utils.convertDatesToISO(existing) as unknown as Theme;
+      try {
+        const [existing] = await this.db
+          .select()
+          .from(this.schema.themes)
+          .where(eq(this.schema.themes.name, theme.name))
+          .limit(1);
+        if (existing) return utils.convertDatesToISO(existing) as unknown as Theme;
+      } catch (err: any) {
+        logger.debug("[themes.ensure] Query failed, attempting install fallback:", err?.message);
+      }
       const res = await this.themes.install(theme);
       if (!res.success) throw res.error;
       return res.data;

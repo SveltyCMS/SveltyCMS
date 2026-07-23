@@ -200,6 +200,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   systemVirtualFolder: "system:settings",
   version: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "version-check": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   permission: "system:admin",
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",

@@ -448,23 +448,62 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const password = ADMIN_CREDENTIALS.password;
 
   // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
+  // Verify session by actually checking for admin shell testid, not just URL (SPA auth
+  // can render auth page without redirect, leaving URL unchanged).
+  let sessionValid = false;
   try {
     await page.goto("/config/collectionbuilder", {
       waitUntil: "domcontentloaded",
       timeout: 20_000,
     });
-    if (!page.url().includes("/login") && !page.url().includes("/setup")) {
-      console.log("[Auth] ✓ Existing session still valid (storageState)");
-      if (waitForUrl instanceof RegExp) {
-        await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
-      } else if (typeof waitForUrl === "string") {
-        await page.goto(waitForUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+    const currentUrl = page.url();
+    if (
+      !currentUrl.includes("/login") &&
+      !currentUrl.includes("/setup") &&
+      !currentUrl.includes("/warming-up")
+    ) {
+      // Double-check by looking for admin shell elements (SPA auth may render auth page at same URL)
+      sessionValid = await page
+        .getByTestId("page-title")
+        .or(page.getByTestId("collection-builder-board"))
+        .or(page.getByTestId("admin-sidebar"))
+        .first()
+        .isVisible({ timeout: 2_000 })
+        .catch(() => false);
+      if (sessionValid) {
+        console.log("[Auth] ✓ Existing session still valid (storageState)");
+        if (waitForUrl != null) {
+          const targetUrl =
+            typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+          await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+          const afterNavUrl = page.url();
+          if (
+            afterNavUrl.includes("/login") ||
+            afterNavUrl.includes("/warming-up") ||
+            afterNavUrl.includes("/setup")
+          ) {
+            console.log(
+              `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
+            );
+            sessionValid = false;
+          } else {
+            if (waitForUrl instanceof RegExp) {
+              await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+            }
+            return;
+          }
+        } else {
+          return;
+        }
+      } else {
+        console.log("[Auth] Page loaded but no admin shell detected — session not valid");
       }
-      return;
     }
   } catch {
     /* fall through */
   }
+
+  if (sessionValid) return;
 
   try {
     // Login first; seed only if admin missing. Seed must NOT wipe users.
@@ -493,13 +532,17 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
-      if (page.url().includes("/login")) {
-        console.log("[Auth] API session did not stick — falling back to UI login");
+      const postAuthUrl = page.url();
+      if (postAuthUrl.includes("/login") || postAuthUrl.includes("/warming-up")) {
+        console.log(
+          `[Auth] API session did not stick — at ${postAuthUrl.includes("/warming-up") ? "warming-up" : "login"} page, falling back to UI login`,
+        );
       } else {
         if (waitForUrl instanceof RegExp) {
           await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
         }
-        if (!page.url().includes("/login")) {
+        const finalUrl = page.url();
+        if (!finalUrl.includes("/login") && !finalUrl.includes("/warming-up")) {
           return;
         }
       }
