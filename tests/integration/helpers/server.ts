@@ -61,12 +61,16 @@ export async function checkServer(): Promise<boolean> {
 // bun run test:integration (which handles this automatically).
 // On Windows, bun test cannot spawn child processes, so the server
 // MUST be running before bun test starts.
-export async function waitForServer(_timeoutMs = 60_000): Promise<void> {
+export async function waitForServer(timeoutMs = 60_000): Promise<void> {
   const baseUrl = getApiBaseUrl();
+  const startTime = Date.now();
 
-  if (await checkServer()) {
-    console.log("✅ Server is already running and healthy.");
-    return;
+  // Poll for health before giving up — server may be mid-reset/warmup from a prior test
+  while (Date.now() - startTime < timeoutMs) {
+    if (await checkServer()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   // Try once via harness (works on non-Windows / when bun test CAN spawn)
