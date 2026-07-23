@@ -56,6 +56,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const typedUser = user as User;
   const { tenantId } = locals;
   const { language, collection } = params;
+  console.log(
+    `[PRE-FLIGHT-CHECK] url=${url.pathname}, language=${language}, collection=${collection}, userLocale=${typedUser?.locale}`,
+  );
 
   // =================================================================
   // 1. PRE-FLIGHT CHECKS & REDIRECTS (moved outside try-catch)
@@ -132,6 +135,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     }
 
     if (!currentCollection) {
+      const allCols = await contentSystem.getCollections(tenantId);
+      console.log(
+        `[DEBUG-COL] Request collection=${collection}, collectionPath=${collectionPath}, allCols=${JSON.stringify(allCols.map((c) => ({ id: c._id, name: c.name, path: c.path })))}`,
+      );
       if (collectionNameOnly?.toLowerCase() === "collections") {
         const allCollections = await contentSystem.getCollections(tenantId);
         if (allCollections.length > 0) {

@@ -173,6 +173,7 @@ const _changedFiles = new Set<string>();
  * Flags the content system that a file has changed.
  */
 export function markFileDirty(filePath?: string | null) {
+  _scanPromises.clear();
   if (filePath) {
     _mtimeTree.delete(filePath);
     _schemaCache.delete(filePath);
@@ -217,8 +218,17 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
         await Promise.all(
           entries.map(async (entry) => {
             const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) return; // DO NOT walk subdirectories to prevent tenant leakage
+            if (entry.isDirectory()) return;
             if (!entry.isFile() || !entry.name.endsWith(".js")) return;
+            // Security guard: reject path traversal or suspicious entry names
+            if (
+              entry.name.includes("..") ||
+              entry.name.includes("/") ||
+              entry.name.includes("\\")
+            ) {
+              logger.warn(`[Scanner] Skipping suspicious file: ${entry.name}`);
+              return;
+            }
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
             const stats = await fsPromises.stat(fullPath);
             fileList.push({ fullPath, mtime: stats.mtimeMs });
@@ -231,7 +241,9 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
 
     try {
       await walk(collectionsDir);
-      const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
+      const scanList = fileList.filter(
+        (f) => _mtimeTree.get(f.fullPath) !== f.mtime || !_schemaCache.has(f.fullPath),
+      );
 
       if (process.env.BENCHMARK_DEBUG === "true") {
         logger.info(`[Scanner] Total files found: ${fileList.length}`);

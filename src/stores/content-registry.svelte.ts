@@ -86,16 +86,17 @@ class ContentStore {
   getCollection(id: string, _tenantId?: string | null): Schema | undefined {
     let schema = this._schemas.get(id);
     if (!schema) {
-      // 🚀 Fix: Case-insensitive fallback lookup
-      const lowerId = id.toLowerCase();
-      schema = Array.from(this._schemas.values()).find(
-        (s) =>
-          (s._id as string)?.toLowerCase() === lowerId ||
-          s.name?.toLowerCase() === lowerId ||
-          s.path?.toLowerCase() === lowerId ||
-          `/collection/${s._id}`.toLowerCase() === lowerId ||
-          `/collection/${s.name}`.toLowerCase() === lowerId,
-      );
+      const cleanId = id.replace(/^\/+/, "").toLowerCase();
+      schema = Array.from(this._schemas.values()).find((s) => {
+        const sId = ((s._id as string) || s.name || "").replace(/^\/+/, "").toLowerCase();
+        const sPath = (s.path || "").replace(/^\/+/, "").toLowerCase();
+        return (
+          sId === cleanId ||
+          sPath === cleanId ||
+          sId === cleanId.replace(/^collection\//, "") ||
+          sPath === cleanId.replace(/^collection\//, "")
+        );
+      });
     }
     return schema;
   }

@@ -145,7 +145,11 @@ async function startDevServer(): Promise<ChildProcess> {
       cwd: ROOT,
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
-      env: { ...process.env, TEST_MODE: process.env.TEST_MODE || "true" },
+      env: {
+        ...process.env,
+        TEST_MODE: process.env.TEST_MODE || "true",
+        TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+      },
     },
   );
   proc.stdout?.on("data", (d: Buffer) => process.stdout.write(`[vite] ${d}`));
@@ -162,6 +166,7 @@ async function startPreviewServer(): Promise<ChildProcess> {
   const env = {
     ...process.env,
     TEST_MODE: "true",
+    TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
     SKIP_TEST_CLEANUP: "true",
     ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",

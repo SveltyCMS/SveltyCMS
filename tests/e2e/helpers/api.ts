@@ -55,6 +55,7 @@ async function postTesting(page: Requestish, data: Record<string, unknown>) {
 const ADMIN_CREDENTIALS = { email: "admin@example.com", password: "Password123!" };
 
 export async function resetAndSeedDatabase(page: Page) {
+  await page.context().clearCookies();
   const reset = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,
     data: { action: "reset" },
@@ -67,9 +68,11 @@ export async function resetAndSeedDatabase(page: Page) {
       action: "seed",
       email: ADMIN_CREDENTIALS.email,
       password: ADMIN_CREDENTIALS.password,
+      createSession: true,
     },
   });
   if (!seed.ok()) throw new Error(`seed failed: ${seed.status()}`);
+  await applySessionCookie(page, seed).catch(() => false);
 }
 
 // ── Session management ─────────────────────────────────────────────────
@@ -173,9 +176,19 @@ export async function applySessionCookie(
 
 async function sessionLooksValid(page: Page): Promise<boolean> {
   try {
-    const res = await page.request.get("/api/user", { headers: { Accept: "application/json" } });
-    if (res.status() === 401 || res.status() === 403) return false;
-    return res.status() >= 200 && res.status() < 500;
+    const cookies = await page
+      .context()
+      .cookies()
+      .catch(() => []);
+    const sessionCookie = cookies.find((c) => SESSION_COOKIE_RE.test(c.name));
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (sessionCookie) {
+      headers["Cookie"] = `${sessionCookie.name}=${sessionCookie.value}`;
+    }
+    const res = await page.request.get("/api/user", { headers });
+    if (!res.ok()) return false;
+    const body = await res.json().catch(() => null);
+    return Boolean(body && (body.user || body._id || body.email || body.users));
   } catch {
     return false;
   }
@@ -193,20 +206,16 @@ export async function ensureAuthenticated(page: Page): Promise<void> {
   if (await sessionLooksValid(page)) return;
   for (const attempt of ["login", "seed+login", "reset+seed+login"]) {
     try {
+      if (attempt === "reset+seed+login") {
+        await postTesting(page, { action: "reset" }).catch(() => null);
+      }
       const res = await page.request.post("/api/testing", {
         headers: TEST_API_HEADERS,
-        data:
-          attempt === "login"
-            ? {
-                action: "login",
-                email: ADMIN_CREDENTIALS.email,
-                password: ADMIN_CREDENTIALS.password,
-              }
-            : {
-                action: "seed",
-                email: ADMIN_CREDENTIALS.email,
-                password: ADMIN_CREDENTIALS.password,
-              },
+        data: {
+          action: attempt.includes("seed") ? "seed" : "login",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
       });
       if (res.ok()) await applySessionCookie(page, res).catch(() => false);
       if (await sessionLooksValid(page)) return;

@@ -528,6 +528,10 @@ export function getColumnHelper(
   if (table[name]) return table[name];
 
   if (forcePhysical && FIXED_COLUMNS.has(name)) {
+    // Guard: only allow safe identifiers in raw SQL (defense-in-depth beyond FIXED_COLUMNS)
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      return undefined;
+    }
     return sql.raw(`"${name}"`) as any;
   }
 

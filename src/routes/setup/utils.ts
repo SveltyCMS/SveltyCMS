@@ -194,10 +194,13 @@ export async function getSetupDatabaseAdapter(
             auth: { setupAuthModels: async () => {} },
           } as unknown as IDBAdapter;
         } else {
-          const { existsSync } = await import("node:fs");
+          const { existsSync, mkdirSync } = await import("node:fs");
+          const { dirname } = await import("node:path");
           if (!existsSync(connectionString) && !options.createIfMissing) {
             throw new Error(`SQLite database file "${connectionString}" does not exist.`);
           }
+          // Ensure parent directory exists so SQLite can create the file
+          mkdirSync(dirname(connectionString), { recursive: true });
           const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
           dbAdapter = new SQLiteAdapter() as unknown as IDBAdapter;
           const connectResult = await dbAdapter.connect(connectionString);
