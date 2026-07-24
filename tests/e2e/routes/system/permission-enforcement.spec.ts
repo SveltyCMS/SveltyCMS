@@ -271,4 +271,25 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
     const isDenied = wasRedirectedAway || hasForbiddenText || hasErrorHeading;
     expect(isDenied).toBeTruthy();
   });
+
+  test.afterAll(async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await loginAsAdmin(page);
+    // Delete the test user
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "delete-user-by-email", email: TEST_USER.email },
+      })
+      .catch(() => {});
+    // Delete the test role
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "delete", collectionId: "roles", id: TEST_ROLE_ID },
+      })
+      .catch(() => {});
+    await ctx.close();
+  });
 });

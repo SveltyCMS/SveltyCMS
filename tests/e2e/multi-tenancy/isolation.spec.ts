@@ -105,6 +105,7 @@ function extractItems(result: unknown): unknown[] {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
+  test.skip(!MULTI_TENANT_ENABLED, skipReason);
   let adminPage: import("@playwright/test").Page;
 
   // ── Global setup: tenants, users, and seed data ──────────────────────

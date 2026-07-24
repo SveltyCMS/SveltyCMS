@@ -20,6 +20,7 @@ interface E2eMatrixInclude {
   shard: string;
   shardId: string;
   "total-shards": number;
+  workers: number;
   name: string;
   grep: string;
 }
@@ -71,6 +72,7 @@ for (let i = 0; i < SHARD_GROUPS.length; i++) {
     shard: "1/1",
     shardId: `${i + 1}-${TOTAL}`,
     "total-shards": 1,
+    workers: 1,
     name: group.name,
     grep: group.grep,
   });

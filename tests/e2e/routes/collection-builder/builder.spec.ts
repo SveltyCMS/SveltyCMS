@@ -26,7 +26,7 @@ import {
   uniqueCollectionFixture,
 } from "../../helpers/collection-builder-flow";
 
-test.describe.configure({ timeout: 120_000 });
+test.describe.configure({ mode: "serial", timeout: 120_000 });
 
 test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
   test.beforeEach(async ({ page }) => {
@@ -70,6 +70,9 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await page.getByTestId("collection-name-input").fill(fixture.name);
     await addInputField(page, { label: "Title", fieldName: "title" });
     await saveCollectionSchema(page);
+
+    // Allow collection compilation + route registration to settle after save
+    await page.waitForTimeout(2_000);
 
     await openCollectionEntries(page, fixture.slug);
 

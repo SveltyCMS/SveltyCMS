@@ -30,6 +30,7 @@ test.describe("Login Branding", () => {
   });
 
   test("login chooser renders default SveltyCMS shell", async ({ page }) => {
+    await page.context().clearCookies();
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("main", { name: "Authentication Page" })).toBeVisible();
     await expect(page.getByTestId("signin-icon")).toBeVisible();

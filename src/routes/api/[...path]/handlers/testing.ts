@@ -411,6 +411,8 @@ export async function handleTestingRoutes(
               isAdmin: true,
               isRegistered: true,
               emailVerified: true,
+              failedAttempts: 0,
+              lockoutUntil: null,
             },
             seedOpts,
           );

@@ -73,6 +73,15 @@ const ContextSchema = v.object({
 
 type ValidatedContext = v.InferOutput<typeof ContextSchema>;
 
+function hasBunFlag(flags: string[], name: string): boolean {
+  return flags.some((flag) => flag === name || flag.startsWith(`${name}=`));
+}
+
+function serialIntegrationBunFlags(flags: string[]): string[] {
+  if (hasBunFlag(flags, "--max-concurrency")) return flags;
+  return ["--max-concurrency=1", ...flags];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // §2 — Command Execution Engine
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -365,7 +374,15 @@ async function retryFailedTests(
 
       const res = await Exec.run({
         cmd: "bun",
-        args: ["test", "--timeout", "300000", filePath, "-t", filter, ...bunFlags],
+        args: [
+          "test",
+          "--timeout",
+          "300000",
+          ...serialIntegrationBunFlags(bunFlags),
+          filePath,
+          "-t",
+          filter,
+        ],
         env,
         capture: true,
         tee: true,
@@ -547,7 +564,13 @@ async function phaseRun(
 
   const primary = await Exec.run({
     cmd: "bun",
-    args: ["test", "--timeout", "300000", ...testPaths, ...args.bunFlags],
+    args: [
+      "test",
+      "--timeout",
+      "300000",
+      ...serialIntegrationBunFlags(args.bunFlags),
+      ...testPaths,
+    ],
     env,
     capture: true,
     tee: true,

@@ -186,6 +186,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
     const needsWait =
       systemState.overallState === "INITIALIZING" ||
+      systemState.overallState === "RECOVERY" ||
       initializationState === "in-progress" ||
       (systemState.overallState === "SETUP" && setupComplete);
     if (needsWait) {
@@ -196,6 +197,10 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     const activeSystemState = needsWait ? getSystemState() : systemState;
     if (activeSystemState.overallState === "INITIALIZING") {
       logger.warn("[handleSystemState] System stuck in INITIALIZING — bypassing gate.");
+      return resolve(event);
+    }
+    if (activeSystemState.overallState === "RECOVERY") {
+      logger.warn("[handleSystemState] System stuck in RECOVERY — bypassing gate.");
       return resolve(event);
     }
 
@@ -219,7 +224,14 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       return resolve(event);
     }
 
-    const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
+    const restricted: SystemState[] = [
+      "IDLE",
+      "INITIALIZING",
+      "RECOVERY",
+      "SETUP",
+      "MAINTENANCE",
+      "FAILED",
+    ];
     if (restricted.includes(activeSystemState.overallState as any)) {
       if (setupComplete && activeSystemState.overallState === "SETUP") {
         await waitForInitialization();

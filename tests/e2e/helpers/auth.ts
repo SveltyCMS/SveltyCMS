@@ -296,8 +296,8 @@ export async function loginAs(
   let loginSuccess = await attemptLogin(page, email, password, waitForUrl);
 
   if (!loginSuccess) {
-    // Admin user may have been modified by a previous test — seed and retry.
-    console.log("[Auth] Login failed — seeding admin user via testing API and retrying...");
+    // Admin user may have been modified or locked by a previous test — re-seed to reset.
+    console.log("[Auth] Login failed — re-seeding admin user via testing API...");
     try {
       await page.request.post("/api/testing", {
         headers: TEST_API_HEADERS,
@@ -307,7 +307,7 @@ export async function loginAs(
           password: password,
         },
       });
-      console.log("[Auth] ✓ Admin user re-seeded, retrying login...");
+      console.log("[Auth] ✓ Admin user re-seeded (password + lockout reset), retrying login...");
     } catch (seedError) {
       console.log("[Auth] Seeding failed, trying reset + seed...", seedError);
       try {

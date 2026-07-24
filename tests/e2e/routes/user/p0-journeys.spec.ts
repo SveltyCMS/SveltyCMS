@@ -59,12 +59,31 @@ test.describe("P0 — Password change journey", () => {
   const NEW_PASSWORD = "ChangedPass456!";
 
   test.afterEach(async ({ page }) => {
-    // Always restore editor to known password for other suites / retries
-    await prepareTestUser(page, "editor").catch(() => {});
+    // Restore editor password after test changes it — seed resets password + lockout
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: TEST_USERS.editor.email,
+          password: TEST_USERS.editor.password,
+        },
+      })
+      .catch(() => {});
   });
 
   test("editor verifies current password, sets new one, and re-logins", async ({ page }) => {
-    await prepareTestUser(page, "editor");
+    // Ensure editor starts with known password (previous test may have changed it)
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: TEST_USERS.editor.email,
+          password: TEST_USERS.editor.password,
+        },
+      })
+      .catch(() => {});
     const { email, password: oldPassword } = TEST_USERS.editor;
 
     await loginAsEditor(page, "/user", { email, password: oldPassword });
