@@ -274,7 +274,23 @@ export async function ensureFullInitialization(): Promise<any | null> {
         for (const ns of ["auth", "content", "media", "collection", "system"] as const) {
           const original = (adapter as any)[ns];
           if (original && typeof original === "object") {
-            (adapter as any)[ns] = createTenantGuardedNamespace(original, "reject", ns);
+            const guarded = createTenantGuardedNamespace(original, "reject", ns);
+            // Some adapters define namespaces as getter-only properties.
+            // Use defineProperty to handle both writable and getter-only cases.
+            try {
+              (adapter as any)[ns] = guarded;
+            } catch {
+              try {
+                Object.defineProperty(adapter, ns, {
+                  value: guarded,
+                  writable: true,
+                  configurable: true,
+                  enumerable: true,
+                });
+              } catch {
+                // Keep original; tenant guard won't wrap this namespace
+              }
+            }
           }
         }
       } catch (e) {

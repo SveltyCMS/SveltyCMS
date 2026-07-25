@@ -204,10 +204,16 @@ test.describe("System Settings shell", () => {
     await groupSave.click();
     await saveRes;
 
-    // Save reloads group and clears dirty state
+    // Wait for loadSettings refresh to complete before checking disabled state
+    await expect(groupSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(groupSave).toBeDisabled({
       timeout: ACTION_TIMEOUT,
     });
+    // After loadSettings re-renders, input may briefly empty. Wait for value to stabilize.
+    await expect(async () => {
+      const val = await input.inputValue();
+      expect(val).toBeTruthy();
+    }).toPass({ timeout: ACTION_TIMEOUT });
     await expect(input).toHaveValue(target, { timeout: ACTION_TIMEOUT });
 
     // Hard reload — value must come from API, not client state
@@ -230,6 +236,7 @@ test.describe("System Settings shell", () => {
         timeout: ACTION_TIMEOUT,
       });
       await restoreSave.click();
+      await expect(restoreSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
       await expect(restoreSave).toBeDisabled({
         timeout: ACTION_TIMEOUT,
       });
