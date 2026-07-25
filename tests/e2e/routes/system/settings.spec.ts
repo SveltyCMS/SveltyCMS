@@ -196,7 +196,14 @@ test.describe("System Settings shell", () => {
       timeout: ACTION_TIMEOUT,
     });
 
+    const saveRes = page
+      .waitForResponse((res) => res.url().includes("/api/system/settings") && res.status() < 400, {
+        timeout: ACTION_TIMEOUT,
+      })
+      .catch(() => null);
     await groupSave.click();
+    await saveRes;
+
     // Save reloads group and clears dirty state
     await expect(groupSave).toBeDisabled({
       timeout: ACTION_TIMEOUT,
@@ -204,6 +211,7 @@ test.describe("System Settings shell", () => {
     await expect(input).toHaveValue(target, { timeout: ACTION_TIMEOUT });
 
     // Hard reload — value must come from API, not client state
+    await page.waitForTimeout(500);
     await goSettings(page, "cache");
     const afterReload = page
       .getByTestId("settings-field-CACHE_TTL_SCHEMA")

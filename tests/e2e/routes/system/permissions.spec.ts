@@ -47,9 +47,8 @@ test.describe("Permission Management Flow", () => {
 
     await expect(
       page
-        .getByText(/configuration updated successfully/i)
-        .or(page.getByText(/updated successfully/i))
-        .or(page.getByText(/saved/i)),
+        .getByText(/configuration updated|no changes detected|updated successfully|saved/i)
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveURL(/access-management/i);

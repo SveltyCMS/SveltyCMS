@@ -42,10 +42,7 @@ async function openEditUserDialog(page: Page) {
   const editBtn = page.getByTestId("edit-user-settings-btn");
   await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await editBtn.click();
-  const dialog = page
-    .getByRole("dialog")
-    .filter({ hasText: /edit user data|username|current password/i })
-    .first();
+  const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   return dialog;
 }

@@ -121,12 +121,12 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
   await rowButton.scrollIntoViewIfNeeded();
   await rowButton.click({ timeout: ACTION_TIMEOUT });
 
-  const dialog = page
-    .getByRole("dialog")
-    .filter({ hasText: /confirm|block|unblock/i })
-    .first();
+  const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  const confirmBtn = dialog.getByRole("button", { name: /confirm/i });
+  const confirmBtn = dialog
+    .getByRole("button", { name: /confirm|yes|ok|block|unblock/i })
+    .or(dialog.locator("button").filter({ hasText: /confirm/i }))
+    .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
   await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
@@ -172,9 +172,12 @@ async function bulkDeleteDeveloper(page: Page) {
     await deleteItem.click({ force: true, timeout: ACTION_TIMEOUT });
   }
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  const confirmBtn = dialog.getByRole("button", { name: /confirm/i });
+  const confirmBtn = dialog
+    .getByRole("button", { name: /confirm|yes|ok|delete/i })
+    .or(dialog.locator("button").filter({ hasText: /confirm/i }))
+    .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
   await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });

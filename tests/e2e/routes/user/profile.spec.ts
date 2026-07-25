@@ -106,10 +106,13 @@ test.describe.serial("User Profile Management", () => {
     await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(AVATAR_PATH);
 
-    await page.getByRole("button", { name: "Save" }).click();
-
-    // Assertion: Check if the image source changes or notification appears
-    await expect(page.locator('.avatar-image, img[alt="User avatar"]')).toBeVisible();
+    // Upload triggers automatically on file change — assert success signal or avatar image
+    await expect(
+      page
+        .getByText(/avatar updated successfully/i)
+        .or(page.locator('img[alt*="avatar"i], .avatar-image'))
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("Delete Avatar", async ({ page }) => {

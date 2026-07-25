@@ -78,17 +78,17 @@ test.describe("RTC preferences", () => {
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    await checkbox.evaluate((el: HTMLElement) => el.click());
+    await checkbox.click({ force: true });
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 
     // After toggling, the expected persisted state is the opposite of initial
     const expectedSound = !initialChecked;
 
-    await expect(async () => {
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: 10_000 });
-    }).toPass({ timeout: 25_000 });
+    await page.waitForTimeout(500);
+    await page.goto("/user", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: 10_000 });
+
     const checked = await page
       .getByTestId("pref-rtc-sound")
       .locator('input[type="checkbox"]')
