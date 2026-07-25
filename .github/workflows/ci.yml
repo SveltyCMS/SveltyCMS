@@ -696,7 +696,7 @@ jobs:
           trap "kill $SERVER_PID 2>/dev/null || true" EXIT INT TERM
           bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 500
           if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "âŒ Server process exited after listen â€” crash in preview.log:"
+            echo "Server process exited after listen - crash in preview.log:"
             tail -100 preview.log
             exit 1
           fi
