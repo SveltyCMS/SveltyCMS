@@ -37,8 +37,9 @@ export async function handleSetupRoutes(
     // ── Setup completion gating ──
     // Only "reinitialize" is allowed after setup completes — everything else returns 403.
     const { isSetupComplete } = await import("@src/utils/server/setup-check");
-    const testSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    const testSecret = process.env.TEST_API_SECRET;
     const isTestReq =
+      Boolean(testSecret) &&
       (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true") &&
       request.headers.get("x-test-secret") === testSecret;
 
