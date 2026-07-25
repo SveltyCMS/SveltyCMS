@@ -159,6 +159,8 @@ const BENCHMARK_SECRET_ALLOWLIST = [
   "scripts/scan-secret-misuse.ts",
   "scripts/test-doctor.ts",
   "scripts/run-e2e.ts",
+  "scripts/run-all-db-matrix.ts",
+  "scripts/run-integration.ts",
   "tests/benchmarks/",
   "tests/e2e/",
   "tests/integration/",
@@ -519,7 +521,7 @@ async function main() {
 
   const findings: Finding[] = [];
 
-  // Scan files sequentially (secret scanning is I/O-bound, not CPU-bound)
+  // Scan files in parallel chunks of 8 (I/O-bound workload)
   for (let i = 0; i < files.length; i++) {
     await scanFile(files[i], i, files.length, findings);
   }

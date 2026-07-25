@@ -241,6 +241,12 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
               logger.warn(`[Scanner] Skipping suspicious file: ${entry.name}`);
               return;
             }
+            // Defense-in-depth: resolve + prefix check guards against symlink
+            // escapes and filesystem edge cases string-based checks may miss.
+            if (!path.resolve(fullPath).startsWith(path.resolve(dir) + path.sep)) {
+              logger.warn(`[Scanner] Skipping out-of-bound file: ${fullPath}`);
+              return;
+            }
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
             const stats = await fsPromises.stat(fullPath);
             fileList.push({ fullPath, mtime: stats.mtimeMs });

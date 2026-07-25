@@ -112,6 +112,14 @@ export async function handleAuthUserRoutes(
         return reqMethod === "POST" ? handleLogin(event, cms, tenantId, cookies) : notAllowed();
       case "logout":
         return reqMethod === "POST" ? handleLogout(event, cms, tenantId, cookies) : notAllowed();
+      case "oidc-logout":
+        return reqMethod === "POST" || reqMethod === "GET"
+          ? handleOidcLogout(event, cms, tenantId, cookies)
+          : notAllowed();
+      case "frontchannel-logout":
+        return reqMethod === "GET" ? handleFrontChannelLogoutRoute(event) : notAllowed();
+      case "backchannel-logout":
+        return reqMethod === "POST" ? handleBackChannelLogoutRoute(event) : notAllowed();
 
       // User Management
       case "create-user":
@@ -310,6 +318,146 @@ export async function handleLogout(
   }
 
   return successResponse(event, { message: "Logged out successfully" });
+}
+
+/**
+ * Handles OpenID Connect RP-Initiated Logout.
+ *
+ * Supports both GET (user clicks logout link) and POST (form submit).
+ * Validates post_logout_redirect_uri against the provider's allowlist.
+ * If the OP has an end_session_endpoint, redirects the browser there
+ * for federated logout across all OIDC RPs.
+ *
+ * Query params: id_token_hint, post_logout_redirect_uri, state
+ */
+export async function handleOidcLogout(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  cookies: any,
+) {
+  const { name } = getCookieConfig(event);
+  const sessionId = cookies.get(name) || cookies.get(SESSION_COOKIE_NAME);
+
+  // Parse OIDC params from query (GET) or body (POST)
+  let idTokenHint: string | undefined;
+  let postLogoutRedirectUri: string | undefined;
+  let state: string | undefined;
+
+  if (event.request.method === "GET") {
+    const q = event.url.searchParams;
+    idTokenHint = q.get("id_token_hint") || undefined;
+    postLogoutRedirectUri = q.get("post_logout_redirect_uri") || undefined;
+    state = q.get("state") || undefined;
+  } else {
+    const body = await event.request.json().catch(() => ({}));
+    idTokenHint = body.id_token_hint;
+    postLogoutRedirectUri = body.post_logout_redirect_uri;
+    state = body.state;
+  }
+
+  // Always terminate the local session first
+  if (sessionId) {
+    try {
+      const { performRpInitiatedLogout } = await import("@src/databases/auth/sso-session");
+      const result = await performRpInitiatedLogout({
+        sessionId,
+        idTokenHint,
+        postLogoutRedirectUri,
+        state,
+        tenantId,
+      });
+
+      await cms.auth.logout(sessionId);
+      invalidateSessionCache(sessionId, tenantId);
+      clearSessionCookies(event);
+
+      // If OP has end_session_endpoint, redirect browser there
+      if (result.endSessionUrl) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: result.endSessionUrl },
+        });
+      }
+
+      return successResponse(event, { message: result.message });
+    } catch (err) {
+      logger.error("[OIDC] RP-Initiated Logout failed:", err);
+      // Fall through to local logout even if SSO part fails
+    }
+  }
+
+  // Non-SSO or fallback: standard logout
+  if (sessionId) {
+    await cms.auth.logout(sessionId);
+    invalidateSessionCache(sessionId, tenantId);
+    clearSessionCookies(event);
+  }
+
+  // If post_logout_redirect_uri is present and valid, redirect there
+  if (postLogoutRedirectUri) {
+    try {
+      const url = new URL(postLogoutRedirectUri);
+      if (url.protocol === "https:" || url.hostname === "localhost") {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: postLogoutRedirectUri },
+        });
+      }
+    } catch {
+      // Invalid URL — ignore
+    }
+  }
+
+  return successResponse(event, { message: "Logged out successfully" });
+}
+
+/**
+ * Handles OIDC Front-Channel Logout (OP-initiated).
+ * The OP renders an iframe pointing to this endpoint with iss and sid query params.
+ * Returns 200 with cache-prevention headers per spec.
+ */
+export async function handleFrontChannelLogoutRoute(event: RequestEvent) {
+  const q = event.url.searchParams;
+  const issuer = q.get("iss") || "";
+  const sid = q.get("sid") || "";
+
+  if (!issuer || !sid) {
+    return new Response("Missing iss or sid", { status: 400 });
+  }
+
+  const { handleFrontChannelLogout } = await import("@src/databases/auth/sso-session");
+  return handleFrontChannelLogout(issuer, sid);
+}
+
+/**
+ * Handles OIDC Back-Channel Logout (OP-initiated, server-to-server).
+ * Accepts POST with form-encoded or JSON logout_token.
+ */
+export async function handleBackChannelLogoutRoute(event: RequestEvent) {
+  const contentType = event.request.headers.get("content-type") || "";
+  let logoutToken: string | undefined;
+
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const form = await event.request.formData();
+    logoutToken = form.get("logout_token")?.toString();
+  } else {
+    const body = await event.request.json().catch(() => ({}));
+    logoutToken = body.logout_token;
+  }
+
+  if (!logoutToken) {
+    return new Response("Missing logout_token", { status: 400 });
+  }
+
+  const { handleBackChannelLogout } = await import("@src/databases/auth/sso-session");
+  const result = await handleBackChannelLogout(logoutToken);
+
+  if (!result.success) {
+    return new Response(result.message, { status: 400 });
+  }
+
+  return successResponse(event, { message: result.message });
 }
 
 // ─── User Management Handlers ────────────────────────────────────────────────

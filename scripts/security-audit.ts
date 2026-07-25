@@ -12,6 +12,9 @@
  *   bun run security --ci         # CI mode (exit 1 on findings)
  *   bun run security --base=http://localhost:3000  # Custom target
  *   bun run security --auth --ci  # Full CI authenticated audit
+ *   bun run security --secret-scan  # Also run secret misuse scanner
+ *   bun run security --slop        # Also run code quality slop scanner
+ *   bun run security --full        # Run ALL scanners (auth + secret + slop)
  */
 
 // Mark as ES module so top-level await is valid under tsc (TS1375).
@@ -20,6 +23,8 @@ export {};
 const args = process.argv.slice(2);
 const RUN_AUTH = args.includes("--auth");
 const IS_CI = args.includes("--ci");
+const RUN_SECRET_SCAN = args.includes("--secret-scan") || args.includes("--full");
+const RUN_SLOP_SCAN = args.includes("--slop") || args.includes("--full");
 const ONLY_FILTER = args.find((a) => a.startsWith("--only="));
 
 let exitCode = 0;
@@ -68,6 +73,48 @@ if (!RUN_AUTH) {
     } else {
       console.log("✅ Security audit passed\n");
     }
+  }
+}
+
+// ── Secret Misuse Scanner ─────────────────────────────────────────
+if (RUN_SECRET_SCAN) {
+  console.log("\n━━━ Secret Misuse Scan ━━━\n");
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const result = spawnSync("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    if (result.status !== 0) {
+      console.error("\n❌ Secret scan found issues\n");
+      exitCode = 1;
+    } else {
+      console.log("✅ Secret scan passed\n");
+    }
+  } catch {
+    console.error("\n❌ Secret scan failed to run\n");
+    exitCode = 1;
+  }
+}
+
+// ── Code Quality (Slop) Scanner ───────────────────────────────────
+if (RUN_SLOP_SCAN) {
+  console.log("\n━━━ Code Quality Scan ━━━\n");
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const result = spawnSync("bun", ["run", "scripts/slop-scanner.ts", "--strict"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    if (result.status !== 0) {
+      console.error("\n❌ Code quality scan found issues\n");
+      exitCode = 1;
+    } else {
+      console.log("✅ Code quality scan passed\n");
+    }
+  } catch {
+    console.error("\n❌ Code quality scan failed to run\n");
+    exitCode = 1;
   }
 }
 

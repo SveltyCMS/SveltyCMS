@@ -190,8 +190,10 @@ export class Auth {
         };
       }
 
+      const role = userData.role || "user";
       const result = await this.db.auth.createUser({
         ...userData,
+        role,
         preferences,
         email: normalizedEmail,
         password: hashedPassword,
@@ -282,8 +284,14 @@ export class Auth {
       throw error(500, "Failed to update user");
     }
 
-    // No cache invalidation needed - we removed user-by-id and user-by-email caching
-    // Session cache is the only cache, and it's invalidated by updateUserAttributes API
+    // Invalidate permission cache so RBAC changes take effect immediately.
+    // Stale cached DENY results could otherwise survive up to 5 minutes (PERMISSION_CACHE_TTL).
+    try {
+      const { invalidatePermissionCache } = await import("./permissions");
+      invalidatePermissionCache(userId as string);
+    } catch {
+      // Non-critical — permission cache will expire naturally after TTL
+    }
   }
 
   async deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<void> {

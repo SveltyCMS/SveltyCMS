@@ -63,6 +63,19 @@ interface Violation {
   fixable?: boolean;
 }
 
+/** Valid Button variants per the component API. */
+const VALID_BUTTON_VARIANTS = new Set([
+  "primary",
+  "secondary",
+  "tertiary",
+  "surface",
+  "success",
+  "warning",
+  "error",
+  "ghost",
+  "outline",
+]);
+
 const violations: Violation[] = [];
 let fixedFiles = 0;
 
@@ -208,6 +221,41 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
       }
     }
 
+    // === Invalid Button variant detection ===
+    const btnVariantMatch = line.match(/<Button\b[^>]*variant\s*=\s*["']([^"']+)["']/i);
+    if (btnVariantMatch) {
+      const variant = btnVariantMatch[1].trim();
+      if (!VALID_BUTTON_VARIANTS.has(variant)) {
+        report(
+          relPath,
+          i + 1,
+          "component",
+          `Invalid Button variant "${variant}" — use one of: ${[...VALID_BUTTON_VARIANTS].join(", ")}`,
+          "error",
+          true,
+        );
+        if (shouldFix) {
+          // Map common invalid variants to valid ones
+          const FIX_MAP: Record<string, string> = {
+            destructive: "error",
+            danger: "error",
+            info: "info",
+            link: "ghost",
+            text: "ghost",
+          };
+          const fixed = FIX_MAP[variant] || "primary";
+          fixedLines[i] = fixedLines[i].replace(
+            new RegExp(
+              `(variant\\s*=\\s*["'])${variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(["'])`,
+              "i",
+            ),
+            `$1${fixed}$2`,
+          );
+          fileWasModified = true;
+        }
+      }
+    }
+
     // === RTL / Logical Properties ===
     // Updated to include divide-x and space-x variants that were in RTL_MAP
     // but not matched by the previous dirRegex pattern.
@@ -250,6 +298,38 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
   // === Global checks ===
   if (/from\s+["']svelte\/store["']/.test(content)) {
     report(relPath, 0, "svelte5-legacy", "Legacy svelte/store import — migrate to runes", "error");
+  }
+
+  // === @apply directive misuse (Tailwind v4: only in base layer) ===
+  if (!relPath.includes("app.css") && /\/\*[\s\S]*?\*\//.test(content)) {
+    // Only flag @apply outside of app.css (the approved base-layer file)
+    for (const m of content.matchAll(/@apply\s+[^;]+;/g)) {
+      const lineNo = content.substring(0, m.index!).split("\n").length;
+      report(
+        relPath,
+        lineNo,
+        "tailwind",
+        "@apply outside app.css — use inline utilities",
+        "warning",
+      );
+    }
+  }
+
+  // === Raw HTML element usage (should use component) ===
+  if (inScriptBlock) {
+    // Check for goto() usage in script blocks (should use <a data-preload>)
+    if (/goto\s*\(/.test(content) && !relPath.includes("hooks") && !relPath.includes("utils")) {
+      for (const m of content.matchAll(/goto\s*\(/g)) {
+        const lineNo = content.substring(0, m.index!).split("\n").length;
+        report(
+          relPath,
+          lineNo,
+          "preloading",
+          "goto() used for navigation — prefer <a data-preload> for speculative preloading",
+          "warning",
+        );
+      }
+    }
   }
 
   // Secure nested-brace parsing for {@html}

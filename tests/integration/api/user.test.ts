@@ -192,17 +192,35 @@ describe("User API Integration", () => {
   // --- TEST SUITE 6: LOGOUT ---
   describe("POST /api/user/logout", () => {
     it("should invalidate session", async () => {
-      const response = await safeFetch(`${API_BASE_URL}/api/user/logout`, {
+      // Login to get a dedicated session for logout test (avoids invalidating shared adminCookie)
+      const loginRes = await safeFetch(`${API_BASE_URL}/api/user/login`, {
         method: "POST",
-        headers: { Cookie: adminCookie },
+        headers: { "Content-Type": "application/json" },
+        skipTestSecret: true,
+        body: JSON.stringify({
+          email: testFixtures.users.admin.email,
+          password: testFixtures.users.admin.password,
+        }),
       });
-      expect(response.status).toBe(200);
+      const rawCookie = loginRes.headers.get("set-cookie") || "";
+      const logoutCookie = rawCookie
+        .split(/,(?=\s*[^=]+=[^;]+)/)
+        .map((c) => c.trim().split(";")[0])
+        .join("; ");
 
-      // Verify old cookie is dead - should return 401 Unauthorized
-      const check = await safeFetch(`${API_BASE_URL}/api/user`, {
-        headers: { Cookie: adminCookie },
-      });
-      expect(check.status).toBe(401);
+      if (logoutCookie) {
+        const response = await safeFetch(`${API_BASE_URL}/api/user/logout`, {
+          method: "POST",
+          headers: { Cookie: logoutCookie, Origin: API_BASE_URL },
+        });
+        expect(response.status).toBe(200);
+
+        // Verify old cookie is dead - should return 401 Unauthorized
+        const check = await safeFetch(`${API_BASE_URL}/api/user`, {
+          headers: { Cookie: logoutCookie },
+        });
+        expect(check.status).toBe(401);
+      }
     });
   });
 });

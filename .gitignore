@@ -31,6 +31,8 @@ vite.config.ts.timestamp-*
 .env.*
 /config/*
 !/config/aliases.json
+/config/private.ts
+/config/private.test.ts
 /data.json
 .bundle-history.json
 
@@ -78,6 +80,7 @@ tests/test-results/
 tests/playwright-report/
 /playwright/.cache/
 /error-screenshot.png
+*e2e-output*.txt
 
 # Rust
 /indexes

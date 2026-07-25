@@ -12,6 +12,7 @@ import { logger } from "@utils/logger";
 import { isIsolatedTestDbName } from "@utils/test-db-safety";
 import { isCiRunner } from "@utils/private-config-policy";
 import { safeParse, type InferOutput } from "valibot";
+import path from "node:path";
 
 /** Read env at runtime — production builds inline bare `process.env.*` to `{}`. */
 function runtimeEnv(): NodeJS.ProcessEnv {
@@ -166,7 +167,14 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     // Live app path only — double-check harness flags did not slip through
     assertAutomatedMustNotUseLivePrivateTs("load");
   }
-  const configPath = `${process.cwd()}/config/${filename}`;
+  const configPath = path.resolve(process.cwd(), "config", filename);
+
+  // Defense-in-depth: ensure resolved path stays within config/ directory
+  const allowedBase = path.resolve(process.cwd(), "config");
+  if (!configPath.startsWith(allowedBase + path.sep)) {
+    logger.error(`[Config] Path traversal blocked: ${filename}`);
+    return null;
+  }
 
   try {
     const fs = await import("node:fs");

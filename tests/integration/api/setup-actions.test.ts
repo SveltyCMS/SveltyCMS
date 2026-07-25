@@ -54,7 +54,7 @@ import { cleanupTestDatabase } from "../helpers/test-setup";
 const API_BASE_URL = getApiBaseUrl();
 
 // Dynamic DB type from environment
-const dbType = (process.env.DB_TYPE || "mongodb") as DatabaseConfig["type"];
+const dbType = (process.env.DB_TYPE || "sqlite") as DatabaseConfig["type"];
 const defaultPort = dbType === "mariadb" ? "3306" : dbType === "postgresql" ? "5432" : "27017";
 const sqliteTestDbName = `setup_actions_test_${Date.now()}`;
 
@@ -102,9 +102,7 @@ async function postAction(actionName: string, formData: FormData) {
 
 describe("Setup Actions - Database Connection", () => {
   beforeEach(async () => {
-    if (dbType === "mongodb") {
-      await cleanupTestDatabase();
-    }
+    await cleanupTestDatabase();
   });
 
   it(
@@ -157,7 +155,7 @@ describe("Setup Actions - Database Connection", () => {
     "detects invalid host/port",
     async () => {
       const formData = new FormData();
-      formData.append("config", JSON.stringify({ ...testDbConfig, host: "invalid", port: 99_999 }));
+      formData.append("config", JSON.stringify({ ...testDbConfig, host: "invalid", port: 65_432 }));
 
       const res = await postAction("testDatabase", formData);
       const result = await res.json();
@@ -207,9 +205,7 @@ describe("Setup Actions - Database Driver Installation", () => {
 
 describe("Setup Actions - Database Seeding", () => {
   beforeEach(async () => {
-    if (dbType === "mongodb") {
-      await cleanupTestDatabase();
-    }
+    await cleanupTestDatabase();
   });
 
   it(
@@ -291,9 +287,7 @@ describe("Setup Actions - SMTP Configuration", () => {
 
 describe("Setup Actions - Complete Setup", () => {
   beforeEach(async () => {
-    if (dbType === "mongodb") {
-      await cleanupTestDatabase();
-    }
+    await cleanupTestDatabase();
     // Wait for cleanup to settle and zombie connections to close
     await new Promise((resolve) => setTimeout(resolve, 2000));
 

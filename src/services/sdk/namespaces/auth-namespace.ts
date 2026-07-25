@@ -7,7 +7,7 @@ import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security/crypto";
 import { parseSessionDuration } from "@utils/security/auth-utils";
 import { isMultiTenantEnabled } from "@utils/tenant";
-import { getAllPermissions } from "@src/databases/auth/permissions";
+import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
@@ -345,6 +345,15 @@ export class AuthNamespace {
   async logout(sessionId: string) {
     const auth = await this.getAuth();
     if (!auth) throw new AppError("Authentication system not initialized", 500);
+
+    // Clean up SSO metadata if this was an SSO session
+    try {
+      const { deleteSsoSessionMetadata } = await import("@src/databases/auth/sso-session");
+      deleteSsoSessionMetadata(sessionId);
+    } catch {
+      // SSO module may not be loaded — non-critical
+    }
+
     return auth.deleteSession(sessionId as DatabaseId);
   }
 
@@ -421,6 +430,11 @@ export class AuthNamespace {
       );
 
       invalidateRolesCache(tenantId as DatabaseId);
+
+      // Invalidate permission cache globally — any role change can affect many users'
+      // cached permission checks. The cache uses userId:permissionId:roleIds keys;
+      // clearing all entries is the safest approach after a role mutation.
+      invalidatePermissionCache();
 
       // Invalidate turbo-auth cache for this user so privilege changes take effect immediately
       const userId = user._id as string;

@@ -205,6 +205,57 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		onselect(selected);
 	}
 
+	// Bulk delete selected files with controlled concurrency.
+	let isDeleting = $state(false);
+	let deleteProgress = $state(0);
+	const BULK_DELETE_CONCURRENCY = 4; // Parallel requests to avoid overwhelming the server
+
+	async function bulkDelete(): Promise<void> {
+		if (selectedCount === 0) return;
+		const confirmed = confirm(
+			`Delete ${selectedCount} file${selectedCount !== 1 ? 's' : ''}? This cannot be undone.`
+		);
+		if (!confirmed) return;
+
+		isDeleting = true;
+		deleteProgress = 0;
+		const toDelete = files.filter((f) => selectedFiles.has(f.filename));
+
+		// Process in chunks with controlled concurrency
+		for (let i = 0; i < toDelete.length; i += BULK_DELETE_CONCURRENCY) {
+			const chunk = toDelete.slice(i, i + BULK_DELETE_CONCURRENCY);
+			const results = await Promise.allSettled(
+				chunk.map(async (file) => {
+					const res = await fetch('/api/media/delete', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ id: file._id || file.filename }),
+					});
+					if (!res.ok) throw new Error(`HTTP ${res.status}`);
+					return file.filename;
+				})
+			);
+
+			for (const result of results) {
+				if (result.status === 'fulfilled') {
+					selectedFiles.delete(result.value);
+					deleteProgress++;
+				} else {
+					deleteProgress++;
+					logger.error(`Bulk delete failed:`, result.reason);
+				}
+			}
+		}
+
+		const succeeded = [...toDelete].filter((f) => !selectedFiles.has(f.filename)).length;
+		isDeleting = false;
+		if (succeeded < toDelete.length) {
+			alert(`Deleted ${succeeded} of ${toDelete.length} files. ${toDelete.length - succeeded} failed.`);
+		}
+		// Refresh the file list
+		await fetchMedia();
+	}
+
 	// Clear selection
 	function clearSelection(): void {
 		selectedFiles.clear();
@@ -333,6 +384,16 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={clearSelection} size="sm">Clear</Button>
 				<Button variant="tertiary" onclick={confirmSelection} size="sm" class="dark:">Confirm Selection</Button>
+				<Button
+					variant="error"
+					onclick={bulkDelete}
+					disabled={isDeleting}
+					size="sm"
+					aria-label="Delete selected files"
+				>
+					<iconify-icon icon={isDeleting ? 'mdi:loading' : 'mdi:delete'} width="16" class={isDeleting && !prefersReducedMotion ? 'animate-spin' : ''}></iconify-icon>
+					{isDeleting ? `Deleting ${deleteProgress}/${selectedCount}...` : 'Delete'}
+				</Button>
 			</div>
 		</div>
 	{/if}

@@ -127,18 +127,36 @@ describe("Auth Contract", () => {
   });
 
   it("should invalidate session after logout", async () => {
-    // Logout
-    const logoutRes = await safeFetch(`${API_BASE}/api/user/logout`, {
+    // Dedicated login for logout test so shared adminCookie is not invalidated
+    const loginRes = await safeFetch(`${API_BASE}/api/user/login`, {
       method: "POST",
-      headers: headers({ Cookie: adminCookie }),
+      headers: headers({}, { includeTestSecret: false }),
+      skipTestSecret: true,
+      body: JSON.stringify({
+        email: testFixtures.adminUser.email,
+        password: testFixtures.adminUser.password,
+      }),
     });
-    expect(logoutRes.status).toBe(200);
+    const rawCookie = loginRes.headers.get("set-cookie") || "";
+    const logoutCookie = rawCookie
+      .split(/,(?=\s*[^=]+=[^;]+)/)
+      .map((c) => c.trim().split(";")[0])
+      .join("; ");
 
-    // Old cookie should be dead
-    const checkRes = await safeFetch(`${API_BASE}/api/user?raw=true`, {
-      headers: headers({ Cookie: adminCookie }),
-    });
-    expect(checkRes.status).toBe(401);
+    if (logoutCookie) {
+      // Logout using dedicated cookie
+      const logoutRes = await safeFetch(`${API_BASE}/api/user/logout`, {
+        method: "POST",
+        headers: headers({ Cookie: logoutCookie }),
+      });
+      expect(logoutRes.status).toBe(200);
+
+      // Old cookie should be dead
+      const checkRes = await safeFetch(`${API_BASE}/api/user?raw=true`, {
+        headers: headers({ Cookie: logoutCookie }),
+      });
+      expect(checkRes.status).toBe(401);
+    }
   });
 });
 

@@ -797,4 +797,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-07-18_
+_Last Updated: 2026-07-25_

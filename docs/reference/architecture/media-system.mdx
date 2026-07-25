@@ -312,6 +312,7 @@ The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third
 | **Virtual folder move**   | Grid/table drag → sidebar folders or breadcrumb parents  | `POST /api/media/move` via `media-dnd.ts`               |
 | **Folder tree CRUD**      | Sidebar `media-folders.svelte` + gallery “New Folder”    | `/api/system-virtual-folder`                            |
 | **Bulk archive download** | Selection toolbar in `mediagallery/+page.svelte`         | `GET /api/media/bulk-download?id=…` → TAR.GZ            |
+| **Bulk delete**           | Selection toolbar in `media.svelte` (4× concurrency)     | `POST /api/media/delete` (per-item, with publish gate)  |
 | **Storage analytics**     | Dashboard widget `media-storage-analytics-widget.svelte` | `GET /api/media/analytics` (60s poll)                   |
 | **Version diff**          | Versions tab in `media-details-modal.svelte`             | `GET /api/media/version/{id}/compare?from=&to=`         |
 | **Version history**       | Versions tab (upload, restore, download)                 | `POST /api/media/version/{id}`, `/restore`, `/upload`   |

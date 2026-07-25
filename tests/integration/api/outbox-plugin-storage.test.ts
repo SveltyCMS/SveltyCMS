@@ -8,9 +8,8 @@
  * - Plugin storage: create → get → list → delete round-trip
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
-  cleanupTestDatabase,
   initializeTestEnvironment,
   prepareAuthenticatedContext,
   testingAction,
@@ -36,10 +35,6 @@ describe("Transactional outbox + plugin storage (integration)", () => {
     cookie = await prepareAuthenticatedContext();
     expect(cookie.length).toBeGreaterThan(0);
   }, 120_000);
-
-  afterAll(async () => {
-    await cleanupTestDatabase().catch(() => {});
-  });
 
   describe("plugin storage CRUD", () => {
     it("creates, lists, gets, and deletes a record", async () => {

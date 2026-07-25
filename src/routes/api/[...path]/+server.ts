@@ -272,6 +272,9 @@ function checkEndpointPermission(
       action === "me" ||
       action === "login" ||
       action === "logout" ||
+      action === "oidc-logout" ||
+      action === "frontchannel-logout" ||
+      action === "backchannel-logout" ||
       action === "saml" ||
       action === "2fa"
     ) {
