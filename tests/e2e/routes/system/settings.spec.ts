@@ -10,7 +10,10 @@ import { loginAsAdmin } from "../../helpers/auth";
 const ACTION_TIMEOUT = 20_000;
 
 async function goSettings(page: Page, group = "cache") {
-  await loginAsAdmin(page);
+  const currentUrl = page.url();
+  if (currentUrl.includes("/login") || currentUrl === "about:blank" || currentUrl === "") {
+    await loginAsAdmin(page);
+  }
   await page.goto(`/config/system-settings?group=${group}`, {
     waitUntil: "domcontentloaded",
     timeout: 30_000,

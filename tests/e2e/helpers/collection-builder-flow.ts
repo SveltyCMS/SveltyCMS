@@ -213,6 +213,10 @@ export async function openCollectionEntries(page: Page, slug: string): Promise<v
   const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
   await expect(async () => {
     await page.goto(`/en/collection/${cleanSlug}`, { waitUntil: "domcontentloaded" });
+    if (page.url().includes("/login")) {
+      const { loginAsAdmin } = await import("./auth");
+      await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
+    }
     await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
   }).toPass({ timeout: 15_000 });
 }
