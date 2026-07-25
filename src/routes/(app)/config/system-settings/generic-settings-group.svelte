@@ -20,7 +20,7 @@ import iso6391 from "@utils/iso639-1.json";
 import { getLanguageName } from "@utils/language-utils";
 import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
-import { onMount } from "svelte";
+import { onMount, tick } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
@@ -227,6 +227,8 @@ async function loadSettings(bypassCache = false) {
 		originalValues = JSON.parse(JSON.stringify(fallback));
 	} finally {
 		loading = false;
+		// Ensure Svelte has flushed DOM updates before callers check input values
+		await tick();
 	}
 }
 
@@ -703,12 +705,15 @@ onMount(() => {
 		</Alert>
 	{/if}
 
-	<!-- Loading State -->
+	<!-- Loading overlay — preserves form DOM so input bindings survive loadSettings refresh -->
 	{#if loading}
-		<div class="card preset-tonal-surface-500 rounded p-6 text-center">
-			<p>Loading settings...</p>
+		<div class="flex items-center justify-center p-12">
+			<p class="text-surface-500">Loading settings...</p>
 		</div>
-	{:else}
+	{/if}
+
+	<!-- Settings Form — always rendered, visually hidden during loading -->
+	<div style={loading ? 'visibility: hidden; position: absolute;' : ''}>
 		<!-- Error Message -->
 		{#if error}
 			<Alert variant="error" title="Error" class="mb-4">
@@ -716,7 +721,6 @@ onMount(() => {
 			</Alert>
 		{/if}
 
-		<!-- Settings Form -->
 		<form
 			onsubmit={(e) => {
 				e.preventDefault();
@@ -1448,5 +1452,5 @@ onMount(() => {
 					</StickyActions>
 				</div>
 		</form>
-	{/if}
+	</div>
 </div>

@@ -140,14 +140,15 @@ const nonAdminRolesCount = $derived(
 	roles.filter((role) => !role.isAdmin).length,
 );
 
-// Initialize data when component mounts (run once)
-$effect(() => {
-	// Only initialize if data hasn't been loaded yet
-	if (permissionsList.length === 0 && page.data.permissions.length > 0) {
-		roles = roleData;
-		permissionsList = page.data.permissions;
-	}
-});
+	// Initialize data when component mounts and whenever page data changes
+	$effect(() => {
+		if (page.data?.permissions?.length > 0) {
+			permissionsList = page.data.permissions;
+		}
+		if (roleData?.length > 0) {
+			roles = roleData;
+		}
+	});
 
 // Compute checkbox state (checked, indeterminate) for a role's header checkbox.
 // Uses String() normalization to handle potential mixed ID types across DB adapters.

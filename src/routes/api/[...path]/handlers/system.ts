@@ -324,10 +324,20 @@ export async function handleSettingsRoutes(
       throw new AppError(`Settings group ${action} not found`, 404);
     }
 
-    const settings = await cms.system.settings.get(action || "all", {
-      tenantId: tenantId as any,
-    });
-    // Align with system.test.ts expectation: return { success: true, values: ... }
+    // Group settings are stored as a single key in preferences, not in KNOWN_PRIVATE_KEYS.
+    // Use direct preferences.get to retrieve arbitrary group keys.
+    let settings: unknown;
+    if (action && action !== "all" && action !== "general") {
+      const pref = await cms.db.system.preferences.get(action, {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
+      settings = pref.success ? pref.data : {};
+    } else {
+      settings = await cms.system.settings.get(action || "all", {
+        tenantId: tenantId as any,
+      });
+    }
     return rawResponse(event, { success: true, values: settings || {} });
   }
 
