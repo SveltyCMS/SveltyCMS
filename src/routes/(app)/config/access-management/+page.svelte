@@ -65,10 +65,12 @@ const saveAllChanges = async () => {
 		async () => {
 			try {
 				// Shared mutation client — CSRF attached automatically (Testing 2026)
+				// Uses /api/user/update-roles which calls cms.auth.updateRoles() for
+				// full role/permission persistence with validation.
 				const { fetchApi } = await import("@utils/api");
-				const result = await fetchApi("/api/permission/update", {
+				const result = await fetchApi("/api/user/update-roles", {
 					method: "POST",
-					body: JSON.stringify({ roles: rolesData }),
+					body: JSON.stringify(rolesData),
 				});
 
 				if (result.success) {

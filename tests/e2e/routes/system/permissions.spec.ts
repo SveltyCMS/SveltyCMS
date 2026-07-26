@@ -57,11 +57,16 @@ test.describe("Permission Management Flow", () => {
       .or(page.getByRole("button", { name: /save all changes/i }));
     await expect(saveBtn.first()).toBeEnabled({ timeout: 15_000 });
 
-    // Wait for save API response instead of polling button disabled state
+    // Wait for save API response instead of polling button disabled state.
+    // Filter by POST method to avoid catching the CORS OPTIONS preflight (204).
     const saveDone = page
-      .waitForResponse((res) => res.url().includes("/api/permission/") && res.status() < 400, {
-        timeout: 15_000,
-      })
+      .waitForResponse(
+        (res) =>
+          res.request().method() === "POST" &&
+          res.url().includes("/api/user/update-roles") &&
+          res.status() < 400,
+        { timeout: 15_000 },
+      )
       .catch(() => null);
     await saveBtn.first().click();
     await saveDone;

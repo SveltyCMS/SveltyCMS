@@ -56,7 +56,7 @@ export const verifyPassword = query(
       body: JSON.stringify({ password }),
     });
     const d = await r.json().catch(() => ({}));
-    return { valid: !!(d as { valid?: boolean }).valid };
+    return { valid: !!(d as { data?: { valid?: boolean } }).data?.valid };
   },
 );
 
