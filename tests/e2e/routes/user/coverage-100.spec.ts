@@ -88,6 +88,9 @@ test.describe("RTC preferences", () => {
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 
+    // Wait for server-side session cache refresh to complete
+    await page.waitForTimeout(1000);
+
     const expectedSound = !initialChecked;
 
     // Wait for API response to settle, then reload to verify persistence
