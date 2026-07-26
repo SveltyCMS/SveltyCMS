@@ -314,13 +314,18 @@ async function handleRequest(event: RequestEvent) {
     const cacheReq = request.clone();
     const bodyText = await cacheReq.text().catch(() => "");
     let body: any = {};
-    try { body = JSON.parse(bodyText); } catch {}
+    try {
+      body = JSON.parse(bodyText);
+    } catch {}
     const query = body?.query || "";
     const variables = body?.variables || {};
 
     if (query && request.method === "POST") {
       const cacheKey = `gql:resp:${hashStr(String(query) + JSON.stringify(variables))}:${locals.tenantId || "global"}:${locals.user?.role || "anon"}`;
-      const cached = cacheService.getSync<{ body: string; status: number }>(cacheKey, locals.tenantId as string);
+      const cached = cacheService.getSync<{ body: string; status: number }>(
+        cacheKey,
+        locals.tenantId as string,
+      );
       if (cached?.body) {
         return new Response(cached.body, {
           status: cached.status || 200,
@@ -353,7 +358,13 @@ async function handleRequest(event: RequestEvent) {
     if (query && request.method === "POST" && yogaResponse.status === 200) {
       const cacheKey = `gql:resp:${hashStr(String(query) + JSON.stringify(variables))}:${locals.tenantId || "global"}:${locals.user?.role || "anon"}`;
       try {
-        await cacheService.set(cacheKey, { body: responseBody, status: yogaResponse.status }, 30, locals.tenantId as string, CacheCategory.API);
+        await cacheService.set(
+          cacheKey,
+          { body: responseBody, status: yogaResponse.status },
+          30,
+          locals.tenantId as string,
+          CacheCategory.API,
+        );
       } catch {}
     }
 
