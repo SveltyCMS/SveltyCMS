@@ -83,6 +83,15 @@ export async function runGraphQLBenchmark() {
 
       const payloadString = JSON.stringify({ query: scenario.query });
 
+      // Prime the cache with 2 warmup requests (not counted in benchmark)
+      for (let w = 0; w < 2; w++) {
+        await fetch(targetUrl, {
+          method: "POST",
+          headers: requestHeaders,
+          body: payloadString,
+        });
+      }
+
       const result = await runBenchmark({
         name: scenario.name,
         iterations: 600,
@@ -137,13 +146,13 @@ export async function runGraphQLBenchmark() {
     });
 
     printSummaryTable([
-      { key: "Health Check", val: results[0]!.avgMs, unit: "ms" },
-      { key: "Collection List", val: results[1]!.avgMs, unit: "ms" },
-      { key: "Entries Query", val: results[2]!.avgMs, unit: "ms" },
+      { key: "Health Check", val: results[0]!.avgMs, unit: "ms (cached)" },
+      { key: "Collection List", val: results[1]!.avgMs, unit: "ms (cached)" },
+      { key: "Entries Query", val: results[2]!.avgMs, unit: "ms (cached)" },
       {
         key: "Peak RPS",
         val: Math.max(...results.map((r) => r.rps || 0)),
-        unit: "req/s",
+        unit: "req/s (cached)",
       },
     ]);
 
