@@ -146,7 +146,8 @@ async function runStressAudit() {
       if (
         errMsg.includes("ECONNRESET") ||
         errMsg.includes("aborted") ||
-        errMsg.includes("consecutive errors")
+        errMsg.includes("consecutive errors") ||
+        errMsg.includes("reliability")
       ) {
         consecutiveResets++;
         console.log(`    ⚠️ Server connection limit reached at ${step.concurrency}c: ${errMsg}`);

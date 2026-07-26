@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-25"
+updated: "2026-07-26"
 tags:
   - "roadmap"
   - "todo"
@@ -95,6 +95,12 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 - **Cross-Source Merge Execution (v3.1 → stable)**: Decomposition planner ships in v3.0 (plan-only); v3.1+ enables in-memory hash-join across connectors. Currently opt-in alpha (`enableCrossSourceAlpha` + Pro license).
 - **Visual Studio Query Builder**: Drag-and-drop query builder for virtual collections — relationship visualizer, live data preview panes, permission matrix editor.
 - **GraphQL Supergraph / Federation**: Apollo-like schema stitching across native + virtual collections for cross-source GraphQL queries.
+- **GraphQL.js 17 + Yoga Upgrade** _(evaluated 2026-07)_: graphql-js 17.0.2 ships stable with AbortSignal resolver cancellation, Node.js tracing channels (native APM), `@experimental_disableErrorPropagation` (partial data on field errors), and fragment arguments. **Blocked by [graphql-yoga#4545](https://github.com/graphql-hive/graphql-yoga/pull/4545)** (in review, last activity Jul 24). SveltyCMS already outperforms graphql-js 17's native executor via `@envelop/graphql-jit` — the upgrade is about runtime features, not execution speed.
+  - **AbortSignal** `info.getAbortSignal()`: Cancel stale collection-list queries when users navigate to entry detail. High priority.
+  - **Tracing channels** `node:diagnostics_channel`: Free Datadog/NewRelic APM integration for GraphQL performance without code changes. Medium priority.
+  - **Disable error propagation** `@experimental_disableErrorPropagation`: Return available fields even when one resolver fails (e.g. broken media URL, valid metadata). Medium priority.
+  - **Fragment arguments**: Parameterized reusable fragments for playground/docs. Low priority.
+  - **Migration**: Bump Yoga version post-merge → enable features via Yoga plugin config. No graphql-js API changes needed in SveltyCMS code (Yoga abstracts all v16→v17 breaking changes).
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
 - **Enterprise Infrastructure Scaling**: Generate a multi-stage production `Dockerfile` and Terraform configurations (AWS Fargate, RDS Proxy, ElastiCache) for effortless horizontal scaling by large corporations.
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.
