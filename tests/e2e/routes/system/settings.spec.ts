@@ -220,33 +220,6 @@ test.describe("System Settings shell", () => {
     expect(verifyApi.ok()).toBeTruthy();
     const verifyBody = await verifyApi.json();
     expect(verifyBody.values?.CACHE_TTL_SCHEMA).toBe(Number(target));
-
-    // Restore original to avoid leaving noisy E2E mutations
-    await goSettings(page, "cache");
-    await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
-    const afterReload = page
-      .getByTestId("settings-field-CACHE_TTL_SCHEMA")
-      .locator("input")
-      .first();
-    await expect(afterReload).toBeVisible({ timeout: ACTION_TIMEOUT });
-
-    // Restore original to avoid leaving noisy E2E mutations
-    if (original !== target) {
-      await afterReload.fill(original);
-      const restoreSave = page
-        .getByTestId("settings-panel-cache")
-        .getByTestId("settings-group-save");
-      await expect(restoreSave).toBeEnabled({
-        timeout: ACTION_TIMEOUT,
-      });
-      await restoreSave.click();
-      await expect(restoreSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await expect(restoreSave).toBeDisabled({
-        timeout: ACTION_TIMEOUT,
-      });
-    }
   });
 
   test("export import reset and discard controls are present", async ({ page }) => {

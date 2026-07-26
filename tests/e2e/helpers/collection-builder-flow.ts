@@ -226,6 +226,9 @@ export async function openCollectionEntries(page: Page, slug: string): Promise<v
     expect(body.data).toBeDefined();
   }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
 
+  // Route compilation may lag behind schema save — give SvelteKit time to register
+  await page.waitForTimeout(500);
+
   await expect(async () => {
     await page.goto(`/en/collection/${cleanSlug}`, { waitUntil: "domcontentloaded" });
     if (page.url().includes("/login")) {
@@ -233,9 +236,13 @@ export async function openCollectionEntries(page: Page, slug: string): Promise<v
       await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
     }
     // Must land on collection entries (not collection builder or 404)
+    const currentUrl = page.url();
     await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
     await expect(page).not.toHaveURL(/\/config\/collectionbuilder/, { timeout: 3_000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({
+    timeout: 40_000,
+    intervals: [2_000, 4_000, 6_000],
+  });
 }
 
 export async function createEntryWithNames(

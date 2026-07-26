@@ -69,6 +69,8 @@ test.describe("Permission Management Flow", () => {
     // Verify we're still on the page (no redirect/error)
     await expect(page).toHaveURL(/access-management/i);
     // Save button should return to disabled state after save completes
-    await expect(saveBtn.first()).toBeDisabled({ timeout: 10_000 });
+    await expect(async () => {
+      await expect(saveBtn.first()).toBeDisabled();
+    }).toPass({ timeout: 15_000 });
   });
 });

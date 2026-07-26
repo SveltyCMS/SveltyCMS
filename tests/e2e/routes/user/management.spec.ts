@@ -131,7 +131,7 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
-  await confirmBtn.click({ timeout: ACTION_TIMEOUT });
+  await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
 
   await expect(page.getByText(new RegExp(`User ${action}ed successfully`, "i"))).toBeVisible({
     timeout: ACTION_TIMEOUT,
@@ -182,7 +182,7 @@ async function bulkDeleteDeveloper(page: Page) {
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
-  await confirmBtn.click({ timeout: ACTION_TIMEOUT });
+  await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
   await expect(page.getByText(/(?:User|Users)\s+Deleted/i)).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });

@@ -78,14 +78,10 @@ test.describe("RTC preferences", () => {
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    // check() is a no-op when already checked — toggle explicitly.
-    // The native <input> is sr-only (1×1px absolute), so click the
+    // The native <input> is sr-only (1×1px absolute) — click the
     // visible <label> which has for={id} and is a 24×24px target.
-    if (initialChecked) {
-      await checkbox.uncheck({ force: true, timeout: ACTION_TIMEOUT });
-    } else {
-      await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
-    }
+    const label = section.locator("label").first();
+    await label.click();
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 

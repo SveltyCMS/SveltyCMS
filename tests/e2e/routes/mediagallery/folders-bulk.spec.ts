@@ -142,12 +142,13 @@ test.describe("Media bulk actions", () => {
     );
 
     // Select first media item via its checkbox.
-    // The checkbox uses sr-only (1×1px absolute) — click() with force
-    // instead of check() to avoid viewport scroll-in failures.
+    // The checkbox uses sr-only (1×1px absolute) — click the
+    // visible <label> which has for={id}.
     const item = page.getByTestId("media-item").first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = item.locator('input[type="checkbox"]').first();
-    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
+    const label = item.locator("label").first();
+    await label.click({ timeout: ACTION_TIMEOUT });
 
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-count")).toContainText(/1 selected/i);
@@ -161,7 +162,9 @@ test.describe("Media bulk actions", () => {
     await page.getByTestId("media-selection-toggle").click();
     const item = page.getByTestId("media-item").first();
     const checkbox = item.locator('input[type="checkbox"]').first();
-    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
+    // Click visible label — native Checkbox component has label with for={id}
+    const label = item.locator("label").first();
+    await label.click({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const downloadApi = page.waitForResponse(
@@ -189,7 +192,9 @@ test.describe("Media bulk actions", () => {
     const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = item.locator('input[type="checkbox"]').first();
-    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
+    // Click visible label — native Checkbox component has label with for={id}
+    const label = item.locator("label").first();
+    await label.click({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Press Delete key while body is focused
