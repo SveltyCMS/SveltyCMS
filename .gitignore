@@ -49,6 +49,7 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFolder/
+test-media/
 mediaFiles/
 .compiledCollections/*
 .compiledCollections

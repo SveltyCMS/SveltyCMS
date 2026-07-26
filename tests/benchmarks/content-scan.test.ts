@@ -31,6 +31,20 @@ const TARGET_FILE_COUNT = parseInt(process.env.BENCHMARK_SCAN_FILES || "150", 10
 
 async function cleanupMockFiles() {
   await cleanupBenchmarkCompiledWorkspace(WORKSPACE);
+  // Also clean compiled root copies
+  const { USER_COMPILED_DIR } = await import("@utils/benchmark-paths");
+  const { BENCHMARK_COLLECTIONS_DIR, BENCHMARK_COMPILED_DIR } = await import("@utils/benchmark-paths");
+  const safeDirs = [BENCHMARK_COMPILED_DIR, USER_COMPILED_DIR];
+  for (const dir of safeDirs) {
+    try {
+      const entries = await fs.readdir(dir);
+      for (const entry of entries) {
+        if (entry.startsWith("mock_collection_") || entry === "nested") {
+          await fs.rm(path.join(dir, entry), { recursive: true, force: true });
+        }
+      }
+    } catch {}
+  }
 }
 
 async function prepareRealisticScanEnvironment() {
@@ -38,15 +52,22 @@ async function prepareRealisticScanEnvironment() {
 
   const { compiled: scanRoot } = await prepareBenchmarkCompiledWorkspace(WORKSPACE);
 
-  // Pre-calculate structural targets to prevent string allocations within the async loop
+  // Also copy to the compiled collections root so the scanner finds them
+  const { USER_COMPILED_DIR } = await import("@utils/benchmark-paths");
+
   const subdirs = ["", "nested", "nested/deep"];
+  const subdirSet = new Set(subdirs.filter(Boolean));
+
+  // Create subdirs in both locations
+  for (const d of [scanRoot, USER_COMPILED_DIR]) {
+    for (const sub of subdirSet) {
+      await fs.mkdir(path.join(d, sub), { recursive: true });
+    }
+  }
 
   const fileWritePromises = Array.from({ length: TARGET_FILE_COUNT }, async (_, i) => {
     const subIdx = i % 7 === 0 ? 2 : i % 3 === 0 ? 1 : 0;
     const subDir = subdirs[subIdx]!;
-    const dir = path.join(scanRoot, subDir);
-
-    await fs.mkdir(dir, { recursive: true });
 
     const fileName = `mock_collection_${i}.js`;
     const content = `export const schema = {
@@ -55,7 +76,9 @@ async function prepareRealisticScanEnvironment() {
   fields: [{ db_fieldName: "title", widget: { Name: "Input" } }],
 };`;
 
-    return fs.writeFile(path.join(dir, fileName), content, "utf-8");
+    // Write to benchmark workspace AND compiled root so scanner finds them
+    await fs.writeFile(path.join(scanRoot, subDir, fileName), content, "utf-8");
+    await fs.writeFile(path.join(USER_COMPILED_DIR, subDir, fileName), content, "utf-8");
   });
 
   await Promise.all(fileWritePromises);
