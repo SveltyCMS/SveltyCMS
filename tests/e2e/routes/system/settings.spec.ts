@@ -210,17 +210,27 @@ test.describe("System Settings shell", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    // Verify persistence via hard reload — more reliable than checking input after async refresh
-
-    // Hard reload — value must come from API, not client state
+    // Verify persistence via API call instead of UI reload.
+    // CACHE_TTL_SCHEMA is category "private" — values load from config
+    // files on fresh page loads, so the UI input won't reflect DB saves.
     await page.waitForTimeout(500);
+    const verifyApi = await page.request.get(
+      `/api/settings/cache?bypassCache=true&_=${Date.now()}`,
+    );
+    expect(verifyApi.ok()).toBeTruthy();
+    const verifyBody = await verifyApi.json();
+    expect(verifyBody.values?.CACHE_TTL_SCHEMA).toBe(Number(target));
+
+    // Restore original to avoid leaving noisy E2E mutations
     await goSettings(page, "cache");
+    await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
     const afterReload = page
       .getByTestId("settings-field-CACHE_TTL_SCHEMA")
       .locator("input")
       .first();
     await expect(afterReload).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await expect(afterReload).toHaveValue(target, { timeout: ACTION_TIMEOUT });
 
     // Restore original to avoid leaving noisy E2E mutations
     if (original !== target) {

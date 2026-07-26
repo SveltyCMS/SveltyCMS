@@ -66,25 +66,28 @@ test.describe("Media Gallery", () => {
   });
 
   test("can switch between grid and table views", async ({ page }) => {
-    const content = page.getByTestId("media-gallery-content");
     const gridBtn = page.getByTestId("media-view-grid");
     const tableBtn = page.getByTestId("media-view-table");
 
     await expect(gridBtn).toBeVisible({ timeout: 15_000 });
     await expect(tableBtn).toBeVisible();
-    await expect(content).toHaveAttribute("data-view", "grid");
+    await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Switch to table — use waitForSelector for state-driven UI changes
+    // Switch to table — use toPass for resilience across Svelte re-renders
     await tableBtn.click();
-    await expect(content).toHaveAttribute("data-view", "table", { timeout: 10_000 });
+    await expect(async () => {
+      await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "table");
+    }).toPass({ timeout: 15_000 });
     await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
     await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
     await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
 
     // Switch back to grid
     await gridBtn.click();
-    await expect(content).toHaveAttribute("data-view", "grid", { timeout: 10_000 });
+    await expect(async () => {
+      await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
+    }).toPass({ timeout: 15_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
     await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
   });
@@ -131,8 +134,9 @@ test.describe("Media Gallery", () => {
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await dialog.getByRole("button", { name: /confirm/i }).click();
 
-    // Verify deletion
+    // Verify deletion — one less item, filename gone from grid
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(filename)).not.toBeVisible({ timeout: 15_000 });
+    // .first() avoids strict-mode violations from prior uploads leaving dupes
+    await expect(page.getByText(filename).first()).not.toBeVisible({ timeout: 15_000 });
   });
 });

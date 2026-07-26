@@ -141,11 +141,13 @@ test.describe("Media bulk actions", () => {
       "true",
     );
 
-    // Select first media item via its checkbox
+    // Select first media item via its checkbox.
+    // The checkbox uses sr-only (1×1px absolute) — click() with force
+    // instead of check() to avoid viewport scroll-in failures.
     const item = page.getByTestId("media-item").first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = item.locator('input[type="checkbox"]').first();
-    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
+    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
 
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-count")).toContainText(/1 selected/i);
@@ -159,7 +161,7 @@ test.describe("Media bulk actions", () => {
     await page.getByTestId("media-selection-toggle").click();
     const item = page.getByTestId("media-item").first();
     const checkbox = item.locator('input[type="checkbox"]').first();
-    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
+    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const downloadApi = page.waitForResponse(
@@ -187,7 +189,7 @@ test.describe("Media bulk actions", () => {
     const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = item.locator('input[type="checkbox"]').first();
-    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
+    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Press Delete key while body is focused

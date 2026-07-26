@@ -213,13 +213,17 @@ export async function openCollectionEntries(page: Page, slug: string): Promise<v
   const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
 
   // Wait for the collection to be available via API before navigating
-  // (schema compilation + route registration is async after save)
+  // (schema compilation + route registration is async after save).
+  // GET /api/collections/{slug} returns entry arrays via handleCollectionFind,
+  // not collection metadata — so we validate success + data presence instead.
   await expect(async () => {
     const apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
     expect(apiRes.ok()).toBeTruthy();
     const body = await apiRes.json();
-    // Collection must have an _id and fields to be considered ready
-    expect(body.data?._id ?? body._id).toBeTruthy();
+    // Collection is registered when find() returns a valid response.
+    // A 200 with `data` (even an empty array) means the schema compiled.
+    expect(body.success).toBe(true);
+    expect(body.data).toBeDefined();
   }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
 
   await expect(async () => {

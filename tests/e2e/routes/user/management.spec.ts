@@ -123,9 +123,11 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
 
   const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  const confirmBtn = dialog
+  // ConfirmDialog renders <Button> with text "Confirm" — use page-level
+  // locator to avoid Portal async-render races inside the dialog subtree.
+  const confirmBtn = page
     .getByRole("button", { name: /confirm|yes|ok|block|unblock/i })
-    .or(dialog.locator("button").filter({ hasText: /confirm/i }))
+    .or(page.locator("button").filter({ hasText: /confirm/i }))
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
@@ -174,9 +176,9 @@ async function bulkDeleteDeveloper(page: Page) {
 
   const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  const confirmBtn = dialog
+  const confirmBtn = page
     .getByRole("button", { name: /confirm|yes|ok|delete/i })
-    .or(dialog.locator("button").filter({ hasText: /confirm/i }))
+    .or(page.locator("button").filter({ hasText: /confirm/i }))
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();

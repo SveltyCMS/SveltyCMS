@@ -379,13 +379,9 @@ describe("User API Extended Integration", () => {
         body: JSON.stringify({ password: testFixtures.users.admin.password }),
       });
 
-      // The frontend calls this endpoint expecting { valid: boolean }
-      // It may return 200 on success, 404 if not implemented, or 400/401 on mismatch
-      expect([200, 400, 401, 404]).toContain(response.status);
-      if (response.status === 200) {
-        const result = await response.json();
-        expect(result).toHaveProperty("valid");
-      }
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.valid).toBe(true);
     });
 
     it("should reject wrong password", async () => {
@@ -399,11 +395,9 @@ describe("User API Extended Integration", () => {
         body: JSON.stringify({ password: "WrongPassword999!" }),
       });
 
-      expect([200, 400, 401, 404]).toContain(response.status);
-      if (response.status === 200) {
-        const result = await response.json();
-        expect(result.valid).toBe(false);
-      }
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.valid).toBe(false);
     });
 
     it("should handle empty password", async () => {
@@ -417,7 +411,9 @@ describe("User API Extended Integration", () => {
         body: JSON.stringify({ password: "" }),
       });
 
-      expect([200, 400, 401, 404]).toContain(response.status);
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.valid).toBe(false);
     });
 
     it("should handle missing password field", async () => {
@@ -431,7 +427,9 @@ describe("User API Extended Integration", () => {
         body: JSON.stringify({}),
       });
 
-      expect([200, 400, 404]).toContain(response.status);
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.valid).toBe(false);
     });
 
     it("should reject unauthenticated verification", async () => {

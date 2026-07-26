@@ -121,6 +121,10 @@ export async function handleAuthUserRoutes(
       case "backchannel-logout":
         return reqMethod === "POST" ? handleBackChannelLogoutRoute(event) : notAllowed();
 
+      // Password verification (own profile only)
+      case "verify-password":
+        return reqMethod === "POST" ? handleVerifyPassword(event, user) : notAllowed();
+
       // User Management
       case "create-user":
         return reqMethod === "POST" ? handleCreateUser(event, cms, tenantId) : notAllowed();
@@ -470,6 +474,34 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
   const result = await cms.auth.createUser(body, { tenantId });
   if (!result.success) throw new AppError(result.message || "Failed to create user", 400);
   return successResponse(event, result.data, 201);
+}
+
+/**
+ * Verifies the current authenticated user's password.
+ * Used by the profile editor to gate sensitive field access (password change).
+ *
+ * SECURITY: Only verifies the calling user's own password — not an arbitrary user.
+ * This prevents password-guessing attacks via the API.
+ */
+export async function handleVerifyPassword(event: RequestEvent, user: any) {
+  const body = await event.request.json();
+  const { password } = body;
+
+  if (!password || typeof password !== "string") {
+    return successResponse(event, { valid: false });
+  }
+
+  // Must be authenticated with a real user (not API key / token virtual user)
+  if (!user?.password) {
+    return successResponse(event, { valid: false });
+  }
+
+  try {
+    const valid = await verifyPassword(user.password, password);
+    return successResponse(event, { valid });
+  } catch {
+    return successResponse(event, { valid: false });
+  }
 }
 
 /**

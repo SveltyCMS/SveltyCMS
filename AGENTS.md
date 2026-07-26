@@ -709,6 +709,12 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
     - ✅ Windows: `bun install; bun run dev`
     - ✅ Linux/macOS: `bun install && bun run dev`
     - ⚠️ **Windows `bun install` corruption**: If `bun install` fails on Windows, use `npm install` as a workaround (see Common Development Issues section 3).
+11. **Playwright Locator Chaining (CRITICAL)**: `.locator()` chaining creates descendant queries, not CSS filters. `cellCheckboxes.locator(":not([disabled])")` searches for children of `<input>`, always returning 0. Combine into one selector: `page.locator('input[type="checkbox"]:not([disabled])')`.
+12. **sr-only Checkbox Clicks**: `<Checkbox>` renders the native `<input>` with `class="sr-only"` (1x1px, absolute, clipped). `check({ force: true })` fails viewport scroll. Use `click({ force: true })` or click the visible `<label>` that has `for={id}`.
+13. **Dialog Confirm Buttons**: Portal-rendered dialogs have a render gap where the `<dialog>` shell is visible before `<ConfirmDialog>` content renders. Use page-level `getByRole('button', { name: /confirm/i })` instead of chaining from the dialog.
+14. **API Response Envelopes**: `successResponse()` wraps payloads as `{ success: true, data: <payload> }`. Integration tests must access `result.data.*`. E2E collection polls should check `body.data` (an array), not `body.data._id` (undefined).
+15. **Private Config Field Persistence**: Settings with `category: "private"` source from `config/private.ts` on fresh page loads, overriding DB saves. Verify via API call rather than UI input after reload.
+16. **`check()` No-Op When Checked**: `checkbox.check()` is a no-op when already checked. Always toggle explicitly: `isChecked ? uncheck() : check()`.
 
 ## Test-to-Docs Cross-Reference
 
@@ -797,4 +803,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-07-25_
+_Last Updated: 2026-07-26_

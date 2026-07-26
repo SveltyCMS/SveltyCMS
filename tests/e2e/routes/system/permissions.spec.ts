@@ -37,8 +37,10 @@ test.describe("Permission Management Flow", () => {
       expect(count).toBeGreaterThan(0);
     }).toPass({ timeout: 15_000 });
 
-    // Filter to non-disabled, toggle up to 3
-    const toggleableCheckboxes = cellCheckboxes.locator(":not([disabled])");
+    // Filter to non-disabled, toggle up to 3.
+    // Combines selector into one locator — chaining .locator() creates
+    // descendant queries, but <input> is a void element with no children.
+    const toggleableCheckboxes = page.locator('input[type="checkbox"]:not([disabled])');
     const bodyCount = await toggleableCheckboxes.count();
     expect(bodyCount, "Expected toggleable permission checkboxes").toBeGreaterThan(0);
 
