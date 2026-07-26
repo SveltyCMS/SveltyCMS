@@ -8,7 +8,8 @@
  * - 30s TTL with auto-expiry via LRU
  */
 
-import { cacheService, CacheCategory } from "@src/databases/cache/cache-service";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 
 const GQL_CACHE_TTL_S = 30;
 

@@ -126,10 +126,16 @@ test("GraphQL Response Cache Hit Latency", async () => {
   const speedup2 = diff1.duration / Math.max(diff2.duration, 0.1);
 
   console.log(`\n   📊 Results:`);
-  console.log(`      Query1 cold: ${cold.duration.toFixed(2)}ms → hot: ${hot.duration.toFixed(2)}ms (${speedup1.toFixed(1)}x)`);
-  console.log(`      Query2 cold: ${diff1.duration.toFixed(2)}ms → hot: ${diff2.duration.toFixed(2)}ms (${speedup2.toFixed(1)}x)`);
+  console.log(
+    `      Query1 cold: ${cold.duration.toFixed(2)}ms → hot: ${hot.duration.toFixed(2)}ms (${speedup1.toFixed(1)}x)`,
+  );
+  console.log(
+    `      Query2 cold: ${diff1.duration.toFixed(2)}ms → hot: ${diff2.duration.toFixed(2)}ms (${speedup2.toFixed(1)}x)`,
+  );
   console.log(`   ✅ Cache active: ${speedup1 >= 1.5 ? "YES" : "Check server logs"}`);
-  console.log(`   ✅ Sub-5ms hit:  ${hot.duration < 5 && diff2.duration < 5 ? "YES" : `No (hot=${hot.duration.toFixed(1)}ms diff=${diff2.duration.toFixed(1)}ms)`}\n`);
+  console.log(
+    `   ✅ Sub-5ms hit:  ${hot.duration < 5 && diff2.duration < 5 ? "YES" : `No (hot=${hot.duration.toFixed(1)}ms diff=${diff2.duration.toFixed(1)}ms)`}\n`,
+  );
 
   // Cleanup
   if (stopServer) {

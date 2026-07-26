@@ -212,7 +212,7 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
         const schema = createSchema({ typeDefs, resolvers });
 
-	        const plugins: any[] = [securityValidationPlugin, useGraphQlJit()];
+        const plugins: any[] = [securityValidationPlugin, useGraphQlJit()];
 
         const app = createYoga({
           schema: schema as any,
