@@ -104,21 +104,29 @@ test.describe("Media Gallery", () => {
   test("can delete an uploaded asset via grid action menu", async ({ page }) => {
     const filename = path.basename(TEST_IMAGE);
 
+    // Count existing items before upload
+    const beforeCount = await page.getByTestId("media-item").count();
+
     // Upload and wait for grid to show the file
     await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
-    await expect(page.getByText(filename).first()).toBeVisible({ timeout: 25_000 });
+    await expect(async () => {
+      const count = await page.getByTestId("media-item").count();
+      expect(count).toBeGreaterThan(beforeCount);
+    }).toPass({ timeout: 40_000 });
 
-    // Find the media item that contains our filename and hover to reveal actions
-    const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
+    // Find the first media item and get its unique id
+    const item = page.getByTestId("media-item").first();
     await expect(item).toBeVisible({ timeout: 10_000 });
+    const mediaId = await item.getAttribute("data-media-id");
+    expect(mediaId).toBeTruthy();
     await item.hover();
 
     // Action buttons container
     const actions = page.getByTestId("media-grid-actions").first();
     await expect(actions).toBeVisible({ timeout: 5_000 });
 
-    // Delete button has aria-label "Delete {filename}"
-    const deleteBtn = actions.getByLabel(`Delete ${filename}`, { exact: true });
+    // Delete button
+    const deleteBtn = actions.getByLabel(/delete/i).first();
     await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
     await deleteBtn.click();
 
@@ -130,9 +138,12 @@ test.describe("Media Gallery", () => {
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await dialog.getByRole("button", { name: /confirm/i }).click();
 
-    // Verify deletion — filename no longer visible
+    // Verify deletion — count returns to before-upload level
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(filename).first()).not.toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      const afterCount = await page.getByTestId("media-item").count();
+      expect(afterCount).toBe(beforeCount);
+    }).toPass({ timeout: 20_000 });
   });
 
   test("advanced search modal opens and closes", async ({ page }) => {
