@@ -1,6 +1,9 @@
 /**
  * @file tests/e2e/routes/system/permissions.spec.ts
- * @description E2E permission toggle + save on Access Management (no soft-skip).
+ * @description E2E permission toggle + save on Access Management.
+ *
+ * Uses checkbox.check({ force: true }) for hidden Checkbox component inputs
+ * and waitForResponse for save completion instead of disabled-state polling.
  */
 
 import { expect, test } from "@playwright/test";
@@ -19,32 +22,32 @@ test.describe("Permission Management Flow", () => {
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("access-mgmt-page")).toBeVisible({ timeout: 15_000 });
 
-    // Prefer stable testids from access-management hardening
     const permissionsTab = page.getByTestId("access-tab-permissions");
     await expect(permissionsTab).toBeVisible({ timeout: 15_000 });
-    // Only click if not already active (aria-current !== 'page')
     const isActive = (await permissionsTab.getAttribute("aria-current")) === "page";
     if (!isActive) await permissionsTab.click();
 
-    // Wait for the permissions table to render with checkboxes (data may load async)
+    // Wait for the permissions table to render
     await expect(page.locator("table")).toBeVisible({ timeout: 15_000 });
-    // Wait for at least one checkbox to appear (roles + permissions loaded)
+
+    // Wait for at least one checkbox to render
     const cellCheckboxes = page.locator('input[type="checkbox"]');
     await expect(async () => {
       const count = await cellCheckboxes.count();
       expect(count).toBeGreaterThan(0);
     }).toPass({ timeout: 15_000 });
-    // Filter to only non-disabled checkboxes
-    const toggleableCheckboxes = cellCheckboxes.locator(":not([disabled])");
 
+    // Filter to non-disabled, toggle up to 3
+    const toggleableCheckboxes = cellCheckboxes.locator(":not([disabled])");
     const bodyCount = await toggleableCheckboxes.count();
     expect(bodyCount, "Expected toggleable permission checkboxes").toBeGreaterThan(0);
 
     const toToggle = Math.min(bodyCount, 3);
     for (let i = 0; i < toToggle; i++) {
       const cb = toggleableCheckboxes.nth(i);
-      await cb.click({ force: true });
-      await cb.dispatchEvent("change");
+      // check({ force: true }) dispatches click + input + change events
+      // that Svelte's onchange handler reliably receives
+      await cb.check({ force: true, timeout: 5_000 });
     }
 
     const saveBtn = page
@@ -52,7 +55,7 @@ test.describe("Permission Management Flow", () => {
       .or(page.getByRole("button", { name: /save all changes/i }));
     await expect(saveBtn.first()).toBeEnabled({ timeout: 15_000 });
 
-    // Wait for the save API response before checking UI feedback
+    // Wait for save API response instead of polling button disabled state
     const saveDone = page
       .waitForResponse((res) => res.url().includes("/api/permission/") && res.status() < 400, {
         timeout: 15_000,
@@ -61,8 +64,9 @@ test.describe("Permission Management Flow", () => {
     await saveBtn.first().click();
     await saveDone;
 
-    // Verify the page is still on access-management and save completed
+    // Verify we're still on the page (no redirect/error)
     await expect(page).toHaveURL(/access-management/i);
+    // Save button should return to disabled state after save completes
     await expect(saveBtn.first()).toBeDisabled({ timeout: 10_000 });
   });
 });

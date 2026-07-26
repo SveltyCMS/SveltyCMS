@@ -70,7 +70,7 @@ test.describe("RTC preferences", () => {
     await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = section.locator('input[type="checkbox"]');
 
-    // Read initial state so we know what the toggle will send
+    // Read initial state
     const initialChecked = await checkbox.isChecked();
 
     const apiCall = page.waitForResponse(
@@ -78,14 +78,14 @@ test.describe("RTC preferences", () => {
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    await checkbox.click({ force: true });
+    // check({ force: true }) dispatches click + input + change so Svelte onChange fires
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 
-    // After toggling, the expected persisted state is the opposite of initial
     const expectedSound = !initialChecked;
 
-    await page.waitForTimeout(500);
+    // Wait for API response to settle, then reload to verify persistence
     await page.goto("/user", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: 10_000 });
 
@@ -109,7 +109,7 @@ test.describe("RTC preferences", () => {
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    await checkbox.evaluate((el: HTMLElement) => el.click());
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
     const res = await apiCall;
     expect(res.ok()).toBe(true);
     const body = res.request().postDataJSON();

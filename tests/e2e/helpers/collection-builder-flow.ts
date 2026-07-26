@@ -211,14 +211,27 @@ export async function saveCollectionSchema(page: Page): Promise<void> {
 
 export async function openCollectionEntries(page: Page, slug: string): Promise<void> {
   const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
+
+  // Wait for the collection to be available via API before navigating
+  // (schema compilation + route registration is async after save)
+  await expect(async () => {
+    const apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
+    expect(apiRes.ok()).toBeTruthy();
+    const body = await apiRes.json();
+    // Collection must have an _id and fields to be considered ready
+    expect(body.data?._id ?? body._id).toBeTruthy();
+  }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
+
   await expect(async () => {
     await page.goto(`/en/collection/${cleanSlug}`, { waitUntil: "domcontentloaded" });
     if (page.url().includes("/login")) {
       const { loginAsAdmin } = await import("./auth");
       await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
     }
+    // Must land on collection entries (not collection builder or 404)
     await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
-  }).toPass({ timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/config\/collectionbuilder/, { timeout: 3_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 export async function createEntryWithNames(

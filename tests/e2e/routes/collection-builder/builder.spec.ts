@@ -71,21 +71,20 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await addInputField(page, { label: "Title", fieldName: "title" });
     await saveCollectionSchema(page);
 
-    // Allow collection compilation + route registration to settle after save
-    await page.waitForTimeout(2_000);
-
+    // openCollectionEntries now polls the API until the collection is registered
+    // (replaces brittle waitForTimeout for async compilation + route registration)
     await openCollectionEntries(page, fixture.slug);
 
+    // EntryListMultiButton renders data-testid="entry-list-action-create" for empty collections
     const createBtn = page
       .getByTestId("entry-list-action-create")
-      .or(page.getByRole("button", { name: /create/i }))
-      .or(page.locator("a[href*='create=true']"))
+      .or(page.getByRole("button", { name: /create new entry|create/i }))
       .first();
     await expect(
       createBtn,
       `Expected entry list or create control for collection "${fixture.slug}" after schema save`,
     ).toBeVisible({ timeout: 20_000 });
-    await createBtn.click({ force: true });
+    await createBtn.click({ timeout: 10_000 });
 
     await page.getByRole("textbox", { name: "Title" }).fill("Golden Entry");
     await page.getByRole("button", { name: /save/i }).first().click();

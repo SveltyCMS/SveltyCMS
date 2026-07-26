@@ -15,6 +15,8 @@
 import { test, setupBenchmarkServer, stabilize, TEST_API_SECRET } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
+let stopServer: (() => Promise<void>) | null = null;
+
 async function graphqlRequest(
   baseUrl: string,
   query: string,
@@ -41,10 +43,8 @@ async function graphqlRequest(
 test("GraphQL Response Cache Hit Latency", async () => {
   console.log("\n🎯 GraphQL Response Cache Hit Verification\n");
 
-  // Start WITH BENCHMARK=1 for proper server seeding
-  process.env.BENCHMARK = "1";
-
   const server = await setupBenchmarkServer();
+  stopServer = server.stop;
   const baseUrl = server.baseUrl;
   await stabilize(1000);
 
@@ -87,13 +87,12 @@ test("GraphQL Response Cache Hit Latency", async () => {
 
   if (!hasCookie) {
     console.log("   ⚠️ No session cookie — cache test skipped\n");
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
     return;
   }
-
-  // Step 3: Now disable BENCHMARK so cache plugin activates
-  delete process.env.BENCHMARK;
-  delete process.env.BENCHMARK_MODE;
-  await stabilize(500);
 
   const query1 = `query { contentSystemHealth { state version } }`;
   const query2 = `query { allCollections { _id name } }`;
@@ -129,9 +128,13 @@ test("GraphQL Response Cache Hit Latency", async () => {
   console.log(
     `      Query2 cold: ${diff1.duration.toFixed(2)}ms → hot: ${diff2.duration.toFixed(2)}ms (${speedup2.toFixed(1)}x)`,
   );
-  // Let process exit handle cleanup — avoids port conflict with other benchmark tests
   console.log(`   ✅ Cache active: ${speedup1 >= 1.5 ? "YES" : "Check server logs"}`);
   console.log(
     `   ✅ Sub-5ms hit:  ${hot.duration < 5 && diff2.duration < 5 ? "YES" : `No (hot=${hot.duration.toFixed(1)}ms diff=${diff2.duration.toFixed(1)}ms)`}\n`,
   );
+
+  if (stopServer) {
+    await stopServer().catch(() => {});
+    stopServer = null;
+  }
 }, 120000);

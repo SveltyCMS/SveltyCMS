@@ -95,13 +95,11 @@ test.describe("P0 — Password change journey", () => {
     await expect(currentPassword).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(newPassword).toBeDisabled({ timeout: 5_000 });
 
-    // Focus + type character-by-character so Svelte's oninput debounce fires
-    await currentPassword.click();
-    await currentPassword.fill("");
-    await page.keyboard.type(oldPassword, { delay: 30 });
-    // Svelte oninput fires on each keystroke; wait for debounce + API round-trip
-    await currentPassword.dispatchEvent("blur");
-    // Debounced verify (800ms) + API round-trip — wait until new password unlocks
+    // Fill current password — Svelte debounces verification on input
+    await currentPassword.fill(oldPassword);
+    // Blur triggers debounced verify after 800ms + API round-trip
+    await currentPassword.blur();
+    // Wait for new password field to unlock (verify succeeded)
     await expect(newPassword).toBeEnabled({ timeout: ACTION_TIMEOUT });
     await expect(page.getByText(/password verified/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
 

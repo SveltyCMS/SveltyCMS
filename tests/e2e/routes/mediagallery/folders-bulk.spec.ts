@@ -1,6 +1,8 @@
 /**
  * @file tests/e2e/routes/mediagallery/folders-bulk.spec.ts
  * @description Media gallery: virtual folders + multi-select bulk actions.
+ *
+ * Uses data-testid selectors so tests survive CSS/layout changes.
  */
 
 import path from "node:path";
@@ -19,25 +21,12 @@ async function openGallery(page: Page) {
     await loginAsAdmin(page, "/mediagallery");
   }
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: ACTION_TIMEOUT });
-  const toolbar = page.getByTestId("media-gallery-toolbar");
-  if (await toolbar.isVisible({ timeout: ACTION_TIMEOUT }).catch(() => false)) return;
-  // Soft shell: content area / page-title if toolbar testid lags
-  const alt = page
-    .getByTestId("media-gallery-content")
-    .or(page.getByTestId("page-title"))
-    .or(page.getByRole("heading", { name: /media gallery/i }));
-  if (
-    !(await alt
-      .first()
-      .isVisible({ timeout: 8_000 })
-      .catch(() => false))
-  ) {
-    const body = await page
-      .locator("body")
-      .innerText()
-      .catch(() => "");
-    throw new Error(`Media gallery shell missing at ${page.url()} body=${body.slice(0, 400)}`);
-  }
+
+  const shell = page
+    .getByTestId("media-gallery-toolbar")
+    .or(page.getByTestId("media-gallery-content"))
+    .or(page.getByTestId("media-grid"));
+  await expect(shell.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
 async function uploadImage(page: Page, filePath = TEST_IMAGE) {
@@ -68,7 +57,6 @@ test.describe("Media virtual folders", () => {
 
   test("create folder via New Folder prompt", async ({ page }) => {
     await openGallery(page);
-
     const folderName = `e2e_folder_${Date.now().toString(36).slice(-6)}`;
 
     const createApi = page.waitForResponse(
@@ -78,7 +66,7 @@ test.describe("Media virtual folders", () => {
     );
 
     await page.getByTestId("media-create-folder").click();
-    // ModalPrompt — prefer named dialog so GDPR cookie banner is excluded.
+
     const dialog = page
       .getByRole("dialog", { name: /create new folder|new folder|folder/i })
       .or(
@@ -88,6 +76,7 @@ test.describe("Media virtual folders", () => {
       )
       .first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+
     const input = dialog.locator("input[type='text'], input:not([type])").first();
     await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
     await input.fill(folderName);
@@ -95,9 +84,7 @@ test.describe("Media virtual folders", () => {
 
     const res = await createApi;
     expect(res.ok()).toBe(true);
-
     await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
-    // Folder name should appear somewhere (sidebar tree or toast path)
     await expect(page.getByText(folderName).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
@@ -105,6 +92,7 @@ test.describe("Media virtual folders", () => {
     await openGallery(page);
     const folderName = `e2e_nav_${Date.now().toString(36).slice(-6)}`;
 
+    // Create folder
     await page.getByTestId("media-create-folder").click();
     const dialog = page
       .getByRole("dialog", { name: /create new folder|new folder|folder/i })
@@ -119,14 +107,15 @@ test.describe("Media virtual folders", () => {
     await dialog.getByRole("button", { name: /^(ok|create|confirm|save)$/i }).click();
     await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Click folder in UI (sidebar tree or list) if present
+    // Navigate into folder and verify gallery still works
     const folderLink = page.getByText(folderName, { exact: true }).first();
     await expect(folderLink).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await folderLink.click({ timeout: ACTION_TIMEOUT });
+    await folderLink.click();
 
-    // URL or breadcrumb should reflect navigation when folder has id
-    await page.waitForTimeout(500);
-    // Shell still healthy
+    // Wait for navigation to complete (breadcrumbs appear)
+    await expect(page.getByTestId("media-gallery-breadcrumbs")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
     await expect(page.getByTestId("media-gallery-content")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
@@ -145,18 +134,18 @@ test.describe("Media bulk actions", () => {
 
     await expect(page.getByTestId("media-view-grid")).toHaveAttribute("aria-pressed", "true");
 
+    // Enter selection mode
     await page.getByTestId("media-selection-toggle").click();
     await expect(page.getByTestId("media-selection-toggle")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
 
-    // Select first gridcell checkbox
-    const cell = page.getByRole("gridcell").first();
-    await expect(cell).toBeVisible({ timeout: ACTION_TIMEOUT });
-    const checkbox = cell.locator('input[type="checkbox"]').first();
-    await expect(checkbox).toBeAttached({ timeout: ACTION_TIMEOUT });
-    await checkbox.evaluate((el: HTMLInputElement) => el.click());
+    // Select first media item via its checkbox
+    const item = page.getByTestId("media-item").first();
+    await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const checkbox = item.locator('input[type="checkbox"]').first();
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
 
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-count")).toContainText(/1 selected/i);
@@ -168,13 +157,9 @@ test.describe("Media bulk actions", () => {
     await uploadImage(page);
 
     await page.getByTestId("media-selection-toggle").click();
-    const cell = page.getByRole("gridcell").first();
-    await cell
-      .locator('input[type="checkbox"]')
-      .first()
-      .evaluate((el: HTMLInputElement) => {
-        el.click();
-      });
+    const item = page.getByTestId("media-item").first();
+    const checkbox = item.locator('input[type="checkbox"]').first();
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const downloadApi = page.waitForResponse(
@@ -184,7 +169,6 @@ test.describe("Media bulk actions", () => {
 
     await page.getByTestId("media-bulk-download").click();
     const res = await downloadApi;
-    // 200 blob, 4xx if endpoint missing, or 500 if archive fails — assert we hit the route
     expect([200, 400, 404, 500, 501]).toContain(res.status());
     if (res.ok()) {
       await expect(page.getByText(/archive download started|download/i).first()).toBeVisible({
@@ -198,18 +182,15 @@ test.describe("Media bulk actions", () => {
     await uploadImage(page);
     const filename = path.basename(TEST_IMAGE);
 
+    // Select the item
     await page.getByTestId("media-selection-toggle").click();
-    const cell = page.getByRole("gridcell").filter({ hasText: filename }).first();
-    await expect(cell).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await cell
-      .locator('input[type="checkbox"]')
-      .first()
-      .evaluate((el: HTMLInputElement) => {
-        el.click();
-      });
+    const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
+    await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const checkbox = item.locator('input[type="checkbox"]').first();
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Focus body so Delete hotkey is received
+    // Press Delete key while body is focused
     await page.locator("body").click({ position: { x: 5, y: 5 } });
     await page.keyboard.press("Delete");
 

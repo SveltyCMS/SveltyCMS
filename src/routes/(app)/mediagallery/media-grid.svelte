@@ -282,6 +282,8 @@
         ondragstart={(e) => handleDragStart(e, file)}
         ondragend={handleDragEnd}
         title="Drag to a folder in the sidebar to move"
+        data-testid="media-item"
+        data-media-id={fileId}
         in:fade={{ duration: 180 }}
       >
         {#if isSelected}

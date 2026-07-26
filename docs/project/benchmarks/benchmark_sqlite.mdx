@@ -147,7 +147,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:API_LATENCY:START -->
 
 <details id="section-api_latency">
-<summary><strong>🏷️ API LAYER LATENCY</strong> · 🟢 3.976ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ API LAYER LATENCY</strong> · 🟢 4.072ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -155,10 +155,10 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS  —  API LAYER LATENCY                             ║
 ║                       File: tests/benchmarks/api-latency.test.ts                        ║
-║                                Ran: 2026-07-26 10:27:04                                 ║
+║                                Ran: 2026-07-26 14:55:53                                 ║
 ║                      API Latency Benchmark (Production Optimized)                       ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c            │        3.976 ms │ p95:        6.031 ms │ RPS:        244 ║
+║ HTTP: findById @ 8c            │        4.072 ms │ p95:        6.551 ms │ RPS:        240 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -201,12 +201,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
-║                                Ran: 2026-07-26 10:26:46                                 ║
+║                                Ran: 2026-07-26 14:55:36                                 ║
 ║     Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack      ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,424,501 ║
-║ Local SDK (Full)               │        0.009 ms │ p95:        0.017 ms │ RPS:    105,794 ║
-║ HTTP End-to-End                │        1.148 ms │ p95:        2.384 ms │ RPS:        871 ║
+║ Logic Baseline                 │        0.001 ms │ p95:        0.000 ms │ RPS:  1,985,440 ║
+║ Local SDK (Full)               │        0.008 ms │ p95:        0.016 ms │ RPS:    123,885 ║
+║ HTTP End-to-End                │        1.315 ms │ p95:        2.725 ms │ RPS:        760 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -402,17 +402,17 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ Cache</strong> · 🟢 0.001ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache</strong> · 🟢 0.224ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                           SVELTYCMS — CACHE SERVICE TELEMETRY                           ║
-║                      File: tests/benchmarks/cache-service.test.ts                       ║
-║                                Ran: 2026-07-26 10:30:53                                 ║
-║        Measures L1 cache hit latency and pattern invalidation overhead at scale         ║
+║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
+║                      File: tests/benchmarks/negative-cache.test.ts                      ║
+║                                Ran: 2026-07-26 14:57:30                                 ║
+║        Measures Bloom-filter style missing-key cache speedup for repeated misses        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache L1 Hit                   │        0.001 ms │ p95:        0.002 ms │ RPS:    983,049 ║
-║ Pattern Invalidation (1k items @ 200k noise) │       10.728 ms │ p95:       14.688 ms │ RPS:         93 ║
+║ First Miss (DB)                │        0.224 ms │ p95:        0.306 ms │ RPS:      4,472 ║
+║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.007 ms │ RPS:    308,597 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -719,7 +719,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:UX_VITALITY:START -->
 
 <details id="section-ux_vitality">
-<summary><strong>🏷️ Simulated Admin UX Vitality</strong> · 🟢 1.874ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/admin-ux-vitality.test.ts">source</a></summary>
+<summary><strong>🏷️ Simulated Admin UX Vitality</strong> · 🟢 1.999ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/admin-ux-vitality.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -727,11 +727,11 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS  —  ADMIN UX VITALITY AUDIT                          ║
 ║                    File: tests/benchmarks/admin-ux-vitality.test.ts                     ║
-║                                Ran: 2026-07-26 10:28:38                                 ║
+║                                Ran: 2026-07-26 14:57:34                                 ║
 ║             Forms and widget registry performance via real HTTP endpoints.              ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Schema Resolution (8f)         │        1.874 ms │ p95:        2.851 ms │ RPS:        512 ║
-║ Collection List (11 cols)      │        1.715 ms │ p95:        2.481 ms │ RPS:        559 ║
+║ Schema Resolution (8f)         │        1.999 ms │ p95:        2.945 ms │ RPS:        479 ║
+║ Collection List (11 cols)      │        1.876 ms │ p95:        2.851 ms │ RPS:        510 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -817,7 +817,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:OPENAPI:START -->
 
 <details id="section-openapi">
-<summary><strong>🏷️ OpenAPI Specification Performance</strong> · 🟢 2.016ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/openapi-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ OpenAPI Specification Performance</strong> · 🟢 3.017ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/openapi-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -825,11 +825,11 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — OPENAPI SPEC GENERATION AUDIT                        ║
 ║                   File: tests/benchmarks/openapi-performance.test.ts                    ║
-║                                Ran: 2026-07-26 10:28:48                                 ║
+║                                Ran: 2026-07-26 14:57:44                                 ║
 ║Measures dynamic OpenAPI spec generation speed and cached documentation endpoint performance.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold OpenAPI Generation        │        2.016 ms │ p95:        4.053 ms │ RPS:        496 ║
-║ Warm OpenAPI Hit (Cached)      │        1.203 ms │ p95:        1.442 ms │ RPS:        750 ║
+║ Cold OpenAPI Generation        │        3.017 ms │ p95:        8.069 ms │ RPS:        331 ║
+║ Warm OpenAPI Hit (Cached)      │        1.201 ms │ p95:        1.516 ms │ RPS:        738 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -841,7 +841,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:AUTH_TRACE:START -->
 
 <details id="section-auth_trace">
-<summary><strong>🏷️ Auth & RBAC Performance</strong> · 🟢 0.832ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Auth & RBAC Performance</strong> · 🟢 1.068ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -849,11 +849,11 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
 ║                     File: tests/benchmarks/auth-performance.test.ts                     ║
-║                                Ran: 2026-07-26 10:27:08                                 ║
+║                                Ran: 2026-07-26 14:55:58                                 ║
 ║             Authentication & RBAC Pipeline Benchmark (Production Optimized)             ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Auth Validation @ 1c           │        0.832 ms │ p95:        1.006 ms │ RPS:      1,094 ║
-║ HTTP Auth Pipeline @ 8c        │        3.289 ms │ p95:        4.939 ms │ RPS:        295 ║
+║ Auth Validation @ 1c           │        1.068 ms │ p95:        1.305 ms │ RPS:        838 ║
+║ HTTP Auth Pipeline @ 8c        │        3.467 ms │ p95:        5.294 ms │ RPS:        282 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -893,7 +893,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:REST:START -->
 
 <details id="section-rest">
-<summary><strong>🏷️ REST API Performance</strong> · 🟢 0.938ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ REST API Performance</strong> · 🟢 0.960ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -901,13 +901,13 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — ENTERPRISE REST API AUDIT                          ║
 ║                   File: tests/benchmarks/rest-api-performance.test.ts                   ║
-║                                Ran: 2026-07-26 10:27:02                                 ║
+║                                Ran: 2026-07-26 14:55:52                                 ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, CRUD list, and search.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                   │        0.938 ms │ p95:        1.784 ms │ RPS:      1,066 ║
-║ Collection Schema              │        2.447 ms │ p95:        3.842 ms │ RPS:        409 ║
-║ Collection Find (List)         │        2.844 ms │ p95:        4.364 ms │ RPS:        352 ║
-║ Collection Search              │        3.366 ms │ p95:        5.343 ms │ RPS:        297 ║
+║ Health Check                   │        0.960 ms │ p95:        1.811 ms │ RPS:      1,042 ║
+║ Collection Schema              │        2.402 ms │ p95:        3.911 ms │ RPS:        416 ║
+║ Collection Find (List)         │        2.501 ms │ p95:        3.772 ms │ RPS:        400 ║
+║ Collection Search              │        2.335 ms │ p95:        3.615 ms │ RPS:        428 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -919,7 +919,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:GRAPHQL:START -->
 
 <details id="section-graphql">
-<summary><strong>🏷️ GraphQL API Performance</strong> · 🟢 1.442ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL API Performance</strong> · 🟢 2.515ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -927,12 +927,15 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                          ║
 ║                 File: tests/benchmarks/graphql-api-performance.test.ts                  ║
-║                                Ran: 2026-07-26 10:28:18                                 ║
-║   Measures GraphQL resolver performance and throughput across varied query scenarios.   ║
+║                                Ran: 2026-07-26 14:57:12                                 ║
+║              Measures GraphQL resolver performance across query scenarios,              ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health             │        1.442 ms │ p95:        2.500 ms │ RPS:        693 ║
-║ GQL: Collection List           │        5.347 ms │ p95:        8.618 ms │ RPS:        187 ║
-║ GQL: Concurrent Load           │        4.567 ms │ p95:        7.926 ms │ RPS:        219 ║
+║ GQL: System Health [cold]      │        2.515 ms │ p95:        4.411 ms │ RPS:        398 ║
+║ GQL: System Health [hot]       │        1.353 ms │ p95:        2.367 ms │ RPS:        739 ║
+║ GQL: Collection List [cold]    │        7.615 ms │ p95:       12.334 ms │ RPS:        131 ║
+║ GQL: Collection List [hot]     │        6.014 ms │ p95:        9.475 ms │ RPS:        166 ║
+║ GQL: Concurrent Load [cold]    │        7.328 ms │ p95:       11.972 ms │ RPS:        137 ║
+║ GQL: Concurrent Load [hot]     │        4.593 ms │ p95:        6.983 ms │ RPS:        218 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1105,7 +1108,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:GQL_STRESS:START -->
 
 <details id="section-gql_stress">
-<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 4.400ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 5.967ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -1113,16 +1116,16 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS — GRAPHQL CAPACITY DISCOVERY                          ║
 ║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
-║                                Ran: 2026-07-26 10:28:28                                 ║
+║                                Ran: 2026-07-26 14:57:23                                 ║
 ║  Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        4.400 ms │ p95:        5.942 ms │ RPS:        200 ║
-║ GQL: 10c Light                 │        8.599 ms │ p95:       11.850 ms │ RPS:        115 ║
-║ GQL: 20c Moderate              │       16.744 ms │ p95:       23.086 ms │ RPS:         60 ║
-║ GQL: 40c Heavy                 │       29.972 ms │ p95:       38.586 ms │ RPS:         34 ║
-║ GQL: 60c Stress                │       45.243 ms │ p95:       59.387 ms │ RPS:         23 ║
-║ GQL: 80c Extreme               │       58.802 ms │ p95:       79.409 ms │ RPS:         17 ║
-║ GQL: 100c Max                  │       47.212 ms │ p95:       89.265 ms │ RPS:         21 ║
+║ GQL: 5c Warmup                 │        5.967 ms │ p95:        7.827 ms │ RPS:        150 ║
+║ GQL: 10c Light                 │        7.825 ms │ p95:       10.614 ms │ RPS:        121 ║
+║ GQL: 20c Moderate              │       19.896 ms │ p95:       28.957 ms │ RPS:         51 ║
+║ GQL: 40c Heavy                 │       33.569 ms │ p95:       44.960 ms │ RPS:         30 ║
+║ GQL: 60c Stress                │       45.484 ms │ p95:       62.131 ms │ RPS:         22 ║
+║ GQL: 80c Extreme               │       60.086 ms │ p95:       79.522 ms │ RPS:         17 ║
+║ GQL: 100c Max                  │       49.950 ms │ p95:       97.363 ms │ RPS:         20 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1334,7 +1337,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 <!-- SECTION:RESILIENCE:START -->
 
 <details id="section-resilience">
-<summary><strong>🏷️ Chaos & Infrastructure Resilience</strong> · 🟢 163.849ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/chaos-resilience.test.ts">source</a></summary>
+<summary><strong>🏷️ Chaos & Infrastructure Resilience</strong> · 🟢 178.199ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/chaos-resilience.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -1342,10 +1345,10 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — CHAOS RESILIENCE AUDIT                            ║
 ║                     File: tests/benchmarks/chaos-resilience.test.ts                     ║
-║                                Ran: 2026-07-26 10:28:06                                 ║
+║                                Ran: 2026-07-26 14:56:56                                 ║
 ║Simulates infrastructure brownouts and measures system stability and graceful degradation under stress.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Chaos Resilience (Brownout)    │      163.849 ms │ p95:      680.981 ms │ RPS:          6 ║
+║ Chaos Resilience (Brownout)    │      178.199 ms │ p95:      720.970 ms │ RPS:          6 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
