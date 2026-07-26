@@ -229,10 +229,12 @@ test.describe("System Settings shell", () => {
     });
     await page.waitForTimeout(600);
 
-    await expect(page.getByTestId("settings-group-export")).toBeVisible({
+    // Scope to panel to avoid strict-mode with page toolbar export button
+    const panel = page.getByTestId("settings-panel-security");
+    await expect(panel.getByTestId("settings-group-export")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByTestId("settings-group-import")).toBeVisible();
+    await expect(panel.getByTestId("settings-group-import")).toBeVisible();
     await expect(page.getByTestId("settings-group-import-input")).toBeAttached();
     await expect(page.getByTestId("settings-group-reset")).toBeVisible();
     await expect(page.getByTestId("settings-group-discard")).toBeVisible();

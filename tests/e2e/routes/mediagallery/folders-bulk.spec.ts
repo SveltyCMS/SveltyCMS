@@ -146,7 +146,6 @@ test.describe("Media bulk actions", () => {
     // visible <label> which has for={id}.
     const item = page.getByTestId("media-item").first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
-    const checkbox = item.locator('input[type="checkbox"]').first();
     const label = item.locator("label").first();
     await label.click({ timeout: ACTION_TIMEOUT });
 
@@ -161,7 +160,6 @@ test.describe("Media bulk actions", () => {
 
     await page.getByTestId("media-selection-toggle").click();
     const item = page.getByTestId("media-item").first();
-    const checkbox = item.locator('input[type="checkbox"]').first();
     // Click visible label — native Checkbox component has label with for={id}
     const label = item.locator("label").first();
     await label.click({ timeout: ACTION_TIMEOUT });
@@ -191,12 +189,12 @@ test.describe("Media bulk actions", () => {
     await page.getByTestId("media-selection-toggle").click();
     const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
-    const checkbox = item.locator('input[type="checkbox"]').first();
     // Click visible label — native Checkbox component has label with for={id}
     const label = item.locator("label").first();
     await label.click({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
+    // Press Delete key
     // Press Delete key while body is focused
     await page.locator("body").click({ position: { x: 5, y: 5 } });
     await page.keyboard.press("Delete");

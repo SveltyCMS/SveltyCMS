@@ -236,7 +236,6 @@ export async function openCollectionEntries(page: Page, slug: string): Promise<v
       await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
     }
     // Must land on collection entries (not collection builder or 404)
-    const currentUrl = page.url();
     await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
     await expect(page).not.toHaveURL(/\/config\/collectionbuilder/, { timeout: 3_000 });
   }).toPass({
