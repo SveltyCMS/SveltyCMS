@@ -78,10 +78,13 @@ test.describe("RTC preferences", () => {
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    // The native <input> is sr-only (1×1px absolute) — click the
-    // visible <label> which has for={id} and is a 24×24px target.
-    const label = section.locator("label").first();
-    await label.click();
+    // The native input is sr-only — dispatch synthetic change event to
+    // reliably trigger Svelte 5 onchange handler on the Checkbox component.
+    await checkbox.evaluate((el) => {
+      const input = el as HTMLInputElement;
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 
