@@ -33,7 +33,8 @@ async function cleanupMockFiles() {
   await cleanupBenchmarkCompiledWorkspace(WORKSPACE);
   // Also clean compiled root copies
   const { USER_COMPILED_DIR } = await import("@utils/benchmark-paths");
-  const { BENCHMARK_COLLECTIONS_DIR, BENCHMARK_COMPILED_DIR } = await import("@utils/benchmark-paths");
+  const { BENCHMARK_COLLECTIONS_DIR, BENCHMARK_COMPILED_DIR } =
+    await import("@utils/benchmark-paths");
   const safeDirs = [BENCHMARK_COMPILED_DIR, USER_COMPILED_DIR];
   for (const dir of safeDirs) {
     try {
