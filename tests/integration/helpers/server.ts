@@ -351,8 +351,9 @@ export async function prepareAuthenticatedContext(
   options: { skipReset?: boolean } = {},
 ): Promise<string> {
   const isMongoDB = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+  const isPostgreSQL = (process.env.DB_TYPE || "").toLowerCase() === "postgresql";
   if (!options.skipReset) {
-    const maxSeedRetries = isMongoDB ? 5 : 3;
+    const maxSeedRetries = isMongoDB ? 5 : isPostgreSQL ? 6 : 3;
     for (let attempt = 0; attempt < maxSeedRetries; attempt++) {
       try {
         await cleanupTestDatabase();
@@ -369,6 +370,9 @@ export async function prepareAuthenticatedContext(
             await new Promise((r) => setTimeout(r, 1000));
           }
           await new Promise((r) => setTimeout(r, 2000));
+        }
+        if (isPostgreSQL) {
+          await new Promise((r) => setTimeout(r, 1500));
         }
         const seedResp = await safeFetch(`${getApiBaseUrl()}/api/testing`, {
           method: "POST",
