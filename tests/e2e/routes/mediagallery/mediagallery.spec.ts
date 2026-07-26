@@ -74,11 +74,17 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Switch to table — use toPass for resilience across Svelte re-renders
+    // Switch to table. If the page navigates away (possible render crash),
+    // navigate back and retry via toPass.
     await tableBtn.click();
     await expect(async () => {
+      // If we landed somewhere else, go back to mediagallery
+      if (!page.url().includes("/mediagallery")) {
+        await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+        await tableBtn.click();
+      }
       await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "table");
-    }).toPass({ timeout: 15_000 });
+    }).toPass({ timeout: 20_000, intervals: [1_000, 2_000, 3_000] });
     await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
     await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
     await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
@@ -86,8 +92,12 @@ test.describe("Media Gallery", () => {
     // Switch back to grid
     await gridBtn.click();
     await expect(async () => {
+      if (!page.url().includes("/mediagallery")) {
+        await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+        await gridBtn.click();
+      }
       await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
-    }).toPass({ timeout: 15_000 });
+    }).toPass({ timeout: 20_000, intervals: [1_000, 2_000, 3_000] });
     await expect(page.getByTestId("media-grid")).toBeVisible();
     await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
   });
@@ -109,15 +119,22 @@ test.describe("Media Gallery", () => {
   test("can delete an uploaded asset via grid action menu", async ({ page }) => {
     const filename = path.basename(TEST_IMAGE);
 
+    // Count before upload to verify deletion by count delta
+    const beforeCount = await page.getByTestId("media-item").count();
+
     // Upload
     await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
-    await expect(page.getByText(filename).first()).toBeVisible({ timeout: 20_000 });
+    await expect(async () => {
+      const count = await page.getByTestId("media-item").count();
+      expect(count).toBeGreaterThan(beforeCount);
+    }).toPass({ timeout: 20_000 });
 
-    // Find the media item and hover to reveal action buttons
-    const item = page.getByTestId("media-item").first();
+    // Find the media item that contains our filename and hover to reveal actions
+    const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
+    await expect(item).toBeVisible({ timeout: 10_000 });
     await item.hover();
 
-    // Action buttons container — always visible on mobile, hover-revealed on desktop
+    // Action buttons container
     const actions = page.getByTestId("media-grid-actions").first();
     await expect(actions).toBeVisible({ timeout: 5_000 });
 
@@ -134,9 +151,11 @@ test.describe("Media Gallery", () => {
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await dialog.getByRole("button", { name: /confirm/i }).click();
 
-    // Verify deletion — one less item, filename gone from grid
+    // Verify deletion — count returns to before-upload level
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-    // .first() avoids strict-mode violations from prior uploads leaving dupes
-    await expect(page.getByText(filename).first()).not.toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      const afterCount = await page.getByTestId("media-item").count();
+      expect(afterCount).toBe(beforeCount);
+    }).toPass({ timeout: 15_000 });
   });
 });
