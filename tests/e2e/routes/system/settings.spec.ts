@@ -235,9 +235,9 @@ test.describe("System Settings shell", () => {
       timeout: ACTION_TIMEOUT,
     });
     await expect(panel.getByTestId("settings-group-import")).toBeVisible();
-    await expect(page.getByTestId("settings-group-import-input")).toBeAttached();
-    await expect(page.getByTestId("settings-group-reset")).toBeVisible();
-    await expect(page.getByTestId("settings-group-discard")).toBeVisible();
+    await expect(panel.getByTestId("settings-group-import-input")).toBeAttached();
+    await expect(panel.getByTestId("settings-group-reset")).toBeVisible();
+    await expect(panel.getByTestId("settings-group-discard")).toBeVisible();
   });
 
   test("multi-tenancy migration card check structure", async ({ page }) => {

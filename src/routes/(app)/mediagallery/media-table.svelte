@@ -63,15 +63,62 @@ let showTagModal = $state(false);
 let taggingFile = $state<MediaImage | null>(null);
 
 // Client-mode smart table: local page/sort for filtered gallery slice
-const smartTable = createSmartTable({
-	mode: "client",
-	pageSize: 10,
-	layoutKey: "media-gallery-table",
-	getRowId: (row) => {
-		const r = row as unknown as MediaBase | MediaImage;
-		return String(r._id?.toString() || r.filename || "");
-	},
-});
+const smartTable = (() => {
+  try {
+    return createSmartTable({
+      mode: "client",
+      pageSize: 10,
+      layoutKey: "media-gallery-table",
+      getRowId: (row) => {
+        const r = row as unknown as MediaBase | MediaImage;
+        return String(r._id?.toString() || r.filename || "");
+      },
+    });
+  } catch (err) {
+    console.error("[MediaTable] createSmartTable failed:", err);
+    // Return a minimal stub so the component doesn't crash entirely
+    return {
+      rows: [],
+      columns: [],
+      visibleColumns: [],
+      pinned: { start: [], center: [], end: [], ordered: [] },
+      density: "normal" as const,
+      sort: { sortedBy: "", isSorted: 0 },
+      pagination: { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
+      selectedIds: new Set<string>(),
+      selectedCount: 0,
+      hasSelections: false,
+      allSelected: false,
+      someSelected: false,
+      isEmpty: true,
+      mode: "client" as const,
+      virtual: { enabled: false, startIndex: 0, endIndex: 0, visibleRows: [], spacerTop: 0, spacerBottom: 0, onScroll: () => {} },
+      cellPaddingClass: "!p-2",
+      columnWidths: {},
+      setRows: () => {},
+      setColumns: () => {},
+      setPaginationMeta: () => {},
+      setDensity: () => {},
+      setSort: () => {},
+      setPage: () => {},
+      setPageSize: () => {},
+      toggleSelect: () => {},
+      toggleSelectIndex: () => {},
+      setSelectAll: () => {},
+      clearSelection: () => {},
+      isSelected: () => false,
+      getSelectedRows: () => [],
+      getSelectedIds: () => [],
+      setColumnVisible: () => {},
+      setColumnPin: () => {},
+      setColumnWidth: () => {},
+      getColumnWidthStyle: () => undefined,
+      reorderColumns: () => {},
+      persistLayout: () => {},
+      getRowId: (row: any, i: number) => String(row?._id || row?.id || i),
+    };
+  }
+})();
 
 $effect(() => {
 	smartTable.setRows(filteredFiles as unknown as Record<string, unknown>[]);

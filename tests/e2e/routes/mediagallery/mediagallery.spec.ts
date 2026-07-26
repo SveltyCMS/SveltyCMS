@@ -74,12 +74,13 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Table view: MediaTable mount may crash in dev environment.
-    // This is a known product bug — skip table assertions, only verify grid.
-    // CI build environment may differ; the table assertions run there via
-    // the view-switch test in the full E2E suite.
+    // Switch to table
+    await tableBtn.click();
+    await expect(tableBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
 
-    // Switch back to grid (always works)
+    // Switch back to grid
     await gridBtn.click();
     await expect(gridBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
