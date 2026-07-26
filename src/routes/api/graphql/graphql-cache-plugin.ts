@@ -2,10 +2,6 @@
  * @file src/routes/api/graphql/graphql-cache-plugin.ts
  * @description Envelop plugin for GraphQL response caching using cacheService L1 LRU.
  *
- * Cache hit path: onExecute → setResultAndStopExecution (skips execution entirely).
- * Cache miss path: onExecuteDone → store result in L1 for subsequent requests.
- * Skips: mutations, subscriptions, benchmark mode, and errored responses.
- *
  * ### Features:
  * - L1 in-memory cache via cacheService (sub-ms hits)
  * - Cache key: gql:resp:{queryHash}:{tenant}:{role}
@@ -43,16 +39,17 @@ function buildCacheKey(ctx: any, query: string, variables: Record<string, unknow
 }
 
 export function useGraphQLResponseCache(): any {
+  // Skip entirely in benchmark mode
+  if (isBenchmark()) return {};
+
   return {
     /**
-     * Cache-read phase: check L1 before execution. On hit, short-circuit the
-     * entire execution pipeline so no resolvers run.
+     * Cache-read phase: check L1 before execution.
      */
     onExecute({ args, setResultAndStopExecution }: any) {
       try {
         const ctx = args.contextValue;
         if (!ctx || ctx?.operation?.operation !== "query") return;
-        if (isBenchmark()) return;
 
         const query = ctx?.params?.query || ctx?.request?.query || "";
         const variables = args.variableValues ?? ctx?.request?.variables ?? {};
@@ -69,13 +66,12 @@ export function useGraphQLResponseCache(): any {
     },
 
     /**
-     * Cache-write phase: after successful execution, store result in L1.
+     * Cache-write phase: after successful execution, store result.
      */
     onExecuteDone({ result, args }: any) {
       try {
         const ctx = args.contextValue;
         if (!ctx || ctx?.operation?.operation !== "query") return;
-        if (isBenchmark()) return;
         if (result?.errors?.length) return;
 
         const query = ctx?.params?.query || ctx?.request?.query || "";

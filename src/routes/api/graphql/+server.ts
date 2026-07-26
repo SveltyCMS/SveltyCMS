@@ -20,10 +20,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { createYoga, createSchema } from "graphql-yoga";
 import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
-
-// GraphQL response cache (L1 in-memory via cacheService)
-// Disabled pending envelop plugin compatibility fix — see graphql-cache-plugin.ts
-// import { useGraphQLResponseCache } from "./graphql-cache-plugin";
+import { useGraphQLResponseCache } from "./graphql-cache-plugin";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
