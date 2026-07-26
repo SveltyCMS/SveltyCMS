@@ -40,22 +40,22 @@ tags:
 
 ## 2. Health by layer
 
-| Layer                       | Confidence    | What it proves                                                                               | How to run                                                   |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Unit** (Vitest)           | **A++**       | Auth cookies, **CacheService/Auth whitebox**, import-boundary, page gates, widgets, security | `bun run test:unit` · coverage: `test:unit:coverage`         |
-| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth (~2s local)                                                    | See AGENTS.md security command                               |
-| **Integration** (black-box) | **A++**       | HTTP + DB; crash restart; multi-adapter matrix in CI | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
-| **E2E** (Playwright)        | **A++**       | Browser goldens / P0 journeys; CI-parity preview :4173                                       | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`      |
-| **Benchmarks**              | **Selective** | Perf matrix; full suite is long — not every PR | See [benchmarks](../project/benchmarks/index.mdx) |
+| Layer                       | Confidence    | What it proves                                                                               | How to run                                                              |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Unit** (Vitest)           | **A++**       | Auth cookies, **CacheService/Auth whitebox**, import-boundary, page gates, widgets, security | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth (~2s local)                                                    | See AGENTS.md security command                                          |
+| **Integration** (black-box) | **A++**       | HTTP + DB; crash restart; multi-adapter matrix in CI                                         | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
+| **E2E** (Playwright)        | **A++**       | Browser goldens / P0 journeys; CI-parity preview :4173                                       | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
+| **Benchmarks**              | **Selective** | Perf matrix; full suite is long — not every PR                                               | See [benchmarks](../project/benchmarks/index.mdx)                       |
 
 ## 3. Testing tiers
 
-| Tier | Command | Time | Coverage |
-|---|---|---|---|
-| **Pre-commit** | `bun run test:unit` | ~60s | 2822 unit tests |
-| **Pre-push** | Automatic gate | ~1.5min | Build + SQLite integration (595 tests) |
-| **Pre-CI** (local) | `bun run test:matrix` | ~8min | All 4 DBs (2380 tests) |
-| **CI** | GitHub Actions | ~30min | Full matrix + E2E (100%) |
+| Tier               | Command               | Time    | Coverage                               |
+| ------------------ | --------------------- | ------- | -------------------------------------- |
+| **Pre-commit**     | `bun run test:unit`   | ~60s    | 2822 unit tests                        |
+| **Pre-push**       | Automatic gate        | ~1.5min | Build + SQLite integration (595 tests) |
+| **Pre-CI** (local) | `bun run test:matrix` | ~8min   | All 4 DBs (2380 tests)                 |
+| **CI**             | GitHub Actions        | ~30min  | Full matrix + E2E (100%)               |
 
 **Gates (local → CI)**
 

@@ -62,12 +62,15 @@ for (let i = 0; i < DB_TYPES.length; i++) {
     env: {
       ...process.env,
       DB_TYPE: db,
+      DB_HOST: "127.0.0.1",
+      DB_NAME: "sveltycms_test",
+      PORT: "4173",
+      PASSWORD_MIN_LENGTH: "8",
       TEST_MODE: "true",
       TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-      JWT_SECRET_KEY:
-        process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026-pad-to-32chars!!",
-      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch",
-      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "Password123!",
+      JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",
+      ENCRYPTION_KEY: "Integration-Encryption-Key-2026-32ch",
+      ADMIN_PASSWORD: "Password123!",
     },
   });
 
