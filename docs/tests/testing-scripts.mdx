@@ -27,12 +27,27 @@ Runs before every commit. Steps:
 3. **Lint-staged** — `bun run gate:fast`
 4. **Unit tests** — `vitest run` (skipped if only docs changed)
 
-### `.githooks/pre-push` — Build → SQLite Integration (~5 min)
+### `.githooks/pre-push` — Build → SQLite Integration (~1.5 min)
 
 Runs before every push. Steps:
 
 1. **Production build** — `COMPILE_ALL_ADAPTERS=true bun run build`
-2. **SQLite integration tests** — `bun test tests/integration/`
+2. **Quality Gate** — `bun run check`
+3. **CVE Audit** — `bun audit`
+4. **Secret Misuse Scan** — `bun run scripts/scan-secret-misuse.ts`
+5. **Tenant Isolation Gate** — `bun run test:tenant`
+6. **SQLite integration** — `bun test tests/integration/`
+
+### Full DB Matrix (Local Pre-CI) — ~8 min
+
+For 1:1 CI parity, run all 4 databases locally before pushing:
+
+```bash
+bun run test:matrix          # SQLite + MongoDB + MariaDB + PostgreSQL
+```
+
+Requires Docker containers running (`docker compose -f tests/docker-compose.yml --profile '*' up -d`).
+Covers 2380 tests across all adapters — the same matrix CI runs.
 
 ---
 
