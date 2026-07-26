@@ -135,21 +135,25 @@ export async function prepareLoginForm(page: Page) {
     await page.waitForTimeout(1000);
   }
 
-  // Strategy 2: First Login Welcome Modal
-  const welcomeModal = page.locator('div.fixed.inset-0.z-50:has-text("Welcome")').first();
+  // Strategy 2: First Login Welcome Modal — use role-based, not CSS classes
+  const welcomeModal = page
+    .getByRole("dialog")
+    .filter({ hasText: /welcome/i })
+    .first();
   if (await welcomeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
     console.log("[Auth] First Login Welcome Modal detected, dismissing...");
-    const skipBtn = page
-      .locator('button:has-text("Skip"), button:has-text("Close"), button:has-text("Get Started")')
-      .first();
+    const skipBtn = welcomeModal.getByRole("button", { name: /skip|close|get started/i }).first();
     if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await skipBtn.click();
       await page.waitForTimeout(500);
     }
   }
 
-  // Strategy 3: General modal dismissal (any other blocking modals)
-  const genericModal = page.locator("div.fixed.inset-0.z-50").first();
+  // Strategy 3: General modal dismissal — role-based, no CSS classes
+  const genericModal = page
+    .getByRole("dialog")
+    .filter({ hasNotText: /cookie|privacy|welcome/i })
+    .first();
   if (await genericModal.isVisible({ timeout: 1000 }).catch(() => false)) {
     console.log("[Auth] Generic modal detected, attempting to dismiss...");
     const anyCloseBtn = page

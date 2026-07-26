@@ -796,6 +796,20 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						placeholder="Type"
 						class="w-full sm:w-28"
 					/>
+
+					<label for="media-grid-size" class="sr-only">Grid size</label>
+					<Select
+						id="media-grid-size"
+						bind:value={gridSize}
+						options={[
+							{ value: 'tiny', label: 'Tiny' },
+							{ value: 'small', label: 'Small' },
+							{ value: 'medium', label: 'Medium' },
+							{ value: 'large', label: 'Large' },
+						]}
+						placeholder="Size"
+						class="w-full sm:w-28"
+					/>
 				{/if}
 
 				<label for="sort-by-filter" class="sr-only">Sort by</label>
@@ -823,6 +837,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					size="sm"
 					onclick={() => showAdvancedSearch = true}
 					aria-label="Advanced Search"
+					data-testid="media-advanced-search"
 					class="h-10 text-sm {searchCriteria ? 'preset-filled-tertiary-500 text-white' : ''}"
 				>
 					<iconify-icon icon="mdi:filter-variant" width="18"></iconify-icon>
