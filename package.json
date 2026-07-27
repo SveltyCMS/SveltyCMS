@@ -223,7 +223,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.8",
     "mysql2": "^3.16.1",
-    "oxfmt": "^0.59.0",
+    "oxfmt": "^0.61.0",
     "oxlint": "^1.74.0",
     "playwright": "^1.61.1",
     "postgres": "^3.4.8",
