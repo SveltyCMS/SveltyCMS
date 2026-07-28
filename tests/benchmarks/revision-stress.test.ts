@@ -89,21 +89,46 @@ async function runRevisionAudit() {
       }),
     });
 
-    // Batch-process revision updates concurrently to reduce setup delay
-    const revisionBatches = Array.from({ length: TOTAL_REVISIONS }, (_, i) => {
-      return fetch(`${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}`, {
-        method: "PATCH",
-        headers: requestHeaders,
-        body: JSON.stringify({
-          title: `Version ${i + 1}`,
-          content: `Content update ${i + 1}`,
-        }),
-      });
-    });
+    // Sequential/small-wave revisions — 100 parallel PATCHes exhaust Mongo/SQL pools
+    // under matrix shared server and leave History List warmups at 0/20 success.
+    const REVISION_WAVE = 10;
+    for (let i = 0; i < TOTAL_REVISIONS; i += REVISION_WAVE) {
+      const end = Math.min(i + REVISION_WAVE, TOTAL_REVISIONS);
+      const wave = [];
+      for (let r = i; r < end; r++) {
+        wave.push(
+          fetch(`${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}`, {
+            method: "PATCH",
+            headers: requestHeaders,
+            body: JSON.stringify({
+              title: `Version ${r + 1}`,
+              content: `Content update ${r + 1}`,
+            }),
+            signal: AbortSignal.timeout(15000),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const t = await res.text().catch(() => "");
+              throw new Error(`Revision PATCH ${r + 1} failed: ${res.status} ${t.slice(0, 120)}`);
+            }
+            await res.arrayBuffer().catch(() => {});
+          }),
+        );
+      }
+      await Promise.all(wave);
+    }
+    await forceRefreshServer(baseUrl);
+    await stabilize(1500);
 
-    // Process the batch insertions safely
-    await Promise.all(revisionBatches);
-    await stabilize(2000);
+    // Verify history endpoint is live before benchmarking
+    const histProbe = await fetch(
+      `${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}/revisions`,
+      { headers: requestHeaders, signal: AbortSignal.timeout(10000) },
+    );
+    if (!histProbe.ok) {
+      const t = await histProbe.text().catch(() => "");
+      throw new Error(`Revision history probe failed: ${histProbe.status} ${t.slice(0, 200)}`);
+    }
+    await histProbe.arrayBuffer().catch(() => {});
 
     // Read headers stripped of content-type for standard fetching operations
     const queryHeaders = {

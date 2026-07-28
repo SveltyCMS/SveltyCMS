@@ -11,10 +11,9 @@
  * Projects run in dependency order. In CI, e2e-prep runs wizard →
  * firstuser → auth-setup sequentially, then chromium is sharded N ways.
  *
- * For local runs, use: npm run test:e2e
- * This starts the Vite dev server (port 5173) which includes the /api/testing
- * handler needed for test authentication. The production build strips this
- * handler for security — build with `npm run build:e2e` if you need it.
+ * Local default (CI-parity): `bun run test:e2e` → scripts/run-e2e-ci.ts
+ *   (preview server :4173, COMPILE_ALL_ADAPTERS build, wizard → auth-setup → chromium)
+ * Dev-server shortcut: `bun run test:e2e:dev` (Vite :5173) — not CI-identical.
  */
 
 import { defineConfig, devices } from "@playwright/test";
@@ -61,7 +60,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 4 : undefined,
+  workers: process.env.PLAYWRIGHT_WORKERS ? Number.parseInt(process.env.PLAYWRIGHT_WORKERS, 10) : 4,
   reporter: process.env.CI
     ? [
         ["list"],
@@ -87,6 +86,17 @@ export default defineConfig({
     video: "retain-on-failure",
     bypassCSP: true,
   },
+
+  // Auto-start Vite dev server when running in isolation (no PLAYWRIGHT_TEST_BASE_URL set)
+  webServer: process.env.PLAYWRIGHT_TEST_BASE_URL
+    ? undefined
+    : {
+        command: "bun run dev",
+        port: 5173,
+        timeout: 120_000,
+        reuseExistingServer: true,
+        env: { PLAYWRIGHT_TEST: "1", TEST_MODE: "true" },
+      },
 
   globalSetup: "./tests/e2e/global.setup.ts",
 

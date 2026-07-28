@@ -4,7 +4,7 @@
  * including encrypted secret fields via AES-256-GCM.
  */
 
-import type { IDBAdapter } from "@databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { logger } from "@utils/logger";
 import type { PluginState } from "./types";
 import type { SettingsPart } from "./settings-declaration";
@@ -17,13 +17,22 @@ export class PluginSettingsService {
 
   constructor(private readonly dbAdapter: IDBAdapter) {}
 
-  // Ensure the plugin_settings collection exists
+  // Ensure the plugin_settings collection exists (SQL adapters need physical table).
+  // Table provisioning is delegated to SqlAdapterCore.insert() auto-provision —
+  // calling createModel directly on the adapter bypasses the standard
+  // CollectionModule.createModel() path and can cause crashes on certain adapters.
   async initialize(): Promise<void> {
     try {
+      // Probe: attempt a count to check if the collection has any data.
+      // For SQL adapters on a missing table, count() returns { success: true, data: 0 }
+      // because isMissingTableError is caught internally and returns 0.
+      // We check both !success (genuine error) and data === 0 (empty/missing table)
+      // to ensure the probe insert runs and triggers auto-provision via
+      // SqlAdapterCore.insert().
       const count = await this.dbAdapter.crud.count(this.SETTINGS_COLLECTION, undefined, {
         bypassTenantCheck: true,
       });
-      if (!count.success) {
+      if (!count.success || count.data === 0) {
         logger.info(`Creating ${this.SETTINGS_COLLECTION} collection...`);
         await this.dbAdapter.crud.insert(
           this.SETTINGS_COLLECTION,
@@ -42,6 +51,9 @@ export class PluginSettingsService {
       }
     } catch (error) {
       logger.error(`Failed to initialize ${this.SETTINGS_COLLECTION}`, { error });
+      // Do not rethrow — plugin settings is non-critical; the system
+      // should continue booting. Table auto-provision in insert() will
+      // handle first-write provisioning when settings are later saved.
     }
   }
 
@@ -63,15 +75,16 @@ export class PluginSettingsService {
     declaration?: SettingsPart,
   ): Promise<Record<string, unknown> | null> {
     try {
-      const result = await this.dbAdapter.crud.findOne<{ settings: Record<string, unknown> }>(
+      const result: any = await this.dbAdapter.crud.findOne(
         this.SETTINGS_COLLECTION,
         { pluginId, tenantId } as any,
         { bypassTenantCheck: true },
       );
+      const data = result.data as { settings?: Record<string, unknown> } | undefined;
 
-      if (!result.success || !result.data?.settings) return null;
+      if (!result.success || !data?.settings) return null;
 
-      const stored = result.data.settings;
+      const stored = data.settings;
 
       // Mask secrets if declaration is provided
       if (declaration) {
@@ -102,15 +115,16 @@ export class PluginSettingsService {
     declaration?: SettingsPart,
   ): Promise<Record<string, unknown> | null> {
     try {
-      const result = await this.dbAdapter.crud.findOne<{ settings: Record<string, unknown> }>(
+      const result: any = await this.dbAdapter.crud.findOne(
         this.SETTINGS_COLLECTION,
         { pluginId, tenantId } as any,
         { bypassTenantCheck: true },
       );
+      const data = result.data as { settings?: Record<string, unknown> } | undefined;
 
-      if (!result.success || !result.data?.settings) return null;
+      if (!result.success || !data?.settings) return null;
 
-      const stored = result.data.settings;
+      const stored = data.settings;
 
       // Decrypt secrets if declaration is provided
       if (declaration) {
@@ -157,15 +171,19 @@ export class PluginSettingsService {
         }
       }
 
-      const existing = await this.dbAdapter.crud.findOne<{
-        _id: unknown;
-        settings: Record<string, unknown>;
-      }>(this.SETTINGS_COLLECTION, { pluginId, tenantId } as any, { bypassTenantCheck: true });
+      const existing: any = await this.dbAdapter.crud.findOne(
+        this.SETTINGS_COLLECTION,
+        { pluginId, tenantId } as any,
+        { bypassTenantCheck: true },
+      );
+      const existingData = existing.data as
+        | { _id?: unknown; settings?: Record<string, unknown> }
+        | undefined;
 
-      if (existing.success && existing.data?._id) {
+      if (existing.success && existingData?._id) {
         const updateResult = await this.dbAdapter.crud.update(
           this.SETTINGS_COLLECTION,
-          existing.data._id,
+          existingData._id as unknown as DatabaseId,
           {
             settings: toStore,
             updatedAt: new Date(),

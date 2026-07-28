@@ -1,13 +1,17 @@
 /**
  * @file tests/benchmarks/graphql-api-performance.test.ts
- * @description GraphQL API Performance Audit (Optimized)
- * @summary Measures GraphQL resolver performance and throughput across varied query scenarios.
+ * @description GraphQL API Performance Audit
+ * @summary Measures GraphQL resolver performance across query scenarios,
+ *          reporting both cold (cache-bypassed) and hot (cache-hit) latency.
+ *
+ * Cold path uses unique GraphQL comments (#) per iteration to change the
+ * response-cache key while keeping JIT compilation identical (comments are
+ * stripped from the Document AST by graphql-js parse).
  *
  * ### Features:
+ * - Dual-mode: cold (JIT + DB, no response cache) vs hot (cache hit)
  * - Resolver-level latency profiling
  * - Query complexity throughput analysis
- * - Field-level resolution timing
- * - GraphQL endpoint response benchmarking
  */
 
 import {
@@ -50,107 +54,175 @@ const graphqlScenarios = [
   },
 ];
 
+async function graphqlPost(
+  baseUrl: string,
+  headers: Record<string, string>,
+  bodyObj: Record<string, unknown>,
+): Promise<Response> {
+  return fetch(`${baseUrl}/api/graphql`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(bodyObj),
+  });
+}
+
 export async function runGraphQLBenchmark() {
-  console.log("🚀 Starting GraphQL API Performance Audit...\n");
+  console.log("🚀 Starting GraphQL API Performance Audit (Cold + Hot)...\n");
 
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const tenantId = process.env.TENANT_ID || "global";
-    const isDebugActive = process.env.BENCHMARK_DEBUG === "true";
 
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
     await stabilize(1200);
 
-    // Pre-allocate static, lowercase headers and immutable query payloads outside loop boundaries
-    const requestHeaders = {
+    const requestHeaders: Record<string, string> = {
       "content-type": "application/json",
       "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET || secret,
+      "x-test-secret": TEST_API_SECRET,
       "x-tenant-id": tenantId,
     };
 
-    const targetUrl = `${baseUrl}/api/graphql`;
-    const results = [];
+    const allResults: any[] = [];
 
-    for (let i = 0; i < graphqlScenarios.length; i++) {
-      const scenario = graphqlScenarios[i]!;
+    for (const scenario of graphqlScenarios) {
       console.log(`   → ${scenario.name}...`);
 
-      const payloadString = JSON.stringify({ query: scenario.query });
+      const baseQuery = scenario.query;
 
-      const result = await runBenchmark({
-        name: scenario.name,
+      // ── Phase 1: Cold (cache-bypassed) — unique comment per iteration ──
+      console.log(`      Cold (cache-bypassed)...`);
+      let coldNonce = 0;
+      const coldResult = await runBenchmark({
+        name: `${scenario.name} [cold]`,
+        iterations: 300,
+        warmupIterations: 40,
+        runs: 2,
+        concurrency: scenario.concurrency,
+        measureMemory: true,
+        silent: true,
+        onIteration: async () => {
+          // Append unique comment to change raw query string hash (cache key)
+          // while graphql-js parse strips it — same JIT compilation, different cache key
+          const query = `${baseQuery} # n:${coldNonce++}`;
+          const res = await graphqlPost(baseUrl, requestHeaders, { query });
+          if (!res.ok) {
+            const text = await res.text().catch(() => "unreadable");
+            throw new Error(`GraphQL HTTP ${res.status}: ${text}`);
+          }
+          const parsed = await res.json();
+          if (parsed.errors?.length) {
+            throw new Error(`GraphQL Error: ${parsed.errors[0].message}`);
+          }
+        },
+      });
+
+      allResults.push({
+        ...coldResult,
+        shortLabel: scenario.shortLabel,
+        layer: "GraphQL (cold)",
+      });
+      exportResult({ ...coldResult, shortLabel: scenario.shortLabel, layer: "GraphQL (cold)" });
+
+      // ── Phase 2: Hot (cache-hit) — prime cache, then benchmark ──
+      console.log(`      Hot (cache-primed)...`);
+
+      // Prime the response cache with identical queries
+      for (let w = 0; w < 3; w++) {
+        try {
+          await graphqlPost(baseUrl, requestHeaders, { query: baseQuery });
+        } catch {}
+      }
+      await stabilize(100);
+
+      const hotResult = await runBenchmark({
+        name: `${scenario.name} [hot]`,
         iterations: 600,
-        warmupIterations: 80,
+        warmupIterations: 40,
         runs: 3,
         concurrency: scenario.concurrency,
         measureMemory: true,
         silent: true,
         onIteration: async () => {
-          if (isDebugActive) {
-            console.log(`[Fetch Debug] Query: "${scenario.query}"`);
-          }
-
-          const res = await fetch(targetUrl, {
-            method: "POST",
-            headers: requestHeaders,
-            body: payloadString,
-          });
-
+          const res = await graphqlPost(baseUrl, requestHeaders, { query: baseQuery });
           if (!res.ok) {
-            const text = await res.text().catch(() => "unreadable buffer payload");
+            const text = await res.text().catch(() => "unreadable");
             throw new Error(`GraphQL HTTP ${res.status}: ${text}`);
           }
-
-          // Use arrayBuffer to drain the wire, then parse for validation
-          const rawBuffer = await res.arrayBuffer();
-          const decoder = new TextDecoder("utf-8");
-          const responseString = decoder.decode(rawBuffer);
-          const parsedJson = JSON.parse(responseString);
-
-          if (parsedJson.errors && parsedJson.errors.length > 0) {
-            throw new Error(`GraphQL Error: ${parsedJson.errors[0].message}`);
+          const parsed = await res.json();
+          if (parsed.errors?.length) {
+            throw new Error(`GraphQL Error: ${parsed.errors[0].message}`);
           }
         },
       });
 
-      const enriched = {
-        ...result,
+      allResults.push({
+        ...hotResult,
         shortLabel: scenario.shortLabel,
-        layer: "GraphQL",
-      };
-
-      results.push(enriched);
-      exportResult(enriched);
+        layer: "GraphQL (hot)",
+      });
+      exportResult({ ...hotResult, shortLabel: scenario.shortLabel, layer: "GraphQL (hot)" });
     }
 
+    // ── Reporting ──────────────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — GRAPHQL PERFORMANCE AUDIT",
       shortLabel: "GraphQL",
-      subtitle: `Resolver Execution • ${getDbType().toUpperCase()}`,
-      results,
+      subtitle: `Cold (JIT+DB) vs Hot (Cache Hit) • ${getDbType().toUpperCase()}`,
+      results: allResults,
     });
 
+    const coldHealth = allResults.find(
+      (r) => r.shortLabel === "Health" && r.layer === "GraphQL (cold)",
+    );
+    const hotHealth = allResults.find(
+      (r) => r.shortLabel === "Health" && r.layer === "GraphQL (hot)",
+    );
+    const coldColl = allResults.find(
+      (r) => r.shortLabel === "Collections" && r.layer === "GraphQL (cold)",
+    );
+    const hotColl = allResults.find(
+      (r) => r.shortLabel === "Collections" && r.layer === "GraphQL (hot)",
+    );
+    const coldLoad = allResults.find(
+      (r) => r.shortLabel === "Load" && r.layer === "GraphQL (cold)",
+    );
+    const hotLoad = allResults.find((r) => r.shortLabel === "Load" && r.layer === "GraphQL (hot)");
+
     printSummaryTable([
-      { key: "Health Check", val: results[0]!.avgMs, unit: "ms" },
-      { key: "Collection List", val: results[1]!.avgMs, unit: "ms" },
-      { key: "Entries Query", val: results[2]!.avgMs, unit: "ms" },
+      { key: "Health (cold)", val: coldHealth?.avgMs ?? 0, unit: "ms" },
+      { key: "Health (hot)", val: hotHealth?.avgMs ?? 0, unit: "ms" },
+      { key: "Collection List (cold)", val: coldColl?.avgMs ?? 0, unit: "ms" },
+      { key: "Collection List (hot)", val: hotColl?.avgMs ?? 0, unit: "ms" },
+      { key: "Concurrent Load (cold)", val: coldLoad?.avgMs ?? 0, unit: "ms" },
+      { key: "Concurrent Load (hot)", val: hotLoad?.avgMs ?? 0, unit: "ms" },
       {
-        key: "Peak RPS",
-        val: Math.max(...results.map((r) => r.rps || 0)),
+        key: "Peak RPS (hot)",
+        val: Math.round(Math.max(hotHealth?.rps ?? 0, hotColl?.rps ?? 0, hotLoad?.rps ?? 0)),
         unit: "req/s",
+      },
+      {
+        key: "Cache Speedup",
+        val:
+          coldColl && hotColl
+            ? `${(coldColl.avgMs / Math.max(hotColl.avgMs, 0.01)).toFixed(1)}x`
+            : "N/A",
+        unit: "",
       },
     ]);
 
-    const mainResult = results[1]!;
+    // Export metrics for matrix dashboard
+    const mainResult = hotColl!;
     exportMetric("api.graphql.avg", mainResult.avgMs, "ms");
     exportMetric("api.graphql.p95", mainResult.p95Ms || mainResult.avgMs, "ms");
     exportMetric("api.graphql.rps", mainResult.rps, "req/s");
+    if (coldColl) {
+      exportMetric("api.graphql.cold.avg", coldColl.avgMs, "ms");
+    }
   } catch (err: any) {
     logger.error(`GraphQL benchmark failed: ${err.message}`);
     console.error(err);
@@ -165,4 +237,4 @@ export async function runGraphQLBenchmark() {
 
 test("GraphQL Performance Audit Suite", async () => {
   await runGraphQLBenchmark();
-}, 480000);
+}, 600000);

@@ -79,22 +79,31 @@ const openModal = (role: Role | null = null, groupName = "") => {
 	currentRoleId = role ? role._id : null;
 	currentGroupName = groupName || "";
 
-	modalState.trigger(RoleModal as any, {
-		isEditMode,
-		currentRoleId,
-		roleName: role?.name || "",
-		roleDescription: role?.description || "",
-		currentGroupName,
-		selectedPermissions: role?.permissions || [],
-		permissions,
-		roles,
-		response: (formData: any) => {
+	// response is the 3rd arg to trigger() — must not be buried in props
+	// (close() only invokes active.response, not props.response)
+	modalState.trigger(
+		RoleModal as any,
+		{
+			isEditMode,
+			currentRoleId,
+			roleName: role?.name || "",
+			roleDescription: role?.description || "",
+			currentGroupName,
+			selectedPermissions: role?.permissions || [],
+			permissions,
+			roles,
+			// cancel button uses parent.onClose — DialogManager only passes `close`
+			parent: {
+				onClose: () => modalState.close(false),
+			},
+			title: isEditMode ? "Edit Role" : "Create Role",
+		},
+		(formData: any) => {
 			if (formData) {
 				saveRole(formData);
 			}
 		},
-		title: isEditMode ? "Edit Role" : "Create Role",
-	});
+	);
 };
 
 const saveRole = async (role: {
@@ -176,15 +185,29 @@ const toggleRoleSelection = (roleId: string) => {
 };
 
 	function handleRoleDrop(state: DragDropState<Role & { id: string }>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
-		const fromIndex = filteredRoles.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+
+			const fromIndex = roles.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-role-id]') as HTMLElement | null;
+			const targetRoleId = targetEl?.dataset?.roleId;
+
+			let targetIndex: number;
+			if (targetRoleId) {
+				targetIndex = roles.findIndex(r => (r._id || r.id) === targetRoleId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = roles.length;
+			}
+						targetIndex = Math.max(0, Math.min(targetIndex, roles.length));
+
+			if (fromIndex === targetIndex) return;
 		let movedRole: (Role & { id: string }) | undefined;
 		roles = untrack(() => {
 			const newRoles = [...roles];
 			movedRole = newRoles.splice(fromIndex, 1)[0];
-			newRoles.splice(state.targetIndex, 0, movedRole!);
+			newRoles.splice(targetIndex, 0, movedRole!);
 			return newRoles;
 		});
 		if (movedRole) modifiedRoles.add(movedRole._id);
@@ -247,15 +270,9 @@ const toggleRoleSelection = (roleId: string) => {
 						Press Enter or Space to select a role for reordering. Use Up and Down arrow keys to move the selected role. Press Enter or Space again to
 						drop.
 					</p>
+					<!-- Droppable only on items (v0.7.0) — nested list+item droppables cause callback ambiguity -->
 					<ul
 						class="list-none space-y-2"
-						use:droppable={{
-							container: 'roles',
-							onDrop: handleRoleDrop,
-							direction: 'vertical',
-							keyboard: true,
-							attributes: { dragOverClass: 'bg-secondary-200' }
-						}}
 						aria-describedby="roles-dnd-instructions"
 						role="list"
 					>
@@ -265,6 +282,13 @@ const toggleRoleSelection = (roleId: string) => {
 								class="animate-flip flex items-center justify-between rounded border border-surface-200 dark:border-surface-800 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
 								use:draggable={{ container: 'roles', dragData: role, keyboard: true }}
+								use:droppable={{
+									container: 'roles',
+									callbacks: { onDrop: handleRoleDrop },
+									direction: 'vertical',
+									attributes: { dragOverClass: 'bg-secondary-200' }
+								}}
+								data-role-id={role.id}
 								tabindex="0"
 								aria-label="Role: {role.name}. Press Space to grab, arrows to move."
 							>

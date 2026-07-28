@@ -42,7 +42,56 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-> ⏳ Pending — run full matrix to populate executive summary.
+> [!NOTE]
+> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
+
+**✅ PASS** _(partial invocation)_ · 1/58 tests · 57 skipped · **sqlite-redis** · standalone run
+
+### Dimension health
+
+| Dimension      | Tests | Status | Worst Δ | Issues |
+| -------------- | ----: | ------ | ------- | ------ |
+| **Core**       |     8 | 🟢     | —       | 0      |
+| **API**        |     0 | ⚪     | —       | 0      |
+| **Scale**      |     0 | ⚪     | —       | 0      |
+| **Resilience** |     0 | ⚪     | —       | 0      |
+
+### Issues (action required)
+
+> ✅ **All clear** — no regressions or budget violations detected.
+
+### Executive latency matrix
+
+| Scenario                 | Latency | Trend                             | Budget | Result |
+| ------------------------ | ------- | --------------------------------- | ------ | ------ |
+| **Database Performance** | 0.113ms | ⚪ established at 0.113ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.062ms | ⚪ established at 0.062ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.076ms | ⚪ established at 0.076ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.086ms | ⚪ established at 0.086ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.054ms | ⚪ established at 0.054ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.146ms | ⚪ established at 0.146ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.036ms | ⚪ established at 0.036ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 2.866ms | ⚪ established at 2.87ms (1 run)  | < 5ms  | 🟢     |
+
+### Historical pulse
+
+> **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
+
+| Metric | Trend | Sparkline | Latest |
+| ------ | ----- | --------- | ------ |
+
+<details>
+<summary>📈 Latency trend chart (last 10 runs)</summary>
+
+```mermaid
+xychart-beta
+  title "sqlite-redis REST p95 (last 10 runs)"
+  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
+  y-axis "Latency (ms)"
+  line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+```
+
+</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -55,21 +104,34 @@ tags:
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary
+### Current Run Summary (2026-07-21)
 
-> Only tests that ran in THIS invocation. Populated after `BENCHMARK_RECORD=1` or matrix run.
+> **Scope:** Only tests that ran in THIS invocation.
+
+> ⚠️ Executive PASS/FAIL reflects the last full matrix run.
+
+**Run ID:** `6f78d92f-ccd6-4f4a-923c-4a050b9e0a07` · **Tests invoked:** 1 · **Metrics:** 8 · **DB:** sqlite-redis
+
+| Test                 | Metric               | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                            |
+| -------------------- | -------------------- | -------- | -------- | ----- | ----- | --------------------------------- |
+| Database Performance | INSERT               | 0.113    | 0.172    | 3064  | 🟢    | ⚪ established at 0.113ms (1 run) |
+| Database Performance | FIND ONE             | 0.062    | 0.076    | 14371 | 🟢    | ⚪ established at 0.062ms (1 run) |
+| Database Performance | FIND MANY (limit 50) | 0.076    | 0.091    | 12057 | 🟢    | ⚪ established at 0.076ms (1 run) |
+| Database Performance | UPDATE               | 0.086    | 0.111    | 9202  | 🟢    | ⚪ established at 0.086ms (1 run) |
+| Database Performance | NATIVE UPSERT        | 0.054    | 0.063    | 14702 | 🟢    | ⚪ established at 0.054ms (1 run) |
+| Database Performance | COUNT                | 0.146    | 0.181    | 6251  | 🟢    | ⚪ established at 0.146ms (1 run) |
+| Database Performance | DELETE               | 0.036    | 0.044    | 19645 | 🟢    | ⚪ established at 0.036ms (1 run) |
+| Database Performance | BULK INSERT (100)    | 2.866    | 5.448    | 149   | 🟢    | ⚪ established at 2.87ms (1 run)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends
+### Historical Trends (2026-07-21)
 
-> Sparklines only — link to `history.sqlite` for full run tables.
+> ⏳ No history recorded yet.
 
-<!-- SUMMARY_HISTORY_END -->
-
-<!-- SUMMARY_END -->
+<!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
 <!-- LEDGER_START -->
 
@@ -686,7 +748,6 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 </details>
 
 <!-- LEDGER_DIMENSION:RESILIENCE:END -->
-
 <!-- LEDGER_END -->
 
 <!-- METADATA_START -->

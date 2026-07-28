@@ -43,6 +43,8 @@ Database agnosticism and unified data modeling.
 - [🔌 **PostgreSQL Implementation**](../database/postgresql-implementation.mdx) — Native DDL and Drizzle integration.
 - [📦 **SQLite (Edge-Ready)**](../database/sqlite-implementation.mdx) — Native Bun driver for local deployments.
 - [🧬 **Content Type System**](./content-type-system.mdx) — Fields, widgets, and schema mapping.
+- [🪝 **Schema Lifecycle Hooks**](./schema-lifecycle-hooks.mdx) — `beforeValidate` / `afterValidate` on create & update.
+- [📬 **Transactional Outbox**](./transactional-outbox.mdx) — Atomic events with content mutations + webhook fan-out.
 - [📋 **Validation & Feedback**](./validation-instant-feedback.mdx) — Real-time E2E verification logic.
 - [📊 **Data Operations**](./data-operations) — Six-domain architecture for config promotion, content packages, migrations, importers, backups, and content sync.
 
@@ -66,6 +68,7 @@ How SveltyCMS handles widgets, plugins, and custom logic.
 
 - [🧩 **Widget Architecture**](../../development/widgets/architecture.mdx) — The 3-pillar strategy (Definition, Input, Display).
 - [🔌 **Plugin Architecture**](./plugin-architecture.mdx) — The hook-based extension system.
+- [🗄️ **Plugin Storage**](./plugin-storage.mdx) — Shared JSON record store (zero per-plugin tables).
 - [📦 **Media Hub**](./media-system.mdx) — Storage adapters, AI processing, and focal point management.
 - [☁️ **Cloud Storage**](./cloud-storage-implementation.mdx) — Integration with AWS S3, Google Cloud, and DigitalOcean.
 

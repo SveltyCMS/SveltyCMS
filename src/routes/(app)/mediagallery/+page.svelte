@@ -44,7 +44,8 @@ import {
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
-import { uploadMediaFiles } from "@utils/media/upload-client";
+import { uploadMediaFilesHandle } from "@utils/media/upload-client";
+import { matchesJsonPathFilter } from "@utils/json-path-filter";
 import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -62,9 +63,15 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
 	let isUploading = $state(false);
+	let uploadProgress = $state(0);
+	let uploadFileLabel = $state("");
+	let uploadCancel: (() => void) | null = $state(null);
 	let isBulkDownloading = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
+	// Seed from server ?jsonPath= for shareable filtered views
+	// svelte-ignore state_referenced_locally — data is from $props(), initial seed only
+	let jsonPathFilter = $state((data as { jsonPathFilter?: string }).jsonPathFilter ?? "");
 	let sortBy = $state("newest");
 	let mobileFiltersExpanded = $state(false);
 	/** Breadcrumb folder key currently highlighted as media drop target (`root` | folderId) */
@@ -149,6 +156,13 @@ const filteredFiles = $derived.by(() => {
 				if (searchCriteria.aspectRatio === 'square' && ratio !== 1) return false;
 			}
 		}
+
+		// JSON path filter: `metadata.camera = Canon` · multi AND via `;`
+		// Applied independently of advanced search so ?jsonPath= / live input always work.
+		if (jsonPathFilter.trim() && !matchesJsonPathFilter(file, jsonPathFilter)) {
+			return false;
+		}
+
 		return true;
 	});
 
@@ -436,31 +450,62 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 }
 
 // Shared upload path for both the toolbar button and the grid's empty-state.
-// Re-syncs the gallery via invalidateAll() (no full page reload) so new media
-// fades in within the current folder context.
-async function uploadFiles(fileList: FileList | File[]) {
-	const list = Array.from(fileList ?? []);
-	if (!list.length || isUploading) return;
+	// Re-syncs the gallery via invalidateAll() (no full page reload) so new media
+	// fades in within the current folder context.
+	async function uploadFiles(fileList: FileList | File[]) {
+		const list = Array.from(fileList ?? []);
+		if (!list.length || isUploading) return;
 
-	isUploading = true;
-	try {
-		const result = await uploadMediaFiles(list, {
+		isUploading = true;
+		uploadProgress = 0;
+		uploadFileLabel = list.length > 1 ? `0/${list.length}` : list[0]?.name || "";
+		const controller = new AbortController();
+		const handle = uploadMediaFilesHandle(list, {
 			formActionUrl: "?/upload",
 			folder: data.currentFolder?._id || "global",
+			// Sequential multi-file for accurate per-file progress labels
+			sequential: list.length > 1,
+			onProgress: (percent) => {
+				uploadProgress = percent;
+			},
+			onFileProgress: (fp) => {
+				uploadProgress = fp.overallPercent;
+				uploadFileLabel =
+					list.length > 1
+						? `${fp.fileIndex + 1}/${fp.fileCount}: ${fp.fileName}`
+						: fp.fileName;
+			},
+			signal: controller.signal,
 		});
-		if (result.success) {
-			toast.success("Media uploaded successfully");
-			await invalidateAll();
-		} else {
-			toast.error(result.message || "Upload failed");
+		uploadCancel = () => {
+			controller.abort();
+			handle.cancel();
+		};
+		try {
+			const result = await handle.promise;
+			if (result.aborted) {
+				toast.info("Upload cancelled");
+			} else if (result.success) {
+				const n = result.files?.length || list.length;
+				toast.success(n > 1 ? `${n} files uploaded successfully` : "Media uploaded successfully");
+				await invalidateAll();
+			} else {
+				toast.error(result.message || "Upload failed");
+			}
+		} catch (err) {
+			logger.error("Upload failed", err);
+			toast.error("Upload failed");
+		} finally {
+			isUploading = false;
+			uploadCancel = null;
+			uploadProgress = 0;
+			uploadFileLabel = "";
 		}
-	} catch (err) {
-		logger.error("Upload failed", err);
-		toast.error("Upload failed");
-	} finally {
-		isUploading = false;
 	}
-}
+
+	function cancelUpload() {
+		uploadCancel?.();
+	}
 
 async function handleBulkDownload() {
 	if (selectedFiles.size === 0 || isBulkDownloading) return;
@@ -642,7 +687,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				class="h-9 gap-1.5 px-2 sm:px-3"
 			>
 				<iconify-icon icon={isUploading ? "mdi:loading" : "mdi:upload"} width="18" class={isUploading ? "animate-spin" : ""}></iconify-icon>
-				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
+				<span class="hidden sm:inline">{isUploading ? `Uploading…` : "Upload"}</span>
 			</Button>
 
 			<input aria-label="Upload media files"
@@ -656,6 +701,43 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			/>
 		</div>
 	{/snippet}
+
+	{#if isUploading}
+		<div class="shrink-0 px-2 pb-1 sm:px-3">
+			<div
+				class="flex items-center gap-3 rounded border border-surface-300 bg-surface-50 p-2 text-xs dark:border-surface-700 dark:bg-surface-800"
+				role="progressbar"
+				aria-label="Upload progress"
+				aria-valuenow={uploadProgress}
+				aria-valuemin={0}
+				aria-valuemax={100}
+			>
+				<iconify-icon icon="mdi:upload" width="16" class="shrink-0 text-primary-500"></iconify-icon>
+				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600">
+					<div
+						class="h-full rounded-full bg-primary-500 transition-all duration-300"
+						style="width: {uploadProgress}%"
+					></div>
+				</div>
+				{#if uploadFileLabel}
+					<span class="hidden max-w-40 truncate text-surface-500 sm:inline dark:text-surface-400" title={uploadFileLabel}>
+						{uploadFileLabel}
+					</span>
+				{/if}
+				<span class="shrink-0 font-medium tabular-nums text-surface-600 dark:text-surface-300">{uploadProgress}%</span>
+				<Button
+					variant="outline"
+					size="sm"
+					type="button"
+					onclick={cancelUpload}
+					aria-label="Cancel upload"
+					class="shrink-0"
+				>
+					Cancel
+				</Button>
+			</div>
+		</div>
+	{/if}
 
 	<div class="flex min-h-0 flex-1 flex-col gap-0">
 		{#if assetStats.selected > 0}
@@ -691,42 +773,102 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			</div>
 		{/if}
 
-		<!-- Breadcrumb — always visible, sits between heading and toolbar -->
-		<div class="shrink-0 px-2 sm:px-3">
-			<nav
-				class="flex min-w-0 items-center gap-2.5 overflow-x-auto border-b border-surface-200 py-2.5 text-base text-surface-500 dark:border-surface-800 dark:text-surface-400"
-				aria-label="Folder path"
-			>
-				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-					{#if i > 0}
-						<iconify-icon
-							icon="mdi:chevron-right"
-							width="16"
-							class="shrink-0 text-surface-400 dark:text-surface-500"
-							aria-hidden="true"
-						></iconify-icon>
-					{/if}
-					{#if i === breadcrumbs.length - 1}
-						<span
-							class="flex shrink-0 items-center gap-1 font-medium text-surface-800 dark:text-surface-100"
-							aria-current="page"
-						>
-							{#if i === 0}<iconify-icon icon="mdi:home" width="16" class="shrink-0" aria-hidden="true"></iconify-icon>{/if}
-							<span class="max-w-48 truncate sm:max-w-[16rem]">{crumb.name}</span>
+		<!--
+			Breadcrumbs — always visible above the toolbar.
+			First-class drop targets (same move API as the sidebar tree).
+			Desktop: drop groups on a sidebar folder OR any ancestor crumb.
+			Mobile: crumbs are the main drop/tap path for parents.
+		-->
+		{#if breadcrumbs.length > 1}
+			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
+				<nav
+					class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-200 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-800 dark:text-surface-400"
+					aria-label="Folder path — drop media on a parent to move (same as sidebar folders)"
+				>
+					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
+						{@const isLast = i === breadcrumbs.length - 1}
+						{@const dropKey = crumbDropKey(crumb.folderId)}
+						{@const isDropTarget = !isLast && breadcrumbDropKey === dropKey}
+						{@const canReceiveMove = !isLast}
+
+						{#if i > 0}
+							<iconify-icon
+								icon="mdi:chevron-right"
+								width="16"
+								class="shrink-0 text-surface-400 dark:text-surface-500"
+								aria-hidden="true"
+							></iconify-icon>
+						{/if}
+
+						{#if isLast}
+							<span
+								class="max-w-48 shrink-0 truncate rounded-md px-2 py-2 font-medium text-surface-800 sm:max-w-[16rem] sm:px-1 sm:py-0 dark:text-surface-100"
+								aria-current="page"
+							>{crumb.name}</span>
+						{:else}
+							<a
+								href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+								class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
+									{isDropTarget
+										? 'bg-primary-500/20 text-primary-600 ring-1 ring-inset ring-primary-500/70 dark:text-primary-500'
+										: selectedFiles.size > 0
+											? 'bg-surface-100 text-surface-800 hover:bg-primary-500/15 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
+											: 'hover:text-primary-500'}"
+								data-preload="hover"
+								data-media-drop-target={dropKey}
+								data-testid={`media-breadcrumb-${dropKey}`}
+								aria-label={selectedFiles.size > 0
+									? `Move ${selectedFiles.size} selected to ${crumb.name}`
+									: `Open folder ${crumb.name}`}
+								title={selectedFiles.size > 0
+									? `Move selection to ${crumb.name}`
+									: canReceiveMove
+										? `Drop media here (or open) — same as sidebar`
+										: crumb.name}
+								ondragover={(e) => handleBreadcrumbDragOver(e, crumb.folderId)}
+								ondragleave={(e) => handleBreadcrumbDragLeave(e, crumb.folderId)}
+								ondrop={(e) => handleBreadcrumbDrop(e, crumb.folderId, crumb.name)}
+								onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
+							>
+								{#if isDropTarget || selectedFiles.size > 0}
+									<iconify-icon
+										icon={isDropTarget ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
+										width="16"
+										class="shrink-0 {isDropTarget ? 'text-primary-500' : 'opacity-70'}"
+										aria-hidden="true"
+									></iconify-icon>
+								{/if}
+								<span class="truncate">{crumb.name}</span>
+							</a>
+						{/if}
+					{/each}
+				</nav>
+
+				{#if selectedFiles.size > 0}
+					<p
+						class="pb-2 text-[11px] leading-tight text-surface-500 dark:text-surface-400"
+						role="status"
+					>
+						<span class="sm:hidden">
+							Tap a parent folder above, or drop onto it, to move {selectedFiles.size}
+							{selectedFiles.size === 1 ? 'item' : 'items'}
 						</span>
-					{:else}
-						<a
-							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
-							class="flex shrink-0 items-center gap-1 hover:text-primary-500"
-							data-preload="hover"
-						>
-							{#if i === 0}<iconify-icon icon="mdi:home" width="16" class="shrink-0" aria-hidden="true"></iconify-icon>{/if}
-							<span class="max-w-48 truncate sm:max-w-[16rem]">{crumb.name}</span>
-						</a>
-					{/if}
-				{/each}
-			</nav>
-		</div>
+						<span class="hidden sm:inline">
+							Drop {selectedFiles.size}
+							{selectedFiles.size === 1 ? 'item' : 'items'} on a sidebar folder or breadcrumb parent to move
+						</span>
+					</p>
+				{/if}
+			</div>
+		{:else if selectedFiles.size > 0}
+			<!-- At media root: only sidebar folders are valid destinations for a group move -->
+			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-move-hint">
+				<p class="border-b border-surface-200 py-2 text-[11px] leading-tight text-surface-500 dark:border-surface-800 dark:text-surface-400" role="status">
+					Drop {selectedFiles.size}
+					{selectedFiles.size === 1 ? 'item' : 'items'} on a folder in the sidebar to move
+				</p>
+			</div>
+		{/if}
 
 		<!-- Toolbar -->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
@@ -783,6 +925,16 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							{/if}
 							<label for="sort-by-filter-m" class="sr-only">Sort by</label>
 							<Select id="sort-by-filter-m" bind:value={sortBy} options={sortOptions} placeholder="Sort" class="flex-1" />
+						</div>
+						<div class="relative min-w-0 w-full">
+							<Input
+								bind:value={jsonPathFilter}
+								type="text"
+								placeholder='JSON path… e.g. metadata.camera = Canon'
+								class="w-full ps-2 text-xs"
+								aria-label="Filter by JSON path (supports = != ~ > < ; AND)"
+								title="Format: path = value · multi: a = 1; b > 2 · ops: = != ~ > < >= <="
+							/>
 						</div>
 						<div class="flex items-center gap-2">
 							<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
@@ -844,7 +996,8 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							variant="ghost"
 							size="sm"
 							onclick={() => (showAdvancedSearch = true)}
-							aria-label="Advanced search and filters"
+							aria-label="Advanced Search"
+							data-testid="media-advanced-search"
 							class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
 						>
 							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
@@ -864,13 +1017,46 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="Sort" />
 				</div>
 
+				<div class="relative min-w-0 w-44 shrink-0">
+					<Input
+						bind:value={jsonPathFilter}
+						type="text"
+						placeholder='JSON path… e.g. metadata.camera = Canon'
+						class="w-full ps-2 text-xs"
+						aria-label="Filter by JSON path (supports = != ~ > < ; AND)"
+						title="Format: path = value · multi: a = 1; b > 2 · ops: = != ~ > < >= <="
+					/>
+				</div>
+
+				<!--
+					Native <button> toggles (not Button component): guarantees aria-label,
+					aria-pressed, data-testid and onclick stay on the DOM node for E2E/a11y.
+				-->
 				<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
-					<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} data-testid="media-view-grid" class="h-10! w-10! px-0!">
+					<button
+						type="button"
+						onclick={() => (view = 'grid')}
+						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'grid'
+							? 'bg-primary-500 text-white'
+							: 'text-surface-500 dark:text-surface-400'}"
+						aria-label="Grid view"
+						aria-pressed={view === 'grid' ? 'true' : 'false'}
+						data-testid="media-view-grid"
+					>
 						<iconify-icon icon="mdi:grid-large" width="16" aria-hidden="true"></iconify-icon>
-					</Button>
-					<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} data-testid="media-view-table" class="h-10! w-10! px-0! border-l border-surface-300 dark:border-surface-600">
+					</button>
+					<button
+						type="button"
+						onclick={() => (view = 'table')}
+						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center border-l border-surface-300 p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:border-surface-600 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
+							? 'bg-primary-500 text-white'
+							: 'text-surface-500 dark:text-surface-400'}"
+						aria-label="Table view"
+						aria-pressed={view === 'table' ? 'true' : 'false'}
+						data-testid="media-view-table"
+					>
 						<iconify-icon icon="mdi:format-list-bulleted" width="16" aria-hidden="true"></iconify-icon>
-					</Button>
+					</button>
 				</div>
 
 				{#if view === 'grid'}

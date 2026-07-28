@@ -77,7 +77,7 @@ test("mode 'none' does not write to SQLite", async () => {
     mode: "none",
   });
 
-  const history = loadHistory("api-latency", "sqlite", false, "warm");
+  const history = loadHistory("api-latency", "sqlite", false, "warm", sampleResult.name);
   expect(history.length).toBe(0);
 
   cleanTestArtifacts();
@@ -92,7 +92,7 @@ test("mode 'history' writes SQLite but does not touch MDX", async () => {
     mode: "history",
   });
 
-  const history = loadHistory("api-latency", "sqlite", false, "warm");
+  const history = loadHistory("api-latency", "sqlite", false, "warm", sampleResult.name);
   expect(history.length).toBeGreaterThan(0);
   expect(history[0].avgMs).toBe(2.5);
 
@@ -116,9 +116,43 @@ test("retry with same parameters is idempotent", async () => {
     mode: "history",
   });
 
-  const history = loadHistory("api-latency", "sqlite", false, "warm");
+  const history = loadHistory("api-latency", "sqlite", false, "warm", sampleResult.name);
   // Should still be 1 row, not 2 (INSERT OR IGNORE)
   expect(history.length).toBe(1);
+
+  cleanTestArtifacts();
+});
+
+test("metric-keyed history isolates multi-metric tests", async () => {
+  cleanTestArtifacts();
+  resetTrendGuard();
+
+  await reportBenchmark(
+    { name: "INSERT", avgMs: 0.13, p95Ms: 0.2, rps: 7000 },
+    {
+      ...sampleOpts,
+      testId: "database-performance",
+      testFile: "tests/benchmarks/database-performance.test.ts",
+      mode: "history",
+    },
+  );
+  await reportBenchmark(
+    { name: "BULK INSERT (100)", avgMs: 2.9, p95Ms: 4.5, rps: 140 },
+    {
+      ...sampleOpts,
+      testId: "database-performance",
+      testFile: "tests/benchmarks/database-performance.test.ts",
+      mode: "history",
+      runId: "test-run-001",
+    },
+  );
+
+  const inserts = loadHistory("database-performance", "sqlite", false, "warm", "INSERT");
+  const bulks = loadHistory("database-performance", "sqlite", false, "warm", "BULK INSERT (100)");
+  expect(inserts.length).toBe(1);
+  expect(inserts[0].avgMs).toBe(0.13);
+  expect(bulks.length).toBe(1);
+  expect(bulks[0].avgMs).toBe(2.9);
 
   cleanTestArtifacts();
 });

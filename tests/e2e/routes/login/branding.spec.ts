@@ -5,7 +5,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../../helpers/database";
+import { resetAndSeedDatabase } from "../../helpers/api";
 import { enableBrandedLogin, getAdminTheme, resetAdminTheme } from "../../helpers/theme";
 import { openLoginSignInForm } from "../../helpers/visual";
 
@@ -30,6 +30,7 @@ test.describe("Login Branding", () => {
   });
 
   test("login chooser renders default SveltyCMS shell", async ({ page }) => {
+    await page.context().clearCookies();
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("main", { name: "Authentication Page" })).toBeVisible();
     await expect(page.getByTestId("signin-icon")).toBeVisible();

@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-18"
+updated: "2026-07-25"
 tags:
   - "evaluation"
   - "technical"
@@ -754,6 +754,47 @@ A comprehensive audit and rewrite of the media subsystem addressing 7 critical s
 | Reference scan complexity      | O(n × entries)                      | O(1) after lazy rebuild       |
 | Upload memory usage            | Full file in RAM                    | Proportional to network speed |
 | Temp file cleanup              | Windows-leaked                      | Cross-platform                |
+
+### 3.7 July 25 Security Hardening & OIDC Logout
+
+A focused security sprint addressing RBAC cache staleness, path traversal defense-in-depth, OIDC logout compliance, and media bulk operations.
+
+**RBAC Permission Cache Hardening**
+
+- **Problem**: `invalidatePermissionCache()` was defined but never called. Stale DENY results survived up to 5 minutes (PERMISSION_CACHE_TTL) after user role changes or permission mutations.
+- **Fix**: `Auth.updateUser()` now calls `invalidatePermissionCache(userId)` on every user mutation. `AuthNamespace.updateRoles()` calls `invalidatePermissionCache()` globally — any role change can affect many users' cached checks.
+- **Architecture**: `PermissionCache` (`src/utils/security/permission-cache.ts`) supports both per-user and global invalidation. Turbo auth cache cleared simultaneously via `invalidateTurboAuthForUser()`.
+
+**OIDC Logout (All 3 Mechanisms)**
+
+- **RP-Initiated Logout** (`GET|POST /api/auth/oidc-logout`): Full compliance with OpenID Connect RP-Initiated Logout 1.0. Supports `id_token_hint`, `post_logout_redirect_uri` (with allowlist validation), and `state` for CSRF. Auto-discovers `end_session_endpoint` via `.well-known/openid-configuration` with 1-hour cache.
+- **Front-Channel Logout** (`GET /api/auth/frontchannel-logout`): OP-initiated iframe-based logout per OIDC Front-Channel Logout 1.0. Returns 200 with `Cache-Control: no-cache` headers. Clears all SSO sessions for the issuer.
+- **Back-Channel Logout** (`POST /api/auth/backchannel-logout`): OP-initiated server-to-server logout per OIDC Back-Channel Logout 1.0. Validates JWT `logout_token` claims (`iss`, `events`, `sub`/`sid`), rejects with 400 on failure. Accepts both form-encoded and JSON bodies.
+- **Provider registry**: `registerSsoProvider()` + `loadSsoProvidersFromSettings()`. Multiple OIDC providers supported simultaneously.
+
+**Path Traversal Defense-in-Depth**
+
+- `engine.server.ts` collection scanner: Added `path.resolve()` prefix check alongside existing string-based guards (`.includes("..")`). Protects against symlink escapes and filesystem edge cases.
+- `config-state.ts` config loader: `path.resolve(process.cwd(), "config", filename)` + prefix validation before dynamic import. Malformed filenames cannot escape the config directory.
+
+**Media Bulk Delete**
+
+- `media.svelte` selection toolbar now includes bulk delete with controlled concurrency (4 parallel requests), live progress tracking (`Deleting 3/12...`), and publish-state gating via existing `POST /api/media/delete` handler.
+- **Performance**: N files delete in N/4 round trips instead of N sequential calls (~4× faster for large selections).
+
+**DOMPurify Toast Hardening**
+
+- Toast components (`toast-container.svelte`, `ui/toast.svelte`) now use restricted `ALLOWED_TAGS` (inline formatting only: `b, strong, i, em, u, br, code, a`) and `ALLOWED_ATTR` instead of DOMPurify defaults.
+- Reduces attack surface against CVE-2026-65902 (hook mutation on defaults) and related DOM Clobbering vectors.
+
+**Required-Fields Publish Validation**
+
+- `validateRequiredFields()` in `widget-validation.ts` prevents publishing content with missing required fields (media, relations, text). Closes a data-integrity gap where status transitions could bypass field-level `required` constraints.
+
+**Scanner Pipeline Unified**
+
+- `scripts/security-audit.ts` now supports `--full` flag: OWASP scanner + secret misuse scan + code quality (slop) scan in one pass.
+- `slop-scanner.ts` enhanced: invalid Button variant detection (with autofix: `destructive`→`error`), `@apply` misuse detection outside `app.css`, `goto()` navigation anti-pattern detection.
 
 ## 4. Final Sprint Achievements (March 2026)
 

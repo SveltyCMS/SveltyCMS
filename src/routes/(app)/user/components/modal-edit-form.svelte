@@ -126,9 +126,15 @@ Efficiently manages user data updates with validation, role selection, and delet
 		}
 
 		try {
-			// Always pass user_id separately so the remote can build { user_id, newUserData }
+			// Own profile: send "self" so the API always resolves to session user
+			// (avoids stale page.data.user._id after re-seed / multi-tab races).
+			const resolvedUserId =
+				isOwnProfile || !editForm.data.user_id
+					? 'self'
+					: String(editForm.data.user_id);
+
 			const result = await updateProfile({
-				user_id: editForm.data.user_id,
+				user_id: resolvedUserId,
 				...submitData
 			});
 
@@ -136,15 +142,18 @@ Efficiently manages user data updates with validation, role selection, and delet
 				throw new Error(result.error || result.message || 'Failed to update user.');
 			}
 
+			// Plain text title/description — E2E asserts role=alert / data-testid=app-toast
+			// without depending on HTML icon markup or CSS classes.
 			toast.success({
-				description: '<iconify-icon icon="mdi:check-outline" width={24} ></iconify-icon> User Data Updated'
+				title: 'User Data Updated',
+				description: 'Your profile changes were saved.'
 			});
 			await invalidateAll();
-			// modalStore.close();
 			modalState.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-			toast.error(`<CircleAlert size={24}/> ${message}`);
+			// Plain text — matches expectToast / role=alert (no HTML icon markup)
+			toast.error({ title: 'Update failed', description: message });
 		} finally {
 			editForm.submitting = false;
 		}

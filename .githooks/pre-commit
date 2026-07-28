@@ -1,58 +1,52 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Fast Loop (~2-3s)
-# =============================================================================
-# Runs on STAGED FILES ONLY via lint-staged (.lintstagedrc.json):
-#   • oxfmt (auto-format), oxlint --deny-warnings, slop-scanner (src/**)
-#   • lint-docs (docs/**)
-#   • check-test-db-safety (pre-check)
+# SveltyCMS Pre-Commit — Format → Lint → Unit (~40s)
 #
-# Full gate runs on pre-push via scripts/precheck.ts (push tier):
-#   • static analysis, lint, unit tests, production build
-#   • progress dashboard with ETA and error remediation
-#   • DB integration + benchmarks are CI-only (opt in: --include-db-tasks)
-#
+# Pre-push runs build + SQLite integration.
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
-set -euo pipefail
+set -u
+[ "${CI:-false}" = "true" ] && exit 0
 
-if [ "${CI:-false}" = "true" ]; then
-    echo "⏩ CI environment detected. Bypassing pre-commit gates."
-    exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/lib.sh"
+
+header "Pre-Commit"
+require_bun
+
+TOTAL=4; OK=0
+
+# Step 1 — Database safety
+if run "🛡️  Database safety" $RUN_CMD scripts/check-test-db-safety.ts; then
+  OK=$((OK + 1))
 fi
 
-echo ""
-echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-echo "║       SveltyCMS Pre-Commit — Fast Loop (~2-3s)             ║"
-echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-echo ""
+# Step 2 — Format + lint
+if run "🔍  Format + lint" $RUN_CMD check; then
+  OK=$((OK + 1))
+else
+  $RUN_CMD format > /dev/null 2>&1
+  git add -u 2>/dev/null || true
+  if run "🔍  Re-checking after format" $RUN_CMD check; then
+    warn "Files auto-formatted and staged."
+    OK=$((OK + 1))
+  else
+    warn "Lint errors remain after formatting."
+  fi
+fi
 
-# Step 1: Check test database safety
-echo "[1/4] 🛡️  Checking test database safety..."
-bun run scripts/check-test-db-safety.ts
+# Step 3 — Lint-staged
+if run "⚡  Lint-staged" $RUN_CMD gate:fast; then
+  OK=$((OK + 1))
+fi
 
-# Step 2: Format all files (catches formatting drift like bun.lock)
-echo "[2/4] 🔍 Checking formatting..."
-bun run format --check || {
-    echo "❌ Formatting issues detected. Auto-fixing..."
-    bun run format
-    echo "✅ Files formatted. Please review and stage the changes."
-    exit 1
-}
+# Step 4 — Unit tests (skip if only docs changed)
+if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
+  warn "Only docs changed — skipping unit tests"
+  TOTAL=$((TOTAL - 1))
+  OK=$((OK + 1))
+elif run "🧪  Unit tests" $RUN_CMD test:unit; then
+  OK=$((OK + 1))
+fi
 
-# Step 3: Run lint-staged on staged files
-echo "[3/4] ⚡ Running lint-staged on staged files..."
-bun run gate:fast
-
-# Step 4: Security regression tests — validates all 4 security layers
-# (Middleware → Dispatcher → Handler → Page Action) in under 1s
-# Catches handler routing issues, permission gaps, and auth bypasses
-# that lint cannot detect. 123 tests, ~847ms.
-echo "[4/4] 🔒 Running security regression tests..."
-bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts 2>&1 || {
-    echo "❌ Security regression tests FAILED. Fix before committing."
-    echo "   Run manually: bun test tests/unit/hooks/"
-    exit 1
-}
-
-echo "✅ All pre-commit checks passed!"
+summary "$OK" "$TOTAL"

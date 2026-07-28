@@ -61,18 +61,12 @@ async function readManifest(filePath: string): Promise<ManifestData> {
   }
 }
 
-/** 🛡️ Hardened: Atomic Write with unique temp file name */
+/** 🛡️ Hardened: Atomic Write with Windows-safe rename retries */
 async function writeManifest(filePath: string, data: ManifestData): Promise<void> {
   const { assertLiveDataWriteAllowed } = await import("./benchmark-sandbox");
+  const { atomicWriteJson } = await import("./atomic-write");
   assertLiveDataWriteAllowed(filePath);
-  const dir = path.dirname(filePath);
-  await fs.mkdir(dir, { recursive: true });
-
-  const content = JSON.stringify(data, null, 2);
-  // 🛡️ Unique temp file prevents race conditions on concurrent writes
-  const tmp = `${filePath}.${crypto.randomUUID()}.tmp`;
-  await fs.writeFile(tmp, content, "utf-8");
-  await fs.rename(tmp, filePath);
+  await atomicWriteJson(filePath, data);
 }
 
 export async function getCollectionOrder(

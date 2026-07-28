@@ -1,3 +1,8 @@
+/**
+ * @file tests/unit/services/site-svedit.test.ts
+ * @description Tests for svedit site document helpers — creation, serialization, parsing.
+ */
+
 import { describe, expect, it } from "vitest";
 import {
   createDefaultHomeDocument,

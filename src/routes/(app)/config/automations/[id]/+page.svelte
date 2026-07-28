@@ -40,11 +40,11 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount, untrack } from "svelte";
 import { fade, slide } from "svelte/transition";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
-import { draggable, droppable } from '@thisux/sveltednd';
-import type { DragDropState } from '@thisux/sveltednd';
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
-	import Badge from '@components/ui/badge.svelte';
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
+		import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 import {
 	getAutomation,
@@ -164,14 +164,29 @@ async function testFlow() {
 }
 
 	function handleOperationDrop(state: DragDropState<AutomationOperation>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
-		const fromIndex = flow.operations.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+
+			const fromIndex = flow.operations.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-op-id]') as HTMLElement | null;
+			const targetOpId = targetEl?.dataset?.opId;
+
+			let targetIndex: number;
+			if (targetOpId) {
+				targetIndex = flow.operations.findIndex(o => o.id === targetOpId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = flow.operations.length;
+			}
+					targetIndex = Math.max(0, Math.min(targetIndex, flow.operations.length));
+
+			if (fromIndex === targetIndex) return;
 		flow.operations = untrack(() => {
 			const newOps = [...flow.operations];
 			newOps.splice(fromIndex, 1);
-			newOps.splice(state.targetIndex, 0, dragged);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+				newOps.splice(adjusted, 0, dragged);
 			return newOps;
 		});
 	}
@@ -532,9 +547,8 @@ const conditionOperatorOptions = [
 							class="space-y-3"
 							use:droppable={{
 								container: 'operations',
-								onDrop: handleOperationDrop,
+								callbacks: { onDrop: handleOperationDrop },
 								direction: 'vertical',
-								keyboard: true,
 								attributes: { dragOverClass: 'bg-secondary-200' }
 							}}
 							role="list"

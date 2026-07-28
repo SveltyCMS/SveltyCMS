@@ -1,3 +1,8 @@
+/**
+ * @file tests/unit/services/settings-service.test.ts
+ * @description Tests for settings service — cache loading and replica scaling.
+ */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { loadSettingsCache, invalidateSettingsCache } from "@src/services/core/settings-service";
 

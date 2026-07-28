@@ -178,9 +178,15 @@ export function hasPermissionWithRoles(
   return false;
 }
 
-// Add cache invalidation function
-export function invalidatePermissionCache(userId: string): void {
-  permissionCache.invalidateUser(userId);
+// Add cache invalidation function.
+// Pass a userId to clear one user's cache; omit to clear all entries
+// (use after role/permission mutations that affect multiple users).
+export function invalidatePermissionCache(userId?: string): void {
+  if (userId) {
+    permissionCache.invalidateUser(userId);
+  } else {
+    permissionCache.invalidateAll();
+  }
 }
 
 // Check if a user has permission by action and type

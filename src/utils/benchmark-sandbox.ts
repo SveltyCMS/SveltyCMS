@@ -85,7 +85,12 @@ export function getLocalSandboxMediaRoot(): string {
 
 /** 🛡️ Hardened: live roots re-resolved each call so chdir/tests stay correct */
 function getLiveRoots(): string[] {
+  // Always protect BOTH live private.ts and private.test.ts — under automated
+  // harnesses paths.privateConfig resolves to private.test.ts only, which would
+  // leave the real developer private.ts writable without privateConfigLive.
   return [
+    paths.privateConfigLive,
+    paths.privateConfigTest,
     paths.privateConfig,
     paths.collections,
     paths.compiledCollections,
@@ -154,6 +159,12 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
 /** Env augmentations for local sandbox isolation (merged into benchmark test env). */
 export function getLocalSandboxEnvOverrides(): Record<string, string> {
   if (!isLocalBenchmarkSandbox()) return {};
+  // Ensure sandbox media dir exists (fail-open on mkdir)
+  try {
+    fs.mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
+  } catch {
+    /* ignore */
+  }
   return {
     BENCHMARK_PROFILE: "local",
     BENCHMARK_LOCAL_SANDBOX: "1",

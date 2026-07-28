@@ -27,7 +27,7 @@
 
 import { join, dirname, resolve, relative, extname } from "node:path";
 import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
-import { getChangedPaths } from "./precheck-shared";
+import { getChangedPaths, resolveDiffBase } from "./git-safe";
 
 // ── Failure cache for smart retry across precheck runs ─────────────────
 const CACHE_DIR = join(import.meta.dirname, "..", ".precheck-cache");
@@ -268,7 +268,7 @@ interface SuiteRule {
 }
 
 const SUITE_RULES: SuiteRule[] = [
-  // ── Gate 1: White-Box Unit ──────────────────────────────────────────────
+  // ── Gate 1: White-Box Unit (Vitest — same runner as pre-commit) ─────────
   {
     label: "Auth & Security",
     gate: 1,
@@ -280,7 +280,7 @@ const SUITE_RULES: SuiteRule[] = [
       "src/routes/api/[...path]/handlers/auth.ts",
     ],
     command:
-      "bun test tests/unit/hooks/authentication.test.ts tests/unit/hooks/defense-in-depth.test.ts tests/unit/auth-lockout.test.ts",
+      "bun x vitest run tests/unit/hooks/authentication.test.ts tests/unit/hooks/defense-in-depth.test.ts tests/unit/auth/auth-lockout.test.ts",
   },
   {
     label: "Authorization & RBAC",
@@ -293,7 +293,7 @@ const SUITE_RULES: SuiteRule[] = [
       "src/routes/api/[...path]/handlers/*.ts",
     ],
     command:
-      "bun test tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts",
+      "bun x vitest run tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts",
   },
   {
     label: "Middleware & Setup",
@@ -308,20 +308,23 @@ const SUITE_RULES: SuiteRule[] = [
       "src/hooks/add-security-headers.ts",
     ],
     command:
-      "bun test tests/unit/hooks/system-state.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
+      "bun x vitest run tests/unit/hooks/system-state.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
   },
   {
     label: "Database Adapters",
     gate: 2,
     patterns: [
       "src/databases/mongo/**",
+      "src/databases/mongodb/**",
       "src/databases/sqlite/**",
       "src/databases/postgresql/**",
       "src/databases/mariadb/**",
       "src/databases/db.ts",
       "src/databases/dbInterface.ts",
     ],
-    command: "bun run test:integration -- db",
+    // List individual files (not contract.test.ts / tenant-isolation.test.ts — they need preview server on :4173)
+    command:
+      "bun test --timeout 300000 tests/integration/databases/adapter-parity.test.ts tests/integration/databases/advanced-crud-contract.test.ts tests/integration/databases/bulk-operations-contract.test.ts tests/integration/databases/cache-contract.test.ts tests/integration/databases/cache-integration.test.ts tests/integration/databases/content-nodes-contract.test.ts tests/integration/databases/db-interface.test.ts tests/integration/databases/error-contract.test.ts tests/integration/databases/health-contract.test.ts tests/integration/databases/resilience-load.test.ts tests/integration/databases/sqlite-adapter.test.ts tests/integration/databases/transaction-contract.test.ts",
   },
   {
     label: "Content Structure Persistence",
@@ -335,32 +338,32 @@ const SUITE_RULES: SuiteRule[] = [
       "src/utils/collection-order.server.ts",
     ],
     command:
-      "bun test tests/integration/databases/content-nodes-contract.test.ts tests/unit/content/structure-persistence-db.test.ts tests/unit/content/sync-content-state.test.ts tests/unit/content/upsert-content-nodes.test.ts tests/unit/test-harness/real-db-markers.test.ts tests/unit/test-harness/negative-mock-guard.test.ts",
+      "bun x vitest run tests/unit/content/structure-persistence-db.test.ts tests/unit/content/sync-content-state.test.ts tests/unit/content/upsert-content-nodes.test.ts tests/unit/test-harness/real-db-markers.test.ts tests/unit/test-harness/negative-mock-guard.test.ts && bun test --timeout 300000 tests/integration/databases/content-nodes-contract.test.ts",
   },
   {
     label: "Stores & State",
     gate: 1,
     patterns: ["src/stores/**"],
-    command: "bun test tests/unit/stores/",
+    command: "bun x vitest run tests/unit/stores/",
   },
   {
     label: "Utilities",
     gate: 1,
     patterns: ["src/utils/**"],
-    command: "bun test tests/unit/utils/",
+    command: "bun x vitest run tests/unit/utils/",
   },
   {
     label: "Widgets",
     gate: 1,
     patterns: ["src/widgets/**"],
-    command: "bun test tests/unit/widgets/",
+    command: "bun x vitest run tests/unit/widgets/",
   },
   // ── Gate 2: Black-Box Integration ───────────────────────────────────────
   {
     label: "API Integration (SQLite)",
     gate: 2,
     patterns: ["src/routes/api/**", "src/hooks/handle-api-requests.ts", "src/services/**"],
-    command: "bun run test:integration -- api --db=sqlite --no-build",
+    command: "bun test --timeout 300000 tests/integration/",
   },
   // ── Gate 4: E2E ─────────────────────────────────────────────────────────
   {
@@ -371,13 +374,13 @@ const SUITE_RULES: SuiteRule[] = [
       "src/components/setup/**",
       "tests/e2e/routes/setup/setup-wizard.spec.ts",
     ],
-    command: "npx playwright test tests/e2e/routes/setup/setup-wizard.spec.ts --project=wizard",
+    command: "bun x playwright test tests/e2e/routes/setup/setup-wizard.spec.ts --project=wizard",
   },
   {
     label: "E2E Auth",
     gate: 4,
     patterns: ["src/routes/(app)/login/**", "src/routes/api/auth/**", "tests/e2e/auth.setup.ts"],
-    command: "npx playwright test --project=auth-setup",
+    command: "bun x playwright test --project=auth-setup",
   },
   {
     label: "E2E User & Profile",
@@ -388,32 +391,32 @@ const SUITE_RULES: SuiteRule[] = [
       "src/components/ui/checkbox.svelte",
     ],
     command:
-      "npx playwright test tests/e2e/routes/user/management.spec.ts tests/e2e/routes/user/profile.spec.ts --project=chromium",
+      "bun x playwright test tests/e2e/routes/user/management.spec.ts tests/e2e/routes/user/profile.spec.ts --project=chromium",
   },
   {
     label: "E2E Media Gallery",
     gate: 4,
     patterns: ["src/routes/(app)/mediagallery/**", "src/components/media/**"],
-    command: "npx playwright test tests/e2e/routes/mediagallery/ --project=chromium",
+    command: "bun x playwright test tests/e2e/routes/mediagallery/ --project=chromium",
   },
   {
     label: "E2E Collection Builder",
     gate: 4,
     patterns: ["src/routes/(app)/config/collectionbuilder/**"],
-    command: "npx playwright test tests/e2e/routes/collection-builder/ --project=chromium",
+    command: "bun x playwright test tests/e2e/routes/collection-builder/ --project=chromium",
   },
   {
     label: "E2E Dashboard",
     gate: 4,
     patterns: ["src/routes/(app)/dashboard/**"],
-    command: "npx playwright test tests/e2e/routes/dashboard/ --project=chromium",
+    command: "bun x playwright test tests/e2e/routes/dashboard/ --project=chromium",
   },
   {
     label: "E2E Settings & System",
     gate: 4,
     patterns: ["src/routes/(app)/config/**"],
     command:
-      "npx playwright test tests/e2e/routes/config/ tests/e2e/routes/system/ --project=chromium",
+      "bun x playwright test tests/e2e/routes/config/ tests/e2e/routes/system/ --project=chromium",
   },
 ];
 
@@ -425,7 +428,7 @@ const FULL_CORE_SUITE: SuiteRule = {
   label: "Full Core Suite (fail-closed)",
   gate: 0,
   patterns: ["*"],
-  command: "bun run test:unit && bun run test:integration -- api --db=sqlite && bun run slop",
+  command: "bun run test:unit && bun test --timeout 300000 tests/integration/ && bun run slop",
 };
 
 // ---------------------------------------------------------------------------
@@ -509,13 +512,10 @@ export function expandSyntheticEdges(changedFiles: string[]): string[] {
 }
 
 function getMergeBase(): string {
+  // Prefer upstream (origin/next) — same base as precheck getChangedPaths.
+  // Do NOT compare against origin/main on the next branch (inflates the delta).
   try {
-    const isWindows = process.platform === "win32";
-    const baseCmd = isWindows
-      ? "git merge-base origin/main HEAD 2>nul || git merge-base main HEAD 2>nul || echo HEAD~1"
-      : "git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo HEAD~1";
-    const { execSync } = require("node:child_process");
-    return execSync(baseCmd, { encoding: "utf8" }).trim();
+    return resolveDiffBase();
   } catch {
     return "HEAD~1";
   }
@@ -601,58 +601,26 @@ function filterExcludedFiles(cmd: string, excludeList: string[]): string {
 
 async function runCommand(cmd: string, cwd: string): Promise<{ code: number; output: string }> {
   const parts = cmd.split(/\s+/);
-  const bin = parts[0];
-  const args = parts.slice(1);
 
-  const CHUNK_SIZE = 20;
-
-  // 1. Detect if this is a comma-separated runner command
-  let commaArgIndex = -1;
-  let filesToChunk: string[] = [];
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].includes(",") && (args[i].includes(".test.ts") || args[i].includes(".spec.ts"))) {
-      commaArgIndex = i;
-      filesToChunk = args[i].split(",");
+  // Extract environment variable prefixes (VAR=value) — works cross-platform
+  const envOverrides: Record<string, string> = {};
+  let cmdStart = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const eqIdx = parts[i].indexOf("=");
+    if (eqIdx > 0 && /^[A-Z_][A-Z0-9_]*$/i.test(parts[i].slice(0, eqIdx))) {
+      envOverrides[parts[i].slice(0, eqIdx)] = parts[i].slice(eqIdx + 1);
+      cmdStart = i + 1;
+    } else {
       break;
     }
   }
 
-  // Handle Comma-Separated Chunking Sequence
-  if (commaArgIndex !== -1 && filesToChunk.length > CHUNK_SIZE) {
-    console.log(
-      `📦 Command has ${filesToChunk.length} comma-separated test files. Chunking into batches of ${CHUNK_SIZE}...`,
-    );
-    const { spawn } = require("node:child_process");
-    let overallCode = 0;
+  const bin = parts[cmdStart];
+  const args = parts.slice(cmdStart + 1);
 
-    for (let i = 0; i < filesToChunk.length; i += CHUNK_SIZE) {
-      const chunk = filesToChunk.slice(i, i + CHUNK_SIZE);
-      const chunkArgs = [...args];
-      chunkArgs[commaArgIndex] = chunk.join(",");
+  const CHUNK_SIZE = 20;
 
-      console.log(
-        `\n    [Batch ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(filesToChunk.length / CHUNK_SIZE)}] Running: ${bin} ${chunkArgs.join(" ")}`,
-      );
-
-      const code = await new Promise<number>((res) => {
-        const proc = spawn(bin, chunkArgs, {
-          cwd,
-          stdio: "inherit",
-          shell: process.platform === "win32",
-        });
-        proc.on("close", (c: number | null) => res(c ?? 0));
-      });
-
-      if (code !== 0) {
-        overallCode = code;
-        break; // Fail early if a batch fails
-      }
-    }
-    return { code: overallCode, output: "" };
-  }
-
-  // 2. Handle Space-Separated Chunking Sequence (e.g., bun test file1 file2)
+  // Handle Space-Separated Chunking (e.g., bun test file1 file2)
   // Separate pure test files from configuration flags safely
   const isTestFile = (arg: string) => arg.endsWith(".test.ts") || arg.endsWith(".spec.ts");
   const testFiles = args.filter(isTestFile);
@@ -679,6 +647,7 @@ async function runCommand(cmd: string, cwd: string): Promise<{ code: number; out
           cwd,
           stdio: "inherit",
           shell: process.platform === "win32",
+          env: { ...process.env, ...envOverrides },
         });
         proc.on("close", (c: number | null) => res(c ?? 0));
       });
@@ -698,6 +667,7 @@ async function runCommand(cmd: string, cwd: string): Promise<{ code: number; out
       cwd,
       stdio: "inherit",
       shell: process.platform === "win32",
+      env: { ...process.env, ...envOverrides },
     });
 
     proc.on("close", (code: number) => {
@@ -730,6 +700,25 @@ async function main() {
 
   if (unitOnly || unitAndSqlite) {
     FULL_CORE_SUITE.command = "bun run test:unit";
+  }
+
+  // ── Smart Docker detection ──────────────────────────────────────────────
+  // Check running containers and surface available DBs for extra adapter tests
+  const availableDbs: string[] = [];
+  try {
+    const { execSync } = await import("node:child_process");
+    const ps = execSync("docker ps --format '{{.Names}}'", {
+      encoding: "utf8",
+      timeout: 3000,
+    }).trim();
+    if (ps.includes("postgres")) availableDbs.push("postgresql");
+    if (ps.includes("mongo")) availableDbs.push("mongodb");
+    if (ps.includes("mariadb")) availableDbs.push("mariadb");
+    if (availableDbs.length > 0) {
+      console.log(`🐳  Docker DBs detected: ${availableDbs.join(", ")} — adapter tests included`);
+    }
+  } catch {
+    // Docker not running or not installed — SQLite only, that's fine
   }
 
   // ── Determine changed files ─────────────────────────────────────────────
@@ -834,10 +823,12 @@ async function main() {
           );
         }
 
+        // Vitest uses -t for name filter (same intent as bun test -t).
+        const vitestFilter = filterFlag.replace(/^-t /, "-t ");
         const cmd =
           unitFiles.length > 25
-            ? `bun test tests/unit${filterFlag}`
-            : `bun test ${unitFiles.join(" ")}${filterFlag}`;
+            ? `bun x vitest run tests/unit${vitestFilter}`
+            : `bun x vitest run ${unitFiles.join(" ")}${vitestFilter}`;
 
         addSuites([
           {
@@ -858,7 +849,7 @@ async function main() {
               label: "Affected Integration Tests (graph)",
               gate: 2,
               patterns: [],
-              command: `bun run scripts/run-integration-tests.ts ${integrationFiles.join(",")}`,
+              command: `bun test --timeout 300000 ${integrationFiles.join(" ")}`,
             },
             matchingFiles: integrationFiles,
           },
@@ -871,7 +862,7 @@ async function main() {
               label: "Affected E2E Tests (graph)",
               gate: 4,
               patterns: [],
-              command: `npx playwright test ${e2eFiles.join(" ")}`,
+              command: `bun x playwright test ${e2eFiles.join(" ")}`,
             },
             matchingFiles: e2eFiles,
           },
@@ -958,6 +949,30 @@ async function main() {
             narrowed.map((s) => s.rule.label).join(", "),
         );
         suites = narrowed;
+      }
+    }
+  }
+
+  // ── Add Docker adapter tests when containers are running ──────────────
+  if (availableDbs.length > 0 && (runAll || suites.some((s) => s.rule.gate === 2))) {
+    for (const db of availableDbs) {
+      const testFile = `tests/integration/databases/${db}-adapter.test.ts`;
+      const exists = await import("node:fs")
+        .then((fs) => fs.existsSync(join(ROOT, testFile)))
+        .catch(() => false);
+      if (exists) {
+        const label = `Adapter: ${db}`;
+        if (!suites.some((s) => s.rule.label === label)) {
+          suites.push({
+            rule: {
+              label,
+              gate: 2,
+              patterns: [],
+              command: `DB_TYPE=${db} bun test ${testFile}`,
+            },
+            matchingFiles: [testFile],
+          });
+        }
       }
     }
   }
@@ -1072,7 +1087,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Smart runner crashed:", err);
-  process.exit(1);
-});
+// ── Guard: skip main() when imported as a module (e.g. by unit tests) ──
+// Test files set globalThis.__TEST_SMART_IMPORT before import to suppress.
+if (!(globalThis as any).__TEST_SMART_IMPORT) {
+  main().catch((err) => {
+    console.error("Smart runner crashed:", err);
+    process.exit(1);
+  });
+}

@@ -200,6 +200,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   systemVirtualFolder: "system:settings",
   version: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "version-check": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   permission: "system:admin",
   "system-jobs": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
@@ -270,6 +272,9 @@ function checkEndpointPermission(
       action === "me" ||
       action === "login" ||
       action === "logout" ||
+      action === "oidc-logout" ||
+      action === "frontchannel-logout" ||
+      action === "backchannel-logout" ||
       action === "saml" ||
       action === "2fa"
     ) {
@@ -445,10 +450,14 @@ export const _handler = async (event: RequestEvent) => {
   // This is a defense-in-depth layer beneath the turbo-pipeline bypass,
   // ensuring testing endpoints work even when the turbo pipeline hasn't
   // populated locals (e.g., early in server startup or after hot-reload).
-  if (namespace === "testing" && !user && !(locals as any).__testBypass) {
+  //
+  // ⚠️ Always apply for the testing namespace so x-test-tenant-id is
+  // respected even when an authenticated user session already exists
+  // (tenant-isolation tests need per-request tenant header overrides).
+  if (namespace === "testing" && !(locals as any).__testBypass) {
     const { applyTestBypassFromRequest } = await import("@utils/test-bypass.server");
     if (applyTestBypassFromRequest(request, locals as App.Locals)) {
-      user = locals.user as any;
+      if (!user) user = locals.user as any;
       tenantId = (locals.tenantId as string) || tenantId;
     }
   }

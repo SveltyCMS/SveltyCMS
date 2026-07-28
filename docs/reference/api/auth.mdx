@@ -16,6 +16,8 @@ tags:
   - "api-keys"
   - "magic-links"
   - "webauthn"
+  - "oidc"
+  - "openid-connect"
 ---
 
 # Authentication & Identity API Reference
@@ -28,19 +30,20 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature          | HTTP Endpoint                | Method   | Permission Required |
-| :--------------- | :--------------------------- | :------- | :------------------ |
-| **Login**        | `/api/auth/login`            | `POST`   | **Public**          |
-| **Logout**       | `/api/auth/logout`           | `POST`   | **Authenticated**   |
-| **Current User** | `/api/auth`                  | `GET`    | **Authenticated**   |
-| **List Users**   | `/api/user`                  | `GET`    | `manage:user`       |
-| **Create User**  | `/api/auth/create-user`      | `POST`   | `manage:user`       |
-| **API Keys**     | `/api/api-keys`              | `GET`    | **Authenticated**   |
-| **Create Key**   | `/api/api-keys`              | `POST`   | **Authenticated**   |
-| **Revoke Key**   | `/api/api-keys/{id}`         | `DELETE` | Owner or Admin      |
-| **Magic Link**   | `auth.remote.ts` (remote fn) | `POST`   | **Public**          |
-| **Passkey Auth** | `auth.remote.ts` (remote fn) | `POST`   | **Public**          |
-| **Passkey Reg**  | `auth.remote.ts` (remote fn) | `POST`   | **Authenticated**   |
+| Feature          | HTTP Endpoint                | Method      | Permission Required |
+| :--------------- | :--------------------------- | :---------- | :------------------ |
+| **Login**        | `/api/auth/login`            | `POST`      | **Public**          |
+| **Logout**       | `/api/auth/logout`           | `POST`      | **Authenticated**   |
+| **OIDC Logout**  | `/api/auth/oidc-logout`      | `GET, POST` | **Public**          |
+| **Current User** | `/api/auth`                  | `GET`       | **Authenticated**   |
+| **List Users**   | `/api/user`                  | `GET`       | `manage:user`       |
+| **Create User**  | `/api/auth/create-user`      | `POST`      | `manage:user`       |
+| **API Keys**     | `/api/api-keys`              | `GET`       | **Authenticated**   |
+| **Create Key**   | `/api/api-keys`              | `POST`      | **Authenticated**   |
+| **Revoke Key**   | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin      |
+| **Magic Link**   | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
+| **Passkey Auth** | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
+| **Passkey Reg**  | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**   |
 
 | **2FA Status** | `/api/auth/2fa/status` | `GET` | **Authenticated** |
 | **2FA Setup** | `/api/auth/2fa/setup` | `POST` | **Authenticated** |
@@ -142,7 +145,39 @@ The system automatically creates user records upon the first successful SAML log
 
 ---
 
-## 4. RBAC & Permissions
+## 4. OIDC SSO (OpenID Connect)
+
+OpenID Connect RP-Initiated Logout enables federated single sign-out across all applications in an OIDC session. When a user logs out of SveltyCMS, the browser is redirected to the OP's `end_session_endpoint` to terminate the session at the identity provider as well.
+
+### RP-Initiated Logout
+
+**Endpoint**: `GET|POST /api/auth/oidc-logout`
+
+**Parameters**:
+| Param | Required | Description |
+| :---- | :------- | :---------- |
+| `id_token_hint` | Recommended | The ID Token from the original authentication, used by the OP to identify the session |
+| `post_logout_redirect_uri` | Optional | Where to redirect the browser after logout. Must match the provider's allowlist |
+| `state` | Optional | Opaque value for CSRF protection, echoed back by the OP |
+
+**Flow**:
+1. Browser sends logout request with OIDC params
+2. SveltyCMS terminates the local session and clears cookies
+3. If the OP has an `end_session_endpoint`, the browser is redirected there for federated logout
+4. On success, the browser lands at `post_logout_redirect_uri` (if provided and valid)
+
+**Provider Configuration**: SSO providers are registered via the `SSO_PROVIDERS` system setting (JSON array of `SsoProviderConfig` objects). Each provider specifies its `issuer`, `allowedRedirectUris`, and optional `endSessionEndpoint`.
+
+**Security**:
+- `post_logout_redirect_uri` is validated against the provider's allowlist (supports wildcard patterns)
+- Non-SSO sessions (local auth) gracefully fall through to standard logout
+- Provider registry supports multiple OIDC providers simultaneously
+
+See `src/databases/auth/sso-session.ts` for implementation details.
+
+---
+
+## 5. RBAC & Permissions
 
 The authorization system is built on granular permissions assigned to user roles.
 
@@ -151,7 +186,7 @@ The authorization system is built on granular permissions assigned to user roles
 
 ---
 
-## 5. API Keys (Machine-to-Machine)
+## 6. API Keys (Machine-to-Machine)
 
 API Keys enable programmatic access for CI/CD pipelines, external services, and headless clients. Keys use the `sck_*` prefix and are stored as SHA-256 hashes — plaintext is never persisted.
 

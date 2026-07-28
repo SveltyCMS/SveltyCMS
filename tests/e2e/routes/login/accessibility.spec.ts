@@ -10,7 +10,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../../helpers/database";
+import { resetAndSeedDatabase } from "../../helpers/api";
 
 test.describe("Universal Accessibility Audits", () => {
   test.beforeEach(async ({ page }) => {
@@ -18,6 +18,7 @@ test.describe("Universal Accessibility Audits", () => {
   });
 
   test("Login Page - Automated Axe Audit", async ({ page }) => {
+    await page.context().clearCookies();
     await page.goto("/login");
     // Click Sign In to reveal the signin form (hidden behind chooser by default)
     const signInIcon = page.getByTestId("signin-icon");
@@ -51,7 +52,7 @@ test.describe("Universal Accessibility Audits", () => {
   test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
     // 1. Login first — loginAsAdmin lands on /user (protected), not collectionbuilder
     await loginAsAdmin(page, "/user");
-    await page.waitForURL(/\/(user|Collections|admin|dashboard|collectionbuilder)/, {
+    await page.waitForURL(/\/(user|Collections|admin|dashboard|collectionbuilder|en)/i, {
       timeout: 15_000,
     });
 
@@ -84,6 +85,7 @@ test.describe("Universal Accessibility Audits", () => {
   });
 
   test("Keyboard Traversal - Focus Trap & Focus Ring Visibility", async ({ page }) => {
+    await page.context().clearCookies();
     await page.goto("/login");
     // Click Sign In to reveal the signin form (hidden behind chooser by default)
     const signInIcon = page.getByTestId("signin-icon");

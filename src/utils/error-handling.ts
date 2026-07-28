@@ -138,11 +138,8 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     } else if (status === 401) {
       logger.debug(`AppError [${requestPath}]: Unauthorized access attempt`);
     } else {
-      const isBenchmark =
-        process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true";
-      if (!isBenchmark) {
-        logger.warn(`AppError [${requestPath}]: ${message}`, { code, details: err.details });
-      }
+      // Client errors (400-level) are not server issues — log at debug level
+      logger.debug(`AppError [${requestPath}]: ${message}`, { code, details: err.details });
     }
   } else if (isHttpError(err)) {
     const body = err.body as { message?: string; __sveltyCode?: string } | undefined;
@@ -244,6 +241,15 @@ export function isHttpError(err: unknown): err is HttpError {
     (err as any).status >= 400 &&
     (err as any).status < 600
   );
+}
+
+/**
+ * Re-throws redirects and HTTP errors so SvelteKit can handle them
+ * natively. For all other errors, this is a no-op. Call at the top of
+ * every catch block to prevent accidental wrapping of framework signals.
+ */
+export function rethrow(err: unknown): void {
+  if (isRedirect(err) || isHttpError(err)) throw err;
 }
 
 export function wrapError(

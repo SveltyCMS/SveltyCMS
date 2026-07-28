@@ -68,6 +68,24 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 **Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` / `hashApiKey`), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
 
+### Permission Cache (RBAC)
+
+| Key prefix                                | TTL  | Invalidation                                            |
+| ----------------------------------------- | ---- | ------------------------------------------------------- |
+| `{userId}:{permissionId}:{sortedRoleIds}` | 5min | `invalidatePermissionCache(userId)` on user update      |
+|                                           |      | `invalidatePermissionCache()` (global) on role mutation |
+
+**Helpers**: `src/databases/auth/permissions.ts` (`invalidatePermissionCache`), `src/utils/security/permission-cache.ts` (`PermissionCache`).
+
+**Invalidation policy**:
+
+- **Per-user**: Called after `Auth.updateUser()` — clears cached permission checks for the modified user so RBAC changes take effect immediately.
+- **Global**: Called after `AuthNamespace.updateRoles()` — clears all entries since any role change can affect many users' cached checks.
+- **Turbo auth**: `invalidateTurboAuthForUser(userId)` in `hooks.server.ts` clears the turbo auth cache entry so the next GET request re-validates the session with fresh permissions.
+
+> [!IMPORTANT]
+> Before July 2026, `invalidatePermissionCache` was defined but **never called**. Stale DENY results survived up to 5 minutes after privilege changes. The hardening ensures immediate propagation.
+
 > [!NOTE]
 > Use `clearByPattern("schema:")` — not `invalidateByCategory(SCHEMA)` — because schema keys are prefixed with `schema:`, not `*:schema:`.
 

@@ -70,6 +70,17 @@ test.describe("User Management — Invite Flow", () => {
     const invitePage = await inviteContext.newPage();
     try {
       await invitePage.goto(inviteUrl, { waitUntil: "domcontentloaded" });
+      // Invite URL should land on /login with the token param; if redirected elsewhere, navigate manually
+      if (!invitePage.url().includes("/login")) {
+        const parsed = new URL(inviteUrl);
+        const tokenParam =
+          parsed.searchParams.get("invite_token") ?? parsed.searchParams.get("token");
+        if (tokenParam) {
+          await invitePage.goto(`/login?invite_token=${tokenParam}`, {
+            waitUntil: "domcontentloaded",
+          });
+        }
+      }
       const signUpBtn = invitePage.getByRole("button", { name: /Go to Sign Up/i });
       await signUpBtn.waitFor({ state: "visible", timeout: 15_000 });
       await signUpBtn.click();

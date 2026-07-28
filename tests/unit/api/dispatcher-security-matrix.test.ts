@@ -28,7 +28,10 @@ vi.mock("@src/databases/db", () => ({
       getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
     },
     media: {
-      files: { getByFolder: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+      files: {
+        getByFolder: vi.fn().mockResolvedValue({ success: true, data: { items: [] } }),
+        getByHash: vi.fn().mockResolvedValue({ success: true, data: null }),
+      },
       deleteMedia: vi.fn().mockResolvedValue({ success: true }),
     },
     system: {
@@ -41,6 +44,10 @@ vi.mock("@src/databases/db", () => ({
   getDb: vi.fn(),
   isDbConnected: vi.fn().mockReturnValue(true),
   getAuth: vi.fn().mockReturnValue({}),
+  // media.ts imports getPrivateEnv at module load — must exist on the mock
+  getPrivateEnv: vi.fn().mockReturnValue({ CONCURRENT_UPLOAD_SIZE: 2 }),
+  loadPrivateConfig: vi.fn().mockReturnValue({}),
+  getBootPhase: vi.fn().mockReturnValue("READY"),
 }));
 
 vi.mock("@src/content/index.server", () => ({
@@ -155,6 +162,18 @@ describe("Dispatcher security matrix (real +server)", () => {
     it("rejects media list without tenantId when multi-tenant is on", async () => {
       await expectApi("GET", { path: "media", user: admin, tenantId: null, bypass: true }, 400);
     });
+
+    it("allows collections list without tenantId when multi-tenant is OFF", async () => {
+      // Temporarily flip MT off
+      const tenant = await import("@utils/tenant");
+      vi.mocked(tenant.isMultiTenantEnabled).mockReturnValueOnce(false);
+
+      await expectApi(
+        "GET",
+        { path: "collections", user: admin, tenantId: null, bypass: true },
+        [200, 404],
+      );
+    });
   });
 
   describe("RBAC on hot namespaces (bypass off)", () => {
@@ -195,7 +214,76 @@ describe("Dispatcher security matrix (real +server)", () => {
           roles: editorNoPerms,
           expectedStatus: 403,
         },
+        {
+          name: "editor denied webhooks write",
+          method: "POST",
+          path: "webhooks",
+          body: { name: "test" },
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
+        {
+          name: "editor denied automations write",
+          method: "POST",
+          path: "automations",
+          body: { name: "test" },
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
+        {
+          name: "editor denied system config",
+          method: "GET",
+          path: "system/config",
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
+        {
+          name: "admin allowed system config",
+          method: "GET",
+          path: "system/config",
+          user: admin,
+          roles: editorNoPerms,
+          expectedNotStatus: [401, 403],
+        },
       ]);
+    });
+  });
+
+  describe("Testing API fail-closed (never in production)", () => {
+    it("returns 401 without test secret on testing endpoint", async () => {
+      await expectApi(
+        "POST",
+        { path: "testing", user: admin, tenantId: "t1", bypass: true },
+        [401, 403],
+      );
+    });
+
+    it("returns 403 for testing namespace when not in test mode (bypass off)", async () => {
+      await runRbacMatrix([
+        {
+          name: "testing denied without test headers",
+          method: "POST",
+          path: "testing",
+          body: { action: "seed" },
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+          bypass: false,
+        },
+      ]);
+    });
+  });
+
+  describe("Admin bypass flows", () => {
+    it("admin can read collections through bypass flag", async () => {
+      await expectApi(
+        "GET",
+        { path: "collections", user: admin, tenantId: "t1", bypass: true },
+        [200, 404],
+      );
     });
   });
 });

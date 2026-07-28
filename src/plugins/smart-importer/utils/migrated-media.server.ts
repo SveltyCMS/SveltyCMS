@@ -35,16 +35,19 @@ function isRasterImage(mimeType: string, filename: string): boolean {
   );
 }
 
+/** Options-last media call shape (matches IMediaAdapter.files). */
+type MediaTenantOptions = { tenantId?: string | null; bypassTenantCheck?: boolean };
+
 function hasMediaFilesApi(dbAdapter: unknown): dbAdapter is {
   media: {
     files: {
       upload: (
         file: Record<string, unknown>,
-        tenantId?: string | null,
+        options?: MediaTenantOptions,
       ) => Promise<{ success: boolean; data?: { _id: string } }>;
       getByHash?: (
         hash: string,
-        tenantId?: string | null,
+        options?: MediaTenantOptions,
       ) => Promise<{ success: boolean; data?: { _id: string } | null }>;
     };
   };
@@ -106,14 +109,15 @@ export async function persistMigratedAsset(
     };
 
     if (hasMediaFilesApi(dbAdapter)) {
+      const mediaOpts = tenantId != null ? { tenantId } : { bypassTenantCheck: true as const };
       if (dbAdapter.media.files.getByHash) {
-        const existing = await dbAdapter.media.files.getByHash(hash, tenantId);
+        const existing = await dbAdapter.media.files.getByHash(hash, mediaOpts);
         if (existing.success && existing.data?._id) {
           return String(existing.data._id);
         }
       }
 
-      const uploaded = await dbAdapter.media.files.upload(mediaPayload, tenantId);
+      const uploaded = await dbAdapter.media.files.upload(mediaPayload, mediaOpts);
       if (uploaded.success && uploaded.data?._id) {
         return String(uploaded.data._id);
       }

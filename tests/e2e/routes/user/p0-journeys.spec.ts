@@ -15,8 +15,8 @@ import {
   loginAsEditor,
   logout,
 } from "../../helpers/auth";
-import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/seed";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
+import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/api";
+import { TEST_API_HEADERS } from "../../helpers/api";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -42,10 +42,7 @@ async function openEditUserDialog(page: Page) {
   const editBtn = page.getByTestId("edit-user-settings-btn");
   await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await editBtn.click();
-  const dialog = page
-    .getByRole("dialog")
-    .filter({ hasText: /edit user data|username|current password/i })
-    .first();
+  const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   return dialog;
 }
@@ -59,12 +56,31 @@ test.describe("P0 — Password change journey", () => {
   const NEW_PASSWORD = "ChangedPass456!";
 
   test.afterEach(async ({ page }) => {
-    // Always restore editor to known password for other suites / retries
-    await prepareTestUser(page, "editor").catch(() => {});
+    // Restore editor password after test changes it — seed resets password + lockout
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: TEST_USERS.editor.email,
+          password: TEST_USERS.editor.password,
+        },
+      })
+      .catch(() => {});
   });
 
   test("editor verifies current password, sets new one, and re-logins", async ({ page }) => {
-    await prepareTestUser(page, "editor");
+    // Ensure editor starts with known password (previous test may have changed it)
+    await page.request
+      .post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: TEST_USERS.editor.email,
+          password: TEST_USERS.editor.password,
+        },
+      })
+      .catch(() => {});
     const { email, password: oldPassword } = TEST_USERS.editor;
 
     await loginAsEditor(page, "/user", { email, password: oldPassword });
@@ -79,8 +95,13 @@ test.describe("P0 — Password change journey", () => {
     await expect(currentPassword).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(newPassword).toBeDisabled({ timeout: 5_000 });
 
+    // Fill current password — Svelte debounces verification on input (800ms debounce)
     await currentPassword.fill(oldPassword);
-    // Debounced verify (800ms) — wait until new password unlocks
+    // Wait for the debounce timer + API round-trip before blurring;
+    // Svelte 5 $bindable may not have synced by the time blur fires immediately after fill.
+    await page.waitForTimeout(1200);
+    await currentPassword.blur();
+    // Wait for new password field to unlock (verify succeeded)
     await expect(newPassword).toBeEnabled({ timeout: ACTION_TIMEOUT });
     await expect(page.getByText(/password verified/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
 

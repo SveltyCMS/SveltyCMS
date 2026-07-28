@@ -9,7 +9,7 @@
 
 import { test as setup, expect } from "@playwright/test";
 import { ADMIN_CREDENTIALS } from "./helpers/auth";
-import { TEST_API_HEADERS } from "./helpers/test-api";
+import { TEST_API_HEADERS } from "./helpers/api";
 import { applySessionCookie } from "./helpers/test-auth";
 import { readFileSync } from "node:fs";
 

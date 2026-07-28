@@ -5,17 +5,24 @@
 
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { deleteWorkflow, seedWorkflow } from "../../helpers/seed";
+import { deleteWorkflow, seedWorkflow } from "../../helpers/api";
+import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 25_000;
 
 async function goWorkflows(page: Page) {
   await loginAsAdmin(page);
   await page.goto("/config/workflows", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/config/workflows");
+  }
+  await dismissCookieBannerIfPresent(page);
+  await waitForAdminShell(page, ACTION_TIMEOUT);
   await expect(page.getByTestId("workflows-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
   await expect(page.getByTestId("page-title")).toContainText(/workflow/i, {
     timeout: ACTION_TIMEOUT,
   });
+  // Builder may mount after page shell — poll testid only (no CSS)
   await expect(page.getByTestId("workflow-builder")).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
@@ -27,11 +34,20 @@ test.describe("Config Workflows", () => {
 
   test("shell: canvas, toolbar, save control", async ({ page }) => {
     await goWorkflows(page);
-    await expect(page.getByTestId("workflow-toolbar")).toBeVisible();
-    await expect(page.getByTestId("workflow-canvas")).toBeVisible();
-    await expect(page.getByTestId("workflow-save")).toBeVisible();
-    await expect(page.getByTestId("workflow-state-draft")).toBeVisible();
-    await expect(page.getByTestId("workflow-state-published")).toBeVisible();
+    const builder = page.getByTestId("workflow-builder");
+    await expect(builder).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("workflow-toolbar")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("workflow-canvas")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Save may live in builder toolbar OR sticky page-actions — always .first()
+    await expect(page.getByTestId("workflow-save").first()).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.getByTestId("workflow-state-draft").first()).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.getByTestId("workflow-state-published").first()).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
   });
 
   /**
@@ -58,10 +74,11 @@ test.describe("Config Workflows", () => {
       expect(String(data._id || seeded._id)).toBeTruthy();
 
       await page.goto("/config/workflows", { waitUntil: "domcontentloaded", timeout: 30_000 });
-      await expect(page.getByTestId("workflow-builder")).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await expect(page.getByTestId("workflow-save")).toBeVisible();
-      await expect(page.getByTestId("workflow-state-draft")).toBeVisible();
-      await expect(page.getByTestId("workflow-state-published")).toBeVisible();
+      const builder = page.getByTestId("workflow-builder");
+      await expect(builder).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(page.getByTestId("workflow-save").first()).toBeVisible();
+      await expect(page.getByTestId("workflow-state-draft").first()).toBeVisible();
+      await expect(page.getByTestId("workflow-state-published").first()).toBeVisible();
     } finally {
       await deleteWorkflow(page, seeded._id).catch(() => {});
     }

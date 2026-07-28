@@ -10,16 +10,27 @@
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
+import {
+  dismissCookieBannerIfPresent,
+  waitForAdminShell,
+  waitForLoadingGone,
+} from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 20_000;
 
 async function goWebhooks(page: Page) {
   await loginAsAdmin(page);
   await page.goto("/config/webhooks", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("page-title")).toContainText(/webhook/i);
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/config/webhooks");
+  }
+  await dismissCookieBannerIfPresent(page);
+  await waitForAdminShell(page, ACTION_TIMEOUT);
+  await expect(page.getByTestId("page-title")).toContainText(/webhook/i, {
+    timeout: ACTION_TIMEOUT,
+  });
   await expect(page.getByTestId("webhooks-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await expect(page.getByTestId("webhooks-loading")).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+  await waitForLoadingGone(page, "webhooks-loading", ACTION_TIMEOUT);
 }
 
 test.describe.configure({ mode: "serial" });

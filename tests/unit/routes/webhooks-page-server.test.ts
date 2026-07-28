@@ -27,7 +27,7 @@ describe("webhooks +page.server", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("allows admin", async () => {
-    const data = await loadWebhooks({
+    const data: any = await loadWebhooks({
       locals: { user: { _id: "u1" }, isAdmin: true },
     } as any);
     expect(data.isAdmin).toBe(true);

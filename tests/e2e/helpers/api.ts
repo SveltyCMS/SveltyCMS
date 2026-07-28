@@ -1,0 +1,530 @@
+/**
+ * @file tests/e2e/helpers/api.ts
+ * @description Consolidated API/seed helpers for E2E tests.
+ *
+ * All helpers call /api/testing which delegates to the real server logic.
+ * No duplicate seed logic — just thin HTTP wrappers.
+ */
+import type { APIRequestContext, Page } from "@playwright/test";
+import { TEST_PASSWORD, USERS } from "../../harness/fixtures";
+
+// ── Shared constants ───────────────────────────────────────────────────
+
+export const TEST_API_SECRET =
+  process.env.TEST_API_SECRET ||
+  (globalThis as any).process?.env?.TEST_API_SECRET ||
+  "SVELTYCMS_TEST_SECRET_2026";
+
+export const TEST_API_HEADERS: Record<string, string> = {
+  "x-test-mode": "true",
+  "x-test-secret": TEST_API_SECRET,
+  "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
+};
+
+// ── Low-level /api/testing caller ──────────────────────────────────────
+
+type Requestish = Pick<Page, "request"> | { request: APIRequestContext };
+
+async function postTesting(page: Requestish, data: Record<string, unknown>) {
+  const response = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data,
+  });
+  const text = await response.text();
+  let body: any = {};
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { message: text };
+  }
+  if (!response.ok()) {
+    throw new Error(
+      `POST /api/testing action=${data.action} failed: ${response.status()} ${text.slice(0, 400)}`,
+    );
+  }
+  if (body.success === false) {
+    throw new Error(
+      `POST /api/testing action=${data.action} unsuccessful: ${body.message || body.code || text.slice(0, 300)}`,
+    );
+  }
+  return body;
+}
+
+// ── Database reset/seed ────────────────────────────────────────────────
+
+const ADMIN_CREDENTIALS = { email: "admin@example.com", password: "Password123!" };
+
+export async function resetAndSeedDatabase(page: Page) {
+  await page.context().clearCookies();
+  const reset = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: { action: "reset" },
+  });
+  if (!reset.ok()) throw new Error(`reset failed: ${reset.status()}`);
+
+  const seed = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "seed",
+      email: ADMIN_CREDENTIALS.email,
+      password: ADMIN_CREDENTIALS.password,
+      createSession: true,
+    },
+  });
+  if (!seed.ok()) throw new Error(`seed failed: ${seed.status()}`);
+  await applySessionCookie(page, seed).catch(() => false);
+}
+
+// ── Session management ─────────────────────────────────────────────────
+
+const SESSION_COOKIE_RE = /auth_sessions|__Host-auth_sessions|__Secure-auth_sessions/i;
+
+function parseSetCookieHeader(header: string): Array<{ name: string; value: string }> {
+  if (!header) return [];
+  const parts = header.split(/,(?=\s*[^;,]+=[^;,])/);
+  const out: Array<{ name: string; value: string }> = [];
+  for (const part of parts) {
+    const nv = part.split(";")[0]?.trim() ?? "";
+    const eq = nv.indexOf("=");
+    if (eq <= 0) continue;
+    let name = nv.slice(0, eq).trim();
+    let value = nv.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (name && value) out.push({ name, value });
+  }
+  return out;
+}
+
+export async function applySessionCookie(
+  page: Page,
+  response: {
+    headers(): Record<string, string>;
+    headersArray?: () => Array<{ name: string; value: string }>;
+    url(): string;
+  },
+  hostname = "127.0.0.1",
+): Promise<boolean> {
+  try {
+    let pairs: Array<{ name: string; value: string }> = [];
+    if (typeof response.headersArray === "function") {
+      for (const h of response.headersArray()) {
+        if (h.name.toLowerCase() === "set-cookie") pairs.push(...parseSetCookieHeader(h.value));
+      }
+    }
+    if (pairs.length === 0) pairs = parseSetCookieHeader(response.headers()["set-cookie"] ?? "");
+    let sessionPairs = pairs.filter((p) => SESSION_COOKIE_RE.test(p.name));
+    if (sessionPairs.length === 0) {
+      const sid = response.headers()["x-test-session-id"];
+      if (sid) sessionPairs = [{ name: "auth_sessions", value: sid }];
+    }
+    const toApply = sessionPairs.length > 0 ? sessionPairs : pairs.slice(0, 1);
+    if (toApply.length === 0) return false;
+    let hostPort = hostname;
+    try {
+      const u = new URL(response.url());
+      hostPort = u.host || u.hostname || hostPort;
+    } catch {
+      /* */
+    }
+    const domainOnly = hostPort.replace(/^\[|\]$/g, "").split(":")[0] || "127.0.0.1";
+    let anyOk = false;
+    for (const { name, value } of toApply) {
+      const isHost = name.startsWith("__Host-");
+      const secure = isHost || name.startsWith("__Secure-");
+      try {
+        await page.context().addCookies([
+          {
+            name,
+            value: decodeURIComponent(value),
+            url: `${secure ? "https" : "http"}://${hostPort}`,
+            httpOnly: true,
+            sameSite: "Lax",
+            secure,
+          },
+        ]);
+        anyOk = true;
+      } catch {
+        if (isHost) continue;
+        try {
+          await page.context().addCookies([
+            {
+              name,
+              value: decodeURIComponent(value),
+              domain: domainOnly,
+              path: "/",
+              httpOnly: true,
+              sameSite: "Lax",
+              secure,
+            },
+          ]);
+          anyOk = true;
+        } catch {
+          /* skip */
+        }
+      }
+    }
+    return anyOk;
+  } catch {
+    return false;
+  }
+}
+
+async function sessionLooksValid(page: Page): Promise<boolean> {
+  try {
+    const cookies = await page
+      .context()
+      .cookies()
+      .catch(() => []);
+    const sessionCookie = cookies.find((c) => SESSION_COOKIE_RE.test(c.name));
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (sessionCookie) {
+      headers["Cookie"] = `${sessionCookie.name}=${sessionCookie.value}`;
+    }
+    const res = await page.request.get("/api/user", { headers });
+    if (!res.ok()) return false;
+    const body = await res.json().catch(() => null);
+    return Boolean(body && (body.user || body._id || body.email || body.users));
+  } catch {
+    return false;
+  }
+}
+
+export async function ensureAuthenticated(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+    window.localStorage.setItem(
+      "sveltycms_consent",
+      JSON.stringify({ responded: true, necessary: true }),
+    );
+    window.localStorage.setItem("sveltycms-welcome-seen", "true");
+  });
+  if (await sessionLooksValid(page)) return;
+  for (const attempt of ["login", "seed+login", "reset+seed+login"]) {
+    try {
+      if (attempt === "reset+seed+login") {
+        await postTesting(page, { action: "reset" }).catch(() => null);
+      }
+      const res = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: attempt.includes("seed") ? "seed" : "login",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      if (res.ok()) await applySessionCookie(page, res).catch(() => false);
+      if (await sessionLooksValid(page)) return;
+    } catch {
+      /* retry */
+    }
+  }
+  throw new Error("ensureAuthenticated: failed after all attempts");
+}
+
+// ── Seed individual entities ───────────────────────────────────────────
+
+export async function seedWebhook(
+  page: Requestish,
+  options: { name?: string; url?: string; events?: string[]; active?: boolean; id?: string } = {},
+): Promise<{ id: string; name: string; url: string }> {
+  const stamp = Date.now().toString(36);
+  const body = await postTesting(page, {
+    action: "seed-webhook",
+    name: options.name ?? `E2E Webhook ${stamp}`,
+    url: options.url ?? `https://example.com/e2e-hook/${stamp}`,
+    events: options.events ?? ["entry:publish"],
+    active: options.active !== false,
+    id: options.id,
+  });
+  const wh = body.webhook || body.data;
+  if (!wh?.id) throw new Error(`seed-webhook: missing id ${JSON.stringify(body).slice(0, 300)}`);
+  return { id: String(wh.id), name: String(wh.name), url: String(wh.url) };
+}
+
+export async function deleteWebhook(page: Requestish, id: string) {
+  await postTesting(page, { action: "delete-webhook", id });
+}
+
+export async function seedAutomation(
+  page: Requestish,
+  options: {
+    name?: string;
+    description?: string;
+    active?: boolean;
+    id?: string;
+    trigger?: Record<string, unknown>;
+    operations?: unknown[];
+  } = {},
+): Promise<{ id: string; name: string }> {
+  const stamp = Date.now().toString(36);
+  const body = await postTesting(page, {
+    action: "seed-automation",
+    name: options.name ?? `E2E Automation ${stamp}`,
+    description: options.description ?? "Seeded for E2E",
+    active: options.active !== false,
+    id: options.id,
+    trigger: options.trigger,
+    operations: options.operations,
+  });
+  const flow = body.flow || body.data;
+  if (!flow?.id)
+    throw new Error(`seed-automation: missing id ${JSON.stringify(body).slice(0, 300)}`);
+  return { id: String(flow.id), name: String(flow.name) };
+}
+
+export async function deleteAutomation(page: Requestish, id: string) {
+  await postTesting(page, { action: "delete-automation", id });
+}
+
+export async function seedWorkflow(
+  page: Requestish,
+  options: { collectionId?: string; id?: string; name?: string } = {},
+): Promise<{ _id: string; collectionId: string }> {
+  const stamp = Date.now().toString(36);
+  const body = await postTesting(page, {
+    action: "seed-workflow",
+    collectionId: options.collectionId ?? `e2e_wf_${stamp}`,
+    id: options.id,
+    name: options.name ?? `E2E Workflow ${stamp}`,
+  });
+  const wf = body.workflow || body.data;
+  if (!wf?._id && !wf?.id)
+    throw new Error(`seed-workflow: missing id ${JSON.stringify(body).slice(0, 300)}`);
+  return { _id: String(wf._id || wf.id), collectionId: String(wf.collectionId) };
+}
+
+export async function deleteWorkflow(page: Requestish, id: string) {
+  await postTesting(page, { action: "delete-workflow", id });
+}
+
+export async function enablePlugin(page: Requestish, pluginId: string, enabled = true) {
+  return postTesting(page, { action: "enable-plugin", pluginId, enabled });
+}
+
+/** Seed a password_reset token that is already expired (for TOKEN_EXPIRED toast E2E). */
+export async function seedExpiredPasswordReset(
+  page: Requestish,
+  options: { email?: string } = {},
+): Promise<{ token: string; email: string; userId: string; expires: string }> {
+  const body = await postTesting(page, {
+    action: "seed-expired-password-reset",
+    email: options.email ?? ADMIN_CREDENTIALS.email,
+  });
+  if (!body.token || !body.email) {
+    throw new Error(
+      `seed-expired-password-reset missing token/email: ${JSON.stringify(body).slice(0, 300)}`,
+    );
+  }
+  return {
+    token: String(body.token),
+    email: String(body.email),
+    userId: String(body.userId || ""),
+    expires: String(body.expires || ""),
+  };
+}
+
+/** Seed media rows with distinct metadata for ?jsonPath= filter tests. */
+export async function seedMediaWithMetadata(
+  page: Requestish,
+  options: { email?: string; items?: Record<string, unknown>[] } = {},
+): Promise<{
+  items: Array<{ _id: string; hash: string; filename: string; metadata: unknown }>;
+  matchingHash: string;
+  nonMatchingHash: string;
+}> {
+  const body = await postTesting(page, {
+    action: "seed-media-with-metadata",
+    email: options.email,
+    items: options.items,
+  });
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length < 2) {
+    throw new Error(
+      `seed-media-with-metadata expected ≥2 items: ${JSON.stringify(body).slice(0, 300)}`,
+    );
+  }
+  return {
+    items,
+    matchingHash: String(body.matchingHash || items[0]?.hash),
+    nonMatchingHash: String(body.nonMatchingHash || items[1]?.hash),
+  };
+}
+
+// ── State orchestration ────────────────────────────────────────────────
+
+export async function seedReadyState(baseUrl?: string) {
+  const url =
+    (baseUrl || process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173") + "/api/testing";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "reset-to-state",
+      state: "ready",
+      email: ADMIN_CREDENTIALS.email,
+      password: ADMIN_CREDENTIALS.password,
+    }),
+  });
+  if (!res.ok) throw new Error(`seedReadyState failed: ${res.status} ${await res.text()}`);
+}
+
+export async function resetToSetupMode(baseUrl?: string) {
+  const url =
+    (baseUrl || process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173") + "/api/testing";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action: "reset-to-state", state: "setup" }),
+  });
+  if (!res.ok) throw new Error(`resetToSetupMode failed: ${res.status} ${await res.text()}`);
+}
+
+// ── User / trash / settings fixtures (AGENTS.md testing-API helpers) ─────
+
+/** Canonical role fixtures used by user-management & RBAC E2E. */
+export const TEST_USERS = {
+  admin: { email: USERS.admin.email, password: USERS.admin.password, role: "admin" as const },
+  developer: {
+    email: USERS.developer.email,
+    password: USERS.developer.password,
+    role: "developer" as const,
+  },
+  editor: { email: USERS.editor.email, password: USERS.editor.password, role: "editor" as const },
+  viewer: { email: USERS.viewer.email, password: USERS.viewer.password, role: "viewer" as const },
+};
+
+export type TestUserKey = keyof typeof TEST_USERS;
+
+/** Ensure a named fixture user exists (create or unblock). */
+export async function prepareTestUser(page: Requestish, key: TestUserKey | string) {
+  const fixture =
+    key in TEST_USERS
+      ? TEST_USERS[key as TestUserKey]
+      : { email: String(key), password: TEST_PASSWORD, role: "editor" };
+  return postTesting(page, {
+    action: "prepare-test-user",
+    email: fixture.email,
+    password: fixture.password,
+    role: fixture.role,
+    username: fixture.email.split("@")[0],
+  });
+}
+
+/** Seed developer/editor/viewer fixtures (idempotent via prepare-test-user). */
+export async function seedTestUsers(page: Requestish) {
+  for (const key of ["developer", "editor", "viewer"] as const) {
+    await prepareTestUser(page, key);
+  }
+  return { success: true };
+}
+
+/** Bulk-create users for pagination E2E. */
+export async function seedBulkUsers(
+  page: Requestish,
+  countOrOptions:
+    | number
+    | { count?: number; role?: string; prefix?: string; password?: string } = {},
+) {
+  const options =
+    typeof countOrOptions === "number" ? { count: countOrOptions } : (countOrOptions ?? {});
+  return postTesting(page, {
+    action: "bulk-create-users",
+    count: options.count ?? 12,
+    role: options.role ?? "editor",
+    prefix: options.prefix,
+    password: options.password ?? TEST_PASSWORD,
+  });
+}
+
+/** Update a private setting (e.g. USE_2FA) for fixture state. */
+export async function setTestSetting(page: Requestish, key: string, value: unknown) {
+  return postTesting(page, { action: "set-setting", key, value });
+}
+
+/** Seed soft-deleted entry for trash restore E2E. */
+export async function seedTrash(
+  page: Requestish,
+  options: { collectionId?: string; entryId?: string; title?: string } = {},
+) {
+  const body = await postTesting(page, {
+    action: "seed-trash",
+    collectionId: options.collectionId,
+    entryId: options.entryId,
+    title: options.title,
+  });
+  return {
+    collectionId: String(body.collectionId || options.collectionId || "e2e_trash_fixture"),
+    entryId: String(body.entryId || options.entryId || ""),
+    title: String(body.title || options.title || ""),
+  };
+}
+
+/** Permanently purge a trash fixture entry. */
+export async function purgeTrash(
+  page: Requestish,
+  collectionIdOrOpts: string | { collectionId: string; entryId: string },
+  entryId?: string,
+) {
+  const collectionId =
+    typeof collectionIdOrOpts === "string" ? collectionIdOrOpts : collectionIdOrOpts.collectionId;
+  const id =
+    typeof collectionIdOrOpts === "string" ? String(entryId || "") : collectionIdOrOpts.entryId;
+  return postTesting(page, {
+    action: "purge-trash",
+    collectionId,
+    entryId: id,
+  });
+}
+
+/**
+ * Seed a registration invite token (user_invite) for token-list E2E.
+ * Uses testing seed-invite-token action.
+ */
+export async function seedInviteToken(
+  page: Requestish,
+  options: { email?: string; role?: string } = {},
+): Promise<{ token: string; email: string }> {
+  const email = options.email || `invite_${Date.now()}@example.com`;
+  const body = await postTesting(page, {
+    action: "seed-invite-token",
+    email,
+    role: options.role || "editor",
+  });
+  if (!body.token) {
+    throw new Error(`seed-invite-token missing token: ${JSON.stringify(body).slice(0, 300)}`);
+  }
+  return { token: String(body.token), email: String(body.email || email) };
+}
+
+/**
+ * Optional infrastructure gate for UDH Postgres fixtures etc.
+ * REQUIRE_OPTIONAL_INFRA=true → hard-fail; otherwise skip via provided skip fn.
+ */
+export function handleOptionalInfraUnavailable(
+  kind: string,
+  message: string,
+  skip: (condition: boolean, description: string) => void,
+): void {
+  const requireInfra =
+    process.env.REQUIRE_OPTIONAL_INFRA === "true" || process.env.REQUIRE_OPTIONAL_INFRA === "1";
+  if (requireInfra) {
+    throw new Error(`[optional-infra:${kind}] ${message}`);
+  }
+  skip(true, `[optional-infra:${kind}] ${message}`);
+}
+
+// Re-export for convenience
+export { ADMIN_CREDENTIALS };

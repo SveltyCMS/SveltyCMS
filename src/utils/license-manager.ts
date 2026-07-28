@@ -120,13 +120,15 @@ async function checkExtensionRegistration(extensionId: string): Promise<LicenseS
       extension: extensionId,
     });
 
+    // Not listed on marketplace → treat as free/local extension
     if (res.status === 404) {
       return { active: true, daysRemaining: null, hasLicense: true };
     }
 
     return null;
   } catch {
-    return { active: true, daysRemaining: null, hasLicense: true };
+    // Network error: do NOT fail-open here. Caller decides based on key presence.
+    return null;
   }
 }
 
@@ -187,6 +189,7 @@ export async function checkExtensionLicense(
   }
 
   const licensePromise = (async (): Promise<LicenseStatus> => {
+    const hasAnyKey = !!(specificKey || masterKey);
     try {
       if (specificKey) {
         const result = await verifyKeyWithMarketplace(specificKey, extensionId);
@@ -206,7 +209,13 @@ export async function checkExtensionLicense(
 
       return { active: false, daysRemaining: 0, hasLicense: false };
     } catch {
-      return { active: true, daysRemaining: null, hasLicense: true };
+      // Fail-open ONLY when a license key is configured (marketplace outage
+      // should not brick paid installs). Without a key, fail-closed so
+      // unlicensed previews cannot sneak through network errors.
+      if (hasAnyKey) {
+        return { active: true, daysRemaining: null, hasLicense: true };
+      }
+      return { active: false, daysRemaining: 0, hasLicense: false };
     }
   })();
 

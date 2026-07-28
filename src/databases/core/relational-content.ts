@@ -20,6 +20,7 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import * as utils from "./relational-utils";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 
 export class RelationalContentModule implements IContentAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -204,30 +205,30 @@ export class RelationalContentModule implements IContentAdapter {
   public readonly nodes = {
     getStructure: async (
       _mode: "flat" | "nested",
-      options?: {
-        filter?: Partial<ContentNode>;
-        tenantId?: DatabaseId | null;
-        bypassCache?: boolean;
-        bypassTenantCheck?: boolean;
-      },
+      options?: BaseQueryOptions & { filter?: Partial<ContentNode> },
     ): Promise<DatabaseResult<ContentNode[]>> => {
+      assertTenantContext(options, "content.nodes.getStructure");
       return this.crud.findMany<ContentNode>("content_nodes", (options?.filter || {}) as any, {
         tenantId: options?.tenantId as any,
         bypassTenantCheck: options?.bypassTenantCheck,
+        bypassSafeQuery: options?.bypassSafeQuery,
+        bypassCache: options?.bypassCache,
       });
     },
 
     upsertContentStructureNode: async (
       node: EntityCreate<ContentNode>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode>> => {
-      const tenantId = (node as any).tenantId;
+      const tenantId = options?.tenantId ?? (node as any).tenantId;
+      assertTenantContext({ ...options, tenantId }, "content.nodes.upsertContentStructureNode");
       // NOTE: tenant filter decisions now centralized via utils.getTenantCondition / applyTenantFilter (relational-utils) for query paths.
 
       if (this.adapter.type !== "mongodb" && (this.adapter as any).prepareValues) {
         return this.adapter.wrap(
           async () => {
             const { preparedValues } = this.prepareContentNodeValues(node, {
-              tenantId: (node as any).tenantId,
+              tenantId: tenantId as any,
             });
 
             await this.executeContentNodeUpsert(this.db, preparedValues);
@@ -249,22 +250,28 @@ export class RelationalContentModule implements IContentAdapter {
       );
     },
 
-    create: async (node: EntityCreate<ContentNode>): Promise<DatabaseResult<ContentNode>> => {
-      return this.crud.insert<ContentNode>("content_nodes", node);
+    create: async (
+      node: EntityCreate<ContentNode>,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentNode>> => {
+      const tenantId = options?.tenantId ?? (node as any).tenantId;
+      assertTenantContext({ ...options, tenantId }, "content.nodes.create");
+      return this.crud.insert<ContentNode>("content_nodes", node, { ...options, tenantId });
     },
 
     createMany: async (
       nodes: EntityCreate<ContentNode>[],
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.crud.insertMany<ContentNode>("content_nodes", nodes);
+      assertTenantContext(options, "content.nodes.createMany");
+      return this.crud.insertMany<ContentNode>("content_nodes", nodes, options);
     },
 
     update: async (
       path: string,
       changes: Partial<ContentNode>,
-      options: { tx?: any } = {},
+      options: BaseQueryOptions & { tx?: any } = {},
     ): Promise<DatabaseResult<ContentNode>> => {
-      // 🛡️ HARDENING: Prevent driver-level crashes if path is accidentally undefined/null
       if (!path) {
         return {
           success: false,
@@ -275,6 +282,7 @@ export class RelationalContentModule implements IContentAdapter {
 
       return this.adapter.wrap(
         async () => {
+          assertTenantContext(options, "content.nodes.update");
           const db = options.tx?.db || options.tx || this.db;
           const { preparedValues } = this.prepareContentNodeValues(
             {
@@ -283,28 +291,30 @@ export class RelationalContentModule implements IContentAdapter {
             },
             {
               id: (changes as any)._id || (changes as any).id,
+              tenantId: options.tenantId as any,
             },
           );
           delete (preparedValues as any)._id;
           delete (preparedValues as any).createdAt;
 
-          // Use dialect-specific returning if supported
+          const conditions = [eq(this.schema.contentNodes.path, path)];
+          utils.applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
+
           const query = db
             .update(this.schema.contentNodes)
             .set(preparedValues as any)
-            .where(eq(this.schema.contentNodes.path, path));
+            .where(and(...conditions));
 
           if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
             const [updated] = await query.returning();
             if (updated) return utils.convertDatesToISO(updated) as unknown as ContentNode;
           }
 
-          // Fallback for MariaDB or missing returning
           await query;
           const [updated] = await db
             .select(this.adapter.getPhysicalSelection(this.schema.contentNodes))
             .from(this.schema.contentNodes)
-            .where(eq(this.schema.contentNodes.path, path))
+            .where(and(...conditions))
             .limit(1);
 
           return utils.convertDatesToISO(updated) as unknown as ContentNode;
@@ -320,6 +330,7 @@ export class RelationalContentModule implements IContentAdapter {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode[]>> => {
       if (updates.length === 0) return { success: true, data: [] };
+      assertTenantContext(options, "content.nodes.bulkUpdate");
 
       const persistUpdates = async (tx: any): Promise<DatabaseResult<ContentNode[]>> => {
         const db = tx.db || tx;
@@ -397,8 +408,7 @@ export class RelationalContentModule implements IContentAdapter {
       return this.adapter.transaction(persistUpdates);
     },
 
-    delete: async (path: string): Promise<DatabaseResult<void>> => {
-      // 🛡️ HARDENING: Prevent driver-level crashes if path is accidentally undefined/null
+    delete: async (path: string, options?: BaseQueryOptions): Promise<DatabaseResult<void>> => {
       if (!path) {
         return {
           success: false,
@@ -409,9 +419,10 @@ export class RelationalContentModule implements IContentAdapter {
 
       return this.adapter.wrap(
         async () => {
-          await this.db
-            .delete(this.schema.contentNodes)
-            .where(eq(this.schema.contentNodes.path, path));
+          assertTenantContext(options, "content.nodes.delete");
+          const conditions = [eq(this.schema.contentNodes.path, path)];
+          utils.applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
+          await this.db.delete(this.schema.contentNodes).where(and(...conditions));
         },
         "DELETE_NODE_FAILED",
         undefined,
@@ -421,13 +432,13 @@ export class RelationalContentModule implements IContentAdapter {
 
     deleteMany: async (
       paths: string[],
-      options?: { tenantId?: string | null },
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
       return this.adapter.wrap(
         async () => {
+          assertTenantContext(options, "content.nodes.deleteMany");
           const conditions = [inArray(this.schema.contentNodes.path, paths)];
-          if (options?.tenantId)
-            conditions.push(eq(this.schema.contentNodes.tenantId, options.tenantId));
+          utils.applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
           const q = this.db.delete(this.schema.contentNodes).where(and(...conditions));
 
           let count = 0;
@@ -448,9 +459,9 @@ export class RelationalContentModule implements IContentAdapter {
 
     reorder: async (
       nodeUpdates: Array<{ path: string; newOrder: number }>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      // Cold path (admin drag-drop reorder): transaction wrapping eliminates
-      // per-item commit overhead while keeping the code simple.
+      assertTenantContext(options, "content.nodes.reorder");
       return this.adapter.transaction(
         async (tx: any) => {
           const db = tx.db || tx;

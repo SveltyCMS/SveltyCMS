@@ -173,6 +173,7 @@ const _changedFiles = new Set<string>();
  * Flags the content system that a file has changed.
  */
 export function markFileDirty(filePath?: string | null) {
+  _scanPromises.clear();
   if (filePath) {
     _mtimeTree.delete(filePath);
     _schemaCache.delete(filePath);
@@ -188,6 +189,18 @@ export function flushChangedFiles(): string[] {
 }
 
 const _scanPromises = new Map<string, Promise<Schema[]>>();
+
+/**
+ * Invalidate the compiled-collections scan cache so the next call
+ * to scanCompiledCollections re-reads from disk.
+ */
+export function invalidateScanCache(targetDir?: string): void {
+  if (targetDir) {
+    _scanPromises.delete(targetDir);
+  } else {
+    _scanPromises.clear();
+  }
+}
 
 /**
  * Scans the .compiledCollections directory for compiled schema files.
@@ -217,8 +230,23 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
         await Promise.all(
           entries.map(async (entry) => {
             const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) return; // DO NOT walk subdirectories to prevent tenant leakage
+            if (entry.isDirectory()) return;
             if (!entry.isFile() || !entry.name.endsWith(".js")) return;
+            // Security guard: reject path traversal or suspicious entry names
+            if (
+              entry.name.includes("..") ||
+              entry.name.includes("/") ||
+              entry.name.includes("\\")
+            ) {
+              logger.warn(`[Scanner] Skipping suspicious file: ${entry.name}`);
+              return;
+            }
+            // Defense-in-depth: resolve + prefix check guards against symlink
+            // escapes and filesystem edge cases string-based checks may miss.
+            if (!path.resolve(fullPath).startsWith(path.resolve(dir) + path.sep)) {
+              logger.warn(`[Scanner] Skipping out-of-bound file: ${fullPath}`);
+              return;
+            }
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
             const stats = await fsPromises.stat(fullPath);
             fileList.push({ fullPath, mtime: stats.mtimeMs });
@@ -231,7 +259,9 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
 
     try {
       await walk(collectionsDir);
-      const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
+      const scanList = fileList.filter(
+        (f) => _mtimeTree.get(f.fullPath) !== f.mtime || !_schemaCache.has(f.fullPath),
+      );
 
       if (process.env.BENCHMARK_DEBUG === "true") {
         logger.info(`[Scanner] Total files found: ${fileList.length}`);
@@ -439,7 +469,7 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
   const fs = await import("node:fs/promises");
   const baseDir = path.resolve(process.cwd(), "config", "collections");
   await fs.mkdir(baseDir, { recursive: true });
-  const testDir = path.join(baseDir, "test");
+  const testDir = path.resolve(process.cwd(), "config", "test-collections");
   let testDirEnsured = false;
 
   const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
@@ -456,10 +486,17 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     if (!Array.isArray(schema.fields) || schema.fields.length === 0) continue;
 
     const fileName = `${slug}.ts`;
-    // 🧪 Route bench/test/mock collections to test/ subdirectory
-    // These are created by the benchmark matrix and should not pollute config/collections/
+    // 🧪 Route bench/test/mock/openapi collections to config/test-collections/
+    const TEST_COLLECTION_PREFIXES = ["bench", "mock", "test", "openapi", "iso_"];
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
     const isTestCollection =
-      slug.startsWith("bench") || slug.startsWith("mock") || slug.startsWith("test");
+      isTestHarness ||
+      TEST_COLLECTION_PREFIXES.some((p) => slug.startsWith(p)) ||
+      slug === "openapitarget";
     const targetDir = isTestCollection ? testDir : baseDir;
     // Only create test/ dir when a test collection actually needs to be written
     if (isTestCollection && !testDirEnsured) {
@@ -475,7 +512,7 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     } catch {}
 
     const content = `/**
- * @file ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}
+ * @file ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}
  * @description ${schema.name || slug} — regenerated from database.
  */
 import type { Schema } from '@src/content/types';
@@ -486,7 +523,7 @@ export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: 
     assertLiveDataWriteAllowed(filePath);
     await fs.writeFile(filePath, content, "utf-8");
     logger.info(
-      `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/collections/test/" : "config/collections/"}${fileName}`,
+      `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}`,
     );
   }
 

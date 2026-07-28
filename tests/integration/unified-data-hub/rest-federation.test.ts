@@ -56,6 +56,16 @@ describe(`Unified Data Hub REST federation (CMS: ${CMS_DB_TYPE})`, () => {
   });
 
   beforeAll(async () => {
+    // Seed admin first so login never needs a dummy session; hub seed after.
+    try {
+      adminCookie = await prepareAuthenticatedContext();
+    } catch (err) {
+      fixtureAvailable = false;
+      skipReason = err instanceof Error ? err.message : String(err);
+      console.log(`⏭️ REST federation: admin seed/login failed: ${skipReason}`);
+      return;
+    }
+
     fixtureAvailable = await seedRestFixture(25);
     if (!fixtureAvailable) {
       console.log(`⏭️ REST federation fixture unavailable: ${skipReason}`);

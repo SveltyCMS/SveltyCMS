@@ -63,7 +63,7 @@ describe("monitor +page.server load", () => {
   });
 
   it("returns safe defaults for admin when services fail", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: {
         user: { _id: "u1", role: "admin" },
         isAdmin: true,

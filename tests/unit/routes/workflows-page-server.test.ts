@@ -19,7 +19,7 @@ vi.mock("@utils/page-guards.server", () => ({
 describe("workflows +page.server admin gate", () => {
   it("allows admin", async () => {
     const { load } = await import("../../../src/routes/(app)/config/workflows/+page.server");
-    const result = await load({
+    const result: any = await load({
       locals: { user: { _id: "a1", role: "admin" }, isAdmin: true },
     } as any);
     expect(result).toEqual({ isAdmin: true });

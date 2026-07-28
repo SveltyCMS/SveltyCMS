@@ -158,6 +158,39 @@ export class CacheService {
     }
   }
 
+  /**
+   * Normalize tenant id for L1 tag index keys (matches buildKey/"default").
+   */
+  private normalizeTenantId(tenantId?: string | null): string {
+    if (tenantId === undefined || tenantId === null || tenantId === "") return "default";
+    return String(tenantId);
+  }
+
+  /**
+   * Tenant-scoped L1 tag index key: `${tenantId}:${tag}`.
+   * Mirrors L2 Redis sets `tag:{tenantId}:{tag}` so clearByTags never
+   * cross-invalidates another tenant's L1 entries that share a tag name.
+   */
+  private scopeTag(tag: string, tenantId?: string | null): string {
+    return `${this.normalizeTenantId(tenantId)}:${tag}`;
+  }
+
+  /**
+   * Register full cache keys under tenant-scoped tag indexes.
+   * keyToTags stores scoped names so dispose/cleanupTagsForKey stays O(tags).
+   */
+  private registerTagsForKey(fullKey: string, tags: string[], tenantId?: string | null): void {
+    if (!tags.length) return;
+    const tagSet = this.keyToTags.get(fullKey) || new Set<string>();
+    for (const tag of tags) {
+      const scoped = this.scopeTag(tag, tenantId);
+      if (!this.tagMap.has(scoped)) this.tagMap.set(scoped, new Set());
+      this.tagMap.get(scoped)!.add(fullKey);
+      tagSet.add(scoped);
+    }
+    this.keyToTags.set(fullKey, tagSet);
+  }
+
   async reconfigure(config?: any) {
     if (config?.USE_REDIS) {
       await this.initializeL2(config);
@@ -754,22 +787,18 @@ export class CacheService {
         cacheMetrics.recordSet(fullKey, category || CacheCategory.GENERAL, ttlSeconds, tenantId);
 
         if (tags && tags.length > 0) {
-          const tagSet = this.keyToTags.get(fullKey) || new Set();
-          for (const tag of tags) {
-            if (!this.tagMap.has(tag)) this.tagMap.set(tag, new Set());
-            this.tagMap.get(tag)!.add(fullKey);
-            tagSet.add(tag);
-          }
-          this.keyToTags.set(fullKey, tagSet);
+          this.registerTagsForKey(fullKey, tags, tenantId);
         }
 
         if (this.isL2Ready()) {
           try {
             const valStr = JSON.stringify(swrEntry);
             await this.l2.set(fullKey, valStr, { EX: ttlSeconds });
+            // Tenant-scoped L2 tag sets (same as set()/flushWriteBuffer)
             if (tags && tags.length > 0 && typeof this.l2.multi === "function") {
+              const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
               const multi = this.l2.multi();
-              for (const tag of tags) multi.sAdd(`tag:${tag}`, fullKey);
+              for (const tag of tags) multi.sAdd(`tag:${tagPrefix}${tag}`, fullKey);
               await multi.exec();
             }
           } catch (err) {
@@ -845,10 +874,12 @@ export class CacheService {
     key: string,
     value: any,
     ttl = 0,
-    tenantId: string | null = "global",
+    tenantId?: string | null,
     _category = CacheCategory.GENERAL,
     tags: string[] = [],
   ): Promise<void> {
+    // Align with get()/buildKey: undefined|null|"" → "default" so set+get without
+    // an explicit tenantId always round-trip on the same full key.
     const fullKey = this.generateKey(key, tenantId);
     // 🚀 ADAPTIVE TTL: Use per-category TTL profile when no explicit TTL given.
     // Explicit ttl=0 means "use the category default". Explicit ttl>0 always wins.
@@ -863,13 +894,7 @@ export class CacheService {
     cacheMetrics.recordSet(fullKey, _category, effectiveTTL, tenantId);
 
     if (tags.length > 0) {
-      const tagSet = this.keyToTags.get(fullKey) || new Set();
-      for (const tag of tags) {
-        if (!this.tagMap.has(tag)) this.tagMap.set(tag, new Set());
-        this.tagMap.get(tag)!.add(fullKey);
-        tagSet.add(tag);
-      }
-      this.keyToTags.set(fullKey, tagSet);
+      this.registerTagsForKey(fullKey, tags, tenantId);
     }
 
     // 🚀 REDIS WRITE BATCHING: Buffer writes for pipeline execution.
@@ -880,7 +905,8 @@ export class CacheService {
           typeof value === "string" ? `__RAW_STRING__:${value}` : JSON.stringify(value);
         // 🛡️ TENANT-SCOPED TAGS: Prefix tags with tenantId for isolation.
         // tag:{name} → tag:{tenantId}:{name} prevents cross-tenant invalidation.
-        const tagPrefix = `${tenantId ?? "global"}:`;
+        // Align with L1 scopeTag / buildKey ("default" for null/empty).
+        const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
         this.writeBuffer.push({ key: fullKey, val: valStr, ttl: effectiveTTL, tags, tagPrefix });
         if (this.writeBuffer.length >= this.WRITE_BATCH_MAX) {
           await this.flushWriteBuffer();
@@ -1020,24 +1046,47 @@ export class CacheService {
     }
     if (this.isL2Ready()) {
       try {
-        // 🛡️ TENANT-SCOPED TAGS: tag keys now include tenantId prefix.
-        // tenantId="*" clears all tenants; specific tenantId clears only that tenant.
-        const tagPrefix = tenantId && tenantId !== "*" ? `${tenantId}:` : "";
-        if (typeof this.l2.multi === "function") {
-          const multi = this.l2.multi();
+        // 🛡️ TENANT-SCOPED TAGS: tag keys include tenantId prefix (set()/SWR).
+        // tenantId="*" / null / "" → clear every tenant's tag set via SCAN.
+        // Specific tenantId → only that tenant's tag:{tid}:{tag} set.
+        const isWildcard =
+          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+        if (isWildcard) {
           for (const tag of tags) {
-            const tagKey = `tag:${tagPrefix}${tag}`;
-            const keys = await this.l2.sMembers(tagKey);
-            if (keys?.length > 0) multi.del(keys);
-            multi.del(tagKey);
+            // Match tag:{anyTenant}:{tag} (and legacy tag:{tag} if present)
+            const patterns = [`tag:*:${tag}`, `tag:${tag}`];
+            for (const match of patterns) {
+              let cursor = "0";
+              do {
+                const reply = await this.l2.scan(cursor, { MATCH: match, COUNT: 200 });
+                cursor = reply.cursor;
+                const found: string[] = reply.keys ?? [];
+                for (const tagKey of found) {
+                  const members = await this.l2.sMembers(tagKey);
+                  if (members?.length > 0) await this.l2.del(members);
+                  await this.l2.del(tagKey);
+                }
+              } while (cursor !== "0");
+            }
           }
-          await multi.exec();
         } else {
-          for (const tag of tags) {
-            const tagKey = `tag:${tagPrefix}${tag}`;
-            const keys = await this.l2.sMembers(tagKey);
-            if (keys?.length > 0) await this.l2.del(keys);
-            await this.l2.del(tagKey);
+          const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
+          if (typeof this.l2.multi === "function") {
+            const multi = this.l2.multi();
+            for (const tag of tags) {
+              const tagKey = `tag:${tagPrefix}${tag}`;
+              const keys = await this.l2.sMembers(tagKey);
+              if (keys?.length > 0) multi.del(keys);
+              multi.del(tagKey);
+            }
+            await multi.exec();
+          } else {
+            for (const tag of tags) {
+              const tagKey = `tag:${tagPrefix}${tag}`;
+              const keys = await this.l2.sMembers(tagKey);
+              if (keys?.length > 0) await this.l2.del(keys);
+              await this.l2.del(tagKey);
+            }
           }
         }
         await this.publishInvalidation(null, tenantId, tags);
@@ -1052,7 +1101,14 @@ export class CacheService {
     cacheMetrics.recordClear(pattern, CacheCategory.GENERAL, tenantId);
     if (this.isL2Ready()) {
       try {
-        const fullPattern = this.generateKey(pattern, tenantId) + "*";
+        // Wildcard tenant → SCAN every tenant namespace; else scope to one tenant.
+        // Strip trailing globs from the logical pattern, then append a single `*`.
+        const isWildcardTenant =
+          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+        const patternCore = pattern.replace(/[*?]+$/, "");
+        const fullPattern = isWildcardTenant
+          ? `tenant:*:${patternCore}*`
+          : `${this.generateKey(patternCore, tenantId)}*`;
         let cursor = "0";
         do {
           const reply = await this.l2.scan(cursor, {
@@ -1128,29 +1184,54 @@ export class CacheService {
   }
 
   private buildKey(key: string, tenantId: string | null = "default"): string {
-    // Check for MULTI_TENANT setting (memoized in settings-service sync)
-    // We import it dynamically if needed, but for sync core performance we check global context if available
-    const isMultiTenant = (globalThis as any).__mockMultiTenant ?? false;
-
-    if (isMultiTenant) {
-      return `tenant:${tenantId || "default"}:${key}`;
-    }
-
-    return key;
+    // Always namespace by tenant. Callers that pass distinct tenantIds must never
+    // collide in L1/L2 even when MULTI_TENANT is false at boot (defense-in-depth).
+    // Omitted/null/empty tenantId → stable `tenant:default:…` keys (matches get()/set()).
+    const tid =
+      tenantId === undefined || tenantId === null || tenantId === "" ? "default" : String(tenantId);
+    return `tenant:${tid}:${key}`;
   }
 
-  private clearLocalL1ByTags(tags: string[], _tenantId: string | null) {
-    // Phase 2c: Batch clear with deferred tag cleanup (same pattern as clearLocalL1ByPattern)
+  private clearLocalL1ByTags(tags: string[], tenantId: string | null) {
+    // Tenant-partitioned L1 tag clear (mirrors L2 tag:{tenantId}:{tag}).
+    // Phase 2c: batch clear with deferred tag cleanup (same as clearLocalL1ByPattern).
     this._isBulkClearing = true;
     const deletedKeys: string[] = [];
+    const isWildcard =
+      tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+    const tid = isWildcard ? null : this.normalizeTenantId(tenantId);
+    const tenantKeyPrefix = tid ? `tenant:${tid}:` : null;
+
     for (const tag of tags) {
-      const keys = this.tagMap.get(tag);
-      if (keys) {
+      const candidates: string[] = [];
+      if (tid) {
+        candidates.push(this.scopeTag(tag, tid));
+        // Legacy unscoped index (pre-partition entries) — filter by key prefix
+        if (this.tagMap.has(tag)) candidates.push(tag);
+      } else {
+        const suffix = `:${tag}`;
+        for (const k of this.tagMap.keys()) {
+          if (k === tag || k.endsWith(suffix)) candidates.push(k);
+        }
+      }
+
+      for (const scoped of new Set(candidates)) {
+        const keys = this.tagMap.get(scoped);
+        if (!keys) continue;
+        const keep = new Set<string>();
         for (const key of keys) {
+          if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
+            keep.add(key);
+            continue;
+          }
           this.l1.delete(key);
           deletedKeys.push(key);
         }
-        this.tagMap.delete(tag);
+        if (keep.size === 0) {
+          this.tagMap.delete(scoped);
+        } else {
+          this.tagMap.set(scoped, keep);
+        }
       }
     }
     this._isBulkClearing = false;
@@ -1212,6 +1293,41 @@ export class CacheService {
   }
 
   private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
+    // Strip trailing globs so we can prefix-match stored keys.
+    const lastChar = pattern[pattern.length - 1];
+    const patternPrefix =
+      lastChar === "*" || lastChar === "?" ? pattern.replace(/[*?]+$/, "") : pattern;
+
+    // Wildcard tenant (`*` / null / undefined / ""): match the logical key under
+    // any `tenant:<id>:` namespace. generateKey("*", …) would produce a literal
+    // `tenant:*:…` prefix that never matches real keys (tenant:default:…).
+    const isWildcardTenant =
+      tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+
+    if (isWildcardTenant) {
+      this._isBulkClearing = true;
+      const deletedKeys: string[] = [];
+      try {
+        for (const key of this.l1.keys()) {
+          // full key shape: tenant:<tid>:<logicalKey>
+          const sep = key.indexOf(":", "tenant:".length);
+          if (sep === -1) continue;
+          const logicalKey = key.slice(sep + 1);
+          if (logicalKey.startsWith(patternPrefix)) {
+            this.l1.delete(key);
+            deletedKeys.push(key);
+          }
+        }
+      } finally {
+        this._isBulkClearing = false;
+      }
+      for (let i = 0; i < deletedKeys.length; i++) {
+        this.cleanupTagsForKey(deletedKeys[i]);
+        this.removeFromPrefixMap(deletedKeys[i]);
+      }
+      return;
+    }
+
     const fullPattern = this.generateKey(pattern, tenantId);
 
     // 🚀 PREFIX MAP FAST PATH: Find the deepest matching bucket and scan only its keys.
@@ -1247,9 +1363,11 @@ export class CacheService {
       const deletedKeys: string[] = [];
       try {
         // Fast-path: skip regex for common non-glob patterns (most cache keys)
-        const lastChar = fullPattern[fullPattern.length - 1];
+        const fullLastChar = fullPattern[fullPattern.length - 1];
         const matchPrefix =
-          lastChar === "*" || lastChar === "?" ? fullPattern.replace(/[*?]+$/, "") : fullPattern;
+          fullLastChar === "*" || fullLastChar === "?"
+            ? fullPattern.replace(/[*?]+$/, "")
+            : fullPattern;
         for (const key of bestBucket) {
           if (key.startsWith(matchPrefix)) {
             this.l1.delete(key);
@@ -1273,9 +1391,11 @@ export class CacheService {
     }
 
     // FALLBACK: Only used when no prefix bucket exists (should be rare)
-    const lastChar = fullPattern[fullPattern.length - 1];
+    const fullLastChar = fullPattern[fullPattern.length - 1];
     const fallbackPrefix =
-      lastChar === "*" || lastChar === "?" ? fullPattern.replace(/[*?]+$/, "") : fullPattern;
+      fullLastChar === "*" || fullLastChar === "?"
+        ? fullPattern.replace(/[*?]+$/, "")
+        : fullPattern;
     // Use iterator to avoid full Array.from when possible
     for (const key of this.l1.keys()) {
       if (key.startsWith(fallbackPrefix)) {

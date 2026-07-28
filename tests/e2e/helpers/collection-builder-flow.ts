@@ -136,14 +136,6 @@ async function selectInputFromAddFieldDialog(page: Page): Promise<void> {
 }
 
 export async function openNewCollectionEditor(page: Page): Promise<void> {
-  // Ensure authenticated before hitting the builder (storageState can be stale)
-  try {
-    const { loginAsAdmin } = await import("./auth");
-    await loginAsAdmin(page);
-  } catch {
-    /* continue — ensureAuthenticated may already have run in beforeEach */
-  }
-
   await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
   if (page.url().includes("/login")) {
     const { loginAsAdmin } = await import("./auth");
@@ -151,36 +143,10 @@ export async function openNewCollectionEditor(page: Page): Promise<void> {
   }
   await dismissOpenDialogs(page);
 
-  // If builder shell never mounts (SSR error), surface URL + body for CI logs
   const addBtn = page.getByTestId("add-collection-button").first();
-  const board = page.getByTestId("collection-builder-board");
-  const title = page.getByTestId("page-title");
-  const shellVisible =
-    (await addBtn.isVisible({ timeout: 20_000 }).catch(() => false)) ||
-    (await board.isVisible({ timeout: 2_000 }).catch(() => false)) ||
-    (await title.isVisible({ timeout: 2_000 }).catch(() => false));
-
-  if (!shellVisible) {
-    // One recovery: re-login via testing API then retry once
-    try {
-      const { loginAsAdmin } = await import("./auth");
-      await loginAsAdmin(page, "/config/collectionbuilder");
-      await dismissOpenDialogs(page);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  if (!(await addBtn.isVisible({ timeout: 15_000 }).catch(() => false))) {
-    const body = await page
-      .locator("body")
-      .innerText()
-      .catch(() => "");
-    const html = await page.content().catch(() => "");
-    throw new Error(
-      `collectionbuilder shell missing at ${page.url()} body=${body.slice(0, 400)} html=${html.slice(0, 300)}`,
-    );
-  }
+  await expect(addBtn, "Add Collection button on /config/collectionbuilder").toBeVisible({
+    timeout: 20_000,
+  });
 
   await stableClick(addBtn, 20_000);
   await page.waitForURL(/\/config\/collectionbuilder\/new/, { timeout: 20_000 });
@@ -244,7 +210,38 @@ export async function saveCollectionSchema(page: Page): Promise<void> {
 }
 
 export async function openCollectionEntries(page: Page, slug: string): Promise<void> {
-  await page.goto(`/en/collection/${slug}`, { waitUntil: "domcontentloaded" });
+  const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
+
+  // Wait for the collection to be available via API before navigating
+  // (schema compilation + route registration is async after save).
+  // GET /api/collections/{slug} returns entry arrays via handleCollectionFind,
+  // not collection metadata — so we validate success + data presence instead.
+  await expect(async () => {
+    const apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
+    expect(apiRes.ok()).toBeTruthy();
+    const body = await apiRes.json();
+    // Collection is registered when find() returns a valid response.
+    // A 200 with `data` (even an empty array) means the schema compiled.
+    expect(body.success).toBe(true);
+    expect(body.data).toBeDefined();
+  }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
+
+  // Route compilation may lag behind schema save — give SvelteKit time to register
+  await page.waitForTimeout(500);
+
+  await expect(async () => {
+    await page.goto(`/en/collection/${cleanSlug}`, { waitUntil: "domcontentloaded" });
+    if (page.url().includes("/login")) {
+      const { loginAsAdmin } = await import("./auth");
+      await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
+    }
+    // Must land on collection entries (not collection builder or 404)
+    await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
+    await expect(page).not.toHaveURL(/\/config\/collectionbuilder/, { timeout: 3_000 });
+  }).toPass({
+    timeout: 40_000,
+    intervals: [2_000, 4_000, 6_000],
+  });
 }
 
 export async function createEntryWithNames(

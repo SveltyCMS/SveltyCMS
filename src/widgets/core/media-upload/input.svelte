@@ -252,14 +252,29 @@
 	}
 
 	function handleMediaDrop(state: DragDropState<MediaFile>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
 		const fromIndex = selectedFiles.indexOf(dragged);
-		if (fromIndex === state.targetIndex || fromIndex < 0) return;
+		if (fromIndex < 0) return;
+
+		const targetEl = state.targetElement?.closest('[data-file-id]') as HTMLElement | null;
+		const targetFileId = targetEl?.dataset?.fileId;
+
+		let targetIndex: number;
+		if (targetFileId) {
+			targetIndex = selectedFiles.findIndex(f => f._id === targetFileId);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = selectedFiles.length;
+		}
+		targetIndex = Math.max(0, Math.min(targetIndex, selectedFiles.length));
+
+		if (fromIndex === targetIndex) return;
 		selectedFiles = untrack(() => {
 			const newFiles = [...selectedFiles];
 			newFiles.splice(fromIndex, 1);
-			newFiles.splice(state.targetIndex, 0, dragged);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			newFiles.splice(adjusted, 0, dragged);
 			return newFiles;
 		});
 	}
@@ -270,9 +285,8 @@
 		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4"
 			use:droppable={{
 				container: 'media-grid',
-				onDrop: handleMediaDrop,
+				callbacks: { onDrop: handleMediaDrop },
 				direction: 'grid',
-				keyboard: true,
 				attributes: { dragOverClass: 'bg-secondary-200' }
 			}}
 			role="list"

@@ -45,7 +45,7 @@ describe("system-settings +page.server load", () => {
   });
 
   it("allows admin", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: {
         user: { _id: { toString: () => "u1" }, email: "a@b.co", role: "admin" },
         isAdmin: true,
@@ -58,7 +58,7 @@ describe("system-settings +page.server load", () => {
 
   it("allows non-admin with config:settings", async () => {
     vi.mocked(hasPermissionWithRoles).mockReturnValue(true);
-    const data = await load({
+    const data: any = await load({
       locals: {
         user: { _id: { toString: () => "u2" }, email: "e@b.co", role: "editor" },
         isAdmin: false,

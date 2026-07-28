@@ -280,13 +280,31 @@ export const actions: Actions = {
       if (originalName && originalName !== contentName && oldCollectionPath) {
         fs.renameSync(oldCollectionPath, collectionPath);
       }
+      // Ensure parent directory exists (Node.js writeFileSync does NOT auto-create parents)
+      fs.mkdirSync(path.dirname(collectionPath), { recursive: true });
       fs.writeFileSync(collectionPath, content);
 
       // Compile with tenant ID
       await compile({ logger, tenantId });
-      //await contentSystem.generateContentTypes();
-      //await contentSystem.generateCollectionFieldTypes();
+      // Invalidate the scan cache so refresh picks up the newly compiled file
+      const { invalidateScanCache } = await import("@src/content/engine.server");
+      invalidateScanCache();
       await contentSystem.refresh(tenantId);
+
+      // 🛡️ Ensure database table is provisioned immediately upon schema save
+      try {
+        const { getDb } = await import("@src/databases/db");
+        const dbAdapter = getDb();
+        if (dbAdapter && typeof (dbAdapter as any).createModel === "function") {
+          await (dbAdapter as any).createModel({
+            _id: contentName,
+            name: contentName,
+            fields: Object.values(fields) as any[],
+          });
+        }
+      } catch (tableErr) {
+        logger.warn(`[SaveCollection] Could not auto-create model for ${contentName}:`, tableErr);
+      }
       return { status: 200 };
     } catch (err) {
       const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;

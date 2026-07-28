@@ -60,8 +60,9 @@ async function run() {
     await db.crud.insertMany("BenchmarkStable", docs, GLOBAL_TENANT_OPTS);
   }
 
-  // Optimize batch throughput according to database locking signatures
-  const BATCH = dbType.includes("sqlite") ? 50 : dbType.includes("mongodb") ? 200 : 100;
+  // Keep wave size under Docker Postgres/MariaDB default max_connections when
+  // the matrix shared server already holds a pool (avoids "too many clients").
+  const BATCH = dbType.includes("sqlite") ? 50 : dbType.includes("mongodb") ? 50 : 15;
   const totalWrites = WRITE_DOCS * WRITES_PER_DOC;
 
   const writeTasksThunks: (() => Promise<any>)[] = [];

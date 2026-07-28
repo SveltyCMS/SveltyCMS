@@ -278,7 +278,7 @@ Part of the Three Pillars Architecture for the widget system.
 				const link = document.createElement('link');
 				link.id = 'maplibre-style';
 				link.rel = 'stylesheet';
-				link.href = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
+				link.href = 'https://unpkg.com/maplibre-gl@6.0.0/dist/maplibre-gl.css';
 				document.head.appendChild(link);
 			}
 

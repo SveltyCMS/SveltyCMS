@@ -290,8 +290,14 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     );
 
     if (!isBenchmarkRuntime()) {
+      // Only compile test-collections if explicitly requested via options.userCollections
+      const isExplicitTestTarget = options.userCollections
+        ? options.userCollections.includes("test-collections")
+        : false;
       sourceFiles = sourceFiles.filter(
-        (rp) => !isBenchmarkRelativePath(rp) && !isBenchmarkArtifact(path.basename(rp)),
+        (rp) =>
+          (isExplicitTestTarget || !isBenchmarkRelativePath(rp)) &&
+          !isBenchmarkArtifact(path.basename(rp)),
       );
     }
 
@@ -624,10 +630,9 @@ async function saveManifest(
 
   assertLiveDataWriteAllowed(manifestPath);
 
-  // Atomic write: write to temp file then rename — crash-safe
-  const tmpPath = manifestPath + ".tmp";
-  await fs.writeFile(tmpPath, JSON.stringify(payload, null, 2));
-  await fs.rename(tmpPath, manifestPath);
+  // Windows-safe atomic write (EPERM on rename under parallel Playwright workers)
+  const { atomicWriteJson } = await import("../atomic-write");
+  await atomicWriteJson(manifestPath, payload);
 }
 
 // ─── File discovery (recursive, excludes .d.ts) ─────────────────────────

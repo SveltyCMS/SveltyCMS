@@ -1568,6 +1568,15 @@ const websiteStarterCollections: CollectionPreset[] = [
 
 export const PRESETS: Preset[] = [
   {
+    id: "blank",
+    title: "Blank Project",
+    description: "Start from scratch with a clean slate.",
+    icon: "mdi:file-outline",
+    features: ["Core System", "No Collections", "Basic Settings"],
+    complexity: "simple",
+    collections: [],
+  },
+  {
     id: "website",
     title: "Website Starter",
     description:
@@ -1583,15 +1592,6 @@ export const PRESETS: Preset[] = [
     ],
     complexity: "simple",
     collections: websiteStarterCollections,
-  },
-  {
-    id: "blank",
-    title: "Blank Project",
-    description: "Start from scratch with a clean slate.",
-    icon: "mdi:file-outline",
-    features: ["Core System", "No Collections", "Basic Settings"],
-    complexity: "simple",
-    collections: [],
   },
   {
     id: "blog",

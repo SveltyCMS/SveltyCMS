@@ -9,7 +9,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import mime from "mime-types";
-import { AppError } from "@utils/error-handling";
+import { AppError, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -125,6 +125,7 @@ export async function handleMediaRoutes(
         throw new AppError(`HTTP method ${request.method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     }
   } catch (err: any) {
+    rethrow(err);
     // Expected client/auth errors should not spam stderr as "MediaRoute Error"
     if (err instanceof AppError) throw err;
     console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
@@ -218,9 +219,18 @@ async function handleDeleteRoutes(
     if (!hasMediaPermission(event, user, "media:delete")) {
       throw new AppError("Insufficient access for asset deletion", 403, "FORBIDDEN");
     }
+    // Fast 404 before expensive published-reference scan (integration OOM root cause)
+    const existing = await cms.media.findById(method, { tenantId });
+    if (!existing.success || !existing.data) {
+      throw new AppError("Media not found", 404, "NOT_FOUND");
+    }
     // 🛡️ PUBLISH-STATE GATE: Block deletion of assets referenced by published content
     await checkMediaNotReferencedByPublishedContent(cms, method, tenantId);
-    return rawResponse(event, await cms.media.delete(method, { tenantId }));
+    const deleted = await cms.media.delete(method, { tenantId });
+    if (!deleted.success) {
+      throw new AppError(deleted.message || "Failed to delete media", 400, "DELETE_FAILED");
+    }
+    return successResponse(event, { deleted: true, id: method });
   }
   return successResponse(event, null);
 }
@@ -370,10 +380,14 @@ export async function handleMediaUpload(
           ? { fileName: file.name, success: true, data: res.data }
           : { fileName: file.name, success: false, message: res.message };
       } catch (err: any) {
+        // Preserve error code from AppError / Node.js filesystem errors
+        const code =
+          err instanceof AppError ? err.code : (err as NodeJS.ErrnoException)?.code || undefined;
         results[currentIndex] = {
           fileName: file.name,
           success: false,
           message: err.message,
+          ...(code ? { code } : {}),
         };
       }
     }
@@ -1146,10 +1160,13 @@ export async function handleMediaStreamUpload(
             message: res.success ? undefined : res.message,
           });
         } catch (err: any) {
+          const code =
+            err instanceof AppError ? err.code : (err as NodeJS.ErrnoException)?.code || undefined;
           uploaded.push({
             fileName: info.filename,
             success: false,
             message: err.message,
+            ...(code ? { code } : {}),
           });
         }
       },
@@ -1160,6 +1177,7 @@ export async function handleMediaStreamUpload(
       },
     });
   } catch (err: any) {
+    rethrow(err);
     if (err instanceof AppError) throw err;
     throw new AppError(
       err.message || "Streaming upload transaction failed",

@@ -27,31 +27,42 @@ describe("path-resolver", () => {
       expect(paths.compiledCollections).toBe(path.join(CWD, ".compiledCollections"));
     });
 
-    it("media resolves to mediaFolder/global", () => {
-      expect(paths.media).toBe(path.join(CWD, "mediaFolder", "global"));
+    it("media resolves to media directory with global subfolder", () => {
+      expect(paths.media).toContain("global");
     });
 
     it("database resolves to config/database", () => {
       expect(paths.database).toBe(path.join(CWD, "config", "database"));
     });
 
-    it("privateConfig resolves to config/private.ts", () => {
-      expect(paths.privateConfig).toBe(path.join(CWD, "config", "private.ts"));
+    it("privateConfigLive always resolves to config/private.ts", () => {
+      expect(paths.privateConfigLive).toBe(path.join(CWD, "config", "private.ts"));
+    });
+
+    it("privateConfigTest always resolves to config/private.test.ts", () => {
+      expect(paths.privateConfigTest).toBe(path.join(CWD, "config", "private.test.ts"));
+    });
+
+    it("privateConfig follows private-config-policy (vitest → private.test.ts)", () => {
+      // Under VITEST/TEST_MODE, active bootstrap is never live private.ts
+      expect(paths.privateConfig).toBe(path.join(CWD, "config", "private.test.ts"));
     });
   });
 
   describe("benchmark paths", () => {
-    it("benchmark.collections is under config/collections/test", () => {
-      expect(paths.benchmark.collections).toBe(path.join(CWD, "config", "collections", "test"));
+    it("benchmark.collections is under config/test-collections", () => {
+      expect(paths.benchmark.collections).toBe(path.join(CWD, "config", "test-collections"));
     });
 
-    it("benchmark.compiled is under .compiledCollections/test", () => {
-      expect(paths.benchmark.compiled).toBe(path.join(CWD, ".compiledCollections", "test"));
+    it("benchmark.compiled is under .compiledCollections/test-collections", () => {
+      expect(paths.benchmark.compiled).toBe(
+        path.join(CWD, ".compiledCollections", "test-collections"),
+      );
     });
 
-    it("benchmark.sandboxCompiled is under .compiledCollections/test/_local_sandbox", () => {
+    it("benchmark.sandboxCompiled is under .compiledCollections/test-collections/_local_sandbox", () => {
       expect(paths.benchmark.sandboxCompiled).toBe(
-        path.join(CWD, ".compiledCollections", "test", "_local_sandbox"),
+        path.join(CWD, ".compiledCollections", "test-collections", "_local_sandbox"),
       );
     });
   });

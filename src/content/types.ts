@@ -11,6 +11,7 @@
  */
 
 import type { WidgetRecord as widgets } from "@src/widgets/types";
+import type { SchemaHooks } from "./schema-hooks";
 // Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
@@ -274,6 +275,7 @@ export interface MinimalSchema {
   _id?: string;
   name?: ContentTypes | string;
   fields: FieldDefinition[];
+  hooks?: SchemaHooks;
   [key: string]: any;
 }
 
@@ -317,6 +319,14 @@ export interface Schema {
   displaySpec?: Record<string, unknown>; // json-render-svelte display specification
   /** If true, bulk delete operations are forbidden for this collection */
   disableBulkDelete?: boolean;
+  /**
+   * Schema lifecycle hooks that run on every write path.
+   * - beforeValidate: normalizes/transforms data before field validation
+   * - afterValidate: transforms data after validation passes
+   *
+   * All hooks are optional — schemas without hooks work unchanged.
+   */
+  hooks?: SchemaHooks;
   /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */
   federationEnrichments?: FederationEnrichment[];
 }

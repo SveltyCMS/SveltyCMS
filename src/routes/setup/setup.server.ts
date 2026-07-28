@@ -198,11 +198,14 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
     const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
       createIfMissing: true,
     });
+    // Step 0 seedDatabase() runs WITHOUT preset collections — only system data
+    // (settings, roles, themes). The user hasn't chosen their blueprint yet.
+    // Preset collections are seeded later in completeSetup() at step 2.
     const { criticalPromise, backgroundTask } = await initSystemFast(
       dbAdapter,
       null,
       systemData.demoMode || false,
-      systemData.preset || null,
+      null,
     );
     setupManager.startSeeding(async () => {
       await criticalPromise;

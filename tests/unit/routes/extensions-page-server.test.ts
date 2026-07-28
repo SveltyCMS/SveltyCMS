@@ -45,7 +45,7 @@ describe("extensions +page.server load", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns plugins for admin", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: { user: { _id: "u1", role: "admin" }, isAdmin: true, tenantId: "t1" },
     } as any);
     expect(data.isAdmin).toBe(true);

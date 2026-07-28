@@ -56,6 +56,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const typedUser = user as User;
   const { tenantId } = locals;
   const { language, collection } = params;
+  console.log(
+    `[PRE-FLIGHT-CHECK] url=${url.pathname}, language=${language}, collection=${collection}, userLocale=${typedUser?.locale}`,
+  );
 
   // =================================================================
   // 1. PRE-FLIGHT CHECKS & REDIRECTS (moved outside try-catch)
@@ -79,11 +82,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   ) {
     const newPath = url.pathname.replace(`/${language}/`, `/${typedUser.locale}/`);
     throw redirect(302, newPath);
-  }
-
-  if (typedUser.lastAuthMethod === "token") {
-    // Token users go to root on error, or builder if no collections (though they likely shouldn't be in the builder)
-    throw redirect(302, "/");
   }
 
   try {
@@ -132,6 +130,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     }
 
     if (!currentCollection) {
+      const allCols = await contentSystem.getCollections(tenantId);
+      const colPath = collection || "";
+      console.log(
+        `[DEBUG-COL] Request collection=${collection}, collectionPath=/${colPath}, allCols=${JSON.stringify(allCols.map((c) => ({ id: c._id, name: c.name, path: c.path })))}`,
+      );
       if (collectionNameOnly?.toLowerCase() === "collections") {
         const allCollections = await contentSystem.getCollections(tenantId);
         if (allCollections.length > 0) {
@@ -187,7 +190,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       });
 
     // Status facets for filter chips (non-blocking failure → empty map)
-    let statusFacets: Record<string, number> = {};
+    let statusFacets: Partial<Record<string, number>> = {};
     try {
       statusFacets = await collectionService.getStatusFacets({
         collection: currentCollection,

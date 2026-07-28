@@ -89,6 +89,7 @@ async function getCachedUserCount(
       const bypassOpts = !tenantId
         ? { bypassTenantCheck: true }
         : { tenantId: tenantId as DatabaseId };
+      if (typeof auth.getUserCount !== "function") return -1;
       const count = await auth.getUserCount(filter, bypassOpts);
       if (count < 0) return count;
       const cacheData = { count, timestamp: now };

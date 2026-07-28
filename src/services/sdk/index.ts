@@ -21,6 +21,7 @@ import type {
   TelemetryNamespace,
   AutomationNamespace,
   WebsiteTokensNamespace,
+  PluginStorageNamespace,
 } from "./namespaces/misc-namespaces";
 import type {
   ConfigurationNamespace,
@@ -90,6 +91,7 @@ export class LocalCMS {
   public readonly backups!: BackupNamespace;
   public readonly contentSync!: ContentSyncNamespace;
   public readonly contentStructure!: ContentStructureNamespace;
+  public readonly pluginStorage!: PluginStorageNamespace;
 
   /**
    * Access the underlying database adapter directly.
@@ -224,6 +226,11 @@ export class LocalCMS {
         new ContentStructureNamespace(this._dbAdapter),
       );
     });
+
+    defineLazyNamespace(this, "pluginStorage", async () => {
+      const { PluginStorageNamespace } = await import("./namespaces/misc-namespaces");
+      return instrumentNamespace("pluginStorage", new PluginStorageNamespace(this._dbAdapter));
+    });
   }
 
   /**
@@ -273,6 +280,7 @@ export class LocalCMS {
       websiteTokens: cms.websiteTokens,
       widgets: cms.widgets,
       virtualCollections: cms.virtualCollections,
+      pluginStorage: cms.pluginStorage,
       config: cms.config,
       contentTransfer: cms.contentTransfer,
       migrations: cms.migrations,

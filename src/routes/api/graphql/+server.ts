@@ -20,6 +20,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { createYoga, createSchema } from "graphql-yoga";
 import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
@@ -78,6 +80,15 @@ import { LocalCMS } from "@src/services/sdk";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+
+function hashStr(s: string): string {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    hash = ((hash << 5) - hash + c) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
 
 import { registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType } from "@src/databases/auth/types";
@@ -299,6 +310,30 @@ async function handleRequest(event: RequestEvent) {
   let _loaders: any = null;
 
   try {
+    // ── Response cache: clone request to read body, original stays intact for Yoga ──
+    const cacheReq = request.clone();
+    const bodyText = await cacheReq.text().catch(() => "");
+    let body: any = {};
+    try {
+      body = JSON.parse(bodyText);
+    } catch {}
+    const query = body?.query || "";
+    const variables = body?.variables || {};
+
+    if (query && request.method === "POST") {
+      const cacheKey = `gql:resp:${hashStr(String(query) + JSON.stringify(variables))}:${locals.tenantId || "global"}:${locals.user?.role || "anon"}`;
+      const cached = cacheService.getSync<{ body: string; status: number }>(
+        cacheKey,
+        locals.tenantId as string,
+      );
+      if (cached?.body) {
+        return new Response(cached.body, {
+          status: cached.status || 200,
+          headers: { "Content-Type": "application/json", "X-Cache": "HIT" },
+        });
+      }
+    }
+
     const yogaApp = await _getYogaApp(adapter, locals.tenantId);
     const yogaResponse = await yogaApp.handleRequest(request, {
       user: locals.user,
@@ -317,7 +352,23 @@ async function handleRequest(event: RequestEvent) {
       publicationFilter,
     });
 
-    return new Response(yogaResponse.body, {
+    const responseBody = await yogaResponse.text();
+
+    // Cache successful query responses (same key as lookup)
+    if (query && request.method === "POST" && yogaResponse.status === 200) {
+      const cacheKey = `gql:resp:${hashStr(String(query) + JSON.stringify(variables))}:${locals.tenantId || "global"}:${locals.user?.role || "anon"}`;
+      try {
+        await cacheService.set(
+          cacheKey,
+          { body: responseBody, status: yogaResponse.status },
+          30,
+          locals.tenantId as string,
+          CacheCategory.API,
+        );
+      } catch {}
+    }
+
+    return new Response(responseBody, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,
       headers: yogaResponse.headers,

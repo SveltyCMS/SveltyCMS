@@ -17,8 +17,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
 import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
-import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_USERS } from "../../helpers/seed";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
+import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_USERS } from "../../helpers/api";
+import { TEST_API_HEADERS } from "../../helpers/api";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -70,27 +70,38 @@ test.describe("RTC preferences", () => {
     await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
     const checkbox = section.locator('input[type="checkbox"]');
 
+    // Read initial state
+    const initialChecked = await checkbox.isChecked();
+
     const apiCall = page.waitForResponse(
       (res) =>
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    await checkbox.evaluate((el: HTMLElement) => el.click());
+    // The native input is sr-only — dispatch synthetic change event to
+    // reliably trigger Svelte 5 onchange handler on the Checkbox component.
+    await checkbox.evaluate((el) => {
+      const input = el as HTMLInputElement;
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     const res = await apiCall;
     expect(res.ok()).toBe(true);
 
-    const body = res.request().postDataJSON();
-    const expectedSound = body?.newUserData?.preferences?.rtc?.sound;
+    // Wait for server-side session cache refresh to complete
+    await page.waitForTimeout(1000);
 
-    await expect(async () => {
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: 10_000 });
-    }).toPass({ timeout: 25_000 });
+    const expectedSound = !initialChecked;
+
+    // Wait for API response to settle, then reload to verify persistence
+    await page.goto("/user", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("pref-rtc-sound")).toBeVisible({ timeout: 10_000 });
+
     const checked = await page
       .getByTestId("pref-rtc-sound")
       .locator('input[type="checkbox"]')
       .isChecked();
-    expect(checked).toBe(!!expectedSound);
+    expect(checked).toBe(expectedSound);
   });
 
   test("real-time editing toggle sends rtc.enabled", async ({ page }) => {
@@ -106,7 +117,7 @@ test.describe("RTC preferences", () => {
         res.url().includes("/api/user/update-user-attributes") && res.request().method() === "PUT",
       { timeout: ACTION_TIMEOUT },
     );
-    await checkbox.evaluate((el: HTMLElement) => el.click());
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
     const res = await apiCall;
     expect(res.ok()).toBe(true);
     const body = res.request().postDataJSON();

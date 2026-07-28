@@ -9,7 +9,12 @@
  * - MongoDB: no MONGO_INITDB_ROOT_* → no authentication
  */
 
-import { getLocalSandboxMediaRel, resolveBenchmarkProfile } from "./benchmark-sandbox";
+import { mkdirSync } from "node:fs";
+import {
+  getLocalSandboxMediaRel,
+  getLocalSandboxMediaRoot,
+  resolveBenchmarkProfile,
+} from "./benchmark-sandbox";
 
 export interface TestDbCredentials {
   user: string;
@@ -42,8 +47,8 @@ export const getDockerDefaultDbCredentials = (dbType: string): TestDbCredentials
 export const getDefaultDbPort = (dbType: string): string => DB_PORTS[dbType] ?? "";
 
 /** DB name used by integration tests and db-tests CI job. */
-export function getIntegrationDbName(): string {
-  return "sveltycms_test";
+export function getIntegrationDbName(dbType = "sqlite"): string {
+  return dbType === "sqlite" ? "sveltycms_test.sqlite" : "sveltycms_test";
 }
 
 /** DB name used by bench-core CI job (isolated SQLite file for benchmarks). */
@@ -59,7 +64,7 @@ export const UDH_BENCHMARK_FIXTURE_DB = "sveltycms_udh_fixture";
 
 /** UDH fixture database for bench-core — mirrors ci.yml bench-core env. */
 export function getBenchmarkUdhPgDatabase(dbType: string): string {
-  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName();
+  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName(dbType);
 }
 
 /** Env block shared by integration runner invocations (local + CI parity). */
@@ -108,9 +113,19 @@ export function getBenchmarkTestEnv(
     ...overrides,
   };
 
+  // Always isolate media under the sandbox for benchmarks (local + ci-fresh).
+  // Without this, ci-fresh wizard defaults can leave MEDIA_FOLDER missing/unwritable
+  // and HTTP upload warmups fail 8/8.
   if (profile === "local") {
     env.BENCHMARK_LOCAL_SANDBOX = "1";
+  }
+  if (!env.MEDIA_FOLDER) {
     env.MEDIA_FOLDER = getLocalSandboxMediaRel();
+  }
+  try {
+    mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
+  } catch {
+    /* ignore mkdir races */
   }
 
   return env;

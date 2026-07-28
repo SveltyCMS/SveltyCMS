@@ -163,6 +163,8 @@ bulk actions, and predictive preloading.
 				newUrl.searchParams.set(key, String(value));
 			}
 		});
+		// Guard: skip goto if URL hasn't changed to prevent effect_update_depth_exceeded
+		if (newUrl.href === page.url.href) return;
 		goto(newUrl, { keepFocus: true, noScroll: true });
 	}
 
@@ -176,13 +178,19 @@ bulk actions, and predictive preloading.
 	});
 
 	// Keep controller in sync with SSR props
+	// Wrap in untrack to prevent reactive feedback loops when setRows
+	// triggers smart table internal state that re-triggers URL effects
 	$effect(() => {
-		smartTable.setRows(tableData as CollectionEntry[]);
-		smartTable.setPaginationMeta({
-			currentPage: serverPagination.currentPage,
-			pageSize: serverPagination.pageSize,
-			totalItems: serverPagination.totalItems,
-			pagesCount: serverPagination.pagesCount
+		const rows = tableData;
+		const meta = serverPagination;
+		untrack(() => {
+			smartTable.setRows(rows as CollectionEntry[]);
+			smartTable.setPaginationMeta({
+				currentPage: meta.currentPage,
+				pageSize: meta.pageSize,
+				totalItems: meta.totalItems,
+				pagesCount: meta.pagesCount
+			});
 		});
 	});
 
@@ -495,20 +503,39 @@ bulk actions, and predictive preloading.
 		return () => clearInterval(cleanupInterval);
 	});
 
-	// DND Logic for Headers
+	// DND Logic for Headers — uses @thisux/sveltednd v0.7.0 dropPosition API
 	function handleColumnDrop(state: DragDropState<TableHeader>) {
-		const dragged = state.item;
-		if (!dragged || state.targetIndex < 0) return;
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+
 		const fromIndex = displayTableHeaders.indexOf(dragged);
-		if (fromIndex === state.targetIndex) return;
+		if (fromIndex < 0) return;
+
+		const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
+		const targetHeaderId = targetEl?.dataset?.headerId;
+
+		let targetIndex: number;
+		if (targetHeaderId) {
+			targetIndex = displayTableHeaders.findIndex(h => h.id === targetHeaderId);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = displayTableHeaders.length;
+		}
+		targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
+
+		if (fromIndex === targetIndex) return;
+
 		displayTableHeaders = untrack(() => {
 			const newItems = [...displayTableHeaders];
 			newItems.splice(fromIndex, 1);
-			newItems.splice(state.targetIndex, 0, dragged);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			newItems.splice(adjusted, 0, dragged);
 			return newItems;
 		});
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
+
+
 
 	// Pagination
 	const defaultPaginationSettings = (collectionId: string | null): PaginationSettings => ({
@@ -1061,9 +1088,8 @@ bulk actions, and predictive preloading.
 				<section
 					use:droppable={{
 						container: 'columns',
-						onDrop: handleColumnDrop,
+						callbacks: { onDrop: handleColumnDrop },
 						direction: 'horizontal',
-						keyboard: true,
 						attributes: {
 							dragOverClass: 'bg-secondary-200'
 						}
@@ -1077,6 +1103,8 @@ bulk actions, and predictive preloading.
 						<div
 							animate:flip={{ duration: 300 }}
 							use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
+							use:droppable={{ container: 'columns', callbacks: { onDrop: handleColumnDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }}
+							data-header-id={header.id}
 							role="listitem"
 							tabindex="0"
 							aria-label={`Column: ${header.label}. Press Space to grab, arrows to move.`}

@@ -101,11 +101,11 @@ async function runMediaAudit() {
           userId: "system",
           tenantId: "global" as any,
         });
-        if (!res.success || (!res.data?.url && !res.data?.path)) {
+        if (!res.success || (!res.data?.url && !(res.data as any)?.path)) {
           console.error("SDK upload failed, FULL res:", res);
           throw new Error(`SDK upload failed: Missing URL/Path`);
         }
-        if (res.data?.path) uploadedSdkPaths.push(res.data.path);
+        if ((res.data as any)?.path) uploadedSdkPaths.push((res.data as any).path);
       },
     });
     results.push({ ...sdkResult, shortLabel: "SDK", layer: "SDK" });

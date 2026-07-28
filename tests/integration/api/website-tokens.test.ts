@@ -5,9 +5,9 @@
  * Covers creation with granular permissions and expiration, listing, and deletion.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -16,10 +16,6 @@ describe("Website Token API Endpoints", () => {
 
   beforeAll(async () => {
     await waitForServer();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
   });
 
   beforeEach(async () => {

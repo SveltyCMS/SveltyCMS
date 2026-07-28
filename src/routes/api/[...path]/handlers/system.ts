@@ -324,10 +324,20 @@ export async function handleSettingsRoutes(
       throw new AppError(`Settings group ${action} not found`, 404);
     }
 
-    const settings = await cms.system.settings.get(action || "all", {
-      tenantId: tenantId as any,
-    });
-    // Align with system.test.ts expectation: return { success: true, values: ... }
+    // Group settings are stored as a single key in preferences, not in KNOWN_PRIVATE_KEYS.
+    // Use direct preferences.get to retrieve arbitrary group keys.
+    let settings: unknown;
+    if (action && action !== "all" && action !== "general") {
+      const pref = await cms.db.system.preferences.get(action, {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
+      settings = pref.success ? pref.data : {};
+    } else {
+      settings = await cms.system.settings.get(action || "all", {
+        tenantId: tenantId as any,
+      });
+    }
     return rawResponse(event, { success: true, values: settings || {} });
   }
 
@@ -1249,8 +1259,10 @@ export async function handleSystemVirtualFolderRoutes(
 ) {
   const { request, url } = event;
 
+  const tenantOpts = { tenantId };
+
   if (request.method === "GET") {
-    const result = await cms.db.system.virtualFolder.getAll(tenantId);
+    const result = await cms.db.system.virtualFolder.getAll(tenantOpts);
     return successResponse(event, result);
   }
 
@@ -1266,7 +1278,7 @@ export async function handleSystemVirtualFolderRoutes(
     if (parent) {
       const parentResult = await cms.db.system.virtualFolder.getById(
         parent as DatabaseId,
-        tenantId,
+        tenantOpts,
       );
       if (!parentResult.success || !parentResult.data) {
         throw new AppError("Parent folder not found", 404);
@@ -1283,7 +1295,7 @@ export async function handleSystemVirtualFolderRoutes(
         order: 0,
         type: "folder",
       },
-      tenantId,
+      tenantOpts,
     );
     await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
@@ -1305,7 +1317,7 @@ export async function handleSystemVirtualFolderRoutes(
 
         const folderResult = await cms.db.system.virtualFolder.getById(
           folderId as DatabaseId,
-          tenantId,
+          tenantOpts,
         );
         if (!folderResult.success || !folderResult.data) {
           continue;
@@ -1315,7 +1327,7 @@ export async function handleSystemVirtualFolderRoutes(
         if (targetParentId) {
           const parentFolder = await cms.db.system.virtualFolder.getById(
             targetParentId as DatabaseId,
-            tenantId,
+            tenantOpts,
           );
           if (parentFolder.success && parentFolder.data) {
             newPath =
@@ -1332,7 +1344,7 @@ export async function handleSystemVirtualFolderRoutes(
             order: update.order,
             path: newPath,
           },
-          tenantId,
+          tenantOpts,
         );
 
         await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
@@ -1349,7 +1361,7 @@ export async function handleSystemVirtualFolderRoutes(
 
     const folderResult = await cms.db.system.virtualFolder.getById(
       folderId as DatabaseId,
-      tenantId,
+      tenantOpts,
     );
     if (!folderResult.success || !folderResult.data) {
       throw new AppError("Folder not found", 404);
@@ -1359,7 +1371,7 @@ export async function handleSystemVirtualFolderRoutes(
     if (folderResult.data.parentId) {
       const parentFolder = await cms.db.system.virtualFolder.getById(
         folderResult.data.parentId as DatabaseId,
-        tenantId,
+        tenantOpts,
       );
       if (parentFolder.success && parentFolder.data) {
         parentPath = parentFolder.data.path;
@@ -1374,7 +1386,7 @@ export async function handleSystemVirtualFolderRoutes(
         name,
         path: newPath,
       },
-      tenantId,
+      tenantOpts,
     );
 
     await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
@@ -1394,7 +1406,7 @@ export async function handleSystemVirtualFolderRoutes(
       throw new AppError("folderId is required for deletion", 400);
     }
 
-    const result = await cms.db.system.virtualFolder.delete(folderId as DatabaseId, tenantId);
+    const result = await cms.db.system.virtualFolder.delete(folderId as DatabaseId, tenantOpts);
     await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
   }
@@ -1411,7 +1423,8 @@ async function updateFolderPathsRecursive(
   parentPath: string,
   tenantId: DatabaseId,
 ) {
-  const allFoldersResult = await cms.db.system.virtualFolder.getAll(tenantId);
+  const tenantOpts = { tenantId };
+  const allFoldersResult = await cms.db.system.virtualFolder.getAll(tenantOpts);
   if (!allFoldersResult.success || !allFoldersResult.data) {
     return;
   }
@@ -1424,7 +1437,7 @@ async function updateFolderPathsRecursive(
     for (const child of children) {
       const newChildPath =
         currentParentPath === "/" ? `/${child.name}` : `${currentParentPath}/${child.name}`;
-      await cms.db.system.virtualFolder.update(child._id, { path: newChildPath }, tenantId);
+      await cms.db.system.virtualFolder.update(child._id, { path: newChildPath }, tenantOpts);
       await updateChildren(child._id, newChildPath);
     }
   }
@@ -1447,7 +1460,7 @@ import { capabilityRegistry } from "@src/services/security/capability-registry";
  */
 export async function handlePluginSettingsRoutes(
   event: RequestEvent,
-  cms: LocalCMS,
+  _cms: LocalCMS,
   tenantId: DatabaseId,
   segments: string[],
 ) {

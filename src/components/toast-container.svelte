@@ -24,12 +24,19 @@
 	import { onMount } from 'svelte';
 	import type { ToastPosition, ToastType } from '@src/stores/toast.svelte.ts';
 
+	// Restricted DOMPurify config for toast messages — inline formatting only.
+	// Using explicit ALLOWED_TAGS/ALLOWED_ATTR avoids CVE-2026-65902 (hook mutation
+	// on defaults) and reduces attack surface vs. DOMPurify's default allowlist.
+	const TOAST_SANITIZE_CONFIG = {
+		ALLOWED_TAGS: ["b", "strong", "i", "em", "u", "br", "code", "a"],
+		ALLOWED_ATTR: ["href", "title", "rel", "target"],
+	};
+
 	let sanitize = $state<(str: string) => string>((str) => str);
 
 	onMount(async () => {
 		const { default: DOMPurify } = await import('dompurify');
-		const domSanitize = DOMPurify.sanitize;
-		sanitize = domSanitize;
+		sanitize = (str: string) => DOMPurify.sanitize(str, TOAST_SANITIZE_CONFIG);
 	});
 
 	interface Props {
@@ -189,6 +196,8 @@
 
 			<div
 				data-toast-id={t.id}
+				data-testid="app-toast"
+				data-toast-type={t.type}
 				animate:flip={{ duration: 300 }}
 				in:fly={{ ...animDir, duration: 300 }}
 				out:fade={{ duration: 200 }}

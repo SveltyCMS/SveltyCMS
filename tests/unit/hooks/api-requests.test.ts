@@ -39,14 +39,14 @@ vi.mock("@src/databases/cache/cache-service", () => ({
 }));
 
 describe("API Requests Hook Unit Tests", () => {
-  const createMockEvent = (path: string) => {
+  const createMockEvent = (path: string, method = "GET", user: any = null) => {
     return {
       url: new URL(`http://localhost${path}`),
       request: {
-        method: "GET",
+        method,
         headers: new Map(),
       },
-      locals: {},
+      locals: { user },
       cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     } as unknown as RequestEvent;
   };
@@ -59,5 +59,35 @@ describe("API Requests Hook Unit Tests", () => {
     expect(resolve).toHaveBeenCalled();
     const text = await response.text();
     expect(text).toBe("ok");
+  });
+
+  it("passes through public API routes (health)", async () => {
+    const event = createMockEvent("/api/system/health");
+    const resolve = vi.fn().mockResolvedValue(new Response("healthy"));
+
+    const response = await handleApiRequests({ event, resolve } as any);
+    expect(resolve).toHaveBeenCalled();
+    const text = await response.text();
+    expect(text).toBe("healthy");
+  });
+
+  it("passes through login API routes", async () => {
+    const event = createMockEvent("/api/login", "POST");
+    const resolve = vi.fn().mockResolvedValue(new Response("logged in"));
+
+    const response = await handleApiRequests({ event, resolve } as any);
+    expect(resolve).toHaveBeenCalled();
+    const text = await response.text();
+    expect(text).toBe("logged in");
+  });
+
+  it("passes through public setup routes", async () => {
+    const event = createMockEvent("/api/setup", "POST");
+    const resolve = vi.fn().mockResolvedValue(new Response("setup"));
+
+    const response = await handleApiRequests({ event, resolve } as any);
+    expect(resolve).toHaveBeenCalled();
+    const text = await response.text();
+    expect(text).toBe("setup");
   });
 });

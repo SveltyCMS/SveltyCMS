@@ -28,7 +28,7 @@ const IS_TEST_MODE = (() => {
 // ─── Pre-compiled classification matchers ─────────────────────────────────
 
 export const INTERNAL_PATH_REGEX =
-  /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|files\/|\.svelte-kit\/generated\/client\/nodes)/;
+  /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|\.svelte-kit\/generated\/client\/nodes)/;
 
 /** Anchored to end ($) to prevent catastrophic backtracking (ReDoS). */
 export const STATIC_EXT_REGEX =
@@ -54,6 +54,10 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/system/version",
   "/api/user/login",
   "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/oidc-logout",
+  "/api/auth/frontchannel-logout",
+  "/api/auth/backchannel-logout",
   "/api/preview",
   "/api/media/share",
   "/api/system/penalize-bounce",

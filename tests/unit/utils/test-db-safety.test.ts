@@ -1,10 +1,10 @@
 /**
  * @file tests/unit/utils/test-db-safety.test.ts
  * @description Tests for the shared test-DB-name safety classifier used by
- * config-state.ts (runtime), run-integration-tests.ts, and
- * scripts/check-test-db-safety.ts (pre-commit/pre-push gate).
+ * config-state.ts (runtime), tests/integration/harness.ts, and
+ * scripts/check-test-db-safety.ts (pre-commit gate).
  *
- * These three call sites must always agree on what counts as "safe" — that's
+ * These call sites must always agree on what counts as "safe" — that's
  * the entire point of sharing this module instead of duplicating the logic.
  */
 

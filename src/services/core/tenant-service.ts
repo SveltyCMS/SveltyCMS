@@ -107,6 +107,7 @@ export class TenantService {
         "plugin_pagespeed_results",
         "plugin_states",
         "plugin_migrations",
+        "plugin_storage",
         "audit_logs",
       ];
 

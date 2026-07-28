@@ -8,6 +8,7 @@ export * from "./define-plugin";
 export * from "./settings";
 export * from "./settings-crypto";
 export * from "./settings-declaration";
+export * from "./storage";
 
 import { pluginServerRegistry } from "./plugin-server-registry";
 import { pluginRegistry } from "./registry";

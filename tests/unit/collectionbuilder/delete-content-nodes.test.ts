@@ -13,10 +13,12 @@ vi.mock("@sveltejs/kit", () => ({
     throw Object.assign(new Error(message), { status });
   }),
   fail: vi.fn((status: number, data: Record<string, unknown>) => ({
-    type: "failure",
+    type: "failure" as const,
     status,
     data,
   })),
+  redirect: vi.fn(),
+  json: vi.fn((data: unknown) => new Response(JSON.stringify(data))),
 }));
 
 vi.mock("@src/databases/auth/permissions", () => ({
@@ -69,5 +71,33 @@ describe("deleteContentNodes", () => {
 
     const result = await deleteContentNodes(makeEvent(), ["missing-id"]);
     expect(result).toMatchObject({ status: 404, data: { message: "No matching nodes found" } });
+  });
+
+  it("returns 400 for null IDs", async () => {
+    const { deleteContentNodes } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    const result = await deleteContentNodes(makeEvent(), null as never);
+    expect(result).toMatchObject({ status: 400, data: { message: "Invalid IDs" } });
+    expect(deleteByIds).not.toHaveBeenCalled();
+  });
+
+  it("passes tenantId from event locals to deleteByIds", async () => {
+    const { deleteContentNodes } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    await deleteContentNodes(makeEvent("tenant-abc"), ["node-1", "node-2"]);
+    expect(deleteByIds).toHaveBeenCalledWith(["node-1", "node-2"], { tenantId: "tenant-abc" });
+  });
+
+  it("handles multiple IDs in a single delete call", async () => {
+    deleteByIds.mockResolvedValue({ found: true, paths: ["/a", "/b", "/c"] });
+
+    const { deleteContentNodes } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    const result = await deleteContentNodes(makeEvent(), ["id-1", "id-2", "id-3"]);
+    expect(deleteByIds).toHaveBeenCalledWith(["id-1", "id-2", "id-3"], { tenantId: "global" });
+    expect(result).toMatchObject({ success: true });
   });
 });

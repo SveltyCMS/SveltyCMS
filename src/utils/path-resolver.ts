@@ -16,6 +16,7 @@
 
 import path from "node:path";
 import { sveltyContext, requireTenantId } from "./context";
+import { resolvePrivateConfigFileName } from "./private-config-policy";
 
 /** Always resolve from live process.cwd() so tests/chdir and tooling stay correct. */
 function cwd(): string {
@@ -32,14 +33,20 @@ export const paths = {
     return path.join(cwd(), "config");
   },
 
-  /** Flat collection directory (no tenant) */
+  /** Flat collection directory (no tenant) — live user schemas */
   get collections(): string {
     return path.join(cwd(), "config", "collections");
   },
 
   /** Global media directory */
   get media(): string {
-    return path.join(cwd(), "mediaFolder", "global");
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+    const baseDir = isTestHarness ? "test-media" : "mediaFolder";
+    return path.join(cwd(), baseDir, "global");
   },
 
   /**
@@ -47,10 +54,20 @@ export const paths = {
    * Falls back to flat collections if no context is set.
    */
   getCollections: (): string => {
+    const customDir = process.env.COLLECTIONS_DIR;
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+
     const tenantId = sveltyContext.getStore()?.tenantId;
-    return tenantId
-      ? path.join(cwd(), "config", tenantId, "collections")
-      : path.join(cwd(), "config", "collections");
+    if (tenantId) {
+      const collName = isTestHarness ? "test-collections" : "collections";
+      return path.join(cwd(), "config", tenantId, collName);
+    }
+    if (customDir) return path.resolve(cwd(), customDir);
+    return path.join(cwd(), "config", isTestHarness ? "test-collections" : "collections");
   },
 
   /**
@@ -67,10 +84,14 @@ export const paths = {
    * Falls back to global media if no context is set.
    */
   getMedia: (): string => {
+    const isTestHarness =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITEST === "true" ||
+      process.env.BUN_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+    const baseDir = isTestHarness ? "test-media" : "mediaFolder";
     const tenantId = sveltyContext.getStore()?.tenantId;
-    return tenantId
-      ? path.join(cwd(), "mediaFolder", tenantId)
-      : path.join(cwd(), "mediaFolder", "global");
+    return tenantId ? path.join(cwd(), baseDir, tenantId) : path.join(cwd(), baseDir, "global");
   },
 
   /** Compiled collections output directory */
@@ -83,19 +104,41 @@ export const paths = {
     return path.join(cwd(), "config", "database");
   },
 
-  /** Private config file */
-  get privateConfig(): string {
+  /**
+   * Live developer bootstrap only (`config/private.ts`).
+   * Prefer `activePrivateConfig` for loaders that run under TEST_MODE / precheck.
+   */
+  get privateConfigLive(): string {
     return path.join(cwd(), "config", "private.ts");
+  },
+
+  /** Isolated test bootstrap (`config/private.test.ts`). */
+  get privateConfigTest(): string {
+    return path.join(cwd(), "config", "private.test.ts");
+  },
+
+  /**
+   * Active bootstrap file for this process.
+   * Automated harnesses → private.test.ts (never live private.ts / user DB).
+   * Normal dev/prod → private.ts.
+   */
+  get privateConfig(): string {
+    return path.join(cwd(), "config", resolvePrivateConfigFileName());
   },
 
   /** Benchmark-specific paths (isolated from user live data) */
   get benchmark() {
     const root = cwd();
     return {
-      collections: path.join(root, "config", "collections", "test"),
-      compiled: path.join(root, ".compiledCollections", "test"),
-      sandboxCompiled: path.join(root, ".compiledCollections", "test", "_local_sandbox"),
-      sandboxMedia: path.join(root, "config", "benchmark-sandbox", "media"),
+      collections: path.join(root, "config", "test-collections"),
+      compiled: path.join(root, ".compiledCollections", "test-collections"),
+      sandboxCompiled: path.join(
+        root,
+        ".compiledCollections",
+        "test-collections",
+        "_local_sandbox",
+      ),
+      sandboxMedia: path.join(root, "test-media", "benchmark-sandbox"),
     };
   },
 

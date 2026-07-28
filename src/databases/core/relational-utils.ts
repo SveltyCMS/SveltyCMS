@@ -18,7 +18,9 @@ import type {
   PaginatedResult,
   PaginationOptions,
 } from "../db-interface";
+import { hasTenantBypass } from "../system-tenant-scope";
 import { eq, isNull } from "drizzle-orm";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 
 export { isoDateStringToDate, nowISODateString };
 
@@ -349,7 +351,7 @@ export const parseJsonField = <T = any>(v: any, fallback?: T): T => {
 // ============================================================================
 
 export function shouldBypassTenantCheck(options?: BaseQueryOptions): boolean {
-  return !!(options as any)?.bypassTenantCheck;
+  return hasTenantBypass(options);
 }
 
 export function getEffectiveTenantId(options?: BaseQueryOptions): DatabaseId | null | undefined {
@@ -366,11 +368,17 @@ export function getTenantCondition(tenantCol: any, options?: BaseQueryOptions): 
   return eq(tenantCol, tenantId);
 }
 
+/**
+ * Apply tenant predicate + fail-closed MULTI_TENANT check (SQL/Mongo parity).
+ * Single-tenant / bypass paths: near-zero cost.
+ */
 export function applyTenantFilter(
   conditions: any[],
   tenantCol: any,
   options?: BaseQueryOptions,
 ): any[] {
+  assertTenantContext(options, "sql.applyTenantFilter");
+  if (!tenantCol) return conditions;
   const cond = getTenantCondition(tenantCol, options);
   if (cond) conditions.push(cond);
   return conditions;
@@ -380,6 +388,7 @@ export function applyTenantFilterToObject<T extends Record<string, unknown>>(
   conditions: T,
   options?: BaseQueryOptions,
 ): T {
+  assertTenantContext(options, "sql.applyTenantFilterToObject");
   if (shouldBypassTenantCheck(options)) return conditions;
   const tenantId = getEffectiveTenantId(options);
   if (tenantId === undefined) return conditions;
@@ -390,6 +399,7 @@ export function applyTenantFilterToMongoQuery<T extends Record<string, unknown>>
   query: T,
   options?: BaseQueryOptions,
 ): T {
+  assertTenantContext(options, "mongo.applyTenantFilter");
   if (shouldBypassTenantCheck(options)) return query;
   const tenantId = getEffectiveTenantId(options);
   if (tenantId === undefined) return query;
@@ -397,12 +407,66 @@ export function applyTenantFilterToMongoQuery<T extends Record<string, unknown>>
   return { ...query, tenantId } as T;
 }
 
+/**
+ * Validate a SQL identifier before embedding in raw SQL (column/JSON key names).
+ * Never use for values — bind those as parameters instead.
+ */
+export function assertSafeSqlIdentifier(name: string, label = "field"): string {
+  if (typeof name !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid SQL identifier for ${label}: ${String(name)}`);
+  }
+  return name;
+}
+
+/** Coerce + validate numeric amount for atomicIncrement-style SQL. */
+export function assertFiniteAmount(amount: number | string): number {
+  const n = typeof amount === "number" ? amount : Number(amount);
+  if (!Number.isFinite(n)) {
+    throw new Error(`atomicIncrement amount must be a finite number, got: ${String(amount)}`);
+  }
+  return n;
+}
+
+/**
+ * @deprecated Prefer {@link buildRawTenantClause} with bound parameters.
+ * Kept for call sites that still embed filters as literals (quote-escaped only).
+ */
 export function buildRawTenantFilter(
   options?: BaseQueryOptions,
   dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
 ): string {
-  if (options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global") return "";
+  const { sql } = buildRawTenantClause(options, dialect, { parameterized: false });
+  return sql;
+}
+
+/**
+ * Tenant WHERE fragment for raw SQL paths.
+ *
+ * Prefer `parameterized: true` (default) and pass `params` to the driver —
+ * never interpolate untrusted tenant IDs into SQL strings.
+ *
+ * Placeholders:
+ * - mysql / sqlite → `?`
+ * - postgres → `$N` starting at `paramIndex` (default 1)
+ */
+export function buildRawTenantClause(
+  options?: BaseQueryOptions,
+  dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
+  opts: { parameterized?: boolean; paramIndex?: number } = {},
+): { sql: string; params: string[] } {
+  if (options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global") {
+    return { sql: "", params: [] };
+  }
+  const parameterized = opts.parameterized !== false;
+  const col = dialect === "mysql" ? "`tenantId`" : `"tenantId"`;
+  if (parameterized) {
+    if (dialect === "postgres") {
+      const idx = opts.paramIndex ?? 1;
+      return { sql: ` AND ${col} = $${idx}`, params: [String(options.tenantId)] };
+    }
+    return { sql: ` AND ${col} = ?`, params: [String(options.tenantId)] };
+  }
+  // Legacy literal path — quote-escape only (avoid for new code)
   const id = String(options.tenantId).replace(/'/g, "''");
-  if (dialect === "mysql") return ` AND \`tenantId\` = '${id}'`;
-  return ` AND "tenantId" = '${id}'`;
+  return { sql: ` AND ${col} = '${id}'`, params: [] };
 }

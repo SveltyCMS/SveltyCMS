@@ -169,6 +169,37 @@ export function canSafelyDeactivateWidget(
 }
 
 /**
+ * Validate that all required fields (including media and relations) have values.
+ * Prevents publishing content with missing required fields — a data-integrity gap
+ * where status transitions could bypass field-level required constraints.
+ *
+ * @returns Object with `valid` flag and list of missing field names.
+ */
+export function validateRequiredFields(
+  entryData: Record<string, unknown>,
+  fields: FieldInstance[],
+): { valid: boolean; missingFields: string[] } {
+  const missingFields: string[] = [];
+
+  for (const field of fields) {
+    if (!field.required) continue;
+
+    const value = entryData[field.db_fieldName || field.name];
+    const isMissing =
+      value === undefined ||
+      value === null ||
+      value === "" ||
+      (Array.isArray(value) && value.length === 0);
+
+    if (isMissing) {
+      missingFields.push(field.name || field.db_fieldName || "unknown");
+    }
+  }
+
+  return { valid: missingFields.length === 0, missingFields };
+}
+
+/**
  * Get affected collections when deactivating a widget
  * Useful for showing warnings to users before deactivation
  *

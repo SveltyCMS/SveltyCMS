@@ -1,6 +1,8 @@
 /**
  * @file tests/unit/routes/redirects-server.test.ts
  * @description Unit tests for redirect save/delete server helpers (admin + validation).
+ *
+ * Primary storage is redirectsMV via dbAdapter.crud; content collection is a best-effort mirror.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -12,20 +14,33 @@ vi.mock("@utils/page-guards.server", () => ({
   }),
 }));
 
-const createMock = vi.fn().mockResolvedValue({ success: true });
+const insertMock = vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } });
 const updateMock = vi.fn().mockResolvedValue({ success: true });
 const deleteMock = vi.fn().mockResolvedValue({ success: true });
+const findManyMock = vi.fn().mockResolvedValue({ success: true, data: [] });
+
+const collectionCreate = vi.fn().mockResolvedValue({ success: true });
+const collectionUpdate = vi.fn().mockResolvedValue({ success: true });
+const collectionDelete = vi.fn().mockResolvedValue({ success: true });
 
 vi.mock("@src/databases/db", () => ({
-  dbAdapter: {},
+  dbAdapter: {
+    crud: {
+      insert: (...args: unknown[]) => insertMock(...args),
+      update: (...args: unknown[]) => updateMock(...args),
+      delete: (...args: unknown[]) => deleteMock(...args),
+      findMany: (...args: unknown[]) => findManyMock(...args),
+    },
+  },
 }));
 
 vi.mock("@src/services/sdk", () => ({
   LocalCMS: class {
     collections = {
-      create: createMock,
-      update: updateMock,
-      delete: deleteMock,
+      create: collectionCreate,
+      update: collectionUpdate,
+      delete: collectionDelete,
+      find: vi.fn().mockResolvedValue({ success: true, data: [] }),
     };
   },
 }));
@@ -37,6 +52,8 @@ vi.mock("@src/hooks/handle-redirects", () => ({
 import {
   saveRedirect,
   deleteRedirect,
+  listRedirects,
+  normalizeRedirectRow,
 } from "../../../src/routes/(app)/config/redirects/redirects.server";
 import { invalidateRedirectCache } from "@src/hooks/handle-redirects";
 
@@ -46,9 +63,32 @@ const adminLocals = {
   tenantId: "tenant-a",
 } as any;
 
+describe("normalizeRedirectRow", () => {
+  it("maps source/target and parses string data JSON", () => {
+    expect(
+      normalizeRedirectRow({
+        _id: "1",
+        source: "/a",
+        target: "/b",
+        type: 301,
+        active: 1,
+      }),
+    ).toMatchObject({ from: "/a", to: "/b", type: 301 });
+
+    expect(
+      normalizeRedirectRow({
+        _id: "2",
+        data: JSON.stringify({ from: "/x", to: "/y", type: 302 }),
+      }),
+    ).toMatchObject({ from: "/x", to: "/y", type: 302 });
+  });
+});
+
 describe("saveRedirect", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    insertMock.mockResolvedValue({ success: true, data: { _id: "new-id" } });
+    updateMock.mockResolvedValue({ success: true });
   });
 
   it("rejects non-admin", async () => {
@@ -75,7 +115,7 @@ describe("saveRedirect", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  it("creates redirect and invalidates cache", async () => {
+  it("creates redirect in redirectsMV and invalidates cache", async () => {
     const result = await saveRedirect(adminLocals, {
       from: "old-path",
       to: "/new-path",
@@ -84,19 +124,20 @@ describe("saveRedirect", () => {
       isRegex: false,
     });
     expect(result.success).toBe(true);
-    expect(createMock).toHaveBeenCalledWith(
-      "redirects",
+    expect(insertMock).toHaveBeenCalledWith(
+      "redirectsMV",
       expect.objectContaining({
-        from: "/old-path",
-        to: "/new-path",
+        source: "/old-path",
+        target: "/new-path",
         type: 302,
         tenantId: "tenant-a",
       }),
+      expect.anything(),
     );
     expect(invalidateRedirectCache).toHaveBeenCalledWith("tenant-a");
   });
 
-  it("updates when id present", async () => {
+  it("updates redirectsMV when id present", async () => {
     await saveRedirect(adminLocals, {
       id: "rid-1",
       from: "/x",
@@ -106,11 +147,15 @@ describe("saveRedirect", () => {
       isRegex: false,
     });
     expect(updateMock).toHaveBeenCalledWith(
-      "redirects",
+      "redirectsMV",
       "rid-1",
-      expect.objectContaining({ from: "/x", to: "/y", active: false }),
+      expect.objectContaining({
+        source: "/x",
+        target: "/y",
+        active: false,
+      }),
+      expect.anything(),
     );
-    expect(createMock).not.toHaveBeenCalled();
   });
 });
 
@@ -125,10 +170,35 @@ describe("deleteRedirect", () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
-  it("deletes and invalidates cache", async () => {
+  it("deletes from redirectsMV and invalidates cache", async () => {
     const result = await deleteRedirect(adminLocals, "rid-9");
     expect(result.success).toBe(true);
-    expect(deleteMock).toHaveBeenCalledWith("redirects", "rid-9");
+    expect(deleteMock).toHaveBeenCalledWith("redirectsMV", "rid-9", expect.anything());
     expect(invalidateRedirectCache).toHaveBeenCalledWith("tenant-a");
+  });
+});
+
+describe("listRedirects", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("maps MV rows to from/to", async () => {
+    findManyMock.mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          _id: "r1",
+          source: "/old",
+          target: "/new",
+          type: 301,
+          active: 1,
+          isRegex: 0,
+        },
+      ],
+    });
+    const rows = await listRedirects(adminLocals);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ from: "/old", to: "/new", _id: "r1" });
   });
 });

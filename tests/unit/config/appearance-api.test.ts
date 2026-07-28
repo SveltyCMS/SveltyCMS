@@ -26,7 +26,7 @@ describe("appearance-api", () => {
       status: 200,
       json: async () => ({ success: true, data: { id: "t1", name: "Default" } }),
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     stubDocumentCookie(() => "csrf_token=theme-csrf");
   });
 

@@ -7,8 +7,12 @@
  * This file exists for backward compatibility with 10+ existing consumers.
  *
  * ### User live data (never touched by benchmarks)
- * - `config/collections/*.ts` — excluding `test/`
- * - `.compiledCollections/*.js` — excluding `test/`
+ * - `config/collections/*.ts`
+ * - `.compiledCollections/*.js`
+ *
+ * ### Benchmark/test fixtures
+ * - `config/test-collections/`
+ * - `.compiledCollections/test-collections/`
  */
 
 import fs from "node:fs/promises";
@@ -51,7 +55,7 @@ export function isUnderBenchmarkPath(filePath: string): boolean {
 
 export function isBenchmarkRelativePath(relativePath: string): boolean {
   const normalized = relativePath.replace(/\\/g, "/");
-  return normalized === "test" || normalized.startsWith("test/");
+  return normalized === "test-collections" || normalized.startsWith("test-collections/");
 }
 
 export async function prepareBenchmarkCompiledWorkspace(name: string): Promise<BenchmarkWorkspace> {

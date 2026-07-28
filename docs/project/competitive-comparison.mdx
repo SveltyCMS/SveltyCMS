@@ -4,7 +4,7 @@ title: "Competitive Comparison"
 description: "A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-07-16"
+updated: "2026-07-25"
 tags:
   - "comparison"
   - "benchmarks"
@@ -41,21 +41,27 @@ All claims are based on publicly available documentation as of July 2026. Perfor
 | **DAM analytics**        | Built-in (type/folder/user breakdowns, trends, quotas)               | None                      | Plugin-based         | Insights module          |
 | **Secure sharing**       | HMAC-signed URLs + password-protected share tokens                   | Standard auth only        | Plugin-based         | Standard auth only       |
 | **Version history**      | Per-file versioning with diff/compare/restore                        | None documented           | None documented      | Revisions (content only) |
+| **Bulk delete**          | Selection toolbar + 4× concurrency + publish-state gate              | None documented           | Plugin-based         | Built-in                 |
 | **Signed URLs**          | HMAC-SHA256 + timing-safe validation + tenant-scoped                 | None documented           | Plugin-based         | None documented          |
 | **WebGPU optimization**  | Client-side browser compression pre-upload                           | None                      | None                 | None                     |
 | **Storage backends**     | Local, S3, R2, Cloudinary (pluggable adapters)                       | S3 plugin                 | Upload providers     | Storage adapters         |
 
 ## Security
 
-| Feature                | SveltyCMS                                               | Payload CMS           | Strapi                | Directus              |
-| :--------------------- | :------------------------------------------------------ | :-------------------- | :-------------------- | :-------------------- |
-| **CSRF protection**    | `__Host-` cookie prefix + per-origin tokens             | Built-in              | Built-in              | Built-in              |
-| **Rate limiting**      | Hardware-aware (CPU/event-loop-adjusted)                | None documented       | Rate limit plugin     | Rate limit plugin     |
-| **Path traversal**     | All adapter methods gated with `resolve` + `startsWith` | None documented       | Partial               | Partial               |
-| **Secrets management** | DB-driven via Settings Service (no `process.env`)       | Environment variables | Environment variables | Environment variables |
-| **SVG sanitization**   | Iterative XML scrubbing + attribute validation          | None documented       | None documented       | None documented       |
-| **Signed URLs**        | Timing-safe comparison + tenantId injection prevention  | None                  | None                  | None                  |
-| **Audit logs**         | Crypto-chained (SHA-256 tamper-evident)                 | None documented       | Audit log plugin      | Activity log          |
+| Feature                | SveltyCMS                                              | Payload CMS              | Strapi                   | Directus                 |
+| :--------------------- | :----------------------------------------------------- | :----------------------- | :----------------------- | :----------------------- |
+| **CSRF protection**    | `__Host-` cookie prefix + per-origin tokens            | Built-in                 | Built-in                 | Built-in                 |
+| **Rate limiting**      | Hardware-aware (CPU/event-loop-adjusted)               | None documented          | Rate limit plugin        | Rate limit plugin        |
+| **Path traversal**     | Dual guard: string check + `path.resolve()` prefix     | None documented          | Partial                  | Partial                  |
+| **Secrets management** | DB-driven via Settings Service (no `process.env`)      | Environment variables    | Environment variables    | Environment variables    |
+| **SVG sanitization**   | Iterative XML scrubbing + attribute validation         | None documented          | None documented          | None documented          |
+| **Signed URLs**        | Timing-safe comparison + tenantId injection prevention | None                     | None                     | None                     |
+| **Audit logs**         | Crypto-chained (SHA-256 tamper-evident)                | None documented          | Audit log plugin         | Activity log             |
+| **RBAC cache**         | Instant invalidation on user/role mutation (<1ms)      | TTL-based (stale window) | TTL-based (stale window) | TTL-based (stale window) |
+| **OIDC logout**        | RP-Initiated + Front-Channel + Back-Channel (all 3)    | Plugin only              | Plugin only              | Plugin only              |
+| **DOMPurify profiles** | 3 per-component profiles (default/rich-text/strict)    | Default only             | Default only             | Default only             |
+| **CI secret scanner**  | Shannon entropy + known-key patterns + CI gate         | None                     | None                     | None                     |
+| **Clickjack**          | `X-Frame-Options: DENY` + CSP `frame-ancestors: none`  | X-Frame only             | X-Frame only             | X-Frame only             |
 
 ## Developer Experience
 

@@ -150,7 +150,7 @@ function computeArrow(
     arrowX = ref.left + ref.width / 2 - floatX;
     arrowY = side === "top" ? float.height : 0;
   } else {
-    arrowX = side === "left" ? float.width : 0;
+    arrowX = float.width;
     arrowY = ref.top + ref.height / 2 - floatY;
   }
 

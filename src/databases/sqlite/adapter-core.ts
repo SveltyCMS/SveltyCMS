@@ -113,7 +113,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const viaCause = err?.cause?.code === "SQLITE_ERROR" || err?.cause?.code === "ERR_SQLITE_ERROR";
     const hasMsg =
       err?.message?.includes("no such table") || err?.cause?.message?.includes("no such table");
-    return (direct || viaCause) && hasMsg;
+    // Fallback: message-only match catches Drizzle/SQLite wrapper errors
+    // that lose the SQLITE_ERROR code in the chain
+    return hasMsg || direct || viaCause;
   }
 
   protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
@@ -128,10 +130,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   ): Promise<T | null> {
     try {
       const tableName = getTableName(table);
-      const idStr = String(id).replace(/'/g, "''");
-      const tenantFilter = utils.buildRawTenantFilter(options, "sqlite");
-      const rawSql = `SELECT * FROM "${tableName}" WHERE "_id" = '${idStr}'${tenantFilter} LIMIT 1`;
-      const rawRows = this.prepareAndExecute(rawSql, "all");
+      // Bound parameters for _id + tenantId (no string interpolation of identifiers/values)
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+        options,
+        "sqlite",
+      );
+      const rawSql = `SELECT * FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
+      const rawRows = this.prepareAndExecute(rawSql, "all", String(id), ...tenantParams);
       if (rawRows && rawRows.length > 0) {
         return utils.convertDatesToISO(rawRows[0], { table: collection }) as T;
       }
@@ -358,7 +363,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             } catch (err: any) {
               this._insertManyReturningSupported = false;
               if (process.env.BENCHMARK !== "true") {
-                logger.warn("[SQLite] insertMany returning fallback invoked due to error:", err);
+                logger.debug("[SQLite] insertMany returning fallback:", err.message);
               }
               await (query as any);
               return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
@@ -843,16 +848,29 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         if (!idCol) throw new Error("ID column not found");
 
         const now = new Date();
-        const tenantFilter = utils.buildRawTenantFilter(options, "sqlite");
+        const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+          options,
+          "sqlite",
+        );
         const dataCol = this.getColumn(table, "data");
         const idStr = String(id);
+        // Identifiers may be embedded; values (_id, amount, tenantId) are always bound.
+        const safeField = utils.assertSafeSqlIdentifier(field);
+        const amountNum = utils.assertFiniteAmount(amount);
 
+        // Bind amount as a parameter (not only id/tenant) for full value safety.
         const updateReturning = dataCol
-          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${field}', coalesce(json_extract(coalesce("data", '{}'), '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${idStr}'${tenantFilter} RETURNING *`
-          : `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${idStr}'${tenantFilter} RETURNING *`;
+          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
+          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
 
         try {
-          const rows = this.prepareAndExecute(updateReturning, "all");
+          const rows = this.prepareAndExecute(
+            updateReturning,
+            "all",
+            amountNum,
+            idStr,
+            ...tenantParams,
+          );
           if (Array.isArray(rows) && rows.length > 0) {
             return utils.convertDatesToISO(rows[0], {
               table: collection,
@@ -863,14 +881,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }
 
         const updateSql = dataCol
-          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${field}', coalesce(json_extract(coalesce("data", '{}'), '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${idStr}'${tenantFilter}`
-          : `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = '${idStr}'${tenantFilter}`;
+          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql}`
+          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql}`;
 
-        this.prepareAndExecute(updateSql, "run");
+        this.prepareAndExecute(updateSql, "run", amountNum, idStr, ...tenantParams);
 
         const selectRows = this.prepareAndExecute(
-          `SELECT * FROM "${tableName}" WHERE "${idCol.name}" = '${idStr}'${tenantFilter} LIMIT 1`,
+          `SELECT * FROM "${tableName}" WHERE "${idCol.name}" = ?${tenantSql} LIMIT 1`,
           "all",
+          idStr,
+          ...tenantParams,
         );
         if (!Array.isArray(selectRows) || selectRows.length === 0) {
           throw new Error(`Entry not found after increment: ${idStr}`);
@@ -950,20 +970,27 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           ...allColumnsToEnsure.map((c) => c.name),
         ]);
 
+        // Collect which dynamic columns are actually present after ALTER TABLE.
+        // This avoids noisy CREATE INDEX errors when a column couldn't be added
+        // (e.g. under node:sqlite proxy driver where ALTER TABLE may silently fail).
+        const addedColumns = new Set<string>();
         for (const col of allColumnsToEnsure) {
           try {
             const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
             const exists = tableInfo.some((c: any) => c.name === col.name);
-            if (!exists)
+            if (!exists) {
               await this.raw.execute(
                 `ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`,
               );
+            }
+            addedColumns.add(col.name);
           } catch {
-            /* safe */
+            /* safe — column may already exist or ALTER TABLE unsupported */
           }
         }
 
         for (const col of dynamicCols) {
+          if (!addedColumns.has(col.name)) continue;
           try {
             const indexName = `${physicalName}_${col.name}_idx`;
             await this.raw.execute(
@@ -1146,12 +1173,22 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
+      const isTestHarness =
+        process.env.TEST_MODE === "true" ||
+        process.env.VITEST === "true" ||
+        process.env.BUN_TEST === "true" ||
+        process.env.BENCHMARK === "true";
+      const dbName = (config as any).DB_NAME;
+      const isTestDb =
+        isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
+      const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";
+
       dbPath =
         process.env.DB_PATH ||
-        ((config as any).DB_NAME
-          ? `config/database/${(config as any).DB_NAME}.db`
+        (dbName
+          ? `${defaultDbFolder}/${dbName}`
           : isSetupComplete()
-            ? "config/database/sveltycms.db"
+            ? `${defaultDbFolder}/sveltycms.db`
             : ":memory:");
     }
 

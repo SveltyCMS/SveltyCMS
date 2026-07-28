@@ -1,0 +1,68 @@
+---
+path: "docs/reference/architecture/transactional-outbox.mdx"
+title: "Transactional Outbox"
+description: "Atomic event emission with content mutations — polling, backoff, webhook fan-out."
+---
+
+# Transactional Outbox
+
+SveltyCMS uses the **transactional outbox** pattern so domain events (webhooks, automations, internal pub/sub) are not lost when a write succeeds but side-effect delivery fails (or vice versa).
+
+## Flow
+
+1. **Write path** (collection create/update/delete) uses `persistWithOutbox`:
+   - Prefer **one DB transaction** for entity write + `outboxService.emit` (SQL adapters).
+   - Fall back to sequential write→emit when `transaction()` is unavailable (e.g. Mongo without a replica set).
+2. Event types: `entry:create` | `entry:update` | `entry:delete`.
+3. `afterMutation` still invalidates cache and publishes `entryUpdated` (outbox already emitted inside the TX when possible).
+4. Background `outboxService.startPolling()` (hooks cold-start) runs `processBatch()`.
+5. Delivery: internal `pubSub` + optional `webhookService.trigger` for mapped event types.
+6. Success → `status: delivered`; failure → exponential backoff retry; after 5 attempts → `failed`.
+
+## Storage
+
+| Adapter                       | Table / collection                            |
+| :---------------------------- | :-------------------------------------------- |
+| SQLite / PostgreSQL / MariaDB | `svelty_outbox` (migrations + Drizzle schema) |
+| MongoDB                       | `svelty_outbox` model (`OutboxEvent`)         |
+
+## API
+
+```ts
+import { outboxService } from "@src/services/outbox";
+
+await outboxService.emit(
+  "entry:create",
+  "entry",
+  entryId,
+  { collection, data },
+  tenantId,
+  { transaction }, // optional — same DB transaction as the write
+);
+
+await outboxService.processBatch(50);
+await outboxService.cleanup(olderThanISO);
+```
+
+## Backoff
+
+`outboxBackoffMs(attempts)` → `1s, 2s, 4s, …` capped at 5 minutes, based on `updatedAt` after each failure. Pending events inside the window are skipped until ready.
+
+## Kill switches
+
+| Env                   | Effect              |
+| :-------------------- | :------------------ |
+| `DISABLE_OUTBOX=true` | Skip emit + polling |
+| `BENCHMARK_MODE=true` | Same                |
+
+## Tests
+
+- Unit: `tests/unit/services/outbox-service.test.ts`
+- Integration: `tests/integration/api/outbox-plugin-storage.test.ts`
+- Testing API: `outbox-emit`, `outbox-process-batch`, `outbox-tx-rollback`, …
+
+## Implementation
+
+- Service: `src/services/outbox/outbox-service.ts`
+- Boot: `hooks.server.ts` → `outboxService.startPolling(5000)`
+- Emit: `collections-namespace.ts` `persistWithOutbox` (+ `afterMutation` fallback)

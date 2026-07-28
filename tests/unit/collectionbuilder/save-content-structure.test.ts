@@ -13,10 +13,12 @@ vi.mock("@sveltejs/kit", () => ({
     throw Object.assign(new Error(message), { status });
   }),
   fail: vi.fn((status: number, data: Record<string, unknown>) => ({
-    type: "failure",
+    type: "failure" as const,
     status,
     data,
   })),
+  redirect: vi.fn(),
+  json: vi.fn((data: unknown) => new Response(JSON.stringify(data))),
 }));
 
 vi.mock("@src/databases/auth/permissions", () => ({
@@ -108,5 +110,52 @@ describe("saveContentStructure", () => {
 
     expect(result).toMatchObject({ status: 400, data: { message: "Invalid operations" } });
     expect(executeGuiStructureSave).not.toHaveBeenCalled();
+  });
+
+  it("handles empty operations array gracefully", async () => {
+    executeGuiStructureSave.mockResolvedValue({
+      success: true,
+      contentStructure: [],
+    });
+
+    const { saveContentStructure } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    const result = await saveContentStructure(makeEvent(), []);
+    expect(executeGuiStructureSave).toHaveBeenCalled();
+    expect((result as { contentStructure?: unknown[] }).contentStructure).toHaveLength(0);
+  });
+
+  it("passes tenantId from event to executeGuiStructureSave", async () => {
+    const { saveContentStructure } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    await saveContentStructure(makeEvent("tenant-xyz"), [
+      {
+        type: "create",
+        node: { _id: "cat-1", name: "Test", path: "/test", nodeType: "category" },
+      },
+    ]);
+
+    expect(executeGuiStructureSave).toHaveBeenCalledWith("tenant-xyz", expect.any(Array));
+  });
+
+  it("propagates executeGuiStructureSave failure", async () => {
+    executeGuiStructureSave.mockResolvedValue({
+      success: false,
+      message: "Structure conflict detected",
+    });
+
+    const { saveContentStructure } =
+      await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");
+
+    const result = await saveContentStructure(makeEvent(), [
+      {
+        type: "create",
+        node: { _id: "cat-dup", name: "Duplicate", path: "/dup", nodeType: "category" },
+      },
+    ]);
+
+    expect(result).toMatchObject({ success: false, message: "Structure conflict detected" });
   });
 });

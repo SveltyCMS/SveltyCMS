@@ -536,11 +536,10 @@ class PluginRegistry implements IPluginService {
         }
 
         default: {
-          // Exhaustiveness check — `part` should be `never` here
-          const _exhaustive: never = part;
-          void _exhaustive;
+          // All known PluginPart types handled in cases above.
+          // This branch handles unknown types for forward compatibility.
           logger.warn(
-            `[PluginRegistry] Plugin "${pluginId}" has unknown part type: ${(part as PluginPart).type}`,
+            `[PluginRegistry] Plugin "${pluginId}" has unknown part type: ${(part as any).type}`,
           );
           break;
         }

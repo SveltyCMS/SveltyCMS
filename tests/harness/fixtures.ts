@@ -1,13 +1,13 @@
 /**
  * @file tests/harness/fixtures.ts
- * @description Canonical deterministic fixtures for all test layers.
+ * @description Canonical deterministic fixtures for all test layers (unit, integration, E2E).
  *
- * Every unit, integration, and E2E test MUST use these fixtures.
- * No test file should invent its own tenant IDs, user IDs, or seed data.
+ * Every test MUST use these fixtures for identity. Do not invent parallel admin emails.
  *
  * ### Design Principles
- * - Fixed, deterministic IDs — never Math.random() or Date.now()
- * - Seeded data is immutable — tests receive a deep copy
+ * - Fixed, deterministic IDs — never Math.random() for fixture identity
+ * - Credentials match CI seed / setup wizard / integration runner (single universe)
+ * - Seeded data is immutable — tests receive a deep copy via cloneFixture()
  * - Multi-tenant ready — every fixture carries a tenantId
  */
 
@@ -32,42 +32,75 @@ export const PRIMARY_TENANT = TENANTS.primary.tenantId;
 export const SECONDARY_TENANT = TENANTS.secondary.tenantId;
 
 // ---------------------------------------------------------------------------
-// Users
+// Canonical password (CI seed, setup wizard default, integration, E2E)
+// ---------------------------------------------------------------------------
+
+/** Shared test password — must satisfy PASSWORD_MIN_LENGTH + complexity. */
+export const TEST_PASSWORD = "Password123!";
+
+// ---------------------------------------------------------------------------
+// Users (identity = admin@example.com universe used by /api/testing seed)
 // ---------------------------------------------------------------------------
 
 export const USERS = {
   admin: {
     _id: "user_00000000-0000-4000-a000-0000000000a1" as const,
-    username: "testadmin",
-    email: "admin@test.sveltycms.local",
+    username: "admin",
+    email: "admin@example.com",
+    password: TEST_PASSWORD,
     role: "admin",
     isAdmin: true,
     tenantId: PRIMARY_TENANT,
   },
   developer: {
     _id: "user_00000000-0000-4000-a000-0000000000d1" as const,
-    username: "testdev",
-    email: "dev@test.sveltycms.local",
+    username: "developer",
+    email: "developer@test.com",
+    password: TEST_PASSWORD,
     role: "developer",
     isAdmin: false,
     tenantId: PRIMARY_TENANT,
   },
   editor: {
     _id: "user_00000000-0000-4000-a000-0000000000e1" as const,
-    username: "testeditor",
-    email: "editor@test.sveltycms.local",
+    username: "editor",
+    email: "editor@test.com",
+    password: TEST_PASSWORD,
     role: "editor",
     isAdmin: false,
     tenantId: PRIMARY_TENANT,
   },
   viewer: {
     _id: "user_00000000-0000-4000-a000-0000000000v1" as const,
-    username: "testviewer",
-    email: "viewer@test.sveltycms.local",
+    username: "viewer",
+    email: "viewer@test.com",
+    password: TEST_PASSWORD,
     role: "viewer",
     isAdmin: false,
     tenantId: PRIMARY_TENANT,
   },
+} as const;
+
+/**
+ * Login credentials for browser/API auth helpers.
+ * Prefer these over hard-coding emails in specs.
+ */
+export const ADMIN_CREDENTIALS = {
+  email: USERS.admin.email,
+  password: USERS.admin.password,
+  username: USERS.admin.username,
+} as const;
+
+export const EDITOR_CREDENTIALS = {
+  email: USERS.editor.email,
+  password: USERS.editor.password,
+  username: USERS.editor.username,
+} as const;
+
+export const DEVELOPER_CREDENTIALS = {
+  email: USERS.developer.email,
+  password: USERS.developer.password,
+  username: USERS.developer.username,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -139,12 +172,6 @@ export const TOKENS = {
   expiredApiKey: "tkn_test_expired00000000000000000000000000000000000000000000000000001",
   invalidApiKey: "tkn_test_invalid00000000000000000000000000000000000000000000000000001",
 } as const;
-
-// ---------------------------------------------------------------------------
-// Test password (constant, never changes)
-// ---------------------------------------------------------------------------
-
-export const TEST_PASSWORD = "SveltyCMS_Test_2026!";
 
 // ---------------------------------------------------------------------------
 // Deep-copy helper (prevent test-to-test mutation leakage)

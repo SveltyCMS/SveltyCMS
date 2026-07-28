@@ -338,10 +338,13 @@ async function validateWritePayload(
     if (Array.isArray(data)) {
       return data.map(
         (entry) =>
-          validateFieldConstraints(stripNullRows(entry, schema), schema) as Record<string, unknown>,
+          validateFieldConstraints(stripNullRows(entry, schema as any), schema as any) as Record<
+            string,
+            unknown
+          >,
       );
     }
-    return validateFieldConstraints(stripNullRows(data, schema), schema);
+    return validateFieldConstraints(stripNullRows(data, schema as any), schema as any);
   }
   return data;
 }
@@ -361,10 +364,10 @@ async function validateBulkUpdatePayload(
 
   return updates.map((entry) => ({
     ...entry,
-    data: validateFieldConstraints(stripNullRows(entry.data, schema), schema) as Record<
-      string,
-      unknown
-    >,
+    data: validateFieldConstraints(
+      stripNullRows(entry.data, schema as any),
+      schema as any,
+    ) as Record<string, unknown>,
   }));
 }
 
@@ -481,7 +484,7 @@ export async function handleCollectionBulkCreate(
   const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
   return successResponse(
     event,
-    await cms.collections.bulkCreate(collectionId, data, {
+    await cms.collections.bulkCreate(collectionId, data as any[], {
       user: user!,
       tenantId,
     }),
@@ -659,7 +662,7 @@ export async function handleCollectionIncrement(
 
   // Invalidate cache so subsequent reads get the new value
   try {
-    await cms.db.monitoring.cache.invalidateCollection(collectionId, tenantId);
+    await cms.db.monitoring.cache.invalidateCollection(collectionId, { tenantId });
   } catch {
     /* ignore */
   }

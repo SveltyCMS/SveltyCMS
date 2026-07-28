@@ -362,6 +362,32 @@ export const auditLogs = mysqlTable(
   }),
 );
 
+// Outbox Events Table — Transactional Outbox Pattern
+// Events are written in the same transaction as the data change,
+// then a background process reads and delivers them reliably.
+export const sveltyOutbox = mysqlTable(
+  "svelty_outbox",
+  {
+    _id: uuidPk(),
+    tenantId: tenantField(),
+    eventType: varchar("eventType", { length: 255 }).notNull(),
+    aggregateType: varchar("aggregateType", { length: 255 }).notNull(),
+    aggregateId: varchar("aggregateId", { length: 255 }).notNull(),
+    payload: json("payload").notNull(),
+    status: varchar("status", { length: 50 }).notNull().default("pending"),
+    deliveredAt: datetime("deliveredAt"),
+    attempts: int("attempts").notNull().default(0),
+    lastError: text("lastError"),
+    ...timestamps,
+  },
+  (table) => ({
+    statusIdx: index("outbox_status_idx").on(table.status),
+    tenantIdx: index("outbox_tenant_idx").on(table.tenantId),
+    eventTypeIdx: index("outbox_event_type_idx").on(table.eventType),
+    createdAtIdx: index("outbox_created_at_idx").on(table.createdAt),
+  }),
+);
+
 // Background Jobs Table
 export const sveltyJobs = mysqlTable(
   "svelty_jobs",
@@ -451,6 +477,28 @@ export const pluginStates = mysqlTable(
   }),
 );
 
+// Plugin Storage Table
+export const pluginStorage = mysqlTable(
+  "plugin_storage",
+  {
+    _id: uuidPk(),
+    plugin: varchar("plugin", { length: 255 }).notNull(),
+    collectionName: varchar("collection", { length: 255 }).notNull(),
+    tenantId: tenantField(),
+    data: json("data").notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    pluginIdx: index("plugin_storage_plugin_idx").on(table.plugin),
+    collectionIdx: index("plugin_storage_collection_idx").on(table.collectionName),
+    tenantIdx: index("plugin_storage_tenant_idx").on(table.tenantId),
+    pluginCollectionIdx: index("plugin_storage_plugin_collection_idx").on(
+      table.plugin,
+      table.collectionName,
+    ),
+  }),
+);
+
 // Plugin Migrations Table
 export const pluginMigrations = mysqlTable(
   "plugin_migrations",
@@ -524,6 +572,7 @@ export const redirectsMV = mysqlTable(
   (table) => ({
     tenantIdx: index("tenant_idx").on(table.tenantId),
     activeIdx: index("active_idx").on(table.active),
+    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
   }),
 );
 
@@ -606,10 +655,12 @@ export const schema = {
   mediaItems,
   systemVirtualFolders,
   systemPreferences,
+  sveltyOutbox,
   sveltyJobs,
   websiteTokens,
   pluginPagespeedResults,
   pluginStates,
+  pluginStorage,
   pluginMigrations,
   tenants,
   auditLogs,

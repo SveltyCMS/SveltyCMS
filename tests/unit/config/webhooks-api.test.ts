@@ -34,7 +34,7 @@ describe("webhooks-api + fetchApi CSRF", () => {
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     stubDocumentCookie(() => "csrf_token=unit-csrf-token");
   });
 

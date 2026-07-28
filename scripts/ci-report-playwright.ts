@@ -204,7 +204,7 @@ function annotate(failures: SpecResult[]): void {
   for (const f of failures) {
     if (n >= 15) break;
     const file = f.file || "tests/e2e";
-    const msg = f.error.split("\n")[0]?.slice(0, 200) || f.status;
+    const msg = (f.error || "").split("\n")[0]?.slice(0, 200) || f.status;
     // GitHub workflow command
     console.log(`::error file=${file},title=${f.title}::${msg}`);
     n++;

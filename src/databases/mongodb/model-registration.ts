@@ -52,6 +52,18 @@ export async function registerSystemModels(connection: Connection): Promise<void
       connection.model("SystemPreferences", systemPreferencesSchema);
     }
 
+    // Outbox Events
+    const { outboxSchema } = await import("./outbox");
+    if (!connection.models.OutboxEvent) {
+      connection.model("OutboxEvent", outboxSchema);
+    }
+
+    // Plugin storage (shared JSON store for plugins)
+    const { pluginStorageSchema } = await import("./plugin-storage");
+    if (!connection.models.PluginStorage) {
+      connection.model("PluginStorage", pluginStorageSchema);
+    }
+
     logger.info("[MongoDB] System models registered successfully.");
   } catch (error) {
     logger.error("[MongoDB] Failed to register system models:", error);

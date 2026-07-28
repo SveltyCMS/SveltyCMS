@@ -3,9 +3,9 @@
  * @description Integration tests for Config Sync API endpoints
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -13,10 +13,6 @@ let authCookie: string;
 beforeAll(async () => {
   await waitForServer();
   authCookie = await prepareAuthenticatedContext();
-});
-
-afterAll(async () => {
-  await cleanupTestDatabase();
 });
 
 describe("Config Sync API - Configuration Synchronization", () => {

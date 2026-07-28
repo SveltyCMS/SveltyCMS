@@ -25,15 +25,15 @@ All security tests follow the **no-backdoor policy** — tests pass through real
 
 Every security policy is actively tested, not just documented:
 
-| Policy                           | Enforcement                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------------- |
-| No test backdoors                | Black-box contract tests authenticate via real login                              |
-| CSPRNG only (no `Math.random()`) | Unit tests verify `crypto.getRandomValues()`                                      |
-| Setup completion gating          | Contract tests: `/api/setup/*` → 403 after setup                                  |
-| Fail-closed API                  | Contract tests: unknown namespace → 403 across all 4 DBs                          |
-| XSS prevention                   | Slop scanner (pre-commit + pre-push precheck) + sanitizer mutation-proven at 100% |
-| Multi-tenant isolation           | Contract tests: Tenant-B cannot read Tenant-A data                                |
-| Account lockout                  | Unit + edge case: 5 failures → account locked                                     |
+| Policy                           | Enforcement                                                                               |
+| -------------------------------- | ----------------------------------------------------------------------------------------- |
+| No test backdoors                | Black-box contract tests authenticate via real login                                      |
+| CSPRNG only (no `Math.random()`) | Unit tests verify `crypto.getRandomValues()`                                              |
+| Setup completion gating          | Contract tests: `/api/setup/*` → 403 after setup                                          |
+| Fail-closed API                  | Contract tests: unknown namespace → 403 across all 4 DBs                                  |
+| XSS prevention                   | Slop scanner (`bun run slop`) + unit/security coverage; run before shipping HTML-heavy UI |
+| Multi-tenant isolation           | Contract tests: Tenant-B cannot read Tenant-A data                                        |
+| Account lockout                  | Unit + edge case: 5 failures → account locked                                             |
 
 ---
 
@@ -96,7 +96,7 @@ Audit categories with real payloads:
 ```
 bun run test:unit -- security   # Encryption, auth, lockout
 bun run slop                    # XSS, legacy patterns, ARIA
-bun run mutate                  # Verify sanitizer kill rate
+bun run test:security           # Hooks defense-in-depth / auth / RBAC / file-server
 bun run audit:security          # Endpoint probing (needs running server)
 bun run test:smart              # Smart orchestrator
 ```

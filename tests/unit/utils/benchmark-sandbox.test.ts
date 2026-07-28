@@ -10,7 +10,12 @@ import * as sandbox from "@utils/benchmark-sandbox";
 
 const ROOT = process.cwd();
 const PRIVATE_TS = path.join(ROOT, "config", "private.ts");
-const SANDBOX_COMPILED = path.join(ROOT, ".compiledCollections", "test", "_local_sandbox");
+const SANDBOX_COMPILED = path.join(
+  ROOT,
+  ".compiledCollections",
+  "test-collections",
+  "_local_sandbox",
+);
 
 describe("benchmark-sandbox", () => {
   const envSnapshot = { ...process.env };

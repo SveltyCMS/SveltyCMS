@@ -103,7 +103,7 @@
 		sessionsLoading = true;
 		sessionsError = null;
 		try {
-			const result = await getActiveSessions();
+			const result = await getActiveSessions(undefined as any);
 			if (result.error) {
 				sessionsError = result.error;
 				sessions = [];

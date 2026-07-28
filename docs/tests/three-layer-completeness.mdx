@@ -41,11 +41,11 @@ tags:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| Layer                         | Tooling                                                          | Proves                                                        | Does **not** replace                |
-| ----------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- |
-| **1 — White-box unit**        | Vitest (`bun run test:unit`)                                     | Pure logic, fail-closed dispatcher, widgets, permissions math | Real cookies, multi-DB, browser     |
-| **2 — Black-box integration** | HTTP + preview (`test:integration` / `run-integration-tests.ts`) | Full middleware chain, auth sessions, adapter parity          | Click paths, layout a11y            |
-| **3 — E2E Playwright**        | Playwright (`test:e2e`)                                          | Real user journeys, shell UX, smoke product paths             | Exhaustive API matrix, all adapters |
+| Layer                         | Tooling                                       | Proves                                                        | Does **not** replace                |
+| ----------------------------- | --------------------------------------------- | ------------------------------------------------------------- | ----------------------------------- |
+| **1 — White-box unit**        | Vitest (`bun run test:unit`)                  | Pure logic, fail-closed dispatcher, widgets, permissions math | Real cookies, multi-DB, browser     |
+| **2 — Black-box integration** | HTTP + preview (`test:integration` / harness) | Full middleware chain, auth sessions, adapter parity          | Click paths, layout a11y            |
+| **3 — E2E Playwright**        | Playwright (`test:e2e`)                       | Real user journeys, shell UX, smoke product paths             | Exhaustive API matrix, all adapters |
 
 **Rule of placement**
 
@@ -243,7 +243,7 @@ Inventory & tiers: [headless-test-inventory.mdx](./headless-test-inventory.mdx).
 5. **API unit helpers:** `invokeApi` / `createMockRequestEvent` — no second HTTP client for unit.
 6. **Local loop:**
    - Unit: `bun run test:unit`
-   - Integration: `bun run scripts/run-integration-tests.ts --db=sqlite --no-build`
+   - Integration: `bun test --timeout 300000 tests/integration/`
    - E2E: project-scoped Playwright (not full matrix every commit)
 
 ---
@@ -257,20 +257,20 @@ bun run test:unit
 # Optional supporting coverage (auth/hooks/utils focus over time)
 bun run test:unit -- --coverage
 
-# Layer 2 — black-box (day-to-day)
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+# Layer 2 — black-box (day-to-day; needs build/)
+bun test --timeout 300000 tests/integration/
 
-# Layer 2 — matrix (pre-merge for adapter/auth work)
-bun run scripts/run-integration-tests.ts --db=postgresql
-bun run scripts/run-integration-tests.ts --db=mariadb
-bun run scripts/run-integration-tests.ts --db=mongodb
+# Layer 2 — matrix (pre-merge for adapter/auth work; Docker up)
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/
+DB_TYPE=mariadb bun test --timeout 300000 tests/integration/
+DB_TYPE=mongodb bun test --timeout 300000 tests/integration/
 
 # Layer 3 — E2E (CI projects / smoke)
-bun x playwright test --project=chromium
-bun x playwright test --project=builder
-bun x playwright test --project=wizard
+bun run test:e2e
+bun run test:e2e:quick -- --project=chromium
 
-# All three (local / CI parity)
+# Unit + SQLite integration (local health)
+bun run test:doctor
 bun run test:all
 ```
 
@@ -307,10 +307,10 @@ Order is intentional: **unit edges + ownership first**, then **HTTP multi-DB tru
 ### Multi-DB P0 checklist (per adapter)
 
 ```bash
-bun run scripts/run-integration-tests.ts --db=sqlite --suite=api
-bun run scripts/run-integration-tests.ts --db=postgresql --suite=api
-bun run scripts/run-integration-tests.ts --db=mariadb --suite=api
-bun run scripts/run-integration-tests.ts --db=mongodb --suite=api
+bun test --timeout 300000 tests/integration/api/
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/api/
+DB_TYPE=mariadb bun test --timeout 300000 tests/integration/api/
+DB_TYPE=mongodb bun test --timeout 300000 tests/integration/api/
 ```
 
 1. Login + session cookie

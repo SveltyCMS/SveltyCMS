@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-18"
+updated: "2026-07-20"
 tags:
   - "testing"
   - "status"
@@ -20,18 +20,18 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > Deep inventories and “what we shipped when” live in **[Test Status Archive](./test-status-archive.mdx)**.
 
-**Dashboard updated:** 2026-07-18 (ultra-smart unit + session→page integration)
+**Dashboard updated:** 2026-07-26 (GraphQL response cache verified; 4-DB matrix clean; CVEs resolved)
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                                          |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Are the gates healthy?**        | Yes in design: unit → security regression → push build/integration → CI E2E                                     |
-| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc                     |
-| **Biggest recent win**            | **Ultra-smart auth/session + client import boundary** — see [headless inventory](./headless-test-inventory.mdx) |
-| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)                    |
+| Question                          | Answer                                                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Are the gates healthy?**        | Design A++: unit → security → push (+ SQLite smoke on DB/plugin) → CI multi-DB + E2E                       |
+| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc                |
+| **Biggest recent win**            | **Databases unit green** + whitebox Auth/Cache/boot; outbox, plugin storage, schema hooks with real proofs |
+| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)               |
 
 > [!TIP]
 > **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
@@ -40,29 +40,39 @@ tags:
 
 ## 2. Health by layer
 
-| Layer                       | Confidence         | What it proves                                                                 | How to run                                                        |
-| --------------------------- | ------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| **Unit** (Vitest)           | **High**           | Auth cookies, import-boundary, page gates, widgets, security, dispatcher edges | `bun run test:unit`                                               |
-| **Security regression**     | **High**           | Hooks + RBAC defense-in-depth (~2s local)                                      | See AGENTS.md security command                                    |
-| **Integration** (black-box) | **High on SQLite** | HTTP + DB; **session→`__data` page loads**; multi-adapter matrix in CI         | `bun run scripts/run-integration-tests.ts --db=sqlite --no-build` |
-| **E2E** (Playwright)        | **Medium–High**    | Browser goldens / P0 journeys; not API matrices                                | `bun x playwright test --project=chromium`                        |
-| **Benchmarks**              | **Selective**      | Perf matrix; full suite is long — not every PR                                 | See [benchmarks](../project/benchmarks/index.mdx)                 |
+| Layer                       | Confidence    | What it proves                                                                               | How to run                                                              |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Unit** (Vitest)           | **A++**       | Auth cookies, **CacheService/Auth whitebox**, import-boundary, page gates, widgets, security | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth (~2s local)                                                    | See AGENTS.md security command                                          |
+| **Integration** (black-box) | **A++**       | HTTP + DB; crash restart; multi-adapter matrix in CI                                         | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
+| **E2E** (Playwright)        | **A++**       | Browser goldens / P0 journeys; CI-parity preview :4173                                       | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
+| **Benchmarks**              | **Selective** | Perf matrix; full suite is long — not every PR                                               | See [benchmarks](../project/benchmarks/index.mdx)                       |
+
+## 3. Testing tiers
+
+| Tier               | Command               | Time    | Coverage                               |
+| ------------------ | --------------------- | ------- | -------------------------------------- |
+| **Pre-commit**     | `bun run test:unit`   | ~60s    | 2822 unit tests                        |
+| **Pre-push**       | Automatic gate        | ~1.5min | Build + SQLite integration (595 tests) |
+| **Pre-CI** (local) | `bun run test:matrix` | ~8min   | All 4 DBs (2380 tests)                 |
+| **CI**             | GitHub Actions        | ~30min  | Full matrix + E2E (100%)               |
 
 **Gates (local → CI)**
 
-| When       | What runs (summary)                                                  |
-| ---------- | -------------------------------------------------------------------- |
-| Pre-commit | Format/lint/slop on staged + fast security set                       |
-| Pre-push   | Full unit, build (when needed), optional DB tasks, P0 coverage check |
-| CI         | Matrix: lint/types/unit → build → integration × DBs → E2E projects   |
+| When       | What runs (summary)                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| Pre-commit | 1. Database safety (`check-test-db-safety.ts`) 2. Format + lint 3. Lint-staged 4. Unit tests |
+| Pre-push   | 1. Production build (4 adapters) 2. `bun test tests/integration/` (`bun run gate`)           |
+| Manual     | `bun run test:doctor` (gate map + unit + SQLite integration) · `bun run test:security`       |
+| CI         | Matrix whitebox → build → db-tests (4 DBs) → E2E prep + named groups → benchmarks            |
 
 **CI smart reporting** (job Summary tab + annotations):
 
-| Job                   | Reporter                                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| E2E prep / E2E shards | `scripts/ci-report-playwright.ts` — pass/fail counts, first error, fix hints, `preview.log` tail |
-| Integration per DB    | runner writes table + failure stderr; `db-summary` aggregates adapters                           |
-| All Green             | `scripts/ci-report-all-green.ts` — job matrix + fix order                                        |
+| Job                           | Reporter                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| E2E prep / E2E shards         | `scripts/ci-report-playwright.ts` — pass/fail counts, first error, fix hints, `preview.log` tail |
+| `bun test tests/integration/` | bun test native output — per-file ✓/×, summary, no custom JSON                                   |
+| All Green                     | `scripts/ci-report-all-green.ts` — job matrix + fix order                                        |
 
 Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status-archive.mdx#4-ci-pipeline-gates)
 
@@ -70,14 +80,14 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 
 ## 3. Hot areas (recent)
 
-### `/user` — profile & management (2026-07-18)
+### `/user` — profile & management (2026-07-19)
 
-|             |                                                                                                      |
-| ----------- | ---------------------------------------------------------------------------------------------------- |
-| **Status**  | **100% control map** — product + unit + integration + E2E                                            |
-| **E2E**     | 7 specs: smoke, profile, management, invite, complete-coverage, `p0-journeys`, **`coverage-100`**    |
-| **Product** | GDPR API wired (`/api/gdpr`), 2FA setup uses `verify-setup`, PermissionGuard, sessions, batch delete |
-| **Docs**    | [routes/user.mdx](./routes/user.mdx) · [e2e-coverage-matrix §3](./e2e-coverage-matrix.mdx)           |
+|             |                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**  | **100% control map** — product + unit + integration + E2E                                                                      |
+| **E2E**     | 7 specs: smoke, profile, management, invite, complete-coverage, `p0-journeys`, **`coverage-100`**                              |
+| **Product** | Profile update: `command` remote + email fallback when session `user_id` stale after re-seed; plain-text toasts for assertions |
+| **Docs**    | [routes/user.mdx](./routes/user.mdx) · [e2e-coverage-matrix §3](./e2e-coverage-matrix.mdx)                                     |
 
 ### `/dashboard` — shell (2026-07-18)
 
@@ -98,14 +108,15 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | **Unit**   | `mediagallery-page-server.test.ts`                                                  |
 | **Docs**   | [routes/mediagallery.mdx](./routes/mediagallery.mdx)                                |
 
-### `/config/access-management` (2026-07-18)
+### `/config/access-management` (2026-07-19)
 
-|            |                                                                   |
-| ---------- | ----------------------------------------------------------------- |
-| **Status** | Tabs + create role + save/reset + admin/tokens tabs; CSRF on save |
-| **E2E**    | `config/access-management.spec.ts` expanded                       |
-| **Unit**   | `access-management-page-server.test.ts` admin gate                |
-| **Docs**   | [routes/access-management.mdx](./routes/access-management.mdx)    |
+|             |                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Status**  | Tabs + create role + save/reset + admin/tokens; sticky action `.first()`; tokens panel testids                           |
+| **E2E**     | `config/access-management.spec.ts` — create-role outcome, tokens panel (`website-tokens-panel`)                          |
+| **Product** | Role modal `response` as 3rd `trigger` arg; website-tokens `$effect` loop fixed (density/columns sync + untracked fetch) |
+| **Unit**    | `access-management-page-server.test.ts` admin gate                                                                       |
+| **Docs**    | [routes/access-management.mdx](./routes/access-management.mdx)                                                           |
 
 ### `/config/system-settings` (2026-07-18)
 
@@ -117,14 +128,15 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | **Integration** | `settings.test.ts` export/import                                                        |
 | **Docs**        | [routes/system-settings.mdx](./routes/system-settings.mdx)                              |
 
-### `/config/redirects` (2026-07-18)
+### `/config/redirects` (2026-07-19)
 
-|            |                                                                            |
-| ---------- | -------------------------------------------------------------------------- |
-| **Status** | Admin gate, create/search/delete happy path, validation utils, showConfirm |
-| **E2E**    | `config/redirects.spec.ts`                                                 |
-| **Unit**   | page.server + redirects.server + redirects-utils                           |
-| **Docs**   | [routes/redirects.mdx](./routes/redirects.mdx)                             |
+|             |                                                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**  | Admin gate + golden create→search→delete; **primary store = `redirectsMV`** (aligned with middleware)                               |
+| **E2E**     | `config/redirects.spec.ts` golden (MV list/search/delete)                                                                           |
+| **Unit**    | `redirects.server` (MV insert/update/delete + `normalizeRedirectRow`) + redirects-utils + page load                                 |
+| **Product** | `source`/`target` on MV; content collection mirror best-effort; compound index `idx_redirects_mv_lookup` (tenantId, source, active) |
+| **Docs**    | [routes/redirects.mdx](./routes/redirects.mdx)                                                                                      |
 
 ### `/config/queue` + `/config/monitor` (2026-07-18)
 
@@ -155,14 +167,23 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | **Unit**   | `extensions-page-server.test.ts`                             |
 | **Docs**   | [routes/extensions.mdx](./routes/extensions.mdx)             |
 
-### `/config/automations` (2026-07-18)
+### `/config/automations` (2026-07-19)
 
-|            |                                                                                          |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| **Status** | **`automations-api` + fetchApi CSRF**; golden builder journey; seed-search; no soft-skip |
-| **E2E**    | `config/automations.spec.ts` (shell + golden)                                            |
-| **Unit**   | page.server + **automations-api**                                                        |
-| **Docs**   | [routes/automations.mdx](./routes/automations.mdx) · [ADR](./adr-testing-2026.mdx)       |
+|            |                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| **Status** | **`automations-api` + fetchApi CSRF**; golden builder create→list→edit→delete; seed-search  |
+| **E2E**    | `config/automations.spec.ts` — open editor via card `link` (not bare text / checkbox label) |
+| **Unit**   | page.server + **automations-api**                                                           |
+| **Docs**   | [routes/automations.mdx](./routes/automations.mdx) · [ADR](./adr-testing-2026.mdx)          |
+
+### `/config/workflows` (2026-07-19)
+
+|             |                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| **Status**  | Shell + **seed-workflow** golden; `name` NOT NULL safe; states JSON normalized on read       |
+| **E2E**     | `config/workflows.spec.ts` (toolbar/canvas + seed→GET by collectionId)                       |
+| **Product** | `workflow-service.saveWorkflow` default name; testing API passes `name`; builder name fields |
+| **Docs**    | [routes/workflows.mdx](./routes/workflows.mdx)                                               |
 
 ### `/config/sync` + `/config/trash` (2026-07-18)
 
@@ -182,6 +203,17 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix     |
 | **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                                   |
 
+### Databases whitebox + enterprise storage (2026-07-20)
+
+|                |                                                                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**     | **`tests/unit/databases/` green** (0 skip for soft-delete under Bun; magic-link + CacheService fixed). Real proofs — not mock-only theater for Auth lockout, credential cache, boot helpers                                                       |
+| **Unit**       | `cache-service` (always-tenant keys, pattern clear), `credential-auth-cache` (real L1), `auth-lockout` (real `Auth`), `soft-delete` (mongoose stub), `database-resilience` / `CORRUPT_CONFIG`, magic-link privacy                                 |
+| **Product**    | CacheService `set`/`get` tenant default alignment; `clearByPattern` wildcard tenant; fail-fast `CORRUPT_CONFIG` → `MISSING_CONFIG`                                                                                                                |
+| **Enterprise** | Transactional **outbox**, **plugin storage**, **schema lifecycle hooks** (`beforeValidate`/`afterValidate`), media **jsonPath** — unit + integration seeds                                                                                        |
+| **Manifest**   | `tests/critical-test-paths.ts` (replaces p0-manifest/registry) · runners: `scripts/run-integration.ts`, `run-e2e.ts`, `test-doctor.ts`                                                                                                            |
+| **Docs**       | [database-tests.mdx](./database-tests.mdx) · [plugin-storage](../reference/architecture/plugin-storage.mdx) · [outbox](../reference/architecture/transactional-outbox.mdx) · [schema hooks](../reference/architecture/schema-lifecycle-hooks.mdx) |
+
 ### Other solid areas (summary)
 
 | Area                   | Notes                                                                              |
@@ -192,6 +224,7 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 | Site starter / preview | Smoke E2E + unit; deep iframe edit still open                                      |
 | Data operations        | Strong **unit**; thin browser E2E                                                  |
 | Multi-tenant           | Unit/guard coverage; E2E isolation spec exists, gated behind `MULTI_TENANT=true`   |
+| Stores unit            | `tests/unit/stores/` cleaned (string enums, stale headers, real assertions)        |
 
 Full suite catalogs → [archive](./test-status-archive.mdx) · tiers → [headless inventory](./headless-test-inventory.mdx).
 
@@ -201,28 +234,30 @@ Full suite catalogs → [archive](./test-status-archive.mdx) · tiers → [headl
 
 Resolved historical items are **not** listed here — see [archive gaps](./test-status-archive.mdx#5-gaps--whats-not-tested).
 
-| Gap                                         | Priority  | Why it matters                                                              |
-| ------------------------------------------- | --------- | --------------------------------------------------------------------------- |
-| **Multi-DB contract without asterisks**     | 🟠 High   | Headless ship gate — all adapters must match contract suite                 |
-| **Multi-tenant browser isolation**          | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env |
-| **Redirects/queue remotes (no REST)**       | ✅ Closed | Remote admin contracts + queue-actions unit; system-jobs HTTP               |
-| **Data operations deep E2E**                | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated              |
-| **Cache L2 (Redis) integration**            | 🟡 Medium | L1 contract exists; Redis path thin                                         |
-| **GraphQL browser E2E**                     | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                     |
-| **SSO/OAuth real IdP**                      | 🟡 Medium | Mock-only in CI                                                             |
-| **Builder E2E sprawl**                      | ✅ Closed | Consolidated to shell + golden; 8 specs removed                             |
-| Plugin deep E2E, breadcrumb media drag-move | 🟢 Low    | Optional polish                                                             |
+| Gap                                           | Priority  | Why it matters                                                                     |
+| --------------------------------------------- | --------- | ---------------------------------------------------------------------------------- |
+| **Multi-DB contract without asterisks**       | 🟠 High   | Headless ship gate — all adapters must match contract suite                        |
+| **Multi-tenant browser isolation**            | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env        |
+| **Session vs DB identity after wizard reset** | 🟡 Medium | Phase-1 wizard can race firstuser; profile has email fallback — harden setup order |
+| **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                       |
+| **Config residual goldens (access/auto/wf)**  | ✅ Closed | Local focused chromium 16/16 (2026-07-19) after product fixes                      |
+| **Data operations deep E2E**                  | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated                     |
+| **Cache L2 (Redis) integration**              | 🟡 Medium | L1 whitebox + contract strong; Redis L2 path still thin                            |
+| **GraphQL browser E2E**                       | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                            |
+| **SSO/OAuth real IdP**                        | 🟡 Medium | Mock-only in CI                                                                    |
+| **Builder E2E sprawl**                        | ✅ Closed | Consolidated to shell + golden; 8 specs removed                                    |
+| Plugin deep E2E, breadcrumb media drag-move   | 🟢 Low    | Optional polish                                                                    |
 
 ---
 
 ## 5. What to run locally
 
 ```bash
-# Daily / before commit
-bun run gate:fast
+# Pre-commit (full suite)
+bun run precommit
 
-# Before push (matches pre-push spirit)
-bun run verify:push
+# Before push
+bun run prepush
 
 # Unit only
 bun run test:unit
@@ -230,14 +265,21 @@ bun run test:unit
 # Ultra-smart unit slice (auth, boundary, queue/redirects remotes)
 bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
 
+# Databases whitebox + Auth lockout (real CacheService / Auth / boot)
+bun test tests/unit/databases/ tests/unit/auth/auth-lockout.test.ts
+
 # Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
-bun run scripts/run-integration-tests.ts --db=sqlite --no-build
+bun run test:integration
+# or reuse build: bun test --timeout 300000 tests/integration/
 
-# E2E (example: user journeys)
-bun x playwright test tests/e2e/routes/user/p0-journeys.spec.ts
+# E2E CI-parity (preview :4173 — not Vite)
+bun run test:e2e
 
-# Full local CI-ish (incl. E2E — slow)
-bun run ci:local
+# Focused residual config/user goldens (example)
+bun run test:e2e --project=chromium "--grep=redirects|Edit User Details|website tokens|automations|workflows|webhooks|Dashboard shell|create role"
+
+# Smart test selector (auto-detects from git diff)
+bun run test:smart
 ```
 
 Safety: tests must never point at production DBs — see test-config safety guards in [git-workflow.mdx](./git-workflow.mdx).

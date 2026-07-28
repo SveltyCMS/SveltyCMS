@@ -79,14 +79,14 @@ describe("mediagallery +page.server load", () => {
   });
 
   it("allows admin", async () => {
-    const data = await load(
+    const data: any = (await load(
       makeEvent({
         user: { _id: { toString: () => "u1" }, email: "a@b.co" },
         isAdmin: true,
         roles: [],
         tenantId: "t1",
       }),
-    );
+    )) as any;
     expect(data).toBeDefined();
     expect(Array.isArray((data as any).media) || (data as any).media === undefined || true).toBe(
       true,
@@ -94,14 +94,14 @@ describe("mediagallery +page.server load", () => {
   });
 
   it("allows user with media:read", async () => {
-    const data = await load(
+    const data: any = (await load(
       makeEvent({
         user: { _id: { toString: () => "u2" }, email: "e@b.co" },
         isAdmin: false,
         roles: [{ permissions: ["media:read"] }],
         tenantId: "t1",
       }),
-    );
+    )) as any;
     expect(data).toBeDefined();
   });
 

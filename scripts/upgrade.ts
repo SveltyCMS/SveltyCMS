@@ -18,7 +18,7 @@
  */
 
 import { spawn, type SpawnOptions } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -301,36 +301,6 @@ function step(title: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Codemods
-// ---------------------------------------------------------------------------
-
-async function runCodemods(): Promise<void> {
-  const codemodsDir = join(process.cwd(), "scripts", "codemods");
-  if (!existsSync(codemodsDir)) return;
-
-  const files = readdirSync(codemodsDir)
-    .filter((f) => (f.endsWith(".ts") || f.endsWith(".js")) && !f.startsWith("_"))
-    .sort();
-
-  if (files.length === 0) return;
-
-  step("Running codemods");
-
-  for (const file of files) {
-    const filePath = join(codemodsDir, file);
-    log("info", `Executing ${file}…`);
-
-    if (cli.dryRun) {
-      dryLog(`bun ${filePath}`);
-      continue;
-    }
-
-    await mustRun("bun", [filePath], `codemod ${file}`);
-    log("info", `${pc.green("✓")} ${file}`);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Steps
 // ---------------------------------------------------------------------------
 
@@ -509,7 +479,6 @@ async function main(): Promise<void> {
     }
 
     await stepInstall();
-    await runCodemods();
 
     if (!cli.skipDb) await stepDbMigration();
     if (!cli.skipTests) await stepTests();

@@ -193,8 +193,7 @@ export class CollectionService {
     }
 
     return countStatusFacets({
-      queryBuilder: (table) =>
-        dbAdapter.queryBuilder(table) as ReturnType<typeof dbAdapter.queryBuilder>,
+      queryBuilder: (table) => dbAdapter.queryBuilder(table) as any,
       collectionTableName: `collection_${collectionId}`,
       baseWhere,
     });

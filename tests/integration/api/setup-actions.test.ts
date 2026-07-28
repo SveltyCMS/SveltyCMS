@@ -54,7 +54,7 @@ import { cleanupTestDatabase } from "../helpers/test-setup";
 const API_BASE_URL = getApiBaseUrl();
 
 // Dynamic DB type from environment
-const dbType = (process.env.DB_TYPE || "mongodb") as DatabaseConfig["type"];
+const dbType = (process.env.DB_TYPE || "sqlite") as DatabaseConfig["type"];
 const defaultPort = dbType === "mariadb" ? "3306" : dbType === "postgresql" ? "5432" : "27017";
 const sqliteTestDbName = `setup_actions_test_${Date.now()}`;
 
@@ -63,18 +63,9 @@ const testDbConfig: DatabaseConfig = {
   type: dbType,
   host: process.env.DB_HOST || "localhost",
   port: Number.parseInt(process.env.DB_PORT || defaultPort, 10),
-  name: process.env.DB_NAME || (dbType === "sqlite" ? sqliteTestDbName : "sveltycms_test"),
+  name: dbType === "sqlite" ? sqliteTestDbName : process.env.DB_NAME || "sveltycms_test",
   user: process.env.DB_USER || "",
   password: process.env.DB_PASSWORD || "",
-};
-
-const testSmtpConfig = {
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number.parseInt(process.env.SMTP_PORT || "587", 10),
-  user: process.env.SMTP_USER || "test@example.com",
-  password: process.env.SMTP_PASS || "test-password",
-  from: process.env.SMTP_MAIL_FROM || "noreply@example.com",
-  secure: process.env.SMTP_SECURE === "true",
 };
 
 const testAdminUser = {
@@ -111,9 +102,7 @@ async function postAction(actionName: string, formData: FormData) {
 
 describe("Setup Actions - Database Connection", () => {
   beforeEach(async () => {
-    if (dbType === "mongodb") {
-      await cleanupTestDatabase();
-    }
+    await cleanupTestDatabase();
   });
 
   it(
@@ -166,7 +155,7 @@ describe("Setup Actions - Database Connection", () => {
     "detects invalid host/port",
     async () => {
       const formData = new FormData();
-      formData.append("config", JSON.stringify({ ...testDbConfig, host: "invalid", port: 99_999 }));
+      formData.append("config", JSON.stringify({ ...testDbConfig, host: "invalid", port: 65_432 }));
 
       const res = await postAction("testDatabase", formData);
       const result = await res.json();
@@ -216,9 +205,7 @@ describe("Setup Actions - Database Driver Installation", () => {
 
 describe("Setup Actions - Database Seeding", () => {
   beforeEach(async () => {
-    if (dbType === "mongodb") {
-      await cleanupTestDatabase();
-    }
+    await cleanupTestDatabase();
   });
 
   it(
@@ -247,30 +234,51 @@ describe("Setup Actions - Database Seeding", () => {
   );
 });
 
-describe.skip("Setup Actions - SMTP Configuration", () => {
+describe("Setup Actions - SMTP Configuration", () => {
   it(
-    "tests SMTP",
+    "tests SMTP connection action (structured success or failure)",
     async () => {
+      // Action expects a single JSON `config` field (see setup/+page.server.ts testEmail).
+      // Use an unreachable host so we never depend on real SMTP credentials in CI/local.
       const formData = new FormData();
-      // testEmail action expects individual fields
-      Object.entries({
-        ...testSmtpConfig,
-        testEmail: "test@example.com",
-      }).forEach(([k, v]) => {
-        formData.append(k, String(v));
-      });
+      formData.append(
+        "config",
+        JSON.stringify({
+          host: process.env.SMTP_HOST || "127.0.0.1",
+          port: Number.parseInt(process.env.SMTP_PORT || "2525", 10),
+          user: process.env.SMTP_USER || "test@example.com",
+          password: process.env.SMTP_PASS || "test-password",
+          from: process.env.SMTP_MAIL_FROM || "noreply@example.com",
+          secure: false,
+          testEmail: "probe@example.com",
+        }),
+      );
 
       const res = await postAction("testEmail", formData);
+      expect(res.status).toBeLessThan(500);
       const result = await res.json();
-      const data = parseActionResult(result);
+      const data = parseActionResult(result) ?? result?.data ?? result;
 
-      // SMTP might fail in test env without real creds, but we check structure
-      expect(result.type).toBe("success");
-      // If it fails, success will be false, but response type is success (action ran)
-      if (data.success) {
-        expect(data.testEmailSent).toBe(true);
+      // SvelteKit action completed (type success) OR returned a failure envelope.
+      // Either way the payload must be structured — never hang or 500.
+      if (result.type === "success" || result.type === "failure") {
+        const payload = typeof data === "object" && data !== null ? data : {};
+        if ((payload as { success?: boolean }).success === true) {
+          expect(
+            (payload as { message?: string; testEmailSent?: boolean }).message ||
+              (payload as { testEmailSent?: boolean }).testEmailSent,
+          ).toBeTruthy();
+        } else {
+          // Expected path without a real SMTP server: validation or connection error
+          const err =
+            (payload as { error?: string }).error ||
+            (payload as { message?: string }).message ||
+            JSON.stringify(payload);
+          expect(typeof err === "string" ? err.length : 1).toBeGreaterThan(0);
+        }
       } else {
-        expect(data.error).toBeDefined();
+        // Some devalue shapes omit type — still require a JSON body
+        expect(result).toBeDefined();
       }
     },
     TEST_TIMEOUT,
@@ -279,9 +287,7 @@ describe.skip("Setup Actions - SMTP Configuration", () => {
 
 describe("Setup Actions - Complete Setup", () => {
   beforeEach(async () => {
-    if (dbType === "mongodb") {
-      await cleanupTestDatabase();
-    }
+    await cleanupTestDatabase();
     // Wait for cleanup to settle and zombie connections to close
     await new Promise((resolve) => setTimeout(resolve, 2000));
 

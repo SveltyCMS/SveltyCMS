@@ -22,7 +22,7 @@ describe("automations +page.server load", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("allows admin", async () => {
-    const data = await load({
+    const data: any = await load({
       locals: { user: { _id: "u1" }, isAdmin: true },
     } as any);
     expect(data.isAdmin).toBe(true);

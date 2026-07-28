@@ -1,0 +1,84 @@
+---
+path: "docs/reference/security/license-endpoint-inventory.mdx"
+title: "License Gate Inventory"
+description: "Map of marketplace license checks — which plugins/widgets are gated, how fail-open vs fail-closed works, and how to add a new gate."
+order: 12
+icon: "mdi:license"
+author: "SveltyCMS Team"
+created: "2026-07-20"
+updated: "2026-07-20"
+tags:
+  - "security"
+  - "license"
+  - "marketplace"
+  - "plugins"
+---
+
+# License Gate Inventory
+
+SveltyCMS marketplace extensions are gated by `checkExtensionLicense()` in `src/utils/license-manager.ts`. This document is the inventory of **where** licenses are enforced so previews and premium APIs cannot be used without entitlement.
+
+> **Fail mode (2026-07):** Marketplace outage with a **configured license key** → fail-open (paid installs stay up). Outage **without** a key → **fail-closed** (`active: false`).
+
+---
+
+## Central utility
+
+| Item               | Location                                                            |
+| :----------------- | :------------------------------------------------------------------ |
+| License check      | `src/utils/license-manager.ts` → `checkExtensionLicense(type, id)`  |
+| Marketplace verify | `POST https://marketplace.sveltycms.com/api/v1/license/verify`      |
+| Settings keys      | `LICENSE_KEY` (master), `LICENSE_KEY_{TYPE}_{ID}` (per extension)   |
+| Cache              | In-memory TTL; cache key includes key values (purchase invalidates) |
+
+```typescript
+const status = await checkExtensionLicense("plugin", "pagespeed");
+if (!status.active && !status.hasLicense) {
+  // block premium path
+}
+```
+
+---
+
+## Gated extensions (inventory)
+
+| Extension            | Type   | Gate location                                         | What is blocked without license                           |
+| :------------------- | :----- | :---------------------------------------------------- | :-------------------------------------------------------- |
+| **PageSpeed**        | plugin | `src/plugins/pagespeed/index.server.ts`               | Bulk, scheduled, historical analytics (single-page free)  |
+| **WebMCP**           | plugin | `src/plugins/webmcp/index.ts`                         | All gateway operations (403)                              |
+| **Stripe**           | plugin | `src/plugins/stripe/index.ts`                         | Premium field payloads stripped                           |
+| **Unified Data Hub** | plugin | `src/plugins/unified-data-hub/index.server.ts`        | Federation / connector premium paths (`LICENSE_REQUIRED`) |
+| **Editable Website** | plugin | `src/plugins/editable-website/license-gate.server.ts` | Premium visual editing features                           |
+| **SEO widget**       | widget | `src/widgets/custom/seo/index.ts`                     | Premium SEO analysis                                      |
+| **Smart Importer**   | plugin | `src/plugins/smart-importer/ai-co-pilot.ts`           | AI co-pilot when `hasLicense` false                       |
+| **Remote Video**     | widget | `src/widgets/custom/remote-video/`                    | Premium remote sources (if gated)                         |
+
+> When adding a marketplace extension, **register it in this table** and call `checkExtensionLicense` on every mutating / premium route.
+
+---
+
+## Defense layers
+
+1. **License manager** — verifies key with marketplace; trial / registration fallbacks.
+2. **Plugin/server hooks** — `beforeSave`, route handlers, GraphQL resolvers throw 403 or strip fields.
+3. **UI gates** — marketplace admin + extension settings hide premium CTAs without entitlement.
+
+---
+
+## Testing
+
+| Check                         | Command / approach                                           |
+| :---------------------------- | :----------------------------------------------------------- |
+| Unit: fail-closed without key | Mock marketplace throw + empty LICENSE_KEY → `active: false` |
+| Unit: fail-open with key      | Mock throw + LICENSE_KEY set → `active: true`                |
+| Integration                   | Enable plugin without key → premium API returns 403          |
+
+Manual: `bun run test:unit -- tests/unit` (search `license-manager` if suite exists).
+
+---
+
+## Related docs
+
+- [Marketplace architecture](../architecture/marketplace.mdx)
+- [Secrets inventory](./secrets-inventory.mdx)
+- [Security index](./index.mdx)

@@ -17,19 +17,20 @@
  */
 
 import { expect, test } from "@playwright/test";
-import { ensureAuthenticated } from "../../helpers/test-auth";
+import { resetAndSeedDatabase } from "../../helpers/api";
 import {
   addInputField,
+  openCollectionEntries,
   openNewCollectionEditor,
   saveCollectionSchema,
   uniqueCollectionFixture,
 } from "../../helpers/collection-builder-flow";
 
-test.describe.configure({ timeout: 120_000 });
+test.describe.configure({ mode: "serial", timeout: 120_000 });
 
 test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
   test.beforeEach(async ({ page }) => {
-    await ensureAuthenticated(page);
+    await resetAndSeedDatabase(page);
   });
 
   /**
@@ -70,15 +71,20 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await addInputField(page, { label: "Title", fieldName: "title" });
     await saveCollectionSchema(page);
 
-    const collectionSlug = fixture.slug;
-    await page.goto(`/en/collection/${collectionSlug}`, { waitUntil: "domcontentloaded" });
+    // openCollectionEntries now polls the API until the collection is registered
+    // (replaces brittle waitForTimeout for async compilation + route registration)
+    await openCollectionEntries(page, fixture.slug);
 
-    const createByTestId = page.getByTestId("entry-list-action-create");
+    // EntryListMultiButton renders data-testid="entry-list-action-create" for empty collections
+    const createBtn = page
+      .getByTestId("entry-list-action-create")
+      .or(page.getByRole("button", { name: /create new entry|create/i }))
+      .first();
     await expect(
-      createByTestId,
-      `Expected entry list for collection "${collectionSlug}" after schema save`,
+      createBtn,
+      `Expected entry list or create control for collection "${fixture.slug}" after schema save`,
     ).toBeVisible({ timeout: 20_000 });
-    await createByTestId.click();
+    await createBtn.click({ timeout: 10_000 });
 
     await page.getByRole("textbox", { name: "Title" }).fill("Golden Entry");
     await page.getByRole("button", { name: /save/i }).first().click();
@@ -94,7 +100,7 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     // API is source of truth for field value + default status (not UI publish toggle)
     await expect(async () => {
       const apiRes = await page.request.get(
-        `/api/collections/${collectionSlug}?publicationFilter=all&bypassCache=true`,
+        `/api/collections/${fixture.slug}?publicationFilter=all&bypassCache=true`,
       );
       expect(apiRes.ok()).toBeTruthy();
       const body = await apiRes.json();

@@ -26,7 +26,7 @@ describe("website-tokens-api", () => {
       status: 200,
       json: async () => ({ success: true, data: [] }),
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     stubDocumentCookie(() => "csrf_token=token-csrf");
   });
 

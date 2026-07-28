@@ -24,7 +24,7 @@ describe("workflows-api mutations attach CSRF", () => {
       status: 200,
       json: async () => ({ success: true, data: { _id: "wf1", states: [], transitions: [] } }),
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as any;
     stubDocumentCookie(() => "csrf_token=wf-csrf");
   });
 
@@ -53,6 +53,7 @@ describe("workflows-api mutations attach CSRF", () => {
   it("saveWorkflowDefinition posts with CSRF", async () => {
     await saveWorkflowDefinition({
       collectionId: "posts",
+      name: "Test Workflow",
       states: [],
       transitions: [],
     } as any);

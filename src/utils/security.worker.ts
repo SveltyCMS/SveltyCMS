@@ -21,7 +21,7 @@ type WorkerMessage = {
   action: "hash" | "verify";
   password?: string;
   hash?: string;
-  config?: argon2.Options & { type?: number };
+  config?: Record<string, unknown> & { type?: number };
 };
 
 parentPort.on("message", async (msg: WorkerMessage) => {
@@ -35,11 +35,11 @@ parentPort.on("message", async (msg: WorkerMessage) => {
         // 🚀 Hardening: Enforce minimum work factor constraints
         const safeConfig = {
           ...msg.config,
-          memoryCost: Math.max(msg.config.memoryCost || 0, 65536), // Min 64MB
-          timeCost: Math.max(msg.config.timeCost || 0, 3), // Min 3 iterations
+          memoryCost: Math.max((msg.config as any).memoryCost || 0, 65536), // Min 64MB
+          timeCost: Math.max((msg.config as any).timeCost || 0, 3), // Min 3 iterations
         };
 
-        const result = await argon2.hash(msg.password, safeConfig);
+        const result = await argon2.hash(msg.password, safeConfig as any);
         parentPort!.postMessage({ id: msg.id, result });
         break;
       }

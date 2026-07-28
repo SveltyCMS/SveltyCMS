@@ -93,7 +93,7 @@ export const ALL_DATABASES: DatabaseConfig[] = [
   ...createDbVariants({
     type: "sqlite",
     port: 4173,
-    host: "config/database",
+    host: "config/test-database",
     user: "",
     password: "",
   }),

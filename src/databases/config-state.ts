@@ -10,7 +10,9 @@ import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isIsolatedTestDbName } from "@utils/test-db-safety";
+import { isCiRunner } from "@utils/private-config-policy";
 import { safeParse, type InferOutput } from "valibot";
+import path from "node:path";
 
 /** Read env at runtime — production builds inline bare `process.env.*` to `{}`. */
 function runtimeEnv(): NodeJS.ProcessEnv {
@@ -144,7 +146,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
   return loadPromise;
 }
 
-/** Helper: Load from config/private.ts or private.test.ts only when necessary */
+/** Helper: Load from private.test.ts (automated) or private.ts (live app only). */
 async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
   const isTest = env("TEST_MODE") === "true" || env("NODE_ENV") === "test";
   const isBenchmark = env("SVELTY_BENCHMARK_SUITE") === "true" || env("BENCHMARK") === "true";
@@ -156,8 +158,23 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     return null; // Prefer pure env in normal/prod runs
   }
 
-  const filename = isTest ? "private.test.ts" : "private.ts";
-  const configPath = `${process.cwd()}/config/${filename}`;
+  // Automated harnesses must NEVER load config/private.ts (live data risk).
+  // See src/utils/private-config-policy.ts
+  const { resolvePrivateConfigFileName, assertAutomatedMustNotUseLivePrivateTs } =
+    await import("@utils/private-config-policy");
+  const filename = resolvePrivateConfigFileName();
+  if (filename === "private.ts") {
+    // Live app path only — double-check harness flags did not slip through
+    assertAutomatedMustNotUseLivePrivateTs("load");
+  }
+  const configPath = path.resolve(process.cwd(), "config", filename);
+
+  // Defense-in-depth: ensure resolved path stays within config/ directory
+  const allowedBase = path.resolve(process.cwd(), "config");
+  if (!configPath.startsWith(allowedBase + path.sep)) {
+    logger.error(`[Config] Path traversal blocked: ${filename}`);
+    return null;
+  }
 
   try {
     const fs = await import("node:fs");
@@ -245,10 +262,34 @@ function getEnvOverrides() {
 /** Test isolation enforcement — uses the shared classifier for consistency. */
 async function enforceTestSafety(config: any) {
   if ((env("TEST_MODE") === "true" || env("NODE_ENV") === "test") && config?.DB_NAME) {
-    if (!isIsolatedTestDbName(String(config.DB_NAME))) {
-      const msg = `SAFETY VIOLATION: Test mode DB_NAME '${config.DB_NAME}' does not indicate a test database.`;
+    const dbName = String(config.DB_NAME);
+    if (!isIsolatedTestDbName(dbName)) {
+      const msg = `SAFETY VIOLATION: Test mode DB_NAME '${dbName}' does not indicate a test database.`;
       logger.error(msg);
       throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+    }
+    // CI runners create an ephemeral config/private.ts as a mirror of
+    // config/private.test.ts. The live-vs-test comparison below is meant
+    // to protect local developer machines, where private.ts may point at
+    // a real deployment. In CI, private.ts IS the test config — skip.
+    if (!isCiRunner(process.env)) {
+      // Never connect to the same DB as live config/private.ts (user data)
+      try {
+        const fs = await import("node:fs");
+        const livePath = `${process.cwd()}/config/private.ts`;
+        if (fs.existsSync(livePath)) {
+          const live = fs.readFileSync(livePath, "utf8");
+          const liveDb = live.match(/DB_NAME\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
+          if (liveDb && liveDb === dbName) {
+            const msg = `SAFETY VIOLATION: Test mode DB_NAME '${dbName}' matches live config/private.ts. Refusing to use user database for tests.`;
+            logger.error(msg);
+            throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+          }
+        }
+      } catch (err) {
+        if (err instanceof AppError) throw err;
+        /* ignore read errors */
+      }
     }
   }
 }
@@ -449,6 +490,29 @@ export function getDatabaseConnectionString(): string {
  */
 export function resolveSqlitePath(host: string | undefined, name: string): string {
   const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
+
+  // Test mode: use config/test-database/ to avoid clobbering dev DB
+  // Only activate if the directory exists to avoid breaking CI which creates
+  // config/database/ but not config/test-database/
+  const isTest =
+    typeof process !== "undefined" &&
+    (process.env?.TEST_MODE === "true" ||
+      process.env?.VITE_TEST_MODE === "true" ||
+      process.env?.VITEST === "true" ||
+      process.env?.BUN_TEST === "true" ||
+      name.includes("test") ||
+      name.includes("benchmark"));
+  if (isTest) {
+    try {
+      const { mkdirSync } = require("node:fs");
+      const { join } = require("node:path");
+      const testDir = join(process.cwd(), "config", "test-database");
+      mkdirSync(testDir, { recursive: true });
+      return `config/test-database/${finalName}`;
+    } catch {
+      // FS check not available (edge runtime) — fall through
+    }
+  }
 
   // If host is an IP or localhost, it's NOT a directory for SQLite
   const isNetworkAddr =

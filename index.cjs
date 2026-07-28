@@ -26,7 +26,19 @@ async function loadApp() {
       ? `http://${host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host}:${port}`
       : "https://demo.sveltycms.com";
   }
-  process.env.NODE_ENV = "production";
+  // Preserve harness NODE_ENV so /api/testing + test bypass stay open.
+  // Forcing production here was blocking BENCHMARK/TEST_MODE matrix seeding.
+  const isHarness =
+    process.env.TEST_MODE === "true" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.SVELTY_BENCHMARK_SUITE === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true" ||
+    process.env.PLAYWRIGHT_TEST === "1";
+  if (!isHarness) {
+    process.env.NODE_ENV = "production";
+  } else if (!process.env.NODE_ENV || process.env.NODE_ENV === "production") {
+    process.env.NODE_ENV = "test";
+  }
 
   // PROXY HEADERS: Fix for "Too Many Requests" issue & Header mismatches
   process.env.ADDRESS_HEADER = "x-forwarded-for";

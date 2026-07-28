@@ -1,6 +1,6 @@
 /**
- * @file src/databases/mongodb/modules/media-module.ts
- * @description Media management module for MongoDB.
+ * @file src/databases/mongodb/media-module.ts
+ * @description Media management module for MongoDB — options-last API (BaseQueryOptions).
  */
 
 import { DatabaseModule } from "../core/base-adapter";
@@ -11,7 +11,8 @@ import type {
   MediaItem,
   CmsMediaMetadata,
   PaginatedResult,
-  PaginationOptions,
+  BaseQueryOptions,
+  MediaQueryOptions,
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { MongoMediaMethods } from "./media-methods";
@@ -30,117 +31,109 @@ export class MongoMediaModule extends DatabaseModule<MongoAdapterCore> implement
 
   async uploadMany(
     files: Omit<MediaItem, "_id">[],
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<MediaItem[]>> {
-    const res = await (await this._getMedia()).uploadMany(files, tenantId);
-    if (res.success) await this.adapter.invalidateQueryCache("media", tenantId);
+    const res = await (await this._getMedia()).uploadMany(files, options);
+    if (res.success) await this.adapter.invalidateQueryCache("media", options?.tenantId);
     return res;
   }
 
   async deleteMany(
     fileIds: DatabaseId[],
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
-    const res = await (await this._getMedia()).deleteMany(fileIds, tenantId);
-    if (res.success) await this.adapter.invalidateQueryCache("media", tenantId);
+    const res = await (await this._getMedia()).deleteMany(fileIds, options);
+    if (res.success) await this.adapter.invalidateQueryCache("media", options?.tenantId);
     return res;
   }
 
   async updateMetadata(
     fileId: DatabaseId,
     metadata: Partial<CmsMediaMetadata>,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<MediaItem | null>> {
-    const res = await (await this._getMedia()).updateMetadata(fileId, metadata, tenantId);
-    if (res.success) await this.adapter.invalidateQueryCache("media", tenantId);
+    const res = await (await this._getMedia()).updateMetadata(fileId, metadata, options);
+    if (res.success) await this.adapter.invalidateQueryCache("media", options?.tenantId);
     return res;
   }
 
   async move(
     fileIds: DatabaseId[],
-    targetFolderId?: DatabaseId,
-    tenantId?: string | null,
+    targetFolderId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ movedCount: number }>> {
-    const res = await (await this._getMedia()).move(fileIds, targetFolderId, tenantId);
-    if (res.success) await this.adapter.invalidateQueryCache("media", tenantId);
+    const res = await (await this._getMedia()).move(fileIds, targetFolderId, options);
+    if (res.success) await this.adapter.invalidateQueryCache("media", options?.tenantId);
     return res;
   }
 
   async getMetadata(
     fileIds: DatabaseId[],
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>> {
-    return (await this._getMedia()).getMetadata(fileIds, tenantId);
+    return (await this._getMedia()).getMetadata(fileIds, options);
   }
 
   async duplicate(
     fileId: DatabaseId,
     newName?: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<MediaItem>> {
-    const res = await (await this._getMedia()).duplicate(fileId, newName, tenantId);
-    if (res.success) await this.adapter.invalidateQueryCache("media", tenantId);
+    const res = await (await this._getMedia()).duplicate(fileId, newName, options);
+    if (res.success) await this.adapter.invalidateQueryCache("media", options?.tenantId);
     return res;
   }
 
   async getFolders(
     parentId?: DatabaseId,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<any[]>> {
-    return (await this._getMedia()).getFolders(parentId, tenantId);
+    return (await this._getMedia()).getFolders(parentId, options);
   }
 
   async getFiles(
     folderId?: DatabaseId,
-    options?: PaginationOptions,
-    recursive?: boolean,
-    tenantId?: string | null,
+    options?: MediaQueryOptions,
   ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
-    return (await this._getMedia()).getFiles(folderId, options, recursive, tenantId);
+    return (await this._getMedia()).getFiles(folderId, options);
   }
 
   files = {
-    upload: async (file: any, tenantId?: DatabaseId | null) =>
-      this.uploadMany([file], tenantId).then((res) => ({
+    upload: async (file: any, options?: BaseQueryOptions) =>
+      this.uploadMany([file], options).then((res) => ({
         ...res,
         data: res.success ? res.data[0] : (undefined as any),
       })),
-    uploadMany: (files: any[], tenantId?: DatabaseId | null) => this.uploadMany(files, tenantId),
-    delete: (id: DatabaseId, tenantId?: DatabaseId | null) =>
-      this.deleteMany([id], tenantId).then((res) => ({
+    uploadMany: (files: any[], options?: BaseQueryOptions) => this.uploadMany(files, options),
+    delete: (id: DatabaseId, options?: BaseQueryOptions) =>
+      this.deleteMany([id], options).then((res) => ({
         ...res,
         data: undefined,
       })),
-    deleteMany: (ids: DatabaseId[], tenantId?: DatabaseId | null) => this.deleteMany(ids, tenantId),
-    getMetadata: (ids: DatabaseId[], tenantId?: DatabaseId | null) =>
-      this.getMetadata(ids, tenantId),
-    updateMetadata: (id: DatabaseId, meta: any, tenantId?: DatabaseId | null) =>
-      this.updateMetadata(id, meta, tenantId) as any,
-    move: (ids: DatabaseId[], target: DatabaseId, tenantId?: DatabaseId | null) =>
-      this.move(ids, target, tenantId),
-    duplicate: (id: DatabaseId, name?: string, tenantId?: DatabaseId | null) =>
-      this.duplicate(id, name, tenantId),
-    getByFolder: (folder?: DatabaseId, opt?: any, rec?: boolean, tenantId?: DatabaseId | null) =>
-      this.getFiles(folder, opt, rec, tenantId),
-    restore: (id: DatabaseId, tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.restore("media", id, { tenantId }),
-    search: (q: string, opt?: any, tenantId?: DatabaseId | null) =>
-      this.getFiles(undefined, { ...opt, search: q }, false, tenantId),
-    getByHash: (hash: string, tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.findOne("media", { hash }, { tenantId }),
+    deleteMany: (ids: DatabaseId[], options?: BaseQueryOptions) => this.deleteMany(ids, options),
+    getMetadata: (ids: DatabaseId[], options?: BaseQueryOptions) => this.getMetadata(ids, options),
+    updateMetadata: (id: DatabaseId, meta: any, options?: BaseQueryOptions) =>
+      this.updateMetadata(id, meta, options) as any,
+    move: (ids: DatabaseId[], target?: DatabaseId | null, options?: BaseQueryOptions) =>
+      this.move(ids, target, options),
+    duplicate: (id: DatabaseId, name?: string, options?: BaseQueryOptions) =>
+      this.duplicate(id, name, options),
+    getByFolder: (folder?: DatabaseId, opt?: MediaQueryOptions) => this.getFiles(folder, opt),
+    restore: (id: DatabaseId, options?: BaseQueryOptions) =>
+      (this.adapter as any).crud.restore("media", id, options),
+    search: (q: string, opt?: MediaQueryOptions) =>
+      this.getFiles(undefined, { ...opt, search: q, recursive: false }),
+    getByHash: (hash: string, options?: BaseQueryOptions) =>
+      (this.adapter as any).crud.findOne("media", { hash }, options),
   };
 
   folders = {
-    getTree: (_maxDepth?: number, tenantId?: DatabaseId | null) =>
-      this.getFolders(undefined, tenantId),
-    getFolderContents: async (
-      folderId?: DatabaseId,
-      options?: any,
-      tenantId?: DatabaseId | null,
-    ) => {
+    getTree: (_maxDepth?: number, options?: BaseQueryOptions) =>
+      this.getFolders(undefined, options),
+    getFolderContents: async (folderId?: DatabaseId, options?: MediaQueryOptions) => {
       const [foldersRes, filesRes] = await Promise.all([
-        this.getFolders(folderId, tenantId),
-        this.getFiles(folderId, options, false, tenantId),
+        this.getFolders(folderId, options),
+        this.getFiles(folderId, options),
       ]);
       if (!foldersRes.success) return foldersRes as any;
       if (!filesRes.success) return filesRes as any;
@@ -153,26 +146,29 @@ export class MongoMediaModule extends DatabaseModule<MongoAdapterCore> implement
         },
       };
     },
-    create: (folder: any, tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.insert("media_folders", {
-        ...folder,
-        tenantId,
-      }),
-    createMany: (folders: any[], tenantId?: DatabaseId | null) =>
+    create: (folder: any, options?: BaseQueryOptions) =>
+      (this.adapter as any).crud.insert(
+        "media_folders",
+        { ...folder, tenantId: options?.tenantId ?? folder.tenantId },
+        options,
+      ),
+    createMany: (folders: any[], options?: BaseQueryOptions) =>
       (this.adapter as any).crud.insertMany(
         "media_folders",
-        folders.map((f: any) => ({ ...f, tenantId })),
+        folders.map((f: any) => ({ ...f, tenantId: options?.tenantId ?? f.tenantId })),
+        options,
       ),
-    delete: (id: DatabaseId, tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.delete("media_folders", id, { tenantId }),
-    deleteMany: (ids: DatabaseId[], tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.deleteMany("media_folders", { _id: { $in: ids } } as any, {
-        tenantId,
-      }),
-    move: (id: DatabaseId, target: DatabaseId, tenantId?: DatabaseId | null) =>
-      (this.adapter as any).crud.update("media_folders", id, { parentId: target } as any, {
-        tenantId,
-      }),
+    delete: (id: DatabaseId, options?: BaseQueryOptions) =>
+      (this.adapter as any).crud.delete("media_folders", id, options),
+    deleteMany: (ids: DatabaseId[], options?: BaseQueryOptions) =>
+      (this.adapter as any).crud.deleteMany("media_folders", { _id: { $in: ids } } as any, options),
+    move: (id: DatabaseId, target?: DatabaseId | null, options?: BaseQueryOptions) =>
+      (this.adapter as any).crud.update(
+        "media_folders",
+        id,
+        { parentId: target ?? null } as any,
+        options,
+      ),
   };
 
   setupMediaModels() {

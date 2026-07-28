@@ -12,9 +12,9 @@
  */
 
 import { existsSync } from "node:fs";
-import * as fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { logger } from "@utils/logger";
@@ -122,25 +122,18 @@ function normalizeLoadedSchema(moduleData: unknown, filePath: string): { schema?
   }
 
   if (schema && typeof schema === "object" && Array.isArray(schema.fields)) {
-    if (!schema._id && schema.name) {
-      schema._id = schema.name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+    if (!schema.name) {
+      const fileBase = path.basename(filePath, path.extname(filePath));
+      schema.name = fileBase;
+    }
+    if (!schema._id) {
+      schema._id = schema.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
     }
     return { schema: schema as Schema };
   }
 
   logger.warn(`[Loader] No valid schema in ${path.basename(filePath)}`);
   return null;
-}
-
-async function resolveImportVersion(filePath: string, mtimeMs?: number): Promise<string> {
-  if (contentRuntime.isBenchmark()) return "stable";
-  if (mtimeMs !== undefined) return String(mtimeMs);
-  try {
-    const stats = await fsPromises.stat(filePath);
-    return String(stats.mtimeMs);
-  } catch {
-    return "0";
-  }
 }
 
 /** Production uses worker pool; dev/test/benchmarks use fast native import. */
@@ -164,9 +157,10 @@ export async function loadSchemaNative(
   try {
     (globalThis as any).widgets = await getWidgetsProxy();
 
-    const fileUrl = `file://${fullPath.replace(/\\/g, "/")}`;
-    const version = await resolveImportVersion(fullPath, mtimeMs);
-    const importUrl = `${fileUrl}?v=${version}`;
+    const urlObj = pathToFileURL(fullPath);
+    const version = mtimeMs ?? Date.now();
+    urlObj.search = `?v=${version}`;
+    const importUrl = urlObj.href;
 
     const module = await import(/* @vite-ignore */ importUrl);
     const raw = module.default || module.schema || module;

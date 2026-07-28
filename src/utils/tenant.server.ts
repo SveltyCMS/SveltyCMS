@@ -13,6 +13,7 @@
 
 import path from "node:path";
 import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
+import { sveltyContext } from "./context";
 
 function getConfigRoot(): string {
   return path.join(process.cwd(), "config");
@@ -22,12 +23,20 @@ function getConfigRoot(): string {
  * Resolve collection directory. 🛡️ Hardened: Path normalized to prevent escapes.
  */
 export function getCollectionsPath(tenantId?: string | null): string {
-  const configRoot = getConfigRoot();
-  if (!tenantId) return path.join(configRoot, "collections");
+  const customDir = process.env.COLLECTIONS_DIR;
+  const isTestHarness =
+    process.env.TEST_MODE === "true" ||
+    process.env.VITEST === "true" ||
+    process.env.BUN_TEST === "true" ||
+    process.env.BENCHMARK === "true";
 
-  // 🛡️ Sanitize tenantId before joining to prevent path traversal
-  const sanitizedTenant = path.basename(tenantId);
-  return path.join(configRoot, sanitizedTenant, "collections");
+  const activeTenant = tenantId ?? sveltyContext.getStore()?.tenantId;
+  if (activeTenant) {
+    const sanitizedTenant = path.basename(activeTenant);
+    return path.join(getConfigRoot(), sanitizedTenant, "collections");
+  }
+  if (customDir) return path.resolve(process.cwd(), customDir);
+  return path.join(getConfigRoot(), isTestHarness ? "test-collections" : "collections");
 }
 
 /**

@@ -15,4 +15,17 @@ describe("marketplace local plugin catalog", () => {
     expect(hub?.installable).toBe(false);
     expect(hub?.homepageUrl).toContain("unified-data-hub");
   });
+
+  it("returns all items when no type filter", async () => {
+    const result = await marketplaceService.list({});
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.items.every((i: any) => i.id && i.name)).toBe(true);
+  });
+
+  it("returns installable field as boolean for all items", async () => {
+    const result = await marketplaceService.list({ type: "plugin" });
+    for (const item of result.items) {
+      expect(typeof item.installable).toBe("boolean");
+    }
+  });
 });

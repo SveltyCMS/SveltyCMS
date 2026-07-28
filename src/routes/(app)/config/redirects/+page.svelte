@@ -40,6 +40,10 @@
 	let isModalOpen = $state(false);
 	let formErrors = $state<Record<string, string>>({});
 	let saving = $state(false);
+	// Local primitives for form fields — nested bind:value on $state objects
+	// does not always receive Playwright fill() input events.
+	let formFrom = $state('');
+	let formTo = $state('');
 
 	const redirectTypeOptions = [
 		{ value: '301', label: '301 Permanent' },
@@ -65,6 +69,8 @@
 					isRegex: Boolean(redirect.isRegex),
 				}
 			: { from: '', to: '', type: 301, active: true, isRegex: false };
+		formFrom = selectedRedirect?.from || '';
+		formTo = selectedRedirect?.to || '';
 		formErrors = {};
 		isModalOpen = true;
 	}
@@ -72,6 +78,8 @@
 	function closeModal() {
 		isModalOpen = false;
 		selectedRedirect = null;
+		formFrom = '';
+		formTo = '';
 		formErrors = {};
 		saving = false;
 	}
@@ -80,10 +88,13 @@
 		e.preventDefault();
 		if (!selectedRedirect) return;
 
+		// Sync local inputs back onto draft before validate/save
+		selectedRedirect = { ...selectedRedirect, from: formFrom, to: formTo };
+
 		const draft: RedirectDraft = {
 			id: selectedRedirect._id || selectedRedirect.id,
-			from: selectedRedirect.from,
-			to: selectedRedirect.to,
+			from: formFrom,
+			to: formTo,
 			type: selectedRedirect.type,
 			active: selectedRedirect.active,
 			isRegex: selectedRedirect.isRegex,
@@ -196,7 +207,7 @@
 							<th class="pb-3 font-semibold">To Path</th>
 							<th class="pb-3 font-semibold">Type</th>
 							<th class="pb-3 font-semibold">Status</th>
-							<th class="pb-3 font-semibold">Actions</th>
+							<th class="pb-3 pe-2 font-semibold">Actions</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
@@ -220,25 +231,27 @@
 										<Badge variant="surface">Inactive</Badge>
 									{/if}
 								</td>
-								<td class="py-3">
-									<div class="flex gap-2">
+								<td class="py-3 pe-2">
+									<div class="flex min-w-20 items-center justify-end gap-2">
 										<Button
 											variant="outline"
+											size="sm"
 											onclick={() => openModal(redirect)}
 											aria-label="Edit redirect {redirect.from}"
 											data-testid="redirect-edit"
-											class="p-0! min-w-0"
 										>
-											<iconify-icon icon="mdi:pencil"></iconify-icon>
+											<iconify-icon icon="mdi:pencil" width="18" height="18"></iconify-icon>
+											<span class="sr-only">Edit</span>
 										</Button>
 										<Button
 											variant="error"
+											size="sm"
 											aria-label="Delete redirect {redirect.from}"
 											data-testid="redirect-delete"
 											onclick={() => confirmDelete(redirect)}
-											class="p-0! min-w-0"
 										>
-											<iconify-icon icon="mdi:trash-can"></iconify-icon>
+											<iconify-icon icon="mdi:trash-can" width="18" height="18"></iconify-icon>
+											<span class="sr-only">Delete</span>
 										</Button>
 									</div>
 								</td>
@@ -281,7 +294,7 @@
 			<form onsubmit={handleSave} class="space-y-4" data-testid="redirects-form">
 				<Input
 					label="From Path (e.g. /old-blog)"
-					bind:value={selectedRedirect.from}
+					bind:value={formFrom}
 					required
 					error={formErrors.from}
 					data-testid="redirect-from"
@@ -289,7 +302,7 @@
 				/>
 				<Input
 					label="To Path (e.g. /new-blog or https://example.com/new)"
-					bind:value={selectedRedirect.to}
+					bind:value={formTo}
 					required
 					error={formErrors.to}
 					data-testid="redirect-to"

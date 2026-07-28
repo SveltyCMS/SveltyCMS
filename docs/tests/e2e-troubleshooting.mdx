@@ -6,12 +6,13 @@ order: 5
 icon: "mdi:bug-play"
 author: "SveltyCMS Team"
 created: "2026-03-28"
-updated: "2026-04-09"
+updated: "2026-07-26"
 tags:
   - "testing"
   - "e2e"
   - "playwright"
   - "troubleshooting"
+  - "locators"
 ---
 
 # E2E Troubleshooting Guide
@@ -68,10 +69,152 @@ You can verify the current system state via the logs:
 - `[setupCheck] private.test.ts FOUND` -> System is initialized.
 - `SQLite adapter error [GET_ACTIVE_THEME_FAILED]` -> (Legacy) System is cold-starting. _Fixed in v0.0.7 to return null gracefully._
 
+## 6. Custom Svelte Components & Locator Pitfalls
+
+SveltyCMS uses custom component wrappers (`<Checkbox>`, `<Button>`, `<Input>`, `<DialogManager>`) that render native HTML elements but alter their positioning, visibility, and event handling. Tests that target the raw DOM nodes can fail in subtle ways.
+
+### 6a. `check({ force: true })` on sr-only Checkbox Inputs
+
+> [!WARNING]
+> **The Problem**: The `<Checkbox>` component renders a hidden native `<input type="checkbox" class="sr-only">` (1×1px, `position: absolute`, `clip: rect(0,0,0,0)`). `checkbox.check()` calls `scrollIntoViewIfNeeded()`, which fails because the element cannot be scrolled into the viewport — it's visually clipped to nothing.
+
+**Symptoms**: `locator.check: Element is outside of the viewport` even with `{ force: true }`.
+
+**The Solution** — three options, in order of preference:
+
+1. **Click the visible `<label>` instead.** The Checkbox component renders a `<label for={id}>` that is a 24×24px clickable target. Clicking it toggles the native checkbox via native HTML behavior:
+
+   ```typescript
+   // Instead of:
+   await checkbox.check({ force: true });
+   // Use:
+   await section.locator("label").first().click();
+   ```
+
+2. **Use `click({ force: true })` instead of `check()`.** The `force` option on `click()` bypasses the viewport scroll-in that `check()` requires:
+
+   ```typescript
+   await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
+   ```
+
+3. **Toggle explicitly** when you need to change state regardless of current value:
+   ```typescript
+   if (await checkbox.isChecked()) {
+     await checkbox.uncheck({ force: true });
+   } else {
+     await checkbox.check({ force: true });
+   }
+   ```
+
+### 6b. `.locator()` Chaining Creates Descendant Queries
+
+> [!WARNING]
+> **The Problem**: In Playwright, `cellCheckboxes.locator(":not([disabled])")` creates a **descendant** query — it searches for elements matching `:not([disabled])` that are _children_ of each checkbox. Since `<input>` is a void element with no children, this always returns 0.
+
+**Symptoms**: `expect(count).toBeGreaterThan(0)` fails when checkboxes clearly exist in the DOM.
+
+**The Solution**: Combine CSS pseudo-classes into a single locator string:
+
+```typescript
+// ❌ Descendant query — always 0
+const toggleable = cellCheckboxes.locator(":not([disabled])");
+
+// ✅ Combined CSS selector
+const toggleable = page.locator('input[type="checkbox"]:not([disabled])');
+```
+
+### 6c. Portal-Rendered Dialogs Have a Content Render Gap
+
+> [!WARNING]
+> **The Problem**: `DialogManager` uses a `<Portal>` component that moves the `<dialog>` element to `document.body` on mount. The dialog shell is visible immediately, but the dialog _content_ (e.g., `<ConfirmDialog>` with its buttons) renders in a subsequent Svelte microtask. Chaining locators from the dialog element hits a race where the shell exists but content hasn't arrived.
+
+**Symptoms**: `getByRole('dialog').first().getByRole('button', { name: /confirm/i })` — the dialog IS found and visible, but no button exists inside it. Timeout exhausted even at 15s.
+
+**The Solution**: Search at page-level instead of chaining from the dialog:
+
+```typescript
+// ❌ Chained — races with Portal async render
+const confirmBtn = dialog.getByRole("button", { name: /confirm/i });
+
+// ✅ Page-level — waits for any button on the page matching the name
+const confirmBtn = page.getByRole("button", { name: /confirm/i }).first();
+await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+```
+
+### 6d. `check()` Is a No-Op When Already Checked
+
+> [!WARNING]
+> **The Problem**: Playwright's `locator.check()` only dispatches events if the checkbox is unchecked. If the default state is `checked: true`, `check()` returns immediately without firing any `change` event. Svelte's `onchange` handler never runs, and any `waitForResponse` on the expected API call times out.
+
+**Symptoms**: `page.waitForResponse` times out — the API call was never made. The checkbox visually toggles fine when clicked manually.
+
+**The Solution**: Always toggle explicitly when you need the `change` event to fire:
+
+```typescript
+const isChecked = await checkbox.isChecked();
+const apiCall = page.waitForResponse(/* ... */);
+if (isChecked) {
+  await checkbox.uncheck({ force: true });
+} else {
+  await checkbox.check({ force: true });
+}
+const res = await apiCall;
+```
+
+## 7. API Response Wrapping & Integration Tests
+
+> [!WARNING]
+> **The Problem**: SveltyCMS API handlers use `successResponse(event, data)` which wraps every response as `{ success: true, data: <your-data> }`. Integration tests that call endpoints directly via `fetch()` receive this wrapped shape, but often access the payload as if it were unwrapped.
+
+**Symptoms**: `expect(result.valid).toBe(true)` fails — `result.valid` is `undefined` because the actual path is `result.data.valid`.
+
+**The Solution**: Always unwrap the `data` envelope in integration tests:
+
+```typescript
+const response = await safeFetch(`${API_BASE_URL}/api/user/verify-password`, {/* ... */});
+expect(response.status).toBe(200);
+const result = await response.json();
+// ✅ Unwrap the successResponse envelope
+expect(result.data.valid).toBe(true);
+// ❌ Don't access payload at root level
+// expect(result.valid).toBe(true);
+```
+
+The same applies to collection endpoints — `GET /api/collections/{slug}` returns:
+
+```json
+{ "success": true, "data": [/* entries */], "meta": {} }
+```
+
+Assertions should check `body.data` (the array), not `body._id` (doesn't exist).
+
+## 8. Private Config Fields & Persistence Tests
+
+> [!WARNING]
+> **The Problem**: Settings fields with `category: "private"` (e.g., `CACHE_TTL_SCHEMA`, `DB_PORT`, `JWT_SECRET_KEY`) are sourced from `config/private.ts` on fresh page loads. Saving them through the System Settings UI updates the database, but a page reload reads the config file value, overwriting the DB change.
+
+**Symptoms**: After a successful settings save (API returns 200, "Saved" toast visible, save button disabled), a page reload shows the input with the original config-file value (or empty). The DB save worked, but the UI never reflects it because the config file takes precedence on load.
+
+**The Solution**: For persistence tests on `category: "private"` fields, verify via **direct API call** instead of UI input value after reload:
+
+```typescript
+// ❌ Reload + check input — config file overrides DB
+await goSettings(page, "cache");
+await expect(input).toHaveValue(target); // shows config-file value, not saved value
+
+// ✅ Verify persistence via API
+const verify = await page.request.get(`/api/settings/cache?bypassCache=true`);
+const body = await verify.json();
+expect(body.values?.CACHE_TTL_SCHEMA).toBe(Number(target));
+```
+
+For field-level edit/save/discard tests (without reload), private fields work fine because the in-memory state holds the DB value until a full page load resets it.
+
 ---
 
 ## Related
 
 - [Test Documentation](./index.mdx)
 - [Security Testing](./security-testing.mdx)
+- [E2E Testing Guide](./e2e-testing-guide.mdx)
 - [Architecture Overview](../reference/architecture/index.mdx)

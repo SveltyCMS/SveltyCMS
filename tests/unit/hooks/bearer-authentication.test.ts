@@ -115,7 +115,7 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
 
     expect(dbAdapter.system.websiteTokens.getByTokenHash).toHaveBeenCalledWith(
       hashCredentialSha256HexSync("valid-token"),
-      "t1",
+      { tenantId: "t1" },
     );
     const user = event.locals.user as any;
     expect(user).toBeDefined();
@@ -165,7 +165,7 @@ describe("handleAuthentication Middleware - Bearer Token", () => {
 
     expect(dbAdapter.system.websiteTokens.getByTokenHash).toHaveBeenCalledWith(
       hashCredentialSha256HexSync("valid-token"),
-      "correct-tenant",
+      { tenantId: "correct-tenant" },
     );
     // Middleware should clear user on tenant mismatch
     expect(event.locals.user).toBeNull();

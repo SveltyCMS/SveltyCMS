@@ -39,12 +39,19 @@ interface Props {
 // Destructure the new positioning props
 let { toast: t, index, count, onClose, onPause, onResume }: Props = $props();
 
+// Restricted DOMPurify config for toast messages — inline formatting only.
+// Using explicit ALLOWED_TAGS/ALLOWED_ATTR avoids CVE-2026-65902 (hook mutation
+// on defaults) and reduces attack surface vs. DOMPurify's default allowlist.
+const TOAST_SANITIZE_CONFIG = {
+    ALLOWED_TAGS: ["b", "strong", "i", "em", "u", "br", "code", "a"],
+    ALLOWED_ATTR: ["href", "title", "rel", "target"],
+};
+
 let sanitize = $state<(str: string) => string>((str) => str);
 
 onMount(async () => {
     const { default: DOMPurify } = await import('dompurify');
-    const domSanitize = DOMPurify.sanitize;
-    sanitize = domSanitize;
+    sanitize = (str: string) => DOMPurify.sanitize(str, TOAST_SANITIZE_CONFIG);
 });
 
 // Calculate the item's distance from the top foreground item
@@ -74,7 +81,7 @@ const icons = {
     in:fly={{ y: 20, duration: 400 }}
     out:fade={{ duration: 200 }}
     class={cn(
-        'absolute end-0 bottom-0 pointer-events-auto w-full sm:w-80 shadow-2xl rounded overflow-hidden transition-all duration-300 ease-out',
+        'absolute inset-e-0 bottom-0 pointer-events-auto w-full sm:w-80 shadow-2xl rounded overflow-hidden transition-all duration-300 ease-out',
         'border border-white/10 backdrop-blur-md',
         styles[t.type]
     )}

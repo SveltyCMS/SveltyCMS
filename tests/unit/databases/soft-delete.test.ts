@@ -2,14 +2,39 @@
  * @file tests/unit/databases/soft-delete.test.ts
  * @description Unit tests for the Native Soft Delete engine and Mangle-on-Delete logic.
  *
- * SKIPPED under Bun: mongoose transitively requires bson → node:v8
- * isBuildingSnapshot, which is not yet implemented. Runs under Vitest/Node.
+ * Mongoose is fully mocked so this suite runs under Bun (real mongoose → bson →
+ * node:v8 isBuildingSnapshot is not implemented in Bun).
  */
 
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 
-const isBun = typeof Bun !== "undefined";
-const describeOrSkip = isBun ? describe.skip : describe;
+// ─── Mongoose stub (must be registered before any mongodb/* import) ─────────
+vi.mock("mongoose", () => {
+  class MongoServerError extends Error {
+    code?: number;
+    constructor(message?: string, code?: number) {
+      super(message);
+      this.name = "MongoServerError";
+      this.code = code;
+    }
+  }
+
+  const mongooseStub = {
+    mongo: { MongoServerError },
+    Types: { ObjectId: class ObjectId {} },
+    Schema: class Schema {},
+    model: vi.fn(),
+    connection: {},
+  };
+
+  return {
+    default: mongooseStub,
+    ...mongooseStub,
+    Model: class Model {},
+    Schema: mongooseStub.Schema,
+    Types: mongooseStub.Types,
+  };
+});
 
 // Mock safe-query
 vi.mock("@src/utils/security/safe-query", () => ({
@@ -22,7 +47,7 @@ vi.mock("@src/utils/security/safe-query", () => ({
   }),
 }));
 
-// Mock mongodb-utils
+// Mock mongodb-utils (relative import from crud-methods)
 vi.mock("@src/databases/mongodb/mongodb-utils", () => ({
   createDatabaseError: vi.fn((error, code, message) => ({
     code,
@@ -34,13 +59,25 @@ vi.mock("@src/databases/mongodb/mongodb-utils", () => ({
   processDates: vi.fn((doc) => doc),
 }));
 
-describeOrSkip("Soft Delete Engine", () => {
+// Relative path used by crud-methods itself (Bun mock.module matches specifier)
+vi.mock("./mongodb-utils", () => ({
+  createDatabaseError: vi.fn((error, code, message) => ({
+    code,
+    message,
+    details: error instanceof Error ? error.message : String(error),
+    originalCode: (error as any)?.code,
+  })),
+  generateId: vi.fn(() => "new-id"),
+  processDates: vi.fn((doc) => doc),
+}));
+
+describe("Soft Delete Engine", () => {
   let MongoCrudMethods: any;
   let mockModel: any;
   let crud: any;
 
   beforeAll(async () => {
-    // Dynamic import avoids Bun's static resolution of mongoose → bson → node:v8
+    // Dynamic import after mongoose mock is registered
     const mod = await import("@src/databases/mongodb/crud-methods");
     MongoCrudMethods = mod.MongoCrudMethods;
   });

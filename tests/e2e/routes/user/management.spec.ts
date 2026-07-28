@@ -8,7 +8,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/seed";
+import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/api";
 
 const DEVELOPER_EMAIL = TEST_USERS.developer.email;
 const ACTION_TIMEOUT = 15_000;
@@ -107,7 +107,7 @@ async function selectDeveloperRow(page: Page, options?: DeveloperRowOptions) {
   await checkbox.scrollIntoViewIfNeeded();
   const checked = await checkbox.getAttribute("aria-checked");
   if (checked !== "true") {
-    await checkbox.click({ timeout: ACTION_TIMEOUT });
+    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
   }
 }
 
@@ -121,13 +121,19 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
   await rowButton.scrollIntoViewIfNeeded();
   await rowButton.click({ timeout: ACTION_TIMEOUT });
 
-  const dialog = page
-    .getByRole("dialog")
-    .filter({ hasText: /confirm|block|unblock/i })
-    .first();
+  const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await dialog.getByRole("button", { name: /confirm/i }).click({ timeout: ACTION_TIMEOUT });
+  // ConfirmDialog renders <Button> with text "Confirm" — use page-level
+  // locator to avoid Portal async-render races inside the dialog subtree.
+  const confirmBtn = page
+    .getByRole("button", { name: /confirm|yes|ok|block|unblock/i })
+    .or(page.locator("button").filter({ hasText: /confirm/i }))
+    .first();
+  await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await confirmBtn.scrollIntoViewIfNeeded();
+  await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
 
+  // Verify the success toast (batch API is fire-and-forget with CSRF)
   await expect(page.getByText(new RegExp(`User ${action}ed successfully`, "i"))).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
@@ -169,9 +175,15 @@ async function bulkDeleteDeveloper(page: Page) {
     await deleteItem.click({ timeout: ACTION_TIMEOUT });
   }
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog").first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await dialog.getByRole("button", { name: /confirm/i }).click({ timeout: ACTION_TIMEOUT });
+  const confirmBtn = page
+    .getByRole("button", { name: /confirm|yes|ok|delete/i })
+    .or(page.locator("button").filter({ hasText: /confirm/i }))
+    .first();
+  await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await confirmBtn.scrollIntoViewIfNeeded();
+  await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
   await expect(page.getByText(/(?:User|Users)\s+Deleted/i)).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
@@ -248,8 +260,9 @@ test.describe.serial("User Management Flow", () => {
 
     await editDialog.getByRole("button", { name: /^save$/i }).click();
 
-    // Toast may use HTML description; match text content
-    await expect(page.getByText(/User Data Updated/i)).toBeVisible({ timeout: 15_000 });
+    // Toast via role=alert / data-testid — not CSS classes or icon markup
+    const { expectToast } = await import("../../helpers/stable");
+    await expectToast(page, /user data updated|profile changes were saved/i, 15_000);
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {
@@ -261,7 +274,7 @@ test.describe.serial("User Management Flow", () => {
     await openUserAdminArea(page);
 
     // Block/unblock via per-row buttons (stable). Bulk-delete via Multibutton.
-    // (admins cannot be blocked/deleted; developer@example.com is non-admin)
+    // (admins cannot be blocked/deleted; developer@test.com is non-admin)
     await runRowUserAction(page, "block");
     await runRowUserAction(page, "unblock");
     await bulkDeleteDeveloper(page);

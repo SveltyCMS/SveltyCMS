@@ -10,18 +10,19 @@ import {
   isUnderBenchmarkPath,
   prepareBenchmarkCompiledWorkspace,
   USER_COMPILED_DIR,
-  USER_COLLECTIONS_DIR,
 } from "@utils/benchmark-paths";
 
 describe("benchmark-paths", () => {
-  it("resolves workspace under test/ trees", () => {
+  it("resolves workspace under test-collections/ trees", () => {
     const ws = getBenchmarkWorkspace("scan");
-    expect(ws.compiled).toBe(path.join(USER_COMPILED_DIR, "test", "scan"));
-    expect(ws.source).toBe(path.join(USER_COLLECTIONS_DIR, "test", "scan"));
+    expect(ws.compiled).toBe(
+      path.join(process.cwd(), ".compiledCollections", "test-collections", "scan"),
+    );
+    expect(ws.source).toBe(path.join(process.cwd(), "config", "test-collections", "scan"));
   });
 
   it("detects benchmark relative and absolute paths", () => {
-    expect(isBenchmarkRelativePath("test/scan/foo.ts")).toBe(true);
+    expect(isBenchmarkRelativePath("test-collections/scan/foo.ts")).toBe(true);
     expect(isBenchmarkRelativePath("posts.ts")).toBe(false);
     expect(isUnderBenchmarkPath(path.join(BENCHMARK_COMPILED_DIR, "scan", "a.js"))).toBe(true);
     expect(isUnderBenchmarkPath(path.join(USER_COMPILED_DIR, "posts.js"))).toBe(false);

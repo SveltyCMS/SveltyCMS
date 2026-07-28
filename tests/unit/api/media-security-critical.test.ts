@@ -80,4 +80,30 @@ describe("Media Security Critical Unit Tests", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it("rejects unauthenticated media upload access", async () => {
+    const event = createMockRequestEvent({
+      method: "POST",
+      path: "media/upload",
+      user: null,
+      tenantId: "t1",
+      roles: [],
+    });
+
+    const response = await callApiDispatcher("POST", event);
+    expect([401, 403]).toContain(response.status);
+  });
+
+  it("rejects media delete without media:delete permission", async () => {
+    const event = createMockRequestEvent({
+      method: "DELETE",
+      path: "media/m1",
+      user: { _id: "editor-1", role: "editor", isAdmin: false },
+      tenantId: "t1",
+      roles: [{ _id: "editor", name: "Editor", isAdmin: false, permissions: [] }],
+    });
+
+    const response = await callApiDispatcher("DELETE", event);
+    expect([401, 403, 404]).toContain(response.status);
+  });
 });

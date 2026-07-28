@@ -69,16 +69,35 @@ $effect(() => {
 const flipDurationMs = 200;
 
 function handleFieldDrop(state: DragDropState<WidgetListItem>) {
-	const dragged = state.item;
-	if (!dragged || state.targetIndex < 0) return;
+	const dragged = state.draggedItem;
+	if (!dragged) return;
+
 	const fromIndex = items.indexOf(dragged);
-	if (fromIndex === state.targetIndex) return;
+	if (fromIndex < 0) return;
+
+	// Find target item via DOM data attribute
+	const targetEl = state.targetElement?.closest('[data-field-name]') as HTMLElement | null;
+	const targetFieldName = targetEl?.dataset?.fieldName;
+
+	let targetIndex: number;
+	if (targetFieldName) {
+		targetIndex = items.findIndex(i => (i.db_fieldName || '') === targetFieldName);
+		if (state.dropPosition === 'after') targetIndex++;
+	} else {
+		targetIndex = items.length;
+	}
+	targetIndex = Math.max(0, Math.min(targetIndex, items.length));
+
+	if (fromIndex === targetIndex) return;
+
 	items = untrack(() => {
 		const newItems = [...items];
 		newItems.splice(fromIndex, 1);
-		newItems.splice(state.targetIndex, 0, dragged);
+		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		newItems.splice(adjusted, 0, dragged);
 		return newItems;
 	});
+
 	dragIdsByIndex = items.reduce(
 		(acc, it, i) => {
 			acc[i] = it._dragId;
@@ -336,9 +355,8 @@ const marketplaceWidgets = $derived(
 			<div
 				use:droppable={{
 					container: 'widget-fields',
-					onDrop: handleFieldDrop,
+					callbacks: { onDrop: handleFieldDrop },
 					direction: 'vertical',
-					keyboard: true,
 					attributes: { dragOverClass: 'bg-secondary-200' }
 				}}
 				class="space-y-3 min-h-50"
@@ -350,6 +368,7 @@ const marketplaceWidgets = $derived(
 					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<div
 						use:draggable={{ container: 'widget-fields', dragData: item, keyboard: true }}
+						use:droppable={{ container: 'widget-fields', callbacks: { onDrop: handleFieldDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
 						animate:flip={{ duration: flipDurationMs }}
 						class="group relative"
 						data-testid="widget-field-row"
