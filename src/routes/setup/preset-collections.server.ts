@@ -103,14 +103,14 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
 /** Maps preset field types to core widget Names (DB + compiled output). */
 const WIDGET_NAME_BY_TYPE: Record<string, string> = {
   input: "Input",
-  textarea: "Textarea",
+  textarea: "Input",
   richtext: "RichText",
   slug: "Slug",
-  image: "Media",
+  image: "MediaUpload",
   reference: "Relation",
   number: "Number",
   select: "Select",
-  seo: "Seo",
+  seo: "SEO",
   repeater: "Repeater",
 };
 

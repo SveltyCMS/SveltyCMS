@@ -20,7 +20,7 @@ export function invalidateFastSetupCache(): void {
  * Safe to call from anywhere (middleware, Vite, etc.) without pulling in DB dependencies.
  *
  * ### Hardening (audit 2026-07):
- * - Regex-based field verification: matches keys as quoted strings, not inside comments
+ * - Regex-based field verification: matches object property keys (quoted or unquoted), not bare words in comments
  * - Length threshold: increased from 50 to 100 to better filter mid-write race conditions
  * - Uses a 2-second module-level cache to avoid per-request filesystem I/O.
  * - The cache is intentionally short-lived to pick up config changes after a setup restart.
@@ -61,8 +61,10 @@ export function isSetupComplete(): boolean {
     // will re-read it within the 2-second cache window.
     try {
       const content = fs.readFileSync(privateConfigPath, "utf8");
-      // Regex ensures keys are matched as quoted strings, not inside comments
-      const hasRequiredFields = /["']JWT_SECRET_KEY["']|["']DB_HOST["']/i.test(content);
+      // Match TS object properties (quoted or unquoted), not bare identifiers in comments
+      const hasRequiredFields = /(?:^|[,{]\s*)(?:["']?(?:JWT_SECRET_KEY|DB_HOST)["']?)\s*:/m.test(
+        content,
+      );
 
       // Validate minimum content length to filter out half-written files during write-race
       if (content.length > 100 && hasRequiredFields) {
