@@ -439,6 +439,7 @@ jobs:
       HOST: 127.0.0.1
       PORT: 4173
       ORIGIN: http://127.0.0.1:4173
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -680,6 +681,7 @@ jobs:
           PORT: 4173
           ORIGIN: http://127.0.0.1:4173
           SKIP_E2E_DEPS: "true"
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           if [ -z "${TEST_API_SECRET}" ]; then
             TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
