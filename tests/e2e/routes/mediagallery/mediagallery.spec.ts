@@ -102,8 +102,6 @@ test.describe("Media Gallery", () => {
   });
 
   test("can delete an uploaded asset via grid action menu", async ({ page }) => {
-    const filename = path.basename(TEST_IMAGE);
-
     // Count existing items before upload
     const beforeCount = await page.getByTestId("media-item").count();
 
