@@ -106,6 +106,13 @@ export function scheduleAdapterReconnection(adapter: IDBAdapter, reason: string)
     return;
   }
 
+  // 🛡️ INTENTIONAL DISCONNECT: If the adapter was intentionally disconnected
+  // (e.g., during setup tests or reinitialize), skip auto-reconnection.
+  if ((adapter as any).__intentionalDisconnect__) {
+    logger.debug(`[Resilience] Suppressed auto-reconnect during intentional disconnect: ${reason}`);
+    return;
+  }
+
   (adapter as any).connected = false;
   updateServiceHealth("database", "unhealthy", reason);
   logger.warn(`[Resilience] Scheduling reconnection: ${reason}`);

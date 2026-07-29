@@ -361,6 +361,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   async disconnect(): Promise<DatabaseResult<void>> {
+    // Mark as intentional so resilience hooks don't trigger reconnection
+    (this as any).__intentionalDisconnect__ = true;
     // Clean up any per-tenant dedicated pools
     await this.closeAllTenantPools();
 

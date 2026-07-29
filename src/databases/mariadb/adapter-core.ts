@@ -236,6 +236,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   async disconnect(): Promise<DatabaseResult<void>> {
     if (this.pool) {
+      (this as any).__intentionalDisconnect__ = true;
       await this.pool.end();
       this.pool = null;
       this._db = null;
