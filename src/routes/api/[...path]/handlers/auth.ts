@@ -819,9 +819,7 @@ export async function handle2FARoutes(
       if (event.request.method !== "POST") throw notAllowed();
       const { password } = await event.request.json().catch(() => ({}));
       if (!password) throw new AppError("Password required", 400);
-      const isValid =
-        (user._id === "system" && password === "Password123!") ||
-        (user.password ? await verifyPassword(user.password, password) : false);
+      const isValid = user.password ? await verifyPassword(user.password, password) : false;
       if (!isValid) throw new AppError("Invalid password", 401);
       const result = await twoFactorService.disable2FA(user._id, tenantId);
       if (!result) throw new AppError("Failed to disable 2FA", 400);

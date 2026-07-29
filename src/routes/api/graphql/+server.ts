@@ -30,7 +30,6 @@ import { analyzeQueryCost, formatCostError } from "./cost-analyzer";
 // GraphQL validation plugin: enforces query depth (max 7), alias count (max 15),
 // and blocks schema introspection in production environments
 const isProduction = process.env.NODE_ENV === "production";
-const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK === "true";
 
 const depthLimitRule = createDepthLimitRule(8);
 const maxAliasesRule = createMaxAliasesRule(15);
@@ -50,7 +49,7 @@ const securityValidationPlugin = {
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
     // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
-    if ((isProduction && !isBenchmark) || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
+    if (isProduction || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
       addValidationRule(NoSchemaIntrospectionCustomRule);
     }
   },

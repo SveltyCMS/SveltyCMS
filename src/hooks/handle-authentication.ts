@@ -30,7 +30,7 @@ import {
   isSecureCookieContext,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
-import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
+import { isValidApiKeyFormat, hashApiKeyWithLegacy } from "@src/databases/auth/api-keys";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
@@ -671,7 +671,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       if (tokenValue) {
         if (isValidApiKeyFormat(tokenValue)) {
           // --- API Key Authentication (sck_...) ---
-          const hash = hashApiKey(tokenValue);
+          const hashes = hashApiKeyWithLegacy(tokenValue);
+          const hash = hashes.current;
+          const legacyHash = hashes.legacy;
           if (isApiKeyAuthNegativeHit(hash, locals.tenantId as DatabaseId)) {
             return await resolve(event);
           }
@@ -699,9 +701,15 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               .catch(() => {});
           } else {
             metricsService.incrementAuthValidations();
-            const res = await dbAdapter.auth.getApiKey(hash, {
+            let res = await dbAdapter.auth.getApiKey(hash, {
               tenantId: locals.tenantId,
             });
+            // Fallback: try legacy SHA-256 hash for keys created before HMAC migration
+            if (!res.success && legacyHash !== hash) {
+              res = await dbAdapter.auth.getApiKey(legacyHash, {
+                tenantId: locals.tenantId,
+              });
+            }
             if (res.success && res.data) {
               const apiKey = res.data;
 

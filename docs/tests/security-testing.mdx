@@ -4,7 +4,7 @@ title: "Security Testing"
 description: "Comprehensive security testing for SveltyCMS including encryption, XSS prevention, Fail-Closed API, and defense-in-depth verification."
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-06-17"
+updated: "2026-07-29"
 tags:
   - "testing"
   - "security"
@@ -15,11 +15,11 @@ tags:
 
 # Security Testing
 
-**Last Updated:** July 5, 2026
-**Total Security Tests:** 212+ (Unit + Contract + Slop + Mutation + Cache Integrity + Audit Chain)  
+**Last Updated:** July 29, 2026
+**Total Security Tests:** 212+ (Unit + Contract + Slop + Secret Scan + Mutation + Cache Integrity + Audit Chain)  
 **Pass Rate:** 100%
 
-All security tests follow the **no-backdoor policy** — tests pass through real security guards, not bypass headers.
+All security tests follow the **no-backdoor policy** — tests pass through real security guards, not bypass headers. The slop scanner (`bun run slop`) and secret misuse scanner (`bun run scripts/scan-secret-misuse.ts --strict`) run in CI to catch architectural vulnerabilities before they reach production.
 
 ## Security Enforcement Verification
 
@@ -67,9 +67,9 @@ Account lockout (22 with edge cases), session management (22), fail-closed API v
 Automated penetration testing against live endpoints. Probes for auth bypass, XSS reflection, SQLi injection, path traversal, missing security headers, and rate limiting gaps.
 
 ```bash
-bun run audit:security                 # audit running server
-bun run audit:security --ci            # CI mode (fail on critical/high)
-bun run audit:security --base=http://.. # custom URL
+bun run security                 # audit running server
+bun run security --ci            # CI mode (fail on critical/high)
+bun run security --base=http://.. # custom URL
 ```
 
 **Requires a running server** (preview or dev mode). Run in a separate terminal:
@@ -89,30 +89,68 @@ Audit categories with real payloads:
 | Security headers | CSP, HSTS, X-Frame-Options, X-Content-Type | HIGH/MEDIUM   |
 | Rate limiting    | 15 rapid login attempts                    | HIGH          |
 
+### 6. Secret Misuse Scanner — 6 rules ✅
+
+Static analysis that detects hardcoded credentials in source code. Runs in CI with `--strict` flag.
+
+```bash
+bun run scripts/scan-secret-misuse.ts          # scan all files
+bun run scripts/scan-secret-misuse.ts --strict # CI mode (exit 1 on findings)
+```
+
+| Rule | Detection                                                                                 |
+| ---- | ----------------------------------------------------------------------------------------- |
+| 1    | Private keys accessed in non-server files                                                 |
+| 2    | `console.log` with DB_PASSWORD, JWT_SECRET, ENCRYPTION_KEY                                |
+| 3    | Known API key patterns (AWS, GitHub, Stripe, JWT, Slack)                                  |
+| 4    | `SVELTYCMS_TEST_SECRET_2026` outside benchmark allowlist                                  |
+| 5    | High-entropy string assignments (generic secret detection)                                |
+| 6    | **Hardcoded credentials in comparisons** — catches backdoors like `password === "secret"` |
+
+### 7. Security Architecture Scanner — 5 rules ✅
+
+Part of the slop scanner (`bun run slop`). Detects insecure architectural patterns that regex-based secret scanners miss.
+
+```bash
+bun run slop                   # scan all files
+bun run slop --strict          # CI mode (fail on findings)
+```
+
+| Rule                  | Detection                                                              |
+| --------------------- | ---------------------------------------------------------------------- |
+| CORS reflection       | `Access-Control-Allow-Origin` reflecting arbitrary `Origin` header     |
+| Broad MIME types      | File upload allowlist accepting `application/*` without subtypes       |
+| Fast hash for secrets | `createHash("sha256")` used on API keys/tokens instead of HMAC         |
+| Introspection bypass  | GraphQL introspection gated on `BENCHMARK_MODE` env flag in production |
+| System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns           |
+
 ---
 
 ## Running Security Tests
 
 ```
-bun run test:unit -- security   # Encryption, auth, lockout
-bun run slop                    # XSS, legacy patterns, ARIA
-bun run test:security           # Hooks defense-in-depth / auth / RBAC / file-server
-bun run audit:security          # Endpoint probing (needs running server)
-bun run test:smart              # Smart orchestrator
+bun run test:unit -- security     # Encryption, auth, lockout
+bun run slop --strict              # XSS, RTL, button variants + 5 security architecture rules
+bun run test:security              # Hooks defense-in-depth / auth / RBAC / file-server
+bun run scripts/scan-secret-misuse.ts --strict  # 6-rule hardcoded secret detection
+bun run security                   # Endpoint probing (needs running server)
+bun run test:smart                 # Smart orchestrator
 ```
 
-| Category                     | Tests              | Pass Rate | Enforcement                        |
-| ---------------------------- | ------------------ | --------- | ---------------------------------- |
-| Encryption & Crypto          | 32                 | 100%      | Unit tests                         |
-| XSS Prevention               | 27 + property fuzz | 100%      | Pre-commit slop + mutation         |
-| Account Lockout              | 22                 | 100%      | Unit + edge cases                  |
-| Fail-Closed API 2.0          | 45                 | 100%      | Contract tests (4 DBs)             |
-| Defense-in-Depth             | 51                 | 100%      | Unit tests                         |
-| Endpoint Audit               | 6 categories       | Active    | `bun run audit:security`           |
-| Session Persistence          | 22                 | 100%      | Unit tests                         |
-| **Cache Integrity**          | **6**              | **100%**  | HMAC signing, tamper detection     |
-| **Audit Chain Verification** | **7**              | **100%**  | SHA-256 chaining, replay detection |
-| **Total Security**           | **212+**           | **100%**  | **4-gate pre-commit + CI**         |
+| Category                       | Tests              | Pass Rate  | Enforcement                                      |
+| ------------------------------ | ------------------ | ---------- | ------------------------------------------------ |
+| Encryption & Crypto            | 32                 | 100%       | Unit tests                                       |
+| XSS Prevention                 | 27 + property fuzz | 100%       | Pre-commit slop + mutation                       |
+| Account Lockout                | 22                 | 100%       | Unit + edge cases                                |
+| Fail-Closed API 2.0            | 45                 | 100%       | Contract tests (4 DBs)                           |
+| Defense-in-Depth               | 51                 | 100%       | Unit tests                                       |
+| Endpoint Audit                 | 6 categories       | Active     | `bun run security`                               |
+| Session Persistence            | 22                 | 100%       | Unit tests                                       |
+| **Secret Misuse Scan**         | **6 rules**        | **Active** | `bun run scripts/scan-secret-misuse.ts --strict` |
+| **Security Architecture Scan** | **5 rules**        | **Active** | `bun run slop --strict`                          |
+| **Cache Integrity**            | **6**              | **100%**   | HMAC signing, tamper detection                   |
+| **Audit Chain Verification**   | **7**              | **100%**   | SHA-256 chaining, replay detection               |
+| **Total Security**             | **212+**           | **100%**   | **4-gate pre-commit + CI**                       |
 
 ## Related Documentation
 

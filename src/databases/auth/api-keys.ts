@@ -5,6 +5,14 @@
 
 import crypto from "node:crypto";
 import { generateSecureToken } from "@src/utils/native-utils";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
+
+/** Derive the HMAC secret from the JWT secret for API key hashing. */
+function getHmacSecret(): string {
+  const jwtSecret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
+  if (!jwtSecret) throw new Error("HMAC secret unavailable — JWT_SECRET_KEY not configured");
+  return `apikey-hmac:${jwtSecret}`;
+}
 
 /**
  * Generates a new cryptographically secure API key.
@@ -12,26 +20,22 @@ import { generateSecureToken } from "@src/utils/native-utils";
  * Includes:
  * - full: The raw API key string to present to the user exactly ONCE.
  * - prefix: The first 12 characters (e.g. "sck_a1b2c3d4") safe for UI display.
- * - hash: The SHA-256 hash of the full key (stored in the database).
+ * - hash: HMAC-SHA-256 of the full key (stored in the database, v2 format).
  */
 export function generateApiKey(): {
   full: string;
   prefix: string;
   hash: string;
 } {
-  // SveltyCMS Key ("sck_") + 48 bytes of entropy (approx 64 characters)
-  const randomHex = generateSecureToken(48); // We use the existing crypto token util
-
-  // Convert hex to base64url to match the required format and density
+  const randomHex = generateSecureToken(48);
   const randomBytes = Buffer.from(randomHex, "hex");
   const base64UrlToken = randomBytes.toString("base64url");
-
   const key = `sck_${base64UrlToken}`;
 
   return {
     full: key,
     prefix: key.slice(0, 12),
-    hash: crypto.createHash("sha256").update(key).digest("base64url"),
+    hash: hashApiKey(key),
   };
 }
 
@@ -44,7 +48,23 @@ export function isValidApiKeyFormat(key: string): boolean {
 
 /**
  * Hashes an incoming API key from an HTTP request to look it up in the database.
+ * v2: uses HMAC-SHA-256 with server secret (resistant to offline brute-force).
+ * Legacy: plain SHA-256 for keys generated before the v2 migration.
  */
 export function hashApiKey(key: string): string {
-  return crypto.createHash("sha256").update(key).digest("base64url");
+  const secret = getHmacSecret();
+  return crypto.createHmac("sha256", secret).update(key).digest("base64url");
+}
+
+/**
+ * For DB lookups: returns both the v2 HMAC hash and the legacy SHA-256 hash
+ * so existing keys continue to work during migration.
+ * slop:suppress — legacy fallback intentionally uses SHA-256 for backward compat
+ */
+export function hashApiKeyWithLegacy(key: string): { current: string; legacy: string } {
+  const secret = getHmacSecret();
+  return {
+    current: crypto.createHmac("sha256", secret).update(key).digest("base64url"),
+    legacy: crypto.createHash("sha256").update(key).digest("base64url"),
+  };
 }
