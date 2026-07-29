@@ -236,6 +236,35 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 - **checkEndpointPermission**: MUST validate admin fast-path, SCIM blocking, user self-service endpoints, and RBAC via `hasPermissionWithRoles`. No namespace should be allowed without explicit permission mapping.
 - **Defense-in-Depth**: Handler-level checks (sections 6-7) act as a secondary verification layer beneath the dispatcher, ensuring security even if the dispatcher mapping is misconfigured.
 
+### 9. No Hardcoded Credentials (CRITICAL)
+
+- **NEVER** hardcode passwords, API keys, or tokens in source code — not in assignments (`password = "x"`) AND not in comparisons (`password === "x"`).
+- The secret misuse scanner (`bun run scripts/scan-secret-misuse.ts --strict`) catches both patterns (Rule 5 + Rule 6).
+- If a system user needs special behavior, use a proper RBAC check or admin override endpoint — never a hardcoded credential comparison.
+
+### 10. API Key & Secret Hashing
+
+- **NEVER** use `createHash("sha256")` or `createHash("md5")` for API keys, tokens, or secrets.
+- **ALWAYS** use `crypto.createHmac("sha256", serverSecret)` with a server-side secret (see `hashApiKey` in `src/databases/auth/api-keys.ts`).
+- **Location**: `hashApiKeyWithLegacy()` provides backward-compatible HMAC-SHA-256 hashing for API keys.
+
+### 11. CORS, MIME & GraphQL Hardening
+
+- **CORS**: Never reflect `request.headers.get("Origin")` with `Access-Control-Allow-Credentials: true`. Use an origin allowlist.
+- **MIME uploads**: Restrict file upload types to explicit MIME subtypes — never accept broad categories like `application/*`.
+- **GraphQL introspection**: Must be blocked unconditionally in production (`NODE_ENV === "production"`), regardless of benchmark flags.
+
+### 12. Security Scanners (Pre-Commit + CI)
+
+Two scanners enforce these rules at the code level:
+
+| Scanner                 | Command                                          | Rules                                                      |
+| ----------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| `scan-secret-misuse.ts` | `bun run scripts/scan-secret-misuse.ts --strict` | 6 rules: API keys, comparison backdoors, entropy, exposure |
+| `slop-scanner.ts`       | `bun run slop --strict`                          | Code quality + 6 security architecture rules               |
+
+Both run in CI. The slop scanner also catches XSS (`{@html}`), RTL violations, and button variant misuse. Add `slop:suppress` to files that need permanent exemptions.
+
 ## AI Agent Best Practices
 
 When generating/modifying code:

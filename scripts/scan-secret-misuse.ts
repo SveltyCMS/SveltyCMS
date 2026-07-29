@@ -409,14 +409,21 @@ function scanLine(
   }
 
   // ── Rule 6: Hardcoded credentials in comparisons (backdoor detection) ─────
-  // Catches patterns like: password === "secret123", token == "abc", secret != "x"
   if (!isAllowlistedForSecrets) {
     const compareMatch = line.match(
-      /(?:password|secret|token|key|passphrase|passwd)\s*[!=]==?\s*["'`]([^"'`]{4,})["'`]/i,
+      /(?:^|[^.\w])(password|secret|token|passphrase|passwd)\s*[!=]==?\s*["'`]([^"'`]{4,})["'`]/i,
     );
     if (compareMatch) {
-      const value = compareMatch[1];
-      if (!isKnownSafe(value) && value.length >= 4) {
+      const value = compareMatch[2];
+      // Skip typeof guards, Svelte templates, and type annotations
+      const isSafe =
+        value === "string" ||
+        value === "number" ||
+        value === "boolean" ||
+        /^<[a-z]/.test(value) ||
+        line.trim().endsWith(">");
+      isKnownSafe(value);
+      if (!isSafe && value.length >= 4) {
         findings.push({
           file: relPath,
           line: lineNum,
