@@ -238,7 +238,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 | **Full-Text Search**       | **✅ DB-Native FTS (Zero Deps)**           | ⚠️ Plugin           | ⚠️ Plugin    | ⚠️ Plugin    | ❌          |
 | **Crypto-Chained Audit**   | **✅ SHA-256 Tamper-Evident**              | ❌                  | ❌           | ❌           | ❌          |
 | **Smart CMS Migration**    | **✅ AI-Smart 5-Format Importer**          | ❌                  | ❌           | ❌           | ❌          |
-| **Cold Start UX**          | **✅ Warming-Up Dashboard**                | ⚠️ Spinner          | ⚠️ Spinner   | ⚠️ Spinner   | ✅ Local    |
+| **Cold Start UX**          | **✅ Synchronous Init (Zero Latency)**     | ⚠️ Spinner          | ⚠️ Spinner   | ⚠️ Spinner   | ✅ Local    |
 | **Quick-Start Templates**  | **✅ 7 Presets (Website Starter default)** | ❌                  | ❌           | ❌           | ❌          |
 | **In-Repo Site Frontend**  | **✅ SvelteKit + Svedit at `/`**           | ❌ (bring your own) | ❌           | ❌           | ⚠️ Git-only |
 | **Behavioral Learning**    | **✅ Server-side, zero PII**               | ❌                  | ❌           | ❌           | ❌          |
@@ -354,12 +354,11 @@ See [Site Starter](/docs/development/site-starter.mdx) and [Live Preview Archite
 
 #### Cold Start & Progressive Initialization UX
 
-Replaced the 503 error page during INITIALIZING with a premium warming-up experience:
+The system uses synchronous initialization in the middleware pipeline:
 
-- **SSR-Rendered Warming Page**: Live service status dashboard with animated pulse
-- **Real-Time Polling**: `/api/health` endpoint checked every 1 second
-- **Auto-Redirect**: Seamless transition when system reaches READY state
-- **Service Visibility**: Database, Auth, Cache, Content status shown in real-time
+- **Zero-Tax Init**: `handleSystemState` waits synchronously for DB on the first request, then proceeds inline — no intermediate page or polling
+- **Page-Level Redirects**: `[language]/+page.server.ts` detects empty collections and redirects directly to Collection Builder
+- **Error Resilience**: Restricted states (`MAINTENANCE`, `FAILED`) render the standard SvelteKit error page with actionable messaging
 
 #### Auth Expansion — API Keys, Magic Links, Guest Auth, WebAuthn/Passkeys
 
@@ -990,7 +989,7 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 - **AI-Smart CMS Migration**: 5-format importer with heuristic field mapping, ACF/CMB2 detection, and drag-and-drop UI.
 - **Quick-Start Collection Templates**: 7 setup presets — Website Starter (default) plus Blog, Agency, SaaS, Corporate, E-commerce, and Blank.
 - **Website Starter Test Suite (July 2026)**: Unit, integration, and E2E smoke coverage for Svedit helpers, homepage seed, license gate, and public `/` route.
-- **Progressive Initialization UX**: SSR-rendered warming-up dashboard replacing 503 errors during system boot.
+- **Progressive Initialization UX**: Synchronous middleware init — zero-latency cold start without intermediate pages or polling, saving system resources.
 - **Behavioral Learning Engine (June 2026)**: Server-side access pattern tracking with exponential decay scoring, driving adaptive cache warming, smart prefetch, and automatic dashboard reordering.
 
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.

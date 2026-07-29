@@ -31,7 +31,7 @@ beforeAll(async () => {
 
   // Best-effort warmup only — never fail the whole file here.
   // Individual tests assert endpoint contracts.
-  for (const path of ["/api/health", "/api/dashboard/metrics", "/api/dashboard/cache-metrics"]) {
+  for (const path of ["/health", "/api/dashboard/metrics", "/api/dashboard/cache-metrics"]) {
     try {
       await safeFetch(`${BASE_URL}${path}`, { headers: { Cookie: authCookie } }, 2, 500);
     } catch (err) {
@@ -43,10 +43,9 @@ beforeAll(async () => {
   }
 }, 120_000);
 
-describe("System Health (via /api/health)", () => {
-  // Use the public /api/health endpoint rather than /api/dashboard/health.
-  // The dashboard handler delegates to this same endpoint.
-  const HEALTH_URL = `${BASE_URL}/api/health`;
+describe("System Health (via /health)", () => {
+  // Use the public /health endpoint handled by hooks.server.ts fast-return.
+  const HEALTH_URL = `${BASE_URL}/health`;
 
   test("should return system health status", async () => {
     const response = await safeFetch(HEALTH_URL);
@@ -54,15 +53,12 @@ describe("System Health (via /api/health)", () => {
     expect([200, 503]).toContain(response.status);
     const body = await response.json();
 
-    // Unwrap { success, data } envelope
-    const payload = body.success && body.data ? body.data : body;
+    // /health returns flat JSON (no success/data envelope)
+    expect(body).toHaveProperty("overallStatus");
+    expect(body).toHaveProperty("timestamp");
+    expect(body).toHaveProperty("uptime");
 
-    expect(payload).toHaveProperty("state");
-    expect(payload).toHaveProperty("timestamp");
-    expect(payload).toHaveProperty("uptime");
-    expect(payload).toHaveProperty("services");
-
-    // state should be one of the valid states
+    // overallStatus should be one of the valid states
     expect([
       "READY",
       "WARMING",
@@ -72,11 +68,11 @@ describe("System Health (via /api/health)", () => {
       "FAILED",
       "IDLE",
       "SETUP",
-    ]).toContain(payload.state);
+    ]).toContain(body.overallStatus);
 
     // uptime should be a positive number
-    expect(typeof payload.uptime).toBe("number");
-    expect(payload.uptime).toBeGreaterThanOrEqual(0);
+    expect(typeof body.uptime).toBe("number");
+    expect(body.uptime).toBeGreaterThanOrEqual(0);
   });
 
   test("should return 200 for operational states", async () => {
@@ -90,16 +86,10 @@ describe("System Health (via /api/health)", () => {
   test("should include service health details", async () => {
     const response = await safeFetch(HEALTH_URL);
     const body = await response.json();
-    const payload = body.success && body.data ? body.data : body;
 
-    expect(typeof payload.services).toBe("object");
-
-    const services = Object.values(payload.services);
-    if (services.length > 0) {
-      const svc = services[0] as Record<string, unknown>;
-      expect(svc).toHaveProperty("status");
-      expect(typeof svc.status).toBe("string");
-    }
+    // /health returns database connectivity status
+    expect(body).toHaveProperty("database");
+    expect(["connected", "disconnected"]).toContain(body.database);
   });
 });
 

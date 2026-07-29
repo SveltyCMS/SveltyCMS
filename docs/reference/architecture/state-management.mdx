@@ -120,17 +120,7 @@ Every phase is measured with `performance.now()` precision, exposed via health A
 
 ---
 
-## 8. Progressive Initialization UX
-
-Instead of 503 errors during boot, users see a **SSR-rendered warming-up dashboard** with live service status (`src/routes/warming-up/`). The page:
-
-- Shows real-time status of Database, Auth, Cache, and Content services
-- Auto-refreshes via server polling — transitions to target page when `READY`
-- Provides actionable feedback if a service fails to start
-
----
-
-## 9. Store Directory (`src/stores`)
+## 8. Store Directory (`src/stores`)
 
 All reactive client-side state uses Svelte 5 runes (`.svelte.ts`):
 

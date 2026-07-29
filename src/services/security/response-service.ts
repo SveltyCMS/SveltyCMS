@@ -388,7 +388,6 @@ export class SecurityResponseService {
     // static assets, and locale-prefixed routes
     if (
       endpoint.startsWith("/setup") ||
-      endpoint.startsWith("/warming-up") ||
       endpoint.startsWith("/api/system/health") ||
       endpoint.startsWith("/login") ||
       endpoint.startsWith("/en/") ||

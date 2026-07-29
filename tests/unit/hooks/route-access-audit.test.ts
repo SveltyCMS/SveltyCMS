@@ -39,7 +39,6 @@ const INTENTIONAL_PUBLIC_ROUTES = [
   "/share/abc123",
   "/api/media/share",
   "/api/preview",
-  "/warming-up",
 ];
 
 describe("Route Access Audit", () => {

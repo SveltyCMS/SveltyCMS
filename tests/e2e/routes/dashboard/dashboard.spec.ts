@@ -30,13 +30,10 @@ async function goDashboard(page: Page) {
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/dashboard");
   }
-  // Poll for URL + shell (SYSTEM_IDLE / warming-up can briefly block)
+  // Wait for URL + shell (SYSTEM_IDLE can briefly delay first render)
   await expect(async () => {
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/dashboard");
-    }
-    if (page.url().includes("/warming-up")) {
-      await page.waitForURL(/\/dashboard/, { timeout: 10_000 });
     }
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 5_000 });
   }).toPass({ timeout: 30_000 });

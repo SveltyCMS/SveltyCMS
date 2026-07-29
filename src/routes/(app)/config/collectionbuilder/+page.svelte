@@ -673,7 +673,7 @@ function modalLoadPreset(): void {
     {/snippet}
 
     {#if currentConfig.length > 0}
-        <AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
+        <AdminCard class="p-6 border border-surface-200 dark:border-surface-800 backdrop-blur-md shadow-xs">
         <div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
         <Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
             <iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>

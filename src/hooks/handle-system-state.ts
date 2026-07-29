@@ -1,6 +1,11 @@
 /**
  * @file src/hooks/handle-system-state.ts
  * @description Hardened gatekeeper middleware with atomic boot locks and active timer cleanup.
+ *
+ * Design principle: the middleware waits synchronously for DB initialization
+ * instead of redirecting to an intermediate warming-up page. The page-level
+ * logic (e.g., [language]/+page.server.ts) handles redirects for empty
+ * collections directly, saving system resources and eliminating polling.
  */
 
 import { dbInitPromise } from "@src/databases/db";
@@ -43,22 +48,17 @@ const IS_GK_TEST_MODE =
   !!process.env.BUN_TEST;
 const IS_STRICT_SETUP_CHECK = process.env.STRICT_SETUP_CHECK === "true";
 
-function renderRestrictedResponse(
-  event: RequestEvent,
-  state: SystemState,
-  pathname: string,
-  msg: string,
-): Response {
+/**
+ * Renders an appropriate restricted-state response.
+ * API routes get a typed 503, page routes get a SvelteKit error page.
+ * No redirect to an intermediate warming-up page — the hooks resolve
+ * synchronously once the DB is ready, and page-level logic handles
+ * redirects (e.g., empty collections → collection builder).
+ */
+function throwRestrictedError(state: SystemState, pathname: string, msg: string): never {
   logger.warn(`[handleSystemState] Request blocked: ${pathname} | System state: ${state}`);
   if (pathname.startsWith("/api/")) throw new AppError(msg, 503, `SYSTEM_${state}`);
-  if (pathname !== "/warming-up")
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `/warming-up?redirect=${encodeURIComponent(event.url.pathname + event.url.search)}`,
-      },
-    });
-  throw new AppError(msg, 503, `SYSTEM_${state}`);
+  throw error(503, { message: msg });
 }
 
 async function waitForInitialization(timeoutMs: number = INIT_TIMEOUT_MS): Promise<void> {
@@ -234,21 +234,30 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     ];
     if (restricted.includes(activeSystemState.overallState as any)) {
       if (setupComplete && activeSystemState.overallState === "SETUP") {
-        await waitForInitialization();
-        const postWaitState = getSystemState();
-        if (restricted.includes(postWaitState.overallState as any))
-          return renderRestrictedResponse(
-            event,
-            postWaitState.overallState,
-            pathname,
-            "System in setup mode.",
-          );
+        // Setup is complete but state machine hasn't transitioned yet —
+        // treat same as IDLE+setupComplete: wait for DB init, then proceed.
+        if (initializationState === "pending") {
+          initializationState = "in-progress";
+          activeInitFlightPromise = waitForInitialization()
+            .then(() => {
+              initializationState = "complete";
+            })
+            .catch((_err) => {
+              initializationState = "failed";
+            });
+        }
+        try {
+          await Promise.race([
+            activeInitFlightPromise || waitForInitialization(10_000),
+            new Promise((r) => setTimeout(r, 10_000)),
+          ]);
+        } catch {}
+        return resolve(event);
       } else
-        return renderRestrictedResponse(
-          event,
+        throwRestrictedError(
           activeSystemState.overallState,
           pathname,
-          "System restricted.",
+          "System temporarily unavailable. Please retry.",
         );
     }
 

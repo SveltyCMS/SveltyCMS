@@ -13,7 +13,6 @@ export const CMS_RESERVED_PREFIXES = [
   "/dashboard",
   "/config",
   "/admin",
-  "/warming-up",
   "/share",
   "/email-previews",
   "/mediagallery",

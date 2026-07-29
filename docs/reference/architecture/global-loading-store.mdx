@@ -58,23 +58,12 @@ flowchart TB
         POST_BOOT["Post-Boot Operations<br/>App is running, user is active"]
     end
 
-    subgraph WarmingUp["Pre-Boot State"]
-        WU_PAGE["warming-up/+page.svelte<br/>Shown during INITIALIZING"]
-        WU_POLL["Polls /api/health every 1s"]
-        WU_SERVICES["Shows service health status"]
-    end
-
     Consumers --> Store
     Store --> UI
     UI --> POST_BOOT
-
-    WU_PAGE --> WU_POLL
-    WU_PAGE --> WU_SERVICES
-
-    WU_PAGE -.->|"Same visual identity<br/>(Logo, Rings, Typography)"| UI
 ```
 
-> **Two loading screens, one visual identity:** `global-loading.svelte` handles post-boot operations (navigation, data fetching, form submission) with contextual messages. The **Warming-Up Dashboard** handles pre-boot initialization with service health status. Both share the SveltyCMSLogo component, animated loader rings, and typography patterns for brand consistency.
+> **Zero-tax initialization:** The `handleSystemState` middleware waits synchronously for DB initialization on the first request. No intermediate warming-up page or polling — the hooks and state machine work together to resolve requests inline, saving system resources.
 
 ### Key Features
 
@@ -542,7 +531,7 @@ if (shouldSkipPreload()) return; // Don't preload on 2G or Save-Data
 if (shouldDisableRealtime()) return; // Don't stream on degraded connections
 ```
 
-The global-loading component handles post-boot operations. For the pre-boot screen during system initialization, see the Warming-Up Dashboard which shares the same visual identity (SveltyCMSLogo, loader rings) but displays service health status.
+The global-loading component handles post-boot operations. For system initialization, the middleware pipeline (`handleSystemState`) waits synchronously for the database to become ready on the first request, then proceeds directly to the target page without an intermediate loading screen.
 
 ## Related Documentation
 

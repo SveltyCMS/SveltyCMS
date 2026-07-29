@@ -19,9 +19,6 @@ async function openMediaGallery(page: import("@playwright/test").Page) {
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/mediagallery");
   }
-  if (page.url().includes("/warming-up")) {
-    await page.waitForURL(/\/mediagallery/, { timeout: 20_000 });
-  }
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 

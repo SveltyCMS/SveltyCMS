@@ -57,7 +57,6 @@ const EXCLUDED_PREFIXES = [
   "/api/system/health",
   "/favicon.ico",
   "/.well-known",
-  "/warming-up",
   "/api/testing",
 ];
 

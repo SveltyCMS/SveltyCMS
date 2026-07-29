@@ -461,11 +461,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       timeout: 20_000,
     });
     const currentUrl = page.url();
-    if (
-      !currentUrl.includes("/login") &&
-      !currentUrl.includes("/setup") &&
-      !currentUrl.includes("/warming-up")
-    ) {
+    if (!currentUrl.includes("/login") && !currentUrl.includes("/setup")) {
       // Double-check by looking for admin shell elements (SPA auth may render auth page at same URL)
       sessionValid = await page
         .getByTestId("page-title")
@@ -481,11 +477,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
             typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
           await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
           const afterNavUrl = page.url();
-          if (
-            afterNavUrl.includes("/login") ||
-            afterNavUrl.includes("/warming-up") ||
-            afterNavUrl.includes("/setup")
-          ) {
+          if (afterNavUrl.includes("/login") || afterNavUrl.includes("/setup")) {
             console.log(
               `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
             );
@@ -537,16 +529,14 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         timeout: 30_000,
       });
       const postAuthUrl = page.url();
-      if (postAuthUrl.includes("/login") || postAuthUrl.includes("/warming-up")) {
-        console.log(
-          `[Auth] API session did not stick — at ${postAuthUrl.includes("/warming-up") ? "warming-up" : "login"} page, falling back to UI login`,
-        );
+      if (postAuthUrl.includes("/login")) {
+        console.log(`[Auth] API session did not stick — at login page, falling back to UI login`);
       } else {
         if (waitForUrl instanceof RegExp) {
           await page.waitForURL(waitForUrl, { timeout: 15_000 }).catch(() => undefined);
         }
         const finalUrl = page.url();
-        if (!finalUrl.includes("/login") && !finalUrl.includes("/warming-up")) {
+        if (!finalUrl.includes("/login")) {
           return;
         }
       }

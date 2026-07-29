@@ -50,7 +50,6 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/setup",
   "/share",
   "/api/system/health",
-  "/api/health",
   "/api/system/version",
   "/api/user/login",
   "/api/auth/login",
@@ -75,7 +74,6 @@ const PUBLIC_PREFIX_ROUTES = ["/api/settings/public", "/api/theme/public", "/sha
 export const PUBLIC_ROUTES: readonly string[] = [
   ...PUBLIC_EXACT_ROUTES,
   ...PUBLIC_PREFIX_ROUTES,
-  "/warming-up",
   "/api/auth",
   "/api/system",
   "/register",
@@ -146,7 +144,10 @@ export function isApiLike(pathname: string): boolean {
 
 export function isAdmin(user: any): boolean {
   if (!user) return false;
-  return user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
+  // SQLite may return isAdmin as 0/1; treat any truthy value as admin
+  if (user.isAdmin === true || user.isAdmin === 1 || user.isAdmin === "1") return true;
+  const role = String(user.role ?? "").toLowerCase();
+  return role === "admin" || role === "super-admin";
 }
 
 /**
@@ -202,7 +203,6 @@ export function isBootstrapRoute(pathname: string): boolean {
   )
     return true;
 
-  if (pathname.startsWith("/warming-up")) return true;
   return LOCALIZED_BOOTSTRAP_REGEX.test(pathname);
 }
 
