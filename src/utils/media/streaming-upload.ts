@@ -64,7 +64,8 @@ export interface StreamingUploadOptions {
 
 const DEFAULT_MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GiB
 const DEFAULT_MAX_TOTAL_SIZE = 5 * 1024 * 1024 * 1024; // 5 GiB
-const DEFAULT_ALLOWED_MIME = /^(image|video|audio|application)\//;
+const DEFAULT_ALLOWED_MIME =
+  /^(image\/(jpeg|png|gif|webp|svg\+xml|bmp|tiff|avif)|video\/(mp4|webm|ogg|quicktime|x-msvideo)|audio\/(mpeg|ogg|wav|webm|aac|flac)|application\/(pdf|json|zip|gzip|x-tar|x-7z-compressed))$/;
 const DEFAULT_TIMEOUT_S = 300;
 
 const CRLF = new Uint8Array([0x0d, 0x0a]);

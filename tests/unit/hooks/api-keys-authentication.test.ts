@@ -51,7 +51,10 @@ vi.mock("@src/databases/cache/cache-service", () => ({
 }));
 
 vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
+  getPrivateSettingSync: vi.fn((key: string) => {
+    if (key === "JWT_SECRET_KEY") return "test-jwt-secret-for-api-key-hmac-32ch";
+    return false;
+  }),
 }));
 
 function createMockEvent(pathname: string, authHeader?: string): RequestEvent {

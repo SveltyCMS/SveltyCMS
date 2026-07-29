@@ -126,11 +126,11 @@ bun run security --base=http://localhost:3000
 
 ### `scripts/scan-secret-misuse.ts` — Secret Misuse Scanner
 
-Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files.
+Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss).
 
 ```bash
-bun run scripts/scan-secret-misuse.ts
-bun run scripts/scan-secret-misuse.ts --strict
+bun run scripts/scan-secret-misuse.ts          # scan all files
+bun run scripts/scan-secret-misuse.ts --strict # CI mode (exit 1 on findings)
 ```
 
 ### `scripts/verify-prod-build-backdoor.ts` — Build Backdoor Verification
@@ -167,12 +167,27 @@ bun run scripts/check-test-db-safety.ts
 
 **Used by**: Pre-commit hook.
 
-### `scripts/slop-scanner.ts` — Code Quality Scanner
+### `scripts/slop-scanner.ts` — Code Quality + Security Architecture Scanner
 
-Svelte 5 + Accessibility + RTL + Quality scanner. Catches issues oxlint doesn't cover.
+Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxlint doesn't cover.
+
+**Code quality checks:** XSS (`{@html}`), RTL compatibility, button variant validation, file naming, duplicate content, TODO tracking.
+
+**Security architecture checks (5 rules):**
+
+| Rule                  | Detects                                                                             |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| CORS reflection       | `Access-Control-Allow-Origin` reflecting arbitrary `Origin` header with credentials |
+| Broad MIME types      | File upload allowlist accepting `application/*` without specific subtypes           |
+| Fast hash for secrets | `createHash("sha256")` used on API keys/tokens — should use HMAC                    |
+| Introspection bypass  | GraphQL introspection gated on `BENCHMARK_MODE` flag in production                  |
+| System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns                        |
+
+Use `slop:suppress` in a comment to skip a file.
 
 ```bash
 bun run slop                           # Check all files
+bun run slop --strict                  # CI mode (fail on findings)
 bun run scripts/slop-scanner.ts --fix  # Check + autofix
 ```
 

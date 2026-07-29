@@ -273,7 +273,7 @@
 	}
 
 	// Collapsible admin area state
-	let adminExpanded = $state(false);
+	let adminExpanded = $state(true);
 </script>
 
 <AdminPageShell title={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config">

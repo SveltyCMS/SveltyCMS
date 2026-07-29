@@ -407,6 +407,25 @@ function scanLine(
       }
     }
   }
+
+  // ── Rule 6: Hardcoded credentials in comparisons (backdoor detection) ─────
+  // Catches patterns like: password === "secret123", token == "abc", secret != "x"
+  if (!isAllowlistedForSecrets) {
+    const compareMatch = line.match(
+      /(?:password|secret|token|key|passphrase|passwd)\s*[!=]==?\s*["'`]([^"'`]{4,})["'`]/i,
+    );
+    if (compareMatch) {
+      const value = compareMatch[1];
+      if (!isKnownSafe(value) && value.length >= 4) {
+        findings.push({
+          file: relPath,
+          line: lineNum,
+          message: `Hardcoded credential in comparison: \`${value}\` — possible auth bypass backdoor`,
+          confidence: "high",
+        });
+      }
+    }
+  }
 }
 
 async function scanFile(
