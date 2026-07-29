@@ -261,29 +261,36 @@ test.describe.serial("User Profile Management", () => {
   test("Toggle User Token Visibility", async ({ page }) => {
     await page.goto("/user");
 
-    // Open
-    await page.getByText(/Show User Token/i).click();
-    const tokenList = page.getByRole("heading", { name: "Token List:" });
-    await expect(tokenList).toBeVisible();
+    // Switch to Invitations tab
+    const tokensTab = page.getByTestId("admin-tab-tokens");
+    await expect(tokensTab).toBeVisible({ timeout: 10_000 });
+    await tokensTab.click();
 
-    // Close
-    await page.getByText(/Hide User Token/i).click();
-    await expect(tokenList).not.toBeVisible();
+    // Verify token table is visible
+    const tokenTable = page.locator("table");
+    await expect(tokenTable).toBeVisible({ timeout: 10_000 });
+
+    // Switch back to Users tab
+    const usersTab = page.getByTestId("admin-tab-users");
+    await usersTab.click();
+    await expect(usersTab).toHaveAttribute("aria-selected", "true");
   });
 
   test("Toggle User List Visibility", async ({ page }) => {
     await page.goto("/user");
 
-    // Initially open
-    const userList = page.getByRole("heading", { name: "User List:" });
-    await expect(userList).toBeVisible();
+    // Users tab should be active by default
+    const usersTab = page.getByTestId("admin-tab-users");
+    await expect(usersTab).toBeVisible({ timeout: 10_000 });
+    await expect(usersTab).toHaveAttribute("aria-selected", "true");
 
-    // Close
-    await page.getByText(/Hide User List/i).click();
-    await expect(userList).not.toBeVisible();
+    // Verify user table is visible
+    const userTable = page.locator("table");
+    await expect(userTable).toBeVisible({ timeout: 10_000 });
 
-    // Open
-    await page.getByText(/Show User List/i).click();
-    await expect(userList).toBeVisible();
+    // Switch to Invitations tab
+    const tokensTab = page.getByTestId("admin-tab-tokens");
+    await tokensTab.click();
+    await expect(tokensTab).toHaveAttribute("aria-selected", "true");
   });
 });

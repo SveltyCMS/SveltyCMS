@@ -724,7 +724,7 @@ test.describe("Responsive Viewports", () => {
     expect(tableExists).toBe(true);
 
     // The security card should be visible
-    const securityText = page.getByText("Security");
+    const securityText = page.getByRole("heading", { name: /security/i });
     await expect(securityText).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
