@@ -28,10 +28,11 @@ import SmartTableShell from "@components/ui/smart-table/smart-table-shell.svelte
 import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
 import MediaTableRowMenu from "./media-table-row-menu.svelte";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
+import { draggable } from "@thisux/sveltednd";
 import {
-	beginMediaDrag,
-	endMediaDrag,
+	MEDIA_DRAG_CONTAINER,
 	resolveMediaDragIds,
+	suppressNativeDragGhost,
 } from "@utils/media/media-dnd";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
@@ -184,27 +185,6 @@ function toggleSelection(file: MediaBase | MediaImage) {
 	}
 }
 
-function resolveFileId(file: MediaBase | MediaImage): string {
-	return file._id?.toString() || file.filename;
-}
-
-function handleDragStart(e: DragEvent, file: MediaBase | MediaImage) {
-	const target = e.target as HTMLElement | null;
-	if (target?.closest("[data-no-drag]")) {
-		e.preventDefault();
-		return;
-	}
-	const ids = resolveMediaDragIds(resolveFileId(file), selectedFiles);
-	const written = beginMediaDrag(e.dataTransfer, ids);
-	if (!written.length) {
-		e.preventDefault();
-	}
-}
-
-function handleDragEnd() {
-	endMediaDrag();
-}
-
 function handleRowClick(file: MediaBase | MediaImage) {
 	if (!isSelectionMode) {
 		onOpenFileDetails(file);
@@ -278,10 +258,17 @@ function onUpdateRowsPerPage(rows: number) {
 						role="row"
 						tabindex="0"
 						aria-selected={isSelected}
-						draggable="true"
+						use:draggable={{
+							container: MEDIA_DRAG_CONTAINER,
+							dragData: {
+								ids: resolveMediaDragIds(fileId, selectedFiles),
+								preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+							},
+							interactive: ['[data-no-drag]'],
+							attributes: { draggingClass: 'opacity-50' },
+						}}
+						ondragstart={suppressNativeDragGhost}
 						title="Drag to a folder or breadcrumb to move"
-						ondragstart={(e) => handleDragStart(e, file)}
-						ondragend={handleDragEnd}
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 					>
@@ -393,10 +380,17 @@ function onUpdateRowsPerPage(rows: number) {
 							onkeydown={(e) => handleKeyDown(e, file)}
 							tabindex="0"
 							aria-selected={isSelected}
-							draggable="true"
+							use:draggable={{
+								container: MEDIA_DRAG_CONTAINER,
+								dragData: {
+									ids: resolveMediaDragIds(fileId, selectedFiles),
+									preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+								},
+								interactive: ['[data-no-drag]'],
+								attributes: { draggingClass: 'opacity-50' },
+							}}
+							ondragstart={suppressNativeDragGhost}
 							title="Drag to a folder or breadcrumb to move"
-							ondragstart={(e) => handleDragStart(e, file)}
-							ondragend={handleDragEnd}
 						>
 							<td
 								class="media-table-select {SMART_TABLE_TD} {pinCellClass('start')} w-9 shrink-0 border-s-2! {isSelected ? 'border-s-primary-500!' : 'border-s-transparent!'}"

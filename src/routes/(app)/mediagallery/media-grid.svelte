@@ -16,10 +16,11 @@
   import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
   import MediaGridActionTooltip from "./media-grid-action-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
+  import { draggable } from "@thisux/sveltednd";
   import {
-    beginMediaDrag,
-    endMediaDrag,
+    MEDIA_DRAG_CONTAINER,
     resolveMediaDragIds,
+    suppressNativeDragGhost,
   } from "@utils/media/media-dnd";
   import { formatBytes } from "@utils/utils";
   import { SvelteSet } from "svelte/reactivity";
@@ -48,9 +49,6 @@
     onUpdateImage = () => {},
     onOpenFileDetails = () => {},
   }: Props = $props();
-
-  /** Active drag count for card opacity feedback */
-  let draggingIds = $state(new SvelteSet<string>());
 
   const minColWidthCss = $derived(
     gridSize === "tiny"
@@ -126,32 +124,6 @@
     } else {
       selectedFiles.add(fileId);
     }
-  }
-
-  function resolveFileId(file: MediaBase | MediaImage): string {
-    return file._id?.toString() || file.filename;
-  }
-
-  function handleDragStart(e: DragEvent, file: MediaBase | MediaImage) {
-    const target = e.target as HTMLElement | null;
-    // Don't start a media drag from interactive chrome (checkbox, action buttons)
-    if (target?.closest("[data-no-drag]")) {
-      e.preventDefault();
-      return;
-    }
-
-    const ids = resolveMediaDragIds(resolveFileId(file), selectedFiles);
-    const written = beginMediaDrag(e.dataTransfer, ids);
-    if (!written.length) {
-      e.preventDefault();
-      return;
-    }
-    draggingIds = new SvelteSet(written);
-  }
-
-  function handleDragEnd() {
-    draggingIds = new SvelteSet();
-    endMediaDrag();
   }
 
   function handleItemClick(file: MediaBase | MediaImage) {
@@ -270,19 +242,23 @@
     {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
-      {const isDragging = draggingIds.has(fileId)}
 
       <div
         class="group relative flex h-full flex-col focus-within:outline-none cursor-grab active:cursor-grabbing
-          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}
-          {isDragging ? 'opacity-50' : ''}"
+          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
         role="gridcell"
         tabindex="-1"
         aria-selected={isSelected}
-        aria-grabbed={isDragging}
-        draggable="true"
-        ondragstart={(e) => handleDragStart(e, file)}
-        ondragend={handleDragEnd}
+        use:draggable={{
+          container: MEDIA_DRAG_CONTAINER,
+          dragData: {
+            ids: resolveMediaDragIds(fileId, selectedFiles),
+            preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+          },
+          interactive: ['[data-no-drag]'],
+          attributes: { draggingClass: 'opacity-50' },
+        }}
+        ondragstart={suppressNativeDragGhost}
         title="Drag to a folder in the sidebar to move"
         data-testid="media-item"
         data-media-id={fileId}

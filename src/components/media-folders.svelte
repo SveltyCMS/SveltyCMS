@@ -21,10 +21,11 @@
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
 	import {
-		getMediaDragPayload,
-		hasMediaDrag,
+		MEDIA_DRAG_CONTAINER,
 		moveMediaToFolder,
+		type MediaDragData,
 	} from '@utils/media/media-dnd';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
@@ -67,9 +68,16 @@
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let search = $state('');
-	/** Folder id currently highlighted as a media drop target (`root` for media root) */
-	let mediaDropTargetId = $state<string | null>(null);
 	let isMovingMedia = $state(false);
+	/** True only while a media-gallery card (not a folder-reorder drag) is in flight */
+	const isMediaDragActive = $derived(
+		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
+	);
+
+	/** Accept: files can move into this folder */
+	const MEDIA_DROP_OK = 'bg-primary-500/20 ring-1 ring-inset ring-primary-500/60';
+	/** Reject: files are already in this folder (drop is a no-op — see handleMediaFolderDrop) */
+	const MEDIA_DROP_SAME = 'bg-error-500/20 ring-1 ring-inset ring-error-500/60';
 
 	// Derived UI state
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -288,38 +296,12 @@
 
 	// ── Media drag → folder drop (grid assets into virtual folders) ──────────
 
-	function clearMediaDropTarget(): void {
-		mediaDropTargetId = null;
-	}
-
-	function handleMediaDragOver(e: DragEvent, folderId: string): void {
-		if (!hasMediaDrag(e.dataTransfer)) return;
-		e.preventDefault();
-		e.stopPropagation();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-		if (mediaDropTargetId !== folderId) {
-			mediaDropTargetId = folderId;
-		}
-	}
-
-	function handleMediaDragLeave(e: DragEvent, folderId: string): void {
-		// Only clear when leaving this row (not when entering a child)
-		const related = e.relatedTarget as Node | null;
-		const current = e.currentTarget as HTMLElement | null;
-		if (current && related && current.contains(related)) return;
-		if (mediaDropTargetId === folderId) {
-			mediaDropTargetId = null;
-		}
-	}
-
-	async function handleMediaDrop(e: DragEvent, folderId: string): Promise<void> {
-		if (!hasMediaDrag(e.dataTransfer)) return;
-		e.preventDefault();
-		e.stopPropagation();
-		clearMediaDropTarget();
-
-		const payload = getMediaDragPayload(e.dataTransfer);
-		if (!payload?.ids.length) {
+	async function handleMediaFolderDrop(
+		state: DragDropState<MediaDragData>,
+		folderId: string,
+	): Promise<void> {
+		const ids = state.draggedItem?.ids ?? [];
+		if (!ids.length) {
 			toast.error('No media to move');
 			return;
 		}
@@ -336,7 +318,7 @@
 		isMovingMedia = true;
 
 		try {
-			const moved = await moveMediaToFolder(payload.ids, targetId, {
+			const moved = await moveMediaToFolder(ids, targetId, {
 				csrfToken: page.data.csrfToken,
 			});
 			const folderLabel =
@@ -355,10 +337,6 @@
 		} finally {
 			isMovingMedia = false;
 		}
-	}
-
-	function isMediaDropHighlight(folderId: string): boolean {
-		return mediaDropTargetId === folderId;
 	}
 
 	// Initial load + refresh on global events
@@ -383,17 +361,20 @@
 	{@const selected = activeFolderId === node.id}
 	{@const expanded = folderExpanded.has(node.id)}
 	{@const indent = depth * 12}
-	{@const dropHighlight = isMediaDropHighlight(node.id)}
+	{@const dropHighlight = isMediaDragActive && dndState.targetContainer === node.id}
+	{@const sameFolder = activeFolderId === node.id}
 
 	<div class="group/folder relative flex flex-col">
 		<div
 			role="listitem"
-			class="flex w-full items-center gap-1 rounded py-0.5 text-start text-[15px] font-medium leading-none transition-colors
-				{dropHighlight ? 'bg-primary-500/20 ring-1 ring-inset ring-primary-500/60' : ''}"
+			class="flex w-full items-center gap-1 rounded py-0.5 text-start text-[15px] font-medium leading-none transition-colors"
 			style="padding-inline-start: {indent}px"
-			ondragover={(e) => handleMediaDragOver(e, node.id)}
-			ondragleave={(e) => handleMediaDragLeave(e, node.id)}
-			ondrop={(e) => handleMediaDrop(e, node.id)}
+			use:droppable={{
+				container: node.id,
+				disabled: !isMediaDragActive,
+				attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
+				callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, node.id) },
+			}}
 			data-media-drop-target={node.id}
 		>
 			{#if hasChildren}
@@ -428,7 +409,11 @@
 					<iconify-icon
 						icon={dropHighlight ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
 						width="18"
-						class="shrink-0 {dropHighlight ? 'text-primary-500' : 'text-surface-400'}"
+						class="shrink-0 {dropHighlight
+							? sameFolder
+								? 'text-error-500'
+								: 'text-primary-500'
+							: 'text-surface-400'}"
 						aria-hidden="true"
 					></iconify-icon>
 					<span class="truncate">{node.name}</span>
@@ -537,16 +522,19 @@
 				{@const rootNode = tree[0]}
 				{@const rootHasChildren = (rootNode.children?.length ?? 0) > 0}
 				{@const rootSelected = activeFolderId === 'root'}
-				{@const rootDropHighlight = isMediaDropHighlight('root')}
+				{@const rootDropHighlight = isMediaDragActive && dndState.targetContainer === 'root'}
+				{@const rootSameFolder = activeFolderId === 'root'}
 				<div class="flex flex-col" role="tree" aria-label="Media folder tree">
 					<div class="group/root relative flex flex-col">
 						<div
 							role="listitem"
-							class="rounded transition-colors
-								{rootDropHighlight ? 'bg-primary-500/20 ring-1 ring-inset ring-primary-500/60' : ''}"
-							ondragover={(e) => handleMediaDragOver(e, 'root')}
-							ondragleave={(e) => handleMediaDragLeave(e, 'root')}
-							ondrop={(e) => handleMediaDrop(e, 'root')}
+							class="rounded transition-colors"
+							use:droppable={{
+								container: 'root',
+								disabled: !isMediaDragActive,
+								attributes: { dragOverClass: rootSameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
+								callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, 'root') },
+							}}
 							data-media-drop-target="root"
 						>
 							<Button
@@ -570,7 +558,11 @@
 								<iconify-icon
 									icon={rootDropHighlight ? 'mdi:folder-move-outline' : 'mdi:home-outline'}
 									width="18"
-									class="shrink-0 {rootDropHighlight ? 'text-primary-500' : ''}"
+									class="shrink-0 {rootDropHighlight
+										? rootSameFolder
+											? 'text-error-500'
+											: 'text-primary-500'
+										: ''}"
 									aria-hidden="true"
 								></iconify-icon>
 								<span class="truncate">{rootNode.name}</span>
@@ -591,32 +583,20 @@
 					</div>
 				</div>
 			{:else}
-				<!-- Compact sidebar: wrap TreeView with media drop handlers on a container -->
+				<!-- Compact sidebar: wrap TreeView with a single media drop target (TreeView
+					 renders no per-row folder id, so drops always target the active folder —
+					 which is always "already here", so use the reject/error ring). -->
 				<div
 					role="region"
 					aria-label="Media drop target"
-					class="rounded transition-colors
-						{mediaDropTargetId ? 'bg-primary-500/10 ring-1 ring-inset ring-primary-500/40' : ''}"
-					ondragover={(e) => {
-						if (!hasMediaDrag(e.dataTransfer)) return;
-						e.preventDefault();
-						// Drop on compact tree defaults to the active/hovered folder via data attribute if present
-						const el = (e.target as HTMLElement | null)?.closest?.('[data-folder-id]') as HTMLElement | null;
-						const id = el?.dataset?.folderId ?? activeFolderId;
-						handleMediaDragOver(e, id);
+					class="rounded transition-colors"
+					use:droppable={{
+						container: activeFolderId,
+						disabled: !isMediaDragActive,
+						attributes: { dragOverClass: MEDIA_DROP_SAME },
+						callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, activeFolderId) },
 					}}
-					ondragleave={(e) => {
-						const related = e.relatedTarget as Node | null;
-						const current = e.currentTarget as HTMLElement | null;
-						if (current && related && current.contains(related)) return;
-						clearMediaDropTarget();
-					}}
-					ondrop={(e) => {
-						if (!hasMediaDrag(e.dataTransfer)) return;
-						const el = (e.target as HTMLElement | null)?.closest?.('[data-folder-id]') as HTMLElement | null;
-						const id = el?.dataset?.folderId ?? mediaDropTargetId ?? activeFolderId;
-						handleMediaDrop(e, id);
-					}}
+					data-media-drop-target={activeFolderId}
 				>
 					<TreeView
 						nodes={tree}

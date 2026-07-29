@@ -18,6 +18,7 @@ import { page } from "$app/state";
 import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
+import MediaDragPreview from "./media-drag-preview.svelte";
 import AdvancedSearchModal from "./advanced-search-modal.svelte";
 import Portal from "@components/ui/portal.svelte";
 import type { SearchCriteria } from "@utils/media/advanced-search";
@@ -36,10 +37,11 @@ import {
 	type StoredMediaBase,
 	MediaTypeEnum,
 } from "@utils/media/media-models";
+import { droppable, dndState, type DragDropState } from "@thisux/sveltednd";
 import {
-	getMediaDragPayload,
-	hasMediaDrag,
+	MEDIA_DRAG_CONTAINER,
 	moveMediaToFolder,
+	type MediaDragData,
 } from "@utils/media/media-dnd";
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
@@ -74,8 +76,10 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let jsonPathFilter = $state((data as { jsonPathFilter?: string }).jsonPathFilter ?? "");
 	let sortBy = $state("newest");
 	let mobileFiltersExpanded = $state(false);
-	/** Breadcrumb folder key currently highlighted as media drop target (`root` | folderId) */
-	let breadcrumbDropKey = $state<string | null>(null);
+	/** True only while a media-gallery card (not some unrelated drag) is in flight */
+	const isMediaDragActive = $derived(
+		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
+	);
 	let isMovingMedia = $state(false);
 
 const sortOptions = [
@@ -251,47 +255,24 @@ async function moveIdsToFolder(
 		logger.error("[MediaGallery] Breadcrumb move failed", err);
 	} finally {
 		isMovingMedia = false;
-		breadcrumbDropKey = null;
 	}
 }
 
-function handleBreadcrumbDragOver(e: DragEvent, folderId: string | null): void {
-	if (!hasMediaDrag(e.dataTransfer)) return;
-	// Current folder is not a useful drop target
-	if (isCurrentCrumb(folderId)) return;
-	e.preventDefault();
-	e.stopPropagation();
-	if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-	const key = crumbDropKey(folderId);
-	if (breadcrumbDropKey !== key) breadcrumbDropKey = key;
-}
-
-function handleBreadcrumbDragLeave(e: DragEvent, folderId: string | null): void {
-	const related = e.relatedTarget as Node | null;
-	const current = e.currentTarget as HTMLElement | null;
-	if (current && related && current.contains(related)) return;
-	if (breadcrumbDropKey === crumbDropKey(folderId)) {
-		breadcrumbDropKey = null;
-	}
-}
-
-async function handleBreadcrumbDrop(e: DragEvent, folderId: string | null, label: string): Promise<void> {
-	if (!hasMediaDrag(e.dataTransfer)) return;
-	e.preventDefault();
-	e.stopPropagation();
-	breadcrumbDropKey = null;
-
+async function handleBreadcrumbDrop(
+	state: DragDropState<MediaDragData>,
+	folderId: string | null,
+	label: string,
+): Promise<void> {
 	if (isCurrentCrumb(folderId)) {
 		toast.info("Already in this folder");
 		return;
 	}
-
-	const payload = getMediaDragPayload(e.dataTransfer);
-	if (!payload?.ids.length) {
+	const ids = state.draggedItem?.ids ?? [];
+	if (!ids.length) {
 		toast.error("No media to move");
 		return;
 	}
-	await moveIdsToFolder(payload.ids, folderId, label);
+	await moveIdsToFolder(ids, folderId, label);
 }
 
 /**
@@ -788,7 +769,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
 						{@const isLast = i === breadcrumbs.length - 1}
 						{@const dropKey = crumbDropKey(crumb.folderId)}
-						{@const isDropTarget = !isLast && breadcrumbDropKey === dropKey}
+						{@const isDropTarget = !isLast && isMediaDragActive && dndState.targetContainer === dropKey}
 						{@const canReceiveMove = !isLast}
 
 						{#if i > 0}
@@ -825,9 +806,11 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 									: canReceiveMove
 										? `Drop media here (or open) — same as sidebar`
 										: crumb.name}
-								ondragover={(e) => handleBreadcrumbDragOver(e, crumb.folderId)}
-								ondragleave={(e) => handleBreadcrumbDragLeave(e, crumb.folderId)}
-								ondrop={(e) => handleBreadcrumbDrop(e, crumb.folderId, crumb.name)}
+								use:droppable={{
+									container: dropKey,
+									disabled: !isMediaDragActive || isCurrentCrumb(crumb.folderId),
+									callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleBreadcrumbDrop(state, crumb.folderId, crumb.name) },
+								}}
 								onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
 							>
 								{#if isDropTarget || selectedFiles.size > 0}
@@ -1127,6 +1110,8 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	</div>
 
 	<Slot name="media_gallery" />
+
+	<MediaDragPreview />
 
 	{#if showAdvancedSearch}
 		<Portal>
