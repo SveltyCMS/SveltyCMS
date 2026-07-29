@@ -4,7 +4,7 @@ title: "Competitive Comparison"
 description: "A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-07-25"
+updated: "2026-07-29"
 tags:
   - "comparison"
   - "benchmarks"
@@ -60,7 +60,12 @@ All claims are based on publicly available documentation as of July 2026. Perfor
 | **RBAC cache**         | Instant invalidation on user/role mutation (<1ms)      | TTL-based (stale window) | TTL-based (stale window) | TTL-based (stale window) |
 | **OIDC logout**        | RP-Initiated + Front-Channel + Back-Channel (all 3)    | Plugin only              | Plugin only              | Plugin only              |
 | **DOMPurify profiles** | 3 per-component profiles (default/rich-text/strict)    | Default only             | Default only             | Default only             |
-| **CI secret scanner**  | Shannon entropy + known-key patterns + CI gate         | None                     | None                     | None                     |
+| **API key hashing**    | HMAC-SHA-256 with server secret (v2 format)            | SHA-256 only             | SHA-256 only             | SHA-256 only             |
+| **CORS**               | Origin allowlist (no reflection with credentials)      | Configurable             | Configurable             | Configurable             |
+| **MIME enforcement**   | Strict allowlist (image/video/audio/pdf/archive)       | Default only             | Default only             | Default only             |
+| **GraphQL hardening**  | Introspection blocked unconditionally in production    | Configurable             | Configurable             | Configurable             |
+| **Secret scanner**     | 6-rule static analysis + 5 security architecture rules | None                     | None                     | None                     |
+| **Session cache**      | 10,000 hot sessions (LRU + TTL)                        | Default                  | Default                  | Default                  |
 | **Clickjack**          | `X-Frame-Options: DENY` + CSP `frame-ancestors: none`  | X-Frame only             | X-Frame only             | X-Frame only             |
 
 ## Developer Experience

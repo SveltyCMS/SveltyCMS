@@ -12,7 +12,7 @@
  *
  * ### Features
  * - Session rotation every 15 minutes for active users (industry best practice)
- * - LRU session cache (top 100 hot sessions) with TTL eviction
+ - LRU session cache (top 10,000 hot sessions) with TTL eviction
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - Rate-limited refresh attempts (100/min per IP)
  * - Automatic cleanup of expired sessions
@@ -134,7 +134,7 @@ interface SessionCacheEntry {
   user: User;
 }
 
-const MAX_SESSION_CACHE = 100;
+const MAX_SESSION_CACHE = 10_000;
 const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();

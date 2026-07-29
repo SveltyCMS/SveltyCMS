@@ -457,6 +457,12 @@ const SECURITY_ARCH_PATTERNS: {
     message: "Hardcoded password comparison for system user — potential auth backdoor",
     severity: "error",
   },
+  {
+    pattern: /request\.clone\(\)/,
+    category: "body-double-clone",
+    message: "Request body cloned — verify size limits are enforced to prevent OOM",
+    severity: "info",
+  },
 ];
 
 function scanSecurityPatterns(relPath: string, content: string) {
