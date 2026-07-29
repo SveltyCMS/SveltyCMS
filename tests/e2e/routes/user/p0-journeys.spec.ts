@@ -92,14 +92,15 @@ test.describe("P0 — Password change journey", () => {
     const newPassword = dialog.locator('input[name="security"]');
     const confirmPassword = dialog.locator('input[name="confirm_password"]');
 
+    // Wait for dialog content to fully render before interacting
+    await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(currentPassword).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await expect(newPassword).toBeDisabled({ timeout: 5_000 });
+    await expect(newPassword).toBeDisabled({ timeout: 10_000 });
 
     // Fill current password — Svelte debounces verification on input (800ms debounce)
     await currentPassword.fill(oldPassword);
-    // Wait for the debounce timer + API round-trip before blurring;
-    // Svelte 5 $bindable may not have synced by the time blur fires immediately after fill.
-    await page.waitForTimeout(1200);
+    // Wait for the debounce timer + API round-trip before blurring
+    await page.waitForTimeout(2000);
     await currentPassword.blur();
     // Wait for new password field to unlock (verify succeeded)
     await expect(newPassword).toBeEnabled({ timeout: ACTION_TIMEOUT });

@@ -212,8 +212,10 @@ test.describe.serial("User Management Flow", () => {
     await loginAsAdmin(page, "/user");
     await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
     await expect(page).not.toHaveURL(/\/login/);
-    // Accept any admin page content as success (dashboard, collections, etc.)
-    await expect(page.locator("body")).not.toHaveText(/sign in/i, { timeout: 5_000 });
+    // Verify we're on the user page by checking the profile heading
+    await expect(page.getByRole("heading", { name: /profile information/i })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("Read and Edit User Profile", async ({ page }) => {

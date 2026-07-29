@@ -73,11 +73,7 @@ test.describe("Permission Management Flow", () => {
 
     // Verify we're still on the page (no redirect/error)
     await expect(page).toHaveURL(/access-management/i);
-    // Save button should return to disabled state after save completes.
-    // The state machine does: isLoading=true → save → hasModifiedChanges=false → isLoading=false.
-    // Allow extra time for the loading store to settle.
-    await expect(async () => {
-      await expect(saveBtn.first()).toBeDisabled();
-    }).toPass({ timeout: 20_000, intervals: [1_000, 2_000] });
+    // Verify save succeeded via toast instead of polling button disabled state
+    await expect(page.getByText(/configuration updated/i)).toBeVisible({ timeout: 15_000 });
   });
 });
