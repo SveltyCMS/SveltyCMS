@@ -9,7 +9,12 @@
  * - MongoDB: no MONGO_INITDB_ROOT_* → no authentication
  */
 
-import { getLocalSandboxMediaRel, resolveBenchmarkProfile } from "./benchmark-sandbox";
+import { mkdirSync } from "node:fs";
+import {
+  getLocalSandboxMediaRel,
+  getLocalSandboxMediaRoot,
+  resolveBenchmarkProfile,
+} from "./benchmark-sandbox";
 
 export interface TestDbCredentials {
   user: string;
@@ -36,17 +41,14 @@ const DB_PORTS: Record<string, string> = {
   postgresql: "5432",
 };
 
-export function getDockerDefaultDbCredentials(dbType: string): TestDbCredentials {
-  return DOCKER_DEFAULT_DB_CREDENTIALS[dbType] ?? { user: "", password: "" };
-}
+export const getDockerDefaultDbCredentials = (dbType: string): TestDbCredentials =>
+  DOCKER_DEFAULT_DB_CREDENTIALS[dbType] ?? { user: "", password: "" };
 
-export function getDefaultDbPort(dbType: string): string {
-  return DB_PORTS[dbType] ?? "";
-}
+export const getDefaultDbPort = (dbType: string): string => DB_PORTS[dbType] ?? "";
 
 /** DB name used by integration tests and db-tests CI job. */
-export function getIntegrationDbName(): string {
-  return "sveltycms_test";
+export function getIntegrationDbName(dbType = "sqlite"): string {
+  return dbType === "sqlite" ? "sveltycms_test.sqlite" : "sveltycms_test";
 }
 
 /** DB name used by bench-core CI job (isolated SQLite file for benchmarks). */
@@ -62,7 +64,7 @@ export const UDH_BENCHMARK_FIXTURE_DB = "sveltycms_udh_fixture";
 
 /** UDH fixture database for bench-core — mirrors ci.yml bench-core env. */
 export function getBenchmarkUdhPgDatabase(dbType: string): string {
-  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName();
+  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName(dbType);
 }
 
 /** Env block shared by integration runner invocations (local + CI parity). */
@@ -99,20 +101,31 @@ export function getBenchmarkTestEnv(
     DB_PASSWORD: creds.password,
     TEST_MODE: "true",
     BENCHMARK: "true",
-    JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-32ch",
-    ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-32ch",
+    // 🛡️ Allow CI to inject randomized secrets; fall back to benchmark defaults for local dev only
+    JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "Password123!",
     BENCHMARK_NO_REDIS: "1",
     BENCHMARK_RECORD: "1",
-    ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",
     UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(dbType),
     BENCHMARK_PROFILE: profile,
     ...overrides,
   };
 
+  // Always isolate media under the sandbox for benchmarks (local + ci-fresh).
+  // Without this, ci-fresh wizard defaults can leave MEDIA_FOLDER missing/unwritable
+  // and HTTP upload warmups fail 8/8.
   if (profile === "local") {
     env.BENCHMARK_LOCAL_SANDBOX = "1";
+  }
+  if (!env.MEDIA_FOLDER) {
     env.MEDIA_FOLDER = getLocalSandboxMediaRel();
+  }
+  try {
+    mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
+  } catch {
+    /* ignore mkdir races */
   }
 
   return env;

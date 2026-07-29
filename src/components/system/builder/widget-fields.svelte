@@ -27,7 +27,6 @@
 	import type { FieldInstance } from '@content/types';
 	import PageTitle from '@src/components/page-title.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { debounce } from '@utils/utils';
 	import AddWidget from './add-widget.svelte';
 
 	// Props
@@ -69,7 +68,11 @@
 				clone.style.top = `${e.clientY}px`;
 				clone.style.width = `${node.getBoundingClientRect().width}px`;
 				const cloneHeight = `${clone.offsetHeight + 10}px`;
-				const deb = debounce(50);
+				let debTimeoutId: ReturnType<typeof setTimeout>;
+				const deb = (fn: () => void) => {
+					clearTimeout(debTimeoutId);
+					debTimeoutId = setTimeout(fn, 50);
+				};
 				let oldClosest: HTMLElement;
 
 				clone.onpointermove = (e) => {

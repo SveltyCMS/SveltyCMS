@@ -922,7 +922,8 @@ export const settingsGroups: SettingGroup[] = [
     fields: [], // Custom UI handled in +page.svelte
   },
   {
-    id: "licensing",
+    // Distinct id from "licensing" (BSL compliance group) — was a silent catalog collision
+    id: "license-keys",
     name: "License Keys",
     icon: "mdi:key",
     description:

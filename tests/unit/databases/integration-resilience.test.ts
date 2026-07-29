@@ -11,24 +11,25 @@
 
 import { describe, it, expect } from "vitest";
 
-import { resetDbInitPromise, ensureFullInitialization } from "@src/databases/db";
 import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
 import { generateUUID } from "@src/utils/native-utils";
 
 describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
   describe("Pillar 1: System State & Config Validation", () => {
-    // CORRUPT_CONFIG check is not yet implemented in ensureFullInitialization.
-    // TODO: re-enable when config validation gate is wired in db.ts.
-    it.skip("should reject corrupted configurations with a controlled MISSING_CONFIG error", async () => {
+    it("should reject corrupted configurations with a controlled MISSING_CONFIG error", async () => {
+      // Use the real db module (setup.ts mocks @src/databases/db globally).
+      // CORRUPT_CONFIG is checked fail-fast before adapters load.
+      const realDb = await import("@src/databases/db?bun-unmock=" + Date.now());
+
       // 1. Simulate corrupted configuration flag
       process.env.CORRUPT_CONFIG = "true";
       const originalBooted = (globalThis as any).__SVELTY_CMS_BOOTED__;
       (globalThis as any).__SVELTY_CMS_BOOTED__ = false;
-      resetDbInitPromise();
+      realDb.resetDbInitPromise();
 
       try {
         // 2. Expect database boot to fail fast and predictably
-        await ensureFullInitialization();
+        await realDb.ensureFullInitialization();
         expect.unreachable("Boot sequence should have failed for corrupted configuration.");
       } catch (err: any) {
         expect(err).toBeInstanceOf(Error);
@@ -40,7 +41,7 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
         // 3. Revert state and clear environment
         delete process.env.CORRUPT_CONFIG;
         (globalThis as any).__SVELTY_CMS_BOOTED__ = originalBooted;
-        resetDbInitPromise();
+        realDb.resetDbInitPromise();
       }
     });
   });

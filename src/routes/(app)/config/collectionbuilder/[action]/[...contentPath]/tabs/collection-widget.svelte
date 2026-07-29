@@ -18,8 +18,8 @@ import { modalState } from "@utils/modal.svelte";
 import { getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
 import { flip } from "svelte/animate";
-import type { DndEvent } from "svelte-dnd-action";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
 import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
 import Button from "@src/components/ui/button.svelte";
@@ -68,10 +68,36 @@ $effect(() => {
 
 const flipDurationMs = 200;
 
-function handleDndConsider(_e: CustomEvent<DndEvent<WidgetListItem>>) {}
+function handleFieldDrop(state: DragDropState<WidgetListItem>) {
+	const dragged = state.draggedItem;
+	if (!dragged) return;
 
-function handleDndFinalize(e: CustomEvent<DndEvent<WidgetListItem>>) {
-	items = e.detail.items;
+	const fromIndex = items.indexOf(dragged);
+	if (fromIndex < 0) return;
+
+	// Find target item via DOM data attribute
+	const targetEl = state.targetElement?.closest('[data-field-name]') as HTMLElement | null;
+	const targetFieldName = targetEl?.dataset?.fieldName;
+
+	let targetIndex: number;
+	if (targetFieldName) {
+		targetIndex = items.findIndex(i => (i.db_fieldName || '') === targetFieldName);
+		if (state.dropPosition === 'after') targetIndex++;
+	} else {
+		targetIndex = items.length;
+	}
+	targetIndex = Math.max(0, Math.min(targetIndex, items.length));
+
+	if (fromIndex === targetIndex) return;
+
+	items = untrack(() => {
+		const newItems = [...items];
+		newItems.splice(fromIndex, 1);
+		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		newItems.splice(adjusted, 0, dragged);
+		return newItems;
+	});
+
 	dragIdsByIndex = items.reduce(
 		(acc, it, i) => {
 			acc[i] = it._dragId;
@@ -327,18 +353,28 @@ const marketplaceWidgets = $derived(
 		<!-- Drag-and-drop Widget List -->
 		<div class="flex-1 overflow-y-auto min-h-0 p-4">
 			<div
-				use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
-				onconsider={handleDndConsider}
-				onfinalize={handleDndFinalize}
+				use:droppable={{
+					container: 'widget-fields',
+					callbacks: { onDrop: handleFieldDrop },
+					direction: 'vertical',
+					attributes: { dragOverClass: 'bg-secondary-200' }
+				}}
 				class="space-y-3 min-h-50"
 				data-testid="widget-fields-list"
+				role="list"
+				aria-label="Widget fields list"
 			>
 				{#each items as item (item._dragId)}
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<div
+						use:draggable={{ container: 'widget-fields', dragData: item, keyboard: true }}
+						use:droppable={{ container: 'widget-fields', callbacks: { onDrop: handleFieldDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
 						animate:flip={{ duration: flipDurationMs }}
 						class="group relative"
 						data-testid="widget-field-row"
 						data-field-name={item.db_fieldName || ""}
+						role="listitem"
+						tabindex="0"
 					>
 						<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
 							<!-- Drag Handle -->

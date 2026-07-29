@@ -262,7 +262,12 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
             if (user && user._id) {
               (event.locals as any).user = user;
-              (event.locals as any).tenantId = user.tenantId || null;
+              // Allow x-test-tenant-id header to override the user's default tenant
+              // for tenant-isolation integration tests (e.g. bulk-seed under tenant A/B).
+              const testTenantHeader =
+                event.request.headers.get("x-test-tenant-id") ||
+                event.request.headers.get("x-tenant-id");
+              (event.locals as any).tenantId = testTenantHeader || user.tenantId || null;
               if (!IS_BENCHMARK) logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
             }
           } catch {
@@ -291,7 +296,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
           // 🚀 TENANT SYNC: Extract tenantId from header if provided (critical for benchmarks)
           const headerTenant =
-            event.request.headers.get("x-tenant-id") || event.request.headers.get("X-Tenant-Id");
+            event.request.headers.get("x-tenant-id") ||
+            event.request.headers.get("x-test-tenant-id") ||
+            event.request.headers.get("X-Tenant-Id");
           (event.locals as any).tenantId = headerTenant || null;
 
           if (!IS_BENCHMARK) {

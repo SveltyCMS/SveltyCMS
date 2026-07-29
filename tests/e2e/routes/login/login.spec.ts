@@ -8,7 +8,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin, logout } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../../helpers/database";
+import { resetAndSeedDatabase } from "../../helpers/api";
 
 test.describe("Login and Logout Flow", () => {
   // Ensure we start with a clean state for the login test
@@ -22,17 +22,12 @@ test.describe("Login and Logout Flow", () => {
     // Set a higher timeout for this test
     test.setTimeout(120_000); // 2 minutes
 
-    // Use the auth helper to login
+    // Use the auth helper to login (API session + navigation off about:blank)
     await loginAsAdmin(page);
 
-    // Assert we're logged in and at a valid post-login page
-    // Fresh installs redirect to collectionbuilder, existing ones to Collections/admin/dashboard
-    await expect(page).toHaveURL(
-      /\/(Collections|admin|dashboard|collectionbuilder|en.collection)/,
-      {
-        timeout: 10_000,
-      },
-    );
+    // Must leave /login. Destination varies (collectionbuilder, collections, dashboard, /).
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+    await expect(page).not.toHaveURL("about:blank");
     console.log("✓ Login successful, current URL:", page.url());
 
     // Click logout

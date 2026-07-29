@@ -5,17 +5,17 @@
  */
 import { describe, it, expect } from "vitest";
 import { render } from "svelte/server";
-import Input from "@src/components/ui/input.svelte";
+import InputSsrWrapper from "./input-ssr-wrapper.svelte";
 
 describe("Input (SSR)", () => {
   it("renders a text input", () => {
-    const { body } = render(Input, { props: { type: "text" } });
+    const { body } = render(InputSsrWrapper, { props: { type: "text" } });
     expect(body).toContain("<input");
     expect(body).toContain('type="text"');
   });
 
   it("renders label linked to input", () => {
-    const { body } = render(Input, {
+    const { body } = render(InputSsrWrapper, {
       props: { label: "Username", id: "user" },
     });
     expect(body).toContain("<label");
@@ -24,7 +24,7 @@ describe("Input (SSR)", () => {
   });
 
   it("renders error with full ARIA linkage", () => {
-    const { body } = render(Input, {
+    const { body } = render(InputSsrWrapper, {
       props: { id: "email", error: "Invalid email" },
     });
     expect(body).toContain("Invalid email");
@@ -35,22 +35,24 @@ describe("Input (SSR)", () => {
   });
 
   it("renders password type", () => {
-    const { body } = render(Input, { props: { type: "password" } });
+    const { body } = render(InputSsrWrapper, { props: { type: "password" } });
     expect(body).toContain('type="password"');
   });
 
   it("handles disabled state", () => {
-    const { body } = render(Input, { props: { disabled: true } });
+    const { body } = render(InputSsrWrapper, { props: { disabled: true } });
     expect(body).toContain("disabled");
   });
 
   it("handles placeholder", () => {
-    const { body } = render(Input, { props: { placeholder: "Enter name" } });
+    const { body } = render(InputSsrWrapper, {
+      props: { placeholder: "Enter name" },
+    });
     expect(body).toContain('placeholder="Enter name"');
   });
 
   it("handles required field", () => {
-    const { body } = render(Input, {
+    const { body } = render(InputSsrWrapper, {
       props: { required: true, label: "Name" },
     });
     expect(body).toContain("required");

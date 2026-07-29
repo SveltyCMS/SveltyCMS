@@ -66,8 +66,9 @@ export const completeSetup = command(
     if (result.success && result.sessionCookie) {
       try {
         const event = getRequestEvent();
-        const { getSessionCookieName } = await import("@src/databases/auth/constants");
-        const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+        const { getSessionCookieName, isSecureCookieContext } =
+          await import("@src/databases/auth/constants");
+        const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
         const cookieName = getSessionCookieName(isSecure);
         event.cookies.set(cookieName, result.sessionCookie.value, {
           ...result.sessionCookie.attributes,

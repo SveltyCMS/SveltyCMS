@@ -61,6 +61,11 @@ export const publicConfigSchema = object({
   MEDIA_CLOUD_REGION: optional(string()),
   MEDIA_CLOUD_ENDPOINT: optional(string()),
   MEDIA_CLOUD_PUBLIC_URL: optional(string()),
+  MEDIA_ACCESS_KEY_ID: optional(string()),
+  MEDIA_SECRET_ACCESS_KEY: optional(string()),
+  CLOUDINARY_CLOUD_NAME: optional(string()),
+  CLOUDINARY_API_KEY: optional(string()),
+  CLOUDINARY_API_SECRET: optional(string()),
 
   // --- Seasons Icons ---
   SEASONS: optional(boolean()),

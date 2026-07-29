@@ -1,0 +1,35 @@
+---
+path: "docs/tests/routes/appearance.mdx"
+title: "Appearance Tests — Control Map"
+description: "Coverage for /config/appearance admin themes and user overrides."
+order: 27
+icon: "mdi:palette"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags: ["testing", "e2e", "appearance"]
+---
+
+# Config Appearance
+
+## Product surface
+
+| Piece               | Role                                     |
+| ------------------- | ---------------------------------------- |
+| `+page.svelte`      | Themes, presets, layout, user overrides  |
+| `appearance-api.ts` | Theme CRUD + prefs via `fetchApi` (CSRF) |
+
+## Control → test matrix
+
+| Control                       | Unit           | E2E                  |
+| ----------------------------- | -------------- | -------------------- |
+| User prefs save/clear/reload  | appearance-api | ✅ appearance.spec   |
+| Themes tab shell              | —              | ✅ appearance-golden |
+| **Golden create→list→delete** | appearance-api | ✅ appearance-golden |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/config/appearance-api.test.ts
+bun x playwright test tests/e2e/routes/config/appearance.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts
+```

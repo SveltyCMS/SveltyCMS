@@ -4,6 +4,11 @@
  */
 
 export * from "./types";
+export * from "./define-plugin";
+export * from "./settings";
+export * from "./settings-crypto";
+export * from "./settings-declaration";
+export * from "./storage";
 
 import { pluginServerRegistry } from "./plugin-server-registry";
 import { pluginRegistry } from "./registry";
@@ -121,10 +126,16 @@ export async function initializePlugins(dbAdapter: any, tenantId = "default"): P
         /* UI-only plugin — no index.server.ts */
       }
       await pluginRegistry.register(plugin);
+
+      // Resolve discriminated-union parts (schema, routes, capabilities, settings, etc.)
+      pluginRegistry.resolveParts(plugin);
     }
 
     // 3. Run migrations for all plugins
     await pluginRegistry.runAllMigrations(dbAdapter, tenantId);
+
+    // 3.5 Reconcile plugin capabilities into merged catalog
+    await pluginRegistry.reconcileCapabilities();
 
     // 4. Mark as initialized
     pluginRegistry.markInitialized();

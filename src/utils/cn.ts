@@ -1,45 +1,48 @@
 /**
  * @file src/utils/cn.ts
- * @description
- * High-performance, zero-dependency class joining utility optimized for Svelte 5.
- * Replaces the runtime overhead of tailwind-merge with a lean, reactive-friendly approach.
+ * @description Optimized class joining utility for Svelte 5.
  *
- * ### Features:
- * - recursive array/object support
- * - zero runtime dependencies
- * - prioritized performance for Svelte templates
+ * ### Hardening (audit 2026-07):
+ * - Array-join pattern: result.push() + join(" ") creates one string (not N intermediate)
+ * - Standard for-loops: Object.keys() + indexed loop (faster than for...in + hasOwnProperty)
+ * - Minimal truthy check: val[key] suffices since Object.keys() returns own properties
+ *
+ * High-performance, zero-dependency class joining utility optimized for Svelte 5.
  */
 
-type ClassValue = ClassArray | ClassDictionary | string | number | null | boolean | undefined;
-type ClassDictionary = Record<string, any>;
+type ClassValue = ClassArray | Record<string, any> | string | number | null | boolean | undefined;
 type ClassArray = ClassValue[];
 
 /**
  * Combines conditional class names into a single string.
- * This implementation favors speed and simplicity, relying on the natural CSS cascade
- * and Svelte 5's fine-grained reactivity rather than costly runtime conflict resolution.
- *
- * @param inputs - Array of class values (strings, objects, arrays)
- * @returns A space-separated string of active class names
+ * 🛡️ Hardened: Array-join pattern minimizes GC pressure vs string concatenation.
  */
 export function cn(...inputs: ClassValue[]): string {
-  let str = "";
-  for (let i = 0; i < inputs.length; i++) {
-    const val = inputs[i];
-    if (!val) continue;
+  const result: string[] = [];
+
+  function process(val: ClassValue) {
+    if (!val) return;
 
     if (typeof val === "string" || typeof val === "number") {
-      str += (str ? " " : "") + val;
+      result.push(val.toString());
     } else if (Array.isArray(val)) {
-      const inner = cn(...val);
-      if (inner) str += (str ? " " : "") + inner;
+      for (let i = 0; i < val.length; i++) {
+        process(val[i]);
+      }
     } else if (typeof val === "object") {
-      for (const key in val) {
-        if (Object.prototype.hasOwnProperty.call(val, key) && val[key]) {
-          str += (str ? " " : "") + key;
+      const keys = Object.keys(val);
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (val[key]) {
+          result.push(key);
         }
       }
     }
   }
-  return str;
+
+  for (let i = 0; i < inputs.length; i++) {
+    process(inputs[i]);
+  }
+
+  return result.join(" ");
 }

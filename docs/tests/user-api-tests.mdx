@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-06-17"
+updated: "2026-07-18"
 tags:
   - "testing"
   - "api"
@@ -20,9 +20,11 @@ tags:
 
 Complete test coverage for all user-related API endpoints in SveltyCMS, now secured by the **Fail-Closed Gatekeeper**.
 
+> **UI control map (profile + admin):** see [routes/user.mdx](./routes/user.mdx) for the 1:1 unit/integration/E2E plan for `/user`.
+
 ## Test Overview
 
-- **Test Files**: `tests/unit/api/user.test.ts`, `auth-2fa.test.ts`, `security.test.ts`, `signup.test.ts`
+- **Test Files**: `tests/unit/api/user.test.ts`, `tests/unit/routes/user-page-server.test.ts`, `tests/unit/user/user-remote-helpers.test.ts`, `auth-2fa.test.ts`, `security.test.ts`
 - **Total Suite:** 1,122 unit tests (consolidated)
 - **Coverage**: 100% (All core user endpoints)
 - **Framework**: Vitest (jsdom)

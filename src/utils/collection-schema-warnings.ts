@@ -72,6 +72,9 @@ export interface SchemaDiffResult {
   summary: string;
 }
 
+/** 🛡️ Hardened: Trim field names to prevent false positives from whitespace */
+const normalizeFieldName = (name: string) => name.trim();
+
 /**
  * Safely extracts field data from a FieldDefinition (which may be unknown)
  */
@@ -82,17 +85,16 @@ function toComparableField(field: unknown): ComparableField | null {
 
   const f = field as Record<string, unknown>;
 
-  // Must have db_fieldName to be a valid field for comparison
   if (typeof f.db_fieldName !== "string") {
     return null;
   }
 
   return {
-    db_fieldName: f.db_fieldName,
+    db_fieldName: normalizeFieldName(f.db_fieldName),
     widget: f.widget as ComparableField["widget"],
     label: typeof f.label === "string" ? f.label : undefined,
-    required: typeof f.required === "boolean" ? f.required : undefined,
-    unique: typeof f.unique === "boolean" ? f.unique : undefined,
+    required: !!f.required,
+    unique: !!f.unique,
   };
 }
 

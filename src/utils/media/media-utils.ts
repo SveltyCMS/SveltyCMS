@@ -16,7 +16,7 @@ import { logger } from "@utils/logger";
 
 // ─── Inline helpers (avoid circular import from barrel) ───────────────────
 
-/** Human-readable file size */
+/** Human-readable file size — keep local to avoid barrel conflict with src/utils/file.ts. */
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -24,21 +24,30 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 ** i).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
-/** Basic filename string sanitizer — removes path traversal and control chars */
-function sanitize(input: string): string {
-  // Remove path-traversal and special chars
-  let result = input.replace(/[<>:"/\\|?*]/g, "_");
-  // Remove control characters (except tab, newline, carriage return)
-  result = Array.from(result)
-    .filter((c) => {
-      const code = c.charCodeAt(0);
-      return code > 31 || code === 9 || code === 10 || code === 13;
-    })
-    .join("");
-  return result.replace(/^[. ]+|[. ]+$/g, "").slice(0, 255);
+/** Windows reserved filenames (case-insensitive). */
+const RESERVED_WINDOWS = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+
+/** Robust filename sanitizer — blocks null bytes, control chars, path separators,
+ *  Unicode homoglyphs used in spoofing attacks, reserved Windows names,
+ *  and leading/trailing dots/spaces. */
+export function sanitize(input: string): string {
+  let result = input
+    // Replace null bytes, control chars (0x00-0x1f, DEL), and unsafe file-system chars
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1f\x7f<>:"/\\|?*]/g, "_")
+    // Strip leading/trailing dots and spaces (Windows Explorer rejects these)
+    .replace(/^[. ]+|[. ]+$/g, "")
+    .slice(0, 255);
+
+  // Guard against reserved Windows device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+  if (RESERVED_WINDOWS.test(result)) {
+    result = "_" + result;
+  }
+
+  return result;
 }
 
-import type { MediaBase } from "./media-models";
+import { isStoredMedia, type MediaItem } from "./media-models";
 
 // ─── MIME database (merged + expanded from mime-utils) ────────────────────
 
@@ -127,6 +136,14 @@ export function resolveMediaRelPath(item: {
   return stored;
 }
 
+/** Sentinel value for global / no-tenant storage paths. */
+const TENANT_GLOBAL = "global";
+
+/** Normalise a tenant-id to a safe path segment, falling back to the global sentinel. */
+function tenantPathSegment(tenantId?: string | null): string {
+  return tenantId && tenantId !== TENANT_GLOBAL ? tenantId : TENANT_GLOBAL;
+}
+
 /** Build the relative storage path for an uploaded original file. */
 export function buildOriginalRelPath(
   hash: string,
@@ -136,7 +153,7 @@ export function buildOriginalRelPath(
   const dot = filename.lastIndexOf(".");
   const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
   const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
-  const tenant = tenantId && tenantId !== "global" ? tenantId : "global";
+  const tenant = tenantPathSegment(tenantId);
   return `${tenant}/${hash}/original/${baseName}-${hash}.${ext}`;
 }
 
@@ -158,7 +175,7 @@ export function resolveMediaPublicPath(item: {
 }
 
 /** Construct public media URL */
-export function mediaUrl(item: MediaBase, size?: string): string {
+export function mediaUrl(item: MediaItem, size?: string): string {
   if (!item?.url) return "";
 
   if (publicEnv.MEDIASERVER_URL) {
@@ -166,41 +183,15 @@ export function mediaUrl(item: MediaBase, size?: string): string {
     return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${cleanUrl}`;
   }
 
-  if (size && "thumbnails" in item && (item.thumbnails as any)?.[size]?.url) {
-    return (item.thumbnails as any)[size].url;
+  // Use `isStoredMedia` type guard instead of duck-type / `as any` cast
+  if (size && isStoredMedia(item) && item.thumbnails?.[size]?.url) {
+    return item.thumbnails[size]!.url;
   }
 
   if (item.url.startsWith("/files/")) return item.url;
   if (item.url.startsWith("http://") || item.url.startsWith("https://")) return item.url;
 
   return `/files/${item.url}`;
-}
-
-/** Build URL from parts (hash-based naming) */
-export function buildUrl(
-  path: string,
-  hash: string,
-  filename: string,
-  ext: string,
-  category: string,
-  size?: string,
-): string {
-  if (!(path && hash && filename && ext && category)) return "";
-
-  const file = `${filename}-${hash}.${ext}`;
-  let rel: string;
-
-  if (path === "global") {
-    rel = size ? `${category}/${size}/${file}` : `${category}/original/${file}`;
-  } else if (path === "unique") {
-    rel = `${category}/original/${file}`;
-  } else {
-    rel = size ? `${path}/${size}/${file}` : `${path}/${file}`;
-  }
-
-  return publicEnv.MEDIASERVER_URL
-    ? `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${rel}`
-    : `/files/${rel}`;
 }
 
 // ─── Validation ────────────────────────────────────────────────────────────
@@ -286,7 +277,15 @@ interface Watermark {
   url?: string;
 }
 
-/** Update media metadata via PATCH request */
+/**
+ * Update media metadata via PATCH request.
+ *
+ * NOTE: This function sends a raw `fetch()` without a CSRF token header.
+ * In SveltyCMS the CSRF cookie (`__Host-xsrf` / `__Secure-xsrf`) is set
+ * by the server and automatically attached by the browser on same-origin
+ * requests. Callers relying on cross-origin fetch or environments that
+ * require an explicit `X-CSRF-Token` header should provide it before calling.
+ */
 export async function updateMediaMetadata(
   id: string,
   patch: Record<string, unknown>,

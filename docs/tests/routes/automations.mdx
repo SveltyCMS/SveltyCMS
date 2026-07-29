@@ -1,0 +1,41 @@
+---
+path: "docs/tests/routes/automations.mdx"
+title: "Automations Tests — Control Map"
+description: "Coverage for /config/automations: admin gate, list shell, CSRF, confirm delete."
+order: 25
+icon: "mdi:robot-outline"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags: ["testing", "e2e", "automations"]
+---
+
+# Workflow Automations (`/config/automations`)
+
+See **[ADR: Testing 2026](../adr-testing-2026.mdx)**.
+
+## Surface
+
+| Piece                   | Role                                           |
+| ----------------------- | ---------------------------------------------- |
+| `+page.server.ts`       | Admin-only gate                                |
+| `automations-api.ts`    | Browser client via `fetchApi` (CSRF automatic) |
+| `+page.svelte` / `[id]` | List + builder UI only                         |
+| API                     | `/api/automations`                             |
+
+## Control → test matrix
+
+| Control                                              | Unit                          | E2E |
+| ---------------------------------------------------- | ----------------------------- | --- |
+| Admin gate                                           | ✅                            | —   |
+| New + search shell                                   | —                             | ✅  |
+| Seeded list + search empty (no soft-skip)            | testing API `seed-automation` | ✅  |
+| Builder deep flow: name → ops → save → list → delete | —                             | ✅  |
+| showConfirm delete / bulk                            | product                       | ✅  |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/automations-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/automations.spec.ts
+```

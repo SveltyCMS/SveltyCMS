@@ -13,6 +13,7 @@
 <script lang="ts">
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return !!row && 'token' in row && typeof row.token === 'string';
@@ -44,9 +45,7 @@
 	// Components
 	import Avatar from "@components/ui/avatar.svelte";
 
-	import FloatingInput from "@components/ui/floating-input.svelte";
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import Boolean from '@src/components/system/table/boolean.svelte';
 	import Role from '@src/components/system/table/role.svelte';
 	import TableFilter from '@src/components/system/table/table-filter.svelte';
 	import TableIcons from '@src/components/system/table/table-icons.svelte';
@@ -69,28 +68,19 @@
 	// Types
 	import {
 		adminarea_activesession,
-		adminarea_adminarea,
 		adminarea_blocked,
 		adminarea_consumed,
 		adminarea_createat,
 		adminarea_emailtoken,
 		adminarea_expiresin,
-		adminarea_hideuserlist,
-		adminarea_hideusertoken,
 		adminarea_lastaccess,
-		adminarea_listtoken,
 		adminarea_notoken,
 		adminarea_nouser,
-		adminarea_showtoken,
-		adminarea_showuserlist,
 		adminarea_token,
 		adminarea_updatedat,
 		adminarea_user_id,
-		adminarea_userlist,
 		email,
 		entrylist_all,
-		entrylist_dnd,
-		entrylist_filter,
 		form_avatar,
 		multibuttontoken_modalbody,
 		multibuttontoken_modaltitle,
@@ -104,11 +94,7 @@
 	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
-	// @ts-ignore - flip is used in template via animate:flip directive
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
@@ -125,18 +111,13 @@
 	// Props - Using API for scalability
 	const { currentUser = null, isMultiTenant = false, roles = [] }: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
 
-	const waitFilter = debounce(300);
-	const flipDurationMs = 300;
-
 	// Core view state (must exist before smartTable onQueryChange can fetch)
 	let showUserList = $state(true);
 	let showUsertoken = $state(false);
-	let showExpiredTokens = $state(false);
 	let globalSearchValue = $state('');
 	let searchShow = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
-	let filters = $state<Record<string, string | undefined>>({});
 	let selectAllColumns = $state(true);
 
 	function getAdminRowId(row: TableDataType): string {
@@ -150,11 +131,11 @@
 		mode: 'server',
 		pageSize: 10,
 		layoutKey: 'admin-area-users-tokens',
-		getRowId: (row) => getAdminRowId(row as TableDataType),
+		getRowId: (row: Record<string, unknown>) => getAdminRowId(row as TableDataType),
 		onQueryChange: () => {
 			fetchData().catch((err) => logger.error('AdminArea smartTable query change:', err));
 		}
-	}) as ReturnType<typeof createSmartTable<TableDataType & Record<string, unknown>>>;
+	}) as unknown as ReturnType<typeof createSmartTable<TableDataType & Record<string, unknown>>>;
 
 	// System-wide user count for bulk safety checks (search/pagination must not shrink this).
 	const systemUserCount = $derived(page.data.totalUsers ?? smartTable.pagination.totalItems);
@@ -332,10 +313,14 @@
 		// Update displayTableHeaders when view changes
 		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
+					// Essential columns only visible by default — rest available via column toggle
+					const essentialKeys = showUserList
+						? ['avatar', 'email', 'username', 'role', 'createdAt', 'blocked']
+						: ['email', 'role', 'token', 'expires', 'createdAt', 'blocked'];
 		const newHeaders = relevantHeaders.map((header) => ({
 			label: header.label,
 			key: header.key,
-			visible: true,
+			visible: essentialKeys.includes(header.key),
 			id: `header-${header.key}`
 		}));
 		displayTableHeaders = newHeaders;
@@ -547,8 +532,8 @@
 			if (result.success) {
 				// Optimistic update on current smartTable page
 				smartTable.setRows(
-					smartTable.rows.map((item) =>
-						isUser(item) && item._id === user._id ? { ...item, blocked: !item.blocked } : item
+					smartTable.rows.map((item: Record<string, unknown>) =>
+						isUser(item as TableDataType) && (item as unknown as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
 					) as TableDataType[]
 				);
 				toast.success(`User ${actionPastTense} successfully`);
@@ -614,8 +599,8 @@
 
 			if (result.success) {
 				smartTable.setRows(
-					smartTable.rows.map((item) =>
-						isToken(item) && item.token === token.token ? { ...item, blocked: !item.blocked } : item
+					smartTable.rows.map((item: Record<string, unknown>) =>
+						isToken(item as TableDataType) && (item as unknown as Token).token === token.token ? { ...item, blocked: !item.blocked } : item
 					) as TableDataType[]
 				);
 				toast.success(`Token ${actionPastTense} successfully`);
@@ -626,15 +611,6 @@
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 			toast.error(`Failed to ${action} token: ${errorMessage}`);
 		}
-	}
-
-	function handleDndConsider(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-	}
-
-	function handleDndFinalize(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-		localStorage.setItem('userPaginationSettings', JSON.stringify({ density, displayTableHeaders }));
 	}
 
 	function modalTokenUser() {
@@ -658,19 +634,6 @@
 		);
 	}
 
-	// Toggle views
-	function toggleUserList() {
-		showUserList = !showUserList;
-		if (showUsertoken) {
-			showUsertoken = false;
-		}
-	}
-
-	function toggleUserToken() {
-		showUsertoken = !showUsertoken;
-		showUserList = false;
-	}
-
 	// --- SERVER-SIDE PAGINATION via createSmartTable (API owns filter/sort/page) ---
 	const selectedRows = $derived(smartTable.getSelectedRows() as TableDataType[]);
 
@@ -683,88 +646,56 @@
 		selectAllColumns = !allColumnsVisible;
 	}
 
-	function handleInputChange(value: string, headerKey: string) {
-		if (value) {
-			const newFilters: Record<string, string | undefined> = {
-				...filters,
-				[headerKey]: value
-			};
-			waitFilter(() => {
-				filters = newFilters;
-			});
-		} else {
-			const newFilters: Record<string, string | undefined> = { ...filters };
-			delete newFilters[headerKey];
-			filters = newFilters;
-		}
+	function showView(view: string) {
+		if (view === 'users') { showUserList = true; showUsertoken = false; }
+		else { showUsertoken = true; showUserList = false; }
 	}
 </script>
 
-<AdminCard
-	data-testid="user-admin-area"
-	class="flex flex-col border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
->
-	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>
-
-	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<Button
-			variant="outline"
-			type="button"
-			onclick={modalTokenUser}
-			aria-label={adminarea_emailtoken()}
-			data-testid="email-registration-token-btn"
-			class="gradient-primary w-full text-white sm:max-w-xs"
-		>
-			<iconify-icon icon="material-symbols:mail" width={24} aria-hidden="true"></iconify-icon>
-			<span class="whitespace-normal wrap-break-word">{adminarea_emailtoken()}</span>
-		</Button>
-
-		<Button variant="outline"
-			type="button"
-			onclick={toggleUserToken}
-			aria-label={showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}
-		 class="gradient-secondary w-full text-white sm:max-w-xs">
-			<iconify-icon icon="material-symbols:key-outline" width={24}></iconify-icon>
-			<span>{showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}</span>
-		</Button>
-
-		{#if showUsertoken && !showUserList && tableData}
-			{const now = new Date()}
-			{const expiredTokens = tableData.filter(
-				(item): item is Token & Record<string, unknown> => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
-			)}
-			{#if expiredTokens.length > 0}
-				<Button variant="outline"
+	<AdminCard
+		data-testid="user-admin-area"
+		class="flex flex-col border border-surface-200 bg-white shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
+	>
+		<!-- Header: Tabs + Invite button -->
+		<div class="flex items-center justify-between gap-3 px-4 pt-3">
+			<div class="flex border-b border-surface-200 dark:border-surface-700 grow" role="tablist" aria-label="User management views">
+				<button
 					type="button"
-					onclick={() => (showExpiredTokens = !showExpiredTokens)}
-					aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
-				 class="gradient-secondary w-full text-white sm:max-w-xs">
-					<iconify-icon icon="material-symbols:schedule" width={24}></iconify-icon>
-					<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
-				</Button>
-			{/if}
-		{/if}
+					role="tab"
+					aria-selected={showUserList}
+					data-testid="admin-tab-users"
+					onclick={() => showView('users')}
+					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+				>
+					<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
+					Users
+					<Badge preset="tonal" color="secondary" size="sm" class="ms-1">{systemUserCount}</Badge>
+				</button>
+				<button
+					type="button"
+					role="tab"
+					aria-selected={showUsertoken}
+					data-testid="admin-tab-tokens"
+					onclick={() => showView('tokens')}
+					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+				>
+					<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
+					Invitations
+				</button>
+			</div>
+			<Button
+				variant="surface" size="sm"
+				onclick={modalTokenUser}
+				aria-label={adminarea_emailtoken()}
+				data-testid="email-registration-token-btn"
+				leadingIcon="material-symbols:mail"
+			>
+				Invite User
+			</Button>
+		</div>
 
-		<Button variant="outline"
-			type="button"
-			onclick={toggleUserList}
-			aria-label={showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}
-		 class="gradient-tertiary w-full text-white sm:max-w-xs">
-			<iconify-icon icon="mdi:account-circle" width={24}></iconify-icon>
-			<span>{showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}</span>
-		</Button>
-	</div>
-
-	{#if showUserList || showUsertoken}
+		<!-- Toolbar -->
 		<div class={SMART_TABLE_TOOLBAR}>
-			<h2 class="order-1 text-xl font-bold text-tertiary-500 dark:text-primary-500">
-				{#if showUserList}
-					{adminarea_userlist()}
-				{:else if showUsertoken}
-					{adminarea_listtoken()}
-				{/if}
-			</h2>
-
 			<div class="order-3 sm:order-2"><TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density /></div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
@@ -780,40 +711,31 @@
 
 		{#if columnShow && (tableData?.length || filterShow)}
 			<div class={SMART_TABLE_COLUMN_MANAGER}>
-				<div class="text-sm text-surface-700 dark:text-primary-500">{entrylist_dnd()}</div>
 				<div class="my-2 flex w-full items-center justify-center gap-1">
 					<label class="me-2">
 						<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange}  aria-label="Input" />
 						{entrylist_all()}
 					</label>
 
-					<section
-						use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
-						onconsider={handleDndConsider}
-						onfinalize={handleDndFinalize}
-						class="flex flex-wrap justify-center gap-1 rounded p-2"
-					>
-						{#each displayTableHeaders as header (header.id)}
-							<span animate:flip={{ duration: flipDurationMs }}>
-								<Button
-									variant="secondary"
-									type="button"
-									onclick={() => {
-										displayTableHeaders = displayTableHeaders.map((h) =>
-											h.id === header.id ? { ...h, visible: !h.visible } : h
-										);
-										selectAllColumns = displayTableHeaders.every((h) => h.visible);
-									}}
-									class="chip {header.visible ? ' ' : ' '} w-100 me-2 flex items-center justify-center"
-								>
-									{#if header.visible}
-										<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
-									{/if}
-									<span class="ms-2 capitalize">{header.label}</span>
-								</Button>
-							</span>
-						{/each}
-					</section>
+					{#each displayTableHeaders as header (header.id)}
+						<Button
+							variant={header.visible ? 'secondary' : 'ghost'}
+							size="sm"
+							type="button"
+							onclick={() => {
+								displayTableHeaders = displayTableHeaders.map((h: TableHeader) =>
+									h.id === header.id ? { ...h, visible: !h.visible } : h
+								);
+								selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
+							}}
+							class="text-xs"
+						>
+							{#if header.visible}
+								<iconify-icon icon="fa:check" width={12} class="me-1"></iconify-icon>
+							{/if}
+							{header.label}
+						</Button>
+					{/each}
 				</div>
 			</div>
 		{/if}
@@ -828,37 +750,11 @@
 			rowsPerPage={rowsPerPage}
 			pagesCount={pagesCount}
 			totalItems={totalItems}
-			onUpdatePage={(page) => smartTable.setPage(page)}
-			onUpdateRowsPerPage={(rows) => smartTable.setPageSize(rows)}
+			onUpdatePage={(page: number) => smartTable.setPage(page)}
+			onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
 		>
 				<table class="{SMART_TABLE} {density === 'compact' ? 'table-compact' : density === 'comfortable' ? 'table-comfortable' : ''}">
 					<thead class={SMART_TABLE_THEAD}>
-						{#if filterShow}
-							<tr class="border-b border-surface-200/50 dark:border-surface-700/50">
-								<th class="border-e border-surface-200/50 dark:border-surface-700/50">
-									{#if Object.keys(filters).length > 0}
-										<Button variant="ghost" type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="p-0! min-w-0 preset-outline">
-											<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
-										</Button>
-									{/if}
-								</th>
-
-								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-									<th class="border-e border-surface-200/50 dark:border-surface-700/50">
-										<div class="flex items-center justify-between">
-											<FloatingInput
-												type="text"
-												icon="material-symbols:search-rounded"
-												label={entrylist_filter()}
-												name={header.key}
-												onInput={(value) => handleInputChange(value, header.key)}
-											/>
-										</div>
-									</th>
-								{/each}
-							</tr>
-						{/if}
-
 						<tr
 							class="border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
 						>
@@ -928,27 +824,30 @@
 									<td class={SMART_TABLE_TD}>
 										{#if header.key === 'blocked'}
 											{#if showUserList}
-												<Button variant="outline"
+												<button
 													type="button"
 													onclick={() => isUser(row) && toggleUserBlocked(row)}
 													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
-													title={row.blocked ? 'Click to unblock user' : 'Click to block user'}
-												 size="sm" class="rounded p-1 transition-all hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600">
-													<Boolean value={!!row[header.key]} />
-												</Button>
+													class="cursor-pointer"
+												>
+													<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
+														{row.blocked ? 'Blocked' : 'Active'}
+													</Badge>
+												</button>
 											{:else}
-												<Button
-													variant="outline"
+												<button
 													type="button"
 													onclick={(event: MouseEvent) => {
 														event.stopPropagation();
 														if (isToken(row)) toggleTokenBlocked(row);
 													}}
 													aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
-													title={row.blocked ? 'Click to unblock token' : 'Click to block token'}
-												 size="sm" class="rounded p-1 transition-all hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600">
-													<Boolean value={!!row[header.key]} />
-												</Button>
+													class="cursor-pointer"
+												>
+													<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
+														{row.blocked ? 'Blocked' : 'Active'}
+													</Badge>
+												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<Avatar
@@ -1018,7 +917,7 @@
 													</Button>
 												</SystemTooltip>
 											</div>
-										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
+										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(String(header.key))}
 											{formatDate(isUser(row) ? row[header.key as keyof User] : isToken(row) ? row[header.key as keyof Token] : undefined)}
 										{:else if header.key === 'expires'}
 											{#if isToken(row)}
@@ -1052,5 +951,4 @@
 					</tbody>
 				</table>
 		</SmartTableShell>
-	{/if}
-</AdminCard>
+	</AdminCard>

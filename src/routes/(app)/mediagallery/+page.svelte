@@ -32,6 +32,7 @@ import { logger } from "@utils/logger";
 import {
 	type MediaBase,
 	type MediaImage,
+	type StoredMediaBase,
 	MediaTypeEnum,
 } from "@utils/media/media-models";
 import {
@@ -42,7 +43,8 @@ import {
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
-import { uploadMediaFiles } from "@utils/media/upload-client";
+import { uploadMediaFilesHandle } from "@utils/media/upload-client";
+import { matchesJsonPathFilter } from "@utils/json-path-filter";
 import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -60,9 +62,15 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
 	let isUploading = $state(false);
+	let uploadProgress = $state(0);
+	let uploadFileLabel = $state("");
+	let uploadCancel: (() => void) | null = $state(null);
 	let isBulkDownloading = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
+	// Seed from server ?jsonPath= for shareable filtered views
+	// svelte-ignore state_referenced_locally — data is from $props(), initial seed only
+	let jsonPathFilter = $state((data as { jsonPathFilter?: string }).jsonPathFilter ?? "");
 	let sortBy = $state("newest");
 	/** Breadcrumb folder key currently highlighted as media drop target (`root` | folderId) */
 	let breadcrumbDropKey = $state<string | null>(null);
@@ -117,15 +125,15 @@ const filteredFiles = $derived.by(() => {
 			const meta = file.metadata as Record<string, any> | undefined;
 
 			if (searchCriteria.filename && !file.filename?.toLowerCase().includes(searchCriteria.filename.toLowerCase())) return false;
-			if (searchCriteria.minSize && file.size < searchCriteria.minSize) return false;
-			if (searchCriteria.maxSize && file.size > searchCriteria.maxSize) return false;
+			if (searchCriteria.minSize && (file as StoredMediaBase).size < searchCriteria.minSize) return false;
+			if (searchCriteria.maxSize && (file as StoredMediaBase).size > searchCriteria.maxSize) return false;
 			if (searchCriteria.minWidth && (!img.width || img.width < searchCriteria.minWidth)) return false;
 			if (searchCriteria.maxWidth && (!img.width || img.width > searchCriteria.maxWidth)) return false;
 			if (searchCriteria.minHeight && (!img.height || img.height < searchCriteria.minHeight)) return false;
 			if (searchCriteria.maxHeight && (!img.height || img.height > searchCriteria.maxHeight)) return false;
 			if (searchCriteria.uploadedAfter && new Date(file.createdAt || 0) < searchCriteria.uploadedAfter) return false;
 			if (searchCriteria.uploadedBefore && new Date(file.createdAt || 0) > searchCriteria.uploadedBefore) return false;
-			if (searchCriteria.fileTypes && searchCriteria.fileTypes.length > 0 && !searchCriteria.fileTypes.some(t => file.mimeType?.includes(t))) return false;
+			if (searchCriteria.fileTypes && searchCriteria.fileTypes.length > 0 && !searchCriteria.fileTypes.some(t => (file as any).mimeType?.includes(t))) return false;
 
 			if (searchCriteria.tags && searchCriteria.tags.length > 0) {
 				const tags = meta?.tags as string[] | undefined;
@@ -138,7 +146,12 @@ const filteredFiles = $derived.by(() => {
 				const hasExif = !!meta?.exif;
 				if (hasExif !== searchCriteria.hasEXIF) return false;
 			}
-			if (searchCriteria.aspectRatio) {
+			// JSON path filter: `metadata.camera = Canon` · multi AND via `;`
+			if (jsonPathFilter.trim() && !matchesJsonPathFilter(file, jsonPathFilter)) {
+				return false;
+			}
+
+						if (searchCriteria.aspectRatio) {
 				if (!img.width || !img.height) return false;
 				const ratio = img.width / img.height;
 				if (searchCriteria.aspectRatio === 'landscape' && ratio <= 1) return false;
@@ -154,8 +167,8 @@ const filteredFiles = $derived.by(() => {
 			case 'oldest': return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
 			case 'name-asc': return (a.filename || '').localeCompare(b.filename || '');
 			case 'name-desc': return (b.filename || '').localeCompare(a.filename || '');
-			case 'size-desc': return b.size - a.size;
-			case 'size-asc': return a.size - b.size;
+			case 'size-desc': return (b as StoredMediaBase).size - (a as StoredMediaBase).size;
+			case 'size-asc': return (a as StoredMediaBase).size - (b as StoredMediaBase).size;
 			case 'newest':
 			default: return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
 		}
@@ -433,31 +446,62 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 }
 
 // Shared upload path for both the toolbar button and the grid's empty-state.
-// Re-syncs the gallery via invalidateAll() (no full page reload) so new media
-// fades in within the current folder context.
-async function uploadFiles(fileList: FileList | File[]) {
-	const list = Array.from(fileList ?? []);
-	if (!list.length || isUploading) return;
+	// Re-syncs the gallery via invalidateAll() (no full page reload) so new media
+	// fades in within the current folder context.
+	async function uploadFiles(fileList: FileList | File[]) {
+		const list = Array.from(fileList ?? []);
+		if (!list.length || isUploading) return;
 
-	isUploading = true;
-	try {
-		const result = await uploadMediaFiles(list, {
+		isUploading = true;
+		uploadProgress = 0;
+		uploadFileLabel = list.length > 1 ? `0/${list.length}` : list[0]?.name || "";
+		const controller = new AbortController();
+		const handle = uploadMediaFilesHandle(list, {
 			formActionUrl: "?/upload",
 			folder: data.currentFolder?._id || "global",
+			// Sequential multi-file for accurate per-file progress labels
+			sequential: list.length > 1,
+			onProgress: (percent) => {
+				uploadProgress = percent;
+			},
+			onFileProgress: (fp) => {
+				uploadProgress = fp.overallPercent;
+				uploadFileLabel =
+					list.length > 1
+						? `${fp.fileIndex + 1}/${fp.fileCount}: ${fp.fileName}`
+						: fp.fileName;
+			},
+			signal: controller.signal,
 		});
-		if (result.success) {
-			toast.success("Media uploaded successfully");
-			await invalidateAll();
-		} else {
-			toast.error(result.message || "Upload failed");
+		uploadCancel = () => {
+			controller.abort();
+			handle.cancel();
+		};
+		try {
+			const result = await handle.promise;
+			if (result.aborted) {
+				toast.info("Upload cancelled");
+			} else if (result.success) {
+				const n = result.files?.length || list.length;
+				toast.success(n > 1 ? `${n} files uploaded successfully` : "Media uploaded successfully");
+				await invalidateAll();
+			} else {
+				toast.error(result.message || "Upload failed");
+			}
+		} catch (err) {
+			logger.error("Upload failed", err);
+			toast.error("Upload failed");
+		} finally {
+			isUploading = false;
+			uploadCancel = null;
+			uploadProgress = 0;
+			uploadFileLabel = "";
 		}
-	} catch (err) {
-		logger.error("Upload failed", err);
-		toast.error("Upload failed");
-	} finally {
-		isUploading = false;
 	}
-}
+
+	function cancelUpload() {
+		uploadCancel?.();
+	}
 
 async function handleBulkDownload() {
 	if (selectedFiles.size === 0 || isBulkDownloading) return;
@@ -621,6 +665,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				size="sm"
 				onclick={handleCreateFolder}
 				aria-label="Create new virtual folder"
+				data-testid="media-create-folder"
 				class="h-9 gap-1.5 px-2 text-surface-600 sm:px-3 dark:text-surface-300"
 			>
 				<iconify-icon icon="mdi:folder-plus" width="18"></iconify-icon>
@@ -638,7 +683,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				class="h-9 gap-1.5 px-2 sm:px-3"
 			>
 				<iconify-icon icon={isUploading ? "mdi:loading" : "mdi:upload"} width="18" class={isUploading ? "animate-spin" : ""}></iconify-icon>
-				<span class="hidden sm:inline">{isUploading ? "Uploading…" : "Upload"}</span>
+				<span class="hidden sm:inline">{isUploading ? `Uploading…` : "Upload"}</span>
 			</Button>
 
 			<input aria-label="Search media"
@@ -653,6 +698,43 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 		</div>
 	{/snippet}
 
+	{#if isUploading}
+		<div class="shrink-0 px-2 pb-1 sm:px-3">
+			<div
+				class="flex items-center gap-3 rounded border border-surface-300 bg-surface-50 p-2 text-xs dark:border-surface-700 dark:bg-surface-800"
+				role="progressbar"
+				aria-label="Upload progress"
+				aria-valuenow={uploadProgress}
+				aria-valuemin={0}
+				aria-valuemax={100}
+			>
+				<iconify-icon icon="mdi:upload" width="16" class="shrink-0 text-primary-500"></iconify-icon>
+				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600">
+					<div
+						class="h-full rounded-full bg-primary-500 transition-all duration-300"
+						style="width: {uploadProgress}%"
+					></div>
+				</div>
+				{#if uploadFileLabel}
+					<span class="hidden max-w-40 truncate text-surface-500 sm:inline dark:text-surface-400" title={uploadFileLabel}>
+						{uploadFileLabel}
+					</span>
+				{/if}
+				<span class="shrink-0 font-medium tabular-nums text-surface-600 dark:text-surface-300">{uploadProgress}%</span>
+				<Button
+					variant="outline"
+					size="sm"
+					type="button"
+					onclick={cancelUpload}
+					aria-label="Cancel upload"
+					class="shrink-0"
+				>
+					Cancel
+				</Button>
+			</div>
+		</div>
+	{/if}
+
 	<div class="flex min-h-0 flex-1 flex-col gap-0">
 		{#if assetStats.selected > 0}
 			<div class="shrink-0 px-2 sm:px-3">
@@ -660,9 +742,10 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					class="flex flex-wrap items-center justify-between gap-2 border-b border-primary-500/30 py-2"
 					role="status"
 					aria-live="polite"
+					data-testid="media-bulk-bar"
 				>
 					<p class="text-xs text-surface-600 dark:text-surface-300">
-						<span class="font-medium text-surface-800 dark:text-surface-100">{assetStats.selected} selected</span>
+						<span class="font-medium text-surface-800 dark:text-surface-100" data-testid="media-bulk-count">{assetStats.selected} selected</span>
 						<span class="hidden text-surface-500 sm:inline dark:text-surface-400"> · Del to remove · Esc to clear</span>
 					</p>
 					<Button
@@ -672,6 +755,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						disabled={isBulkDownloading}
 						aria-busy={isBulkDownloading}
 						aria-label="Download selected files as archive"
+						data-testid="media-bulk-download"
 						class="h-8 gap-1.5 px-3"
 					>
 						<iconify-icon
@@ -712,6 +796,20 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						placeholder="Type"
 						class="w-full sm:w-28"
 					/>
+
+					<label for="media-grid-size" class="sr-only">Grid size</label>
+					<Select
+						id="media-grid-size"
+						bind:value={gridSize}
+						options={[
+							{ value: 'tiny', label: 'Tiny' },
+							{ value: 'small', label: 'Small' },
+							{ value: 'medium', label: 'Medium' },
+							{ value: 'large', label: 'Large' },
+						]}
+						placeholder="Size"
+						class="w-full sm:w-28"
+					/>
 				{/if}
 
 				<label for="sort-by-filter" class="sr-only">Sort by</label>
@@ -723,11 +821,23 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					class="w-full sm:w-36"
 				/>
 
-				<Button
+					<div class="relative min-w-0 w-full sm:w-auto sm:min-w-40">
+						<Input
+							bind:value={jsonPathFilter}
+							type="text"
+							placeholder='JSON path… e.g. metadata.camera = Canon; metadata.iso > 100'
+							class="w-full ps-2 text-xs"
+							aria-label="Filter by JSON path (supports = != ~ > < ; AND)"
+							title="Format: path = value · multi: a = 1; b > 2 · ops: = != ~ > < >= <="
+						/>
+					</div>
+
+					<Button
 					variant={searchCriteria ? 'tertiary' : 'ghost'}
 					size="sm"
 					onclick={() => showAdvancedSearch = true}
 					aria-label="Advanced Search"
+					data-testid="media-advanced-search"
 					class="h-10 text-sm {searchCriteria ? 'preset-filled-tertiary-500 text-white' : ''}"
 				>
 					<iconify-icon icon="mdi:filter-variant" width="18"></iconify-icon>
@@ -772,6 +882,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						onclick={() => (isSelectionMode = !isSelectionMode)}
 						aria-label="Toggle selection mode"
 						aria-pressed={isSelectionMode}
+						data-testid="media-selection-toggle"
 						class="h-10 text-sm"
 					>
 						<span class="sm:hidden">{isSelectionMode ? 'Done' : 'Select'}</span>
@@ -824,6 +935,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 											: 'hover:text-primary-500'}"
 								data-preload="hover"
 								data-media-drop-target={dropKey}
+								data-testid={`media-breadcrumb-${dropKey}`}
 								aria-label={selectedFiles.size > 0
 									? `Move ${selectedFiles.size} selected to ${crumb.name}`
 									: `Open folder ${crumb.name}`}

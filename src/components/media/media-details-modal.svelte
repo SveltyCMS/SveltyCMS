@@ -17,10 +17,11 @@
 			import Select from '@components/ui/select.svelte';
 			import Badge from '@components/ui/badge.svelte';
 			import Tabs from '@components/ui/tabs.svelte';
-  import { fade } from "svelte/transition";
-  import { formatBytes } from "@utils/utils";
-  import { toast } from "@src/stores/toast.svelte.ts";
-  import { mediaUrl } from "@utils/media/media-utils";
+	  import { fade } from "svelte/transition";
+	  import { formatBytes } from "@utils/utils";
+	  import { toast } from "@src/stores/toast.svelte.ts";
+	  import { mediaUrl } from "@utils/media/media-utils";
+	  import { debounce } from "@utils/debounce";
 
   // Props
   let {
@@ -44,18 +45,92 @@
   let newTagInput = $state("");
   let isSavingTags = $state(false);
 
-  // Inline editable asset fields
-  let isEditingName = $state(false);
-  let editName = $state('');
-  let isSavingName = $state(false);
+  	// Inline editable asset fields
+  	let isEditingName = $state(false);
+  	let editName = $state('');
+  	let nameSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  let isEditingAlt = $state(false);
-  let editAlt = $state('');
-  let isSavingAlt = $state(false);
+  	let isEditingAlt = $state(false);
+  	let editAlt = $state('');
+  	let altSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  let isEditingCaption = $state(false);
-  let editCaption = $state('');
-  let isSavingCaption = $state(false);
+  	let isEditingCaption = $state(false);
+  	let editCaption = $state('');
+  	let captionSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+
+  	// 🛡️ Debounced auto-save: fires 300ms after user stops typing.
+  	// Eliminates the manual-save-button antipattern (aphex #246).
+  	const debouncedSaveAlt = debounce.create(async () => {
+  		if (!file?._id || !isEditingAlt) return;
+  		altSaveStatus = 'saving';
+  		try {
+  			const response = await fetch(`/api/media/${file._id}`, {
+  				method: 'PATCH',
+  				headers: { 'Content-Type': 'application/json' },
+  				body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
+  			});
+  			const body = await response.json();
+  			if (response.ok) {
+  				file = body?.data ?? body ?? file;
+  				onUpdate(file);
+  				altSaveStatus = 'saved';
+  			} else {
+  				toast.error(body?.error || 'Failed to save alt text');
+  				altSaveStatus = 'idle';
+  			}
+  		} catch (err: any) {
+  			toast.error(err?.message || 'Failed to save alt text');
+  			altSaveStatus = 'idle';
+  		}
+  	}, 300);
+
+  	const debouncedSaveName = debounce.create(async () => {
+  		if (!file?._id || !isEditingName) return;
+  		nameSaveStatus = 'saving';
+  		try {
+  			const response = await fetch(`/api/media/${file._id}`, {
+  				method: 'PATCH',
+  				headers: { 'Content-Type': 'application/json' },
+  				body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
+  			});
+  			const body = await response.json();
+  			if (response.ok) {
+  				file = body?.data ?? body ?? file;
+  				onUpdate(file);
+  				nameSaveStatus = 'saved';
+  			} else {
+  				toast.error(body?.error || 'Failed to save name');
+  				nameSaveStatus = 'idle';
+  			}
+  		} catch (err: any) {
+  			toast.error(err?.message || 'Failed to save name');
+  			nameSaveStatus = 'idle';
+  		}
+  	}, 300);
+
+  	const debouncedSaveCaption = debounce.create(async () => {
+  		if (!file?._id || !isEditingCaption) return;
+  		captionSaveStatus = 'saving';
+  		try {
+  			const response = await fetch(`/api/media/${file._id}`, {
+  				method: 'PATCH',
+  				headers: { 'Content-Type': 'application/json' },
+  				body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
+  			});
+  			const body = await response.json();
+  			if (response.ok) {
+  				file = body?.data ?? body ?? file;
+  				onUpdate(file);
+  				captionSaveStatus = 'saved';
+  			} else {
+  				toast.error(body?.error || 'Failed to save caption');
+  				captionSaveStatus = 'idle';
+  			}
+  		} catch (err: any) {
+  			toast.error(err?.message || 'Failed to save caption');
+  			captionSaveStatus = 'idle';
+  		}
+  	}, 300);
 
   // Versions Tab State
   let isUploadingVersion = $state(false);
@@ -107,93 +182,27 @@
     }
   });
 
-  // ── Inline editable asset field helpers ─────────────────────────────────────
-  function startEditName() {
-    editName = file.metadata?.name || file.filename || '';
-    isEditingName = true;
-  }
-  async function saveName() {
-    if (!file?._id) return;
-    isSavingName = true;
-    try {
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
-      });
-      const body = await response.json();
-      if (response.ok) {
-        file = body?.data ?? body ?? file;
-        onUpdate(file);
-        toast.success('Name saved');
-      } else {
-        toast.error(body?.error || 'Failed to save name');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to save name');
-    } finally {
-      isSavingName = false;
-      isEditingName = false;
-    }
-  }
+  	// ── Inline editable asset field helpers ─────────────────────────────────────
+  	function startEditName() {
+  		editName = file.metadata?.name || file.filename || '';
+  		isEditingName = true;
+  		nameSaveStatus = 'idle';
+  	}
+  	// saveName replaced by debouncedSaveName — fires automatically on input
 
-  function startEditAlt() {
-    editAlt = file.metadata?.alt || '';
-    isEditingAlt = true;
-  }
-  async function saveAlt() {
-    if (!file?._id) return;
-    isSavingAlt = true;
-    try {
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
-      });
-      const body = await response.json();
-      if (response.ok) {
-        file = body?.data ?? body ?? file;
-        onUpdate(file);
-        toast.success('Alt text saved');
-      } else {
-        toast.error(body?.error || 'Failed to save alt text');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to save alt text');
-    } finally {
-      isSavingAlt = false;
-      isEditingAlt = false;
-    }
-  }
+  	function startEditAlt() {
+  		editAlt = file.metadata?.alt || '';
+  		isEditingAlt = true;
+  		altSaveStatus = 'idle';
+  	}
+  	// saveAlt replaced by debouncedSaveAlt — fires automatically on input
 
-  function startEditCaption() {
-    editCaption = file.metadata?.caption || '';
-    isEditingCaption = true;
-  }
-  async function saveCaption() {
-    if (!file?._id) return;
-    isSavingCaption = true;
-    try {
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
-      });
-      const body = await response.json();
-      if (response.ok) {
-        file = body?.data ?? body ?? file;
-        onUpdate(file);
-        toast.success('Caption saved');
-      } else {
-        toast.error(body?.error || 'Failed to save caption');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to save caption');
-    } finally {
-      isSavingCaption = false;
-      isEditingCaption = false;
-    }
-  }
+  	function startEditCaption() {
+  		editCaption = file.metadata?.caption || '';
+  		isEditingCaption = true;
+  		captionSaveStatus = 'idle';
+  	}
+  	// saveCaption replaced by debouncedSaveCaption — fires automatically on input
 
   // ── Info Tab logic ──────────────────────────────────────────────────────────
   async function handleAddTag(e: KeyboardEvent | MouseEvent) {
@@ -627,15 +636,14 @@
                         type="text"
                         bind:value={editName}
                         class="flex-1"
-                        onkeydown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') isEditingName = false; }}
+                        oninput={() => { nameSaveStatus = 'saving'; debouncedSaveName(); }}
+                        onkeydown={(e) => { if (e.key === 'Escape') { debouncedSaveName.cancel(); isEditingName = false; } }}
                       />
-                      <Button size="sm" variant="ghost" onclick={saveName} aria-label="Save name" disabled={isSavingName}>
-                        {#if isSavingName}
-                          <iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
-                        {:else}
-                          <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
-                        {/if}
-                      </Button>
+                      {#if nameSaveStatus === 'saving'}
+                        <iconify-icon icon="mdi:loading" class="animate-spin text-surface-400" width="14"></iconify-icon>
+                      {:else if nameSaveStatus === 'saved'}
+                        <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
+                      {/if}
                     </div>
                   {:else}
                     <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditName} aria-label="Edit asset name">{file.metadata?.name || file.filename || 'Untitled'}</Button>
@@ -654,15 +662,14 @@
                           type="text"
                           bind:value={editAlt}
                           class="flex-1"
-                          onkeydown={(e) => { if (e.key === 'Enter') saveAlt(); if (e.key === 'Escape') isEditingAlt = false; }}
+                          oninput={() => { altSaveStatus = 'saving'; debouncedSaveAlt(); }}
+                          onkeydown={(e) => { if (e.key === 'Escape') { debouncedSaveAlt.cancel(); isEditingAlt = false; } }}
                         />
-                        <Button size="sm" variant="ghost" onclick={saveAlt} aria-label="Save alt text" disabled={isSavingAlt}>
-                          {#if isSavingAlt}
-                            <iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
-                          {:else}
-                            <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
-                          {/if}
-                        </Button>
+                        {#if altSaveStatus === 'saving'}
+                          <iconify-icon icon="mdi:loading" class="animate-spin text-surface-400" width="14"></iconify-icon>
+                        {:else if altSaveStatus === 'saved'}
+                          <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
+                        {/if}
                       </div>
                     {:else}
                       <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditAlt} aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button>
@@ -681,15 +688,14 @@
                         type="text"
                         bind:value={editCaption}
                         class="flex-1"
-                        onkeydown={(e) => { if (e.key === 'Enter') saveCaption(); if (e.key === 'Escape') isEditingCaption = false; }}
+                        oninput={() => { captionSaveStatus = 'saving'; debouncedSaveCaption(); }}
+                        onkeydown={(e) => { if (e.key === 'Escape') { debouncedSaveCaption.cancel(); isEditingCaption = false; } }}
                       />
-                      <Button size="sm" variant="ghost" onclick={saveCaption} aria-label="Save caption" disabled={isSavingCaption}>
-                        {#if isSavingCaption}
-                          <iconify-icon icon="mdi:loading" class="animate-spin" width="14"></iconify-icon>
-                        {:else}
-                          <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
-                        {/if}
-                      </Button>
+                      {#if captionSaveStatus === 'saving'}
+                        <iconify-icon icon="mdi:loading" class="animate-spin text-surface-400" width="14"></iconify-icon>
+                      {:else if captionSaveStatus === 'saved'}
+                        <iconify-icon icon="mdi:check" width="14" class="text-success-500"></iconify-icon>
+                      {/if}
                     </div>
                   {:else}
                     <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditCaption} aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button>

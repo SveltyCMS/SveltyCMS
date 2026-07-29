@@ -7,18 +7,24 @@
  * preload (bunfig.toml preloads tests/unit/bun-preload.ts for all tests).
  */
 
-import { beforeEach, describe, expect, test, beforeAll } from "vitest";
+import { beforeEach, afterAll, describe, expect, test, beforeAll } from "vitest";
 
 const TEST_TENANT = "cache-test-tenant";
 
 let cacheService: any;
+let prevMockMultiTenant: unknown;
 
 beforeAll(async () => {
   // 🚀 Dynamic import bypasses Bun's global mock (bun-preload.ts)
   const module = await import(`@src/databases/cache/cache-service?bun-unmock=${Date.now()}`);
   cacheService = module.cacheService;
-  // Enable multi-tenant key prefixing for proper tenant isolation
+  // Scoped multi-tenant flag — restored in afterAll (no suite leak)
+  prevMockMultiTenant = (globalThis as any).__mockMultiTenant;
   (globalThis as any).__mockMultiTenant = true;
+});
+
+afterAll(() => {
+  (globalThis as any).__mockMultiTenant = prevMockMultiTenant;
 });
 
 describe("Cache Integration Tests (Real CacheService)", () => {
@@ -107,6 +113,21 @@ describe("Cache Integration Tests (Real CacheService)", () => {
       const v2 = await cacheService.get("key:2", TEST_TENANT);
       expect(v1).toBeUndefined();
       expect(v2).toBeUndefined();
+    });
+
+    test("clearByTags removes only tagged keys for tenant", async () => {
+      expect(typeof cacheService.clearByTags).toBe("function");
+      // set(key, value, ttl, tenantId, category, tags)
+      await cacheService.set("tag:keep", { v: 1 }, 60, TEST_TENANT, undefined, ["keep-tag"]);
+      await cacheService.set("tag:drop", { v: 2 }, 60, TEST_TENANT, undefined, ["drop-tag"]);
+      await cacheService.set("tag:other", { v: 3 }, 60, "other-tenant", undefined, ["drop-tag"]);
+
+      await cacheService.clearByTags(["drop-tag"], TEST_TENANT);
+
+      expect(await cacheService.get("tag:keep", TEST_TENANT)).toEqual({ v: 1 });
+      expect(await cacheService.get("tag:drop", TEST_TENANT)).toBeUndefined();
+      // L1 tag index is tenant-partitioned — other tenant's same tag must survive
+      expect(await cacheService.get("tag:other", "other-tenant")).toEqual({ v: 3 });
     });
   });
 

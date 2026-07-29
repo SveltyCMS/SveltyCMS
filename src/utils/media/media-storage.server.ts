@@ -11,20 +11,22 @@
 
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
-import mime from "mime-types";
 import { logger } from "@utils/logger";
-import { publicEnv } from "@src/stores/global-settings.svelte";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
+import { getMimeType } from "./media-utils";
 import type { ResizedImage } from "./media-models";
+import type { SharpFactory } from "./sharp-pipeline";
 
 /** Global lazy-loaded sharp instance to eliminate module resolution overhead */
-let _sharp: any = null;
-async function getSharp(): Promise<any> {
+let _sharp: SharpFactory | null = null;
+async function getSharp(): Promise<SharpFactory> {
   if (!_sharp) {
     const mod = await import("sharp");
-    _sharp = mod.default || mod;
+    _sharp = (mod.default || mod) as SharpFactory;
   }
   return _sharp;
 }
@@ -55,17 +57,20 @@ function spawnAsync(command: string, args: string[]): Promise<void> {
   });
 }
 
+/** Maximum buffer size (500MB) allowed for temp file writes. */
+const MAX_TEMP_BUFFER_SIZE = 500 * 1024 * 1024;
+
 // Image sizes
 const DEFAULT_SIZES = { sm: 600, md: 900, lg: 1200 } as const;
-export const SIZES = {
+export const SIZES: Readonly<Record<string, number>> = Object.freeze({
   ...DEFAULT_SIZES,
-  ...publicEnv.IMAGE_SIZES,
+  ...(getPublicSettingSync("IMAGE_SIZES") as Record<string, number> | undefined),
   original: 0,
   thumbnail: 200,
-};
+});
 
-/** Get configured image sizes */
-export function getImageSizes() {
+/** Get configured image sizes (returns a frozen, read-only copy). */
+export function getImageSizes(): Readonly<typeof SIZES> {
   return SIZES;
 }
 
@@ -131,8 +136,11 @@ export async function saveResized(
   const baseInstance = sharp(buffer);
   const meta = await baseInstance.metadata();
 
-  const format = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.format ?? "original";
-  const quality = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.quality ?? 80;
+  const formatConfig = getPublicSettingSync("MEDIA_OUTPUT_FORMAT_QUALITY") as
+    | { format?: string; quality?: number }
+    | undefined;
+  const format = formatConfig?.format ?? "original";
+  const quality = formatConfig?.quality ?? 80;
 
   // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP)
   const variants = Object.entries(SIZES).filter(([_, w]) => w > 0);
@@ -146,7 +154,7 @@ export async function saveResized(
 
     // 1. Original format (or configured default)
     let outExt = ext;
-    let mimeType = mime.lookup(ext) || "application/octet-stream";
+    let mimeType = getMimeType(`file.${ext}`) || "application/octet-stream";
     let instance = baseVariant.clone();
 
     if (format === "webp") {
@@ -219,11 +227,21 @@ export async function saveResized(
   return Object.fromEntries(nested.flat());
 }
 
-/** Save avatar (200x200) */
-export async function saveAvatar(file: File, userId: string): Promise<string> {
-  const buf = Buffer.from(await file.arrayBuffer());
-  const ext = path.extname(file.name) || ".jpg";
+/** Allowed extensions for avatar uploads */
+const AVATAR_EXT_WHITELIST = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"]);
 
+/** Save avatar (200x200) with extension validation */
+export async function saveAvatar(file: File, userId: string): Promise<string> {
+  const rawExt = path.extname(file.name).toLowerCase();
+  if (!rawExt || !AVATAR_EXT_WHITELIST.has(rawExt)) {
+    throw new Error(
+      `Invalid avatar file type: "${rawExt || "(none)"}". Allowed: ${[...AVATAR_EXT_WHITELIST].join(", ")}`,
+    );
+  }
+  // Strip leading dot and sanitize (remove any path separators or special chars)
+  const ext = "." + rawExt.replace(/^\./, "").replace(/[^a-z0-9]/g, "");
+
+  const buf = Buffer.from(await file.arrayBuffer());
   const sharp = await getSharp();
   const resized = await sharp(buf)
     .resize(200, 200, { fit: "cover", position: "center" })
@@ -237,8 +255,13 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
  * Captures a thumbnail from a video at the 1s mark using ffmpeg
  */
 export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | null> {
-  const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${Date.now()}.mp4`);
-  const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${Date.now()}.jpg`);
+  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
+    logger.error("Video buffer too large for thumbnail capture", { size: buffer.length });
+    return null;
+  }
+
+  const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${crypto.randomUUID()}.mp4`);
+  const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${crypto.randomUUID()}.jpg`);
   try {
     writeFileSync(tempInput, buffer);
     // Capture frame at 1s mark
@@ -260,14 +283,12 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
     return null;
   } finally {
     try {
-      if (os.platform() !== "win32") {
-        if (tempInput) {
-          unlinkSync(tempInput);
-        }
-        if (tempOutput) {
-          unlinkSync(tempOutput);
-        }
-      }
+      unlinkSync(tempInput);
+    } catch {
+      /* ignore */
+    }
+    try {
+      unlinkSync(tempOutput);
     } catch {
       /* ignore */
     }
@@ -278,8 +299,13 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
  * Generates a thumbnail from the first page of a PDF using ImageMagick
  */
 export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | null> {
-  const tempInput = path.join(os.tmpdir(), `pdf-input-${Date.now()}.pdf`);
-  const tempOutput = path.join(os.tmpdir(), `pdf-output-${Date.now()}.jpg`);
+  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
+    logger.error("PDF buffer too large for thumbnail generation", { size: buffer.length });
+    return null;
+  }
+
+  const tempInput = path.join(os.tmpdir(), `pdf-input-${crypto.randomUUID()}.pdf`);
+  const tempOutput = path.join(os.tmpdir(), `pdf-output-${crypto.randomUUID()}.jpg`);
   try {
     writeFileSync(tempInput, buffer);
     // Use ImageMagick (magick) to extract the first page [0] at 150 DPI
@@ -312,14 +338,12 @@ export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | nul
     return null;
   } finally {
     try {
-      if (os.platform() !== "win32") {
-        if (tempInput) {
-          unlinkSync(tempInput);
-        }
-        if (tempOutput) {
-          unlinkSync(tempOutput);
-        }
-      }
+      unlinkSync(tempInput);
+    } catch {
+      /* ignore */
+    }
+    try {
+      unlinkSync(tempOutput);
     } catch {
       /* ignore */
     }

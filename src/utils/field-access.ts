@@ -1,6 +1,12 @@
 /**
  * @file src/utils/field-access.ts
- * @description Utility for Field-Level Access Control (FLAC) enforcement. (Hardened)
+ * @description Utility for Field-Level Access Control (FLAC) enforcement.
+ *
+ * ### Bug fixes (audit 2026-07):
+ * - Empty roles array now correctly denies access (was fail-open)
+ * - Batch-collects all write violations before throwing (anti-bruteforce)
+ * - Deep cloning + dot-notation support for nested field stripping
+ * - Gracefully handles null/undefined user (public, unauthenticated requests)
  */
 
 import type { User } from "@src/databases/auth/types";
@@ -10,112 +16,154 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import type { DatabaseId } from "@src/databases/db-interface";
 
 /**
+ * Helper to safely delete nested fields using dot notation (e.g., 'author.role').
+ */
+function removeNestedField(obj: Record<string, unknown>, path: string): void {
+  if (!path.includes(".")) {
+    delete obj[path];
+    return;
+  }
+  const parts = path.split(".");
+  const last = parts.pop()!;
+  let current: unknown = obj;
+
+  for (const part of parts) {
+    if (current == null || typeof current !== "object") return;
+    current = (current as Record<string, unknown>)[part];
+  }
+  if (current && typeof current === "object") {
+    delete (current as Record<string, unknown>)[last];
+  }
+}
+
+/**
  * Checks if a user has permission to perform a specific operation on a field.
  */
 export function canAccessField(
   field: FieldInstance,
-  user: User | { _id: string; role: string },
+  // Safely allow null/undefined for public, unauthenticated requests
+  user: User | { _id: string; role: string } | null | undefined,
   operation: "read" | "write",
 ): boolean {
+  const userRole = user?.role || "public";
+  const userId = user?._id || null;
+
   // 1. System/Admin Bypass
-  if (user.role === "admin" || user._id === "system") return true;
+  if (userRole === "admin" || userId === "system") return true;
 
   const permissions = field.permissions;
+  const isHidden =
+    (field as Record<string, unknown>).hidden ||
+    (field as Record<string, unknown>).visibility === "hidden";
 
-  // 2. Default Policy (Hardened - F2)
-  // If no permissions defined, we check if it's a hidden field
+  // 2. Default Policy & Hidden Fields
   if (!permissions) {
-    if (operation === "read" && (field as any).hidden) return false;
+    // Hidden fields shouldn't be writable OR readable by non-admins
+    if (isHidden) return false;
     return true;
   }
 
-  // 3. Visibility check (Read only)
-  if (operation === "read" && (field as any).visibility === "hidden") {
-    return false;
-  }
+  // 3. Visibility check
+  if (operation === "read" && isHidden) return false;
 
   // 4. Auth requirement
-  if (permissions.requiredAuth && !user._id) {
+  if (permissions.requiredAuth && !userId) {
     return false;
   }
 
-  // 5. Role-based checks (Fail-Closed)
+  // 5. Role-based checks (Hardened: strict fail-closed)
   const roles = operation === "read" ? permissions.readRoles : permissions.writeRoles;
 
-  if (Array.isArray(roles) && roles.length > 0) {
-    return roles.includes(user.role);
+  if (Array.isArray(roles)) {
+    // If array is defined but empty, NOBODY has access (except admin)
+    if (roles.length === 0) return false;
+    return roles.includes(userRole);
   }
 
-  // If no specific roles defined but auth is required, we already checked it
   return true;
 }
 
 /**
  * Strips fields from a data object based on user permissions.
- * Throws error on 'write' violations (F1).
+ * Throws error on 'write' violations.
  */
 export async function enforceFieldAccess(
   fields: FieldInstance[],
-  data: Record<string, any>,
-  user: User | { _id: string; role: string },
+  data: Record<string, unknown>,
+  user: User | { _id: string; role: string } | null | undefined,
   operation: "read" | "write",
   context?: { collectionName?: string; entryId?: string; tenantId?: string },
-): Promise<Record<string, any>> {
-  // 🚀 Performance: System/Admin bypass early
-  if (user.role === "admin" || user._id === "system") return data;
+): Promise<Record<string, unknown>> {
+  const userRole = user?.role || "public";
+  const userId = user?._id || "anonymous";
 
-  const sanitized = { ...data };
+  // 🚀 Performance: System/Admin bypass early
+  if (userRole === "admin" || userId === "system") return data;
+
+  // Use structuredClone to prevent accidental mutation of the original references
+  const sanitized: Record<string, unknown> =
+    typeof structuredClone === "function"
+      ? (structuredClone(data) as Record<string, unknown>)
+      : JSON.parse(JSON.stringify(data));
+
   const dataKeys = Object.keys(sanitized);
+  const writeViolations: string[] = [];
 
   for (const field of fields) {
-    const fieldName = field.db_fieldName || (field as any).name;
+    const fieldName = (field.db_fieldName || (field as Record<string, unknown>).name) as
+      | string
+      | undefined;
     if (!fieldName) continue;
 
-    // Check if field exists in the data payload
-    const hasField = fieldName in sanitized;
-
-    // 🚀 Optimize i18n lookup: Use pre-fetched keys
+    const isFlatPresent = fieldName in sanitized;
+    const isNestedPresent = fieldName.includes(".") && fieldName.split(".")[0] in sanitized;
     const i18nKeys = dataKeys.filter((k) => k.startsWith(`${fieldName}_`));
 
-    if (!hasField && i18nKeys.length === 0) continue;
+    if (!isFlatPresent && !isNestedPresent && i18nKeys.length === 0) continue;
 
     if (!canAccessField(field, user, operation)) {
-      // F1: Throw on Write Violation instead of silent stripping
       if (operation === "write") {
-        // F3: Audit the blocked attempt
-        await auditLogService.log(
-          `Blocked unauthorized write to field: ${fieldName}`,
-          {
-            id: user._id as DatabaseId,
-            email: (user as any).email || "unknown",
-            role: user.role,
-          },
-          { type: "field", id: fieldName as any },
-          AuditEventType.UNAUTHORIZED_ACCESS,
-          "medium",
-          {
-            field: fieldName,
-            collection: context?.collectionName || "unknown",
-            entryId: context?.entryId || "new",
-            operation,
-          },
-          context?.tenantId as DatabaseId,
-          "failure",
-        );
-
-        throw new AppError(
-          `Access Denied: You do not have permission to modify the field '${field.label || fieldName}'`,
-          403,
-          "FORBIDDEN",
-        );
-      }
-
-      // For Read: Physical stripping
-      delete sanitized[fieldName];
-      for (const key of i18nKeys) {
-        delete sanitized[key];
+        // Collect violations instead of throwing immediately
+        writeViolations.push((field.label as string) || fieldName);
+      } else {
+        // For Read: Deep physical stripping
+        removeNestedField(sanitized, fieldName);
+        for (const key of i18nKeys) {
+          delete sanitized[key];
+        }
       }
     }
+  }
+
+  // Batch process write violations
+  if (writeViolations.length > 0) {
+    const violationString = writeViolations.join(", ");
+
+    await auditLogService.log(
+      `Blocked unauthorized write to fields: ${violationString}`,
+      {
+        id: userId as DatabaseId,
+        email: ((user as Record<string, unknown>)?.email as string) || "unknown",
+        role: userRole,
+      },
+      { type: "collection", id: (context?.collectionName || "unknown") as unknown as DatabaseId },
+      AuditEventType.UNAUTHORIZED_ACCESS,
+      "high", // Elevated severity since this touches data mutation
+      {
+        fields: writeViolations,
+        collection: context?.collectionName || "unknown",
+        entryId: context?.entryId || "new",
+        operation,
+      },
+      context?.tenantId as DatabaseId,
+      "failure",
+    );
+
+    throw new AppError(
+      `Access Denied: You do not have permission to modify the following fields: [${violationString}]`,
+      403,
+      "FORBIDDEN",
+    );
   }
 
   return sanitized;

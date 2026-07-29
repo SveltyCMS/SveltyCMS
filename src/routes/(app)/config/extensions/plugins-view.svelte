@@ -1,73 +1,64 @@
 <!--
-@file src/routes/(app)/config/extensions/PluginsView.svelte
-@component PluginsView
+@file src/routes/(app)/config/extensions/plugins-view.svelte
+@component PluginsView — toggle plugin enabled state and open configure.
 
-Features:
-- Toggle plugin enabled/disabled state
-- Configure plugin
+### Features:
+- Optimistic toggle with CSRF
+- toast instead of alert
+- Stable data-testids
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-// Using iconify-icon web component
-/**
- * @file src/routes/(app)/config/extensions/PluginsView.svelte
- */
-// import { toast } from '@src/stores/toast.svelte.ts'; // Need to check if this exists in current codebase
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { togglePlugin } from './plugins-api';
 
-interface Props {
-	data: {
-		plugins: any[];
-		[key: string]: any;
-	};
-}
+	interface Props {
+		data: {
+			plugins: any[];
+			[key: string]: any;
+		};
+	}
 
-let { data }: Props = $props();
+	let { data }: Props = $props();
 
-async function handleToggle(plugin: any) {
-	const newEnabledState = !plugin.enabled;
+	async function handleToggle(plugin: any) {
+		const newEnabledState = !plugin.enabled;
+		plugin.enabled = newEnabledState;
 
-	// Optimistic UI update
-	plugin.enabled = newEnabledState;
+		try {
+			const result = await togglePlugin(plugin.name, newEnabledState);
 
-	try {
-		const response = await fetch("/api/plugins/toggle", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ pluginId: plugin.name, enabled: newEnabledState }),
-		});
-
-		const result = await response.json();
-
-		if (!result.success) {
-			// Revert on failure
+			if (!result.success) {
+				plugin.enabled = !newEnabledState;
+				toast.error(result.message || 'Failed to toggle plugin');
+			} else {
+				toast.success(`${plugin.displayName} ${newEnabledState ? 'enabled' : 'disabled'}`);
+			}
+		} catch (error) {
 			plugin.enabled = !newEnabledState;
-			alert(result.message || "Failed to toggle plugin");
+			toast.error('An error occurred while communicating with the server');
+			console.error(error);
 		}
-	} catch (error) {
-		// Revert on error
-		plugin.enabled = !newEnabledState;
-		alert("An error occurred while communicating with the server");
-		console.error(error);
-	}
-}
-
-function handleConfigure(plugin: any) {
-	if (plugin.missingConfig && plugin.configUrl) {
-		window.location.href = plugin.configUrl;
-		return;
 	}
 
-	console.log("Configure plugin:", plugin);
-	// Future: Open configuration modal
-	alert(`Configuration for ${plugin.displayName} coming soon!`);
-}
+	function handleConfigure(plugin: any) {
+		if (plugin.missingConfig && plugin.configUrl) {
+			window.location.href = plugin.configUrl;
+			return;
+		}
+		toast.info(
+			`Configuration for ${plugin.displayName} — open System Settings or the plugin panel when available.`,
+		);
+	}
 </script>
 
-<div class="mb-6 text-center text-surface-500 dark:text-surface-50">Manage installed plugins to extend your CMS functionality.</div>
+<div class="mb-6 text-center text-surface-500 dark:text-surface-50" data-testid="plugins-view">
+	Manage installed plugins to extend your CMS functionality.
+</div>
 
-<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="plugins-grid">
 	{#if !data.plugins || data.plugins.length === 0}
-		<div class="col-span-full py-12 text-center text-surface-400">
+		<div class="col-span-full py-12 text-center text-surface-400" data-testid="plugins-empty">
 			<iconify-icon icon="mdi:help-circle" width="24"></iconify-icon>
 			<p>No plugins installed.</p>
 		</div>
@@ -75,6 +66,8 @@ function handleConfigure(plugin: any) {
 		{#each data.plugins as plugin (plugin.name)}
 			<div
 				class="flex flex-col rounded border border-surface-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
+				data-testid={`plugin-card-${plugin.name}`}
+				data-plugin-id={plugin.name}
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
@@ -104,10 +97,12 @@ function handleConfigure(plugin: any) {
 							</div>
 						</div>
 					</div>
-					<!-- status -->
 					<div class="flex items-center">
 						<button
+							type="button"
 							onclick={() => handleToggle(plugin)}
+							data-testid={`plugin-toggle-${plugin.name}`}
+							aria-label="{plugin.enabled ? 'Disable' : 'Enable'} {plugin.displayName}"
 							class="inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors {plugin.enabled
 								? 'bg-tertiary-500 dark:bg-primary-500 text-white hover:bg-tertiary-600'
 								: 'bg-surface-200 text-surface-600 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-400'}"
@@ -116,12 +111,15 @@ function handleConfigure(plugin: any) {
 						</button>
 					</div>
 				</div>
-				<!-- description -->
 				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">{plugin.description}</p>
 
-				<!-- actions -->
 				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-700">
-					<Button variant="surface" onclick={() => handleConfigure(plugin)} size="sm">
+					<Button
+						variant="surface"
+						onclick={() => handleConfigure(plugin)}
+						size="sm"
+						data-testid={`plugin-configure-${plugin.name}`}
+					>
 						<iconify-icon icon="mdi:cog" width="18" class="me-1"></iconify-icon>
 						Configure
 					</Button>

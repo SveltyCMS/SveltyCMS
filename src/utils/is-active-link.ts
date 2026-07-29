@@ -1,10 +1,12 @@
 /**
  * @file src/utils/is-active-link.ts
- * @description Svelte 5 action for declarative active-state link styling.
+ * @description Svelte action for declarative active-state link styling and a11y.
  *
- * Uses $effect to reactively add/remove CSS classes when the current route
- * matches the link's href. Cleaner than manual $derived class logic in every
- * nav component.
+ * ### Hardening (audit 2026-07):
+ * - Routing bug fix: / always active → explicitly excluded; /user no longer matches /users/1
+ * - Performance: node.pathname (O(1)) replaces new URL() (allocates + parses)
+ * - Accessibility: auto-injects aria-current="page" when active (WCAG compliant)
+ * - Update lifecycle: re-evaluates immediately on options change, not just on navigation
  *
  * ### Usage:
  * ```svelte
@@ -13,63 +15,72 @@
  *   Configuration
  * </a>
  * ```
- *
- * ### Features:
- * - Exact match or startsWith modes
- * - Custom class name (default: 'active')
- * - Reactive via Svelte 5 $effect — auto-updates on navigation
- * - Zero allocations after mount
  */
 
 import { page } from "$app/stores";
 import type { Action } from "svelte/action";
 
-interface IsActiveLinkOptions {
+export interface IsActiveLinkOptions {
   /** CSS class to apply when active (default: 'active') */
   className?: string;
-  /** Match if current path starts with link href (default: false = exact match) */
+  /** Match if current path is a sub-route of the link href (default: false) */
   startsWith?: boolean;
+  /** The aria-current value to apply for accessibility (default: 'page') */
+  ariaCurrent?: "page" | "step" | "location" | "date" | "time" | "true" | "false";
 }
 
 export const isActiveLink: Action<HTMLAnchorElement, IsActiveLinkOptions | undefined> = (
   node,
   options = {},
 ) => {
-  const { className = "active", startsWith = false } = options;
-  const tokens = className.split(" ").filter(Boolean);
+  let { className = "active", startsWith = false, ariaCurrent = "page" } = options;
+  let tokens = className.split(" ").filter(Boolean);
+  let currentPath = "";
 
-  const unsubscribe = page.subscribe(($page) => {
-    const currentPath = $page.url.pathname;
-    let linkPath: string;
-    try {
-      linkPath = new URL(node.href).pathname;
-    } catch {
-      return; // Invalid href
+  const evaluate = () => {
+    // O(1): use native HTMLAnchorElement.pathname (no URL parsing overhead)
+    const linkPath = node.pathname;
+
+    let match = false;
+
+    if (currentPath === linkPath) {
+      match = true;
+    } else if (startsWith && linkPath !== "/") {
+      // 🛡️ Prevent /user from matching /users/1 — require segment separator
+      match = currentPath.startsWith(linkPath + "/");
     }
-
-    const match = startsWith ? currentPath.startsWith(linkPath) : currentPath === linkPath;
 
     if (match) {
-      node.classList.add(...tokens);
+      if (tokens.length) node.classList.add(...tokens);
+      node.setAttribute("aria-current", ariaCurrent);
     } else {
-      node.classList.remove(...tokens);
+      if (tokens.length) node.classList.remove(...tokens);
+      node.removeAttribute("aria-current");
     }
+  };
+
+  const unsubscribe = page.subscribe(($page) => {
+    currentPath = $page.url.pathname;
+    evaluate();
   });
 
   return {
     update(newOptions = {}) {
-      // Update tokens if className changed
-      const oldTokens = tokens.splice(0, tokens.length);
-      const newTokens = (newOptions.className || "active").split(" ").filter(Boolean);
-      tokens.push(...newTokens);
-      // Remove old, add new
-      node.classList.remove(...oldTokens);
-      // Re-check match with new tokens
-      // (page subscription will fire on next navigation anyway)
+      // Clean up old classes before applying new config
+      if (tokens.length) node.classList.remove(...tokens);
+
+      className = newOptions.className ?? "active";
+      startsWith = newOptions.startsWith ?? false;
+      ariaCurrent = newOptions.ariaCurrent ?? "page";
+      tokens = className.split(" ").filter(Boolean);
+
+      // Re-evaluate immediately (fixes bug where UI didn't update until next navigation)
+      evaluate();
     },
     destroy() {
       unsubscribe();
-      node.classList.remove(...tokens);
+      if (tokens.length) node.classList.remove(...tokens);
+      node.removeAttribute("aria-current");
     },
   };
 };

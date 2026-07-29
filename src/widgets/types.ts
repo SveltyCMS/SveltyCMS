@@ -13,6 +13,7 @@ import type { User } from "@src/databases/auth/types";
 import type { GuiFieldConfig } from "@utils/utils";
 import type { SvelteComponent } from "svelte";
 import type { FieldInstance, Schema } from "../content/types";
+import type { SchemaHooks } from "../content/schema-hooks";
 
 // ============================================================================
 // Widget Type Classification
@@ -142,6 +143,12 @@ export interface WidgetDefinition<
    * If true, uses default extraction. If object, specifies custom config.
    */
   jsonRender?: boolean | Record<string, unknown>;
+
+  /**
+   * Widget-level lifecycle hooks that run during document write paths.
+   * These are invoked alongside schema-level hooks for every field of this widget type.
+   */
+  hooks?: SchemaHooks;
 }
 
 // ============================================================================

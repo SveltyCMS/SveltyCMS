@@ -40,13 +40,22 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
-import { dndzone } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import AdminCard from "@components/admin-card.svelte";
 import Badge from "@components/ui/badge.svelte";
 import Button from "@components/ui/button.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";
+import {
+	listUsersForTokens,
+	listWebsiteTokens,
+	unwrapWebsiteTokensList,
+	createWebsiteToken,
+	deleteWebsiteTokenById,
+	bulkDeleteWebsiteTokens as apiBulkDeleteWebsiteTokens,
+} from "./website-tokens-api";
 
 interface TableHeader {
 	id: string;
@@ -85,13 +94,13 @@ const smartTable = createSmartTable({
 	pageSize: 10,
 	layoutKey: "website-tokens-table",
 	initialSort: { sortedBy: "createdAt", isSorted: -1 },
-	getRowId: (row) => String((row as WebsiteToken)._id ?? ""),
+	getRowId: (row) => String((row as unknown as WebsiteToken)._id ?? ""),
 	onQueryChange: () => {
 		fetchTokens().catch(() => {});
 	},
 });
 
-const tokens = $derived(smartTable.rows as WebsiteToken[]);
+const tokens = $derived(smartTable.rows as unknown as WebsiteToken[]);
 const totalItems = $derived(smartTable.pagination.totalItems);
 const pagesCount = $derived(smartTable.pagination.pagesCount);
 const currentPage = $derived(smartTable.pagination.currentPage);
@@ -125,13 +134,29 @@ let displayTableHeaders = $state(
 );
 let selectAllColumns = $state(true);
 
-function handleDndConsider(event: CustomEvent) {
-	displayTableHeaders = event.detail.items;
-}
+	function handleColumnDrop(state: DragDropState<TableHeader>) {
+		const dragged = state.draggedItem;
+		if (!dragged) return;
 
-function handleDndFinalize(event: CustomEvent) {
-	displayTableHeaders = event.detail.items;
-}
+			const fromIndex = displayTableHeaders.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
+			const targetHeaderId = targetEl?.dataset?.headerId;
+
+			let targetIndex: number;
+			if (targetHeaderId) {
+				targetIndex = displayTableHeaders.findIndex(h => h.id === targetHeaderId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = displayTableHeaders.length;
+			}
+					targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
+
+			if (fromIndex === targetIndex) return;
+		displayTableHeaders = untrack(() =>
+			displayTableHeaders.toSpliced(fromIndex, 1).toSpliced(targetIndex, 0, dragged)
+		);
+	}
 
 const filteredAvailablePermissions = $derived(
 	permissions.filter(
@@ -176,19 +201,17 @@ onMount(async () => {
 });
 
 async function fetchUsers() {
-	const usersRef = { value: users };
 	try {
-		const response = await fetch("/api/user");
-		if (response.ok) {
-			const result = await response.json();
-			usersRef.value = result.data;
-		} else {
-			toast.error("Failed to fetch users");
+		const list = await listUsersForTokens();
+		if (list.length === 0) {
+			// Empty is valid; only toast when API clearly failed (success false path returns [])
+			users = [];
+			return;
 		}
+		users = list;
 	} catch {
 		toast.error("An error occurred while fetching users");
 	}
-	users = usersRef.value;
 }
 
 async function fetchTokens() {
@@ -220,17 +243,13 @@ async function fetchTokens() {
 			}
 
 			try {
-				const response = await fetch(
-					`/api/website-tokens?${params.toString()}`,
-				);
-				if (response.ok) {
-					const result = await response.json();
-					const items = (result.data || []) as WebsiteToken[];
-					const total = Number(result.pagination?.totalItems ?? items.length);
+				const result = await listWebsiteTokens(params);
+				if (result.success) {
+					const { items, totalItems } = unwrapWebsiteTokensList(result);
 					smartTable.setRows(items as unknown as Record<string, unknown>[]);
 					smartTable.setPaginationMeta({
-						totalItems: total,
-						pagesCount: Math.max(1, Math.ceil(total / pageSizeVal)),
+						totalItems,
+						pagesCount: Math.max(1, Math.ceil(totalItems / pageSizeVal)),
 						currentPage: pageVal,
 						pageSize: pageSizeVal,
 					});
@@ -291,28 +310,24 @@ async function generateToken() {
 	}
 
 	try {
-		const response = await fetch("/api/website-tokens", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				name: currentNewTokenName,
-				permissions: selectedPermissions,
-				expiresAt: getExpirationDate(),
-				tenantId: tenantScope === 'global' ? null : undefined,
-			}),
+		const response = await createWebsiteToken({
+			name: currentNewTokenName,
+			permissions: selectedPermissions,
+			expiresAt: getExpirationDate(),
+			tenantId: tenantScope === "global" ? null : undefined,
 		});
 
-		if (response.ok) {
+		if (response.success) {
 			await fetchTokens();
 			toast.success(`Token generated for ${currentNewTokenName}`);
 			newTokenName = "";
 			selectedPermissions = [];
 			expirationOption = "90d";
 			tenantScope = "current";
-		} else if (response.status === 409) {
+		} else if (response.code === "HTTP_409" || /exist/i.test(response.message || "")) {
 			toast.error("A token with this name already exists");
 		} else {
-			toast.error("Failed to generate token");
+			toast.error(response.message || "Failed to generate token");
 		}
 	} catch {
 		toast.error("An error occurred while generating the token");
@@ -325,15 +340,12 @@ async function deleteToken(id: string, name: string) {
 		body: `Are you sure you want to delete the token "${name}"? This action cannot be undone.`,
 		onConfirm: async () => {
 			try {
-				const response = await fetch(`/api/website-tokens/${id}`, {
-					method: "DELETE",
-				});
-
-				if (response.ok) {
+				const response = await deleteWebsiteTokenById(id);
+				if (response.success) {
 					await fetchTokens();
 					toast.success("Token deleted.");
 				} else {
-					toast.error("Failed to delete token");
+					toast.error(response.message || "Failed to delete token");
 				}
 			} catch {
 				toast.error("An error occurred while deleting the token");
@@ -354,12 +366,7 @@ async function bulkDeleteTokens() {
 				loadingOperations.tokenGeneration,
 				async () => {
 					try {
-						const deletePromises = ids.map((id) =>
-							fetch(`/api/website-tokens/${id}`, { method: "DELETE" }),
-						);
-						const results = await Promise.all(deletePromises);
-
-						const successCount = results.filter((r) => r.ok).length;
+						const { successCount } = await apiBulkDeleteWebsiteTokens(ids.map(String));
 						if (successCount > 0) {
 							toast.success(`${successCount} tokens deleted.`);
 							smartTable.clearSelection();
@@ -385,38 +392,58 @@ function toggleAllTokens() {
 	smartTable.setSelectAll(!smartTable.allSelected);
 }
 
-// Search / column filters → reset page + refetch (sort/page go through smartTable.onQueryChange)
+// Search / column filters → reset page + refetch (sort/page go through smartTable.onQueryChange).
+// All writes untracked so setPaginationMeta / setRows cannot re-enter this effect (effect_update_depth).
+let tokensFetchGen = 0;
 $effect(() => {
 	void globalSearchValue;
 	void filters;
+	const gen = ++tokensFetchGen;
 	untrack(() => {
 		smartTable.setPaginationMeta({ currentPage: 1 });
-		fetchTokens().catch(() => {});
+		// Debounce re-entry if parent re-renders permissions mid-fetch
+		queueMicrotask(() => {
+			if (gen !== tokensFetchGen) return;
+			fetchTokens().catch(() => {});
+		});
 	});
 });
 
+// Density / columns: write only when values change — avoid infinite setColumns loops
+let lastDensitySync = "";
+let lastColumnsSync = "";
 $effect(() => {
-	smartTable.setDensity(density);
-	smartTable.setColumns(
-		displayTableHeaders.map((h) => ({
-			key: h.key,
-			label: h.label,
-			sortable: true,
-			visible: h.visible,
-		})),
-	);
+	const nextDensity = density;
+	const colKey = displayTableHeaders.map((h) => `${h.key}:${h.visible ? 1 : 0}`).join("|");
+	untrack(() => {
+		if (nextDensity !== lastDensitySync) {
+			lastDensitySync = nextDensity;
+			smartTable.setDensity(nextDensity);
+		}
+		if (colKey !== lastColumnsSync) {
+			lastColumnsSync = colKey;
+			smartTable.setColumns(
+				displayTableHeaders.map((h) => ({
+					key: h.key,
+					label: h.label,
+					sortable: true,
+					visible: h.visible,
+				})),
+			);
+		}
+	});
 });
 </script>
 
-<div class="space-y-4">
-	<h3 class="mb-2 text-center text-xl font-bold">Website Access Tokens</h3>
+<div class="space-y-4" data-testid="website-tokens-panel">
+	<h3 class="mb-2 text-center text-xl font-bold" data-testid="website-tokens-title">Website Access Tokens</h3>
 	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
 		Manage API tokens for external websites to access your content.
 	</p>
 
 	<AdminCard class="mb-4 border border-surface-200 dark:border-surface-800">
 		<div class="p-4 space-y-4">
-			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
+			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500" data-testid="website-tokens-generate">Generate New Website Token</h4>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<Input
@@ -521,14 +548,27 @@ $effect(() => {
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
+						<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
 						<section
-							use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300 }}
-							onconsider={handleDndConsider}
-							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded p-2"
+							role="list"
+							aria-label="Drag columns to reorder"
 						>
 							{#each displayTableHeaders as header (header.id)}
-								<div animate:flip={{ duration: 300 }}>
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+								<div
+									animate:flip={{ duration: 300 }}
+									use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
+									use:droppable={{
+										container: 'columns',
+										callbacks: { onDrop: handleColumnDrop },
+										direction: 'horizontal',
+										attributes: { dragOverClass: 'bg-secondary-200' }
+									}}
+									data-header-id={header.id}
+									role="listitem"
+									tabindex="0"
+								>
 									<Button variant="secondary"
 										onclick={() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));

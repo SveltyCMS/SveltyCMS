@@ -19,7 +19,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, loginAsAdmin } from "../../helpers/auth";
-import { TEST_API_HEADERS } from "../../helpers/test-api";
+import { seedInviteToken } from "../../helpers/api";
+import { TEST_API_HEADERS } from "../../helpers/api";
 
 const ACTION_TIMEOUT = 15_000;
 
@@ -511,52 +512,51 @@ test.describe("Admin Table", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Token Management
+// Token Management — seed first so tests never soft-skip on empty tables.
+// Full delete/edit happy path also lives in p0-journeys.spec.ts.
 // ---------------------------------------------------------------------------
 test.describe("Token Management", () => {
   test.beforeEach(async ({ page }) => {
     await adminLogin(page);
     await goToUserPage(page);
     await openAdminArea(page);
+    // Seed guarantees at least one token row (no soft-skip on empty tables)
+    try {
+      await seedInviteToken(page, {
+        email: `cc_token_${Date.now()}@example.com`,
+        role: "editor",
+      });
+    } catch (e) {
+      // Seed may fail if admin user not yet in DB (first run) — skip gracefully
+      test.skip(true, `seed-invite-token unavailable: ${(e as Error).message}`);
+    }
   });
 
   test("edit existing token by clicking a token row", async ({ page }) => {
-    // Switch to token view
     const showTokenBtn = page.getByRole("button", {
       name: /show.*token|token list/i,
     });
     await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
-
-    // Wait a moment for token data to load
     await page.waitForTimeout(500);
 
-    // Check if there are tokens in the table (tbody rows)
     const tokenRows = page.locator("tbody tr");
-    const rowCount = await tokenRows.count();
+    await expect(tokenRows.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    if (rowCount > 0) {
-      // Click the first token row (rows are clickable for editing)
-      // Avoid clicking on checkbox column
-      const firstRow = tokenRows.first();
-      await firstRow.click({ timeout: ACTION_TIMEOUT });
+    await tokenRows.first().click({ timeout: ACTION_TIMEOUT });
 
-      // The modal-edit-token dialog should appear
-      const tokenDialog = page.getByRole("dialog");
-      await expect(tokenDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const tokenDialog = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("button", { name: /save/i }) })
+      .first();
+    await expect(tokenDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(tokenDialog.getByRole("button", { name: /save/i })).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
 
-      // Verify the dialog has token-related content
-      await expect(tokenDialog.getByRole("button", { name: /save/i })).toBeVisible({
-        timeout: ACTION_TIMEOUT,
-      });
-
-      // Close the dialog
-      await tokenDialog.getByRole("button", { name: /cancel/i }).click();
-    }
-    // If no tokens exist, the test still passes (not a failure condition)
+    await tokenDialog.getByRole("button", { name: /cancel/i }).click();
   });
 
   test("delete single token via dialog delete button", async ({ page }) => {
-    // Switch to token view
     const showTokenBtn = page.getByRole("button", {
       name: /show.*token|token list/i,
     });
@@ -564,92 +564,62 @@ test.describe("Token Management", () => {
     await page.waitForTimeout(500);
 
     const tokenRows = page.locator("tbody tr");
-    const rowCount = await tokenRows.count();
-
-    if (rowCount === 0) {
-      return; // No tokens to delete
-    }
-
-    // Click a token row to open the edit dialog
+    await expect(tokenRows.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
     await tokenRows.first().click({ timeout: ACTION_TIMEOUT });
 
-    const tokenDialog = page.getByRole("dialog");
+    const tokenDialog = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("button", { name: /delete/i }) })
+      .first();
     await expect(tokenDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Look for a delete button inside the token dialog
     const deleteBtn = tokenDialog.getByRole("button", { name: /delete/i });
+    await expect(deleteBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await deleteBtn.click({ timeout: ACTION_TIMEOUT });
 
-    if (await deleteBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      // Click delete
-      await deleteBtn.click({ timeout: ACTION_TIMEOUT });
-
-      // A confirmation dialog may appear
-      const confirmDialog = page.getByRole("dialog").last();
-      const confirmBtn = confirmDialog.getByRole("button", {
-        name: /confirm|yes|delete/i,
-      });
-
-      if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await confirmBtn.click({ timeout: ACTION_TIMEOUT });
-      }
-
-      // Expect a success toast or deletion message
-      await expect(page.getByText(/deleted/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
-    } else {
-      // Close if no delete button
-      await tokenDialog.getByRole("button", { name: /cancel/i }).click();
+    const confirmBtn = page.getByRole("button", { name: /confirm|yes|delete/i }).last();
+    if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await confirmBtn.click({ timeout: ACTION_TIMEOUT });
     }
+
+    await expect(page.getByText(/deleted/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
   test("bulk token delete via Multibutton", async ({ page }) => {
-    // Switch to token view
     const showTokenBtn = page.getByRole("button", {
       name: /show.*token|token list/i,
     });
     await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
     await page.waitForTimeout(500);
 
-    // Check if there are rows to select
     const checkboxes = page.locator("tbody tr td:first-child input[type='checkbox']");
-    const cbCount = await checkboxes.count();
-
-    if (cbCount === 0) {
-      return; // No tokens to bulk-delete
-    }
-
-    // Select the first token
+    await expect(checkboxes.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
     await checkboxes.first().check({ timeout: ACTION_TIMEOUT });
 
-    // The Multibutton (bulk actions menu) should show a delete option
     const bulkMenu = page.getByTestId("user-bulk-actions-menu");
-    if (await bulkMenu.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      // Click the execute delete or choose delete action
-      const executeDelete = page.getByRole("button", {
-        name: /Execute Delete/i,
-      });
-      if (await executeDelete.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await executeDelete.click({ timeout: ACTION_TIMEOUT });
-      } else {
-        await bulkMenu.click({ timeout: ACTION_TIMEOUT });
-        const deleteMenuItem = page.getByRole("menuitem", {
-          name: /delete/i,
-        });
-        if (await deleteMenuItem.isVisible({ timeout: 2_000 }).catch(() => false)) {
-          await deleteMenuItem.click({ timeout: ACTION_TIMEOUT });
-        }
-      }
+    await expect(bulkMenu).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-      // Confirm dialog should appear
-      const confirmDialog = page.getByRole("dialog");
-      await expect(confirmDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-      const confirmBtn = confirmDialog.getByRole("button", {
-        name: /confirm/i,
+    const executeDelete = page.getByRole("button", {
+      name: /Execute Delete/i,
+    });
+    if (await executeDelete.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await executeDelete.click({ timeout: ACTION_TIMEOUT });
+    } else {
+      await bulkMenu.click({ timeout: ACTION_TIMEOUT });
+      const deleteMenuItem = page.getByRole("menuitem", {
+        name: /delete/i,
       });
-      await confirmBtn.click({ timeout: ACTION_TIMEOUT });
-
-      // Expect deletion confirmation
-      await expect(page.getByText(/deleted/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(deleteMenuItem).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await deleteMenuItem.click({ timeout: ACTION_TIMEOUT });
     }
+
+    const confirmDialog = page.getByRole("dialog");
+    await expect(confirmDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await confirmDialog
+      .getByRole("button", { name: /confirm/i })
+      .click({ timeout: ACTION_TIMEOUT });
+
+    await expect(page.getByText(/deleted/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
 
@@ -663,22 +633,10 @@ test.describe("GDPR Privacy Data", () => {
   });
 
   test("open and close privacy data modal", async ({ page }) => {
-    // The GDPR button is labeled "Privacy & Data (GDPR)"
-    const gdprBtn = page.getByRole("button", { name: /privacy.*data.*gdpr/i });
-
-    const btnVisible = await gdprBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-
-    if (!btnVisible) {
-      // Try alternative locator
-      const gdprAlt = page.getByText(/privacy.*data.*gdpr/i).last();
-      if (await gdprAlt.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await gdprAlt.click({ timeout: ACTION_TIMEOUT });
-      } else {
-        return; // GDPR button may not be rendered
-      }
-    } else {
-      await gdprBtn.click({ timeout: ACTION_TIMEOUT });
-    }
+    // Stable testid on Privacy & Data (GDPR) control
+    const gdprBtn = page.getByTestId("privacy-data-btn");
+    await expect(gdprBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await gdprBtn.click({ timeout: ACTION_TIMEOUT });
 
     // The modal should open with privacy-related content
     const dialog = page.getByRole("dialog");
@@ -686,7 +644,7 @@ test.describe("GDPR Privacy Data", () => {
 
     // Verify it contains GDPR-related text
     await expect(
-      dialog.getByText(/privacy.*data|GDPR|export.*data|anonymize/i).first(),
+      dialog.getByText(/privacy.*data|GDPR|export.*data|anonymize|download my data/i).first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Close the modal
@@ -695,6 +653,20 @@ test.describe("GDPR Privacy Data", () => {
 
     // Modal should be gone
     await expect(dialog).not.toBeVisible({ timeout: ACTION_TIMEOUT });
+  });
+
+  test("active sessions section is present and refreshable", async ({ page }) => {
+    const section = page.getByTestId("active-sessions-section");
+    await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const refresh = page.getByRole("button", { name: /refresh active sessions/i });
+    await expect(refresh).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await refresh.click({ timeout: ACTION_TIMEOUT });
+    // After refresh: either a list, empty state, or error alert — not a crash
+    await expect(
+      section
+        .getByRole("list", { name: /active sessions/i })
+        .or(section.getByText(/no other sessions|failed|loading/i)),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
 

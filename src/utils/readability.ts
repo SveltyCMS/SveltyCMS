@@ -1,63 +1,77 @@
 /**
  * @file src/utils/seo/readability.ts
- * @description Utility for calculating Flesch-Kincaid readability scores.
+ * @description Utility for calculating Flesch-Kincaid readability scores with O(N) performance.
  */
 
 /**
- * Calculates the Flesch Reading Ease and Flesch-Kincaid Grade Level.
- *
- * Formula (Reading Ease): 206.835 - 1.015 * (total words / total sentences) - 84.6 * (total syllables / total words)
- * Formula (Grade Level): 0.39 * (total words / total sentences) + 11.8 * (total syllables / total words) - 15.59
+ * Calculates Flesch Reading Ease and Flesch-Kincaid Grade Level in a single pass.
  */
 export function calculateReadability(text: string) {
-  if (!text || text.trim().length === 0) {
-    return {
-      readingEase: 0,
-      gradeLevel: 0,
-      words: 0,
-      sentences: 0,
-      syllables: 0,
-    };
+  if (!text?.trim()) {
+    return { readingEase: 0, gradeLevel: 0, words: 0, sentences: 0, syllables: 0 };
   }
 
-  const cleanText = text.replace(/<[^>]*>/g, " "); // Strip HTML
+  // 🚀 Performance: Strip HTML and whitespace in one go
+  const clean = text.replace(/<[^>]*>/g, " ").trim();
 
-  const sentences = cleanText.split(/[.!?]+/).filter((s) => s.trim().length > 0).length || 1;
-  const words =
-    cleanText
-      .trim()
-      .split(/\s+/)
-      .filter((w) => w.length > 0).length || 1;
-
+  let words = 0;
+  let sentences = 0;
   let syllables = 0;
-  const wordsList = cleanText.toLowerCase().match(/\b[a-z]{2,}\b/g) || [];
+  let inWord = false;
 
-  for (const word of wordsList) {
-    syllables += countSyllables(word);
+  // Single-pass scanner to avoid multiple O(N) array allocations
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+
+    // Sentence boundary detection
+    if (char === "." || char === "!" || char === "?") {
+      sentences++;
+    }
+
+    // Word detection
+    if (/\s/.test(char)) {
+      inWord = false;
+    } else if (!inWord) {
+      inWord = true;
+      words++;
+    }
   }
 
-  const readingEase = 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words);
-  const gradeLevel = 0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59;
+  // Syllable counting on extracted words
+  const wordsList = clean.toLowerCase().match(/\b[a-z]{1,}\b/g) || [];
+  for (let i = 0; i < wordsList.length; i++) {
+    syllables += countSyllables(wordsList[i]);
+  }
+
+  const w = words || 1;
+  const s = sentences || 1;
+
+  const readingEase = 206.835 - 1.015 * (w / s) - 84.6 * (syllables / w);
+  const gradeLevel = 0.39 * (w / s) + 11.8 * (syllables / w) - 15.59;
 
   return {
     readingEase: Math.max(0, Math.min(100, Math.round(readingEase))),
     gradeLevel: Math.max(0, Math.round(gradeLevel * 10) / 10),
-    words,
-    sentences,
+    words: w,
+    sentences: s,
     syllables,
   };
 }
 
 /**
- * Simple syllable counter for English
+ * Optimized syllable counter using non-backtracking patterns
  */
 function countSyllables(word: string): number {
-  word = word.toLowerCase();
   if (word.length <= 3) return 1;
-  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "");
-  word = word.replace(/^y/, "");
-  const syllables = word.match(/[aeiouy]{1,2}/g);
-  return syllables ? syllables.length : 1;
+
+  // Strip common suffixes that don't add syllables
+  let count =
+    word
+      .replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "")
+      .replace(/^y/, "")
+      .match(/[aeiouy]{1,2}/g)?.length || 0;
+
+  return Math.max(1, count);
 }
 
 /**

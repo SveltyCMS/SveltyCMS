@@ -36,6 +36,7 @@ describe("real DB test harness markers", () => {
           "tests/integration/databases/content-nodes-contract.test.ts",
         ]),
       ).toBe(true);
+      expect(argvIncludesRealDbTest(["bun", "test", "tests/integration/"])).toBe(true);
       expect(
         argvIncludesRealDbTest(["bun", "test", "tests/unit/content/sync-content-state.test.ts"]),
       ).toBe(false);

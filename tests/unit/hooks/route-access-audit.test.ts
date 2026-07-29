@@ -3,7 +3,7 @@
  * @description Route access audit — verifies protected CMS paths and production backdoor closure.
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { PUBLIC_ROUTES, isPublicRoute, isBootstrapRoute } from "@utils/hook-utils";
+import { isPublicRoute, isBootstrapRoute } from "@utils/hook-utils";
 import {
   applyTestBypassFromRequest,
   isTestOrBenchmarkEnvironment,
@@ -52,7 +52,6 @@ describe("Route Access Audit", () => {
   it("protected CMS routes are not public in production mode", () => {
     for (const path of PROTECTED_CMS_ROUTES) {
       expect(isPublicRoute(path, false)).toBe(false);
-      expect(PUBLIC_ROUTES.some((r) => path.startsWith(r))).toBe(false);
     }
   });
 

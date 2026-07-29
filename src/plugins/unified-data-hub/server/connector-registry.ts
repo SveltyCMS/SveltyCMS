@@ -49,7 +49,7 @@ export async function listConnectors(
 ): Promise<ConnectorRecord[]> {
   const result = await db.crud.findMany<ConnectorRecord>(
     CONNECTORS_COLLECTION,
-    { tenantId, enabled: true },
+    { enabled: true },
     { tenantId, limit: 100 },
   );
   return result.success && result.data ? result.data : [];
@@ -62,7 +62,7 @@ export async function getConnectorById(
 ): Promise<ConnectorRecord | null> {
   const result = await db.crud.findOne<ConnectorRecord>(
     CONNECTORS_COLLECTION,
-    { _id: connectorId as unknown as DatabaseId, tenantId },
+    { _id: connectorId as unknown as DatabaseId },
     { tenantId },
   );
   return result.success && result.data ? result.data : null;
@@ -74,7 +74,7 @@ export async function listVirtualCollections(
 ): Promise<VirtualCollectionRecord[]> {
   const result = await db.crud.findMany<VirtualCollectionRecord>(
     SCHEMAS_COLLECTION,
-    { tenantId, enabled: true },
+    { enabled: true },
     { tenantId, limit: 200 },
   );
   return result.success && result.data ? result.data : [];
@@ -87,14 +87,14 @@ export async function getVirtualCollection(
 ): Promise<VirtualCollectionRecord | null> {
   const byId = await db.crud.findOne<VirtualCollectionRecord>(
     SCHEMAS_COLLECTION,
-    { _id: collectionId as unknown as DatabaseId, tenantId },
+    { _id: collectionId as unknown as DatabaseId },
     { tenantId },
   );
   if (byId.success && byId.data) return byId.data;
 
   const bySlug = await db.crud.findOne<VirtualCollectionRecord>(
     SCHEMAS_COLLECTION,
-    { slug: collectionId, tenantId },
+    { slug: collectionId },
     { tenantId },
   );
   return bySlug.success && bySlug.data ? bySlug.data : null;

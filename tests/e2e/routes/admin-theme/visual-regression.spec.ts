@@ -8,7 +8,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { resetAndSeedDatabase } from "../../helpers/database";
+import { resetAndSeedDatabase } from "../../helpers/api";
 import {
   dynamicMasks,
   openLoginSignInForm,
@@ -27,8 +27,8 @@ test.use({
 
 test.describe("Admin Theme Visual Regression", () => {
   test.skip(
-    !!process.env.CI,
-    "Baselines must be generated locally first: bun x playwright test --project=visual-regression --update-snapshots",
+    !process.env.UPDATE_SNAPSHOTS && !process.env.RUN_VISUAL,
+    "Visual regression is skipped unless RUN_VISUAL=1 or UPDATE_SNAPSHOTS=1 is specified",
   );
   test.beforeEach(async ({ page }) => {
     await resetAndSeedDatabase(page);

@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-05-24"
-updated: "2026-06-22"
+updated: "2026-07-20"
 tags:
   - "security"
   - "authentication"
@@ -53,6 +53,22 @@ Accounts are locked for 15 minutes after 5 consecutive failed login attempts. Th
 - **Failed attempt tracking**: Each failed attempt increments `failedAttempts`. At 5 failures, `lockoutUntil` is set to `now + 15 minutes`.
 - **Auto-reset**: Lockout state is cleared on successful login or when the lockout expires.
 - **Consistent error messages**: Both "user not found" and "wrong password" return identical `"Invalid credentials"` to prevent user enumeration.
+
+### 7. Password-Reset Token Expiry (Diagnosable)
+
+`Auth.consumeToken()` / adapter `consumeToken()` **refuse expired tokens** (`expires > now` on claim). Failures return structured codes for the login UI:
+
+| Code                     | UI toast                                          |
+| :----------------------- | :------------------------------------------------ |
+| `TOKEN_EXPIRED`          | “This reset link has expired. Request a new one…” |
+| `TOKEN_ALREADY_CONSUMED` | “This reset link was already used…”               |
+| `TOKEN_NOT_FOUND`        | Generic invalid link                              |
+
+- **SQL**: `relational-auth.ts` — atomic update with `gt(expires, now)`, then diagnose.
+- **Mongo**: claim filter includes `expires: { $gt: new Date() }`.
+- **UI**: `sign-in.svelte` `handleResetSubmit` maps `result.code` to toasts (no false success toast).
+- **Remote**: `auth.remote.ts` `resetPWInternal` forwards `code` to the client.
+- **E2E**: `tests/e2e/routes/login/extended-auth.spec.ts` — `seed-expired-password-reset` testing action seeds a past-expiry `password_reset` token; submit asserts **Link expired** toast (no soft-skip).
 
 ## Accessibility Fixes (WCAG 2.2 AA)
 

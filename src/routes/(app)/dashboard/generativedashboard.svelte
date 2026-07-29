@@ -43,7 +43,22 @@ async function handleRegenerate() {
 	try {
 		const response = await fetch("/api/ai/generate-layout", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: (() => {
+				const h: Record<string, string> = { "Content-Type": "application/json" };
+				try {
+					const token =
+						(document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)
+							?.content ||
+						document.cookie
+							.split("; ")
+							.find((r) => r.startsWith("csrf_token=") || r.startsWith("__Host-csrf_token="))
+							?.split("=")[1];
+					if (token) h["X-CSRF-Token"] = decodeURIComponent(token);
+				} catch {
+					/* ignore */
+				}
+				return h;
+			})(),
 			body: JSON.stringify({
 				prompt: prompt,
 				contextRules:

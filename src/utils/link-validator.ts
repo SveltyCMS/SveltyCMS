@@ -2,13 +2,13 @@
  * @file src/utils/link-validator.ts
  * @description Build-time (DEV-only) internal link validator for SveltyCMS.
  *
- * Scans all Svelte components for `<a href="...">` internal links and validates:
- * - Paths that don't exist → warning with closest match suggestion
- * - Links to deprecated/renamed routes
- * - Missing data-preload attributes on collection entry links
- *
- * Inspired by sv-router's validateRoutes() but extended for SvelteKit's
- * file-based routing and integrated with the semantic index for smart suggestions.
+ * ### Hardening (audit 2026-07):
+ * - SvelteKit auto-discovery: parses filesystem for routes, handles [params], [[optional]],
+ *   [...catchalls], and (groups) — replaces hardcoded KNOWN_ROUTES map
+ * - Multiline tag parsing: scans entire <a> boundary instead of individual lines
+ * - O(n) memory Levenshtein: Int32Array row-swap replaces O(n²) 2D array
+ * - Variable interpolation: handles href={"/path"} and href={'/path'}
+ * - Expanded scope: scans src/lib in addition to src/routes
  *
  * ### Run:
  * ```bash
@@ -20,38 +20,6 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { logger } from "@utils/logger";
 
-// ─── Known Route Map ───────────────────────────────────────────────────────
-
-const KNOWN_ROUTES = new Map<string, string>([
-  // Admin routes
-  ["/", "src/routes/(app)/+page.svelte"],
-  ["/dashboard", "src/routes/(app)/dashboard/+page.svelte"],
-  ["/mediagallery", "src/routes/(app)/mediagallery/+page.svelte"],
-  ["/config", "src/routes/(app)/config/+page.svelte"],
-  ["/config/collectionbuilder", "Collection Builder"],
-  ["/config/collectionbuilder/new", "New Collection"],
-  ["/config/system-settings", "System Settings"],
-  ["/config/access-management", "Access Management"],
-  ["/config/extensions", "Extensions"],
-  ["/config/automations", "Automations"],
-  ["/config/queue", "Background Queue"],
-  ["/config/sync", "Data Sync"],
-  ["/config?plugin=smart-importer", "Smart Importer"],
-  ["/config/migration", "Smart Importer (legacy redirect)"],
-  ["/config/webhooks", "Webhooks"],
-  ["/config/redirects", "Redirects"],
-  ["/config/trash", "Trash"],
-  ["/config/monitor", "System Monitor"],
-  ["/user", "src/routes/(app)/user/+page.svelte"],
-  ["/login", "src/routes/login/+page.svelte"],
-  // API routes
-  ["/api/system/health", "Health check"],
-  ["/api/collections", "Collections API"],
-  ["/api/media", "Media API"],
-]);
-
-// ─── Link Scanner ──────────────────────────────────────────────────────────
-
 interface LinkIssue {
   file: string;
   line: number;
@@ -60,8 +28,60 @@ interface LinkIssue {
   suggestion?: string;
 }
 
-function scanDirectory(dir: string, issues: LinkIssue[]): void {
+interface SvelteRoute {
+  raw: string;
+  regex: RegExp;
+}
+
+const VALID_ROUTES: SvelteRoute[] = [];
+
+// ─── 1. SvelteKit Auto-Discovery Engine ────────────────────────────────────
+
+function discoverRoutes(dir: string, basePath = ""): void {
+  if (!existsSync(dir)) return;
+
   const entries = readdirSync(dir, { withFileTypes: true });
+  let hasEndpoint = false;
+
+  for (const entry of entries) {
+    if (
+      entry.name === "+page.svelte" ||
+      entry.name === "+server.ts" ||
+      entry.name === "+page.server.ts"
+    ) {
+      hasEndpoint = true;
+    } else if (entry.isDirectory()) {
+      discoverRoutes(join(dir, entry.name), `${basePath}/${entry.name}`);
+    }
+  }
+
+  if (hasEndpoint) {
+    let routeStr = basePath
+      .split("/")
+      .filter((segment) => !segment.startsWith("("))
+      .join("/");
+
+    if (routeStr === "") routeStr = "/";
+
+    const pattern = routeStr
+      .replace(/\[\[\.\.\.[^\]]+\]\]/g, "(?:/.*)?")
+      .replace(/\[\.\.\.[^\]]+\]/g, "/.*")
+      .replace(/\[\[[^\]]+\]\]/g, "([^/]*)")
+      .replace(/\[[^\]]+\]/g, "([^/]+)");
+
+    VALID_ROUTES.push({
+      raw: routeStr,
+      regex: new RegExp(`^${pattern}$`),
+    });
+  }
+}
+
+// ─── 2. Multiline Scanner ──────────────────────────────────────────────────
+
+function scanDirectory(dir: string, issues: LinkIssue[]): void {
+  if (!existsSync(dir)) return;
+  const entries = readdirSync(dir, { withFileTypes: true });
+
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
@@ -75,91 +95,109 @@ function scanDirectory(dir: string, issues: LinkIssue[]): void {
 function scanFile(filePath: string, issues: LinkIssue[]): void {
   try {
     const content = readFileSync(filePath, "utf-8");
-    const lines = content.split("\n");
+    const aTagRegex = /<a\s+([^>]+)>/gi;
+    let aMatch: RegExpExecArray | null;
 
-    // Match: href="/path" or href={`/path`}
-    const hrefRegex = /href=["`{]([^"`}]+)["`}]/g;
-    let match: RegExpExecArray | null;
+    while ((aMatch = aTagRegex.exec(content)) !== null) {
+      const tagContent = aMatch[1];
+      const lineNum = content.substring(0, aMatch.index).split("\n").length;
 
-    for (let i = 0; i < lines.length; i++) {
-      hrefRegex.lastIndex = 0;
-      while ((match = hrefRegex.exec(lines[i])) !== null) {
-        const href = match[1];
-        // Skip external, anchor-only, and dynamic paths
-        if (href.startsWith("http") || href.startsWith("#") || href.includes("${")) continue;
-        // Normalize: strip query params and hash
-        const path = href.split("?")[0].split("#")[0];
+      const hrefRegex = /href\s*=\s*(?:["']([^"']+)["']|{?["']([^"']+)["']}?)/i;
+      const hrefMatch = hrefRegex.exec(tagContent);
 
-        if (!KNOWN_ROUTES.has(path) && path.startsWith("/")) {
-          const suggestion = findClosestRoute(path);
+      if (hrefMatch) {
+        const href = hrefMatch[1] || hrefMatch[2];
+
+        if (!href || href.startsWith("http") || href.startsWith("#") || href.includes("${"))
+          continue;
+
+        const pathOnly = href.split("?")[0].split("#")[0];
+
+        if (pathOnly.startsWith("/")) {
+          const isValid = VALID_ROUTES.some((route) => route.regex.test(pathOnly));
+
+          if (!isValid) {
+            const suggestion = findClosestRoute(pathOnly);
+            issues.push({
+              file: relative(process.cwd(), filePath),
+              line: lineNum,
+              href,
+              issue: suggestion ? "suggestion" : "missing",
+              suggestion,
+            });
+          }
+        }
+
+        if (href.includes("?edit=") && !tagContent.includes("data-preload")) {
           issues.push({
             file: relative(process.cwd(), filePath),
-            line: i + 1,
+            line: lineNum,
             href,
-            issue: suggestion ? "suggestion" : "missing",
-            suggestion,
+            issue: "no-preload",
+            suggestion: 'Add data-preload="smart" for predictive preloading',
           });
         }
       }
-
-      // Check for collection entry links missing data-preload
-      if (lines[i].includes("?edit=") && !lines[i].includes("data-preload=")) {
-        issues.push({
-          file: relative(process.cwd(), filePath),
-          line: i + 1,
-          href: lines[i].trim(),
-          issue: "no-preload",
-          suggestion: 'Add data-preload="smart" for predictive preloading',
-        });
-      }
     }
   } catch {
-    // Binary or unreadable file — skip
+    logger.warn(`[LinkValidator] Unreadable file skipped: ${filePath}`);
   }
 }
 
+// ─── 3. Hyper-Fast Distance Suggestion (O(n) memory) ───────────────────────
+
 function findClosestRoute(path: string): string | undefined {
-  // Simple Levenshtein-based suggestion
   let best = "";
   let bestDist = Infinity;
-  for (const route of KNOWN_ROUTES.keys()) {
-    const dist = levenshtein(path, route);
+
+  for (const route of VALID_ROUTES) {
+    const dist = levenshtein(path, route.raw);
     if (dist < bestDist && dist < path.length / 2) {
       bestDist = dist;
-      best = route;
+      best = route.raw;
     }
   }
   return best || undefined;
 }
 
 function levenshtein(a: string, b: string): number {
-  const m = a.length,
-    n = b.length;
-  const dp = Array.from({ length: n + 1 }, (_, i) => [i]);
-  for (let j = 0; j <= m; j++) dp[0][j] = j;
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      dp[i][j] =
-        a[j - 1] === b[i - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  let v0 = new Int32Array(b.length + 1);
+  let v1 = new Int32Array(b.length + 1);
+
+  for (let i = 0; i < v0.length; i++) v0[i] = i;
+
+  for (let i = 0; i < a.length; i++) {
+    v1[0] = i + 1;
+    for (let j = 0; j < b.length; j++) {
+      const cost = a[i] === b[j] ? 0 : 1;
+      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
     }
+    const temp = v0;
+    v0 = v1;
+    v1 = temp;
   }
-  return dp[n][m];
+  return v0[b.length];
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
 export function validateLinks(): { issues: LinkIssue[]; ok: boolean } {
   const issues: LinkIssue[] = [];
-  const srcDir = join(process.cwd(), "src", "routes");
+  const srcDir = join(process.cwd(), "src");
+  const routesDir = join(srcDir, "routes");
 
-  if (!existsSync(srcDir)) {
+  if (!existsSync(routesDir)) {
     logger.warn("[LinkValidator] src/routes directory not found");
     return { issues: [], ok: true };
   }
 
-  scanDirectory(srcDir, issues);
+  discoverRoutes(routesDir);
+  scanDirectory(routesDir, issues);
+  scanDirectory(join(srcDir, "lib"), issues);
 
   const missing = issues.filter((i) => i.issue === "missing");
   const suggestions = issues.filter((i) => i.issue === "suggestion");
@@ -169,21 +207,17 @@ export function validateLinks(): { issues: LinkIssue[]; ok: boolean } {
     console.log("\n🔗 Link Validation Report\n");
     if (missing.length > 0) {
       console.log(`❌ ${missing.length} broken link(s):`);
-      for (const m of missing) {
+      for (const m of missing)
         console.log(`   ${m.file}:${m.line} → "${m.href}" (route not found)`);
-      }
     }
     if (suggestions.length > 0) {
       console.log(`\n💡 ${suggestions.length} link(s) with suggestions:`);
-      for (const s of suggestions) {
+      for (const s of suggestions)
         console.log(`   ${s.file}:${s.line} → "${s.href}" — did you mean "${s.suggestion}"?`);
-      }
     }
     if (noPreload.length > 0) {
       console.log(`\n⚡ ${noPreload.length} link(s) missing data-preload:`);
-      for (const n of noPreload) {
-        console.log(`   ${n.file}:${n.line} — ${n.suggestion}`);
-      }
+      for (const n of noPreload) console.log(`   ${n.file}:${n.line} — ${n.suggestion}`);
     }
     console.log("");
   }

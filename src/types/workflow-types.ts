@@ -23,6 +23,8 @@ export interface WorkflowDefinition {
   _id?: string;
   tenantId?: string; // Multi-tenant isolation
   collectionId: string; // The collection this workflow applies to
+  name: string;
+  description?: string;
   states: WorkflowState[];
   transitions: WorkflowTransition[];
   createdAt?: number;

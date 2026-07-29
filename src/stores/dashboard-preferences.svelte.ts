@@ -10,6 +10,33 @@ const LAYOUT_KEY = "dashboard.layout.default";
 
 // --- API Helpers ---
 
+function csrfHeaders(json = true): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (json) headers["Content-Type"] = "application/json";
+  try {
+    // Prefer page-provided token when available (SSR hydration / layout data)
+    const fromPage =
+      typeof document !== "undefined"
+        ? (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content
+        : null;
+    // Fallback: double-submit cookie name used by csrf-utils (non-httpOnly in some envs
+    // is rare; layout usually exposes csrfToken on window via page.data — callers may
+    // also pass token through body if cookie is httpOnly).
+    const fromCookie =
+      typeof document !== "undefined"
+        ? document.cookie
+            .split("; ")
+            .find((r) => r.startsWith("csrf_token=") || r.startsWith("__Host-csrf_token="))
+            ?.split("=")[1]
+        : undefined;
+    const token = fromPage || fromCookie || (globalThis as any).__csrfToken;
+    if (token) headers["X-CSRF-Token"] = decodeURIComponent(token);
+  } catch {
+    /* non-critical */
+  }
+  return headers;
+}
+
 async function fetchLayout(): Promise<Layout | null> {
   try {
     const res = await fetch(`/api/system-preferences?key=${LAYOUT_KEY}`);
@@ -20,7 +47,16 @@ async function fetchLayout(): Promise<Layout | null> {
     if (!res.ok) {
       throw new Error(`Fetch failed: ${res.statusText}`);
     }
-    return await res.json();
+    const body = await res.json();
+    // Prefer { value: Layout } envelope, else raw Layout
+    if (body && typeof body === "object" && "value" in body) {
+      return body.value as Layout;
+    }
+    if (body && typeof body === "object" && "preferences" in body) {
+      return body as Layout;
+    }
+    if (body?.data) return body.data as Layout;
+    return null;
   } catch (e) {
     logger.error("Failed to fetch preferences:", e);
     throw e;
@@ -31,7 +67,7 @@ async function saveLayout(layout: Layout): Promise<void> {
   try {
     const res = await fetch("/api/system-preferences", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: csrfHeaders(true),
       body: JSON.stringify({ key: LAYOUT_KEY, value: layout }),
     });
     if (!res.ok) {

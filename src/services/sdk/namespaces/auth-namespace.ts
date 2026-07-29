@@ -2,12 +2,12 @@
  * @file src/services/sdk/namespaces/auth-namespace.ts
  * @description Authentication namespace for LocalCMS SDK.
  */
-import { AppError, getErrorMessage } from "@utils/error-handling";
+import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security/crypto";
 import { parseSessionDuration } from "@utils/security/auth-utils";
 import { isMultiTenantEnabled } from "@utils/tenant";
-import { getAllPermissions } from "@src/databases/auth/permissions";
+import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
@@ -24,6 +24,7 @@ async function safeCall<T>(fn: () => Promise<T>, context?: string): Promise<Data
     const data = await fn();
     return { success: true, data };
   } catch (err: unknown) {
+    rethrow(err);
     if (err instanceof AppError) {
       return {
         success: false,
@@ -192,13 +193,17 @@ export class AuthNamespace {
 
   async getUserByEmail(email: string, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId } = options;
+      const { tenantId, bypassTenantCheck } = options as LocalApiOptions & {
+        bypassTenantCheck?: boolean;
+      };
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      const result = await auth.getUserByEmail(
-        { email, tenantId },
-        { tenantId: tenantId as DatabaseId },
-      );
+      // When bypassing tenant (or tenant unset), look up by email only
+      const criteria: { email: string; tenantId?: DatabaseId | null } = { email };
+      if (!bypassTenantCheck && tenantId !== undefined && tenantId !== null && tenantId !== "") {
+        criteria.tenantId = tenantId as DatabaseId;
+      }
+      const result = await auth.getUserByEmail(criteria);
       if (!result.success || !result.data) throw new AppError("User not found", 404);
       return result.data;
     });
@@ -257,13 +262,27 @@ export class AuthNamespace {
 
   async updateUserAttributes(userId: string, data: any, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId } = options;
+      const { tenantId, bypassTenantCheck } = options as LocalApiOptions & {
+        bypassTenantCheck?: boolean;
+      };
       const auth = await this.getAuth();
+      // Forward full query options — do not drop bypassTenantCheck (E2E / null-tenant)
       const result = await auth.updateUserAttributes(userId as DatabaseId, data, {
-        tenantId: tenantId as DatabaseId,
+        ...(tenantId !== undefined && tenantId !== null && tenantId !== ""
+          ? { tenantId: tenantId as DatabaseId }
+          : {}),
+        ...(bypassTenantCheck ? { bypassTenantCheck: true } : {}),
       });
-      if (!result.success) throw new AppError(result.message || "Failed to update user", 400);
-      return result.data;
+      if (!result || (typeof result === "object" && "success" in result && !result.success)) {
+        throw new AppError(
+          (result as { message?: string })?.message || "Failed to update user",
+          400,
+        );
+      }
+      // Adapter returns DatabaseResult; Auth facade may return bare User
+      return (result as { data?: unknown }).data !== undefined
+        ? (result as { data: unknown }).data
+        : result;
     });
   }
 
@@ -326,6 +345,15 @@ export class AuthNamespace {
   async logout(sessionId: string) {
     const auth = await this.getAuth();
     if (!auth) throw new AppError("Authentication system not initialized", 500);
+
+    // Clean up SSO metadata if this was an SSO session
+    try {
+      const { deleteSsoSessionMetadata } = await import("@src/databases/auth/sso-session");
+      deleteSsoSessionMetadata(sessionId);
+    } catch {
+      // SSO module may not be loaded — non-critical
+    }
+
     return auth.deleteSession(sessionId as DatabaseId);
   }
 
@@ -402,6 +430,11 @@ export class AuthNamespace {
       );
 
       invalidateRolesCache(tenantId as DatabaseId);
+
+      // Invalidate permission cache globally — any role change can affect many users'
+      // cached permission checks. The cache uses userId:permissionId:roleIds keys;
+      // clearing all entries is the safest approach after a role mutation.
+      invalidatePermissionCache();
 
       // Invalidate turbo-auth cache for this user so privilege changes take effect immediately
       const userId = user._id as string;

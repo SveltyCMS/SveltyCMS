@@ -8,6 +8,7 @@ import { invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
 import { clearCompleted, deleteJob, retryJob } from "./queue.remote";
 import { toast } from "@src/stores/toast.svelte.ts";
+import { showConfirm } from "@utils/modal.svelte";
 import { formatRelativeDate } from "@utils/date";
 import { fade, fly } from "svelte/transition";
 	import Badge from '@components/ui/badge.svelte';
@@ -20,6 +21,48 @@ let { data } = $props();
 let isRetrying = $state(false);
 let isDeleting = $state(false);
 let isClearing = $state(false);
+
+async function handleClearCompleted() {
+	showConfirm({
+		title: "Clear Completed Jobs",
+		body: "Remove completed jobs from the queue history? Running and failed jobs are kept.",
+		onConfirm: async () => {
+			isClearing = true;
+			try {
+				const result = await clearCompleted({});
+				if (result.success) {
+					toast.success("Completed jobs cleared.");
+					await invalidateAll();
+				}
+			} catch (e: unknown) {
+				toast.error(e instanceof Error ? e.message || String(e) : "Failed to clear completed jobs.");
+			} finally {
+				isClearing = false;
+			}
+		},
+	});
+}
+
+function handleDeleteJob(jobId: string) {
+	showConfirm({
+		title: "Delete Job",
+		body: "Are you sure you want to delete this job? This cannot be undone.",
+		onConfirm: async () => {
+			isDeleting = true;
+			try {
+				const result = await deleteJob(jobId);
+				if (result.success) {
+					toast.success("Job deleted.");
+					await invalidateAll();
+				}
+			} catch (e: unknown) {
+				toast.error(e instanceof Error ? e.message || String(e) : "Failed to delete job.");
+			} finally {
+				isDeleting = false;
+			}
+		},
+	});
+}
 
 const statusBadgeProps: Record<string, { variant?: 'primary' | 'error'; preset?: 'tonal'; color?: string }> = {
 	pending: { preset: 'tonal', color: 'surface' },
@@ -71,13 +114,21 @@ function getFilterUrl(status: string | undefined = undefined) {
 		backUrl="/config"
 	>
 	{#snippet actions()}
-		<Button variant="ghost" onclick={() => invalidateAll()} size="sm" leadingIcon="mdi:refresh">
+		<Button
+			variant="ghost"
+			onclick={() => invalidateAll()}
+			size="sm"
+			leadingIcon="mdi:refresh"
+			data-testid="queue-refresh"
+			aria-label="Refresh job queue"
+		>
 			Refresh
 		</Button>
 	{/snippet}
 
-	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }}>
-		<a aria-label="View job details" href={getFilterUrl()} class="block no-underline text-inherit">
+	<div data-testid="queue-page" class="contents">
+	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }} data-testid="queue-stats">
+		<a aria-label="View all jobs" href={getFilterUrl()} class="block no-underline text-inherit" data-testid="queue-stat-total" data-preload="hover">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
@@ -85,13 +136,13 @@ function getFilterUrl(status: string | undefined = undefined) {
 					</div>
 					<div>
 						<p class="text-xs opacity-60 uppercase font-bold tracking-wider">Total</p>
-						<p class="text-2xl font-bold">{data.stats.total}</p>
+						<p class="text-2xl font-bold" data-testid="queue-stat-total-value">{data.stats.total}</p>
 					</div>
 				</div>
 			</AdminCard>
 		</a>
 
-		<a aria-label="View job details" href={getFilterUrl('pending')} class="block no-underline text-inherit">
+		<a aria-label="View pending jobs" href={getFilterUrl('pending')} class="block no-underline text-inherit" data-testid="queue-stat-pending" data-preload="hover">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-surface">
@@ -105,7 +156,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a aria-label="View job details" href={getFilterUrl('running')} class="block no-underline text-inherit">
+		<a aria-label="View running jobs" href={getFilterUrl('running')} class="block no-underline text-inherit" data-testid="queue-stat-running" data-preload="hover">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-primary">
@@ -119,7 +170,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a aria-label="View job details" href={getFilterUrl('completed')} class="block no-underline text-inherit">
+		<a aria-label="View completed jobs" href={getFilterUrl('completed')} class="block no-underline text-inherit" data-testid="queue-stat-completed" data-preload="hover">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-success">
@@ -133,7 +184,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</AdminCard>
 		</a>
 
-		<a aria-label="View job details" href={getFilterUrl('failed')} class="block no-underline text-inherit">
+		<a aria-label="View failed jobs" href={getFilterUrl('failed')} class="block no-underline text-inherit" data-testid="queue-stat-failed" data-preload="hover">
 			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-error">
@@ -152,28 +203,22 @@ function getFilterUrl(status: string | undefined = undefined) {
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-bold">Recent Jobs</h2>
 			{#if page.url.searchParams.has('status')}
-				<Badge variant="primary" size="sm" class="uppercase">
+				<Badge variant="primary" size="sm" class="uppercase" data-testid="queue-filter-badge">
 					Filter: {page.url.searchParams.get('status')}
 				</Badge>
-				<Button variant="ghost" size="sm" href={getFilterUrl()}>Clear Filter</Button>
+				<Button variant="ghost" size="sm" href={getFilterUrl()} data-testid="queue-clear-filter">Clear Filter</Button>
 			{/if}
 		</div>
 
 		<div class="flex items-center gap-2">
-			<Button variant="ghost" disabled={isClearing} onclick={async () => {
-				isClearing = true;
-				try {
-					const result = await clearCompleted({});
-					if (result.success) {
-						toast.success('Completed jobs cleared.');
-						invalidateAll();
-					}
-				} catch (e: unknown) {
-					toast.error(e instanceof Error ? e.message || String(e) : 'Failed to clear completed jobs.');
-				} finally {
-					isClearing = false;
-				}
-			}} size="sm" leadingIcon="mdi:broom">
+			<Button
+				variant="ghost"
+				disabled={isClearing}
+				onclick={handleClearCompleted}
+				size="sm"
+				leadingIcon="mdi:broom"
+				data-testid="queue-clear-completed"
+			>
 				Clear Completed
 			</Button>
 		</div>
@@ -182,6 +227,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 	<div in:fade>
 	<AdminCard
 		class="p-0 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs overflow-hidden"
+		data-testid="queue-jobs-table"
 	>
 		<div class="overflow-x-auto w-full">
 			<table class="w-full text-sm border-collapse whitespace-nowrap">
@@ -254,21 +300,15 @@ function getFilterUrl(status: string | undefined = undefined) {
 										</Button>
 									{/if}
 
-									<Button variant="error" title="Delete Job" disabled={isDeleting} onclick={async () => {
-										if (!confirm('Are you sure you want to delete this job?')) return;
-										isDeleting = true;
-										try {
-											const result = await deleteJob(job._id);
-											if (result.success) {
-												toast.success('Job deleted.');
-												invalidateAll();
-											}
-										} catch (e: unknown) {
-											toast.error(e instanceof Error ? e.message || String(e) : 'Failed to delete job.');
-										} finally {
-											isDeleting = false;
-										}
-									}} size="sm">
+									<Button
+										variant="error"
+										title="Delete Job"
+										disabled={isDeleting}
+										onclick={() => handleDeleteJob(job._id)}
+										size="sm"
+										data-testid="queue-job-delete"
+										aria-label="Delete job {job._id}"
+									>
 										<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 									</Button>
 								</div>
@@ -276,7 +316,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="7" class="px-4 py-12 text-center opacity-40">
+							<td colspan="7" class="px-4 py-12 text-center opacity-40" data-testid="queue-empty">
 								<iconify-icon icon="mdi:tray-off" class="text-4xl mb-2"></iconify-icon>
 								<p>No jobs found matching the current filters.</p>
 							</td>
@@ -312,5 +352,6 @@ function getFilterUrl(status: string | undefined = undefined) {
 			</div>
 		{/if}
 	</AdminCard>
+	</div>
 	</div>
 </AdminPageShell>

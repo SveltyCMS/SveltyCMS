@@ -27,5 +27,6 @@ export const redirectsMV = sqliteTable(
   (table) => ({
     tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),
     sourceIdx: index("redirects_mv_source_idx").on(table.source),
+    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
   }),
 );

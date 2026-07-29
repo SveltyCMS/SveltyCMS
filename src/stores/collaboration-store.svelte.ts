@@ -99,11 +99,30 @@ class CollaborationStore {
 
           // 3. Dynamic chat stream subscription based on currentRoom
           $effect(() => {
-            const stream = chat(this.currentRoom || "ai");
-            const unsubscribeChat = stream.subscribe((value: any) => {
-              this.chatStreamValue = (value as any[]) || [];
-            });
-            return unsubscribeChat;
+            // chat is a live.stream factory on the client; guard so a broken
+            // realtime export never takes down AdminPageShell (500s in E2E).
+            if (typeof chat !== "function") {
+              this.isConnected = false;
+              return;
+            }
+            try {
+              const stream = chat(this.currentRoom || "ai");
+              if (!stream?.subscribe) {
+                this.isConnected = false;
+                return;
+              }
+              const unsubscribeChat = stream.subscribe((value: any) => {
+                this.chatStreamValue = (value as any[]) || [];
+              });
+              return unsubscribeChat;
+            } catch (err) {
+              this.isConnected = false;
+              console.debug(
+                "[CollaborationStore] chat stream unavailable:",
+                err instanceof Error ? err.message : String(err),
+              );
+              return;
+            }
           });
 
           // 4. Notification Triggers (Toasts)

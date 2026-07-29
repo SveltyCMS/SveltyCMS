@@ -42,6 +42,10 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     return (this._crud ??= new MongoCrudModule(this));
   }
 
+  public set crud(wrapper: ICrudAdapter) {
+    this._crud = wrapper;
+  }
+
   public get auth(): IAuthAdapter {
     return (this._auth ??= new MongoAuthModule(this));
   }
@@ -110,17 +114,21 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     if (!this.isConnected()) return this.notConnectedError();
     if (this.connection!.db) {
       const db = this.connection!.db;
-      // Drop collections individually instead of dropDatabase().
-      // dropDatabase() destroys the connection pool, causing
-      // MongoClientClosedError in subsequent operations.
+      // Soft-delete documents in parallel with deleteMany({}) instead of dropCollection().
+      // Preserves pre-built indexes across test resets to prevent high re-indexing overhead.
       const cols = await db.listCollections().toArray();
-      for (const c of cols) {
-        if (!c.name.startsWith("system.")) {
-          await db.dropCollection(c.name).catch(() => {
-            logger.debug("Failed to drop MongoDB collection during clearDatabase");
-          });
-        }
-      }
+      await Promise.all(
+        cols.map(async (c) => {
+          if (!c.name.startsWith("system.")) {
+            await db
+              .collection(c.name)
+              .deleteMany({})
+              .catch(() => {
+                logger.debug(`Failed to clear MongoDB collection ${c.name} during clearDatabase`);
+              });
+          }
+        }),
+      );
     }
     return { success: true, data: undefined };
   }

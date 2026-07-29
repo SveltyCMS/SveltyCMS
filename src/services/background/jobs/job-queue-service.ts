@@ -132,7 +132,11 @@ class JobQueueService {
         return;
       }
 
-      const readyJobsResult = await db.system.jobs.getNextReady(Math.min(batchSize, capacity));
+      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+      const readyJobsResult = await db.system.jobs.getNextReady(
+        Math.min(batchSize, capacity),
+        withSystemScope("scheduler"),
+      );
       if (!readyJobsResult.success || !readyJobsResult.data || readyJobsResult.data.length === 0) {
         this.isProcessing = false;
         return;
@@ -275,9 +279,15 @@ class JobQueueService {
         );
       }
 
-      // 3. Clean up temp store every 10 cycles
+      // 3. Clean up temp store every ~10 cycles
+      // cleanupTempStore is synchronous — never call .catch on its void return
+      // (that threw TypeError and crashed the process via uncaughtException).
       if (Math.random() > 0.9) {
-        cleanupTempStore().catch((err) => logger.error("[JobQueue] TempStore cleanup error", err));
+        try {
+          cleanupTempStore();
+        } catch (err) {
+          logger.error("[JobQueue] TempStore cleanup error", err);
+        }
       }
     }, intervalMs);
   }

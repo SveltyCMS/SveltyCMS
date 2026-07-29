@@ -1,0 +1,38 @@
+﻿{
+  "stats": { "expected": 2, "unexpected": 1, "flaky": 0, "skipped": 0 },
+  "suites": [
+    {
+      "title": "",
+      "specs": [],
+      "suites": [
+        {
+          "title": "Fake",
+          "file": "tests/e2e/routes/x.spec.ts",
+          "specs": [
+            {
+              "title": "passes",
+              "tests": [{ "status": "expected", "results": [{ "status": "passed" }] }]
+            },
+            {
+              "title": "fails hard",
+              "tests": [
+                {
+                  "status": "unexpected",
+                  "results": [
+                    {
+                      "status": "failed",
+                      "error": {
+                        "message": "Error: expect(locator).toBeVisible() timeout waiting for page-title"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "suites": []
+        }
+      ]
+    }
+  ]
+}

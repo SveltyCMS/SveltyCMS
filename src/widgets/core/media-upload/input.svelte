@@ -27,7 +27,9 @@
 	import Portal from "@components/ui/portal.svelte";
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+	import { untrack } from 'svelte';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 	import { page } from '$app/state';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
@@ -91,12 +93,6 @@
 	let showMediaLibrary = $state(false);
 	let aspectPreviewFile = $state<MediaFile | null>(null);
 	const focalPointPluginEnabled = $derived(page.data?.pluginStates?.['focal-point'] === true);
-	const dndItems = $derived(
-		selectedFiles.map((file) => ({
-			...file,
-			id: file._id
-		}))
-	);
 	const fieldKey = $derived(getFieldName(field, false));
 
 	function syncCollectionValue(nextValue: string | string[] | null) {
@@ -226,9 +222,9 @@
 
 		const mappedFiles: MediaFile[] = files.map((f) => ({
 			_id: f._id as string,
-			name: f.filename,
-			type: f.mimeType,
-			size: f.size,
+			name: (f as any).filename,
+			type: (f as any).mimeType,
+			size: (f as any).size,
 			url: (f as any).url,
 			thumbnailUrl: (f as any).thumbnails?.md?.url || (f as any).url
 		}));
@@ -255,19 +251,56 @@
 		selectedFiles = selectedFiles.filter((file) => file._id !== fileId);
 	}
 
-	function syncDndItems(items: Array<MediaFile & { id: string }>) {
-		selectedFiles = items.map(({ id, ...rest }) => ({
-			...rest,
-			_id: id
-		}));
+	function handleMediaDrop(state: DragDropState<MediaFile>) {
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+		const fromIndex = selectedFiles.indexOf(dragged);
+		if (fromIndex < 0) return;
+
+		const targetEl = state.targetElement?.closest('[data-file-id]') as HTMLElement | null;
+		const targetFileId = targetEl?.dataset?.fileId;
+
+		let targetIndex: number;
+		if (targetFileId) {
+			targetIndex = selectedFiles.findIndex(f => f._id === targetFileId);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = selectedFiles.length;
+		}
+		targetIndex = Math.max(0, Math.min(targetIndex, selectedFiles.length));
+
+		if (fromIndex === targetIndex) return;
+		selectedFiles = untrack(() => {
+			const newFiles = [...selectedFiles];
+			newFiles.splice(fromIndex, 1);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			newFiles.splice(adjusted, 0, dragged);
+			return newFiles;
+		});
 	}
 </script>
 
 <div class="min-h-30 rounded border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
-		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4" use:dndzone={{ items: dndItems }} onconsider={(e) => syncDndItems(e.detail.items)}>
+		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4"
+			use:droppable={{
+				container: 'media-grid',
+				callbacks: { onDrop: handleMediaDrop },
+				direction: 'grid',
+				attributes: { dragOverClass: 'bg-secondary-200' }
+			}}
+			role="list"
+			aria-label="Media files"
+		>
 			{#each selectedFiles as file (file._id)}
-				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div
+					class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50"
+					animate:flip
+					use:draggable={{ container: 'media-grid', dragData: file, keyboard: true }}
+					role="listitem"
+					tabindex="0"
+				>
 					<button
 						type="button"
 						class="block w-full cursor-pointer text-start"

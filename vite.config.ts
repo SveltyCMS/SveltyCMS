@@ -41,10 +41,13 @@ const SERVER_EXTERNALS = [
   "typescript",
   "ts-node",
   "@tailwindcss/node",
+  "jiti", // Build-time JIT — never imported at runtime; pulls zod v4
+  "jiti/*", // Subpath imports from jiti internals
 ];
 
 const SSR_NO_EXTERNAL = [
   "@iconify/svelte",
+  "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-dnd-action",
   "svelte-awesome-color-picker",
@@ -54,6 +57,7 @@ const SSR_NO_EXTERNAL = [
 
 const OPTIMIZE_DEPS_INCLUDE = [
   "@iconify/svelte",
+  "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-dnd-action",
   "svelte-awesome-color-picker",
@@ -130,9 +134,15 @@ function testBackdoorStripperPlugin(): Plugin {
     },
     load(id) {
       if (id === "\0virtual:test-noop")
-        return 'export const POST=()=>new Response("Not Found",{status:404});export const handleTestIsolation=({event,resolve})=>resolve(event);export default{};';
+        return {
+          code: 'export const POST=()=>new Response("Not Found",{status:404});export const handleTestIsolation=({event,resolve})=>resolve(event);export const SVELTY_TEST_BACKDOOR_STRIPPED=true;export default{};',
+          map: null,
+        };
       if (id.startsWith("\0virtual:ssr-stub:"))
-        return "export const createEditor=()=>({});const noop=()=>({});export default new Proxy({},{get:()=>noop});";
+        return {
+          code: "export const createEditor=()=>({});const noop=()=>({});export default new Proxy({},{get:()=>noop});",
+          map: null,
+        };
       return null;
     },
   };
@@ -145,7 +155,13 @@ function privateConfigFallbackPlugin(): Plugin {
   const RVID = `\0${VID}`,
     RVIDT = `\0${VIDT}`;
   const cache = new Map<string, string | null>();
-  const isTest = process.env.TEST_MODE === "true" || process.env.COMPILE_ALL_ADAPTERS === "true";
+  // Precheck / integration / E2E / COMPILE_ALL_ADAPTERS: never bind to live private.ts
+  const isTestHarness =
+    process.env.TEST_MODE === "true" ||
+    process.env.COMPILE_ALL_ADAPTERS === "true" ||
+    process.env.SVELTY_PRECHECK === "true" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true";
 
   return {
     name: "private-config-fallback",
@@ -157,10 +173,21 @@ function privateConfigFallbackPlugin(): Plugin {
       if (id === VIDT) return RVIDT;
       const nid = id.replace(/\\/g, "/");
       let result: string | null = null;
-      if (isTest && (id === VID || nid.endsWith("config/private.ts"))) {
+      // Automated builds: always resolve private.ts imports → private.test.ts
+      // so live developer DB credentials never enter the test artifact.
+      if (
+        isTestHarness &&
+        (id === VID || nid.endsWith("config/private.ts") || nid.endsWith("config/private"))
+      ) {
         const tp = path.resolve(CWD, "config/private.test.ts");
-        if (existsSync(tp)) result = tp;
+        if (existsSync(tp)) {
+          result = tp;
+        } else {
+          // Fall back to virtual module when private.test.ts is missing (CI)
+          result = RVID;
+        }
       } else if (nid.endsWith("config/private") || nid.endsWith("config/private.ts")) {
+        // Live app only — real private.ts or virtual empty
         result = existsSync(path.resolve(CWD, "config/private.ts")) ? null : RVID;
       } else if (nid.endsWith("config/private.test") || nid.endsWith("config/private.test.ts")) {
         result = existsSync(path.resolve(CWD, "config/private.test.ts")) ? null : RVIDT;
@@ -170,7 +197,10 @@ function privateConfigFallbackPlugin(): Plugin {
     },
     load(id) {
       if (id === RVID || id === RVIDT)
-        return `export const privateEnv={DB_TYPE:process.env.DB_TYPE||"",DB_HOST:process.env.DB_HOST||"127.0.0.1",DB_PORT:parseInt(process.env.DB_PORT||"27017"),DB_NAME:process.env.DB_NAME||"sveltycms",DB_USER:process.env.DB_USER||"",DB_PASSWORD:process.env.DB_PASSWORD||"",JWT_SECRET_KEY:process.env.JWT_SECRET_KEY||"",ENCRYPTION_KEY:process.env.ENCRYPTION_KEY||"",GOOGLE_CLIENT_ID:process.env.GOOGLE_CLIENT_ID||"",GOOGLE_CLIENT_SECRET:process.env.GOOGLE_CLIENT_SECRET||"",MULTI_TENANT:process.env.MULTI_TENANT==="true"};export const __VIRTUAL__=true;`;
+        return {
+          code: `export const privateEnv={DB_TYPE:process.env.DB_TYPE||"",DB_HOST:process.env.DB_HOST||"127.0.0.1",DB_PORT:parseInt(process.env.DB_PORT||"27017"),DB_NAME:process.env.DB_NAME||"sveltycms",DB_USER:process.env.DB_USER||"",DB_PASSWORD:process.env.DB_PASSWORD||"",JWT_SECRET_KEY:process.env.JWT_SECRET_KEY||"",ENCRYPTION_KEY:process.env.ENCRYPTION_KEY||"",GOOGLE_CLIENT_ID:process.env.GOOGLE_CLIENT_ID||"",GOOGLE_CLIENT_SECRET:process.env.GOOGLE_CLIENT_SECRET||"",MULTI_TENANT:process.env.MULTI_TENANT==="true"};export const __VIRTUAL__=true;`,
+          map: null,
+        };
       return null;
     },
   };
@@ -228,7 +258,10 @@ function stubServerModulesPlugin(): Plugin {
     },
     load(id) {
       if (id === "\0virtual:server-stub")
-        return "export default{};export const logger={info(){},error(){},warn(){},debug(){}};";
+        return {
+          code: "export default{};export const logger={info(){},error(){},warn(){},debug(){}};",
+          map: null,
+        };
       return null;
     },
   };
@@ -240,7 +273,7 @@ function databaseAdapterStripperPlugin(): Plugin {
   const isTest = process.env.TEST_MODE === "true" || process.env.VITEST === "true";
   const setupComplete = isSetupComplete();
   const compileAll = process.env.COMPILE_ALL_ADAPTERS === "true";
-  if (!isBuild || isTest || !setupComplete || compileAll)
+  if (!_isBuild || isTest || !setupComplete || compileAll)
     return { name: "database-adapter-stripper" };
 
   let activeDbType = process.env.DATABASE_ENGINE || process.env.DB_TYPE;
@@ -274,8 +307,50 @@ function databaseAdapterStripperPlugin(): Plugin {
       return null;
     },
     load(id) {
-      if (id === "\0virtual:db-stub") return "export default{};";
+      if (id === "\0virtual:db-stub") return { code: "export default{};", map: null };
       return null;
+    },
+  };
+}
+
+/** Common languages subset for shiki — stubs out the other ~330 languages */
+const SHIKI_COMMON_LANGS = new Set([
+  "html",
+  "css",
+  "javascript",
+  "typescript",
+  "jsx",
+  "tsx",
+  "json",
+  "markdown",
+  "yaml",
+  "xml",
+  "bash",
+  "diff",
+  "sql",
+  "svelte",
+  "vue",
+]);
+
+function shikiLangSlimPlugin(): Plugin {
+  return {
+    name: "shiki-lang-slim",
+    enforce: "pre",
+    resolveId(id, _importer, options) {
+      // Server needs all languages for SSR; client only needs common subset
+      if (options?.ssr) return null;
+      const m = id.match(/^@shikijs\/langs\/([a-z][a-z0-9-]*)$/i);
+      if (!m) return null;
+      if (SHIKI_COMMON_LANGS.has(m[1].toLowerCase())) return null;
+      return `\0virtual:shiki-stub:${m[1]}`;
+    },
+    load(id) {
+      if (!id.startsWith("\0virtual:shiki-stub:")) return null;
+      const name = id.split(":").pop();
+      return {
+        code: `const lang=Object.freeze({displayName:"${name}",name:"${name}",scopeName:"source.${name}",patterns:[]});export default lang;`,
+        map: null,
+      };
     },
   };
 }
@@ -285,16 +360,34 @@ function browserShimsPlugin(): Plugin {
   return {
     name: "browser-shims",
     enforce: "pre",
-    resolveId(id) {
-      if (id === "node:path") return "\0virtual:browser-shim:path";
-      if (id === "node:os") return "\0virtual:browser-shim:os";
+    resolveId(id, _importer, options) {
+      // SSR must use real Node builtins — never shim server chunks.
+      if (options?.ssr) return null;
+      if (id === "node:path" || id === "path") return "\0virtual:browser-shim:path";
+      if (id === "node:os" || id === "os") return "\0virtual:browser-shim:os";
+      // jsdom is only used server-side in sanitize.svelte (!browser branch).
+      // Shimming it prevents the 5.5 MB chunk from appearing in client builds.
+      if (id === "jsdom") return "\0virtual:browser-shim:jsdom";
       return null;
     },
     load(id) {
       if (id === "\0virtual:browser-shim:path")
-        return 'export default{join:(...a)=>a.join("/"),resolve:(...a)=>a.join("/"),dirname:(p)=>p.split("/").slice(0,-1).join("/"),basename:(p)=>p.split("/").pop()};';
+        return {
+          code: `const join=(...a)=>a.join("/");const resolve=(...a)=>a.join("/");const dirname=(p)=>p.split("/").slice(0,-1).join("/")||".";const basename=(p)=>p.split("/").pop()||"";export{join,resolve,dirname,basename};export default{join,resolve,dirname,basename};`,
+          map: null,
+        };
       if (id === "\0virtual:browser-shim:os")
-        return "export default{platform:()=>'browser',cpus:()=>[],totalmem:()=>0,freemem:()=>0};";
+        return {
+          code: `const platform=()=>"browser";const cpus=()=>[];const totalmem=()=>0;const freemem=()=>0;export{platform,cpus,totalmem,freemem};export default{platform,cpus,totalmem,freemem};`,
+          map: null,
+        };
+      if (id === "\0virtual:browser-shim:jsdom")
+        return {
+          // Client-side stub — real jsdom is never used on client.
+          // The only consumer (sanitize.svelte) guards this behind `!browser`.
+          code: `// @ts-nocheck\nexport class JSDOM { constructor() { this.window = {}; } }\nexport { JSDOM as default };`,
+          map: null,
+        };
       return null;
     },
   };
@@ -434,58 +527,162 @@ function sveltyCmsPlugin(): Plugin {
 }
 
 /**
- * Plugin to suppress noisy third-party warnings (like circular dependencies and
- * optional unresolved imports) globally during build (including adapter rollup).
+ * Build warning manager — filters non-actionable noise, deduplicates remaining
+ * SOURCEMAP_BROKEN warnings from third-party plugins.
+ *
+ * Our custom plugins (test-backdoor-stripper, private-config-fallback,
+ * stub-server-modules, database-adapter-stripper, browser-shims) return
+ * `{ code, map: null }` from their load() hooks, so they no longer trigger
+ * this warning. Only third-party plugins (@tailwindcss/vite, SvelteKit
+ * remote functions) may still emit it.
  */
-function suppressThirdPartyWarningsPlugin(): Plugin {
-  let isIntercepted = false;
+function buildWarningManagerPlugin(): Plugin {
+  const sourcemapCounts = new Map<string, number>();
+  let originalWarn: typeof console.warn;
+  let installed = false;
 
-  const patterns = [
-    /Circular dependency:.*(?:node_modules|\.bun)/i,
-    /"(?:snappy|@mongodb-js\/zstd|bun:sqlite|node:sqlite|@react-email\/render|resend)" is imported.*could not be resolved/i,
+  const noisePatterns = [
+    /Circular dependency:.*node_modules/i,
+    /could not be resolved.*treating it as an external/i,
     /".*" is imported from external module ".*" but never used/i,
+    /\[PLUGIN_TIMINGS\]/i,
+    /Your build spent significant time in plugins/i,
   ];
 
+  const sourcemapPattern = /\[SOURCEMAP_BROKEN\]|Sourcemap is likely to be incorrect/i;
+
+  function install() {
+    if (installed) return;
+    installed = true;
+    originalWarn = console.warn;
+
+    const filter = (message: string): boolean => {
+      if (noisePatterns.some((p) => p.test(message))) return true;
+      if (sourcemapPattern.test(message)) {
+        const match = message.match(/\[([^\]]+)\]/);
+        const plugin = match?.[1] ?? "unknown";
+        sourcemapCounts.set(plugin, (sourcemapCounts.get(plugin) ?? 0) + 1);
+        return true;
+      }
+      return false;
+    };
+
+    console.warn = (...args: unknown[]) => {
+      const message = args.map((a) => (typeof a === "string" ? a : String(a ?? ""))).join(" ");
+      if (filter(message)) return;
+      originalWarn.apply(console, args);
+    };
+
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = (chunk: any, ...rest: any[]): boolean => {
+      const message = typeof chunk === "string" ? chunk : (chunk?.toString?.() ?? "");
+      if (filter(message)) return true;
+      return originalStderrWrite(chunk, ...rest);
+    };
+  }
+
   return {
-    name: "suppress-third-party-warnings",
+    name: "build-warning-manager",
     apply: "build",
-    buildStart() {
-      if (!isIntercepted) {
-        isIntercepted = true;
-        const originalConsoleWarn = console.warn;
-        console.warn = function (...args: unknown[]) {
-          const message = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
-          if (patterns.some((pattern) => pattern.test(message))) return;
-          originalConsoleWarn.apply(console, args);
-        };
+    enforce: "pre",
+    config(_config: any, _env: any) {
+      install();
+    },
+    buildEnd() {
+      if (originalWarn) console.warn = originalWarn;
+      if (sourcemapCounts.size === 0) return;
+      const lines = [...sourcemapCounts].map(([p, c]) => `  ${p}: ${c} file(s)`);
+      originalWarn(
+        `\n[SOURCEMAP_BROKEN] Third-party plugins (not actionable):\n${lines.join("\n")}\n`,
+      );
+    },
+  };
+}
+
+/** Serves LiteRT.js WASM binaries with correct MIME type from static/ai/wasm/. */
+function liteRtWasmPlugin(): Plugin {
+  const WASM_RE = /^\/ai\/wasm\//;
+  return {
+    name: "litert-wasm",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url || !WASM_RE.test(req.url)) return next();
+        const filePath = path.join(CWD, "static", req.url);
+        if (!existsSync(filePath)) {
+          res.statusCode = 404;
+          res.end("WASM file not found. Place LiteRT.js WASM binaries in static/ai/wasm/");
+          return;
+        }
+        const ext = path.extname(req.url);
+        const mime =
+          ext === ".wasm"
+            ? "application/wasm"
+            : ext === ".js"
+              ? "application/javascript"
+              : "application/octet-stream";
+        res.writeHead(200, {
+          "Content-Type": mime,
+          "Cross-Origin-Resource-Policy": "cross-origin",
+          "Cache-Control": "public, max-age=86400",
+        });
+        const content = readFileSync(filePath);
+        res.end(content);
+      });
+    },
+  };
+}
+
+function copyWorkerFilePlugin(): Plugin {
+  return {
+    name: "copy-module-worker",
+    apply: "build",
+    async writeBundle() {
+      const src = path.resolve(CWD, "src/content/module-worker.server.ts");
+      const dest = path.resolve(CWD, "build/server/chunks/module-worker.server.ts");
+      try {
+        await fsPromises.mkdir(path.dirname(dest), { recursive: true });
+        await fsPromises.copyFile(src, dest);
+        log.info("Copied module-worker.server.ts to build output");
+      } catch (e: unknown) {
+        log.warn(`Failed to copy worker file: ${(e as Error).message}`);
       }
     },
   };
 }
 
 // ── Config ─────────────────────────────────────────────────────────────────
-const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
 
 export default defineConfig(() => ({
   plugins: [
+    buildWarningManagerPlugin(),
+    tailwindcss() as any,
     databaseAdapterStripperPlugin(),
     testBackdoorStripperPlugin(),
     privateConfigFallbackPlugin(),
     stubServerModulesPlugin(),
     browserShimsPlugin(),
+    shikiLangSlimPlugin(),
     sveltekit({
       preprocess: [vitePreprocess()],
       compilerOptions: { runes: true },
       adapter: adapter({ out: "build", precompress: true }),
       experimental: { remoteFunctions: true },
       alias: pathAliases,
-      csrf: { trustedOrigins: ["http://127.0.0.1:4173"] },
+      // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
+      csrf: {
+        trustedOrigins: [
+          "http://127.0.0.1:4173",
+          "http://localhost:4173",
+          ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
+          ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
+        ],
+      },
     }),
+    liteRtWasmPlugin(),
     sveltyCmsPlugin(),
     securityCheckPlugin(),
-    suppressThirdPartyWarningsPlugin(),
+    copyWorkerFilePlugin(),
     paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
-    tailwindcss(),
   ],
   server: {
     fs: { allow: ["static", "."], deny: ["**/tests/**"] },
@@ -505,28 +702,21 @@ export default defineConfig(() => ({
   define: {
     __SVELTY_SETUP_COMPLETE__: isSetupComplete(),
     global: "globalThis",
-    "process.env": "{}",
+    // NEVER replace `"process.env": "{}"` — Rolldown/Vite then rewrites every
+    // `process.env.FOO` access to `{}.FOO` (always undefined) in SSR chunks.
+    // That breaks TEST_MODE, setup-check, integration preview, and any runtime
+    // flag. Client bundles must not import server secrets; use $env modules.
   },
   build: {
     target: "esnext",
-    minify: "esbuild",
+    minify: "esbuild" as const,
     sourcemap: !process.env.CI,
     chunkSizeWarningLimit: 1200,
+    // Rolldown (Vite 8): disable plugin-timing spam; still measurable via --debug if needed.
     checks: { pluginTimings: false },
     rollupOptions: {
       external: SERVER_EXTERNALS,
-      onwarn(warning: any, warn: any) {
-        if (warning.code === "CIRCULAR_DEPENDENCY" && warning.message?.includes("node_modules"))
-          return;
-        if (
-          warning.code === "SOURCEMAP_BROKEN" &&
-          warning.plugin === "vite-plugin-sveltekit-remote"
-        )
-          return;
-        if (warning.code === "UNRESOLVED_IMPORT" && warning.exporter?.includes("node_modules"))
-          return;
-        warn(warning);
-      },
+      // Warning filtering handled by buildWarningManagerPlugin.
     },
   },
   optimizeDeps: {

@@ -61,8 +61,8 @@ describe("preset-collections.server", () => {
   it("purge removes benchmark test workspaces", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
-    const sourceDir = path.resolve("config/collections/test/purge-test");
-    const compiledDir = path.resolve(".compiledCollections/test/purge-test");
+    const sourceDir = path.resolve("config/test-collections/purge-test");
+    const compiledDir = path.resolve(".compiledCollections/test-collections/purge-test");
     await fs.mkdir(sourceDir, { recursive: true });
     await fs.mkdir(compiledDir, { recursive: true });
     const sourceArtifact = path.join(sourceDir, "BenchmarkStable.ts");

@@ -5,6 +5,7 @@
 
 import { MediaService } from "@utils/media/media-service.server";
 import { AppError } from "@utils/error-handling";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { LRUCache } from "lru-cache";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
@@ -102,22 +103,33 @@ export class MediaNamespace {
   async find(options: FindOptions = {}): Promise<DatabaseResult<any>> {
     const { tenantId, limit = 100, folderId, recursive = false, prefix } = options;
 
+    // Mirror collections-namespace: fail closed when multi-tenant and no tenant scope
+    if (isMultiTenantEnabled() && !tenantId) {
+      throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
+    }
+
     const cacheKey = `${tenantId ?? "global"}:media:folder:${folderId ?? "root"}:${limit}:${recursive}`;
     if (MediaNamespace._requestCache.has(cacheKey)) {
       return MediaNamespace._requestCache.get(cacheKey);
     }
 
-    const result = await this._dbAdapter.media.files.getByFolder(
-      folderId as DatabaseId,
-      {
-        pageSize: limit,
-        page: 1,
-        sortField: "updatedAt",
-        sortDirection: "desc",
-      },
+    const getByFolder = this._dbAdapter?.media?.files?.getByFolder;
+    if (typeof getByFolder !== "function") {
+      throw new AppError(
+        "Media adapter is not available (media.files.getByFolder missing)",
+        503,
+        "MEDIA_ADAPTER_UNAVAILABLE",
+      );
+    }
+
+    const result = await getByFolder(folderId as DatabaseId, {
+      pageSize: limit,
+      page: 1,
+      sortField: "updatedAt",
+      sortDirection: "desc",
       recursive,
-      tenantId as DatabaseId,
-    );
+      tenantId: tenantId as DatabaseId,
+    });
 
     if (result.success && result.data?.items) {
       result.data.items = result.data.items.map(
@@ -136,6 +148,9 @@ export class MediaNamespace {
     if (!fileId) throw new AppError("File ID is required", 400);
 
     const { tenantId, prefix } = options;
+    if (isMultiTenantEnabled() && !tenantId) {
+      throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
+    }
     const cacheKey = `${tenantId ?? "global"}:media:${fileId}`;
 
     if (MediaNamespace._requestCache.has(cacheKey)) {
@@ -150,7 +165,7 @@ export class MediaNamespace {
     );
 
     if (result.success && result.data) {
-      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix);
+      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix) as any;
       MediaNamespace._requestCache.set(cacheKey, result);
     }
 
@@ -295,7 +310,7 @@ export class MediaNamespace {
       const result = await this._dbAdapter.media.files.move(
         ids as DatabaseId[],
         (targetFolderId || null) as DatabaseId,
-        tenantId as DatabaseId,
+        tenantId != null ? { tenantId: tenantId as DatabaseId } : { bypassTenantCheck: true },
       );
 
       if (result.success) {
@@ -368,7 +383,12 @@ export class MediaNamespace {
         mediaId,
         options.tenantId as DatabaseId,
       );
-      return { success: true, data: refs };
+      const mapped = refs.map((r) => ({
+        ...r,
+        entryName: r.entryName ?? r.entryId,
+        fieldName: r.fieldName ?? r.fieldPath,
+      }));
+      return { success: true, data: mapped };
     } catch (err: any) {
       return {
         success: false,
@@ -395,7 +415,15 @@ export class MediaNamespace {
     }[]
   > {
     if (!mediaId) throw new AppError("Media ID is required", 400);
-    return this.mediaService.getMediaReferences(mediaId, options.tenantId as DatabaseId);
+    const refs = await this.mediaService.getMediaReferences(
+      mediaId,
+      options.tenantId as DatabaseId,
+    );
+    return refs.map((r) => ({
+      ...r,
+      entryName: r.entryName ?? r.entryId,
+      fieldName: r.fieldName ?? r.fieldPath,
+    }));
   }
 
   async uploadVersion(

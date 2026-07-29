@@ -76,13 +76,20 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
         },
       ] as any[];
       collections.setContentStructure(nodes);
+      const hashAfterFirst = (collections as any).structureHash;
       // Setting the same structure again should not change the hash
       collections.setContentStructure([...nodes]);
-      // Content structure should remain unchanged (circuit breaker)
+      const hashAfterSecond = (collections as any).structureHash;
+      expect(hashAfterFirst).toBe(hashAfterSecond);
     });
 
-    it("should track total collections", () => {
-      expect(collections.total).toBeGreaterThanOrEqual(0);
+    it("should track total as a number", () => {
+      // total is computed from Object.keys(all).length
+      expect(typeof collections.total).toBe("number");
+      // The collection store's `all` is populated by load functions,
+      // not by setContentStructure (which updates contentStructure).
+      // In the test environment, `all` remains empty.
+      expect(collections.total).toBe(0);
     });
 
     it("selected entries management", () => {

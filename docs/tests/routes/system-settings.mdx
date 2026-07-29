@@ -1,0 +1,97 @@
+---
+path: "docs/tests/routes/system-settings.mdx"
+title: "System Settings Tests — Control Map"
+description: "Coverage for /config/system-settings: group nav, save/export/import/discard, cache repair, MT migration, permission gate."
+order: 19
+icon: "mdi:cog"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "settings"
+---
+
+# System Settings (`/config/system-settings`)
+
+## Surface
+
+| Piece                           | Role                                                               |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `+page.server.ts`               | Auth + `config:settings` / admin gate                              |
+| `+page.svelte`                  | Group navigator, save/discard shell, MT migration, cache repair    |
+| `settings-groups.ts`            | Catalog of setting groups (role-filtered)                          |
+| `settings-utils.ts`             | Pure helpers: CSRF headers, validation, import parse, empty-config |
+| `generic-settings-group.svelte` | Per-group form, save/export/import/reset/discard                   |
+| `settings.remote.ts`            | load/save/reset via `/api/settings/*` + CSRF                       |
+| `admin.remote.ts`               | Cache repair, tenant structure detection + migration (admin-only)  |
+| Sidebar `settings-menu`         | Group links when `isSystemSettings` context                        |
+
+Field sets **vary by product version**; tests assert group navigation and shell controls, not every key.
+
+---
+
+## Control → test matrix
+
+| Control                                         | Unit                    | Integration         | E2E                       |
+| ----------------------------------------------- | ----------------------- | ------------------- | ------------------------- |
+| Permission gate (admin / config:settings / 403) | ✅ page.server          | settings API        | RBAC suite                |
+| Group catalog unique ids + adminOnly filter     | ✅ settings-groups      | —                   | —                         |
+| CSRF header builder (`remoteJsonHeaders`)       | ✅ settings-utils       | —                   | —                         |
+| Field validation / empty-config / import parse  | ✅ settings-utils       | —                   | —                         |
+| Page shell + title                              | —                       | —                   | ✅                        |
+| In-page group nav + search                      | —                       | —                   | ✅                        |
+| Switch group updates URL + panel                | —                       | —                   | ✅                        |
+| Unknown group recovery UI                       | —                       | —                   | ✅                        |
+| Save disabled when clean                        | —                       | —                   | ✅                        |
+| Field testids (`settings-field-*`)              | —                       | —                   | ✅                        |
+| Edit enables save; discard restores clean       | —                       | —                   | ✅                        |
+| Happy path: edit → save → reload persists       | —                       | —                   | ✅                        |
+| Export / Import / Reset / Discard controls      | —                       | —                   | ✅                        |
+| Cache repair button                             | —                       | —                   | ✅ present on cache group |
+| GDPR special panel                              | —                       | —                   | ✅                        |
+| MT Check Structure                              | —                       | —                   | ✅                        |
+| Settings PUT/DELETE CSRF                        | settings.remote → utils | settings.test.ts    | —                         |
+| Export/import API                               | —                       | ✅ settings.test.ts | —                         |
+| Admin-only tenant structure detect              | admin.remote            | —                   | —                         |
+
+---
+
+## Product hardening
+
+### 2026-07-18 (shell)
+
+- [x] In-page group chips + search (sidebar still works)
+- [x] CSRF on settings remote PUT/DELETE
+- [x] `showConfirm` for unsaved navigation (no `window.confirm`)
+- [x] Stable `data-testid`s for shell automation
+
+### 2026-07-18 (further)
+
+- [x] Extracted `settings-utils.ts` (validation, CSRF, import, empty-config)
+- [x] Discard local edits (group + shell sticky action)
+- [x] Import Group JSON (client-side parse → form; user must save)
+- [x] Field-level `data-testid="settings-field-{KEY}"`
+- [x] Unknown group missing-state + recovery button
+- [x] aria-live status for repair / MT structure results
+- [x] `detectTenantStructure` admin-gated (parity with repair/migration)
+- [x] Clickable “needs configuration” group links in banner
+- [x] E2E happy path: edit → save → reload asserts API persistence (restores original)
+
+---
+
+## Associated tests
+
+- [settings.spec.ts](../../../tests/e2e/routes/system/settings.spec.ts)
+- [system-settings-page-server.test.ts](../../../tests/unit/routes/system-settings-page-server.test.ts)
+- [settings-groups.test.ts](../../../tests/unit/config/settings-groups.test.ts)
+- [settings-utils.test.ts](../../../tests/unit/config/settings-utils.test.ts)
+- Integration: `tests/integration/api/settings.test.ts`
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/system-settings-page-server.test.ts tests/unit/config/settings-groups.test.ts tests/unit/config/settings-utils.test.ts
+bun x playwright test tests/e2e/routes/system/settings.spec.ts
+```

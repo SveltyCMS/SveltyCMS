@@ -13,7 +13,7 @@
 // --- Minimal barrel — only original re-exports (expanding breaks Rolldown config bundle) ---
 export * from "./form.svelte";
 export * from "./date";
-export * from "./file";
+export { formatBytes, removeExtension } from "./file";
 export * from "./string";
 export * from "./navigation";
 export * from "./tenant";

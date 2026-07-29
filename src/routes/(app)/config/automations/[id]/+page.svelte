@@ -37,14 +37,21 @@ import {
 	OPERATION_TYPES,
 } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { fade, slide } from "svelte/transition";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
-import { dndzone } from "svelte-dnd-action";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
-	import Badge from '@components/ui/badge.svelte';
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
+		import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+import {
+	getAutomation,
+	saveAutomation,
+	testAutomation,
+	unwrapFlow,
+} from "../automations-api";
 
 // ── State ──
 
@@ -80,10 +87,10 @@ let flow: AutomationFlow = $state({
 onMount(async () => {
 	if (!isNew) {
 		try {
-			const res = await fetch(`/api/automations/${page.params.id}`);
-			const result = await res.json();
-			if (result.success) {
-				flow = result.data;
+			const result = await getAutomation(page.params.id);
+			const loaded = unwrapFlow(result);
+			if (result.success && loaded) {
+				flow = loaded;
 			} else {
 				toast.error("Automation not found");
 				goto("/config/automations");
@@ -109,21 +116,13 @@ async function save() {
 
 	isSaving = true;
 	try {
-		const method = isNew ? "POST" : "PATCH";
-		const url = isNew ? "/api/automations" : `/api/automations/${flow.id}`;
-
-		const res = await fetch(url, {
-			method,
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(flow),
-		});
-		const result = await res.json();
+		const result = await saveAutomation(flow, isNew);
 
 		if (result.success) {
 			toast.success(`Automation ${isNew ? "created" : "updated"}`);
 			goto("/config/automations");
 		} else {
-			toast.error(result.error || "Save failed");
+			toast.error(result.error || result.message || "Save failed");
 		}
 	} catch (_err) {
 		toast.error("Error saving automation");
@@ -141,17 +140,21 @@ async function testFlow() {
 	isTesting = true;
 	testResult = null;
 	try {
-		const res = await fetch(`/api/automations/${flow.id}/test`, {
-			method: "POST",
-		});
-		const result = await res.json();
+		const result = await testAutomation(flow.id);
 		if (result.success) {
-			testResult = result.data;
-			toast[result.data.status === "success" ? "success" : "warning"](
-				`Test ${result.data.status} in ${result.data.duration}ms`,
-			);
+			const d = (result as any).data as {
+			status: string;
+			duration: number;
+			operationResults: { type: string; status: string; duration: number; error?: string }[];
+		} | null;
+			if (d) {
+				testResult = d;
+				toast[d.status === "success" ? "success" : "warning"](
+					`Test ${d.status} in ${d.duration}ms`,
+				);
+			}
 		} else {
-			toast.error(result.error || "Test failed");
+			toast.error(result.error || result.message || "Test failed");
 		}
 	} catch (_err) {
 		toast.error("Test error");
@@ -160,9 +163,33 @@ async function testFlow() {
 	}
 }
 
-function handleDnd(e: CustomEvent<{ items: AutomationOperation[] }>) {
-	flow.operations = e.detail.items;
-}
+	function handleOperationDrop(state: DragDropState<AutomationOperation>) {
+		const dragged = state.draggedItem;
+		if (!dragged) return;
+
+			const fromIndex = flow.operations.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-op-id]') as HTMLElement | null;
+			const targetOpId = targetEl?.dataset?.opId;
+
+			let targetIndex: number;
+			if (targetOpId) {
+				targetIndex = flow.operations.findIndex(o => o.id === targetOpId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = flow.operations.length;
+			}
+					targetIndex = Math.max(0, Math.min(targetIndex, flow.operations.length));
+
+			if (fromIndex === targetIndex) return;
+		flow.operations = untrack(() => {
+			const newOps = [...flow.operations];
+			newOps.splice(fromIndex, 1);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+				newOps.splice(adjusted, 0, dragged);
+			return newOps;
+		});
+	}
 
 function insertToken(opIndex: number, field: string, token: string) {
 	const op = flow.operations[opIndex] as any;
@@ -336,13 +363,13 @@ const conditionOperatorOptions = [
 	backUrl="/config/automations"
 >
 {#if isLoading}
-	<AdminCard class="flex items-center justify-center border border-surface-200 py-20 dark:border-surface-800">
+	<AdminCard class="flex items-center justify-center border border-surface-200 py-20 dark:border-surface-800" data-testid="automation-editor-loading">
 		<Loader variant="circle" width="size-12" height="size-12" ariaLabel="Loading automation" />
 	</AdminCard>
 {:else}
-	<div class="mx-auto max-w-225 space-y-6">
+	<div class="mx-auto max-w-225 space-y-6" data-testid="automation-editor">
 		<!-- Stepper Header -->
-		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8">
+		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8" data-testid="automation-stepper">
 			{#each steps as step (step.number)}
 				<div class="flex items-center gap-2">
 					<Button
@@ -353,6 +380,7 @@ const conditionOperatorOptions = [
 						disabled={step.number > activeStep + 1}
 						aria-current={activeStep === step.number ? 'step' : undefined}
 						aria-label={step.label}
+						data-testid={`automation-step-${step.number}`}
 						rounded
 						class="w-full sm:w-auto justify-center {step.number > activeStep + 1 ? 'opacity-50' : ''}"
 					>
@@ -385,6 +413,7 @@ const conditionOperatorOptions = [
 								label="Automation Name *"
 								placeholder="e.g. Notify editors on publish"
 								aria-label="Automation name"
+								data-testid="automation-name"
 								required
 							/>
 							<Input
@@ -392,6 +421,7 @@ const conditionOperatorOptions = [
 								label="Description"
 								placeholder="What does this automation do?"
 								aria-label="Automation description"
+								data-testid="automation-description"
 							/>
 						</div>
 
@@ -400,7 +430,7 @@ const conditionOperatorOptions = [
 						<!-- Trigger Type Selector -->
 						<div>
 							<span class="block font-medium mb-2">Trigger Type</span>
-							<div class="grid grid-cols-3 gap-3">
+							<div class="grid grid-cols-3 gap-3" data-testid="automation-trigger-types">
 								{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 									{const isSelected = flow.trigger.type === triggerOption.type}
 									<Button
@@ -408,6 +438,7 @@ const conditionOperatorOptions = [
 										class="p-3 text-center border-2 transition-all duration-200 rounded {isSelected ? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-surface-200 dark:border-surface-700'}"
 										onclick={() => setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
 										aria-label="Select {triggerOption.label} trigger"
+										data-testid={`automation-trigger-${triggerOption.type}`}
 									>
 										<iconify-icon icon={triggerOption.icon} class="text-2xl mb-1"></iconify-icon>
 										<p class="font-medium text-sm">{triggerOption.label}</p>
@@ -514,15 +545,24 @@ const conditionOperatorOptions = [
 					{#if flow.operations.length > 0}
 						<div
 							class="space-y-3"
-							use:dndzone={{ items: flow.operations, flipDurationMs: 200, dragDisabled: activeStep !== 2 }}
-							onconsider={handleDnd}
-							onfinalize={handleDnd}
+							use:droppable={{
+								container: 'operations',
+								callbacks: { onDrop: handleOperationDrop },
+								direction: 'vertical',
+								attributes: { dragOverClass: 'bg-secondary-200' }
+							}}
+							role="list"
+							aria-label="Operation chain"
 						>
 							{#each flow.operations as op, i (op.id)}
 								{const meta = getOperationMeta(op.type)}
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 								<div
 									class="card p-4 border border-surface-300 dark:border-surface-600 rounded bg-surface-50 dark:bg-surface-900 relative"
 									transition:slide
+									use:draggable={{ container: 'operations', dragData: op, disabled: activeStep !== 2, keyboard: true }}
+									role="listitem"
+									tabindex={activeStep === 2 ? 0 : -1}
 								>
 									<!-- Drag Handle -->
 									<div class="absolute inset-s-1 top-1/2 -translate-y-1/2 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">
@@ -781,7 +821,7 @@ const conditionOperatorOptions = [
 					{/if}
 
 					<!-- Add Operation Buttons -->
-					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded p-4">
+					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded p-4" data-testid="automation-add-ops">
 						<p class="text-sm font-medium mb-3 opacity-70">Add Operation</p>
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 							{#each OPERATION_TYPES as opType (opType.type)}
@@ -790,6 +830,7 @@ const conditionOperatorOptions = [
 									class="p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
 									onclick={() => addOperation(opType.type)}
 									aria-label="Add {opType.label} operation"
+									data-testid={`automation-add-op-${opType.type}`}
 								>
 									<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>
 									<p class="text-xs font-medium">{opType.label}</p>
@@ -995,27 +1036,27 @@ const conditionOperatorOptions = [
 		</AdminCard>
 
 		<!-- Footer Navigation -->
-		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-200 dark:border-surface-700">
+		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-200 dark:border-surface-700" data-testid="automation-footer">
 			<div>
 				{#if activeStep > 1}
-					<Button variant="surface" onclick={() => (activeStep -= 1)} aria-label="Go back">
+					<Button variant="surface" onclick={() => (activeStep -= 1)} aria-label="Go back" data-testid="automation-back">
 						<iconify-icon icon="mdi:chevron-left"></iconify-icon>
 						Back
 					</Button>
 				{:else}
-					<Button variant="surface" onclick={() => goto('/config/automations')} aria-label="Cancel and go back">Cancel</Button>
+					<Button variant="surface" onclick={() => goto('/config/automations')} aria-label="Cancel and go back" data-testid="automation-cancel">Cancel</Button>
 				{/if}
 			</div>
 
 			<div class="flex items-center gap-2">
 				{#if activeStep < 3}
-					<Button variant="tertiary" onclick={() => (activeStep += 1)} disabled={!canProceed} aria-label="Go to next step" class="dark:">
+					<Button variant="tertiary" onclick={() => (activeStep += 1)} disabled={!canProceed} aria-label="Go to next step" data-testid="automation-next">
 						Next
 						<iconify-icon icon="mdi:chevron-right"></iconify-icon>
 					</Button>
 				{:else}
 					<StickyActions>
-					<Button variant="tertiary" onclick={save} disabled={isSaving} aria-label="Save automation" class="dark:">
+					<Button variant="tertiary" onclick={save} disabled={isSaving} aria-label="Save automation" data-testid="automation-save">
 						{#if isSaving}
 							<iconify-icon icon="mdi:loading" class="animate-spin"></iconify-icon>
 							Saving...

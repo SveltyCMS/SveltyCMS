@@ -1,6 +1,8 @@
 /**
  * @file tests/e2e/routes/mediagallery/mediagallery.spec.ts
  * @description E2E tests for /mediagallery — toolbar, grid/table views, search, upload, delete.
+ *
+ * Uses data-testid selectors (not role/CSS) so tests survive layout changes.
  */
 
 import path from "node:path";
@@ -13,23 +15,22 @@ const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 
 async function openMediaGallery(page: import("@playwright/test").Page) {
   await loginAsAdmin(page);
-  await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
-
-  // Fail fast with a clear signal if the root error boundary fired
-  const systemError = page.getByRole("heading", { name: /system error/i });
-  if (await systemError.isVisible({ timeout: 1_500 }).catch(() => false)) {
-    const detail = await page
-      .locator(".font-mono, pre, code")
-      .first()
-      .textContent()
-      .catch(() => "");
-    throw new Error(`Media gallery hit System Error boundary: ${detail?.trim() || "(no detail)"}`);
+  await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/mediagallery");
   }
+  if (page.url().includes("/warming-up")) {
+    await page.waitForURL(/\/mediagallery/, { timeout: 20_000 });
+  }
+  await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
+  await expect(page).not.toHaveURL(/\/login/);
 
-  // Prefer stable page-title marker (AdminPageShell → PageTitle h1)
-  const pageTitle = page.getByTestId("page-title");
-  await expect(pageTitle).toBeVisible({ timeout: 15_000 });
-  await expect(pageTitle).toContainText(/media gallery/i);
+  // Wait for one of: toolbar, content area, or grid
+  const shell = page
+    .getByTestId("media-gallery-toolbar")
+    .or(page.getByTestId("media-gallery-content"))
+    .or(page.getByTestId("media-grid"));
+  await expect(shell.first()).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe("Media Gallery", () => {
@@ -50,45 +51,40 @@ test.describe("Media Gallery", () => {
     const search = page.getByRole("searchbox", { name: /search media assets/i });
     await expect(search).toBeVisible();
 
-    // Search with no results triggers empty state
     await search.fill("e2e-no-match-xyz-random");
     await expect(page.getByTestId("media-grid-empty")).toBeVisible({ timeout: 10_000 });
 
-    // Clearing search restores the grid
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Filter by type persists selection (option values are lowercase; labels are UPPER)
-    await page.locator("#media-type-filter").selectOption({ label: "IMAGE" });
-    await expect(page.locator("#media-type-filter")).toHaveValue("image");
+    const typeFilter = page
+      .getByLabel(/filter by media type/i)
+      .or(page.locator("#media-type-filter"));
+    await typeFilter.selectOption({ label: "IMAGE" });
+    await expect(typeFilter).toHaveValue("image");
     await expect(page.getByTestId("media-grid")).toBeVisible();
   });
 
   test("can switch between grid and table views", async ({ page }) => {
-    // Assertions use data-view + testids — never role/name (Button a11y forwarding flaked in CI)
-    const content = page.getByTestId("media-gallery-content");
     const gridBtn = page.getByTestId("media-view-grid");
     const tableBtn = page.getByTestId("media-view-table");
 
     await expect(gridBtn).toBeVisible({ timeout: 15_000 });
     await expect(tableBtn).toBeVisible();
-    await expect(content).toHaveAttribute("data-view", "grid");
+    await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
     await expect(page.getByTestId("media-grid")).toBeVisible();
 
-    // Native button — Playwright click is enough; evaluate as belt-and-suspenders
-    await tableBtn.click({ force: true });
-    // Table view may unmount/remount the content container — wait for re-attach
-    await content.waitFor({ state: "attached", timeout: 15_000 });
-    await expect(content).toHaveAttribute("data-view", "table", { timeout: 10_000 });
-    await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
-    await expect(tableBtn).toHaveAttribute("aria-pressed", "true");
+    // Switch to table
+    await tableBtn.click();
+    await expect(tableBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await expect(gridBtn).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("media-table")).toBeVisible({ timeout: 10_000 });
 
-    await gridBtn.click({ force: true });
-    await content.waitFor({ state: "attached", timeout: 15_000 });
-    await expect(content).toHaveAttribute("data-view", "grid", { timeout: 10_000 });
+    // Switch back to grid
+    await gridBtn.click();
+    await expect(gridBtn).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await expect(page.getByTestId("media-grid")).toBeVisible();
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
   });
 
   test("can upload an image and verify it appears", async ({ page }) => {
@@ -96,40 +92,235 @@ test.describe("Media Gallery", () => {
     await expect(uploadInput).toBeAttached();
 
     await uploadInput.setInputFiles(TEST_IMAGE);
-    await page.waitForLoadState("domcontentloaded");
 
-    // Empty state must disappear after upload
+    // Wait for grid to populate (empty state gone, gridcell visible)
     await expect(page.getByTestId("media-grid-empty")).toHaveCount(0, { timeout: 25_000 });
-    // Gridcell with the uploaded file must be visible
-    await expect(page.getByRole("gridcell").first()).toBeVisible({ timeout: 15_000 });
-    // Filename text appears in the grid
-    await expect(page.getByText(path.basename(TEST_IMAGE))).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("media-item").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(path.basename(TEST_IMAGE)).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("can delete an uploaded asset via grid action menu", async ({ page }) => {
-    const filename = path.basename(TEST_IMAGE);
+    // Count existing items before upload
+    const beforeCount = await page.getByTestId("media-item").count();
 
-    // Upload a file to delete
+    // Upload and wait for grid to show the file
     await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
-    await page.waitForLoadState("domcontentloaded");
-    await expect(page.getByText(filename)).toBeVisible({ timeout: 20_000 });
+    await expect(async () => {
+      const count = await page.getByTestId("media-item").count();
+      expect(count).toBeGreaterThan(beforeCount);
+    }).toPass({ timeout: 40_000 });
 
-    // Hover the gridcell to reveal the action buttons
-    const cell = page.getByRole("gridcell").first();
-    await cell.hover();
-    const actions = cell.locator("[data-testid='media-grid-actions']");
+    // Find the first media item and get its unique id
+    const item = page.getByTestId("media-item").first();
+    await expect(item).toBeVisible({ timeout: 10_000 });
+    const mediaId = await item.getAttribute("data-media-id");
+    expect(mediaId).toBeTruthy();
+    await item.hover();
+
+    // Action buttons container
+    const actions = page.getByTestId("media-grid-actions").first();
     await expect(actions).toBeVisible({ timeout: 5_000 });
 
-    // Click the delete button — aria-label="Delete {filename}"
-    await actions.getByRole("button", { name: new RegExp(filename) }).click();
+    // Delete button
+    const deleteBtn = actions.getByLabel(/delete/i).first();
+    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
+    await deleteBtn.click();
 
-    // Confirm dialog appears — click confirm
-    const dialog = page.getByRole("dialog");
+    // Confirm dialog
+    const dialog = page
+      .locator("dialog[open]")
+      .or(page.getByRole("dialog").filter({ hasNotText: /cookie|privacy/i }))
+      .first();
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     await dialog.getByRole("button", { name: /confirm/i }).click();
 
-    // After delete, the filename must no longer be visible
+    // Verify deletion — count returns to before-upload level
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(filename)).not.toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      const afterCount = await page.getByTestId("media-item").count();
+      expect(afterCount).toBe(beforeCount);
+    }).toPass({ timeout: 20_000 });
+  });
+
+  test("advanced search modal opens and closes", async ({ page }) => {
+    const searchBtn = page.getByTestId("media-advanced-search");
+    await expect(searchBtn).toBeVisible({ timeout: 5_000 });
+    await searchBtn.click();
+
+    const modal = page
+      .getByRole("dialog")
+      .filter({ hasText: /advanced search/i })
+      .first();
+    await expect(modal).toBeVisible({ timeout: 5_000 });
+    // Click close button — Escape doesn't close this modal
+    await modal
+      .getByRole("button", { name: /close|cancel/i })
+      .first()
+      .click({ timeout: 5_000 });
+    await expect(modal).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("filter by type selects IMAGE", async ({ page }) => {
+    const typeFilter = page.locator("#media-type-filter");
+    await expect(typeFilter).toBeVisible({ timeout: 5_000 });
+    await typeFilter.selectOption({ label: "IMAGE" });
+    await expect(typeFilter).toHaveValue("image");
+    await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("selection mode and bulk bar appear after selecting image", async ({ page }) => {
+    const uploadInput = page.getByTestId("media-upload-input");
+    await uploadInput.setInputFiles(TEST_IMAGE);
+    await expect(page.getByTestId("media-item").first()).toBeVisible({ timeout: 20_000 });
+
+    const item = page.getByTestId("media-item").first();
+    const mediaId = await item.getAttribute("data-media-id");
+    expect(mediaId).toBeTruthy();
+
+    await page.getByTestId("media-selection-toggle").click();
+    await expect(page.getByTestId("media-selection-toggle")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    const label = item.locator("label").first();
+    await label.click({ timeout: 5_000 });
+
+    await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId("media-bulk-count")).toContainText(/1 selected/i);
+  });
+
+  test("tooltip actions appear on hover", async ({ page }) => {
+    const uploadInput = page.getByTestId("media-upload-input");
+    await uploadInput.setInputFiles(TEST_IMAGE);
+    await expect(page.getByTestId("media-item").first()).toBeVisible({ timeout: 20_000 });
+
+    const item = page.getByTestId("media-item").first();
+    await item.hover();
+
+    const actions = page.getByTestId("media-grid-actions").first();
+    await expect(actions).toBeVisible({ timeout: 5_000 });
+
+    // Details tooltip
+    await expect(actions.getByLabel(/details for/i).first()).toBeVisible({ timeout: 3_000 });
+    // Edit tooltip
+    await expect(actions.getByLabel(/edit/i).first()).toBeVisible({ timeout: 3_000 });
+    // Delete tooltip
+    await expect(actions.getByLabel(/delete/i).first()).toBeVisible({ timeout: 3_000 });
+  });
+
+  test("tag editor modal opens for image", async ({ page }) => {
+    const uploadInput = page.getByTestId("media-upload-input");
+    await uploadInput.setInputFiles(TEST_IMAGE);
+    await expect(page.getByTestId("media-item").first()).toBeVisible({ timeout: 20_000 });
+
+    const item = page.getByTestId("media-item").first();
+    await item.hover();
+
+    const actions = page.getByTestId("media-grid-actions").first();
+    await expect(actions).toBeVisible({ timeout: 5_000 });
+
+    const tagBtn = actions.getByLabel(/tags for/i).first();
+    await expect(tagBtn).toBeVisible({ timeout: 3_000 });
+    await tagBtn.click();
+
+    // Tag editor modal should appear
+    const modal = page.getByRole("dialog").filter({ hasText: /tag/i }).first();
+    await expect(modal).toBeVisible({ timeout: 5_000 });
+    await page.keyboard.press("Escape");
+    await expect(modal).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("create folder via New Folder prompt", async ({ page }) => {
+    const createBtn = page.getByTestId("media-create-folder");
+    await expect(createBtn).toBeVisible({ timeout: 5_000 });
+    await createBtn.click();
+
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasNotText: /cookie|privacy/i })
+      .first();
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.locator("input").first().fill("e2e-test-folder");
+    await dialog.getByRole("button", { name: /ok|create|confirm|save/i }).click();
+    await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("sort dropdown changes selection", async ({ page }) => {
+    const sortFilter = page.locator("#sort-by-filter");
+    await expect(sortFilter).toBeVisible({ timeout: 5_000 });
+
+    await sortFilter.selectOption({ label: "Oldest first" });
+    await expect(sortFilter).toHaveValue("oldest");
+
+    await sortFilter.selectOption({ label: "Newest first" });
+    await expect(sortFilter).toHaveValue("newest");
+
+    await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("JSON path filter input is present", async ({ page }) => {
+    const jsonFilter = page.getByLabel(/filter by json path/i);
+    await expect(jsonFilter).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("grid size zoom changes thumbnail size", async ({ page }) => {
+    const sizeSelect = page.locator("#media-grid-size");
+    await expect(sizeSelect).toBeVisible({ timeout: 5_000 });
+
+    await sizeSelect.selectOption({ label: "Large" });
+    await expect(sizeSelect).toHaveValue("large");
+
+    await sizeSelect.selectOption({ label: "Tiny" });
+    await expect(sizeSelect).toHaveValue("tiny");
+
+    // Grid should still be visible
+    await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("breadcrumb exists and is clickable", async ({ page }) => {
+    // Create folder, then navigate into it to generate breadcrumbs
+    await page.getByTestId("media-create-folder").click();
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasNotText: /cookie|privacy/i })
+      .first();
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    const folderName = "e2e-bc-" + Date.now().toString(36);
+    await dialog.locator("input").first().fill(folderName);
+    await dialog.getByRole("button", { name: /ok|create|confirm|save/i }).click();
+    await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: 10_000 });
+
+    // Navigate into the folder — breadcrumbs only appear when inside a subfolder
+    const folderLink = page.getByText(folderName, { exact: true }).first();
+    await expect(folderLink).toBeVisible({ timeout: 5_000 });
+    await folderLink.click();
+    await expect(page.getByTestId("media-gallery-breadcrumbs")).toBeVisible({ timeout: 10_000 });
+
+    // Click root breadcrumb to go back
+    await page.getByTestId("media-breadcrumb-root").click();
+    await expect(page.getByTestId("media-gallery-content")).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("details and edit actions appear on hover", async ({ page }) => {
+    const uploadInput = page.getByTestId("media-upload-input");
+    await uploadInput.setInputFiles(TEST_IMAGE);
+    await expect(page.getByTestId("media-item").first()).toBeVisible({ timeout: 20_000 });
+
+    const item = page.getByTestId("media-item").first();
+    await item.hover();
+
+    const actions = page.getByTestId("media-grid-actions").first();
+    await expect(actions).toBeVisible({ timeout: 5_000 });
+
+    // Details
+    const detailsBtn = actions.getByLabel(/details for/i).first();
+    await expect(detailsBtn).toBeVisible({ timeout: 3_000 });
+
+    // Edit
+    const editBtn = actions.getByLabel(/edit/i).first();
+    await expect(editBtn).toBeVisible({ timeout: 3_000 });
   });
 });

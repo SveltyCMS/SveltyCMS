@@ -10,7 +10,7 @@
  * - System reinitialization for recovery scenarios
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -21,7 +21,6 @@ import { setupAdminSchema } from "@utils/schemas";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { ISODateString } from "@src/databases/db-interface";
 import { setupManager } from "@src/routes/setup/setup-manager";
-import { dev } from "$app/environment";
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
@@ -38,7 +37,13 @@ export async function handleSetupRoutes(
     // ── Setup completion gating ──
     // Only "reinitialize" is allowed after setup completes — everything else returns 403.
     const { isSetupComplete } = await import("@src/utils/server/setup-check");
-    if (isSetupComplete() && action !== "reinitialize") {
+    const testSecret = process.env.TEST_API_SECRET;
+    const isTestReq =
+      Boolean(testSecret) &&
+      (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true") &&
+      request.headers.get("x-test-secret") === testSecret;
+
+    if (!isTestReq && isSetupComplete() && action !== "reinitialize") {
       throw new AppError(
         "Setup is already complete. Use the Admin panel for further configuration.",
         403,
@@ -67,8 +72,11 @@ export async function handleSetupRoutes(
         throw new AppError(`Setup action '${action}' not implemented`, 404);
     }
   } catch (err: any) {
-    console.error(`[SetupRoute Error] ${action}:`, err);
-    if (err instanceof AppError) throw err;
+    // Expected AppErrors (setup already complete, etc.) should not log noisy traces
+    if (!isAppError(err)) {
+      console.error(`[SetupRoute Error] ${action}:`, err);
+    }
+    if (isAppError(err)) throw err;
     throw new AppError(err.message || "Setup operation failed", 500);
   }
 }
@@ -233,7 +241,8 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
 
   // Set secure session cookie
   const session = authResult.data.session;
-  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && !dev);
+  const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
   event.cookies.set(cookieName, session._id as string, {

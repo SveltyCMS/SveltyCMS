@@ -1,0 +1,42 @@
+---
+path: "docs/tests/routes/workflows.mdx"
+title: "Workflows Tests — Control Map"
+description: "Coverage for /config/workflows content lifecycle FSM builder."
+order: 28
+icon: "mdi:sitemap"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags: ["testing", "e2e", "workflows"]
+---
+
+# Config Workflows
+
+## Product surface
+
+| Piece                     | Role                                             |
+| ------------------------- | ------------------------------------------------ |
+| `+page.server.ts`         | Admin gate                                       |
+| `+page.svelte`            | Shell wrapper (`data-testid=workflows-page`)     |
+| `workflow-builder.svelte` | Visual FSM editor                                |
+| `workflows-api.ts`        | list collections/roles, load/save via `fetchApi` |
+| API                       | `GET/POST/DELETE/PATCH /api/workflows`           |
+| Service                   | `workflowService` (definitions + transitions)    |
+| Testing                   | `seed-workflow` / `delete-workflow`              |
+
+## Control → test matrix
+
+| Control              | Unit                     | E2E                        |
+| -------------------- | ------------------------ | -------------------------- |
+| Admin page gate      | ✅ workflows-page-server | shell                      |
+| API admin gate       | ✅ workflow-security     | —                          |
+| API client CSRF      | ✅ workflows-api         | —                          |
+| Canvas + save shell  | —                        | ✅ workflows.spec          |
+| **Golden** seed/load | seed-workflow            | ✅ seed → GET or save path |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/api/workflow-security.test.ts tests/unit/config/workflows-api.test.ts tests/unit/routes/workflows-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/workflows.spec.ts
+```

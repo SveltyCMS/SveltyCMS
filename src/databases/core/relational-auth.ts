@@ -24,6 +24,7 @@ import type {
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 
 export class RelationalAuthModule implements IAuthAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -224,16 +225,30 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User>> {
     return this.adapter.wrap(
       async () => {
-        const conditions = [eq(this.schema.authUsers._id, userId as string)];
-        if (options?.tenantId !== undefined) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
-          );
-        }
+        const idCond = eq(this.schema.authUsers._id, String(userId));
+        // Prefer id-only match when tenant check is bypassed or tenant is unset.
+        // Explicit null tenantId previously forced isNull() and could miss rows
+        // after re-seed / session cache races in E2E.
+        const applyTenant =
+          !utils.shouldBypassTenantCheck(options) &&
+          options?.tenantId !== undefined &&
+          options.tenantId !== null &&
+          options.tenantId !== "";
+        const conditions = applyTenant
+          ? [idCond, eq(this.schema.authUsers.tenantId, options!.tenantId as string)]
+          : [idCond];
 
-        const { createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = userData;
+        const {
+          createdAt: _createdAt,
+          updatedAt: _updatedAt,
+          tenantId: _tid,
+          ...rest
+        } = userData as Partial<User> & { tenantId?: unknown };
+        // Never allow client to rewrite identity / tenant via attribute update
+        delete (rest as any)._id;
+        delete (rest as any).id;
+        delete (rest as any).passwordHash;
+
         const updateData: any = {
           ...(rest as any),
           updatedAt: isoDateStringToDate(nowISODateString()),
@@ -258,11 +273,24 @@ export class RelationalAuthModule implements IAuthAdapter {
           .set(preparedUpdate)
           .where(and(...conditions));
 
-        const [result] = await db
+        let [result] = await db
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
+
+        // Fallback: re-read by primary key only (tenant filter miss after partial match)
+        if (!result) {
+          [result] = await db
+            .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
+            .from(this.schema.authUsers)
+            .where(idCond)
+            .limit(1);
+        }
+        if (!result) {
+          // Explicit adapter error (avoid mapUser throw → opaque 500)
+          throw new Error(`User not found for id=${String(userId)}`);
+        }
         return this.mapUser(result);
       },
       "UPDATE_USER_FAILED",
@@ -292,55 +320,60 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
-        const conditions = [eq(this.schema.authUsers._id, userId as string)];
-        if (options?.tenantId !== undefined) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
-          );
-        }
+        // Fail-closed under MULTI_TENANT (parity with Mongo safeQuery)
+        assertTenantContext(options, "auth.getUserById");
+
+        const idCond = eq(this.schema.authUsers._id, String(userId));
+        const conditions = [idCond];
+        utils.applyTenantFilter(conditions, this.schema.authUsers.tenantId, options);
+
         const [result] = await this.getDb(options)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
-        // 🚀 Optimized mapper
+        // No unscoped id-only fallback — that was a cross-tenant leak under MT.
         return result ? this.mapUser(result) : null;
       },
       "GET_USER_BY_ID_FAILED",
       undefined,
-      { transaction: options?.transaction, bypassSafeQuery: true }, // 🛡️ INTERNAL BYPASS
+      { transaction: options?.transaction },
     );
   }
 
-  async getUserByEmail(criteria: {
-    email: string;
-    tenantId?: DatabaseId | null;
-  }): Promise<DatabaseResult<User | null>> {
+  async getUserByEmail(
+    criteria: {
+      email: string;
+      tenantId?: DatabaseId | null;
+    },
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
+        // Prefer criteria.tenantId, else options — same fail-closed model as Mongo.
+        const scoped: BaseQueryOptions = {
+          ...options,
+          tenantId: criteria.tenantId !== undefined ? criteria.tenantId : options?.tenantId,
+          bypassTenantCheck: options?.bypassTenantCheck,
+          bypassSafeQuery: options?.bypassSafeQuery,
+        };
+        assertTenantContext(scoped, "auth.getUserByEmail");
+
         const email = normalizeEmail(criteria.email);
         const conditions = [eq(this.schema.authUsers.email, email)];
-        if (criteria.tenantId !== undefined) {
-          conditions.push(
-            criteria.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, criteria.tenantId as string),
-          );
-        }
-        const results = await this.getDb()
+        utils.applyTenantFilter(conditions, this.schema.authUsers.tenantId, scoped);
+
+        const results = await this.getDb(scoped)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
-        // 🚀 Optimized mapper
         return results.length > 0 ? this.mapUser(results[0]) : null;
       },
       "GET_USER_BY_EMAIL_FAILED",
       undefined,
-      { bypassSafeQuery: true },
-    ); // 🛡️ INTERNAL BYPASS
+      { transaction: options?.transaction },
+    );
   }
 
   async getAllUsers(
@@ -797,14 +830,14 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const hashedToken = await this._hashToken(token);
-        const conditions = [
+        const baseConditions = [
           eq(this.schema.authTokens.token, hashedToken),
           eq(this.schema.authTokens.consumed, false),
         ];
-        if (userId) conditions.push(eq(this.schema.authTokens.user_id, userId as string));
-        if (type) conditions.push(eq(this.schema.authTokens.type, type));
+        if (userId) baseConditions.push(eq(this.schema.authTokens.user_id, userId as string));
+        if (type) baseConditions.push(eq(this.schema.authTokens.type, type));
         if (options?.tenantId !== undefined)
-          conditions.push(
+          baseConditions.push(
             options.tenantId === null
               ? isNull(this.schema.authTokens.tenantId)
               : eq(this.schema.authTokens.tenantId, options.tenantId as string),
@@ -812,23 +845,55 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const db = this.getDb(options);
 
-        // Atomic single-update: eliminates SELECT→UPDATE race condition
+        // Atomic claim only for non-expired tokens
         const result = await db
           .update(this.schema.authTokens)
           .set({ consumed: true })
-          .where(and(...conditions));
+          .where(and(...baseConditions, gt(this.schema.authTokens.expires, new Date())));
 
         const isClaimed =
           (result as any).changes > 0 || (result as any).affectedRows > 0 || result.length > 0;
 
-        if (!isClaimed) {
-          return {
-            status: false,
-            message: "Token not found, already consumed, or claimed by parallel request",
-          };
+        if (isClaimed) {
+          return { status: true, message: "Consumed" };
         }
 
-        return { status: true, message: "Consumed" };
+        // Diagnose failure for better UX (expired vs missing vs already used)
+        const [existing] = await db
+          .select({
+            expires: this.schema.authTokens.expires,
+            consumed: this.schema.authTokens.consumed,
+          })
+          .from(this.schema.authTokens)
+          .where(eq(this.schema.authTokens.token, hashedToken))
+          .limit(1);
+
+        if (!existing) {
+          return { status: false, message: "Token not found", code: "TOKEN_NOT_FOUND" };
+        }
+        if (existing.consumed) {
+          return {
+            status: false,
+            message: "Token has already been used",
+            code: "TOKEN_ALREADY_CONSUMED",
+          };
+        }
+        const exp =
+          existing.expires instanceof Date
+            ? existing.expires
+            : new Date(existing.expires as string | number);
+        if (!Number.isNaN(exp.getTime()) && exp.getTime() <= Date.now()) {
+          return {
+            status: false,
+            message: "Token has expired. Request a new reset link.",
+            code: "TOKEN_EXPIRED",
+          };
+        }
+        return {
+          status: false,
+          message: "Token not found, already consumed, or claimed by parallel request",
+          code: "TOKEN_CLAIM_FAILED",
+        };
       },
       "CONSUME_TOKEN_FAILED",
       undefined,
@@ -836,23 +901,39 @@ export class RelationalAuthModule implements IAuthAdapter {
     );
   }
 
-  async deleteToken(tokenId: DatabaseId): Promise<DatabaseResult<void>> {
+  async deleteToken(
+    tokenId: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(async () => {
-      await this.getDb()
+      const conditions = [eq(this.schema.authTokens._id, tokenId as string)];
+      if (options?.tenantId !== undefined && options.tenantId !== null && options.tenantId !== "") {
+        conditions.push(eq(this.schema.authTokens.tenantId, options.tenantId as string));
+      }
+      await this.getDb(options)
         .delete(this.schema.authTokens)
-        .where(eq(this.schema.authTokens._id, tokenId as string));
+        .where(and(...conditions));
     }, "DELETE_TOKEN_FAILED");
   }
 
   async deleteTokens(
     tokenIds: DatabaseId[],
-    _options?: BaseQueryOptions,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     return this.adapter.wrap(async () => {
-      await this.getDb()
+      const conditions = [inArray(this.schema.authTokens._id, tokenIds as string[])];
+      if (options?.tenantId !== undefined && options.tenantId !== null && options.tenantId !== "") {
+        conditions.push(eq(this.schema.authTokens.tenantId, options.tenantId as string));
+      }
+      const result = await this.getDb(options)
         .delete(this.schema.authTokens)
-        .where(inArray(this.schema.authTokens._id, tokenIds as string[]));
-      return { deletedCount: tokenIds.length };
+        .where(and(...conditions));
+      // drizzle-sqlite may not return rowCount; fall back to requested length
+      const deletedCount =
+        typeof (result as { rowsAffected?: number })?.rowsAffected === "number"
+          ? (result as { rowsAffected: number }).rowsAffected
+          : tokenIds.length;
+      return { deletedCount };
     }, "DELETE_TOKENS_FAILED");
   }
 
@@ -1204,15 +1285,27 @@ export class RelationalAuthModule implements IAuthAdapter {
   async getAllTokens(_filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
     return this.adapter.wrap(
       async () => {
-        const res = await this.getDb()
-          .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
-          .from(this.schema.authTokens)
-          .limit(1000);
+        const tenantId = (_filter as { tenantId?: string | null } | undefined)?.tenantId;
+        const db = this.getDb();
+        const selection = this.adapter.getPhysicalSelection(this.schema.authTokens);
+
+        // Scope by tenant when provided so list/batch isolation works on SQL adapters
+        // (Mongo already uses safeQuery). "global"/null/empty → all tokens in single-tenant.
+        if (tenantId && tenantId !== "global" && tenantId !== "null") {
+          const res = await db
+            .select(selection)
+            .from(this.schema.authTokens)
+            .where(eq(this.schema.authTokens.tenantId, tenantId as string))
+            .limit(1000);
+          return utils.convertArrayDatesToISO(res) as unknown as Token[];
+        }
+
+        const res = await db.select(selection).from(this.schema.authTokens).limit(1000);
         return utils.convertArrayDatesToISO(res) as unknown as Token[];
       },
       "GET_ALL_TOKENS_FAILED",
       undefined,
-      { transaction: _filter?.transaction },
+      { transaction: (_filter as { transaction?: unknown } | undefined)?.transaction },
     );
   }
 

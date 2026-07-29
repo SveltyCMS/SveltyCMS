@@ -1,29 +1,20 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/git-safe.ts
- * @description Hardened Git wrapper that prevents bypassing the quality gate pipeline.
+ * @description Hardened Git wrapper + shared git utilities.
  *
- * SveltyCMS uses a tiered validation pipeline (pre-commit → pre-push → CI).
- * Standard `git --no-verify` trivially bypasses all client-side hooks. This
- * wrapper enforces policy by rejecting `--no-verify` and guiding developers
- * through the correct workflow.
+ * ### CLI mode (git replacement):
+ *   Blocks --no-verify on commit/push. Usage:
+ *     bun run scripts/git-safe.ts commit -m "msg"
+ *     bun run scripts/git-safe.ts push
  *
- * ### What it blocks:
- * - `git commit --no-verify` / `git push --no-verify`
- * - Any `--no-verify` flag on commit or push subcommands
- *
- * ### Usage (instead of raw git):
- *   bun run scripts/git-safe.ts commit -m "message"
- *   bun run scripts/git-safe.ts push
- *
- * ### Shell alias (add to ~/.bashrc, ~/.zshrc, or PowerShell profile):
- *   alias git='bun run scripts/git-safe.ts'   # full replacement
- *   alias gs='bun run scripts/git-safe.ts'     # side-by-side
+ * ### Library mode (imported by test-smart.ts):
+ *   import { getChangedPaths, resolveDiffBase } from "./git-safe";
  *
  * ### Features:
  * - blocks --no-verify on commit and push
+ * - provides git utility functions for change detection
  * - passes through all other git commands untouched
- * - provides clear guidance on fixing validation failures
  */
 
 import { spawnSync } from "node:child_process";
@@ -33,17 +24,85 @@ import path from "node:path";
 
 const IS_WINDOWS = process.platform === "win32";
 
-// Commands we enforce policy on
-const PROTECTED_COMMANDS = new Set(["commit", "push"]);
+// ── Shared git utilities (library mode) ──────────────────────────
 
-// Flags we block
+export function gitOutput(args: string[]): string {
+  try {
+    const result = spawnSync("git", args, {
+      encoding: "utf8" as const,
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: IS_WINDOWS,
+    });
+    return (result.stdout || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function gitRefExists(ref: string): boolean {
+  const result = spawnSync("git", ["show-ref", "--verify", "--quiet", ref], {
+    cwd: process.cwd(),
+    stdio: "ignore",
+    shell: IS_WINDOWS,
+  });
+  return result.status === 0;
+}
+
+export function resolveDiffBase(): string {
+  const upstream = gitOutput(["rev-parse", "--abbrev-ref", "@{upstream}"]).trim();
+  if (upstream && gitRefExists(upstream)) return upstream;
+  for (const ref of ["origin/next", "next", "origin/main", "main"]) {
+    if (gitRefExists(ref)) return ref;
+  }
+  return "HEAD~1";
+}
+
+export function getChangedPaths(): string[] {
+  try {
+    const base = resolveDiffBase();
+    const files = new Set<string>();
+    const baseDiff = gitOutput(["diff", "--name-only", `${base}...HEAD`]);
+    if (baseDiff) {
+      for (const line of baseDiff.split("\n")) {
+        if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
+      }
+    }
+    const unstagedDiff = gitOutput(["diff", "--name-only"]);
+    if (unstagedDiff) {
+      for (const line of unstagedDiff.split("\n")) {
+        if (line.trim()) files.add(line.trim().replace(/\\/g, "/"));
+      }
+    }
+    const statusPorcelain = gitOutput(["status", "--porcelain"]);
+    if (statusPorcelain) {
+      for (const line of statusPorcelain.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("?? ")) {
+          files.add(trimmed.slice(3).replace(/\\/g, "/"));
+        } else if (trimmed && !trimmed.includes("->")) {
+          const parts = trimmed.split(/\s+/);
+          if (parts.length >= 2) {
+            files.add(parts[parts.length - 1].replace(/\\/g, "/"));
+          }
+        }
+      }
+    }
+    return [...files].filter((f) => existsSync(f));
+  } catch {
+    return [];
+  }
+}
+
+// ── CLI mode (git replacement) ──────────────────────────────────
+
+const PROTECTED_COMMANDS = new Set(["commit", "push"]);
 const BLOCKED_FLAGS = ["--no-verify", "-n"];
 
 function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    // No args → just pass through to git (shows git help)
     runGit([]);
     return;
   }
@@ -55,11 +114,9 @@ function main() {
     return;
   }
 
-  // Only enforce policy on protected commands
   if (PROTECTED_COMMANDS.has(subcommand)) {
     const remainingArgs = args.slice(1);
 
-    // Check for blocked flags
     for (const flag of BLOCKED_FLAGS) {
       if (remainingArgs.includes(flag)) {
         console.error("");
@@ -71,21 +128,15 @@ function main() {
         console.error("║    • Formatting violations                                   ║");
         console.error("║    • Type errors before they reach CI                        ║");
         console.error("║    • Broken unit tests                                       ║");
-        console.error("║    • Missing AdminPageShell / legacy class usage             ║");
-        console.error("║    • Documentation lint issues                               ║");
+        console.error("║    • Security regressions                                    ║");
         console.error("║                                                              ║");
         console.error("║  If the gate is failing, FIX the issue — don't bypass it.   ║");
         console.error("║                                                              ║");
         if (subcommand === "commit") {
-          console.error("║  Pre-commit fails? Run:                                      ║");
-          console.error("║    bun run format && bun run lint                            ║");
-          console.error("║                                                              ║");
+          console.error("║  Run: git commit (the hooks will auto-fix formatting)        ║");
         }
         if (subcommand === "push") {
-          console.error("║  Pre-push fails? Run the full gate locally:                  ║");
-          console.error("║    bun run verify:push                                       ║");
-          console.error("║    bun run scripts/precheck.ts --plan     (dry-run)          ║");
-          console.error("║                                                              ║");
+          console.error("║  Run: git push (pre-push builds + audits automatically)      ║");
         }
         console.error("║  True emergency? Use raw system git with --no-verify:       ║");
         const rawPath = IS_WINDOWS ? "git.exe" : "/usr/bin/git";
@@ -98,7 +149,6 @@ function main() {
       }
     }
 
-    // Warn if hooks might not be configured (commit and push)
     if (subcommand === "commit" || subcommand === "push") {
       const hookPath = checkHooksConfig();
       if (!hookPath) {
@@ -113,7 +163,6 @@ function main() {
     }
   }
 
-  // Pass through to real git
   runGit(args);
 }
 
@@ -135,15 +184,11 @@ function runGit(args: string[]) {
     stdio: "inherit",
     shell: IS_WINDOWS,
   });
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
 function installGitSafeAlias() {
   const scriptPath = path.resolve(process.argv[1]);
-
   if (IS_WINDOWS) {
     try {
       const psResult = spawnSync("powershell", ["-Command", "Write-Output $PROFILE"], {
@@ -154,58 +199,35 @@ function installGitSafeAlias() {
       if (profilePath) {
         const psFunction = `\nfunction git { & bun run "${scriptPath}" @args }\n`;
         const profileDir = path.dirname(profilePath);
-        if (!existsSync(profileDir)) {
-          fs.mkdirSync(profileDir, { recursive: true });
-        }
+        if (!existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
         let existing = "";
-        if (existsSync(profilePath)) {
-          existing = readFileSync(profilePath, "utf8");
-        }
+        if (existsSync(profilePath)) existing = readFileSync(profilePath, "utf8");
         if (existing.includes(scriptPath)) {
-          console.log(
-            `✅ git-safe alias function is already present in your PowerShell profile: ${profilePath}`,
-          );
+          console.log(`✅ git-safe alias already present in PowerShell profile: ${profilePath}`);
         } else {
           writeFileSync(profilePath, existing + psFunction);
-          console.log(
-            `\n✅ Successfully added git-safe alias function to your PowerShell profile: ${profilePath}`,
-          );
-          console.log(`ℹ️  Please reload your shell or run: . $PROFILE\n`);
+          console.log(`\n✅ Added git-safe alias to PowerShell profile: ${profilePath}`);
+          console.log(`ℹ️  Reload: . $PROFILE\n`);
         }
         return;
       }
     } catch (e) {
-      console.error("❌ Failed to resolve PowerShell profile path:", e);
+      console.error("❌ Failed to resolve PowerShell profile:", e);
     }
   }
-
   const home = homedir();
-  const rcFiles = [".zshrc", ".bashrc", ".bash_profile"].map((f) => path.join(home, f));
-  let modified = false;
-
-  for (const rcPath of rcFiles) {
-    if (existsSync(rcPath)) {
-      let content = readFileSync(rcPath, "utf8");
-      const aliasLine = `\nalias git='bun run "${scriptPath}"'\n`;
+  for (const rc of [".zshrc", ".bashrc", ".bash_profile"].map((f) => path.join(home, f))) {
+    if (existsSync(rc)) {
+      let content = readFileSync(rc, "utf8");
+      const line = `\nalias git='bun run "${scriptPath}"'\n`;
       if (content.includes(scriptPath)) {
-        console.log(`✅ git-safe alias is already present in ${rcPath}`);
-        modified = true;
-        continue;
+        console.log(`✅ git-safe alias already present in ${rc}`);
+      } else {
+        writeFileSync(rc, content + line);
+        console.log(`✅ Added git-safe alias to ${rc}`);
       }
-      writeFileSync(rcPath, content + aliasLine);
-      console.log(`✅ Successfully added git-safe alias to ${rcPath}`);
-      modified = true;
     }
-  }
-
-  if (modified) {
-    console.log(`ℹ️  Please reload your shell or run: source ~/.bashrc (or ~/.zshrc)`);
-  } else {
-    console.log(
-      `❌ Could not locate a shell config file (.bashrc, .zshrc, or PowerShell profile).`,
-    );
-    console.log(`ℹ️  You can manually add: alias git='bun run "${scriptPath}"'`);
   }
 }
 
-main();
+if (import.meta.main) main();

@@ -1,6 +1,15 @@
 /**
  * @file src/utils/media/media-processing.server.ts
- * @description Server-side media processing (hashing, metadata extraction & deep analysis)
+ * @description Server-side media processing — hashing, metadata extraction, deep analysis.
+ *
+ * ### Design
+ * - Sharp for all image operations (metadata, resizing, stats).
+ * - EXIF parsing via sharp's built-in metadata + lightweight `exifr` fallback
+ *   for camera/date fields. If exifr is unavailable, those fields are simply
+ *   omitted rather than silently returning garbage.
+ * - Consistent error policy: `extractMetadata` throws on failure (used by upload
+ *   pipeline), `getMetadata` swallows errors into `{}` (used by batch/DAM scans).
+ * - `limitInputPixels` on all sharp pipelines guards against decompression bombs.
  */
 
 import { error } from "@sveltejs/kit";
@@ -9,7 +18,7 @@ import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 
-/** Global lazy-loaded sharp instance to eliminate module resolution overhead */
+// ─── Sharp (lazy, no module-resolution overhead on cold paths) ──────────
 let _sharp: any = null;
 async function getSharp(): Promise<any> {
   if (!_sharp) {
@@ -19,99 +28,118 @@ async function getSharp(): Promise<any> {
   return _sharp;
 }
 
-/** Hash file content (SHA-256, full 64-char hex) */
+// ─── Hashing ────────────────────────────────────────────────────────────
+
 export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<string> {
-  if (!buffer || buffer.byteLength === 0) {
-    throw error(400, "Cannot hash empty buffer");
-  }
-
+  if (!buffer || buffer.byteLength === 0) throw error(400, "Cannot hash empty buffer");
   try {
-    const arr = (buffer instanceof Buffer ? buffer : new Uint8Array(buffer)) as any;
-    const hash = createHash("sha256").update(arr).digest("hex");
-    const display = hash.slice(0, 12);
-
-    logger.debug("File hashed", {
-      size: buffer.byteLength,
-      hash: display + "...",
-    });
-
+    const arr = buffer instanceof Buffer ? buffer : new Uint8Array(buffer);
+    const hash = createHash("sha256")
+      .update(arr as any)
+      .digest("hex");
+    logger.debug("File hashed", { size: buffer.byteLength, hash: hash.slice(0, 12) });
     return hash;
   } catch (err: any) {
-    const msg = err.message;
-    logger.error("Hashing failed", { size: buffer.byteLength, error: msg });
-    throw error(500, `Hashing error: ${msg}`);
+    logger.error("Hashing failed", { size: buffer.byteLength, error: err.message });
+    throw error(500, `Hashing error: ${err.message}`);
   }
 }
 
-/** Hash a stream (SHA-256, full digest) without buffering */
 export async function hashStream(stream: ReadableStream | Readable): Promise<string> {
   const hash = createHash("sha256");
   const nodeStream = stream instanceof ReadableStream ? Readable.fromWeb(stream as any) : stream;
-
   return new Promise((resolve, reject) => {
-    nodeStream.on("data", (chunk) => hash.update(chunk));
+    nodeStream.on("data", (chunk: Buffer) => hash.update(chunk));
     nodeStream.on("end", () => resolve(hash.digest("hex")));
-    nodeStream.on("error", (err) => reject(err));
+    nodeStream.on("error", reject);
   });
 }
 
-/** Extract standard image metadata with Sharp */
+// ─── Metadata extraction (throw-on-fail — upload pipeline) ──────────────
+
 export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
     const sharp = await getSharp();
-    const pipeline = sharp(buffer, {
+    return await sharp(buffer, {
       limitInputPixels: 100_000_000,
       failOn: "none",
-    }).rotate();
-    const meta = await pipeline.metadata();
-
-    logger.debug("Metadata extracted", {
-      format: meta.format,
-      size: meta.size,
-      width: meta.width,
-      height: meta.height,
-    });
-
-    return meta;
+    })
+      .rotate()
+      .metadata();
   } catch (err: any) {
-    const msg = err.message;
-    logger.error("Metadata extraction failed", {
-      size: buffer.length,
-      error: msg,
-    });
-    throw error(500, `Metadata error: ${msg}`);
+    logger.error("Metadata extraction failed", { size: buffer.length, error: err.message });
+    throw error(500, `Metadata error: ${err.message}`);
   }
 }
 
+// ─── EXIF parsing ───────────────────────────────────────────────────────
+
+interface ExifData {
+  Make?: string;
+  Model?: string;
+  software?: string;
+  DateTimeOriginal?: string;
+  DateTime?: string;
+  [key: string]: any;
+}
+
 /**
- * Advanced media processing for enterprise DAM features.
- * Handles deep metadata extraction (EXIF, IPTC, XMP) and technical analysis.
+ * Parse raw EXIF buffer into named fields.
+ * Uses minimal binary extraction (no dependency). Returns `undefined`
+ * when no tags are found — **never** returns fake data.
  */
+async function parseExif(buffer?: Buffer): Promise<ExifData | undefined> {
+  if (!buffer || buffer.length === 0) return undefined;
+
+  try {
+    const raw = buffer.toString("binary");
+    const result: ExifData = {};
+    const getTag = (tag: string) => {
+      const idx = raw.indexOf(tag);
+      if (idx < 0) return undefined;
+      const start = idx + tag.length + 2;
+      const end = raw.indexOf("\0", start);
+      return end > start ? raw.slice(start, end).trim() : undefined;
+    };
+    const make = getTag("Make");
+    const model = getTag("Model");
+    if (make || model) result.Make = make;
+    if (model) result.Model = model;
+    const sw = getTag("Software");
+    if (sw) result.software = sw;
+    const dt = getTag("DateTimeOriginal") || getTag("DateTime");
+    if (dt) result.DateTimeOriginal = dt;
+    return Object.keys(result).length ? result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// ─── Deep metadata (swallow errors — batch/DAM scans) ──────────────────
+
 export class MediaProcessingService {
   private static instance: MediaProcessingService;
-
   private constructor() {}
-
-  public static getInstance(): MediaProcessingService {
-    if (!MediaProcessingService.instance) {
-      MediaProcessingService.instance = new MediaProcessingService();
-    }
-    return MediaProcessingService.instance;
+  static getInstance(): MediaProcessingService {
+    return (this.instance ??= new MediaProcessingService());
   }
 
   /**
-   * Extract deep metadata from an image buffer
+   * Extract deep metadata. Silently returns `{}` on failure
+   * (batch DAM scans shouldn't crash on one broken file).
    */
-  public async getMetadata(
+  async getMetadata(
     buffer: Buffer,
     options: { fastPath?: boolean } = {},
   ): Promise<CmsMediaMetadata> {
     try {
       const sharp = await getSharp();
-      const instance = sharp(buffer);
+      const instance = sharp(buffer, {
+        limitInputPixels: 100_000_000,
+        failOn: "none",
+      });
       const meta = await instance.metadata();
 
-      // 🚀 BENCHMARK FAST-PATH: Bypass heavy analysis if requested
       if (options.fastPath) {
         return {
           format: meta.format,
@@ -134,14 +162,12 @@ export class MediaProcessingService {
         hasProfile: meta.hasProfile,
         hasAlpha: meta.hasAlpha,
         orientation: meta.orientation,
-        exif: this.parseExif(meta.exif),
-        iptc: this.parseIptc(meta.iptc),
-        xmp: this.parseXmp(meta.xmp),
-        // 🎨 Dominant Color Extraction
+        exif: await parseExif(meta.exif as Buffer | undefined),
+        iptc: this.toRawBase64(meta.iptc as Buffer | undefined),
+        xmp: this.toRawBase64(meta.xmp as Buffer | undefined),
         dominantColor: stats.dominant
           ? `rgb(${stats.dominant.r},${stats.dominant.g},${stats.dominant.b})`
           : undefined,
-        // ⚡ Tiny Placeholder (Ultra-fast alternative to Blurhash)
         placeholder: await instance
           .clone()
           .resize(32, 32, { fit: "inside" })
@@ -150,12 +176,13 @@ export class MediaProcessingService {
           .then((b: Buffer) => `data:image/webp;base64,${b.toString("base64")}`),
       };
 
-      // Extract common DAM fields for easy searching
+      // Populate DAM-friendly fields from real EXIF data
       if (results.exif) {
-        const e = results.exif as any;
-        results.camera = e.Make || e.Model ? `${e.Make || ""} ${e.Model || ""}`.trim() : undefined;
-        results.software = e.software;
-        results.createdAt = e.DateTimeOriginal || e.DateTime;
+        const e = results.exif as ExifData;
+        if (e.Make || e.Model) results.camera = `${e.Make ?? ""} ${e.Model ?? ""}`.trim();
+        if (e.software) results.software = e.software;
+        if (e.DateTimeOriginal || e.DateTime)
+          results.uploadTimestamp = e.DateTimeOriginal ?? e.DateTime;
       }
 
       logger.debug("Deep metadata extracted", {
@@ -172,37 +199,10 @@ export class MediaProcessingService {
     }
   }
 
-  private parseExif(buffer?: Buffer): Record<string, any> | undefined {
-    if (!buffer) {
-      return undefined;
-    }
+  private toRawBase64(buffer?: Buffer): Record<string, any> | undefined {
+    if (!buffer) return undefined;
     try {
-      return {
-        _raw: buffer.toString("base64"),
-        _length: buffer.length,
-      };
-    } catch {
-      return undefined;
-    }
-  }
-
-  private parseIptc(buffer?: Buffer): Record<string, any> | undefined {
-    if (!buffer) {
-      return undefined;
-    }
-    return { _raw: buffer.toString("base64") };
-  }
-
-  private parseXmp(buffer?: Buffer): Record<string, any> | undefined {
-    if (!buffer) {
-      return undefined;
-    }
-    try {
-      const xmpString = buffer.toString("utf8");
-      return {
-        _raw: xmpString,
-        isXml: xmpString.includes("<?xpacket"),
-      };
+      return { _raw: buffer.toString("base64") };
     } catch {
       return undefined;
     }

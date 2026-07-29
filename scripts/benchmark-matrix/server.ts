@@ -14,8 +14,10 @@ export async function startServer(
   port: number,
   dbName: string,
 ): Promise<{ stop: () => Promise<void>; coldStartMs: number }> {
+  // Prefer index.cjs (Yjs /ws). Fall back to adapter-node entry.
   const entryPoint =
     [
+      path.join(process.cwd(), "index.cjs"),
       path.join(process.cwd(), "build", "index.js"),
       path.join(process.cwd(), "build", "server", "index.js"),
     ].find((p) => fs.existsSync(p)) || "";
@@ -33,6 +35,9 @@ export async function startServer(
     REDIS_HOST: "127.0.0.1",
     REDIS_PORT: "6379",
     TEST_MODE: "true",
+    BENCHMARK: "true",
+    SVELTY_BENCHMARK_SUITE: "true",
+    NODE_ENV: "test",
     TEST_API_SECRET,
     PORT: String(port),
     ORIGIN: `http://127.0.0.1:${port}`,
@@ -89,7 +94,7 @@ export async function runSystemSetup(
         API_BASE_URL: `http://127.0.0.1:${port}`,
       },
       stdio: "inherit",
-      shell: process.platform === "win32",
+      shell: false,
     });
     proc.on("close", (code) => resolve(code === 0));
   });

@@ -365,6 +365,34 @@ export const systemPreferences = pgTable(
   }),
 );
 
+// Outbox Events Table — Transactional Outbox Pattern
+// Events are written in the same transaction as the data change,
+// then a background process reads and delivers them reliably.
+export const sveltyOutbox = pgTable(
+  "svelty_outbox",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    eventType: varchar("eventType", { length: 255 }).notNull(),
+    aggregateType: varchar("aggregateType", { length: 255 }).notNull(),
+    aggregateId: varchar("aggregateId", { length: 255 }).notNull(),
+    payload: jsonb("payload").notNull(),
+    status: varchar("status", { length: 50 }).notNull().default("pending"),
+    deliveredAt: timestamp("deliveredAt"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("lastError"),
+    ...timestamps,
+  },
+  (table) => ({
+    statusIdx: index("outbox_status_idx").on(table.status),
+    tenantIdx: index("outbox_tenant_idx").on(table.tenantId),
+    eventTypeIdx: index("outbox_event_type_idx").on(table.eventType),
+    createdAtIdx: index("outbox_created_at_idx").on(table.createdAt),
+  }),
+);
+
 // Background Jobs Table
 export const sveltyJobs = pgTable(
   "svelty_jobs",
@@ -492,6 +520,30 @@ export const pluginMigrations = pgTable(
   }),
 );
 
+// Plugin Storage Table
+export const pluginStorage = pgTable(
+  "plugin_storage",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    plugin: varchar("plugin", { length: 255 }).notNull(),
+    collectionName: varchar("collection", { length: 255 }).notNull(),
+    tenantId: tenantField(),
+    data: jsonb("data").notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    pluginIdx: index("plugin_storage_plugin_idx").on(table.plugin),
+    collectionIdx: index("plugin_storage_collection_idx").on(table.collectionName),
+    tenantIdx: index("plugin_storage_tenant_idx").on(table.tenantId),
+    pluginCollectionIdx: index("plugin_storage_plugin_collection_idx").on(
+      table.plugin,
+      table.collectionName,
+    ),
+  }),
+);
+
 // Audit Logs Table
 export const auditLogs = pgTable(
   "audit_logs",
@@ -559,6 +611,29 @@ export const tenants = pgTable(
   (table) => ({
     nameIdx: index("tenants_name_idx").on(table.name),
     ownerIdx: index("tenants_owner_idx").on(table.ownerId),
+  }),
+);
+
+// Redirects Materialized View Table
+export const redirectsMV = pgTable(
+  "redirects_mv",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    source: text("source").notNull(),
+    target: text("target").notNull(),
+    type: integer("type").notNull().default(301),
+    isRegex: boolean("isRegex").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    metadata: jsonb("metadata").default({}),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),
+    sourceIdx: index("redirects_mv_source_idx").on(table.source),
+    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
   }),
 );
 
@@ -647,13 +722,16 @@ export const schema = {
   mediaItems,
   systemVirtualFolders,
   systemPreferences,
+  sveltyOutbox,
   sveltyJobs,
   websiteTokens,
   pluginPagespeedResults,
   pluginStates,
+  pluginStorage,
   pluginMigrations,
   auditLogs,
   tenants,
+  redirectsMV,
   workflowDefinitions,
   workflowInstances,
 };

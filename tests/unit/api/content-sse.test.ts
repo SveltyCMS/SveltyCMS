@@ -1,3 +1,8 @@
+/**
+ * @file tests/unit/api/content-sse.test.ts
+ * @description Tests for SSE event payload normalization and tenant filtering.
+ */
+
 import { describe, it, expect } from "vitest";
 import { normalizeSseEventPayload } from "../../../src/routes/api/[...path]/handlers/content";
 

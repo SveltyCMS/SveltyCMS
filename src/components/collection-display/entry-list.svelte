@@ -56,7 +56,6 @@ bulk actions, and predictive preloading.
 	import Status from '@components/system/table/status.svelte';
 	import TableFilter from '@components/system/table/table-filter.svelte';
 	import TableIcons from '@components/system/table/table-icons.svelte';
-	import TablePagination from '@components/system/table/table-pagination.svelte';
 	import PluginComponent from '@src/components/plugins/plugin-component.svelte';
 	// Types
 	// =================================================================
@@ -92,13 +91,12 @@ bulk actions, and predictive preloading.
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { debounce, getFieldName, meta_data } from '@utils/utils';
+	import { getFieldName, meta_data } from '@utils/utils';
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	// Svelte-dnd-action
-	// @ts-ignore - IDE module resolution issue
-	import { dndzone } from 'svelte-dnd-action';
+	import { draggable, droppable } from '@thisux/sveltednd';
+	import type { DragDropState } from '@thisux/sveltednd';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import { browser } from '$app/environment';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -165,6 +163,8 @@ bulk actions, and predictive preloading.
 				newUrl.searchParams.set(key, String(value));
 			}
 		});
+		// Guard: skip goto if URL hasn't changed to prevent effect_update_depth_exceeded
+		if (newUrl.href === page.url.href) return;
 		goto(newUrl, { keepFocus: true, noScroll: true });
 	}
 
@@ -178,13 +178,19 @@ bulk actions, and predictive preloading.
 	});
 
 	// Keep controller in sync with SSR props
+	// Wrap in untrack to prevent reactive feedback loops when setRows
+	// triggers smart table internal state that re-triggers URL effects
 	$effect(() => {
-		smartTable.setRows(tableData as CollectionEntry[]);
-		smartTable.setPaginationMeta({
-			currentPage: serverPagination.currentPage,
-			pageSize: serverPagination.pageSize,
-			totalItems: serverPagination.totalItems,
-			pagesCount: serverPagination.pagesCount
+		const rows = tableData;
+		const meta = serverPagination;
+		untrack(() => {
+			smartTable.setRows(rows as CollectionEntry[]);
+			smartTable.setPaginationMeta({
+				currentPage: meta.currentPage,
+				pageSize: meta.pageSize,
+				totalItems: meta.totalItems,
+				pagesCount: meta.pagesCount
+			});
 		});
 	});
 
@@ -207,8 +213,16 @@ bulk actions, and predictive preloading.
 		};
 	}
 
-	const filterDebounce = debounce(500);
-	const searchDebounce = debounce(400);
+	let filterTimeoutId: ReturnType<typeof setTimeout>;
+	const filterDebounce = (fn: () => void) => {
+		clearTimeout(filterTimeoutId);
+		filterTimeoutId = setTimeout(fn, 500);
+	};
+	let searchTimeoutId: ReturnType<typeof setTimeout>;
+	const searchDebounce = (fn: () => void) => {
+		clearTimeout(searchTimeoutId);
+		searchTimeoutId = setTimeout(fn, 400);
+	};
 
 	// Schema-aware filter controller (platform pure defs + URL; server enforces FLAC)
 	const smartFilter = createSmartFilter(() => collection.value);
@@ -219,7 +233,6 @@ bulk actions, and predictive preloading.
 	const visibleRows = $derived(smartTable.virtual.visibleRows);
 	const spacerTop = $derived(smartTable.virtual.spacerTop);
 	const spacerBottom = $derived(smartTable.virtual.spacerBottom);
-	const virtualStartIndex = $derived(smartTable.virtual.startIndex);
 
 	function onVirtualScroll() {
 		if (scrollContainerEl) {
@@ -490,15 +503,39 @@ bulk actions, and predictive preloading.
 		return () => clearInterval(cleanupInterval);
 	});
 
-	// DND Logic for Headers
-	function handleDndConsider(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-	}
+	// DND Logic for Headers — uses @thisux/sveltednd v0.7.0 dropPosition API
+	function handleColumnDrop(state: DragDropState<TableHeader>) {
+		const dragged = state.draggedItem;
+		if (!dragged) return;
 
-	function handleDndFinalize(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
+		const fromIndex = displayTableHeaders.indexOf(dragged);
+		if (fromIndex < 0) return;
+
+		const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
+		const targetHeaderId = targetEl?.dataset?.headerId;
+
+		let targetIndex: number;
+		if (targetHeaderId) {
+			targetIndex = displayTableHeaders.findIndex(h => h.id === targetHeaderId);
+			if (state.dropPosition === 'after') targetIndex++;
+		} else {
+			targetIndex = displayTableHeaders.length;
+		}
+		targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
+
+		if (fromIndex === targetIndex) return;
+
+		displayTableHeaders = untrack(() => {
+			const newItems = [...displayTableHeaders];
+			newItems.splice(fromIndex, 1);
+			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			newItems.splice(adjusted, 0, dragged);
+			return newItems;
+		});
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
+
+
 
 	// Pagination
 	const defaultPaginationSettings = (collectionId: string | null): PaginationSettings => ({
@@ -1049,13 +1086,29 @@ bulk actions, and predictive preloading.
 					</Button>
 				</div>
 				<section
-					use:dndzone={{ items: displayTableHeaders, flipDurationMs: 300, type: 'columns', dropTargetStyle: { outline: 'none' } }}
-					onconsider={handleDndConsider}
-					onfinalize={handleDndFinalize}
+					use:droppable={{
+						container: 'columns',
+						callbacks: { onDrop: handleColumnDrop },
+						direction: 'horizontal',
+						attributes: {
+							dragOverClass: 'bg-secondary-200'
+						}
+					}}
 					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
+					role="list"
+					aria-label="Drag columns to reorder"
 				>
 					{#each displayTableHeaders as header (header.id)}
-						<div animate:flip={{ duration: 300 }}>
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<div
+							animate:flip={{ duration: 300 }}
+							use:draggable={{ container: 'columns', dragData: header, keyboard: true }}
+							use:droppable={{ container: 'columns', callbacks: { onDrop: handleColumnDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }}
+							data-header-id={header.id}
+							role="listitem"
+							tabindex="0"
+							aria-label={`Column: ${header.label}. Press Space to grab, arrows to move.`}
+						>
 							<Button variant="tertiary"
 								type="button"
 								onclick={() => handleColumnVisibilityToggle(header)}
@@ -1124,7 +1177,7 @@ bulk actions, and predictive preloading.
 						/>
 
 						{#each visibleTableHeaders as header (header.id)}
-							{@const colKey = (header as TableHeader).name || header.id}
+							{@const colKey = ((header as TableHeader).name || header.id) as string}
 							<th
 								class="relative text-center text-xs sm:text-sm {cellPaddingClass}"
 								style={smartTable.getColumnWidthStyle(colKey)}
@@ -1159,8 +1212,7 @@ bulk actions, and predictive preloading.
 						<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
 					{/if}
 					{#if tableData.length > 0}
-						{#each visibleRows as entry, idx (entry._id)}
-							{@const realIndex = useRowVirtualization ? virtualStartIndex + idx : idx}
+						{#each visibleRows as entry (entry._id)}
 							{@const rowId = String(entry._id ?? '')}
 							{@const rowSelected = smartTable.isSelected(rowId)}
 							<tr
@@ -1178,7 +1230,7 @@ bulk actions, and predictive preloading.
 								/>
 								{#if visibleTableHeaders}
 									{#each visibleTableHeaders as header (header.id)}
-										{@const cellKey = (header as TableHeader).name || header.id}
+										{@const cellKey = ((header as TableHeader).name || header.id) as string}
 										<td
 											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:hover:bg-secondary-500/20'

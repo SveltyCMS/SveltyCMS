@@ -15,14 +15,22 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_DB_MATRIX } from "@src/utils/test-db-credentials";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
+import { isDockerRunning } from "../helpers/docker";
 
 const API_BASE_URL = getApiBaseUrl();
 const TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 const CMS_DB_TYPE = (process.env.DB_TYPE || "sqlite").toLowerCase();
 
+const postgresDockerAvailable = isDockerRunning("postgres");
+
 let fixtureAvailable = false;
 let adminCookie = "";
 let skipReason = "";
+
+if (!postgresDockerAvailable) {
+  skipReason =
+    "PostgreSQL Docker container not detected — live federation requires external Postgres fixture";
+}
 
 async function seedHubFixture(rowCount = 100): Promise<boolean> {
   try {
@@ -67,10 +75,44 @@ describe(`Unified Data Hub live federation (CMS: ${CMS_DB_TYPE})`, () => {
   });
 
   beforeAll(async () => {
-    fixtureAvailable = await seedHubFixture(100);
-    if (!fixtureAvailable) return;
+    // 1) Seed admin first (full reset+seed) so login never falls back to dummy sessions.
+    // 2) Seed hub connectors/schemas without wipe (skipReset login path below).
+    try {
+      adminCookie = await prepareAuthenticatedContext();
+    } catch (err) {
+      fixtureAvailable = false;
+      skipReason = err instanceof Error ? err.message : String(err);
+      console.log(`⏭️ Live federation: admin seed/login failed: ${skipReason}`);
+      return;
+    }
 
-    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+    fixtureAvailable = await seedHubFixture(100);
+    if (!fixtureAvailable) {
+      console.log(`⏭️ Live federation fixture unavailable: ${skipReason}`);
+      return;
+    }
+
+    try {
+      // Re-login after hub seed without wiping UDH rows
+      adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+      if (adminCookie.includes("test-session-")) {
+        fixtureAvailable = false;
+        skipReason = "Auth fell back to dummy test session (admin user missing after hub seed)";
+        return;
+      }
+      const probe = await safeFetch(`${API_BASE_URL}/api/virtual-collections`, {
+        headers: { Cookie: adminCookie },
+      });
+      if (!probe.ok) {
+        fixtureAvailable = false;
+        const body = await probe.text().catch(() => "");
+        skipReason = `UDH not available after seed (HTTP ${probe.status}): ${body.slice(0, 200)}`;
+        console.log(`⏭️ ${skipReason}`);
+      }
+    } catch (err) {
+      fixtureAvailable = false;
+      skipReason = err instanceof Error ? err.message : String(err);
+    }
   });
 
   it("lists virtual collection schema after hub seed", async () => {

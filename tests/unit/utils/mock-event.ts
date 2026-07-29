@@ -38,7 +38,7 @@ export interface MockEventOptions {
     has: (k: string) => boolean;
   };
   /** Pass `null` for unauthenticated. Omit for default admin-like user. */
-  user?: Record<string, unknown> | null;
+  user?: Record<string, any> | null;
   /** Pass `null` for missing tenant. Omit for default `"t1"`. */
   tenantId?: string | null;
   roles?: Array<Record<string, unknown>>;
@@ -164,10 +164,23 @@ export function createMockRequestEvent(options: MockEventOptions = {}): RequestE
           getModel: vi.fn().mockResolvedValue({}),
         },
         collections: {},
-        media: {},
+        media: {
+          files: {
+            getByFolder: vi.fn().mockResolvedValue({ success: true, data: { items: [] } }),
+            getByHash: vi.fn().mockResolvedValue({ success: true, data: null }),
+            upload: vi.fn().mockResolvedValue({ success: true, data: { _id: "m1" } }),
+            delete: vi.fn().mockResolvedValue({ success: true }),
+          },
+        },
         widgets: {},
-        system: {},
-        crud: {},
+        system: {
+          preferences: { getMany: vi.fn().mockResolvedValue({ success: true, data: {} }) },
+          widgets: { getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+        },
+        crud: {
+          findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
+        },
       },
       isAdmin: user?.isAdmin === true,
       ...(bypass ? { __testBypass: true } : {}),

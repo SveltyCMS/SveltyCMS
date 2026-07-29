@@ -4,15 +4,16 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { stubGlobal, unstubAllGlobals } from "../helpers/stub-global";
 
 describe("contentSystem.refresh sidebar bridge", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
   });
 
   it("syncs collectionStore.contentStructure after SSE-driven refresh", async () => {
-    vi.stubGlobal("window", {});
+    stubGlobal("window", {});
 
     const nodes = [
       {
@@ -25,7 +26,7 @@ describe("contentSystem.refresh sidebar bridge", () => {
       },
     ];
 
-    vi.stubGlobal(
+    stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,

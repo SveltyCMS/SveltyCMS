@@ -1,6 +1,14 @@
 /**
  * @file src/utils/site-preview-bridge.ts
- * @description Client-side live preview bridge for the site starter (framework-agnostic protocol).
+ * @description Hardened client-side live preview bridge for the site starter.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Origin validation: handleExtendedMessage checks event.origin against configured origin
+ * - Default targetOrigin: changed from "*" to window.location.origin (explicit, safer)
+ * - Timer cleanup: flushSave clears the timer reference to prevent double-fire
+ * - Memory safety: pendingSave uses {} instead of null for cleaner lifecycle
+ *
+ * Framework-agnostic protocol for CMS ↔ frontend visual editing.
  */
 
 import type {
@@ -32,53 +40,58 @@ function isInPreviewFrame(): boolean {
 export function createSitePreviewBridge(options: SitePreviewBridgeOptions): {
   destroy: () => void;
 } {
-  const { onPreviewSave, onDocumentUpdate, saveDebounceMs = 300, ...baseOptions } = options;
+  const {
+    onPreviewSave,
+    onDocumentUpdate,
+    saveDebounceMs = 300,
+    origin = "*",
+    ...baseOptions
+  } = options;
 
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
-  let pendingSave: Record<string, unknown> | null = null;
+  let pendingSave: Record<string, unknown> = {};
 
   const base = createLivePreviewListener({
     ...baseOptions,
+    origin,
     visualEditing: baseOptions.visualEditing ?? isInPreviewFrame(),
   });
 
-  function flushSave() {
-    if (pendingSave && onPreviewSave) {
-      onPreviewSave(pendingSave);
-      pendingSave = null;
+  const flushSave = () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
     }
-  }
+    if (Object.keys(pendingSave).length > 0 && onPreviewSave) {
+      onPreviewSave(pendingSave);
+      pendingSave = {};
+    }
+  };
 
-  function scheduleSave(data: Record<string, unknown>) {
+  const scheduleSave = (data: Record<string, unknown>) => {
     pendingSave = { ...pendingSave, ...data };
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      flushSave();
-      saveTimer = null;
-    }, saveDebounceMs);
-  }
+    saveTimer = setTimeout(flushSave, saveDebounceMs);
+  };
 
-  function handleExtendedMessage(event: MessageEvent) {
+  const handleExtendedMessage = (event: MessageEvent) => {
+    // 🛡️ Security: Validate origin strictly
+    if (origin !== "*" && event.origin !== origin) return;
+
     const msg = event.data;
     if (!msg?.type) return;
 
     if (msg.type === "svelty:edit-mode") {
       baseOptions.onEditModeChange?.(!!msg.enabled);
-    }
-
-    if (msg.type === "svelty:save") {
-      const saveMsg = msg as CmsSaveMessage;
-      if (saveMsg.data) scheduleSave(saveMsg.data);
-    }
-
-    if (msg.type === "svelty:document:update") {
-      const docMsg = msg as CmsPreviewUpdateMessage;
-      onDocumentUpdate?.(docMsg.fieldName, docMsg.document);
-      if (docMsg.fieldName && docMsg.document !== undefined) {
-        scheduleSave({ [docMsg.fieldName]: docMsg.document });
+    } else if (msg.type === "svelty:save") {
+      if (msg.data) scheduleSave(msg.data);
+    } else if (msg.type === "svelty:document:update") {
+      onDocumentUpdate?.(msg.fieldName, msg.document);
+      if (msg.fieldName && msg.document !== undefined) {
+        scheduleSave({ [msg.fieldName]: msg.document });
       }
     }
-  }
+  };
 
   if (typeof window !== "undefined") {
     window.addEventListener("message", handleExtendedMessage);
@@ -86,7 +99,6 @@ export function createSitePreviewBridge(options: SitePreviewBridgeOptions): {
 
   return {
     destroy() {
-      if (saveTimer) clearTimeout(saveTimer);
       flushSave();
       base.destroy();
       if (typeof window !== "undefined") {
@@ -101,7 +113,7 @@ export function postDocumentUpdate(
   fieldName: string,
   document: unknown,
   collection = "pages",
-  targetOrigin = "*",
+  targetOrigin?: string,
 ) {
   if (!isInPreviewFrame()) return;
   const msg: CmsPreviewUpdateMessage = {
@@ -110,21 +122,21 @@ export function postDocumentUpdate(
     fieldName,
     document,
   };
-  window.parent.postMessage(msg, targetOrigin);
+  window.parent.postMessage(msg, targetOrigin || window.location.origin);
 }
 
 /** Posts a field click message to the CMS parent frame. */
-export function postFieldClick(fieldName: string, targetOrigin = "*") {
+export function postFieldClick(fieldName: string, targetOrigin?: string) {
   if (!isInPreviewFrame()) return;
   const msg: CmsFieldClickMessage = { type: "svelty:field:click", fieldName };
-  window.parent.postMessage(msg, targetOrigin);
+  window.parent.postMessage(msg, targetOrigin || window.location.origin);
 }
 
 /** Posts a save payload to the CMS parent frame. */
 export function postPreviewSave(
   collection: string,
   data: Record<string, unknown>,
-  targetOrigin = "*",
+  targetOrigin?: string,
 ) {
   if (!isInPreviewFrame()) return;
   const msg: CmsSaveMessage = {
@@ -133,5 +145,5 @@ export function postPreviewSave(
     data,
     source: "visual",
   };
-  window.parent.postMessage(msg, targetOrigin);
+  window.parent.postMessage(msg, targetOrigin || window.location.origin);
 }

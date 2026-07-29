@@ -10,11 +10,15 @@
  * - Test-mode bypass for integration/E2E suites
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, rethrow, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
-import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
+import {
+  SESSION_COOKIE_NAME,
+  getSessionCookieName,
+  isSecureCookieContext,
+} from "@src/databases/auth/constants";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
 import {
   handleSAMLResponse,
@@ -22,6 +26,7 @@ import {
   createSAMLConnection,
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions } from "@src/databases/auth/permissions";
+import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
@@ -107,6 +112,18 @@ export async function handleAuthUserRoutes(
         return reqMethod === "POST" ? handleLogin(event, cms, tenantId, cookies) : notAllowed();
       case "logout":
         return reqMethod === "POST" ? handleLogout(event, cms, tenantId, cookies) : notAllowed();
+      case "oidc-logout":
+        return reqMethod === "POST" || reqMethod === "GET"
+          ? handleOidcLogout(event, cms, tenantId, cookies)
+          : notAllowed();
+      case "frontchannel-logout":
+        return reqMethod === "GET" ? handleFrontChannelLogoutRoute(event) : notAllowed();
+      case "backchannel-logout":
+        return reqMethod === "POST" ? handleBackChannelLogoutRoute(event) : notAllowed();
+
+      // Password verification (own profile only)
+      case "verify-password":
+        return reqMethod === "POST" ? handleVerifyPassword(event, user) : notAllowed();
 
       // User Management
       case "create-user":
@@ -142,8 +159,12 @@ export async function handleAuthUserRoutes(
         throw new AppError(`Auth endpoint /api/${segments.join("/")} not implemented`, 404);
     }
   } catch (err: any) {
-    console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
-    if (err instanceof AppError) throw err;
+    rethrow(err);
+    // Expected AppErrors (validation, method not allowed) should not log noisy traces
+    if (!isAppError(err)) {
+      console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
+    }
+    if (isAppError(err)) throw err;
     throw new AppError(err.message || "Authentication operation failed", 500);
   }
 }
@@ -152,7 +173,7 @@ export async function handleAuthUserRoutes(
 
 /** Determines the session cookie name based on connection security. */
 function getCookieConfig(event: RequestEvent): CookieConfig {
-  const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+  const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
   return {
     name: getSessionCookieName(isSecure),
     isSecure,
@@ -269,18 +290,17 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
     return { user, session };
   }
 
+  // Never mint a fake session — that poisons E2E/integration cookies
+  // (`test-session-*`) and masks missing seed/admin. Callers must seed first.
   logger.warn(
-    `[BypassDebug] getUserByEmail failed to find user or missing _id. Falling back to dummy mock session.`,
+    `[BypassDebug] getUserByEmail failed to find user or missing _id. Refusing dummy session.`,
+    { email: requestedEmail, tenantId },
   );
-  return {
-    user: {
-      _id: "system",
-      role: "admin",
-      isAdmin: true,
-      email: requestedEmail,
-    },
-    session: { _id: "test-session-" + Date.now(), user_id: "system" },
-  };
+  throw new AppError(
+    `Test login bypass: user not found for ${requestedEmail}. Seed admin via /api/testing action=seed first.`,
+    401,
+    "TEST_USER_NOT_SEEDED",
+  );
 }
 
 /**
@@ -304,6 +324,146 @@ export async function handleLogout(
   return successResponse(event, { message: "Logged out successfully" });
 }
 
+/**
+ * Handles OpenID Connect RP-Initiated Logout.
+ *
+ * Supports both GET (user clicks logout link) and POST (form submit).
+ * Validates post_logout_redirect_uri against the provider's allowlist.
+ * If the OP has an end_session_endpoint, redirects the browser there
+ * for federated logout across all OIDC RPs.
+ *
+ * Query params: id_token_hint, post_logout_redirect_uri, state
+ */
+export async function handleOidcLogout(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  cookies: any,
+) {
+  const { name } = getCookieConfig(event);
+  const sessionId = cookies.get(name) || cookies.get(SESSION_COOKIE_NAME);
+
+  // Parse OIDC params from query (GET) or body (POST)
+  let idTokenHint: string | undefined;
+  let postLogoutRedirectUri: string | undefined;
+  let state: string | undefined;
+
+  if (event.request.method === "GET") {
+    const q = event.url.searchParams;
+    idTokenHint = q.get("id_token_hint") || undefined;
+    postLogoutRedirectUri = q.get("post_logout_redirect_uri") || undefined;
+    state = q.get("state") || undefined;
+  } else {
+    const body = await event.request.json().catch(() => ({}));
+    idTokenHint = body.id_token_hint;
+    postLogoutRedirectUri = body.post_logout_redirect_uri;
+    state = body.state;
+  }
+
+  // Always terminate the local session first
+  if (sessionId) {
+    try {
+      const { performRpInitiatedLogout } = await import("@src/databases/auth/sso-session");
+      const result = await performRpInitiatedLogout({
+        sessionId,
+        idTokenHint,
+        postLogoutRedirectUri,
+        state,
+        tenantId,
+      });
+
+      await cms.auth.logout(sessionId);
+      invalidateSessionCache(sessionId, tenantId);
+      clearSessionCookies(event);
+
+      // If OP has end_session_endpoint, redirect browser there
+      if (result.endSessionUrl) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: result.endSessionUrl },
+        });
+      }
+
+      return successResponse(event, { message: result.message });
+    } catch (err) {
+      logger.error("[OIDC] RP-Initiated Logout failed:", err);
+      // Fall through to local logout even if SSO part fails
+    }
+  }
+
+  // Non-SSO or fallback: standard logout
+  if (sessionId) {
+    await cms.auth.logout(sessionId);
+    invalidateSessionCache(sessionId, tenantId);
+    clearSessionCookies(event);
+  }
+
+  // If post_logout_redirect_uri is present and valid, redirect there
+  if (postLogoutRedirectUri) {
+    try {
+      const url = new URL(postLogoutRedirectUri);
+      if (url.protocol === "https:" || url.hostname === "localhost") {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: postLogoutRedirectUri },
+        });
+      }
+    } catch {
+      // Invalid URL — ignore
+    }
+  }
+
+  return successResponse(event, { message: "Logged out successfully" });
+}
+
+/**
+ * Handles OIDC Front-Channel Logout (OP-initiated).
+ * The OP renders an iframe pointing to this endpoint with iss and sid query params.
+ * Returns 200 with cache-prevention headers per spec.
+ */
+export async function handleFrontChannelLogoutRoute(event: RequestEvent) {
+  const q = event.url.searchParams;
+  const issuer = q.get("iss") || "";
+  const sid = q.get("sid") || "";
+
+  if (!issuer || !sid) {
+    return new Response("Missing iss or sid", { status: 400 });
+  }
+
+  const { handleFrontChannelLogout } = await import("@src/databases/auth/sso-session");
+  return handleFrontChannelLogout(issuer, sid);
+}
+
+/**
+ * Handles OIDC Back-Channel Logout (OP-initiated, server-to-server).
+ * Accepts POST with form-encoded or JSON logout_token.
+ */
+export async function handleBackChannelLogoutRoute(event: RequestEvent) {
+  const contentType = event.request.headers.get("content-type") || "";
+  let logoutToken: string | undefined;
+
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const form = await event.request.formData();
+    logoutToken = form.get("logout_token")?.toString();
+  } else {
+    const body = await event.request.json().catch(() => ({}));
+    logoutToken = body.logout_token;
+  }
+
+  if (!logoutToken) {
+    return new Response("Missing logout_token", { status: 400 });
+  }
+
+  const { handleBackChannelLogout } = await import("@src/databases/auth/sso-session");
+  const result = await handleBackChannelLogout(logoutToken);
+
+  if (!result.success) {
+    return new Response(result.message, { status: 400 });
+  }
+
+  return successResponse(event, { message: result.message });
+}
+
 // ─── User Management Handlers ────────────────────────────────────────────────
 
 /**
@@ -314,6 +474,34 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
   const result = await cms.auth.createUser(body, { tenantId });
   if (!result.success) throw new AppError(result.message || "Failed to create user", 400);
   return successResponse(event, result.data, 201);
+}
+
+/**
+ * Verifies the current authenticated user's password.
+ * Used by the profile editor to gate sensitive field access (password change).
+ *
+ * SECURITY: Only verifies the calling user's own password — not an arbitrary user.
+ * This prevents password-guessing attacks via the API.
+ */
+export async function handleVerifyPassword(event: RequestEvent, user: any) {
+  const body = await event.request.json();
+  const { password } = body;
+
+  if (!password || typeof password !== "string") {
+    return successResponse(event, { valid: false });
+  }
+
+  // Must be authenticated with a real user (not API key / token virtual user)
+  if (!user?.password) {
+    return successResponse(event, { valid: false });
+  }
+
+  try {
+    const valid = await verifyPassword(user.password, password);
+    return successResponse(event, { valid });
+  } catch {
+    return successResponse(event, { valid: false });
+  }
 }
 
 /**
@@ -337,13 +525,67 @@ export async function handleUpdateUserAttributesRoute(
       ? { ...directUpdates, ...newUserData }
       : directUpdates;
 
+  // Strip empty password fields so adapters never try to write blank credentials
+  if ("password" in updates && (!updates.password || String(updates.password).trim() === "")) {
+    delete (updates as any).password;
+  }
+  if (
+    "currentPassword" in updates &&
+    (!updates.currentPassword || String(updates.currentPassword).trim() === "")
+  ) {
+    delete (updates as any).currentPassword;
+  }
+  // currentPassword is verification-only — never persist it as a user column
+  delete (updates as any).currentPassword;
+  delete (updates as any).confirmPassword;
+  delete (updates as any).user_id;
+
   if (Object.keys(updates).length === 0) {
     throw new AppError("At least one user attribute is required", 400);
   }
 
-  const result = await cms.auth.updateUserAttributes(targetId, updates, {
-    tenantId,
-  });
+  // Never force isNull(tenantId) when multi-tenant is off — session-cached users
+  // after re-seed can miss null-tenant filters. Prefer id-only update.
+  const updateOpts: { tenantId?: DatabaseId; bypassTenantCheck?: boolean } = {
+    bypassTenantCheck: true,
+  };
+  if (tenantId) {
+    updateOpts.tenantId = tenantId;
+    updateOpts.bypassTenantCheck = false;
+  }
+
+  let resolvedId = String(targetId);
+  let result = await cms.auth.updateUserAttributes(resolvedId, updates, updateOpts);
+
+  // Session can hold a stale user_id after wizard reset / re-seed while email is current.
+  // Resolve by email and retry once so self-profile updates never 404 spuriously.
+  if (
+    !result.success &&
+    /not found/i.test(String(result.message || "")) &&
+    event.locals.user?.email
+  ) {
+    try {
+      const byEmail = await cms.auth.getUserByEmail(String(event.locals.user.email), {
+        bypassTenantCheck: true,
+      } as any);
+      const emailUser =
+        byEmail?.success && byEmail.data
+          ? byEmail.data
+          : byEmail && typeof byEmail === "object" && "_id" in (byEmail as object)
+            ? (byEmail as unknown as { _id: string })
+            : null;
+      const emailId = emailUser && (emailUser as { _id?: string })._id;
+      if (emailId && String(emailId) !== resolvedId) {
+        resolvedId = String(emailId);
+        result = await cms.auth.updateUserAttributes(resolvedId, updates, {
+          bypassTenantCheck: true,
+        } as any);
+      }
+    } catch {
+      /* keep original failure */
+    }
+  }
+
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
 
   // 🔄 Refresh session caches so the next page load returns updated user data
@@ -352,7 +594,7 @@ export async function handleUpdateUserAttributesRoute(
     event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
     event.cookies.get(SESSION_COOKIE_NAME);
   if (targetId === event.locals.user?._id && currentSessionId && result.data) {
-    primeSessionMemoryCache(currentSessionId, result.data);
+    primeSessionMemoryCache(currentSessionId, result.data as User);
     // Also clear the Redis cache key so it's re-read from DB on next cache miss
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
@@ -424,7 +666,7 @@ export async function handleSaveAvatarRoute(
     if (!uploadResult.success) {
       throw new AppError(uploadResult.message || "Failed to upload avatar", 400);
     }
-    finalAvatarUrl = uploadResult.data.url || uploadResult.data.path;
+    finalAvatarUrl = uploadResult.data.url || (uploadResult.data as any).path;
   } else {
     finalAvatarUrl = avatarValue;
   }

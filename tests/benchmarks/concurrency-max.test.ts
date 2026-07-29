@@ -68,21 +68,29 @@ async function run() {
   await forceRefreshServer(baseUrl);
 
   const totalWrites = DOCS * WRITES_PER_DOC;
-  console.log(`   → Blasting ${totalWrites} concurrent writes (NO throttle)...`);
+  // Full blast only on embedded SQLite — network DBs exhaust pools under 1000 parallel POSTs
+  // and report "Lost N writes". Wave concurrency keeps max-throughput meaningful.
+  const WAVE = dbType === "sqlite" ? totalWrites : dbType === "mongodb" ? 100 : 40;
+  console.log(
+    `   → Blasting ${totalWrites} writes (wave=${WAVE}${dbType === "sqlite" ? ", full parallel" : ", pool-safe waves"})...`,
+  );
 
   // Optimized fetch handler providing fast raw network retry loops
   async function fetchWithRetry(
     url: string,
     init: RequestInit,
-    retries = 5,
-    delay = 100,
+    retries = 8,
+    delay = 80,
   ): Promise<Response> {
     for (let i = 0; i < retries; i++) {
       try {
         const res = await fetch(url, init);
-        // Clear socket buffers directly out of retry paths to protect connection boundaries
-        if (!res.ok) {
-          await res.arrayBuffer().catch(() => {});
+        if (res.ok) return res;
+        await res.arrayBuffer().catch(() => {});
+        // Retry 429/503/502 — pool pressure under matrix shared server
+        if ([429, 502, 503, 504].includes(res.status) && i < retries - 1) {
+          await new Promise((r) => setTimeout(r, delay * (i + 1) + Math.random() * 40));
+          continue;
         }
         return res;
       } catch (err) {
@@ -96,31 +104,35 @@ async function run() {
   // Pre-serialize payload configurations out of the critical path to prevent execution drift
   const incrementPayload = JSON.stringify({ field: "count", amount: 1 });
 
-  const t0 = performance.now();
-  const tasks: Promise<Response>[] = [];
-
+  const jobs: { url: string }[] = [];
   for (let d = 0; d < DOCS; d++) {
     const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`;
-
     for (let w = 0; w < WRITES_PER_DOC; w++) {
-      tasks.push(
-        fetchWithRetry(targetUrl, {
+      jobs.push({ url: targetUrl });
+    }
+  }
+
+  const t0 = performance.now();
+  const responses: Response[] = [];
+  for (let i = 0; i < jobs.length; i += WAVE) {
+    const slice = jobs.slice(i, i + WAVE);
+    const waveRes = await Promise.all(
+      slice.map((j) =>
+        fetchWithRetry(j.url, {
           method: "POST",
           headers: H,
           body: incrementPayload,
           signal: AbortSignal.timeout(30000),
         }),
-      );
-    }
+      ),
+    );
+    responses.push(...waveRes);
   }
-
-  const responses = await Promise.all(tasks);
   const duration = performance.now() - t0;
 
   let ok = 0;
   for (const r of responses) {
     if (r.ok) ok++;
-    // Flush low-level native socket buffers to guarantee clean garbage collection runs
     await r.arrayBuffer().catch(() => {});
   }
 

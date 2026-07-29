@@ -1,9 +1,13 @@
 /**
  * @file src/utils/statusToggle.ts
- * @description Utility functions for status toggle operations
+ * @description Hardened status toggle operations with concurrency protection.
  *
- * This module provides functions for toggling entry status between publish and unpublish.
- * It includes functions for getting initial publish status and toggling entry status.
+ * ### Hardening (audit 2026-07):
+ * - Concurrency protection: pendingToggles Set prevents rapid double-click API spam
+ * - Type safety: explicit StatusType typing on newStatus computation
+ * - Error handling: try/finally ensures lock is always released
+ *
+ * Utility functions for toggling entry status between publish and unpublish.
  */
 
 import type { StatusType } from "@src/content/types";
@@ -16,8 +20,11 @@ export interface StatusToggleOptions {
   onSuccess?: (newStatus: StatusType) => void;
 }
 
+// 🛡️ Track in-flight operations to prevent concurrent API calls for the same entry
+const pendingToggles = new Set<string>();
+
 /**
- * Toggle entry status between publish/unpublish
+ * Toggle entry status between publish/unpublish with race-condition protection.
  */
 export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
   success: boolean;
@@ -26,45 +33,56 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 }> {
   const { collectionId, entryId, currentStatus, onSuccess, onError } = options;
 
-  const newStatus = currentStatus === "publish" ? "unpublish" : "publish";
+  // 1. Concurrency Protection: Generate unique ID for this specific entry
+  const lockId = `${collectionId}:${entryId || "new"}`;
+  if (pendingToggles.has(lockId)) {
+    return { success: false, error: "Operation already in progress." };
+  }
 
+  const nextStatus: StatusType = currentStatus === "publish" ? "unpublish" : "publish";
+
+  // If entryId exists, perform API update
   if (entryId) {
+    pendingToggles.add(lockId);
     try {
       const { updateEntryStatus } = await import("@src/utils/api");
-      const result = await updateEntryStatus(collectionId, entryId, newStatus);
+      const result = await updateEntryStatus(collectionId, entryId, nextStatus);
 
       if (result.success) {
-        onSuccess?.(newStatus);
-        return { success: true, newStatus };
+        onSuccess?.(nextStatus);
+        return { success: true, newStatus: nextStatus };
       }
-      onError?.(
-        result.error || `Failed to ${newStatus === "publish" ? "publish" : "unpublish"} entry`,
-      );
-      return { success: false, error: result.error };
+
+      const errMsg = result.error ?? `Failed to ${nextStatus} entry.`;
+      onError?.(errMsg);
+      return { success: false, error: errMsg };
     } catch (e) {
-      const error = `Error ${newStatus === "publish" ? "publishing" : "unpublishing"} entry: ${(e as Error).message}`;
-      onError?.(error);
-      return { success: false, error };
+      const errorMsg = `Error ${nextStatus === "publish" ? "publishing" : "unpublishing"} entry: ${(e as Error).message}`;
+      onError?.(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      pendingToggles.delete(lockId);
     }
-  } else {
-    // New entry - no API call needed
-    onSuccess?.(newStatus);
-    return { success: true, newStatus };
   }
+
+  // New entry logic (Atomic update without API)
+  onSuccess?.(nextStatus);
+  return { success: true, newStatus: nextStatus };
 }
 
 /**
- * Get initial publish status based on mode and collection/entry status
+ * Get initial publish status based on mode and state hierarchy.
  */
 export function getInitialPublishStatus(
   mode: string,
   collectionStatus?: StatusType,
   entryStatus?: StatusType,
 ): boolean {
-  if (mode === "create") {
-    const defaultStatus = collectionStatus || "unpublish";
-    return defaultStatus === "publish";
-  }
-  const status = entryStatus || collectionStatus || "unpublish";
+  // Coalesce status with clear priority: Entry > Collection > Default
+  const status =
+    mode === "create"
+      ? (collectionStatus ?? "unpublish")
+      : (entryStatus ?? collectionStatus ?? "unpublish");
+
   return status === "publish";
 }

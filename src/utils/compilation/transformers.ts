@@ -4,18 +4,25 @@
  *
  * Provides both individual transformers (for external use) and an optimized
  * composite transformer that merges all passes into a single AST traversal.
+ *
+ * ### Transformer version history
+ * v5 — Deterministic widget UUIDs, scoped schema injection, safe .js extensions,
+ *       alias→extension fallthrough, declaration-position widget guard.
  */
 
 import * as ts from "typescript";
 import path from "node:path";
+import { statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { pathAliases } from "../../../path-aliases.ts";
-import { generateUUID } from "../native-utils.ts";
 
+// ─── Compile-time aliases (strip ./ prefix for specifier matching) ──────
 const compileAliases: Record<string, string> = Object.fromEntries(
   Object.entries(pathAliases).map(([key, value]) => [key, value.replace(/^\.\//, "")]),
 );
 
-// Hot-path: schema property markers for _id/tenantId injection
+// ─── Schema property markers for _id/tenantId injection ─────────────────
+// Only injected on EXPORTED object literals (ExportAssignment parent).
 const SCHEMA_MARKERS = new Set([
   "fields",
   "icon",
@@ -26,10 +33,46 @@ const SCHEMA_MARKERS = new Set([
   "livePreview",
 ]);
 
-// ─── Individual transformers (backward compatible) ────────────────────
+// ─── Extensions that should NOT get .js appended ────────────────────────
+const SKIP_JS_EXT = /\.(js|mjs|cjs|json|ts|svelte|svelte\.ts|css|svg|png|jpe?g|webp|wasm)$/;
+
+// ─── Widget UUID counter (per-file, deterministic) ──────────────────────
+function makeUuidFactory(sourceFileName: string) {
+  let callIndex = 0;
+  return () => {
+    const seed = `${sourceFileName}#${callIndex++}`;
+    const hex = createHash("sha256").update(seed).digest("hex");
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      `4${hex.slice(13, 16)}`, // UUID v4 variant bits
+      hex.slice(16, 20),
+      hex.slice(20, 32),
+    ].join("-");
+  };
+}
+
+// ─── Guard: is this identifier a declaration name (don't rewrite)? ──────
+function isDeclarationPosition(node: ts.Identifier): boolean {
+  const p = node.parent;
+  return (
+    (ts.isVariableDeclaration(p) && p.name === node) ||
+    (ts.isParameter(p) && p.name === node) ||
+    (ts.isBindingElement(p) && p.name === node) ||
+    (ts.isPropertyAssignment(p) && p.name === node) ||
+    ts.isImportSpecifier(p) ||
+    ts.isImportClause(p) ||
+    ts.isNamespaceImport(p) ||
+    ts.isExportSpecifier(p) ||
+    (ts.isPropertyAccessExpression(p) && p.name === node)
+  );
+}
+
+// ─── Individual transformers (backward compatible) ──────────────────────
 
 export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
   (context) => (sourceFile) => {
+    const getUuid = makeUuidFactory(sourceFile.fileName);
     const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
       if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
         const moduleSpecifier = node.moduleSpecifier.text;
@@ -52,16 +95,8 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
         }
       }
 
-      if (
-        ts.isIdentifier(node) &&
-        node.text === "widgets" &&
-        (!ts.isPropertyAccessExpression(node.parent) ||
-          (ts.isPropertyAccessExpression(node.parent) && node.parent.name !== node) ||
-          (ts.isPropertyAccessExpression(node.parent) &&
-            node.parent.expression.kind !== ts.SyntaxKind.ThisKeyword &&
-            (!ts.isIdentifier(node.parent.expression) ||
-              node.parent.expression.text !== "globalThis")))
-      ) {
+      // Rewrite `widgets` identifier → `globalThis.widgets` (skip declarations)
+      if (ts.isIdentifier(node) && node.text === "widgets" && !isDeclarationPosition(node)) {
         return ts.factory.createPropertyAccessExpression(
           ts.factory.createIdentifier("globalThis"),
           ts.factory.createIdentifier("widgets"),
@@ -90,7 +125,7 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
           if (!hasUuid) {
             const uuidProperty = ts.factory.createPropertyAssignment(
               "uuid",
-              ts.factory.createStringLiteral(generateUUID()),
+              ts.factory.createStringLiteral(getUuid()),
             );
             const updatedProperties = [uuidProperty, ...objectLiteral.properties];
             const updatedObjectLiteral = ts.factory.updateObjectLiteralExpression(
@@ -119,18 +154,15 @@ export const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> =
         ts.isStringLiteral(node.moduleSpecifier)
       ) {
         const specifier = node.moduleSpecifier.text;
-        if (
-          specifier.startsWith(".") &&
-          !specifier.endsWith(".js") &&
-          !specifier.endsWith(".json")
-        ) {
-          const newSpecifier = ts.factory.createStringLiteral(`${specifier}.js`);
+        if (specifier.startsWith(".") && !SKIP_JS_EXT.test(specifier)) {
+          const resolved = resolveDirImport(sourceFile.fileName, specifier);
+          const ns = ts.factory.createStringLiteral(resolved);
           if (ts.isImportDeclaration(node)) {
             return ts.factory.updateImportDeclaration(
               node,
               node.modifiers,
               node.importClause,
-              newSpecifier,
+              ns,
               node.assertClause,
             );
           }
@@ -139,7 +171,7 @@ export const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> =
             node.modifiers,
             node.isTypeOnly,
             node.exportClause,
-            newSpecifier,
+            ns,
             node.assertClause,
           );
         }
@@ -158,44 +190,21 @@ export const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile>
         return ts.factory.createCallExpression(
           ts.factory.createIdentifier("fileURLToPath"),
           undefined,
-          [
-            ts.factory.createPropertyAccessExpression(
-              ts.factory.createMetaProperty(
-                ts.SyntaxKind.ImportKeyword,
-                ts.factory.createIdentifier("meta"),
-              ),
-              "url",
-            ),
-          ],
+          [],
         );
       }
-
       if (ts.isIdentifier(node) && node.text === "__dirname") {
         needsFileURLToPath = true;
         return ts.factory.createCallExpression(
           ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier("path"), "dirname"),
           undefined,
-          [
-            ts.factory.createCallExpression(
-              ts.factory.createIdentifier("fileURLToPath"),
-              undefined,
-              [
-                ts.factory.createPropertyAccessExpression(
-                  ts.factory.createMetaProperty(
-                    ts.SyntaxKind.ImportKeyword,
-                    ts.factory.createIdentifier("meta"),
-                  ),
-                  "url",
-                ),
-              ],
-            ),
-          ],
+          [],
         );
       }
       return ts.visitEachChild(node, visitor, context);
     };
-
     let transformedFile = ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+
     if (needsFileURLToPath) {
       const urlImport = ts.factory.createImportDeclaration(
         undefined,
@@ -223,6 +232,7 @@ export const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile>
         ...transformedFile.statements,
       ]);
     }
+
     return transformedFile;
   };
 
@@ -274,14 +284,15 @@ export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
 
 /**
  * Unified transformer for schema objects.
- * Handles _id injection and tenantId mapping.
+ * ONLY injects _id/tenantId on EXPORTED object literals
+ * (ExportAssignment or ExportDeclaration ancestor).
  */
 export const schemaTransformer =
   (tenantId?: string | null): ts.TransformerFactory<ts.SourceFile> =>
   (context) =>
   (sourceFile) => {
     const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-      if (ts.isObjectLiteralExpression(node)) {
+      if (ts.isObjectLiteralExpression(node) && isExportedObject(node)) {
         const hasSchemaMarkers = node.properties.some(
           (prop) =>
             ts.isPropertyAssignment(prop) &&
@@ -332,11 +343,49 @@ export const schemaTransformer =
     return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
   };
 
-// ─── Optimized composite transformer (single AST pass) ───────────────
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+/** True when this object literal belongs to an exported declaration (export default/const/let/var). */
+function isExportedObject(node: ts.ObjectLiteralExpression): boolean {
+  // export default { ... }
+  if (ts.isExportAssignment(node.parent) && node.parent.expression === node) return true;
+  // export const schema = { ... }  /  export let x = { ... }  /  export var y = { ... }
+  if (ts.isVariableDeclaration(node.parent) && node.parent.initializer === node) {
+    const gparent = node.parent.parent;
+    if (ts.isVariableDeclarationList(gparent) && gparent.declarations[0] === node.parent) {
+      const ggparent = gparent.parent;
+      if (ts.isVariableStatement(ggparent)) {
+        return ggparent.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+      }
+    }
+  }
+  return false;
+}
+
+/** Resolves directory imports to index.js, bare specifiers get .js */
+function resolveDirImport(sourceFileName: string, specifier: string): string {
+  const resolved = path.resolve(path.dirname(sourceFileName), specifier);
+  try {
+    if (statSync(resolved).isDirectory()) return `${specifier.replace(/\/$/, "")}/index.js`;
+  } catch {
+    /* path doesn't exist on disk (virtual resolve) — append .js */
+  }
+  return `${specifier}.js`;
+}
+
+// ─── Optimized composite transformer (single AST pass) ─────────────────
 
 /**
- * Merges all 5 transformers into ONE traversal for ~5x faster compilation.
- * Each sub-transformer is inlined into a single visitor switch.
+ * Merges all transformers into ONE traversal for ~5x faster compilation.
+ *
+ * ### Passes (in order within a single visitor):
+ * 1. Widget proxy import removal
+ * 2. Alias resolution → falls through to .js extension
+ * 3. .js extension append (safe — skips svelte/json/css/svg etc., resolves dirs)
+ * 4. `widgets` identifier → `globalThis.widgets` (skips declarations)
+ * 5. `__filename` / `__dirname` → ESM equivalents
+ * 6. Schema _id/tenantId injection (exported objects only)
+ * 7. Widget call UUID injection (deterministic hash-derived)
  */
 export function createCompositeTransformer(
   tenantId?: string | null,
@@ -345,6 +394,7 @@ export function createCompositeTransformer(
   return (context) => (sourceFile) => {
     const sourceFileName = sourceFile.fileName;
     let needsUrlImports = false;
+    const getUuid = makeUuidFactory(sourceFileName);
 
     const getStableId = (): string => {
       if (stableId) return stableId;
@@ -356,7 +406,7 @@ export function createCompositeTransformer(
     };
 
     const visitor: ts.Visitor = (node) => {
-      // ── Import/Export declarations ──────────────────────────────
+      // ── Import/Export declarations ────────────────────────────────
       if (
         (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
         node.moduleSpecifier &&
@@ -364,7 +414,7 @@ export function createCompositeTransformer(
       ) {
         const specifier = node.moduleSpecifier.text;
 
-        // Widget proxy removal
+        // 1. Widget proxy removal
         if (
           ts.isImportDeclaration(node) &&
           node.importClause?.namedBindings &&
@@ -378,41 +428,26 @@ export function createCompositeTransformer(
           return [];
         }
 
-        // Alias resolution
+        // 2. Alias resolution — rewrite then fall through to .js extension
+        let rewriting = specifier;
         for (const [alias, target] of Object.entries(compileAliases)) {
-          if (!specifier.startsWith(alias)) continue;
+          if (!rewriting.startsWith(alias)) continue;
           const sourceDir = path.dirname(path.resolve(sourceFileName));
           let relativePath = path
             .relative(sourceDir, path.resolve(process.cwd(), target))
             .replace(/\\/g, "/");
           if (!relativePath.startsWith(".")) relativePath = "./" + relativePath;
-          const resolved = relativePath + specifier.slice(alias.length);
-          const ns = ts.factory.createStringLiteral(resolved);
-          return ts.isImportDeclaration(node)
-            ? ts.factory.updateImportDeclaration(
-                node,
-                node.modifiers,
-                node.importClause,
-                ns,
-                node.assertClause,
-              )
-            : ts.factory.updateExportDeclaration(
-                node,
-                node.modifiers,
-                node.isTypeOnly,
-                node.exportClause,
-                ns,
-                node.assertClause,
-              );
+          rewriting = relativePath + rewriting.slice(alias.length);
+          break; // only one alias matches
         }
 
-        // .js extension
-        if (
-          specifier.startsWith(".") &&
-          !specifier.endsWith(".js") &&
-          !specifier.endsWith(".json")
-        ) {
-          const ns = ts.factory.createStringLiteral(`${specifier}.js`);
+        // 3. .js extension (safe) — after alias resolution so rewritten paths get .js too
+        if (rewriting.startsWith(".") && !SKIP_JS_EXT.test(rewriting)) {
+          rewriting = resolveDirImport(sourceFileName, rewriting);
+        }
+
+        if (rewriting !== specifier) {
+          const ns = ts.factory.createStringLiteral(rewriting);
           return ts.isImportDeclaration(node)
             ? ts.factory.updateImportDeclaration(
                 node,
@@ -434,24 +469,17 @@ export function createCompositeTransformer(
         return ts.visitEachChild(node, visitor, context);
       }
 
-      // ── Identifiers ─────────────────────────────────────────────
+      // ── Identifiers ──────────────────────────────────────────────
       if (ts.isIdentifier(node)) {
-        // `widgets` → `globalThis.widgets`
-        if (
-          node.text === "widgets" &&
-          (!ts.isPropertyAccessExpression(node.parent) ||
-            (ts.isPropertyAccessExpression(node.parent) &&
-              node.parent.name === node &&
-              (!ts.isIdentifier(node.parent.expression) ||
-                node.parent.expression.text !== "globalThis")))
-        ) {
+        // 4. `widgets` → `globalThis.widgets` (skip declarations & property names)
+        if (node.text === "widgets" && !isDeclarationPosition(node)) {
           return ts.factory.createPropertyAccessExpression(
             ts.factory.createIdentifier("globalThis"),
             ts.factory.createIdentifier("widgets"),
           );
         }
 
-        // __filename / __dirname → ESM equivalents
+        // 5. __filename / __dirname → ESM equivalents
         if (node.text === "__filename" || node.text === "__dirname") {
           needsUrlImports = true;
           const urlExpr = ts.factory.createCallExpression(
@@ -483,44 +511,44 @@ export function createCompositeTransformer(
         }
       }
 
-      // ── Schema object literals ───────────────────────────────────
-      if (ts.isObjectLiteralExpression(node)) {
+      // ── Schema object literals (exported only) ───────────────────
+      if (ts.isObjectLiteralExpression(node) && isExportedObject(node)) {
         const hasMarker = node.properties.some(
           (p) =>
             ts.isPropertyAssignment(p) &&
             ts.isIdentifier(p.name) &&
             SCHEMA_MARKERS.has(p.name.text),
         );
-        if (!hasMarker) return ts.visitEachChild(node, visitor, context);
+        if (hasMarker) {
+          let obj = node;
+          const hp = (n: string) =>
+            obj.properties.some(
+              (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === n,
+            );
 
-        let obj = node;
-        const hp = (n: string) =>
-          obj.properties.some(
-            (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === n,
-          );
-
-        if (!hp("_id")) {
-          const slugId = getStableId();
-          obj = ts.factory.updateObjectLiteralExpression(obj, [
-            ts.factory.createPropertyAssignment("_id", ts.factory.createStringLiteral(slugId)),
-            ...obj.properties,
-          ]);
+          if (!hp("_id")) {
+            const slugId = getStableId();
+            obj = ts.factory.updateObjectLiteralExpression(obj, [
+              ts.factory.createPropertyAssignment("_id", ts.factory.createStringLiteral(slugId)),
+              ...obj.properties,
+            ]);
+          }
+          if (tenantId !== undefined && !hp("tenantId")) {
+            obj = ts.factory.updateObjectLiteralExpression(obj, [
+              ts.factory.createPropertyAssignment(
+                "tenantId",
+                tenantId === null
+                  ? ts.factory.createNull()
+                  : ts.factory.createStringLiteral(tenantId),
+              ),
+              ...obj.properties,
+            ]);
+          }
+          return obj;
         }
-        if (tenantId !== undefined && !hp("tenantId")) {
-          obj = ts.factory.updateObjectLiteralExpression(obj, [
-            ts.factory.createPropertyAssignment(
-              "tenantId",
-              tenantId === null
-                ? ts.factory.createNull()
-                : ts.factory.createStringLiteral(tenantId),
-            ),
-            ...obj.properties,
-          ]);
-        }
-        return obj;
       }
 
-      // ── Widget calls (UUID injection) ─────────────────────────
+      // ── Widget call UUID injection (deterministic) ───────────────
       if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
         const e = node.expression;
         if (
@@ -542,7 +570,7 @@ export function createCompositeTransformer(
             const updatedObj = ts.factory.updateObjectLiteralExpression(obj, [
               ts.factory.createPropertyAssignment(
                 "uuid",
-                ts.factory.createStringLiteral(generateUUID()),
+                ts.factory.createStringLiteral(getUuid()),
               ),
               ...obj.properties,
             ]);

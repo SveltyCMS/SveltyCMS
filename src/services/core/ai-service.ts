@@ -6,6 +6,7 @@
  */
 
 import ollama from "ollama";
+import { logger } from "@utils/logger";
 import { getPrivateSetting } from "./settings-service";
 
 // Default to the official SveltyCMS Knowledge Core
@@ -64,7 +65,7 @@ export class AIService {
       const client = await this.getOllamaClient();
       return await operation(client);
     } catch (err) {
-      console.error(`[AIService] ${errorLabel}:`, err);
+      logger.error(`[AIService] ${errorLabel}:`, err);
       return fallback;
     }
   }
@@ -87,14 +88,14 @@ export class AIService {
       });
 
       if (!response.ok) {
-        console.warn(`AI Knowledge Core unreachable: ${response.status} ${response.statusText}`);
+        logger.warn(`AI Knowledge Core unreachable: ${response.status} ${response.statusText}`);
         return [];
       }
 
       const data = await response.json();
       return data.results || [];
     } catch (error) {
-      console.error("AI Search Error:", error);
+      logger.error("AI Search Error:", error);
       return [];
     }
   }

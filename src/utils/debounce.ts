@@ -1,47 +1,56 @@
 /**
  * @file src/utils/debounce.ts
- * @description Debounce utilities — delays function execution until after a quiet period.
+ * @description Hardened, type-safe debounce utility for Svelte 5.
  *
- * Features:
- * - `debounce(delay)` — returns a scheduler that delays the last call
- * - `debounce.create(fn, delay)` — wraps a typed function with debounce
+ * ### Hardening notes:
+ * - `this` context preserved via `func.apply(context, args)`
+ * - `.cancel()` method prevents memory leaks on component unmount
+ * - `timeout = null` after execution for proper GC
+ * - Factory-based pattern (namespace `debounce.create`) for tree-shaking
+ *
+ * ### Usage:
+ * ```ts
+ * import { debounce } from "@utils/debounce";
+ * const save = debounce.create(saveData, 300);
+ * // In Svelte cleanup (onMount return / $effect return):
+ * save.cancel();
+ * ```
  */
 
 /**
- * Returns a debounced wrapper that delays `fn` by `delay` ms.
- * If `immediate` is true, the first call fires synchronously.
+ * 🛡️ Hardened: Factory-based debounce with explicit cancellation support.
  */
-export function debounce(delay = 300, immediate = false) {
-  let timer: NodeJS.Timeout | undefined;
-  let hasExecuted = false;
+export const debounce = {
+  /**
+   * Wraps a function with a delay.
+   * Returns a debounced function with a `.cancel()` method to prevent
+   * memory leaks on component unmount.
+   *
+   * @param func  The function to debounce
+   * @param wait  Delay in milliseconds (default 300)
+   */
+  create: <T extends (...args: any[]) => any>(
+    func: T,
+    wait = 300,
+  ): ((...args: Parameters<T>) => void) & { cancel: () => void } => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
-  return (fn: () => void) => {
-    const shouldExecuteImmediately = immediate && !hasExecuted;
+    const debounced = function (this: any, ...args: Parameters<T>) {
+      if (timeout) clearTimeout(timeout);
 
-    if (shouldExecuteImmediately) {
-      fn();
-      hasExecuted = true;
-      return;
-    }
+      timeout = setTimeout(() => {
+        func.apply(this, args);
+        timeout = null;
+      }, wait);
+    };
 
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      fn();
-    }, delay);
-  };
-}
+    debounced.cancel = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+    };
 
-/**
- * Traditional debounce factory — wraps a typed function and delays invocation.
- */
-debounce.create = <T extends (...args: unknown[]) => unknown>(
-  func: T,
-  wait = 300,
-): ((...args: Parameters<T>) => void) => {
-  let timeout: ReturnType<typeof setTimeout>;
-
-  return function executedFunction(...args: Parameters<T>) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
+    return debounced;
+  },
 };

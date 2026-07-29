@@ -17,7 +17,7 @@
 
 import type { ContentNode, DatabaseId, ISODateString } from "@src/content/types";
 import { logger } from "@utils/logger";
-import { safeQuery } from "@src/utils/security/safe-query";
+import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
 import type { Model, QueryFilter as MongoQueryFilter } from "mongoose";
 import type {
   BaseEntity,
@@ -127,6 +127,7 @@ export class MongoContentMethods {
       tenantId?: string | null;
       bypassCache?: boolean;
       bypassTenantCheck?: boolean;
+      bypassSafeQuery?: boolean;
     } = {},
   ): Promise<DatabaseResult<ContentNode[]>> {
     const {
@@ -134,7 +135,13 @@ export class MongoContentMethods {
       tenantId = null,
       bypassCache = false,
       bypassTenantCheck = false,
+      bypassSafeQuery = false,
     } = options;
+
+    assertTenantContext(
+      { tenantId: tenantId ?? filter.tenantId, bypassTenantCheck, bypassSafeQuery },
+      "content.nodes.getStructure",
+    );
 
     // Create cache key based on mode, filter, and tenantId
     const filterKey = JSON.stringify(filter);
@@ -144,8 +151,10 @@ export class MongoContentMethods {
       const fetchOptions: {
         tenantId?: string | null;
         bypassTenantCheck?: boolean;
+        bypassSafeQuery?: boolean;
       } = {
         bypassTenantCheck,
+        bypassSafeQuery,
       };
       if (tenantId) {
         fetchOptions.tenantId = tenantId;

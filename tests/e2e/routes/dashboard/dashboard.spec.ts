@@ -1,12 +1,422 @@
 /**
  * @file tests/e2e/routes/dashboard/dashboard.spec.ts
- * @description E2E smoke tests for /dashboard — widget grid, add widget, monitoring widgets.
+ * @description Widget-agnostic E2E for /dashboard shell + reorder.
+ *
+ * IMPORTANT: Dashboard widgets are install-specific (core set + plugins).
+ * These tests NEVER assert a fixed list of widget types. They cover:
+ * - Page shell loads for admin
+ * - Empty state OR grid when widgets present
+ * - Add Widget menu opens when widgets remain available
+ * - Search filters menu items (if any)
+ * - Reset clears layout when widgets were added
+ * - Pointer drag-reorder + keyboard reorder (Ctrl+Arrow)
+ * - Toolbar / AI toggle present
+ * - Plugin slot exists for injectors
  */
 
-import { test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { loginAsAdmin } from "../../helpers/auth";
 
-test.describe("Dashboard", () => {
-  // Dashboard route and widget system are on the 2026 roadmap and not yet implemented.
-  // These tests will be enabled once the feature is built.
-  test.skip("Dashboard route not yet implemented — see roadmap-2026.mdx", async () => {});
+const ACTION_TIMEOUT = 20_000;
+/** Matches HEADER_HEIGHT in +page.svelte — drag only starts in top band of widget */
+const DRAG_HEADER_Y = 18;
+
+test.describe.configure({ mode: "serial" });
+test.use({ storageState: { cookies: [], origins: [] } });
+
+async function goDashboard(page: Page) {
+  await loginAsAdmin(page, "/dashboard");
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, "/dashboard");
+  }
+  // Poll for URL + shell (SYSTEM_IDLE / warming-up can briefly block)
+  await expect(async () => {
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/dashboard");
+    }
+    if (page.url().includes("/warming-up")) {
+      await page.waitForURL(/\/dashboard/, { timeout: 10_000 });
+    }
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
+
+  const systemError = page.getByRole("heading", { name: /system error/i });
+  if (await systemError.isVisible({ timeout: 1_200 }).catch(() => false)) {
+    const detail = await page
+      .locator(".font-mono, pre, code")
+      .first()
+      .textContent()
+      .catch(() => "");
+    throw new Error(`Dashboard hit System Error: ${detail?.trim() || "(no detail)"}`);
+  }
+
+  // Wait for widget registry to finish loading before proceeding
+  await expect(page.getByTestId("dashboard-widget-registry-ready"))
+    .toHaveAttribute("data-loaded", "true", { timeout: ACTION_TIMEOUT })
+    .catch(() => {
+      console.log("[Dashboard] Widget registry may still be loading — continuing");
+    });
+
+  // Prefer stable testids over free text
+  await expect(async () => {
+    const title = page.getByTestId("page-title");
+    const main = page.getByTestId("dashboard-main");
+    const toolbar = page.getByTestId("dashboard-toolbar");
+    const empty = page.getByTestId("dashboard-empty-state");
+    const grid = page.getByTestId("dashboard-widget-grid");
+    const any =
+      (await title.isVisible().catch(() => false)) ||
+      (await main.isVisible().catch(() => false)) ||
+      (await toolbar.isVisible().catch(() => false)) ||
+      (await empty.isVisible().catch(() => false)) ||
+      (await grid.isVisible().catch(() => false));
+    expect(any).toBe(true);
+  }).toPass({ timeout: ACTION_TIMEOUT });
+}
+
+async function widgetIdsInDomOrder(page: Page): Promise<string[]> {
+  return page
+    .locator("[data-widget-id]")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-widget-id") || "").filter(Boolean));
+}
+
+/**
+ * Ensure ≥`count` widgets on the dashboard.
+ * Prefers existing widgets; only resets when the board is empty so CI
+ * installs with a default layout are not wiped to zero.
+ * Adds distinct menu items (nth) so one-type catalogs still get multiple tiles.
+ */
+async function ensureNWidgets(page: Page, count: number): Promise<number> {
+  let n = await page.locator("[data-widget-id]").count();
+  if (n >= count) return n;
+
+  // Reset layout to restore default widgets if board has fewer than needed
+  const reset = page.getByTestId("dashboard-reset-widgets");
+  if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await reset.click();
+    await page.waitForTimeout(800);
+    n = await page.locator("[data-widget-id]").count();
+    if (n >= count) return n;
+  }
+
+  for (let i = 0; i < count + 2 && n < count; i++) {
+    const addBtn = page
+      .getByTestId("dashboard-add-widget")
+      .or(page.getByTestId("dashboard-add-first-widget"));
+    if (
+      !(await addBtn
+        .first()
+        .isVisible({ timeout: 4_000 })
+        .catch(() => false))
+    ) {
+      break;
+    }
+    await addBtn.first().click();
+    const menu = page.getByTestId("dashboard-widget-menu");
+    await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Prefer a new menuitem each pass so we do not re-click the same single type only once
+    const items = menu.getByRole("menuitem");
+    const itemCount = await items.count();
+    if (itemCount === 0) {
+      await page.keyboard.press("Escape").catch(() => {});
+      break;
+    }
+    const item = items.nth(Math.min(i, itemCount - 1));
+    if (!(await item.isVisible({ timeout: 2_000 }).catch(() => false))) {
+      await page.keyboard.press("Escape").catch(() => {});
+      break;
+    }
+    await item.click();
+    // Poll widget count instead of fixed sleep (CSS/animation independent)
+    await expect
+      .poll(async () => page.locator("[data-widget-id]").count(), { timeout: 5_000 })
+      .toBeGreaterThan(n)
+      .catch(() => undefined);
+    n = await page.locator("[data-widget-id]").count();
+  }
+
+  return page.locator("[data-widget-id]").count();
+}
+
+/**
+ * Pointer drag using product contract: drag handle = top HEADER_HEIGHT of widget.
+ * Moves first widget toward the second widget center.
+ */
+async function pointerDragReorderFirstPastSecond(page: Page): Promise<void> {
+  const widgets = page.locator("[data-widget-id]");
+  await expect(widgets).toHaveCount(await widgets.count()); // stabilize
+  const first = widgets.nth(0);
+  const second = widgets.nth(1);
+  await first.scrollIntoViewIfNeeded();
+  await second.scrollIntoViewIfNeeded();
+
+  const box1 = await first.boundingBox();
+  const box2 = await second.boundingBox();
+  if (!box1 || !box2) {
+    throw new Error("Could not measure widget bounding boxes for drag");
+  }
+
+  const startX = box1.x + Math.min(40, box1.width / 2);
+  const startY = box1.y + DRAG_HEADER_Y;
+  const endX = box2.x + Math.min(40, box2.width / 2);
+  // Drop past the vertical midpoint of the second widget to trigger insertion
+  const endY = box2.y + box2.height * 0.75;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  // Multi-step path so pointermove handlers fire (passive listeners need samples)
+  await page.mouse.move(startX + (endX - startX) * 0.3, startY + (endY - startY) * 0.3, {
+    steps: 8,
+  });
+  await page.mouse.move(endX, endY, { steps: 12 });
+  await page.mouse.up();
+  // Wait for DOM settle via widget count stability, not CSS animation timing
+  await expect
+    .poll(async () => page.locator("[data-widget-id]").count(), { timeout: 3_000 })
+    .toBeGreaterThanOrEqual(2)
+    .catch(() => undefined);
+}
+
+test.describe("Dashboard shell (widget-agnostic)", () => {
+  test.setTimeout(120_000);
+
+  test("admin can open dashboard shell", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+    await expect(page.getByTestId("dashboard-main")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("dashboard-toolbar")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("dashboard-ai-toggle")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("dashboard-plugin-slot")).toBeAttached();
+  });
+
+  test("shows empty state or widget grid (install-dependent)", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+
+    const empty = page.getByTestId("dashboard-empty-state");
+    const grid = page.getByTestId("dashboard-widget-grid");
+
+    // Poll until shell hydrates (testid only — no CSS class sleeps)
+    await expect(async () => {
+      const emptyVisible = await empty.isVisible().catch(() => false);
+      const gridVisible = await grid.isVisible().catch(() => false);
+      expect(emptyVisible || gridVisible).toBe(true);
+    }).toPass({ timeout: ACTION_TIMEOUT });
+
+    // Re-check after poll (names prefixed — oxlint no-unused-vars under --deny-warnings)
+    const isEmpty = await empty.isVisible().catch(() => false);
+    const isGrid = await grid.isVisible().catch(() => false);
+
+    if (isGrid) {
+      const widgets = page.locator("[data-widget-id]");
+      await expect(widgets.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+      // Do not assert specific component names — install-specific
+      const count = await widgets.count();
+      expect(count).toBeGreaterThan(0);
+    } else if (isEmpty) {
+      await expect(empty).toContainText(/empty|add widgets/i);
+    } else {
+      throw new Error("Dashboard shell: neither empty state nor widget grid visible");
+    }
+  });
+
+  test("Add Widget menu opens and lists install widgets when any remain", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+
+    // Prefer toolbar add; fall back to empty-state CTA (testid only)
+    const addBtn = page.getByTestId("dashboard-add-widget");
+    const addFirst = page.getByTestId("dashboard-add-first-widget");
+
+    await expect(async () => {
+      const a = await addBtn.isVisible().catch(() => false);
+      const b = await addFirst.isVisible().catch(() => false);
+      const grid = await page
+        .getByTestId("dashboard-widget-grid")
+        .isVisible()
+        .catch(() => false);
+      expect(a || b || grid).toBe(true);
+    }).toPass({ timeout: ACTION_TIMEOUT });
+
+    if (await addBtn.isVisible().catch(() => false)) {
+      await addBtn.click();
+    } else if (await addFirst.isVisible().catch(() => false)) {
+      await addFirst.click();
+    } else {
+      // All registry widgets already on grid — still valid for full installs
+      const grid = page.getByTestId("dashboard-widget-grid");
+      await expect(grid).toBeVisible({ timeout: ACTION_TIMEOUT });
+      return;
+    }
+
+    const menu = page.getByTestId("dashboard-widget-menu");
+    await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // Menu items are install-specific; only require ≥1 menuitem OR "No widgets found"
+    const items = menu.getByRole("menuitem");
+    const none = menu.getByText(/no widgets found/i);
+    const itemCount = await items.count();
+    if (itemCount === 0) {
+      await expect(none).toBeVisible({ timeout: ACTION_TIMEOUT });
+    } else {
+      await expect(items.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+    }
+
+    // Search box always present
+    await expect(page.getByTestId("dashboard-widget-search")).toBeVisible();
+  });
+
+  test("can add first available widget then reset layout", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+    await page.waitForTimeout(800);
+
+    // Reset first for clean state if widgets already present
+    const reset = page.getByTestId("dashboard-reset-widgets");
+    if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await reset.click();
+      await page.waitForTimeout(400);
+    }
+
+    const addBtn = page
+      .getByTestId("dashboard-add-widget")
+      .or(page.getByTestId("dashboard-add-first-widget"));
+    await expect(addBtn.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await addBtn.first().click();
+
+    const menu = page.getByTestId("dashboard-widget-menu");
+    await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    const firstItem = menu.getByRole("menuitem").first();
+    const hasItem = await firstItem.isVisible({ timeout: 3_000 }).catch(() => false);
+    if (!hasItem) {
+      // No addable widgets in this install — still pass shell contract
+      test.info().annotations.push({
+        type: "note",
+        description: "Install has no remaining widgets to add; add/reset path N/A",
+      });
+      return;
+    }
+
+    await firstItem.click();
+
+    // Grid should show at least one widget (component name not asserted)
+    await expect(page.getByTestId("dashboard-widget-grid")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.locator("[data-widget-id]").first()).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+
+    // Reset
+    await expect(page.getByTestId("dashboard-reset-widgets")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await page.getByTestId("dashboard-reset-widgets").click();
+    await page.waitForTimeout(500);
+
+    // After reset: empty state (preferences cleared)
+    await expect(page.getByTestId("dashboard-empty-state")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+  });
+
+  test("widget search filters menu without assuming catalog", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+    await page.waitForTimeout(800);
+
+    const addBtn = page
+      .getByTestId("dashboard-add-widget")
+      .or(page.getByTestId("dashboard-add-first-widget"));
+    if (
+      !(await addBtn
+        .first()
+        .isVisible({ timeout: 5_000 })
+        .catch(() => false))
+    ) {
+      return; // no add path
+    }
+    await addBtn.first().click();
+    const menu = page.getByTestId("dashboard-widget-menu");
+    await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    const search = page.getByTestId("dashboard-widget-search");
+    await search.fill("zzzz-no-such-widget-xyz");
+    await expect(menu.getByText(/no widgets found/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    await search.fill("");
+    // After clear, either items return or still none available
+    await page.waitForTimeout(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reorder: pointer drag + keyboard (widget-agnostic — only needs ≥2 widgets)
+// ---------------------------------------------------------------------------
+test.describe("Dashboard widget reorder", () => {
+  test.setTimeout(150_000);
+
+  test("pointer drag reorders widgets when ≥2 are present", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+    await page.waitForTimeout(600);
+
+    const count = await ensureNWidgets(page, 2);
+    if (count < 2) {
+      // Dashboard install without enough widgets — skip reorder test
+      // (consistent with other dashboard shell tests that handle empty installs gracefully)
+      console.log(`[Reorder] Only ${count} widget(s) available; skipping reorder (need ≥2)`);
+      return;
+    }
+
+    await expect(page.getByTestId("dashboard-widget-grid")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.locator("[data-widget-id]")).toHaveCount(count, {
+      timeout: ACTION_TIMEOUT,
+    });
+
+    const before = await widgetIdsInDomOrder(page);
+    expect(before.length).toBeGreaterThanOrEqual(2);
+
+    await pointerDragReorderFirstPastSecond(page);
+
+    const after = await widgetIdsInDomOrder(page);
+    expect(after.length).toBe(before.length);
+    // DOM order must change (first widget no longer first)
+    expect(after[0]).not.toBe(before[0]);
+    // Same set of ids (reorder, not remove)
+    expect([...after].sort()).toEqual([...before].sort());
+  });
+
+  test("keyboard Ctrl+Arrow reorders focused widget", async ({ page }) => {
+    await loginAsAdmin(page, "/dashboard");
+    await goDashboard(page);
+    await page.waitForTimeout(600);
+
+    const count = await ensureNWidgets(page, 2);
+    if (count < 2) {
+      console.log(
+        `[Reorder] Only ${count} widget(s) available; skipping keyboard reorder (need ≥2)`,
+      );
+      return;
+    }
+
+    const widgets = page.locator("[data-widget-id]");
+    await expect(widgets.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    const before = await widgetIdsInDomOrder(page);
+    const first = widgets.nth(0);
+    await first.focus();
+    // Product: Ctrl/Meta + ArrowRight|Down moves widget later in order
+    await page.keyboard.press("Control+ArrowRight");
+    await page.waitForTimeout(300);
+
+    const after = await widgetIdsInDomOrder(page);
+    expect(after.length).toBe(before.length);
+    expect(after[0]).not.toBe(before[0]);
+    expect([...after].sort()).toEqual([...before].sort());
+  });
 });

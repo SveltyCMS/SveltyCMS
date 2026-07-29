@@ -9,7 +9,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
 import mime from "mime-types";
-import { AppError } from "@utils/error-handling";
+import { AppError, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -17,13 +17,15 @@ import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { isMultiTenantEnabled } from "@utils/tenant";
 import { createLink, validateLink, revoke, extend, type ShareLink } from "@src/utils/media/sharing";
 import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
-import { analyze, insights, trends, quota, formatBytes } from "@src/utils/media/storage-analytics";
+import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
+import { formatBytes } from "@utils/utils";
 import { compareVersions, createVersion, getVersionStats } from "@src/utils/media/version-history";
 import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
-import type { MediaBase } from "@utils/media/media-models";
+import type { MediaItem } from "@utils/media/media-models";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -96,6 +98,13 @@ export async function handleMediaRoutes(
   const { user } = locals;
   const method = segments[1];
 
+  // Public share endpoints are token-gated and may run without tenant locals.
+  // All other media operations require tenant isolation when multi-tenant is on.
+  const isSharePath = method === "share";
+  if (!isSharePath && isMultiTenantEnabled() && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
+
   try {
     switch (request.method) {
       case "GET":
@@ -116,8 +125,10 @@ export async function handleMediaRoutes(
         throw new AppError(`HTTP method ${request.method} not allowed`, 405, "METHOD_NOT_ALLOWED");
     }
   } catch (err: any) {
-    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
+    rethrow(err);
+    // Expected client/auth errors should not spam stderr as "MediaRoute Error"
     if (err instanceof AppError) throw err;
+    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
     throw new AppError(err.message || "Media route handler transaction failed", 500);
   }
 }
@@ -208,9 +219,18 @@ async function handleDeleteRoutes(
     if (!hasMediaPermission(event, user, "media:delete")) {
       throw new AppError("Insufficient access for asset deletion", 403, "FORBIDDEN");
     }
+    // Fast 404 before expensive published-reference scan (integration OOM root cause)
+    const existing = await cms.media.findById(method, { tenantId });
+    if (!existing.success || !existing.data) {
+      throw new AppError("Media not found", 404, "NOT_FOUND");
+    }
     // 🛡️ PUBLISH-STATE GATE: Block deletion of assets referenced by published content
     await checkMediaNotReferencedByPublishedContent(cms, method, tenantId);
-    return rawResponse(event, await cms.media.delete(method, { tenantId }));
+    const deleted = await cms.media.delete(method, { tenantId });
+    if (!deleted.success) {
+      throw new AppError(deleted.message || "Failed to delete media", 400, "DELETE_FAILED");
+    }
+    return successResponse(event, { deleted: true, id: method });
   }
   return successResponse(event, null);
 }
@@ -360,10 +380,14 @@ export async function handleMediaUpload(
           ? { fileName: file.name, success: true, data: res.data }
           : { fileName: file.name, success: false, message: res.message };
       } catch (err: any) {
+        // Preserve error code from AppError / Node.js filesystem errors
+        const code =
+          err instanceof AppError ? err.code : (err as NodeJS.ErrnoException)?.code || undefined;
         results[currentIndex] = {
           fileName: file.name,
           success: false,
           message: err.message,
+          ...(code ? { code } : {}),
         };
       }
     }
@@ -1069,7 +1093,7 @@ export async function handleMediaSearch(
 
   // Fetch all media for client-side filtering
   const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
-  const files: MediaBase[] = listRes.success ? (listRes.data ?? []) : [];
+  const files: MediaItem[] = listRes.success ? (listRes.data ?? []) : [];
 
   const result = advancedSearch(files, criteria);
 
@@ -1136,10 +1160,13 @@ export async function handleMediaStreamUpload(
             message: res.success ? undefined : res.message,
           });
         } catch (err: any) {
+          const code =
+            err instanceof AppError ? err.code : (err as NodeJS.ErrnoException)?.code || undefined;
           uploaded.push({
             fileName: info.filename,
             success: false,
             message: err.message,
+            ...(code ? { code } : {}),
           });
         }
       },
@@ -1150,6 +1177,7 @@ export async function handleMediaStreamUpload(
       },
     });
   } catch (err: any) {
+    rethrow(err);
     if (err instanceof AppError) throw err;
     throw new AppError(
       err.message || "Streaming upload transaction failed",

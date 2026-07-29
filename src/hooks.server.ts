@@ -204,6 +204,7 @@ if (!building) {
             import("@src/services/observability/telemetry-service"),
             import("@src/services/scheduler"),
             import("@src/services/intelligence/behavioral-learner"),
+            import("@src/services/outbox"),
           ])
             .then(
               ([
@@ -213,12 +214,15 @@ if (!building) {
                 { telemetryService },
                 scheduler,
                 { startBehavioralEngine },
+                { outboxService },
               ]) => {
                 jobQueue.startPolling();
                 automationService.init();
                 watchdog.start();
                 scheduler.startScheduler();
                 startBehavioralEngine();
+                // Transactional outbox — deliver pending events (webhooks fan-out)
+                outboxService.startPolling(5_000);
 
                 // Telemetry check
                 const globalWithTelemetry = globalThis as typeof globalThis & {

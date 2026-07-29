@@ -9,7 +9,7 @@
  * - `[!NOTE]` fix overlays and test-specific insights (no generic SWOT)
  */
 import { LEDGER_MARKERS } from "./benchmark-mdx";
-import { loadHistory } from "./benchmark-history";
+import { loadHistory, loadPrimaryMetricForTest } from "./benchmark-history";
 import {
   LEDGER_DIMENSION_ORDER,
   mapSectionToDimension,
@@ -328,11 +328,14 @@ export function buildHistoricalPulse(dbType: string, redis: boolean): string {
 
   for (const testId of testIds) {
     for (const phase of ["warm", "cold"] as const) {
-      const history = loadHistory(testId, dbType, redis, phase);
+      // Use primary metric to avoid mixing BULK INSERT (~3ms) with INSERT (~0.1ms) in sparklines
+      const primaryMetric = loadPrimaryMetricForTest(testId, dbType, redis, phase);
+      const history = loadHistory(testId, dbType, redis, phase, primaryMetric ?? undefined);
       if (history.length === 0) continue;
       const samples = history.map((h) => h.avgMs);
       const latest = history[history.length - 1]!;
-      const label = `${testId.replace(/-/g, " ")} (${phase})`;
+      const metricLabel = primaryMetric ? ` (${primaryMetric})` : "";
+      const label = `${testId.replace(/-/g, " ")}${metricLabel} (${phase})`;
       block += `| ${label} | \u{1F7E2} | \`${renderSparkline(samples)}\` | ${latest.avgMs.toFixed(3)}ms |\n`;
     }
   }
@@ -404,7 +407,8 @@ export function buildTestRollupEntriesFromRun(
     seen.add(key);
 
     const tag = tagResolver(testFile, row.layer) ?? testId.toUpperCase().replace(/-/g, "_");
-    const history = loadHistory(testId, db, redis, "warm");
+    // Metric-keyed history: never trend BULK INSERT against INSERT baseline
+    const history = loadHistory(testId, db, redis, "warm", row.metric);
     const prior = history.slice(0, -1);
     const trend = analyzeTrend(
       { name: row.metric, avgMs: row.avgMs, p95Ms: row.p95Ms || 0, rps: row.rps || 0 },

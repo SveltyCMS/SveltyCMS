@@ -5,7 +5,6 @@
  */
 
 import { json, type RequestEvent } from "@sveltejs/kit";
-import { dev } from "$app/environment";
 import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
@@ -44,6 +43,7 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   importers: () => import("./handlers/importers"),
   backups: () => import("./handlers/backups"),
   "content-sync": () => import("./handlers/content-sync"),
+  gdpr: () => import("./handlers/gdpr"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -88,6 +88,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   importer: { handler: "system", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
+  workflows: { handler: "system", fn: "handleWorkflowRoutes" },
   setup: { handler: "setup", fn: "handleSetupRoutes" },
   export: { handler: "system", fn: "handleExportRoutes" },
   import: { handler: "system", fn: "handleImportRoutes" },
@@ -137,6 +138,12 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   backups: { handler: "backups", fn: "handleBackupRoutes" },
   "content-sync": { handler: "content-sync", fn: "handleContentSyncRoutes" },
 
+  // Plugin Settings (encrypted, per-tenant, per-plugin)
+  "plugin-settings": { handler: "system", fn: "handlePluginSettingsRoutes" },
+
+  // GDPR Right to Access / Erasure (self or admin)
+  gdpr: { handler: "gdpr", fn: "handleGdprRoutes" },
+
   // Deprecated Aliases
   "import-data": { handler: "importers", fn: "handleImporterRoutes" },
   config_sync: { handler: "config", fn: "handleConfigRoutes" },
@@ -177,6 +184,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   export: "config:importexport",
   ai: "system:settings",
   automations: "config:automations",
+  workflows: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "config:automations" : "config:automations",
   theme: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   "system-preferences": (method: string) =>
@@ -190,6 +199,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "system-virtual-folder": "system:settings",
   systemVirtualFolder: "system:settings",
   version: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "version-check": (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   permission: "system:admin",
   "system-jobs": (method: string) =>
@@ -218,6 +229,13 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "content-sync": (method: string) => (method === "POST" ? "content:sync" : "content:read"),
   config_sync: (method: string) => (method === "POST" ? "config:write" : "config:read"),
   "config-sync": (method: string) => (method === "POST" ? "config:write" : "config:read"),
+
+  // Plugin Settings (encrypted per-tenant settings, gated behind plugin:settings:manage)
+  "plugin-settings": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "plugin:settings:manage" : "plugin:settings:manage",
+
+  // GDPR — authenticated self-service (handler enforces self-or-admin)
+  gdpr: (method: string) => (["GET", "OPTIONS"].includes(method) ? "user:read" : "user:write"),
 };
 
 /**
@@ -241,6 +259,11 @@ function checkEndpointPermission(
   }
 
   // User management endpoints
+  // GDPR self-service: any authenticated user; handler enforces self-or-admin
+  if (namespace === "gdpr") {
+    return true;
+  }
+
   if (namespace === "user" || namespace === "auth") {
     const action = segments[1];
     // Public / self endpoints are allowed
@@ -249,6 +272,9 @@ function checkEndpointPermission(
       action === "me" ||
       action === "login" ||
       action === "logout" ||
+      action === "oidc-logout" ||
+      action === "frontchannel-logout" ||
+      action === "backchannel-logout" ||
       action === "saml" ||
       action === "2fa"
     ) {
@@ -424,10 +450,14 @@ export const _handler = async (event: RequestEvent) => {
   // This is a defense-in-depth layer beneath the turbo-pipeline bypass,
   // ensuring testing endpoints work even when the turbo pipeline hasn't
   // populated locals (e.g., early in server startup or after hot-reload).
-  if (namespace === "testing" && !user && !(locals as any).__testBypass) {
+  //
+  // ⚠️ Always apply for the testing namespace so x-test-tenant-id is
+  // respected even when an authenticated user session already exists
+  // (tenant-isolation tests need per-request tenant header overrides).
+  if (namespace === "testing" && !(locals as any).__testBypass) {
     const { applyTestBypassFromRequest } = await import("@utils/test-bypass.server");
     if (applyTestBypassFromRequest(request, locals as App.Locals)) {
-      user = locals.user as any;
+      if (!user) user = locals.user as any;
       tenantId = (locals.tenantId as string) || tenantId;
     }
   }
@@ -455,7 +485,8 @@ export const _handler = async (event: RequestEvent) => {
     !(user as any)?.isApiToken &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())
   ) {
-    const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
+    const { isSecureCookieContext } = await import("@src/databases/auth/constants");
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
     const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
     if (!csrfResult.isValid)
       throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
@@ -513,6 +544,14 @@ export const _handler = async (event: RequestEvent) => {
   const config = NAMESPACE_CONFIG[namespace];
   const handlerModule = await HANDLERS[config.handler]();
   const fn = handlerModule[config.fn];
+
+  if (typeof fn !== "function") {
+    throw new AppError(
+      `API Endpoint for namespace "/api/${namespace}" is not enabled or available in this environment`,
+      404,
+      "API_ENDPOINT_NOT_AVAILABLE",
+    );
+  }
 
   const response = await fn(event, cms, tenantId as DatabaseId, segments);
 

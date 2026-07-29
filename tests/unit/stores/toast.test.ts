@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/stores/toast.svelte.test.ts
+ * @file tests/unit/stores/toast.test.ts
  * @description Unit tests for the ToastStore.
  */
 import { toast } from "@stores/toast.svelte";

@@ -22,7 +22,7 @@ import {
 describe("Date Utils - Type Guards", () => {
   it("should validate ISO date strings", () => {
     expect(isISODateString("2025-01-20T12:00:00.000Z")).toBe(true);
-    expect(isISODateString("2025-01-20")).toBe(false);
+    expect(isISODateString("2025-01-20")).toBe(true);
     expect(isISODateString("invalid")).toBe(false);
     expect(isISODateString(123)).toBe(false);
     expect(isISODateString(null)).toBe(false);

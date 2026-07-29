@@ -1,0 +1,47 @@
+---
+path: "docs/tests/routes/sync-trash.mdx"
+title: "Sync & Trash Tests — Control Map"
+description: "Coverage for /config/sync and /config/trash admin shells."
+order: 26
+icon: "mdi:sync"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags: ["testing", "e2e", "sync", "trash"]
+---
+
+# Config Sync & Trash
+
+## `/config/sync`
+
+| Piece             | Role                                          |
+| ----------------- | --------------------------------------------- |
+| `+page.server.ts` | Admin gate                                    |
+| `+page.svelte`    | Sync / Backups / Debug tabs, status, Sync All |
+
+## `/config/trash`
+
+| Piece             | Role                                           |
+| ----------------- | ---------------------------------------------- |
+| `+page.server.ts` | Admin gate                                     |
+| `trash-api.ts`    | list + restore via `fetchApi` (CSRF automatic) |
+| `+page.svelte`    | UI + showConfirm                               |
+| Testing           | `seed-trash` / `purge-trash`                   |
+
+## Control → test matrix
+
+| Control                  | Unit                       | E2E                      |
+| ------------------------ | -------------------------- | ------------------------ |
+| Sync admin gate          | ✅                         | —                        |
+| Trash admin gate         | ✅                         | —                        |
+| Sync API client          | ✅ sync-api (via fetchApi) | shell                    |
+| Sync tabs + status shell | —                          | ✅ data-ops              |
+| Trash empty/table        | —                          | ✅ data-ops              |
+| **Golden restore**       | seed-trash                 | ✅ seed → restore → gone |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/sync-trash-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/data-ops.spec.ts
+```

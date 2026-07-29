@@ -4,9 +4,14 @@
  *
  * All exports are SvelteKit query() wrappers that provide full type inference.
  * Wraps the REST API with typed functions.
+ *
+ * ### Features:
+ * - CSRF headers on mutating PUT/DELETE (via settings-utils.remoteJsonHeaders)
+ * - event.fetch for relative URL resolution on the server
  */
 
 import { query, getRequestEvent } from "$app/server";
+import { remoteJsonHeaders } from "./settings-utils";
 
 export const loadSettingsGroup = query(
   "unchecked",
@@ -23,9 +28,9 @@ export const loadSettingsGroup = query(
   }> => {
     // Use the request event's fetch: remote functions run on the server, where the global
     // fetch rejects relative URLs. event.fetch resolves them against the current request.
-    const { fetch } = getRequestEvent();
+    const event = getRequestEvent();
     const url = bypassCache ? `/api/settings/${groupId}?refresh=true` : `/api/settings/${groupId}`;
-    const r = await fetch(url);
+    const r = await event.fetch(url);
     const d = await r.json();
     return d.success
       ? { success: true, values: d.values || {} }
@@ -47,10 +52,10 @@ export const saveSettingsGroup = query(
     message?: string;
     error?: string;
   }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch(`/api/settings/${groupId}`, {
+    const event = getRequestEvent();
+    const r = await event.fetch(`/api/settings/${groupId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: remoteJsonHeaders(event.cookies),
       body: JSON.stringify(values),
     });
     const d = await r.json();
@@ -63,8 +68,11 @@ export const saveSettingsGroup = query(
 export const resetSettingsGroup = query(
   "unchecked",
   async (groupId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch(`/api/settings/${groupId}`, { method: "DELETE" });
+    const event = getRequestEvent();
+    const r = await event.fetch(`/api/settings/${groupId}`, {
+      method: "DELETE",
+      headers: remoteJsonHeaders(event.cookies),
+    });
     const d = await r.json();
     return d.success
       ? { success: true, message: "Reset to defaults" }

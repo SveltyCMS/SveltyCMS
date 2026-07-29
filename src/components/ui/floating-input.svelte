@@ -122,6 +122,51 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 		togglePasswordVisibility(event);
 	}
 }
+
+/**
+ * Sanitizes pasted clipboard content before insertion.
+ * Strips null bytes, control characters (except \t, \n, \r),
+ * limits length to prevent paste-bombing, and trims whitespace.
+ */
+function handlePaste(e: ClipboardEvent) {
+	e.preventDefault();
+
+	const pastedText = e.clipboardData?.getData('text/plain');
+	if (!pastedText) return;
+
+	// Sanitize: strip null bytes and control chars (except tab, newline, carriage return)
+	const sanitized = Array.from(pastedText)
+		.filter((c) => {
+			const code = c.charCodeAt(0);
+			return code > 0x1F || code === 0x09 || code === 0x0A || code === 0x0D;
+		})
+		.join('')
+		.slice(0, 10000)
+		.trim();
+
+	if (!sanitized) return;
+
+	// Insert sanitized text at cursor position
+	const input = inputElement;
+	if (!input) return;
+
+	const start = input.selectionStart ?? 0;
+	const end = input.selectionEnd ?? 0;
+	const currentValue = value;
+	const newValue = currentValue.slice(0, start) + sanitized + currentValue.slice(end);
+	value = newValue;
+
+	// Restore cursor position after the inserted text
+	requestAnimationFrame(() => {
+		const newPos = start + sanitized.length;
+		input.setSelectionRange(newPos, newPos);
+	});
+
+	e.stopPropagation();
+
+	// Call external onPaste prop so consumers can add additional behavior
+	onPaste?.(e);
+}
 </script>
 
 <div class={cn("relative w-full", bgTransparent && "bg-transparent")}>
@@ -142,7 +187,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			aria-describedby={errorId}
 			onclick={onClick}
 			oninput={(e) => onInput?.(e.currentTarget.value)}
-			onpaste={onPaste}
+			onpaste={handlePaste}
 			{onkeydown}
 			type={effectiveType}
 			class={cn(

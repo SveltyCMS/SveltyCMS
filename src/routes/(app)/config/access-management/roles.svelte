@@ -22,14 +22,14 @@ import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 import { modalState } from "@utils/modal.svelte";
 import { SvelteSet } from "svelte/reactivity";
-import { dndzone } from "svelte-dnd-action";
+import { untrack } from 'svelte';
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
 import RoleModal from "./role-modal.svelte";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
-
-const flipDurationMs = 100;
 
 interface Props {
 	roleData: any;
@@ -79,22 +79,31 @@ const openModal = (role: Role | null = null, groupName = "") => {
 	currentRoleId = role ? role._id : null;
 	currentGroupName = groupName || "";
 
-	modalState.trigger(RoleModal as any, {
-		isEditMode,
-		currentRoleId,
-		roleName: role?.name || "",
-		roleDescription: role?.description || "",
-		currentGroupName,
-		selectedPermissions: role?.permissions || [],
-		permissions,
-		roles,
-		response: (formData: any) => {
+	// response is the 3rd arg to trigger() — must not be buried in props
+	// (close() only invokes active.response, not props.response)
+	modalState.trigger(
+		RoleModal as any,
+		{
+			isEditMode,
+			currentRoleId,
+			roleName: role?.name || "",
+			roleDescription: role?.description || "",
+			currentGroupName,
+			selectedPermissions: role?.permissions || [],
+			permissions,
+			roles,
+			// cancel button uses parent.onClose — DialogManager only passes `close`
+			parent: {
+				onClose: () => modalState.close(false),
+			},
+			title: isEditMode ? "Edit Role" : "Create Role",
+		},
+		(formData: any) => {
 			if (formData) {
 				saveRole(formData);
 			}
 		},
-		title: isEditMode ? "Edit Role" : "Create Role",
-	});
+	);
 };
 
 const saveRole = async (role: {
@@ -175,31 +184,40 @@ const toggleRoleSelection = (roleId: string) => {
 	}
 };
 
-function handleSort(e: CustomEvent) {
-	roles = [...e.detail.items];
-	const movedItem = e.detail.items.find(
-		(item: any) => item.id === e.detail.info.id,
-	);
-	if (movedItem) modifiedRoles.add(movedItem._id);
+	function handleRoleDrop(state: DragDropState<Role & { id: string }>) {
+		const dragged = state.draggedItem;
+		if (!dragged) return;
 
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-	if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
-}
+			const fromIndex = roles.indexOf(dragged);
+			if (fromIndex < 0) return;
+			const targetEl = state.targetElement?.closest('[data-role-id]') as HTMLElement | null;
+			const targetRoleId = targetEl?.dataset?.roleId;
 
-function handleFinalize(e: CustomEvent) {
-	roles = [...e.detail.items];
-	const movedItem = e.detail.items.find(
-		(item: any) => item.id === e.detail.info.id,
-	);
-	if (movedItem) modifiedRoles.add(movedItem._id);
+			let targetIndex: number;
+			if (targetRoleId) {
+				targetIndex = roles.findIndex(r => (r._id || r.id) === targetRoleId);
+				if (state.dropPosition === 'after') targetIndex++;
+			} else {
+				targetIndex = roles.length;
+			}
+						targetIndex = Math.max(0, Math.min(targetIndex, roles.length));
 
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-	if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
-}
+			if (fromIndex === targetIndex) return;
+		let movedRole: (Role & { id: string }) | undefined;
+		roles = untrack(() => {
+			const newRoles = [...roles];
+			movedRole = newRoles.splice(fromIndex, 1)[0];
+			newRoles.splice(targetIndex, 0, movedRole!);
+			return newRoles;
+		});
+		if (movedRole) modifiedRoles.add(movedRole._id);
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
+	}
+
+
 </script>
-
 {#if error}
 	<p class="error">{error}</p>
 {:else}
@@ -212,10 +230,21 @@ function handleFinalize(e: CustomEvent) {
 	<div class="wrapper my-4">
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
-				<Button variant="tertiary" onclick={() => openModal(null, '')} class="dark:" leadingIcon="mdi:plus-circle-outline">
+				<Button
+					variant="tertiary"
+					onclick={() => openModal(null, '')}
+					class="dark:"
+					leadingIcon="mdi:plus-circle-outline"
+					data-testid="access-create-role"
+				>
 					Create Role
 				</Button>
-				<Button variant="error" onclick={deleteSelectedRoles} disabled={selectedRoles.size === 0}>
+				<Button
+					variant="error"
+					onclick={deleteSelectedRoles}
+					disabled={selectedRoles.size === 0}
+					data-testid="access-delete-roles"
+				>
 					Delete Selected ({selectedRoles.size})
 				</Button>
 			</div>
@@ -226,6 +255,7 @@ function handleFinalize(e: CustomEvent) {
 					bind:value={roleSearchTerm}
 					placeholder="Search roles..."
 					aria-label="Search roles"
+					data-testid="access-role-search"
 					class="ps-10 w-full"
 				/>
 			</div>
@@ -240,18 +270,27 @@ function handleFinalize(e: CustomEvent) {
 						Press Enter or Space to select a role for reordering. Use Up and Down arrow keys to move the selected role. Press Enter or Space again to
 						drop.
 					</p>
+					<!-- Droppable only on items (v0.7.0) — nested list+item droppables cause callback ambiguity -->
 					<ul
 						class="list-none space-y-2"
-						use:dndzone={{ items: filteredRoles, flipDurationMs, type: 'column' }}
-						onconsider={handleSort}
-						onfinalize={handleFinalize}
 						aria-describedby="roles-dnd-instructions"
 						role="list"
 					>
 						{#each filteredRoles as role (role.id)}
+							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<li
 								class="animate-flip flex items-center justify-between rounded border border-surface-200 dark:border-surface-800 p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
 								role="listitem"
+								use:draggable={{ container: 'roles', dragData: role, keyboard: true }}
+								use:droppable={{
+									container: 'roles',
+									callbacks: { onDrop: handleRoleDrop },
+									direction: 'vertical',
+									attributes: { dragOverClass: 'bg-secondary-200' }
+								}}
+								data-role-id={role.id}
+								tabindex="0"
+								aria-label="Role: {role.name}. Press Space to grab, arrows to move."
 							>
 								<div class="flex items-center gap-2">
 									<div
@@ -299,10 +338,3 @@ function handleFinalize(e: CustomEvent) {
 	</div>
 {/if}
 
-<style>
-	:global([data-is-dnd-shadow-item='true']) {
-		opacity: 0.75 !important;
-		background: var(--color-surface-400) !important;
-		border: 2px dashed var(--color-primary-500) !important;
-	}
-</style>

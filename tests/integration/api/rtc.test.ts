@@ -1,6 +1,8 @@
 /**
  * @file tests/integration/api/rtc.test.ts
  * @description Integration tests for Real-Time Collaboration (SSE) API.
+ *
+ * Note: safeFetch must not buffer event-stream bodies (see helpers/server.ts).
  */
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -33,22 +35,29 @@ describe("RTC (SSE) Integration", () => {
       const cacheControl = response.headers.get("Cache-Control");
       expect(cacheControl).toBeDefined();
       expect(cacheControl).toContain("no-cache");
-      expect(response.headers.get("Connection")).toBe("keep-alive");
+      // Connection may be hop-by-hop and stripped by some proxies; soft-check
+      const connection = response.headers.get("Connection");
+      if (connection) expect(connection.toLowerCase()).toBe("keep-alive");
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No reader available");
 
       try {
-        const { value, done } = await reader.read();
-        if (done) throw new Error("Stream closed prematurely");
-
-        const text = new TextDecoder().decode(value);
-        console.log("SSE First Message:", text);
+        // First frames may arrive split; read until "connected" or budget expires
+        const decoder = new TextDecoder();
+        let text = "";
+        const deadline = Date.now() + 8_000;
+        while (Date.now() < deadline && !text.includes("connected")) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+        }
+        console.log("SSE First Message:", text.slice(0, 500));
         expect(text).toContain("connected");
       } finally {
-        await reader.cancel();
+        await reader.cancel().catch(() => {});
       }
-    }, 10_000);
+    }, 15_000);
 
     it("should reject unauthenticated requests", async () => {
       const response = await safeFetch(`${API_BASE_URL}/api/events`);

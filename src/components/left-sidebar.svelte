@@ -446,13 +446,14 @@ Route-driven sidebar content (no dual collapsible section headers):
  			<!-- Language Selector -->
  			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
   				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }} role={null} tabindex={null}>
- 					<div class="language-selector relative">
+ 					<div class="language-selector relative" data-testid="language-selector">
  						<Dropdown position="right-start" class="w-56">
  							{#snippet trigger()}
  								<Button
  									variant="surface"
  									rounded
  									aria-label="Select language"
+ 									data-testid="language-selector-trigger"
  									class="mb-3 flex items-center justify-center uppercase hover:bg-surface-400 {isSidebarFull ? 'h-12 w-12 text-xs font-semibold' : 'h-11 w-11 text-xs font-semibold'}"
  								>
  									{languageTag}

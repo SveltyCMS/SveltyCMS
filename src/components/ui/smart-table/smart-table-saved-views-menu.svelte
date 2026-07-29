@@ -135,13 +135,12 @@
 							>
 								<span class="truncate font-medium">{view.name}</span>
 								<span
-									type="button"
 									role="button"
 									tabindex="0"
 									class="shrink-0 rounded p-0.5 text-surface-400 hover:bg-error-500/10 hover:text-error-500 cursor-pointer"
 									aria-label="Delete view {view.name}"
 									onclick={(e) => handleDelete(view.id, e)}
-									onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); handleDelete(view.id, e); } }}
+									onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); handleDelete(view.id, e as unknown as MouseEvent); } }}
 								>
 									<iconify-icon icon="mdi:close" width={14}></iconify-icon>
 								</span>

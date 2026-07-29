@@ -14,9 +14,23 @@
 
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import type { DatabaseId, ISODateString } from "@src/content/types";
+import { nowISODateString } from "@src/utils/date";
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
+}
+
+/**
+ * Constant-time buffer comparison that pads shorter inputs to the length
+ * of the longer one — prevents timing leaks from length short-circuiting.
+ */
+function constantTimeBufferEqual(a: Buffer, b: Buffer): boolean {
+  const maxLen = Math.max(a.length, b.length);
+  const paddedA = Buffer.alloc(maxLen, 0);
+  const paddedB = Buffer.alloc(maxLen, 0);
+  a.copy(paddedA);
+  b.copy(paddedB);
+  return timingSafeEqual(paddedA, paddedB);
 }
 
 export interface ShareLink {
@@ -66,9 +80,13 @@ export function createLink(
     notify?: boolean;
   } = {},
 ): ShareLink & { rawToken: string } {
-  const now = new Date();
   const hours = opts.hours ?? 24;
-  const expires = new Date(now.getTime() + hours * 3_600_000);
+  const now = nowISODateString();
+
+  // Compute expiry: now + hours. The returned `expiresAt` is an ISODateString.
+  // We add milliseconds in UTC then convert back to ISO for correctness.
+  const expiresDate = new Date(now);
+  expiresDate.setTime(expiresDate.getTime() + hours * 3_600_000);
 
   const rawToken = newToken();
   return {
@@ -76,8 +94,8 @@ export function createLink(
     rawToken,
     fileId,
     createdBy: userId,
-    createdAt: now.toISOString() as ISODateString,
-    expiresAt: expires.toISOString() as ISODateString,
+    createdAt: now as ISODateString,
+    expiresAt: expiresDate.toISOString() as ISODateString,
     maxDownloads: opts.maxDownloads,
     downloadCount: 0,
     passwordHash: opts.passwordHash,
@@ -110,20 +128,28 @@ export function validateLink(
   if (link.allowedIPs?.length && ip && !link.allowedIPs.includes(ip)) {
     return { ok: false, reason: "ip" };
   }
-  if (link.passwordHash && passwordHash) {
+
+  // Password-protected links: caller MUST supply the correct hash
+  if (link.passwordHash) {
+    if (!passwordHash) {
+      return { ok: false, reason: "password_required" };
+    }
     const a = Buffer.from(link.passwordHash);
     const b = Buffer.from(passwordHash);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    // Use constant-time comparison with length padding to avoid timing leaks
+    if (!constantTimeBufferEqual(a, b)) {
       return { ok: false, reason: "security" };
     }
-  } else if (link.passwordHash !== passwordHash) {
-    return { ok: false, reason: "security" };
   }
+  // Link has no password — always allow, ignore any passwordHash param
 
   return { ok: true };
 }
 
-/** Log access */
+/**
+ * Log access — returns a **new** `ShareLink` object (immutable update).
+ * The original link is NOT mutated.
+ */
 export function logAccess(
   link: ShareLink,
   action: "view" | "download",
@@ -131,33 +157,40 @@ export function logAccess(
   ua: string,
   ok: boolean,
 ): ShareLink {
-  link.logs.push({
-    at: new Date().toISOString() as ISODateString,
-    ip,
-    ua,
-    action,
-    ok,
-  });
-
-  if (action === "download" && ok) {
-    link.downloadCount++;
-  }
-
-  return link;
+  return {
+    ...link,
+    logs: [
+      ...link.logs,
+      {
+        at: nowISODateString() as ISODateString,
+        ip,
+        ua,
+        action,
+        ok,
+      },
+    ],
+    downloadCount: action === "download" && ok ? link.downloadCount + 1 : link.downloadCount,
+  };
 }
 
-/** Revoke link */
+/**
+ * Revoke link — returns a **new** `ShareLink` object (immutable update).
+ * The original link is NOT mutated.
+ */
 export function revoke(link: ShareLink): ShareLink {
-  link.active = false;
-  return link;
+  return { ...link, active: false };
 }
 
-/** Extend expiration */
+/**
+ * Extend expiration — returns a **new** `ShareLink` object (immutable update).
+ * The original link is NOT mutated.
+ * Hours are clamped to a minimum of 0 (no negative extension).
+ */
 export function extend(link: ShareLink, hours: number): ShareLink {
+  const clamped = Math.max(0, hours);
   const expires = new Date(link.expiresAt);
-  expires.setHours(expires.getHours() + hours);
-  link.expiresAt = expires.toISOString() as ISODateString;
-  return link;
+  expires.setHours(expires.getHours() + clamped);
+  return { ...link, expiresAt: expires.toISOString() as ISODateString };
 }
 
 /** Link statistics */

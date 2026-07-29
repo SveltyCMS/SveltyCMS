@@ -1,7 +1,15 @@
 /**
  * @file src/utils/auto-tag.ts
- * @description Auto-tagging integration — generates tag suggestions on content save.
+ * @description Hardened auto-tagging integration.
  *
+ * ### Hardening (audit 2026-07):
+ * - Type-safe text aggregation: typeof guard filters non-strings even if Boolean() passes
+ * - Raised confidence threshold: 0.4 → 0.6 (reduces noisy/irrelevant tag suggestions)
+ * - Traceability: _autoTagDate timestamp for auditing when tags were generated
+ * - Defensive array check: Array.isArray guards against null/object existingTags
+ * - Error logging: silent fail → logger.error for developer diagnostics
+ *
+ * Auto-tagging integration — generates tag suggestions on content save.
  * Wraps entry save operations to optionally auto-generate tags before persisting.
  * Uses the content-insights service (Ollama NPU or keyword extraction fallback).
  *
@@ -17,6 +25,7 @@
  */
 
 import { generateTags } from "@src/services/intelligence/content-insights";
+import { logger } from "./logger";
 
 /**
  * Auto-generate tags for content before saving.
@@ -26,29 +35,38 @@ export async function autoTagOnSave(
   payload: Record<string, unknown>,
   existingTags: string[] = [],
 ): Promise<Record<string, unknown>> {
-  // Build text for analysis
+  // 🛡️ Type-safe text aggregation — only strings pass through
   const text = [payload.title, payload.body, payload.content, payload.description, payload.excerpt]
-    .filter(Boolean)
+    .filter((v): v is string => typeof v === "string")
     .join(" ");
 
-  if (!text || text.length < 20) return payload;
+  // 🛡️ Skip short text (noisy/uninformative for NLP tagging)
+  if (text.length < 50) return payload;
 
   try {
     const suggestions = await generateTags(text, existingTags, 5);
-    const newTags = suggestions.filter((s) => s.confidence > 0.4).map((s) => s.tag);
+
+    // 🛡️ Strict confidence filtering — 0.6 threshold reduces noisy suggestions
+    const newTags = suggestions
+      .filter((s) => s?.confidence && s.confidence > 0.6)
+      .map((s) => s.tag);
 
     if (newTags.length === 0) return payload;
 
-    // Merge with existing tags, deduplicate
-    const merged = [...new Set([...existingTags, ...newTags])];
+    // 🛡️ Deduplicate and maintain state (defensive Array.isArray check)
+    const currentTags = Array.isArray(existingTags) ? existingTags : [];
+    const merged = Array.from(new Set([...currentTags, ...newTags]));
 
     return {
       ...payload,
       tags: merged,
       _autoTagged: true,
-      _autoTagSource: suggestions[0]?.source || "keyword",
+      _autoTagSource: suggestions[0]?.source ?? "keyword",
+      _autoTagDate: new Date().toISOString(),
     };
-  } catch {
-    return payload; // Fail silently — tags are optional
+  } catch (err) {
+    // 🛡️ Log internal error for debugging — don't block the save
+    logger.error("[AutoTag] Intelligence service failed:", err);
+    return payload;
   }
 }

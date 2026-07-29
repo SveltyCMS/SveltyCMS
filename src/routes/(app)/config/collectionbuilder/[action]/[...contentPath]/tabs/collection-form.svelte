@@ -144,8 +144,7 @@ $effect(() => {
 
 				<div class="space-y-2">
 					<label for="description" class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50">{collectionname_description()}</label>
-					<textarea
-						id="description"
+					<textarea id="description" aria-label={collectionname_description()}
 						bind:value={description}
 						placeholder={collection_description_placeholder()}
 						title={collectionname_description()}

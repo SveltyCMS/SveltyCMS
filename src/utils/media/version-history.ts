@@ -1,14 +1,22 @@
 /**
- * @file src/utils/media/versionHistory.ts
+ * @file src/utils/media/version-history.ts
  * @description Track and manage file version history
  *
  * Performance Enhancements:
  * - JSON-based deep diffing optimization
  * - Strict type checking
  * - Memoized stats calculation (future proofing)
+ *
+ * ### Note: `FileVersion` vs `MediaVersion`
+ * The `FileVersion` interface defined here is the internal version-history
+ * domain model used for audit/rollback. The `MediaVersion` interface in
+ * `media-models.ts` (`{ version, url, createdAt, createdBy, size?, mimeType? }`)
+ * is a lighter projection for public API responses. These two types serve
+ * different purposes and intentionally diverge in shape.
  */
 
 import type { DatabaseId, ISODateString } from "@src/content/types";
+import { nowISODateString } from "@src/utils/date";
 
 export interface FileVersion {
   _id?: DatabaseId;
@@ -44,7 +52,11 @@ export interface VersionComparison {
   toVersion: number;
 }
 
-/** Create version record */
+/** Create version record.
+ *
+ *  @param nextVersionNumber — the version number to assign.
+ *    Callers should determine this from existing history (e.g. `versions.length + 1`).
+ */
 export function createVersion(
   fileId: DatabaseId,
   userId: DatabaseId,
@@ -57,12 +69,13 @@ export function createVersion(
     reason?: string;
     automated?: boolean;
     restorePoint?: boolean;
+    nextVersionNumber?: number;
   } = {},
 ): FileVersion {
   return {
     fileId,
-    versionNumber: 1, // Placeholder logic
-    createdAt: new Date().toISOString() as ISODateString,
+    versionNumber: options.nextVersionNumber ?? 1,
+    createdAt: nowISODateString() as ISODateString,
     createdBy: userId,
     action,
     changes,

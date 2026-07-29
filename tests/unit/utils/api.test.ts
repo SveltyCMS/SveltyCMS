@@ -3,7 +3,7 @@
  * @description Tests for the API client utility functions.
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import {
   fetchApi,
   createEntry,
@@ -13,6 +13,7 @@ import {
   invalidateCollectionCache,
   getCollections,
 } from "@src/utils/api";
+import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 // Mock the publicEnv to avoid unresolved imports
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({
@@ -27,6 +28,7 @@ describe("API Client Utilities", () => {
   beforeEach(() => {
     globalFetchMock = vi.fn();
     (globalThis as any).fetch = globalFetchMock;
+    stubDocumentCookie(() => "csrf_token=api-test-csrf");
 
     // Clear internal cache by trying to invalidate
     invalidateCollectionCache("test-collection");
@@ -34,6 +36,7 @@ describe("API Client Utilities", () => {
   });
 
   afterEach(() => {
+    unstubAllGlobals();
     vi.clearAllMocks();
   });
 
@@ -97,6 +100,36 @@ describe("API Client Utilities", () => {
       expect(response.success).toBe(false);
       expect(response.message).toBe("Network offline");
       expect(response.code).toBe("NETWORK_ERROR");
+    });
+
+    it("attaches CSRF on POST mutations from cookie", async () => {
+      globalFetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      });
+      await fetchApi("/api/mutate", { method: "POST", body: "{}" });
+      expect(globalFetchMock).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "Content-Type": "application/json",
+            "X-CSRF-Token": "api-test-csrf",
+          }),
+        }),
+      );
+    });
+
+    it("does not force CSRF on GET", async () => {
+      globalFetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      });
+      await fetchApi("/api/read");
+      const opts = globalFetchMock.mock.calls[0][1];
+      expect(opts.headers["X-CSRF-Token"]).toBeUndefined();
     });
   });
 

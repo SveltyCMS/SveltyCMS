@@ -107,6 +107,8 @@ export const privateConfigSchema = object({
   CACHE_TTL_USER: optional(pipe(coercedNumber, minValue(1))),
   CACHE_TTL_API: optional(pipe(coercedNumber, minValue(1))),
 
+  COOKIE_PATH: optional(pipe(string(), minLength(1))),
+
   GOOGLE_CLIENT_ID: optional(pipe(string(), minLength(1))),
   GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
   GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),

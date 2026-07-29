@@ -15,12 +15,18 @@ vi.mock("@src/databases/config-state", () => ({
   clearPrivateConfigCache: () => {},
 }));
 
-import { safeQuery } from "../../../src/utils/security/safe-query";
+import {
+  assertTenantContext,
+  isMultiTenantMode,
+  resetSafeQueryCache,
+  safeQuery,
+} from "../../../src/utils/security/safe-query";
 
 describe("safeQuery Hardening", () => {
   beforeEach(() => {
     // Reset global privateEnv before each test
     (globalThis as any).__privateEnv = null;
+    resetSafeQueryCache();
   });
 
   it("should allow scoped tenantId in multi-tenant mode", () => {
@@ -64,12 +70,17 @@ describe("safeQuery Hardening", () => {
     expect(result.name).toBe("test");
   });
 
-  it("should bypass tenant check with bypassTenantCheck option in multi-tenant mode", () => {
-    // Set multi-tenant mode in the mocked config
+  it("should bypass tenant check with branded systemScope in multi-tenant mode", async () => {
     (globalThis as any).__privateEnv = { MULTI_TENANT: true };
+    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
     const query = { name: "test" };
-    // Even with undefined tenantId, bypassTenantCheck should allow the query
-    const result = safeQuery(query, undefined, { bypassTenantCheck: true });
+    const result = safeQuery(query, undefined, withSystemScope("testing") as any);
+    expect(result.name).toBe("test");
+  });
+
+  it("should still honor legacy bypassTenantCheck during migration", () => {
+    (globalThis as any).__privateEnv = { MULTI_TENANT: true };
+    const result = safeQuery({ name: "test" }, undefined, { bypassTenantCheck: true });
     expect(result.name).toBe("test");
   });
 
@@ -85,5 +96,25 @@ describe("safeQuery Hardening", () => {
       includeDeleted: true,
     });
     expect((result as any).isDeleted).toBeUndefined();
+  });
+
+  it("assertTenantContext fails closed under MULTI_TENANT without tenantId", () => {
+    (globalThis as any).__privateEnv = { MULTI_TENANT: true };
+    resetSafeQueryCache();
+    expect(isMultiTenantMode()).toBe(true);
+    expect(() => assertTenantContext({})).toThrow("Security Violation");
+    expect(() => assertTenantContext({ tenantId: "t1" })).not.toThrow();
+    expect(() => assertTenantContext({ bypassTenantCheck: true })).not.toThrow();
+    // Forged systemScope must not pass
+    expect(() =>
+      assertTenantContext({ systemScope: { kind: "system", reason: "scheduler" } } as any),
+    ).toThrow("Security Violation");
+  });
+
+  it("assertTenantContext is a no-op in single-tenant mode", () => {
+    (globalThis as any).__privateEnv = { MULTI_TENANT: false };
+    resetSafeQueryCache();
+    expect(isMultiTenantMode()).toBe(false);
+    expect(() => assertTenantContext(undefined)).not.toThrow();
   });
 });

@@ -113,6 +113,7 @@ configurable position, and full focus management via `useDialog`.
 			'open:flex flex-col',
 		)}
 		{...dialog.dialogAria}
+		aria-modal="true"
 		{...rest}
 	>
 		{#if open}

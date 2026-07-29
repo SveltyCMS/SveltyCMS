@@ -89,6 +89,7 @@ async function getCachedUserCount(
       const bypassOpts = !tenantId
         ? { bypassTenantCheck: true }
         : { tenantId: tenantId as DatabaseId };
+      if (typeof auth.getUserCount !== "function") return -1;
       const count = await auth.getUserCount(filter, bypassOpts);
       if (count < 0) return count;
       const cacheData = { count, timestamp: now };
@@ -220,7 +221,16 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     locals.isAdmin = true;
     locals.hasAdminPermission = true;
     locals.hasManageUsersPermission = true;
-    _populateTurboAuth(event, user, []);
+    // Still hydrate roles for page loaders that inspect locals.roles (media, dashboard,
+    // access-management). Leaving roles undefined previously caused Object.values(undefined)
+    // 500s on /mediagallery under the admin short-circuit.
+    try {
+      const roles = await getCachedRoles(event.locals.tenantId as DatabaseId);
+      event.locals.roles = roles.length > 0 ? roles : event.locals.roles || [];
+    } catch {
+      event.locals.roles = event.locals.roles || [];
+    }
+    _populateTurboAuth(event, user, event.locals.roles || []);
     return await resolve(event);
   }
 

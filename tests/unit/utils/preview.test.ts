@@ -19,15 +19,14 @@ describe("LivePreview Utility", () => {
   beforeEach(() => {
     mockOnUpdate = mock(() => {});
 
-    // Spy/Mock individual properties instead of replacing window
     (window as any).addEventListener = mock((_event, _cb) => {});
     (window as any).removeEventListener = mock((_event, _cb) => {});
+    (window as any).postMessage = mock((_msg, _origin) => {});
 
-    // window.parent is often readonly, but we try to mock postMessage on it
-    const mockPostMessage = mock((_msg, _origin) => {});
-
-    // If window.parent is window (which it is in Bun), we mock window.postMessage
-    (window as any).postMessage = mockPostMessage;
+    // jsdom may leave window.parent undefined between tests; ensure it's window
+    if (!window.parent) {
+      Object.defineProperty(window, "parent", { value: window, configurable: true });
+    }
   });
 
   it("should register a message listener and signal readiness", () => {

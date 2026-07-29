@@ -9,8 +9,10 @@ import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 
+// Routes reachable with zero collections (fresh install / E2E after seed).
+// /admin must be included so tenant management is not redirected to collectionbuilder.
 const WHITELIST_REGEX =
-  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews)/;
+  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews|admin|setup)/;
 
 // Cache stampede containment: tracks active in-flight tenant initializations
 const tenantInitializationFlights = new Map<string, Promise<void>>();
@@ -18,7 +20,7 @@ const tenantInitializationFlights = new Map<string, Promise<void>>();
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
   const { pathname } = url;
-  const tenantId = locals.tenantId ? String(locals.tenantId) : "default-tenant";
+  const tenantId = locals.tenantId ? String(locals.tenantId) : null;
 
   // Phase 1: Gated initialization (static import — no per-request dynamic import)
   const setupState = (locals as any).__setupState || (await getSetupState());

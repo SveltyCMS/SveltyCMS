@@ -60,14 +60,19 @@ logger.trace(`Discovered ${_widgets.length} dashboard widgets (compile-time)`);
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = getAuthenticatedUser(locals);
-  const { isAdmin, roles: tenantRoles } = locals;
+  // Prefer hook flag; only treat role as admin when locals.isAdmin is undefined
+  const isAdmin =
+    locals.isAdmin === true ||
+    (user as any)?.isAdmin === true ||
+    (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
+  const tenantRoles = locals.roles ?? [];
 
   // Check if user has permission to access dashboard.
   // Guard tenantRoles: locals.roles can be undefined (e.g. roles not yet loaded), and calling
   // .some() on undefined would 500 the whole dashboard instead of doing a clean permission check.
   const hasDashboardPermission =
     isAdmin ||
-    (tenantRoles ?? []).some((role) =>
+    tenantRoles.some((role) =>
       role.permissions?.some((p) => {
         const [resource, action] = p.split(":");
         return resource === "dashboard" && action === "read";

@@ -6,9 +6,9 @@
  * for collections, users, and media.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -43,10 +43,6 @@ describe("GraphQL API Endpoint", () => {
   beforeAll(async () => {
     await waitForServer();
     authCookie = await prepareAuthenticatedContext();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
   });
 
   describe("Authentication & Authorization", () => {

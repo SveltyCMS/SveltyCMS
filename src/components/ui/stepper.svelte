@@ -58,19 +58,19 @@ let {
 
 <div class="stepper-container {orientation === 'vertical' ? 'flex-col space-y-4' : 'flex-row gap-4 items-center justify-between'} flex w-full">
 	{#each steps as step, i (i)}
+		{@const indicatorClass = `relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all ${stepIndicatorClass(i)}`}
+		{@const btnClass = `w-full flex ${orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} ${compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded transition-all ${i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'} ${isClickable(i) ? '' : 'cursor-not-allowed opacity-50'}`}
 		<div class="step-item flex-1 relative group">
 			<button
 				type="button"
-				class="w-full flex {orientation === 'vertical' ? 'items-start text-start' : 'flex-col items-center text-center'} {compact ? 'p-1 justify-center' : 'p-3'} gap-4 rounded transition-all
-					{i === currentStep ? 'bg-tertiary-500 dark:bg-primary-500/20 ring-1 ring-primary-500' : 'hover:bg-surface-100 dark:hover:bg-surface-800'}
-					{isClickable(i) ? '' : 'cursor-not-allowed opacity-50'}
+				class={btnClass}
 				onclick={() => isClickable(i) && onStepClick(i)}
 				disabled={!isClickable(i)}
 				aria-current={i === currentStep ? 'step' : undefined}
 				aria-label={step.label}
 			>
 				<!-- Step Indicator -->
-				<div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all {stepIndicatorClass(i)}">
+				<div class={indicatorClass}>
 					{#if completedSteps.has(i)}
 						<iconify-icon icon="mdi:check" width="20"></iconify-icon>
 					{:else if step.icon}

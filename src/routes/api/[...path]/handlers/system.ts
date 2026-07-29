@@ -56,6 +56,8 @@ export async function handleSystemRoutes(
       return handleAiRoutes(event, cms, tenantId, segments);
     case "automations":
       return handleAutomationRoutes(event, cms, tenantId, segments);
+    case "workflows":
+      return handleWorkflowRoutes(event, cms, tenantId, segments);
     case "metrics":
       return successResponse(
         event,
@@ -75,6 +77,8 @@ export async function handleSystemRoutes(
       return handleHealthRoutes(event, cms, tenantId, segments);
     case "system-jobs":
       return handleSystemJobRoutes(event, cms, tenantId, segments);
+    case "plugin-settings":
+      return handlePluginSettingsRoutes(event, cms, tenantId, segments);
   }
 
   throw new AppError(`System endpoint /api/${segments.join("/")} not implemented`, 404);
@@ -320,10 +324,20 @@ export async function handleSettingsRoutes(
       throw new AppError(`Settings group ${action} not found`, 404);
     }
 
-    const settings = await cms.system.settings.get(action || "all", {
-      tenantId: tenantId as any,
-    });
-    // Align with system.test.ts expectation: return { success: true, values: ... }
+    // Group settings are stored as a single key in preferences, not in KNOWN_PRIVATE_KEYS.
+    // Use direct preferences.get to retrieve arbitrary group keys.
+    let settings: unknown;
+    if (action && action !== "all" && action !== "general") {
+      const pref = await cms.db.system.preferences.get(action, {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
+      settings = pref.success ? pref.data : {};
+    } else {
+      settings = await cms.system.settings.get(action || "all", {
+        tenantId: tenantId as any,
+      });
+    }
     return rawResponse(event, { success: true, values: settings || {} });
   }
 
@@ -646,6 +660,90 @@ export async function handleAiRoutes(
 /**
  * --- AUTOMATION ---
  */
+/**
+ * --- WORKFLOWS (content lifecycle FSM definitions) ---
+ */
+export async function handleWorkflowRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request, locals, url } = event;
+  const { user } = locals;
+
+  // 🛡️ SECURITY: Admin for mutations; authenticated for GET
+  if (!["GET", "OPTIONS"].includes(request.method)) {
+    if (!user || (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin")) {
+      throw new AppError("Admin access required for workflow management", 403, "FORBIDDEN");
+    }
+  } else if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  if (isMultiTenantEnabled() && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
+
+  const { workflowService } = await import("@src/services/background/workflow-service");
+  const tid = tenantId ? String(tenantId) : undefined;
+
+  // PATCH = entry state transition (content ops, not definition CRUD)
+  if (request.method === "PATCH") {
+    const body = await request.json().catch(() => ({}));
+    const entryId = body.entryId as string | undefined;
+    const targetStateId = body.targetStateId as string | undefined;
+    if (!entryId || !targetStateId) {
+      throw new AppError("entryId and targetStateId are required", 400);
+    }
+    const roles = Array.isArray((user as any)?.roles) ? (user as any).roles : [];
+    const instance = await workflowService.transition(
+      entryId,
+      targetStateId,
+      user as any,
+      roles,
+      tid,
+      body.comment as string | undefined,
+    );
+    return successResponse(event, instance);
+  }
+
+  if (request.method === "GET") {
+    const collectionId = url.searchParams.get("collectionId") || segments[1];
+    const entryId = url.searchParams.get("entryId");
+
+    if (entryId) {
+      const instance = await workflowService.getWorkflowInstance(entryId, tid);
+      return successResponse(event, instance);
+    }
+
+    if (collectionId && collectionId !== "list") {
+      const def = await workflowService.getWorkflowForCollection(collectionId, tid);
+      return successResponse(event, def);
+    }
+
+    throw new AppError("collectionId or entryId query parameter required", 400);
+  }
+
+  if (request.method === "POST") {
+    const body = await request.json();
+    if (!body?.collectionId) {
+      throw new AppError("collectionId is required", 400);
+    }
+    const saved = await workflowService.saveWorkflow(body, user as any, tid);
+    return successResponse(event, saved, body._id ? 200 : 201);
+  }
+
+  if (request.method === "DELETE") {
+    const id = segments[1] || url.searchParams.get("id");
+    if (!id) throw new AppError("Workflow id required", 400);
+    await workflowService.deleteWorkflow(id, user as any, tid);
+    return successResponse(event, { success: true, deleted: id });
+  }
+
+  throw new AppError(`Method ${request.method} not allowed for workflows`, 405);
+}
+
 export async function handleAutomationRoutes(
   event: RequestEvent,
   cms: LocalCMS,
@@ -1161,8 +1259,10 @@ export async function handleSystemVirtualFolderRoutes(
 ) {
   const { request, url } = event;
 
+  const tenantOpts = { tenantId };
+
   if (request.method === "GET") {
-    const result = await cms.db.system.virtualFolder.getAll(tenantId);
+    const result = await cms.db.system.virtualFolder.getAll(tenantOpts);
     return successResponse(event, result);
   }
 
@@ -1178,7 +1278,7 @@ export async function handleSystemVirtualFolderRoutes(
     if (parent) {
       const parentResult = await cms.db.system.virtualFolder.getById(
         parent as DatabaseId,
-        tenantId,
+        tenantOpts,
       );
       if (!parentResult.success || !parentResult.data) {
         throw new AppError("Parent folder not found", 404);
@@ -1195,7 +1295,7 @@ export async function handleSystemVirtualFolderRoutes(
         order: 0,
         type: "folder",
       },
-      tenantId,
+      tenantOpts,
     );
     await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
@@ -1217,7 +1317,7 @@ export async function handleSystemVirtualFolderRoutes(
 
         const folderResult = await cms.db.system.virtualFolder.getById(
           folderId as DatabaseId,
-          tenantId,
+          tenantOpts,
         );
         if (!folderResult.success || !folderResult.data) {
           continue;
@@ -1227,7 +1327,7 @@ export async function handleSystemVirtualFolderRoutes(
         if (targetParentId) {
           const parentFolder = await cms.db.system.virtualFolder.getById(
             targetParentId as DatabaseId,
-            tenantId,
+            tenantOpts,
           );
           if (parentFolder.success && parentFolder.data) {
             newPath =
@@ -1244,7 +1344,7 @@ export async function handleSystemVirtualFolderRoutes(
             order: update.order,
             path: newPath,
           },
-          tenantId,
+          tenantOpts,
         );
 
         await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
@@ -1261,7 +1361,7 @@ export async function handleSystemVirtualFolderRoutes(
 
     const folderResult = await cms.db.system.virtualFolder.getById(
       folderId as DatabaseId,
-      tenantId,
+      tenantOpts,
     );
     if (!folderResult.success || !folderResult.data) {
       throw new AppError("Folder not found", 404);
@@ -1271,7 +1371,7 @@ export async function handleSystemVirtualFolderRoutes(
     if (folderResult.data.parentId) {
       const parentFolder = await cms.db.system.virtualFolder.getById(
         folderResult.data.parentId as DatabaseId,
-        tenantId,
+        tenantOpts,
       );
       if (parentFolder.success && parentFolder.data) {
         parentPath = parentFolder.data.path;
@@ -1286,7 +1386,7 @@ export async function handleSystemVirtualFolderRoutes(
         name,
         path: newPath,
       },
-      tenantId,
+      tenantOpts,
     );
 
     await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
@@ -1306,7 +1406,7 @@ export async function handleSystemVirtualFolderRoutes(
       throw new AppError("folderId is required for deletion", 400);
     }
 
-    const result = await cms.db.system.virtualFolder.delete(folderId as DatabaseId, tenantId);
+    const result = await cms.db.system.virtualFolder.delete(folderId as DatabaseId, tenantOpts);
     await invalidateVirtualFolderCache(tenantId);
     return successResponse(event, result);
   }
@@ -1323,7 +1423,8 @@ async function updateFolderPathsRecursive(
   parentPath: string,
   tenantId: DatabaseId,
 ) {
-  const allFoldersResult = await cms.db.system.virtualFolder.getAll(tenantId);
+  const tenantOpts = { tenantId };
+  const allFoldersResult = await cms.db.system.virtualFolder.getAll(tenantOpts);
   if (!allFoldersResult.success || !allFoldersResult.data) {
     return;
   }
@@ -1336,10 +1437,94 @@ async function updateFolderPathsRecursive(
     for (const child of children) {
       const newChildPath =
         currentParentPath === "/" ? `/${child.name}` : `${currentParentPath}/${child.name}`;
-      await cms.db.system.virtualFolder.update(child._id, { path: newChildPath }, tenantId);
+      await cms.db.system.virtualFolder.update(child._id, { path: newChildPath }, tenantOpts);
       await updateChildren(child._id, newChildPath);
     }
   }
 
   await updateChildren(parentId, parentPath);
+}
+
+// ============================================================================
+// Plugin Settings Handler (encrypted, per-tenant, per-plugin)
+// ============================================================================
+
+import { pluginRegistry } from "@src/plugins/registry";
+import { validatePluginSettings } from "@src/plugins/settings-declaration";
+import { capabilityRegistry } from "@src/services/security/capability-registry";
+
+/**
+ * Handle /api/plugin-settings/:pluginId
+ * - GET: Return settings for a plugin (secrets masked)
+ * - PUT: Save settings for a plugin (validates against declaration, encrypts secrets)
+ */
+export async function handlePluginSettingsRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request, locals } = event;
+  const pluginId = segments[1];
+  const user = locals.user as any;
+  const roles = (locals.roles || []) as any[];
+
+  if (!pluginId) {
+    throw new AppError("pluginId is required in path", 400);
+  }
+
+  // Check plugin exists
+  const plugin = pluginRegistry.get(pluginId);
+  if (!plugin) {
+    throw new AppError(`Plugin "${pluginId}" not found`, 404);
+  }
+
+  // Check capability gate
+  if (!capabilityRegistry.canManagePluginSettings(user, roles, pluginId)) {
+    throw new AppError("Insufficient permissions to manage plugin settings", 403, "FORBIDDEN");
+  }
+
+  // If plugin has requiredCapabilities, check those too
+  if (plugin.settings?.requiredCapabilities) {
+    for (const cap of plugin.settings.requiredCapabilities) {
+      if (!capabilityRegistry.hasCapability(user, cap, roles)) {
+        throw new AppError(
+          `Plugin "${pluginId}" requires capability "${cap}" to manage its settings`,
+          403,
+          "FORBIDDEN",
+        );
+      }
+    }
+  }
+
+  const tenantIdStr = String(tenantId);
+
+  if (request.method === "GET") {
+    const settings = await pluginRegistry.getPluginSettings(pluginId, tenantIdStr);
+    return successResponse(event, { settings: settings || {} });
+  }
+
+  if (request.method === "PUT" || request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const submitted = body.settings || body;
+
+    // Validate against declaration if available
+    if (plugin.settings) {
+      const issues = validatePluginSettings(submitted, plugin.settings);
+      if (issues.length > 0) {
+        return successResponse(event, { error: "Validation failed", issues }, 400);
+      }
+    }
+
+    const saved = await pluginRegistry.savePluginSettings(pluginId, tenantIdStr, submitted);
+    if (!saved) {
+      throw new AppError("Failed to save plugin settings", 500);
+    }
+
+    // Return masked settings
+    const updated = await pluginRegistry.getPluginSettings(pluginId, tenantIdStr);
+    return successResponse(event, { settings: updated || {} });
+  }
+
+  throw new AppError(`Method ${request.method} not allowed for plugin-settings`, 405);
 }

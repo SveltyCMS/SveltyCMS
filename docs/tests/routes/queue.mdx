@@ -1,0 +1,46 @@
+---
+path: "docs/tests/routes/queue.mdx"
+title: "Background Queue Tests — Control Map"
+description: "Coverage for /config/queue: admin gate, stats filters, clear/delete confirms."
+order: 21
+icon: "mdi:tray-full"
+author: "SveltyCMS Team"
+created: "2026-07-18"
+updated: "2026-07-18"
+tags:
+  - "testing"
+  - "e2e"
+  - "queue"
+---
+
+# Background Queue (`/config/queue`)
+
+## Surface
+
+| Piece                     | Role                                               |
+| ------------------------- | -------------------------------------------------- |
+| `+page.server.ts`         | Admin-only; list/count jobs + stats                |
+| `+page.svelte`            | Stat filter cards, table, refresh, clear completed |
+| `queue.remote.ts`         | retry / delete / clear — **admin-only**            |
+| `queue-actions.server.ts` | DB job mutations                                   |
+
+Job rows **vary by install**; E2E asserts shell + filter URL, not specific job IDs.
+
+---
+
+## Control → test matrix
+
+| Control                  | Unit                  | E2E                             |
+| ------------------------ | --------------------- | ------------------------------- |
+| Admin gate               | ✅ page.server        | —                               |
+| Stats + jobs table shell | —                     | ✅                              |
+| Status filter → URL      | —                     | ✅                              |
+| Clear completed confirm  | product `showConfirm` | control present                 |
+| Delete job confirm       | product `showConfirm` | control present when rows exist |
+
+## Run
+
+```bash
+bun run test:unit -- tests/unit/routes/queue-page-server.test.ts
+bun x playwright test tests/e2e/routes/config/operations.spec.ts
+```

@@ -152,19 +152,29 @@ This component provides a user interface for managing 2FA settings:
 		}
 	}
 
-	// Verify and enable 2FA
+	// Verify and enable 2FA (complete enrollment with secret from setup)
 	async function verify2FA() {
 		if (isLoading || !verificationCode || verificationCode.length !== 6) {
+			return;
+		}
+		if (!setupData?.secret) {
+			showErrorToast(twofa_error_setup_failed());
 			return;
 		}
 
 		isLoading = true;
 
 		try {
-			const response = await fetch('/api/auth/2fa/verify', {
+			// verify-setup completes enrollment; /verify is for login-time checks only
+			const response = await fetch('/api/auth/2fa/verify-setup', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (page.data as any)?.csrfToken || '' },
-				body: JSON.stringify({ code: verificationCode })
+				body: JSON.stringify({
+					code: verificationCode,
+					verificationCode,
+					secret: setupData.secret,
+					backupCodes: setupData.backupCodes || []
+				})
 			});
 
 			const result = await response.json();

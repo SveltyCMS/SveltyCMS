@@ -31,6 +31,40 @@ import type {
 import { MariaDBQueryBuilder } from "./maria-db-query-builder";
 import { AdapterCore } from "./adapter-core";
 import { MariaDBFtsAdapter } from "./fts-adapter";
+import { logger } from "@src/utils/logger";
+
+const MARIADB_CORE_TABLES = new Set([
+  "auth_users",
+  "auth_sessions",
+  "auth_tokens",
+  "auth_api_keys",
+  "roles",
+  "content_nodes",
+  "content_drafts",
+  "content_revisions",
+  "themes",
+  "widgets",
+  "media_items",
+  "system_virtual_folders",
+  "system_preferences",
+  "svelty_jobs",
+  "website_tokens",
+  "tenants",
+  "audit_logs",
+  "404_logs",
+  "redirects_mv",
+  "workflow_definitions",
+  "workflow_instances",
+  "plugin_migrations",
+  "plugin_storage",
+  "plugin_states",
+  "plugin_pagespeed_results",
+  "svelty_outbox",
+]);
+
+function quoteMariaIdentifier(identifier: string): string {
+  return `\`${identifier.replace(/`/g, "``")}\``;
+}
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   public readonly type = "mariadb";
@@ -123,21 +157,53 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
       if (!this.pool) {
         throw new Error("Not connected");
       }
-      // Get all tables
+
       const [rows] = await this.pool.query("SHOW TABLES");
       const tables = (rows as Record<string, string>[]).map((row) => Object.values(row)[0]);
 
-      if (tables.length > 0) {
-        await this.pool.query("SET FOREIGN_KEY_CHECKS = 0");
-        for (const table of tables) {
-          await this.pool.query(`DROP TABLE IF EXISTS \`${table}\``);
+      if (tables.length === 0) {
+        const { runMigrations } = await import("./migrations");
+        const migrationResult = await runMigrations(this.pool);
+        if (!migrationResult.success) {
+          throw new Error(migrationResult.error || "Migration failed after empty database reset");
         }
+        return;
+      }
+
+      await this.pool.query("SET FOREIGN_KEY_CHECKS = 0");
+      try {
+        for (const table of tables) {
+          const name = String(table);
+          const normalized = name.toLowerCase();
+          const quoted = quoteMariaIdentifier(name);
+
+          if (MARIADB_CORE_TABLES.has(normalized)) {
+            await this.pool.query(`DELETE FROM ${quoted}`);
+            continue;
+          }
+
+          const isDynamicCollection = normalized.startsWith("collection_");
+          const isBenchmarkTable =
+            normalized.startsWith("bench_") || normalized.startsWith("benchmark_");
+          const isMockTable = normalized.includes("mock") || normalized.includes("test_");
+
+          if (isDynamicCollection || isBenchmarkTable || isMockTable) {
+            await this.pool.query(`DROP TABLE IF EXISTS ${quoted}`);
+          } else {
+            await this.pool.query(`DELETE FROM ${quoted}`);
+          }
+        }
+      } finally {
         await this.pool.query("SET FOREIGN_KEY_CHECKS = 1");
       }
 
-      // CRITICAL: Re-run migrations to recreate the schema
-      const { runMigrations } = await import("./migrations");
-      await runMigrations(this.pool);
+      this.tableRegistry.clear();
+      this.dynamicTables.clear();
+      this.modelRegistry.clear();
+      this._tableColumnsCache.clear();
+      this._selectionCache.clear();
+
+      logger.info("[MariaDB Adapter] Database tables cleared/dropped (resilient clear)");
     }, "CLEAR_DATABASE_FAILED");
   }
 

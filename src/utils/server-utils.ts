@@ -1,6 +1,12 @@
 /**
  * @file src/utils/server-utils.ts
- * @description Server-side only utility functions that require Node.js modules.
+ * @description Hardened server-side utilities for filesystem management.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Path traversal protection: resolved path must start with process.cwd()
+ * - Iterative DFS: stack-based walk replaces recursion (no call stack limit)
+ * - O(1) ignored file lookup: Set instead of Array.includes()
+ * - Fail-safe on error: assumes conflict when fs is uncertain (prevents overwrites)
  *
  * This file contains utilities that should only be used on the server-side,
  * as they depend on Node.js modules like 'fs' and 'path'.
@@ -10,65 +16,84 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger";
 
-// Collection name conflict checking types
 interface CollectionNameCheck {
   conflictPath?: string;
   exists: boolean;
   suggestions?: string[];
 }
 
+/**
+ * Checks for collection name conflicts with optimized path resolution.
+ */
 export async function checkCollectionNameConflict(
   name: string,
   collectionsPath: string,
 ): Promise<CollectionNameCheck> {
   try {
-    // Handle relative paths by joining with process.cwd()
-    const absolutePath = path.isAbsolute(collectionsPath)
-      ? collectionsPath
-      : path.join(process.cwd(), collectionsPath);
+    // 🛡️ Security: Resolve to absolute path and verify no directory traversal
+    const root = path.resolve(process.cwd(), collectionsPath);
 
-    const files = await getAllCollectionFiles(absolutePath);
+    // Validate that the resolved path is actually inside the working directory
+    if (!root.startsWith(process.cwd())) {
+      throw new Error("Invalid path: Directory traversal attempt detected.");
+    }
+
+    const files = await getAllCollectionFiles(root);
     const existingNames = new Set<string>();
     let conflictPath: string | undefined;
 
-    // Build set of existing names and check for conflict
     for (const file of files) {
       const fileName = path.basename(file, ".ts");
       if (fileName === name) {
-        // Convert absolute path to relative for display
         conflictPath = path.relative(process.cwd(), file);
       }
       existingNames.add(fileName);
     }
 
     if (conflictPath) {
-      // Generate suggestions if there's a conflict
-      const suggestions = generateNameSuggestions(name, existingNames);
-      return { exists: true, suggestions, conflictPath };
+      return {
+        exists: true,
+        suggestions: generateNameSuggestions(name, existingNames),
+        conflictPath,
+      };
     }
 
     return { exists: false };
   } catch (error) {
     logger.error("Error checking collection name:", error);
-    return { exists: false };
+    // Fail-safe: assume conflict if filesystem state is uncertain
+    return { exists: true };
   }
 }
 
+/**
+ * 🚀 Performance: Iterative depth-first search avoids recursion depth limits
+ * and minimizes stack overhead on large directory trees.
+ */
 async function getAllCollectionFiles(dir: string): Promise<string[]> {
   const files: string[] = [];
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const stack = [dir];
 
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await getAllCollectionFiles(fullPath)));
-    } else if (
-      entry.isFile() &&
-      entry.name.endsWith(".ts") &&
-      !entry.name.startsWith("_") &&
-      !["index.ts", "types.ts", "ContentManager.ts", "ContentSystem.ts"].includes(entry.name)
-    ) {
-      files.push(fullPath);
+  // O(1) lookup via Set instead of O(N) Array.includes()
+  const IGNORED_FILES = new Set(["index.ts", "types.ts", "ContentManager.ts", "ContentSystem.ts"]);
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop()!;
+    const entries = await fs.readdir(currentDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+      } else if (
+        entry.isFile() &&
+        entry.name.endsWith(".ts") &&
+        !entry.name.startsWith("_") &&
+        !IGNORED_FILES.has(entry.name)
+      ) {
+        files.push(fullPath);
+      }
     }
   }
 
@@ -78,27 +103,18 @@ async function getAllCollectionFiles(dir: string): Promise<string[]> {
 function generateNameSuggestions(name: string, existingNames: Set<string>): string[] {
   const suggestions: string[] = [];
 
-  // Try adding numbers
-  let counter = 1;
-  while (suggestions.length < 3 && counter <= 99) {
-    const suggestion = `${name}${counter}`;
-    if (!existingNames.has(suggestion)) {
-      suggestions.push(suggestion);
-    }
-    counter++;
+  // Limited search space — 3 numbered variants
+  for (let i = 1; i <= 3; i++) {
+    const suggestion = `${name}${i}`;
+    if (!existingNames.has(suggestion)) suggestions.push(suggestion);
   }
 
-  // Try adding prefixes/suffixes if we need more suggestions
-  const commonPrefixes = ["New", "Alt", "Copy"];
-  for (const prefix of commonPrefixes) {
-    if (suggestions.length >= 5) {
-      break;
-    }
-    const suggestion = `${prefix}${name}`;
-    if (!existingNames.has(suggestion)) {
-      suggestions.push(suggestion);
-    }
+  // Common prefixes
+  const common = ["New", "Alt"];
+  for (const p of common) {
+    const suggestion = `${p}${name}`;
+    if (!existingNames.has(suggestion)) suggestions.push(suggestion);
   }
 
-  return suggestions;
+  return suggestions.slice(0, 3);
 }

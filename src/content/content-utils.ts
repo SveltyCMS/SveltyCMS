@@ -423,3 +423,108 @@ export function sanitizeCollectionFields(
 
   return sanitized;
 }
+
+// ─────────────────────────────────────────────────────────────
+// String Field MaxLength Validation
+// ─────────────────────────────────────────────────────────────
+
+/** String-like field types that should respect maxLength constraints. */
+const STRING_FIELD_TYPES = new Set([
+  "string",
+  "text",
+  "textarea",
+  "slug",
+  "email",
+  "url",
+  "password",
+]);
+
+/**
+ * Validates string field values against schema-defined maxLength constraints.
+ * Values exceeding the limit are truncated to maxLength (default 255).
+ * Logs a warning when truncation occurs.
+ *
+ * @returns A new data object with truncated string values (shallow clone).
+ */
+export function validateFieldConstraints(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+      maxLength?: number;
+    }>;
+  },
+): Record<string, unknown> {
+  if (!schema.fields) return data;
+  const validated = { ...data };
+
+  for (const field of schema.fields) {
+    const value = validated[field.db_fieldName];
+    if (typeof value !== "string") continue;
+
+    // Only enforce maxLength for fields that hold string-like content
+    if (field.type && !STRING_FIELD_TYPES.has(field.type)) continue;
+
+    const maxLen = field.maxLength ?? 255;
+    if (value.length > maxLen) {
+      validated[field.db_fieldName] = value.slice(0, maxLen);
+      logger.warn(
+        `[validateFieldConstraints] Field "${field.db_fieldName}" (type: ${field.type}) ` +
+          `truncated from ${value.length} to ${maxLen} characters`,
+      );
+    }
+  }
+
+  return validated;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Array / Block Null Row Stripping
+// ─────────────────────────────────────────────────────────────
+
+/** Widget types that represent array/repeating data. */
+const ARRAY_WIDGET_TYPES = new Set(["array", "blocks", "group", "repeater"]);
+
+/**
+ * Walks schema fields and removes null/undefined entries from array/block
+ * typed fields, preventing DB pollution from empty rows in repeating widgets.
+ *
+ * @returns A new data object with null rows stripped (shallow clone).
+ */
+export function stripNullRows(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+      widget?: { Name?: string };
+    }>;
+  },
+): Record<string, unknown> {
+  if (!schema.fields) return data;
+  const stripped = { ...data };
+
+  for (const field of schema.fields) {
+    const value = stripped[field.db_fieldName];
+    if (!Array.isArray(value)) continue;
+
+    // Identify array/block fields by widget type or field type
+    const isArrayField =
+      (field.type && ARRAY_WIDGET_TYPES.has(field.type)) ||
+      (field.widget?.Name && ARRAY_WIDGET_TYPES.has(field.widget.Name));
+
+    if (!isArrayField) continue;
+
+    const originalLength = value.length;
+    const filtered = value.filter((item) => item != null);
+    if (filtered.length < originalLength) {
+      stripped[field.db_fieldName] = filtered;
+      logger.warn(
+        `[stripNullRows] Field "${field.db_fieldName}" had ${originalLength - filtered.length} null entries removed`,
+      );
+    }
+  }
+
+  return stripped;
+}

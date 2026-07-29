@@ -10,7 +10,7 @@
  */
 
 // 🚀 Direct mock to ensure widgets are available in this isolated run
-mock.module("@src/widgets/scanner", () => {
+vi.mock("@src/widgets/scanner", () => {
   const names = ["Input", "RichText", "Relation", "Select", "DateTime", "Group", "Repeater", "Seo"];
   const modules: Record<string, any> = {};
   for (const name of names) {
@@ -30,7 +30,7 @@ mock.module("@src/widgets/scanner", () => {
   };
 });
 
-import { test, mock } from "vitest";
+import { test, vi } from "vitest";
 import {
   runBenchmark,
   exportResult,

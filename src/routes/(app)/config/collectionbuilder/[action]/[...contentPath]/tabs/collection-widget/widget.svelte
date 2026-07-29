@@ -4,7 +4,6 @@
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
-import VerticalList from "@src/components/vertical-list.svelte";
 import {
 	button_edit,
 	button_previous,
@@ -24,19 +23,21 @@ import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
 import { getGuiFields } from "@utils/utils";
-import type { DndEvent, Item } from "svelte-dnd-action";
+import { draggable, droppable } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
+import { untrack } from 'svelte';
 // Stores
 import { page } from "$app/state";
 import ModalSelectWidget from "./modal-select-widget.svelte";
 import ModalWidgetForm from "./modal-widget-form.svelte";
-	import Button from '@components/ui/button.svelte';
+import Button from '@components/ui/button.svelte';
 
 interface Props {
 	"on:save"?: () => void;
 }
 
 // Field interface
-interface Field extends Item {
+interface Field {
 	db_fieldName?: string;
 	icon?: string;
 	id: number;
@@ -83,18 +84,41 @@ $effect.root(() => {
 	);
 });
 
-// Collection headers
-const headers = ["Id", "Icon", "Name", "DBName", "Widget"];
+	const handleFieldDrop = (state: DragDropState<Field>) => {
+	const dragged = state.draggedItem;
+	if (!dragged) return;
 
-// svelte-dnd-action
-const flipDurationMs = 300;
+	const fromIndex = fields.indexOf(dragged);
+	if (fromIndex < 0) return;
 
-const handleDndConsider = (e: CustomEvent<DndEvent>) => {
-	fields = e.detail.items as Field[];
-};
+	// Find target item via DOM data attribute
+	const targetEl = state.targetElement?.closest('[data-field-label]') as HTMLElement | null;
+	const targetLabel = targetEl?.dataset?.fieldLabel;
 
-const handleDndFinalize = (e: CustomEvent<DndEvent>) => {
-	fields = e.detail.items as Field[];
+	let targetIndex: number;
+	if (targetLabel) {
+		targetIndex = fields.findIndex(f => f.label === targetLabel);
+		if (state.dropPosition === 'after') targetIndex++;
+	} else {
+		targetIndex = fields.length;
+	}
+	targetIndex = Math.max(0, Math.min(targetIndex, fields.length));
+
+	if (fromIndex === targetIndex) return;
+
+	fields = untrack(() => {
+		const newFields = [...fields];
+		newFields.splice(fromIndex, 1);
+		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		newFields.splice(adjusted, 0, dragged);
+		return newFields;
+	});
+
+	// Persist to store
+	setCollectionValue({
+		...collectionValue.value,
+		fields,
+	});
 };
 
 // Modal 2 to Edit a selected widget
@@ -207,12 +231,28 @@ async function handleCollectionSave() {
 		</p>
 		<p class="mb-2">{collection_widgetfield_drag()}</p>
 	</div>
-	<div style="max-height: 55vh !important;">
-		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
+	<div style="max-height: 55vh !important;" class="overflow-y-auto" role="table" aria-label="Field list">
+		<section
+			use:droppable={{
+				container: 'widget-fields',
+				callbacks: { onDrop: handleFieldDrop },
+				direction: 'vertical',
+				attributes: { dragOverClass: 'bg-secondary-200' }
+			}}
+			class="my-1 w-full"
+			role="list"
+			aria-label="Field list"
+		>
 			{#each fields as field (field.id)}
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
+					use:draggable={{ container: 'widget-fields', dragData: field, keyboard: true }}
+					use:droppable={{ container: 'widget-fields', callbacks: { onDrop: handleFieldDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
+					data-field-label={field.label}
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded border p-1 text-start hover:preset-filled-surface-500 dark:text-white"
-					role="row"
+					role="listitem"
+					tabindex="0"
+					aria-label="Field: {field.label}. Press Space to grab, arrows to move."
 				>
 					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
 
@@ -228,7 +268,7 @@ async function handleCollectionSave() {
 					</div>
 				</div>
 			{/each}
-		</VerticalList>
+		</section>
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">

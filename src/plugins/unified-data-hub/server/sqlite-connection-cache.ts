@@ -16,7 +16,7 @@ export interface SqliteHandle {
 }
 
 /** Union of SQLite bindable types shared by Bun (`bun:sqlite`) and Node (`node:sqlite`) drivers. */
-type SqliteBinding = string | number | bigint | boolean | Uint8Array | Buffer | null;
+type SqliteBinding = string | number | bigint | Uint8Array | Buffer | null;
 
 const connections = new Map<string, SqliteHandle>();
 

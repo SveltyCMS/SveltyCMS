@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-07-07"
+updated: "2026-07-26"
 tags:
   - "architecture"
   - "hooks"
@@ -429,7 +429,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ---
 
-### 1. handleCompression - ESM-Native Optimization
+### handleCompression - ESM-Native Optimization (Pipeline #10)
 
 **File**: `src/hooks/handle-compression.ts`
 **Purpose**: Efficiently compresses outgoing responses using GZIP or Brotli.
@@ -490,7 +490,7 @@ The auth context (`{ user, roles, bitset, tenantId }`) is populated by `handleAu
 
 ---
 
-### 2. handleSecurity - Unified Threat Protection (Firewall + Rate Limiting + GraphQL Shield)
+### handleSecurity - Unified Threat Protection (Pipeline #4: Firewall + Rate Limiting + GraphQL Shield)
 
 **File**: `src/hooks/handle-security.ts`
 **Purpose**: High-performance, consolidated security layer combining firewall, distributed rate limiting, payload analysis, GraphQL complexity shielding, and load shedding.
@@ -540,7 +540,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 3. Setup Completeness Gating (TurboPipeline + SystemState)
+### Setup Completeness Gating (Pipeline #2 + #6: TurboPipeline + SystemState)
 
 **Files**: `src/hooks/handle-turbo-pipeline.server.ts` + `src/hooks/handle-system-state.ts`
 **Purpose**: Ensures CMS installation is complete before serving application routes. There is no standalone `handleSetup.ts` — setup gating is split across two hooks for defense-in-depth.
@@ -618,7 +618,7 @@ Blocking `/` during initialization would prevent these essential flows from work
 
 ---
 
-### 4. handleUserPreferences - i18n & SSR Theme (Consolidated)
+### handleUserPreferences - i18n & SSR Theme (Pipeline #12)
 
 **File**: `src/hooks/handle-user-preferences.ts`
 **Purpose**: Synchronizes language and theme preferences from cookies to stores, and applies SSR theme class to prevent FOUC.
@@ -658,7 +658,7 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 5. Authentication & Multi-Tenancy (`handleAuthentication`)
+### handleAuthentication - Identity, Sessions & Multi-Tenancy (Pipeline #13)
 
 **File**: `src/hooks/handleAuthentication.ts`
 **Purpose**: Manages user identity, session security, and tenant isolation.
@@ -713,7 +713,7 @@ if (multiTenant) {
 
 ---
 
-### 6. handleAuthorization - Role-Based Access Control
+### handleAuthorization - Role-Based Access Control (Pipeline #14)
 
 **File**: `src/hooks/handleAuthorization.ts`
 **Purpose**: Enforces granular permissions and protects routes based on user roles.
@@ -775,7 +775,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 7. handleApiRequests - API Authorization & Caching
+### handleApiRequests - API Authorization & Caching (Pipeline #18)
 
 **File**: `src/hooks/handle-api-requests.ts`
 **Purpose**: Authorizes API requests and caches GET responses with ETag-based conditional revalidation.
@@ -784,7 +784,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 8. handleLocalSdk - Zero-Latency CMS Bridge
+### handleLocalSdk - Zero-Latency CMS Bridge (Pipeline #15)
 
 **File**: `src/hooks/handle-local-sdk.ts`
 **Service**: `@src/services/local-cms`
@@ -813,7 +813,7 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 9. handleTokenResolution - RBAC Token Replacement
+### handleTokenResolution - RBAC Token Replacement (Pipeline #19)
 
 **File**: `src/hooks/handle-token-resolution.ts`
 **Purpose**: Processes JSON API responses to replace secure placeholders with actual data based on user permissions.
@@ -828,12 +828,18 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 10. handleSecurityHeaders - Defense in Depth
+### handleSecurityHeaders - Defense in Depth (Inlined into handleTurboPipeline)
 
 **File**: `src/hooks/handle-security-headers.ts`
-**Purpose**: Hardens the application by injecting essential security headers at the start of the pipeline.
+**Purpose**: Exports `applyAllSecurityHeaders()` — called within `handleTurboPipeline` (pipeline #2)
+and the global security guard in `hooks.server.ts`. No longer a standalone pipeline hook.
 
-**Hardening Features**:
+> **2026-06-05**: Inlined into `handleTurboPipeline`. The `applyAllSecurityHeaders()` function
+> is still called from two places: (1) `handleTurboPipeline` for normal pipeline responses,
+> and (2) the top-level `try/catch` wrapper in `hooks.server.ts` for error responses
+> (ensures security headers on 302, 404, and 500 responses even when hooks throw).
+
+**Hardening Features** (applied via `applyAllSecurityHeaders`):
 
 - **Clickjacking Protection**: Enforces `SAMEORIGIN` policy via `X-Frame-Options`.
 - **MIME Sniffing Prevention**: Sets `X-Content-Type-Options: nosniff`.
@@ -842,11 +848,6 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 - **XSS Protection**: Sets `X-XSS-Protection: 1; mode=block`.
 - **DNS Control**: Sets `X-DNS-Prefetch-Control: off`.
 - **Permissions-Policy**: Restricts access to geolocation, camera, microphone, etc.
-
-**Optimization**:
-
-- **Fast-exit for static assets**: Skips processing for assets already handled by Turbo Pipeline.
-- **Pre-calculated Policies**: Uses pre-calculated policy strings to minimize CPU overhead.
 
 ---
 
@@ -868,13 +869,13 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
 **X-Cache Header Values**:
 
-| Value     | Meaning                             |
-| --------- | ----------------------------------- |
-| `HIT`     | Served from cache (L1 or L2)        |
-| `MISS`    | Cache miss, populated in background |
-| `NOCACHE` | `?nocache=true` bypassed cache      |
-| `REFRESH` | `?refresh=true` forced revalidation |
-| `BYPASS`  | GraphQL endpoint (never cached)     |
+| Value     | Meaning                                                           |
+| --------- | ----------------------------------------------------------------- |
+| `HIT`     | Served from cache (L1 or L2)                                      |
+| `MISS`    | Cache miss, populated in background                               |
+| `NOCACHE` | `?nocache=true` bypassed cache                                    |
+| `REFRESH` | `?refresh=true` forced revalidation                               |
+| `BYPASS`  | GraphQL queries bypassing ETag (own cache layer via `+server.ts`) |
 
 **ETag Implementation**:
 
@@ -892,7 +893,7 @@ if (request.headers.get("if-none-match") === etag) {
 
 - **`apiData` Fast Path**: Avoids `response.clone()` overhead when handlers pre-store data
 - **SWR Pre-warming**: Background cache refresh after mutations (disabled in `BENCHMARK_MODE`)
-- **GraphQL Bypass**: GraphQL responses are never cached (dynamic queries)
+- **GraphQL Bypass**: GraphQL uses its own HTTP-level response cache in `+server.ts` (cache-by-hash, 30s TTL). handleApiRequests delegates to it rather than double-caching.
 - **Tenant-Scoped Keys**: Cache keys include `tenantId` for multi-tenant isolation
 
 ---

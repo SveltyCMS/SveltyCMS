@@ -231,6 +231,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
           "plugin_pagespeed_results",
           "plugin_states",
           "plugin_migrations",
+          "plugin_storage",
           "tenants",
         ];
         const excludedList = SYSTEM_TABLES.map((t) => `'${t}'`).join(", ");

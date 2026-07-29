@@ -1,8 +1,15 @@
 /**
  * @file src/utils/schema-diff.ts
- * @description 💎 GOLD TIER: Schema Diffing Engine.
+ * @description Hardened Schema Diffing Engine.
+ *
+ * ### Hardening (audit 2026-07):
+ * - SQL injection prevention: SQLite table name escaping via .replace(/"/g, '""')
+ * - Type mismatch detection: maps SQLite types → Drizzle types, reports discrepancies
+ * - Extra column detection: reports DB columns not in Drizzle schema
+ * - Null-safe initialization: ??= [] pattern for clean record population
+ *
  * Compares Drizzle schemas against the physical database structure
- * and identifies required changes.
+ * and identifies required changes. Currently specialized for SQLite.
  */
 
 import { logger } from "./logger";
@@ -28,21 +35,28 @@ export class SchemaDiffEngine {
       typeMismatches: {},
     };
 
-    logger.info("[SchemaDiff] Starting structural analysis...");
-
-    // 1. Get physical tables from database
+    // 1. Fetch physical tables safely
     const physicalTables = new Set<string>();
     try {
-      const rows = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
-      rows.forEach((r: any) => physicalTables.add(r.name));
+      const rows = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+        name: string;
+      }[];
+      rows.forEach((r) => physicalTables.add(r.name));
     } catch (err) {
-      logger.error("[SchemaDiff] Failed to fetch physical tables:", err);
+      logger.error("[SchemaDiff] Critical failure fetching schema:", err);
       return result;
     }
 
-    // 2. Iterate through Drizzle schema
-    for (const [, table] of Object.entries(schema)) {
-      // Drizzle tables are identified by their 'Config.name'
+    // 2. Map SQLite types to expected Drizzle types
+    const mapSqliteToDrizzle = (type: string): string => {
+      const t = type.toUpperCase();
+      if (t.includes("INT")) return "integer";
+      if (t.includes("TEXT")) return "text";
+      if (t.includes("REAL") || t.includes("FLOAT")) return "real";
+      return t.toLowerCase();
+    };
+
+    for (const table of Object.values(schema)) {
       const tableName = (table as any)._Config?.name || (table as any).tableName;
       if (!tableName) continue;
 
@@ -51,30 +65,63 @@ export class SchemaDiffEngine {
         continue;
       }
 
-      // 3. Compare columns
+      // 3. Analyze columns
       try {
         const drizzleCols = getTableColumns(table as any);
-        const physicalColsRows = db.prepare(`PRAGMA table_info("${tableName}")`).all();
-        const physicalCols = new Set(physicalColsRows.map((r: any) => r.name));
+        // Escape double-quotes for SQLite identifier quoting (prevents injection)
+        const physicalCols = db
+          .prepare(`PRAGMA table_info("${tableName.replace(/"/g, '""')}")`)
+          .all() as any[];
 
-        const missingInPhysical: string[] = [];
-        for (const colName of Object.keys(drizzleCols)) {
-          if (!physicalCols.has(colName)) {
-            missingInPhysical.push(colName);
+        const physMap = new Map(physicalCols.map((c) => [c.name, c]));
+
+        const drizzleNames = new Set(Object.keys(drizzleCols));
+        const physicalNames = new Set(physMap.keys());
+
+        // Check for missing vs extra columns
+        for (const name of drizzleNames) {
+          if (!physicalNames.has(name)) {
+            (result.missingColumns[tableName] ??= []).push(name);
+          } else {
+            // Type Mismatch Detection
+            const dCol = drizzleCols[name];
+            const pCol = physMap.get(name);
+            const dType = dCol.dataType;
+            const pType = mapSqliteToDrizzle(pCol.type);
+
+            if (!SchemaDiffEngine.typesMatch(dType, pType)) {
+              (result.typeMismatches[tableName] ??= []).push({
+                column: name,
+                expected: dType,
+                actual: pType,
+              });
+            }
           }
         }
 
-        if (missingInPhysical.length > 0) {
-          result.missingColumns[tableName] = missingInPhysical;
+        // Extra columns (in DB but not in Drizzle)
+        for (const name of physicalNames) {
+          if (!drizzleNames.has(name)) {
+            (result.extraColumns[tableName] ??= []).push(name);
+          }
         }
-      } catch {
-        logger.warn(`[SchemaDiff] Failed to analyze columns for table: ${tableName}`);
+      } catch (err) {
+        logger.error(`[SchemaDiff] Error analyzing table ${tableName}:`, err);
       }
     }
 
-    logger.info(
-      `[SchemaDiff] Analysis complete. Detected ${result.missingTables.length} missing tables.`,
-    );
     return result;
+  }
+
+  /**
+   * Checks whether a Drizzle column type is compatible with the physical SQLite type.
+   */
+  private static typesMatch(drizzleType: string, sqliteType: string): boolean {
+    const map: Record<string, string[]> = {
+      string: ["text", "varchar"],
+      number: ["integer", "real"],
+      boolean: ["integer"],
+    };
+    return map[drizzleType]?.includes(sqliteType) ?? true;
   }
 }

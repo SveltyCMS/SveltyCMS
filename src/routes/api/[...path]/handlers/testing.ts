@@ -24,6 +24,56 @@ function rawResponse(data: any, status = 200) {
 }
 
 /**
+ * Explicit Set-Cookie for session tokens.
+ * Playwright APIRequestContext sometimes omits Set-Cookie from response.headers()
+ * when cookies only flow through SvelteKit's cookies.set merge — dual-write so
+ * E2E extractAndSaveSession / applySessionCookie can always see the header.
+ */
+function sessionCookieHeader(
+  name: string,
+  value: string,
+  opts: { secure: boolean; sameSite: "Strict" | "Lax"; maxAge: number },
+): string {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    `SameSite=${opts.sameSite}`,
+    `Max-Age=${opts.maxAge}`,
+  ];
+  if (opts.secure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+async function setTestingSessionCookie(
+  event: RequestEvent,
+  sessionId: string,
+): Promise<{ cookieName: string; isSecure: boolean; setCookieHeader: string }> {
+  const { getSessionCookieName, isSecureCookieContext } =
+    await import("@src/databases/auth/constants");
+  const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
+  const cookieName = getSessionCookieName(isSecure);
+  const sameSite = isSecure ? "strict" : "lax";
+  const maxAge = 60 * 60 * 24;
+  event.cookies.set(cookieName, sessionId, {
+    path: "/",
+    httpOnly: true,
+    sameSite,
+    secure: isSecure,
+    maxAge,
+  });
+  return {
+    cookieName,
+    isSecure,
+    setCookieHeader: sessionCookieHeader(cookieName, sessionId, {
+      secure: isSecure,
+      sameSite: isSecure ? "Strict" : "Lax",
+      maxAge,
+    }),
+  };
+}
+
+/**
  * Invalidate all caches (setup, cache-service, auth, API spec, theme).
  */
 async function invalidateAllCaches(tenantId: DatabaseId) {
@@ -76,8 +126,9 @@ async function wipeMediaFolder() {
  * Reset system state stores and rate limit buckets.
  */
 async function resetSystemStores() {
-  const { resetSystemState } = await import("@src/stores/system/state.svelte.ts");
+  const { resetSystemState, setSystemState } = await import("@src/stores/system/state.svelte.ts");
   resetSystemState();
+  setSystemState("READY", "Test reset completed");
   const { resetInitializationState } = await import("@src/hooks/handle-system-state");
   resetInitializationState();
   try {
@@ -90,8 +141,16 @@ async function resetSystemStores() {
 
 /**
  * MASTER TESTING HANDLER
- * Provides backdoors for test runners to reset state, seed users, and verify internals.
- * 🛡️ This handler is only active when TEST_MODE=true or in authorized benchmark runs.
+ * Provides seed/reset helpers for E2E and integration runners.
+ *
+ * 🛡️ SECURITY (fail-closed — same bar as test-bypass.server):
+ * - Disabled when NODE_ENV=production (hard 403)
+ * - Requires explicit TEST_MODE / PLAYWRIGHT / BENCHMARK flag (not bare NODE_ENV=test)
+ * - Requires matching x-test-secret (timing-safe)
+ * - Production builds strip this module via testBackdoorStripperPlugin + verify-prod-build-backdoor
+ *
+ * Seed actions (seed-webhook, seed-automation, enable-plugin, etc.) inherit this gate —
+ * they are NOT available as unauthenticated or production backdoors.
  */
 export async function handleTestingRoutes(
   event: RequestEvent,
@@ -99,39 +158,13 @@ export async function handleTestingRoutes(
   tenantId: DatabaseId,
   _segments: string[],
 ) {
-  // 🛡️ Strictly enforce environment and cryptographic token verification
+  const { assertTestingApiAllowed } = await import("@utils/test-bypass.server");
+  const gate = assertTestingApiAllowed(event.request);
+  if (!gate.allowed) {
+    throw new AppError(gate.message, gate.status, gate.code);
+  }
+
   const runtimeEnv = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env;
-  const isTestMode =
-    runtimeEnv?.TEST_MODE === "true" ||
-    runtimeEnv?.BENCHMARK === "true" ||
-    runtimeEnv?.SVELTY_BENCHMARK_SUITE === "true" ||
-    runtimeEnv?.NODE_ENV === "test";
-
-  const requestSecret =
-    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
-
-  const { getTestSecret } = await import("@src/utils/server/setup-check");
-  const expectedSecret = runtimeEnv?.TEST_API_SECRET || getTestSecret();
-
-  if (!isTestMode || !expectedSecret || !requestSecret) {
-    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
-  }
-
-  // 🛡️ TIMING-SAFE: Pad to equal length before constant-time comparison.
-  // timingSafeEqual throws if buffers differ in length, so we pad the shorter.
-  const { timingSafeEqual } = await import("node:crypto");
-  const encoder = new TextEncoder();
-  let secretBuffer: any = encoder.encode(requestSecret);
-  let expectedBuffer: any = encoder.encode(expectedSecret);
-  const maxLen = Math.max(secretBuffer.length, expectedBuffer.length);
-  if (secretBuffer.length < maxLen)
-    secretBuffer = Buffer.concat([secretBuffer, Buffer.alloc(maxLen - secretBuffer.length)]);
-  if (expectedBuffer.length < maxLen)
-    expectedBuffer = Buffer.concat([expectedBuffer, Buffer.alloc(maxLen - expectedBuffer.length)]);
-
-  if (!timingSafeEqual(secretBuffer, expectedBuffer)) {
-    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
-  }
 
   if (runtimeEnv?.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
@@ -143,10 +176,17 @@ export async function handleTestingRoutes(
     const params = await request.json().catch(() => ({}));
     const action = params.action || event.url.searchParams.get("action");
 
-    // 🚀 Robust Parameter Logging (to stderr for benchmark visibility)
-    process.stderr.write(
-      `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
-    );
+    // Suppress action logging in benchmark mode unless BENCHMARK_DEBUG is set
+    const isBenchSuite =
+      runtimeEnv?.SVELTY_BENCHMARK_SUITE === "true" || runtimeEnv?.BENCHMARK === "true";
+    if (
+      (runtimeEnv?.TEST_MODE === "true" || runtimeEnv?.BENCHMARK_DEBUG === "true") &&
+      !isBenchSuite
+    ) {
+      process.stderr.write(
+        `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
+      );
+    }
     if (process.env.BENCHMARK_DEBUG === "true") {
       process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
     }
@@ -340,21 +380,10 @@ export async function handleTestingRoutes(
         logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
       }
 
-      // Idempotent seed: try createUser first, fallback to update-by-email.
-      // The reset action clears auth_users, but a race with handleSystemState
-      // or a duplicate seed call can cause CREATE_USER_FAILED.
-      // Explicitly clear auth_users to avoid UNIQUE constraint races
-      // with system init or previous test runs.
-      try {
-        const { sql } = await import("drizzle-orm");
-        if ((initializedAdapter as any).sqlite) {
-          (initializedAdapter as any).sqlite.exec("DELETE FROM auth_users;");
-        } else if ((initializedAdapter as any).db) {
-          await (initializedAdapter as any).db.execute(sql`DELETE FROM auth_users;`);
-        }
-      } catch (err: any) {
-        logger.warn(`[TestingHandler] Non-fatal auth_users clear error: ${err.message}`);
-      }
+      // Idempotent seed: createUser then update-by-email on conflict.
+      // NEVER wipe auth_users here — chromium shards call seed in parallel and a
+      // full DELETE invalidates every other worker's admin session mid-test.
+      // Use action=reset when a true clean slate is required (serial auth-setup).
 
       const seedOpts = { tenantId } as any;
       let result: any = await cms.auth.createUser(
@@ -382,6 +411,8 @@ export async function handleTestingRoutes(
               isAdmin: true,
               isRegistered: true,
               emailVerified: true,
+              failedAttempts: 0,
+              lockoutUntil: null,
             },
             seedOpts,
           );
@@ -430,11 +461,57 @@ export async function handleTestingRoutes(
         );
       }
 
-      return rawResponse({
-        success: result.success,
-        message: result.success ? "System seeded successfully" : (result as any).message,
-        data: result.success ? result.data : null,
-      });
+      if (!result?.success) {
+        return rawResponse({
+          success: false,
+          message: (result as any)?.message || "Seed failed",
+          data: null,
+        });
+      }
+
+      // Optional session (createSession:true) for auth-setup storageState capture.
+      // Default is user-only so firstuser UI login tests can still open /login.
+      let sessionId: string | undefined;
+      const wantSession =
+        params.createSession === true || params.createSession === "true" || params.session === true;
+      let seedSetCookie: string | undefined;
+      if (wantSession) {
+        try {
+          const loginResult = await cms.auth.login({ email, password }, { tenantId });
+          if (loginResult.success && loginResult.data?.session?._id) {
+            sessionId = loginResult.data.session._id;
+            const cookie = await setTestingSessionCookie(event, sessionId!);
+            seedSetCookie = cookie.setCookieHeader;
+          }
+        } catch (err: any) {
+          logger.warn(`[TestingHandler] Non-fatal seed login/session error: ${err.message}`);
+        }
+      }
+
+      const seedHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (sessionId) {
+        seedHeaders["x-test-session-id"] = sessionId;
+        if (seedSetCookie) seedHeaders["Set-Cookie"] = seedSetCookie;
+      }
+
+      // Ensure system state transitions to READY after seeding completes
+      const { setSystemState } = await import("@src/stores/system/state.svelte.ts");
+      setSystemState("READY", "Seeded test environment");
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "System seeded successfully",
+          data: result.data,
+          token: sessionId,
+        }),
+        {
+          status: 200,
+          headers: seedHeaders,
+        },
+      );
     }
 
     if (action === "login") {
@@ -448,17 +525,8 @@ export async function handleTestingRoutes(
 
       const { user, session } = loginResult.data;
 
-      // Set cookie on event.cookies
-      const { getSessionCookieName } = await import("@src/databases/auth/constants");
-      const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
-      const cookieName = getSessionCookieName(isSecure);
-      event.cookies.set(cookieName, session._id, {
-        path: "/",
-        httpOnly: true,
-        sameSite: isSecure ? "strict" : "lax",
-        secure: isSecure,
-        maxAge: 60 * 60 * 24, // 24 hours
-      });
+      // Dual-write: event.cookies (SvelteKit) + explicit Set-Cookie for Playwright
+      const cookie = await setTestingSessionCookie(event, session._id);
 
       return new Response(
         JSON.stringify({
@@ -476,6 +544,7 @@ export async function handleTestingRoutes(
           headers: {
             "Content-Type": "application/json",
             "x-test-session-id": session._id,
+            "Set-Cookie": cookie.setCookieHeader,
           },
         },
       );
@@ -557,6 +626,21 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, data: result });
     }
 
+    if (action === "cache-invalidate") {
+      const pattern = params.pattern || "*";
+      try {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        if (pattern === "*") {
+          await cacheService.invalidateAll();
+        } else {
+          await cacheService.clearByPattern(pattern);
+        }
+        return rawResponse({ success: true, pattern });
+      } catch (err: any) {
+        return rawResponse({ success: false, message: err.message }, 500);
+      }
+    }
+
     if (action === "create-collection" || action === "bulk-create-collections") {
       const schemas =
         action === "bulk-create-collections"
@@ -592,8 +676,10 @@ export async function handleTestingRoutes(
               `[testing] Content node upsert result for ${collectionId}: ${upsertRes.success ? "OK" : "FAILED"}`,
             );
             if (!upsertRes.success) {
-              logger.error(
-                `[testing] Upsert failed for ${collectionId}: ${upsertRes.message || "unknown"}`,
+              // Expected during parallel seed — duplicate collection upsert is normal.
+              // Don't spam ERROR with full SQL dumps.
+              logger.debug(
+                `[testing] Upsert conflict for ${collectionId} (expected in parallel seed)`,
               );
             }
           }
@@ -888,6 +974,48 @@ export async function handleTestingRoutes(
       return rawResponse({ success: true, count });
     }
 
+    /**
+     * set-setting — update a private/public setting for E2E fixtures (e.g. USE_2FA).
+     * Body: { action, key, value, scope?: "private" | "public" }
+     */
+    if (action === "set-setting") {
+      const { key, value } = params;
+      if (!key || typeof key !== "string") {
+        throw new AppError("key is required", 400);
+      }
+      const { setPrivateSetting } = await import("@src/services/core/settings-service");
+      await setPrivateSetting(key as any, value as any, tenantId as any);
+      return rawResponse({ success: true, key, value });
+    }
+
+    /**
+     * bulk-create-users — seed N unique users for pagination E2E.
+     * Body: { action, count?: number, role?: string, prefix?: string }
+     */
+    if (action === "bulk-create-users") {
+      const count = Math.min(Math.max(Number(params.count) || 12, 1), 50);
+      const role = params.role || "editor";
+      const prefix = params.prefix || `bulk_${Date.now()}`;
+      const password = params.password || "BulkUser123!";
+      const created: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const email = `${prefix}_${i}@example.com`;
+        const result = await cms.auth.createUser(
+          {
+            email,
+            password,
+            username: `${prefix}_${i}`.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40),
+            role,
+            isRegistered: true,
+            emailVerified: true,
+          },
+          { tenantId },
+        );
+        if (result.success) created.push(email);
+      }
+      return rawResponse({ success: true, created: created.length, emails: created });
+    }
+
     if (action === "create-user") {
       const { email, password, username, role = "editor" } = params;
       if (!email || !password) throw new AppError("Email and password required", 400);
@@ -1072,14 +1200,20 @@ export async function handleTestingRoutes(
     if (action === "seed-unified-data-hub") {
       const { seedUnifiedDataHub } = await import("@plugins/unified-data-hub/server/hub-test-seed");
       try {
-        const result = await seedUnifiedDataHub(initializedAdapter, String(tenantId), {
+        // String(null) === "null" was poisoning connector/schema tenantId rows so
+        // listVirtualCollections({ tenantId: null }) could never find them.
+        const hubTenantId =
+          tenantId == null || tenantId === ("" as any) || String(tenantId) === "null"
+            ? "global"
+            : String(tenantId);
+        const result = await seedUnifiedDataHub(initializedAdapter, hubTenantId, {
           fixture: params.fixture || "postgres",
           rowCount: params.rowCount ?? 100,
           connectorId: params.connectorId,
           collectionId: params.collectionId,
           userId: params.userId,
         });
-        return rawResponse({ success: true, ...result });
+        return rawResponse({ success: true, tenantId: hubTenantId, ...result });
       } catch (err: any) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes("POSTGRES_FIXTURE_UNAVAILABLE")) {
@@ -1313,6 +1447,600 @@ export async function handleTestingRoutes(
           stable: 1,
           redirects: 2,
         },
+      });
+    }
+
+    // ── Config route E2E seeds (webhooks / automations) ───────────────────
+    if (action === "seed-webhook") {
+      const { webhookService } = await import("@src/services/background/webhook-service");
+      const stamp = generateUUID().slice(0, 8);
+      const webhook = await webhookService.saveWebhook(
+        {
+          id: params.id as string | undefined,
+          name: (params.name as string) || `E2E Webhook ${stamp}`,
+          url: (params.url as string) || `https://example.com/e2e-hook/${stamp}`,
+          events: (params.events as any) || ["entry:publish"],
+          active: params.active !== false,
+          secret: (params.secret as string) || `e2e-secret-${stamp}`,
+        },
+        String(tenantId),
+      );
+      return rawResponse({ success: true, webhook, data: webhook });
+    }
+
+    if (action === "delete-webhook") {
+      const id = params.id as string;
+      if (!id) throw new AppError("id required for delete-webhook", 400);
+      const { webhookService } = await import("@src/services/background/webhook-service");
+      await webhookService.deleteWebhook(id, String(tenantId));
+      return rawResponse({ success: true, deleted: id });
+    }
+
+    if (action === "seed-automation") {
+      const { automationService } =
+        await import("@src/services/background/automation/automation-service");
+      const stamp = generateUUID().slice(0, 8);
+      const flow = await automationService.saveFlow(
+        {
+          id: params.id as string | undefined,
+          name: (params.name as string) || `E2E Automation ${stamp}`,
+          description: (params.description as string) || "Seeded for E2E deep flow",
+          active: params.active !== false,
+          trigger: params.trigger || { type: "manual", events: [] },
+          operations: params.operations || [
+            {
+              id: generateUUID(),
+              type: "log",
+              config: { message: "E2E seed log: {{ trigger.event }}", level: "info" },
+            },
+          ],
+        },
+        String(tenantId),
+      );
+      return rawResponse({ success: true, flow, data: flow });
+    }
+
+    if (action === "delete-automation") {
+      const id = params.id as string;
+      if (!id) throw new AppError("id required for delete-automation", 400);
+      const { automationService } =
+        await import("@src/services/background/automation/automation-service");
+      await automationService.deleteFlow(id, String(tenantId));
+      return rawResponse({ success: true, deleted: id });
+    }
+
+    if (action === "seed-workflow") {
+      const { workflowService } = await import("@src/services/background/workflow-service");
+      const stamp = generateUUID().slice(0, 8);
+      const collectionId =
+        (params.collectionId as string) || (params.collection as string) || `e2e_col_${stamp}`;
+      const adminUser = {
+        _id: (params.userId as string) || "system",
+        role: "admin",
+        isAdmin: true,
+        email: "e2e@sveltycms.test",
+      } as any;
+      const definition = {
+        _id: params.id as string | undefined,
+        collectionId,
+        name: (params.name as string) || `E2E Workflow ${stamp}`,
+        description: params.description as string | undefined,
+        states: (params.states as any[]) || [
+          { id: "draft", label: "Draft", color: "#94a3b8", isInitial: true },
+          { id: "review", label: "In Review", color: "#fbbf24" },
+          { id: "published", label: "Published", color: "#22c55e", isFinal: true },
+        ],
+        transitions: (params.transitions as any[]) || [
+          { id: "t1", from: "draft", to: "review", label: "Submit" },
+          { id: "t2", from: "review", to: "published", label: "Approve" },
+          { id: "t3", from: "review", to: "draft", label: "Reject" },
+        ],
+      };
+      const saved = await workflowService.saveWorkflow(definition, adminUser, String(tenantId));
+      return rawResponse({ success: true, workflow: saved, data: saved });
+    }
+
+    if (action === "delete-workflow") {
+      const id = params.id as string;
+      if (!id) throw new AppError("id required for delete-workflow", 400);
+      const { workflowService } = await import("@src/services/background/workflow-service");
+      const adminUser = {
+        _id: "system",
+        role: "admin",
+        isAdmin: true,
+        email: "e2e@sveltycms.test",
+      } as any;
+      await workflowService.deleteWorkflow(id, adminUser, String(tenantId));
+      return rawResponse({ success: true, deleted: id });
+    }
+
+    if (action === "enable-plugin") {
+      const pluginId = (params.pluginId || params.id) as string;
+      if (!pluginId) throw new AppError("pluginId required for enable-plugin", 400);
+      // Fail closed on weird ids (path traversal / injection surface)
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(pluginId)) {
+        throw new AppError("Invalid pluginId", 400, "INVALID_PLUGIN_ID");
+      }
+      try {
+        const { pluginRegistry } = await import("@src/plugins");
+        const enabled = params.enabled !== false;
+        const ok = await pluginRegistry.togglePlugin(
+          pluginId,
+          enabled,
+          String(tenantId),
+          // Never accept client-supplied userId for audit attribution via testing API
+          "system",
+        );
+        if (!ok) {
+          return rawResponse(
+            {
+              success: false,
+              code: "PLUGIN_UNAVAILABLE",
+              message: `Plugin "${pluginId}" could not be toggled (missing or settings service unavailable)`,
+              pluginId,
+            },
+            503,
+          );
+        }
+        return rawResponse({ success: true, pluginId, enabled });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return rawResponse({ success: false, code: "PLUGIN_UNAVAILABLE", message, pluginId }, 503);
+      }
+    }
+
+    /**
+     * Seed a soft-deleted collection entry for trash restore E2E.
+     * Creates collection model + content node if needed, inserts row, soft-deletes.
+     */
+    if (action === "seed-trash") {
+      const collectionId = String(params.collectionId || "e2e_trash_fixture").replace(
+        /[^a-zA-Z0-9_]/g,
+        "_",
+      );
+      if (!collectionId || collectionId.length > 64) {
+        throw new AppError("Invalid collectionId", 400);
+      }
+      const entryId = String(params.entryId || `trash_${generateUUID().slice(0, 12)}`);
+      const title = String(params.title || `E2E Trash Item ${generateUUID().slice(0, 6)}`);
+      const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+
+      try {
+        await initializedAdapter.collection.createModel({
+          _id: collectionId,
+          name: collectionId,
+          fields: [
+            {
+              db_fieldName: "title",
+              label: "Title",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+          ],
+        } as any);
+      } catch {
+        /* model may already exist */
+      }
+
+      if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
+        await initializedAdapter.content.nodes.upsertContentStructureNode({
+          _id: collectionId,
+          path: `/collection/${collectionId.toLowerCase()}`,
+          name: collectionId,
+          nodeType: "collection",
+          collectionDef: {
+            _id: collectionId,
+            name: collectionId,
+            fields: [{ db_fieldName: "title", widget: { Name: "Input" }, type: "string" }],
+          },
+          status: "publish",
+          source: "api",
+          tenantId,
+        } as any);
+      }
+
+      const { refreshContent } = await import("@src/content/engine.server");
+      await refreshContent(tenantId, {
+        mode: "schemas",
+        adapter: initializedAdapter,
+      });
+      if (cms.collections?.refresh) {
+        await cms.collections.refresh(tenantId as any, true);
+      }
+
+      const insertRes = await initializedAdapter.crud.insert(
+        collectionName,
+        {
+          _id: entryId as any,
+          title,
+          status: "publish",
+          tenantId,
+        } as any,
+        { tenantId },
+      );
+      if (!insertRes.success) {
+        // Idempotent: try soft-delete if already exists
+        logger.warn(`[testing] seed-trash insert: ${insertRes.message || "failed"}`);
+      }
+
+      const delRes = await initializedAdapter.crud.delete(collectionName, entryId as any, {
+        tenantId,
+        permanent: false,
+        userId: "system" as any,
+      });
+      if (!delRes.success) {
+        throw new AppError(`seed-trash soft-delete failed: ${delRes.message || "unknown"}`, 500);
+      }
+
+      return rawResponse({
+        success: true,
+        collectionId,
+        entryId,
+        title,
+        collectionName,
+      });
+    }
+
+    if (action === "purge-trash") {
+      const collectionId = String(params.collectionId || "").replace(/[^a-zA-Z0-9_]/g, "_");
+      const entryId = String(params.entryId || "");
+      if (!collectionId || !entryId) {
+        throw new AppError("collectionId and entryId required for purge-trash", 400);
+      }
+      const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+      await initializedAdapter.crud.delete(collectionName, entryId as any, {
+        tenantId,
+        permanent: true,
+        userId: "system" as any,
+      });
+      return rawResponse({ success: true, purged: entryId, collectionId });
+    }
+
+    /**
+     * seed-invite-token — create a registration (user_invite) token for token-list E2E.
+     * Body: { action, email?, role? }
+     */
+    if (action === "seed-invite-token") {
+      const email = String(params.email || `invite_${generateUUID().slice(0, 8)}@example.com`)
+        .toLowerCase()
+        .trim();
+      const role = String(params.role || "editor");
+      const { auth: authFacade } = await import("@src/databases/db");
+      if (!authFacade) {
+        throw new AppError("Auth facade unavailable for seed-invite-token", 503);
+      }
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const token = await authFacade.createToken({
+        user_id: "pending" as any,
+        expires,
+        type: "user_invite",
+        email,
+        role,
+        tenantId,
+      } as any);
+      if (!token || typeof token !== "string") {
+        throw new AppError("Failed to create user_invite token", 500);
+      }
+      return rawResponse({ success: true, token, email, role, expires, type: "user_invite" });
+    }
+
+    // ── Password-reset / media gallery test seeds ───────────────────────────
+    if (action === "seed-expired-password-reset") {
+      const email = String(params.email || "admin@example.com")
+        .toLowerCase()
+        .trim();
+      const { auth: authFacade } = await import("@src/databases/db");
+      if (!authFacade) {
+        throw new AppError("Auth facade unavailable for seed-expired-password-reset", 503);
+      }
+
+      const user = await authFacade.checkUser({ email });
+      const userId = user?._id;
+      if (!userId) {
+        throw new AppError(`User not found for seed-expired-password-reset: ${email}`, 404);
+      }
+
+      // Expired 1 hour ago — consumeToken must return TOKEN_EXPIRED
+      const expires = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const token = await authFacade.createToken({
+        user_id: userId,
+        expires,
+        type: "password_reset",
+        // Prefer user's tenant so isolation matches consumeToken lookups
+        tenantId: (user as { tenantId?: string | null }).tenantId ?? tenantId,
+      });
+
+      if (!token || typeof token !== "string") {
+        throw new AppError("Failed to create expired password_reset token", 500);
+      }
+
+      return rawResponse({
+        success: true,
+        token,
+        email: user.email || email,
+        userId: String(userId),
+        expires,
+        type: "password_reset",
+      });
+    }
+
+    if (action === "seed-media-with-metadata") {
+      const stamp = generateUUID().slice(0, 8);
+      const email = String(params.email || "admin@example.com")
+        .toLowerCase()
+        .trim();
+      let userId = "system";
+      try {
+        const listResult = await cms.auth.listUsers({ tenantId, limit: 100 });
+        const users = listResult.success ? listResult.data?.data : listResult.data;
+        const found = Array.isArray(users)
+          ? users.find((u: { email?: string }) => u.email === email)
+          : undefined;
+        if (found?._id) userId = String(found._id);
+      } catch {
+        /* system owner is fine for gallery admin views */
+      }
+
+      const defaultItems = [
+        {
+          filename: `e2e-canon-${stamp}.png`,
+          originalFilename: `e2e-canon-${stamp}.png`,
+          hash: `e2ehashcanon${stamp}`,
+          path: `global/e2e-canon-${stamp}.png`,
+          size: 128,
+          mimeType: "image/png",
+          metadata: { camera: "Canon", iso: 400, tags: ["nature"] },
+        },
+        {
+          filename: `e2e-nikon-${stamp}.png`,
+          originalFilename: `e2e-nikon-${stamp}.png`,
+          hash: `e2ehashnikon${stamp}`,
+          path: `global/e2e-nikon-${stamp}.png`,
+          size: 128,
+          mimeType: "image/png",
+          metadata: { camera: "Nikon", iso: 100, tags: ["studio"] },
+        },
+      ];
+
+      const itemsIn = Array.isArray(params.items) ? params.items : defaultItems;
+      const created: Array<{ _id: string; hash: string; filename: string; metadata: unknown }> = [];
+
+      const upload = initializedAdapter.media?.files?.upload;
+      if (typeof upload !== "function") {
+        throw new AppError("media.files.upload unavailable", 500);
+      }
+
+      for (const raw of itemsIn) {
+        const item = raw as Record<string, unknown>;
+        const hash = String(item.hash || `e2ehash${generateUUID().slice(0, 10)}`);
+        const filename = String(item.filename || `${hash}.png`);
+        const file = {
+          filename,
+          originalFilename: String(item.originalFilename || filename),
+          hash,
+          path: String(item.path || `global/${filename}`),
+          size: Number(item.size ?? 128),
+          mimeType: String(item.mimeType || "image/png"),
+          folderId: (item.folderId as string | null | undefined) ?? null,
+          thumbnails: (item.thumbnails as Record<string, unknown>) || {},
+          metadata: (item.metadata as Record<string, unknown>) || {},
+          access: (item.access as string) || "public",
+          createdBy: userId,
+          updatedBy: userId,
+        };
+        const res = await upload(file as any, { tenantId });
+        if (!res?.success || !res.data) {
+          throw new AppError(
+            `seed-media-with-metadata upload failed: ${(res as any)?.message || "unknown"}`,
+            500,
+          );
+        }
+        const row = res.data as any;
+        created.push({
+          _id: String(row._id || row.id),
+          hash: String(row.hash || hash),
+          filename: String(row.filename || filename),
+          metadata: row.metadata ?? file.metadata,
+        });
+      }
+
+      return rawResponse({
+        success: true,
+        items: created,
+        matchingHash: created[0]?.hash,
+        nonMatchingHash: created[1]?.hash,
+      });
+    }
+
+    // ── Plugin storage + transactional outbox (integration fixtures) ────────
+    if (action === "plugin-storage-create") {
+      const plugin = String(params.plugin || "test-plugin");
+      const collection = String(params.collection || "default");
+      // Prefer `payload` over `data` — `data` can collide with response envelopes / proxies
+      const data =
+        (params.payload as Record<string, unknown>) ||
+        (params.recordData as Record<string, unknown>) ||
+        (params.data as Record<string, unknown>) ||
+        {};
+      const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+      const store = new PluginStorageAdapterImpl(initializedAdapter);
+      const record = await store.createRecord(plugin, collection, data, {
+        tenantId: tenantId ? String(tenantId) : undefined,
+      });
+      // Always echo request payload on create (DB drivers may omit/double-encode `data`)
+      const safe = {
+        _id: String(record?._id || ""),
+        plugin,
+        collection,
+        payload: data,
+        data,
+        recordData: data,
+      };
+      return rawResponse({ success: true, record: safe, ...safe });
+    }
+
+    if (action === "plugin-storage-get") {
+      const plugin = String(params.plugin || "");
+      const collection = String(params.collection || "");
+      const recordId = String(params.recordId || params.id || "");
+      if (!plugin || !collection || !recordId) {
+        throw new AppError("plugin, collection, recordId required", 400);
+      }
+      const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+      const store = new PluginStorageAdapterImpl(initializedAdapter);
+      const record = await store.getRecord(plugin, collection, recordId, {
+        tenantId: tenantId ? String(tenantId) : undefined,
+      });
+      return rawResponse({ success: true, record, data: record });
+    }
+
+    if (action === "plugin-storage-list") {
+      const plugin = String(params.plugin || "");
+      const collection = String(params.collection || "");
+      if (!plugin || !collection) throw new AppError("plugin and collection required", 400);
+      const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+      const store = new PluginStorageAdapterImpl(initializedAdapter);
+      const page = await store.listRecords(plugin, collection, {
+        tenantId: tenantId ? String(tenantId) : undefined,
+        limit: Number(params.limit) || 50,
+        offset: Number(params.offset) || 0,
+        filter: params.filter as Record<string, unknown> | undefined,
+      });
+      return rawResponse({ success: true, data: page.data, records: page.data, total: page.total });
+    }
+
+    if (action === "plugin-storage-delete") {
+      const plugin = String(params.plugin || "");
+      const collection = String(params.collection || "");
+      const recordId = String(params.recordId || params.id || "");
+      if (!plugin || !collection || !recordId) {
+        throw new AppError("plugin, collection, recordId required", 400);
+      }
+      const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+      const store = new PluginStorageAdapterImpl(initializedAdapter);
+      const ok = await store.deleteRecord(plugin, collection, recordId, {
+        tenantId: tenantId ? String(tenantId) : undefined,
+      });
+      return rawResponse({ success: true, deleted: ok });
+    }
+
+    if (action === "outbox-emit") {
+      const { outboxService } = await import("@src/services/outbox");
+      const result = await outboxService.emit(
+        String(params.eventType || "entry:create"),
+        String(params.aggregateType || "entry"),
+        String(params.aggregateId || generateUUID()),
+        params.payload ?? { test: true },
+        String(params.tenantId || tenantId || "default"),
+      );
+      if (!result.success) {
+        // Outbox may be disabled in benchmark — surface clearly
+        return rawResponse(
+          {
+            success: false,
+            message: result.message,
+            code: (result as any).error?.code,
+          },
+          400,
+        );
+      }
+      return rawResponse({ success: true, event: result.data, data: result.data });
+    }
+
+    if (action === "outbox-process-batch") {
+      const { outboxService } = await import("@src/services/outbox");
+      const stats = await outboxService.processBatch(Number(params.batchSize) || 50);
+      return rawResponse({ success: true, ...stats });
+    }
+
+    if (action === "outbox-pending-count") {
+      const { outboxService } = await import("@src/services/outbox");
+      const count = await outboxService.getPendingCount(
+        params.tenantId ? String(params.tenantId) : undefined,
+      );
+      return rawResponse({ success: true, count });
+    }
+
+    if (action === "outbox-get") {
+      const id = String(params.id || params.eventId || "");
+      if (!id) throw new AppError("id required", 400);
+      const res = await initializedAdapter.crud.findOne("svelty_outbox", { _id: id } as any, {
+        tenantId,
+      });
+      return rawResponse({
+        success: true,
+        event: res.success ? res.data : null,
+      });
+    }
+
+    if (action === "outbox-tx-rollback") {
+      // Prove outbox row is not visible after a failed transaction (SQL adapters).
+      // Mongo multi-doc transactions need a replica set — skip with reason if unsupported.
+      const adapterType = String((initializedAdapter as any).type || "").toLowerCase();
+      if (adapterType === "mongodb") {
+        return rawResponse({
+          success: true,
+          skipped: true,
+          reason: "MongoDB multi-doc transactions require replica set; skipped in CI",
+        });
+      }
+      if (typeof (initializedAdapter as any).transaction !== "function") {
+        return rawResponse({
+          success: true,
+          skipped: true,
+          reason: "Adapter has no transaction()",
+        });
+      }
+
+      const { outboxService, OUTBOX_COLLECTION } =
+        await import("@src/services/outbox/outbox-service");
+      const aggregateId = String(params.aggregateId || `rb-${generateUUID().slice(0, 8)}`);
+      let emittedId: string | undefined;
+
+      try {
+        await (initializedAdapter as any).transaction(async (tx: any) => {
+          const emitRes = await outboxService.emit(
+            String(params.eventType || "entry:create"),
+            "entry",
+            aggregateId,
+            { rollbackTest: true },
+            String(tenantId || "default"),
+            { transaction: tx },
+          );
+          if (emitRes.success && emitRes.data?._id) {
+            emittedId = String(emitRes.data._id);
+          }
+          // Force rollback
+          return { success: false, message: "forced rollback" };
+        });
+      } catch {
+        /* expected on some adapters that throw on rollback */
+      }
+
+      // If emit returned an id, verify it is gone; else scan by aggregateId
+      let eventFound = false;
+      if (emittedId) {
+        const found = await initializedAdapter.crud.findOne(
+          OUTBOX_COLLECTION,
+          { _id: emittedId } as any,
+          { tenantId },
+        );
+        eventFound = !!(found.success && found.data);
+      } else {
+        const listed = await initializedAdapter.crud.findMany(
+          OUTBOX_COLLECTION,
+          { aggregateId } as any,
+          { limit: 5, tenantId },
+        );
+        eventFound = !!(listed.success && Array.isArray(listed.data) && listed.data.length > 0);
+      }
+
+      return rawResponse({
+        success: true,
+        skipped: false,
+        eventFound,
+        emittedId: emittedId || null,
+        aggregateId,
       });
     }
 

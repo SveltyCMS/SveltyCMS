@@ -1,3 +1,8 @@
+/**
+ * @file tests/unit/services/media-service.test.ts
+ * @description Tests for MediaService — upload, manipulate, delete operations.
+ */
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MediaService } from "@src/utils/media/media-service.server";
 

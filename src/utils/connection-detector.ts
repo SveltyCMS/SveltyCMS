@@ -1,24 +1,19 @@
 /**
  * @file src/utils/connection-detector.ts
- * @description Network connection quality detection and adaptive behavior for SveltyCMS.
+ * @description Hardened network quality detector with memory-safe lifecycle management.
+ *
+ * ### Hardening (audit 2026-07):
+ * - Memory leak prevention: init() returns cleanup function for event listeners
+ * - Centralized updateState: single function for both init and change listener (no split-brain)
+ * - ensureInitialized() helper: DRY lazy-init across all exported functions
+ * - Defensive conn access: optional chaining throughout (Network Info API not universal)
  *
  * Detects slow or metered connections and provides utilities for disabling
  * bandwidth-intensive features (preloading, realtime streaming, animations).
- *
- * ### Features:
- * - Effective connection type detection (slow-2g, 2g, 3g, 4g)
- * - Save-Data mode awareness
- * - Reactive Svelte 5 rune-based status
- * - SSR-safe (no navigator access on server)
- *
- * @example
- * import { connectionState, shouldSkipPreload } from '@utils/connection-detector';
- * if (shouldSkipPreload()) return; // skip hover preloading on slow connections
  */
 
 import { browser } from "$app/environment";
 
-// NetworkInformation API types (not fully typed in all environments)
 interface NavigatorConnection {
   effectiveType?: string;
   rtt?: number;
@@ -30,7 +25,6 @@ interface NavigatorConnection {
 
 type ConnectionQuality = "slow-2g" | "2g" | "3g" | "4g" | "unknown";
 
-// ── Reactive connection state ────────────────────────────
 class ConnectionState {
   effectiveType = $state<ConnectionQuality>("unknown");
   downlink = $state<number>(0);
@@ -39,84 +33,77 @@ class ConnectionState {
   isOnline = $state<boolean>(true);
   initialized = $state<boolean>(false);
 
-  /** True if connection is considered slow (2g, slow-2g, or save-data mode) */
   isSlow = $derived(
     this.effectiveType === "slow-2g" || this.effectiveType === "2g" || this.saveData,
   );
 
-  /** True if connection is degraded — slow OR spotty (high RTT) */
-  isDegraded = $derived(
-    this.isSlow || this.rtt > 400, // >400ms RTT = degraded
-  );
+  isDegraded = $derived(this.isSlow || this.rtt > 400);
 
-  /** Initialize by reading navigator.connection if available */
+  /** 🛡️ Hardened: Idempotent initialization with cleanup capability */
   init() {
-    if (!browser) return;
-    if (this.initialized) return;
+    if (!browser || this.initialized) return;
 
     const conn = (navigator as any).connection as NavigatorConnection | undefined;
-    if (!conn) {
-      this.effectiveType = "4g"; // assume fast if API unavailable
-      this.initialized = true;
-      return;
-    }
-
-    this.effectiveType = (conn.effectiveType as ConnectionQuality) ?? "unknown";
-    this.downlink = conn.downlink ?? 0;
-    this.rtt = conn.rtt ?? 0;
-    this.saveData = conn.saveData ?? false;
     this.isOnline = navigator.onLine;
 
-    // Listen for changes
-    conn.addEventListener?.("change", () => {
-      this.effectiveType = (conn.effectiveType as ConnectionQuality) ?? "unknown";
-      this.downlink = conn.downlink ?? 0;
-      this.rtt = conn.rtt ?? 0;
-      this.saveData = conn.saveData ?? false;
-    });
+    // 🛡️ Centralized update for consistency across init and listener
+    const updateState = () => {
+      if (conn) {
+        this.effectiveType = (conn.effectiveType as ConnectionQuality) ?? "unknown";
+        this.downlink = conn.downlink ?? 0;
+        this.rtt = conn.rtt ?? 0;
+        this.saveData = conn.saveData ?? false;
+      }
+      this.isOnline = navigator.onLine;
+    };
 
-    window.addEventListener("online", () => {
+    updateState();
+
+    // 🛡️ Named functions for cleanup
+    const handleOnline = () => {
       this.isOnline = true;
-    });
-    window.addEventListener("offline", () => {
+    };
+    const handleOffline = () => {
       this.isOnline = false;
-    });
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    conn?.addEventListener?.("change", updateState);
 
     this.initialized = true;
+
+    // 🛡️ Return cleanup for memory-safe lifecycle
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      conn?.removeEventListener?.("change", updateState);
+    };
   }
 }
 
 export const connectionState = new ConnectionState();
 
-// ── Adaptive behavior helpers ────────────────────────────
+/** 🛡️ Hardened: Single lazy-init helper (DRY) */
+function ensureInitialized() {
+  if (browser && !connectionState.initialized) connectionState.init();
+}
 
-/**
- * Should skip bandwidth-intensive features like hover preloading?
- * True on slow connections or when Save-Data is active.
- */
 export function shouldSkipPreload(): boolean {
-  if (!browser) return true; // SSR: never preload
-  if (!connectionState.initialized) connectionState.init();
+  if (!browser) return true;
+  ensureInitialized();
   return connectionState.isSlow || !connectionState.isOnline;
 }
 
-/**
- * Should disable realtime features (SSE, WebSocket)?
- * True on degraded connections to save bandwidth for essential operations.
- */
 export function shouldDisableRealtime(): boolean {
   if (!browser) return true;
-  if (!connectionState.initialized) connectionState.init();
+  ensureInitialized();
   return connectionState.isDegraded || !connectionState.isOnline;
 }
 
-/**
- * Should reduce UI animations?
- * True on slow connections or when user prefers reduced motion.
- */
 export function shouldReduceMotion(): boolean {
   if (!browser) return true;
-  if (!connectionState.initialized) connectionState.init();
+  ensureInitialized();
   if (connectionState.isSlow) return true;
 
   try {
@@ -126,13 +113,9 @@ export function shouldReduceMotion(): boolean {
   }
 }
 
-/**
- * Get recommended image quality (0.0–1.0) based on connection speed.
- * 1.0 = full quality, 0.3 = highly compressed for slow connections.
- */
 export function getRecommendedImageQuality(): number {
   if (!browser) return 1.0;
-  if (!connectionState.initialized) connectionState.init();
+  ensureInitialized();
 
   switch (connectionState.effectiveType) {
     case "slow-2g":
@@ -146,13 +129,9 @@ export function getRecommendedImageQuality(): number {
   }
 }
 
-/**
- * Get recommended batch size for data fetching based on connection.
- * Smaller batches on slower connections to avoid timeout/bandwidth issues.
- */
 export function getRecommendedBatchSize(): number {
   if (!browser) return 50;
-  if (!connectionState.initialized) connectionState.init();
+  ensureInitialized();
 
   switch (connectionState.effectiveType) {
     case "slow-2g":

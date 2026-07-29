@@ -1,27 +1,159 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Push — Fast Gate (~5-10s)
-# =============================================================================
-# Runs scripts/precheck.ts (push tier) before code reaches GitHub:
-#   • format, lint, slop, imports, unit tests (always)
-#   • production build (always on any change)
-#   • progress dashboard with ETA, per-task timing, and error remediation
+# SveltyCMS Pre-Push — Build → SQLite Integration (~5 min)
 #
-# 4-DB integration + benchmarks + E2E run in GitHub CI only.
+# Pre-commit already ran: format, lint, unit tests.
+# This hook builds the project and runs the SQLite integration test suite.
+# Multi-DB matrix, E2E, and full audits run in CI only.
 #
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts push'.
+# POLICY: --no-verify is blocked by git-safe.ts by default.
+#
+# Flags:
+#   --only-failures   Skip build, re-run only previously failed suites via test:smart
 # =============================================================================
-set -euo pipefail
+set -u
+[ "${CI:-false}" = "true" ] && exit 0
 
-if [ "${CI:-false}" = "true" ]; then
-    echo "⏩ CI environment detected. Bypassing pre-push gates."
-    exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/lib.sh"
+
+require_bun
+header "Pre-Push"
+
+ONLY_FAILURES=false
+
+# Parse optional arguments
+for arg in "$@"; do
+  case "$arg" in
+    --only-failures)
+      ONLY_FAILURES=true
+      ;;
+  esac
+done
+
+# ── Smart skip: if only docs changed, skip build + integration ────────────
+if ! has_changes '\.(md|mdx)$' || has_changes '\.(ts|js|svelte|css|json)$'; then
+  HAS_CODE_CHANGES=true
+else
+  HAS_CODE_CHANGES=false
 fi
 
-echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║   SveltyCMS Pre-Push — Fast Gate + Progress Dashboard       ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+if [ "$ONLY_FAILURES" = true ]; then
+  info "Running only previously failed suites (--only-failures)"
+  echo ""
+  TOTAL=1; OK=0
+  if run "🔁  Smart retry (failed suites)" bun run test:smart --only-failures; then
+    OK=$((OK + 1))
+  fi
+  summary "$OK" "$TOTAL"
+  exit $?
+fi
+
+if [ "$HAS_CODE_CHANGES" = false ]; then
+  warn "Only docs changed — skipping build and integration tests"
+  echo ""
+  summary 1 1
+  exit 0
+fi
+
+info "Pre-commit already verified: format, lint, unit tests."
+info "Pre-push: build + CVE audit + secret scan + SQLite integration"
 echo ""
 
-bun run verify:push
+TOTAL=6; OK=0
+
+# Step 1 — Production build
+if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true $RUN_CMD build; then
+  OK=$((OK + 1))
+fi
+
+# Step 2 — Quality gate (TypeScript + Svelte check — mirrors CI whitebox)
+if run "✅  Quality Gate (check)" $RUN_CMD check; then
+  OK=$((OK + 1))
+fi
+
+# Step 3 — CVE audit (info only — cookie low vuln blocked on SvelteKit upstream)
+# bun audit --severity=high exits 1 even for low severity (bun bug), so we show output but don't block.
+$PM_NAME audit --severity=high 2>&1 || true
+OK=$((OK + 1))
+
+# Step 4 — Secret misuse scan (mirrors CI whitebox)
+if run "🔑  Secret Misuse Scan" $RUN_CMD scripts/scan-secret-misuse.ts --strict; then
+  OK=$((OK + 1))
+fi
+
+# Step 5 — Tenant isolation gate (mirrors CI whitebox)
+if run "🛡️  Tenant Isolation Gate" $RUN_CMD test:tenant; then
+  OK=$((OK + 1))
+fi
+
+# Step 6 — SQLite integration tests (with summary extraction)
+STEP=$((STEP + 1))
+label="🗄️  Integration tests (SQLite)"
+padded="$(pad "$label")"
+outfile="${TMPDIR}/svelty-hook.$$.${STEP}"
+start_s=$(date +%s 2>/dev/null || echo 0)
+estimate_s=$(get_estimate_sec "$label")
+
+printf "  ${padded}  ETA ~${estimate_s}s        "
+$RUN_CMD scripts/run-integration.ts --no-build > "$outfile" 2>&1 &
+pid=$!
+
+while kill -0 "$pid" 2>/dev/null; do
+  sleep 1
+  now=$(date +%s 2>/dev/null || echo 0)
+  elapsed=$(( now - start_s ))
+  printf "\r  ${padded}  ETA ~${estimate_s}s  ${elapsed}s elapsed "
+done
+
+wait "$pid"
+code=$?
+elapsed_s=$(( $(date +%s) - start_s ))
+elapsed_str="${elapsed_s}s"
+[ "$elapsed_s" -le 1 ] && elapsed_str="<1s"
+[ "$elapsed_s" -ge 60 ] && elapsed_str="$(( elapsed_s / 60 ))m$(( elapsed_s % 60 ))s"
+
+printf "\r\033[K"
+
+# Extract test summary line (e.g. "42 passed, 3 failed, 212 tests")
+summary_line=$(grep -oE '[0-9]+ passed[,]? [0-9]+ failed(, [0-9]+ tests)?' "$outfile" 2>/dev/null | tail -1)
+if [ -z "$summary_line" ]; then
+  summary_line=$(grep -oE '[0-9]+ test(s)? (passed|failed)' "$outfile" 2>/dev/null | tail -1)
+fi
+
+if [ "$code" -eq 0 ]; then
+  result_line="${GREEN}✔${NC}"
+  OK=$((OK + 1))
+else
+  result_line="${RED}✘${NC}"
+fi
+
+if [ -n "$summary_line" ]; then
+  printf '%b\n' "  ${padded}  ${elapsed_str}  ${result_line}  ${DIM}${summary_line}${NC}"
+else
+  printf '%b\n' "  ${padded}  ${elapsed_str}  ${result_line}"
+fi
+
+# On failure, show error summary
+if [ "$code" -ne 0 ]; then
+  fails=$(grep -E "^❯|FAIL|FAILED|✗" "$outfile" 2>/dev/null | grep -v "node_modules" | head -20)
+  if [ -n "$fails" ]; then
+    printf '%b\n' "  ${BOLD}Failing tests:${NC}"
+    printf '%s\n' "$fails" | while IFS= read -r line; do
+      printf '%b\n' "    ${RED}✘${NC}  $line"
+    done
+  fi
+  info "Run ${BOLD}bun test --timeout 300000 tests/integration/ --reporter=verbose${NC} for full output."
+fi
+
+rm -f "$outfile"
+
+summary "$OK" "$TOTAL"
+res=$?
+
+if [ "$res" -eq 0 ]; then
+  # Clean up temporary precheck cache once push checks pass
+  rm -rf .precheck-cache 2>/dev/null || true
+fi
+
+exit $res

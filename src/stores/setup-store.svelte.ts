@@ -609,18 +609,25 @@ function createSetupStore() {
         logger.debug("[SetupStore] Flash message set in sessionStorage");
       }
 
-      // Clear store state locally
-      const targetPath = (data as any).redirectPath || "/en/collections";
+      // Clear store state locally — prefer server redirectPath; never fall back to
+      // collectionbuilder (cold-boot 500). /login is always valid with a session.
+      const targetPath = (data as any).redirectPath || "/login";
 
-      // Success! Give the toast a moment and then redirect hard to ensure clean slate after restart
-      setTimeout(() => {
+      // Hard redirect immediately so E2E/CI do not race a delayed timer against
+      // waitForURL (toast is non-blocking). Keep a tiny yield for paint/sessionStorage.
+      const go = () => {
         if (onSuccess) {
           onSuccess(targetPath);
         } else {
           // Use hard redirect for the very final step to ensure system state is fully re-synced in browser
           window.location.href = targetPath;
         }
-      }, 500);
+      };
+      if (typeof queueMicrotask === "function") {
+        queueMicrotask(go);
+      } else {
+        setTimeout(go, 0);
+      }
 
       return true;
     } catch (e) {

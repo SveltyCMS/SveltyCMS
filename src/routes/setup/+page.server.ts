@@ -84,8 +84,9 @@ export const actions: Actions = {
       payload.emailSettings || {},
     );
     if (result.sessionCookie) {
-      const { getSessionCookieName } = await import("@src/databases/auth/constants");
-      const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
+      const { getSessionCookieName, isSecureCookieContext } =
+        await import("@src/databases/auth/constants");
+      const isSecure = isSecureCookieContext(url.protocol, url.hostname);
       const cookieName = getSessionCookieName(isSecure);
       cookies.set(cookieName, result.sessionCookie.value, {
         ...result.sessionCookie.attributes,

@@ -14,9 +14,15 @@ import type { PageServerLoad } from "./$types";
 export const load: PageServerLoad = async ({ locals }) => {
   try {
     const user = getAuthenticatedUser(locals);
-    const { roles: tenantRoles = [], tenantId, isAdmin: localsIsAdmin } = locals;
+    const { roles: tenantRoles = [], tenantId } = locals;
+    const localsIsAdmin = !!(
+      locals.isAdmin ||
+      (user as any)?.isAdmin ||
+      user.role === "admin" ||
+      user.role === "super-admin"
+    );
 
-    // Check if user is admin — admins use localsIsAdmin from hook
+    // Check if user is admin — prefer hook flag, fall back to role string
     if (!localsIsAdmin) {
       // For non-admins, check specific permission
       // You can add more granular permission checks here if needed

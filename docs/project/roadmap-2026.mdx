@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-15"
+updated: "2026-07-26"
 tags:
   - "roadmap"
   - "todo"
@@ -19,14 +19,6 @@ tags:
 > **EU Compliance**: Based on publicly available documentation as of June 2026. Performance measurements where cited: Intel i7-13700H, 32GB DDR5, Bun 1.3.14, SQLite WAL. Reproduce with BENCHMARK_RECORD=1 bun test tests/benchmarks/. See Technical Evaluation for details.
 
 This document is the **living roadmap** — only in-progress and planned work. Completed achievements are documented in [Technical Evaluation](./technical-evaluation-2026.mdx).
-
-> [!NOTE]
-> Completed items are documented in the [Technical Evaluation](./technical-evaluation-2026.mdx). This roadmap tracks only in-progress and planned work.
-
-### ✅ Recently Completed (July 2026)
-
-- **Multi-Tenancy Hardening**: Full isolation across all layers — PostgreSQL RLS, signed media URLs, per-tenant rate limiting, tenant analytics dashboard, tenant-scoped API keys, per-tenant DB connection pools, and E2E isolation test suite. See [Technical Evaluation §7.2](./technical-evaluation-2026.mdx#72-visual-intelligence--enterprise-collaboration).
-- **Unified Smart Table Platform (P0–P1)**: CMS-native headless tables — no TanStack as collection-list core. `createSmartTable` (server/client), shared shell/pagination/chrome, layout prefs + column resize, secure `createSmartFilter` + FLAC `collection-filter-engine`, SWR list loads + list metrics, entry-list saved views / status facets / `?debug=table`. Adapters on media, users, tokens, tenants. See [Smart Table](../reference/components/smart-table.mdx), [Collection Filtering](../reference/architecture/collection-filtering.mdx), [entry-list](../reference/components/entry-list.mdx).
 
 ---
 
@@ -99,9 +91,16 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 
 ## 🚀 Planned
 
+- **OIDC Provider Integration**: OIDC logout endpoints (RP-Initiated, Front-Channel, Back-Channel) are implemented and tested. Next phase: OIDC login flow with provider discovery, token exchange, and JWT validation against provider JWKS.
 - **Cross-Source Merge Execution (v3.1 → stable)**: Decomposition planner ships in v3.0 (plan-only); v3.1+ enables in-memory hash-join across connectors. Currently opt-in alpha (`enableCrossSourceAlpha` + Pro license).
 - **Visual Studio Query Builder**: Drag-and-drop query builder for virtual collections — relationship visualizer, live data preview panes, permission matrix editor.
 - **GraphQL Supergraph / Federation**: Apollo-like schema stitching across native + virtual collections for cross-source GraphQL queries.
+- **GraphQL.js 17 + Yoga Upgrade** _(evaluated 2026-07)_: graphql-js 17.0.2 ships stable with AbortSignal resolver cancellation, Node.js tracing channels (native APM), `@experimental_disableErrorPropagation` (partial data on field errors), and fragment arguments. **Blocked by [graphql-yoga#4545](https://github.com/graphql-hive/graphql-yoga/pull/4545)** (in review, last activity Jul 24). SveltyCMS already outperforms graphql-js 17's native executor via `@envelop/graphql-jit` — the upgrade is about runtime features, not execution speed.
+  - **AbortSignal** `info.getAbortSignal()`: Cancel stale collection-list queries when users navigate to entry detail. High priority.
+  - **Tracing channels** `node:diagnostics_channel`: Free Datadog/NewRelic APM integration for GraphQL performance without code changes. Medium priority.
+  - **Disable error propagation** `@experimental_disableErrorPropagation`: Return available fields even when one resolver fails (e.g. broken media URL, valid metadata). Medium priority.
+  - **Fragment arguments**: Parameterized reusable fragments for playground/docs. Low priority.
+  - **Migration**: Bump Yoga version post-merge → enable features via Yoga plugin config. No graphql-js API changes needed in SveltyCMS code (Yoga abstracts all v16→v17 breaking changes).
 - **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare).
 - **Enterprise Infrastructure Scaling**: Generate a multi-stage production `Dockerfile` and Terraform configurations (AWS Fargate, RDS Proxy, ElastiCache) for effortless horizontal scaling by large corporations.
 - **AI-Verified Zero-Downtime Deployments**: Visual regression + Lighthouse CI pre-promote.

@@ -24,7 +24,11 @@
 import type { ISODateString } from "@databases/db-interface";
 import { BloomFilter } from "@utils/bloom-filter";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
-import { SESSION_COOKIE_NAME, getSessionCookieName } from "@src/databases/auth/constants";
+import {
+  SESSION_COOKIE_NAME,
+  getSessionCookieName,
+  isSecureCookieContext,
+} from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import {
@@ -45,7 +49,7 @@ import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
-import { AppError, handleApiError } from "@utils/error-handling";
+import { AppError, handleApiError, isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 
@@ -57,6 +61,21 @@ function maskEmail(email: string): string {
   const domain = email.slice(atIndex);
   return local[0] + "***" + local[local.length - 1] + domain;
 }
+
+/**
+ * Resolves the configured cookie path from system settings.
+ * Falls back to "/" when COOKIE_PATH is not configured or empty.
+ */
+function getCookiePath(): string {
+  const configuredPath = getPrivateSettingSync("COOKIE_PATH");
+  if (configuredPath && typeof configuredPath === "string" && configuredPath.length > 0) {
+    logger.debug(`[Auth] Cookie path from settings: ${configuredPath}`);
+    return configuredPath;
+  }
+  logger.debug(`[Auth] Cookie path defaulting to "/"`);
+  return "/";
+}
+
 import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
@@ -328,13 +347,11 @@ async function handleSessionRotation(
 
     if (newSession && newSession._id !== oldSessionId) {
       const newSessionId = newSession._id;
-      const isProd = !dev && process.env.TEST_MODE !== "true";
-      const isSecure =
-        event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+      const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
 
       event.cookies.set(cookieName, newSessionId, {
-        path: "/",
+        path: getCookiePath(),
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? "strict" : "lax",
@@ -407,7 +424,7 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
   // where sign-up arrives mid-seed and generates a different tenantId.
   const maxAge = getDemoTTLSeconds();
   cookies.set(cookieName, tenantId, {
-    path: "/",
+    path: getCookiePath(),
     httpOnly: true,
     secure: isSecure,
     sameSite: "strict",
@@ -440,8 +457,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   if (flags.isStatic) return resolve(event);
 
   // ── Compute cookie config once (used by turbo check + normal flow) ─────
-  const isProd = !dev && process.env.TEST_MODE !== "true";
-  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = getSessionCookieName(isSecure);
 
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
@@ -494,7 +510,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   if (isSystemUser) return resolve(event);
 
   try {
+    // Raw adapter first; re-bound after tenant resolution (forTenant inject).
     locals.dbAdapter = dbAdapter;
+    (locals as any).dbAdapterUnscoped = dbAdapter;
     if (!dbAdapter) return await resolve(event);
 
     const { multiTenant, isDemoMode } = getCachedSettings();
@@ -512,6 +530,32 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       }
     }
 
+    // TEST_MODE: allow black-box multi-tenant isolation tests without flipping
+    // MULTI_TENANT for the whole process. Header is ignored outside test/benchmark.
+    const testMode =
+      process.env.TEST_MODE === "true" ||
+      process.env.PLAYWRIGHT_TEST === "true" ||
+      process.env.BENCHMARK === "true";
+    if (testMode) {
+      const explicitTenant = event.request.headers.get("x-test-tenant-id");
+      if (explicitTenant && explicitTenant.length > 0 && explicitTenant !== "null") {
+        locals.tenantId = explicitTenant as DatabaseId;
+      }
+    }
+
+    // 🛡️ Request-scoped tenant binding (early — refined after session/user load).
+    // System/scheduler: use locals.dbAdapterUnscoped + bypassTenantCheck.
+    {
+      const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
+      const bound = bindRequestDbAdapter(
+        dbAdapter,
+        locals.tenantId as DatabaseId,
+        multiTenant || testMode,
+      );
+      locals.dbAdapter = bound.dbAdapter as any;
+      (locals as any).dbAdapterUnscoped = bound.dbAdapterUnscoped;
+    }
+
     const authHeader = event.request.headers.get("Authorization");
     // Accept whichever session cookie variant the auth layer issued. This keeps
     // local/test traffic on 127.0.0.1 compatible with secure-prefixed cookies.
@@ -521,60 +565,101 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
       cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
-      logger.info(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
-      metricsService.incrementAuthValidations();
-      if (!auth) {
-        logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
-        return await resolve(event);
-      }
+      // 🛡️ Guard: wrap session validation in try-catch so malformed/invalid session
+      // cookies don't crash the server (integration tests inject poisoned values).
+      try {
+        logger.info(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
+        metricsService.incrementAuthValidations();
+        if (!auth) {
+          logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
+          return await resolve(event);
+        }
 
-      const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
-      logger.info(
-        `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) : "NULL"} path=${event.url.pathname}`,
-      );
-      logger.info(
-        `[Auth] getUserFromSession result: ${user ? maskEmail(user.email) + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
-      );
+        const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
+        logger.info(
+          `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) : "NULL"} path=${event.url.pathname}`,
+        );
+        logger.info(
+          `[Auth] getUserFromSession result: ${user ? maskEmail(user.email) + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
+        );
 
-      if (isDemoMode && !locals.tenantId && !user) {
-        await handleDemoTenantAssignment(event, !!user);
-        generateCsrfToken(cookies, isSecure);
-      }
+        if (isDemoMode && !locals.tenantId && !user) {
+          await handleDemoTenantAssignment(event, !!user);
+          generateCsrfToken(cookies, isSecure);
+        }
 
-      if (user) {
-        // --- NEW: Global Admin Exemption ---
-        // Global admins (no tenantId) are authorized to access any tenant path.
-        const isGlobalAdmin = !user.tenantId || user.tenantId === null;
-        if (
-          locals.tenantId &&
-          !isGlobalAdmin &&
-          user.tenantId &&
-          user.tenantId !== locals.tenantId
-        ) {
-          logger.warn(`[Auth] Tenant mismatch: local=${locals.tenantId}, user=${user.tenantId}`, {
-            sessionId,
+        if (user) {
+          // --- NEW: Global Admin Exemption ---
+          // Global admins (no tenantId) are authorized to access any tenant path.
+          const isGlobalAdmin = !user.tenantId || user.tenantId === null;
+          if (
+            locals.tenantId &&
+            !isGlobalAdmin &&
+            user.tenantId &&
+            user.tenantId !== locals.tenantId
+          ) {
+            logger.warn(`[Auth] Tenant mismatch: local=${locals.tenantId}, user=${user.tenantId}`, {
+              sessionId,
+            });
+            metricsService.incrementAuthFailures();
+            cookies.delete(SESSION_COOKIE_NAME, { path: getCookiePath() });
+            throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
+          }
+          locals.user = user;
+          locals.session_id = sessionId as DatabaseId;
+          locals.permissions = user.permissions || [];
+          // Prefer host/header tenant; if only user.tenantId is set, bind that for MT.
+          if (!locals.tenantId && user.tenantId) {
+            locals.tenantId = user.tenantId as DatabaseId;
+          }
+          if ((multiTenant || testMode) && locals.tenantId) {
+            const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
+            const bound = bindRequestDbAdapter(
+              (locals as any).dbAdapterUnscoped || dbAdapter,
+              locals.tenantId as DatabaseId,
+              true,
+            );
+            locals.dbAdapter = bound.dbAdapter as any;
+          }
+          await handleSessionRotation(event, user, sessionId);
+        } else {
+          logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
+            cookieName,
+            hasSession: !!sessionId,
+            authInitialized: !!auth,
+            tenantId: locals.tenantId,
           });
           metricsService.incrementAuthFailures();
-          cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
-          throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
+          // Returning user: a session cookie was present but is no longer valid → this browser has
+          // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
+          // the dead cookie.
+          (locals as any).returningUser = true;
+          cookies.delete(cookieName, { path: getCookiePath() });
         }
-        locals.user = user;
-        locals.session_id = sessionId as DatabaseId;
-        locals.permissions = user.permissions || [];
-        await handleSessionRotation(event, user, sessionId);
-      } else {
-        logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
-          cookieName,
-          hasSession: !!sessionId,
-          authInitialized: !!auth,
-          tenantId: locals.tenantId,
-        });
+      } catch (err: unknown) {
+        // Intentional security failures (tenant isolation, etc.) must surface as
+        // 403/AppError — never soft-convert them into anonymous 200s.
+        if (isAppError(err)) throw err;
+
+        // 🛡️ Hardened: unexpected validation crashes (malformed cookie, DB blip,
+        // service unavailable) are non-fatal. Log, clear the bad cookie, and
+        // continue as unauthenticated rather than crashing the request.
+        const message = err instanceof Error ? err.message : String(err);
+        logger.warn(
+          `[Auth] Session validation failed for ${sessionId?.slice(0, 12) || "unknown"}: ${message}`,
+          {
+            cookieName,
+            error: message,
+            tenantId: locals.tenantId,
+          },
+        );
         metricsService.incrementAuthFailures();
-        // Returning user: a session cookie was present but is no longer valid → this browser has
-        // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
-        // the dead cookie.
         (locals as any).returningUser = true;
-        cookies.delete(cookieName, { path: "/" });
+        try {
+          cookies.delete(cookieName, { path: getCookiePath() });
+        } catch {
+          // Cookie delete is best-effort
+        }
       }
     } else {
       logger.info(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
@@ -697,10 +782,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             logger.debug(`[Auth] Authenticated via API Token (Cache Hit)`);
           } else {
             metricsService.incrementAuthValidations();
-            const res = await dbAdapter.system.websiteTokens.getByTokenHash(
-              tokenHash,
-              locals.tenantId as DatabaseId,
-            );
+            const res = await dbAdapter.system.websiteTokens.getByTokenHash(tokenHash, {
+              tenantId: locals.tenantId as DatabaseId,
+              // Auth bootstrap: allow lookup when tenant not yet resolved (single-tenant)
+              ...(locals.tenantId ? {} : { bypassTenantCheck: true }),
+            });
 
             if (res.success && res.data) {
               const token = res.data;
@@ -814,7 +900,15 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         permissions: locals.permissions,
         requestId: locals.requestId,
       },
-      () => resolve(event),
+      async () => {
+        // Full async tree can use getRequestDbAdapter() when tenant-bound.
+        const bound = locals.dbAdapter as any;
+        if (bound && typeof bound === "object" && "boundTenantId" in bound) {
+          const { runWithTenantAdapter } = await import("@src/databases/tenant-adapter");
+          return runWithTenantAdapter(bound, () => resolve(event));
+        }
+        return resolve(event);
+      },
     );
   } catch (err) {
     if (url.pathname.startsWith("/api/")) return handleApiError(err, event);
