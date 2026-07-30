@@ -61,14 +61,14 @@ graph TB
         MS[media-service.server.ts]
         MPS[media-processing.server.ts]
         MST[media-storage.server.ts]
-        CS[cloud-storage.ts]
-        SHARING[sharing.ts]
+        SA[storage-adapters.ts]
+        SHARING[sharing.ts + bulk-download]
         SNIFF[slim-sniffer.server.ts]
         ANALYTICS[storage-analytics.ts]
-        BULK[bulk-download.ts]
         STREAM[streaming-upload.ts]
-        VERSIONS[version-history.ts]
+        VERSIONS[version-history → media-storage]
         DNDUTIL[media-dnd.ts helpers]
+        UTILS[media-utils.ts]
     end
 
     subgraph "Infrastructure"
@@ -475,6 +475,28 @@ switch (item.type) {
 | Exhaustiveness      | Missing type = silent bug                   | `assertNever()` catches at compile time                  |
 | Tree-shaking        | `enum` blocks `erasableSyntaxOnly`          | `as const` maps are fully erasable                       |
 | Watermark positions | Sharp-rejected `"top"`/`"bottom"`           | `normalizeWatermarkPosition()` maps to compass values    |
+
+---
+
+## 🚀 Media Caching Layer
+
+The media engine uses **process-local TTL caches** for repeated deterministic operations. These are separate from the global dual-layer cache (L1 LRU + L2 Redis) — media caches are smaller, shorter-lived, and scoped to their module.
+
+| Cache                         | Location                                       | TTL   | Max entries    | Purpose                                                                       |
+| ----------------------------- | ---------------------------------------------- | ----- | -------------- | ----------------------------------------------------------------------------- |
+| **URL mapping**               | `storage-adapters.ts` → `getUrl()`             | 5 min | 10,000         | Path → URL resolution for every media item, thumbnail, variant on page render |
+| **Metadata**                  | `media-processing.server.ts` → `getMetadata()` | 24 h  | 5,000          | Sharp metadata extraction (dimensions, EXIF, stats) by file SHA-256 hash      |
+| **File existence (negative)** | `media-storage.server.ts` → `fileExists()`     | 10 s  | unbounded      | Skips adapter lookup for recently checked non-existent paths                  |
+| **Watermark list**            | `media-utils.ts` → `fetchWatermarks()`         | 5 min | per-collection | Watermark collection query results                                            |
+
+### Design decisions
+
+- **URL cache**: Deterministic — same path always produces same URL. 10k entries covers all thumbnails + variants in a typical gallery view. LRU eviction via oldest-entry deletion at threshold.
+- **Metadata cache**: File hash → metadata map. 24h TTL because image metadata never changes for the same bytes. Callers that already computed the hash (e.g., upload pipeline) pass it via `options.hash` to skip re-hashing.
+- **Negative existence cache**: Short 10s TTL — prevents repeated adapter calls during upload validation without stale false negatives.
+- **Watermark cache**: Watermarks rarely change. 5min TTL avoids re-fetching on every watermark tool open.
+
+All caches use plain `Map` with timestamp-based expiry — no external dependencies, no serialization overhead, zero allocation on hit.
 
 ---
 

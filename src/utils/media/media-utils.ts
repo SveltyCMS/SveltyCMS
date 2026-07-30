@@ -309,42 +309,56 @@ export async function updateMediaMetadata(
   }
 }
 
-/** Fetch watermarks from collection */
+/** Fetch watermarks from collection — races multiple URL patterns in parallel (cached 5 min). */
+const _watermarkCache = new Map<string, { data: Watermark[]; expires: number }>();
+const WATERMARK_CACHE_TTL = 300_000;
+
 export async function fetchWatermarks(collectionId = "Watermarks"): Promise<Watermark[]> {
+  const cached = _watermarkCache.get(collectionId);
+  if (cached && Date.now() < cached.expires) {
+    return cached.data;
+  }
+
   const urls = [
     `/api/collections/${collectionId}?limit=100`,
     `/api/collections/${collectionId.toLowerCase()}?limit=100`,
     `/api/collections/${collectionId}/entries?limit=100`,
   ];
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
+  try {
+    const res = await Promise.any(
+      urls.map(async (url) => {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+    );
 
-      const json = await res.json();
-      const items = (
-        Array.isArray(json)
-          ? json
-          : Array.isArray(json.data)
-            ? json.data
-            : Array.isArray(json.items)
-              ? json.items
-              : []
-      ) as Array<Record<string, unknown>>;
+    const items = (
+      Array.isArray(res)
+        ? res
+        : Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.items)
+            ? res.items
+            : []
+    ) as Array<Record<string, unknown>>;
 
-      return items.map((it) => ({
-        id: (it._id || it.id) as string,
-        name: (it.name || it.title || `Watermark ${it._id || it.id}`) as string,
-        url: (it.url || (it.image as { url?: string })?.url) as string | undefined,
-      }));
-    } catch {
-      // continue to next URL pattern
-    }
+    const watermarks = items.map((it) => ({
+      id: (it._id || it.id) as string,
+      name: (it.name || it.title || `Watermark ${it._id || it.id}`) as string,
+      url: (it.url || (it.image as { url?: string })?.url) as string | undefined,
+    }));
+
+    _watermarkCache.set(collectionId, {
+      data: watermarks,
+      expires: Date.now() + WATERMARK_CACHE_TTL,
+    });
+    return watermarks;
+  } catch {
+    logger.warn("No watermarks found", { collectionId });
+    return [];
   }
-
-  logger.warn("No watermarks found", { collectionId });
-  return [];
 }
 
 // --- Image Sizes ---

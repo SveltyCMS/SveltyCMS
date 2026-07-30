@@ -18,11 +18,23 @@ import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { isMultiTenantEnabled } from "@utils/tenant";
-import { createLink, validateLink, revoke, extend, type ShareLink } from "@src/utils/media/sharing";
-import { createBulkArchive, streamArchive, cleanupArchive } from "@src/utils/media/bulk-download";
+import {
+  createLink,
+  validateLink,
+  revoke,
+  extend,
+  createBulkArchive,
+  streamArchive,
+  cleanupArchive,
+  type ShareLink,
+} from "@src/utils/media/sharing";
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
 import { formatBytes } from "@utils/utils";
-import { compareVersions, createVersion, getVersionStats } from "@src/utils/media/version-history";
+import {
+  compareVersions,
+  createVersion,
+  getVersionStats,
+} from "@src/utils/media/media-storage.server";
 import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
 import type { MediaItem } from "@utils/media/media-models";

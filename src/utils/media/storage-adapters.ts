@@ -569,3 +569,38 @@ export function getStorageAdapter(): StorageAdapter {
 
   return currentAdapter;
 }
+
+// ─── Cloud storage facade (re-exported from here) ────────────────────────────
+
+/** @returns true when the active storage backend is not local disk. */
+export function isCloud(): boolean {
+  const type = getPublicSettingSync("MEDIA_STORAGE_TYPE");
+  return type !== "local";
+}
+
+/** Resolve a storage path using the active adapter's config. */
+export function getCloudPath(relativePath: string, prefix?: string): string {
+  return getPath(getConfig(), relativePath, prefix);
+}
+
+// ─── URL cache (deterministic path → URL mapping, process-local) ────────────
+
+const urlCache = new Map<string, { url: string; expires: number }>();
+const URL_CACHE_TTL = 300_000; // 5 minutes
+
+/** Resolve a public URL for a stored file via the active adapter (cached). */
+export function getUrl(relativePath: string, prefix?: string): string {
+  const key = `${prefix ?? ""}|${relativePath}`;
+  const cached = urlCache.get(key);
+  if (cached && Date.now() < cached.expires) {
+    return cached.url;
+  }
+  const url = getStorageAdapter().getUrl(relativePath, prefix);
+  urlCache.set(key, { url, expires: Date.now() + URL_CACHE_TTL });
+  // Prevent unbounded growth — evict oldest when over 10k entries
+  if (urlCache.size > 10_000) {
+    const oldest = urlCache.entries().next().value;
+    if (oldest) urlCache.delete(oldest[0]);
+  }
+  return url;
+}
