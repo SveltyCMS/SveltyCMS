@@ -1,36 +1,51 @@
 /**
  * @file tests/e2e/routes/config/design-system.spec.ts
- * @description E2E smoke tests for /config/design-system playground.
+ * @description E2E for /config/design-system (canonical Appearance + Live Preview workspace).
+ *
+ * Legacy /config/appearance redirects here and preserves ?tab=.
  */
 
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 
-test.describe("Design System Playground", () => {
+test.describe("Design System workspace", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
 
-  test("loads playground controls and component matrices", async ({ page }) => {
+  test("loads Design System with tabs", async ({ page }) => {
     await page.goto("/config/design-system");
     await expect(page.getByRole("heading", { level: 1, name: /design system/i })).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
-    await expect(page.getByText(/playground controls/i)).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText(/semantic palettes/i)).toBeVisible({
-      timeout: 10_000,
-    });
-    // Native Button renders anchor links with role="button" for consistent styling/a11y.
-    await expect(page.getByRole("button", { name: /appearance/i })).toBeVisible();
+    await expect(page.getByTestId("appearance-tabs")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("appearance-tab-overrides")).toBeVisible();
+    await expect(page.getByTestId("appearance-tab-preview")).toBeVisible();
+    await expect(page.getByTestId("appearance-tab-themes")).toBeVisible();
+  });
+
+  test("live preview tab shows playground", async ({ page }) => {
+    await page.goto("/config/design-system?tab=preview");
+    await expect(page.getByTestId("design-system-preview")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/playground controls/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/semantic palettes/i)).toBeVisible({ timeout: 10_000 });
   });
 
   test("density control updates preview context", async ({ page }) => {
-    await page.goto("/config/design-system");
+    await page.goto("/config/design-system?tab=preview");
+    await expect(page.getByTestId("design-system-preview")).toBeVisible({ timeout: 10_000 });
     await page.getByLabel(/^density$/i).selectOption("compact");
-    await expect(page.getByText(/structural tokens/i)).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByText(/structural tokens/i)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("legacy /config/appearance redirects and preserves tab", async ({ page }) => {
+    await page.goto("/config/appearance?tab=overrides");
+    await expect(page).toHaveURL(/\/config\/design-system\?tab=overrides/, { timeout: 15_000 });
+    await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("legacy appearance without tab redirects to design-system", async ({ page }) => {
+    await page.goto("/config/appearance");
+    await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
   });
 });

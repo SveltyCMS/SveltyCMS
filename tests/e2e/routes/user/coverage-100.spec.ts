@@ -38,7 +38,7 @@ test.describe("Identity display", () => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
 
-    await expect(page.getByRole("heading", { name: /^identity$/i })).toBeVisible({
+    await expect(page.getByRole("tab", { name: /^identity$/i })).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
     // Admin email from credentials

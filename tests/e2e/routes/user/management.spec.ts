@@ -213,7 +213,7 @@ test.describe.serial("User Management Flow", () => {
     await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
     await expect(page).not.toHaveURL(/\/login/);
     // Verify we're on the user page by checking the profile heading
-    await expect(page.getByRole("heading", { name: /profile information/i })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /user profile/i })).toBeVisible({
       timeout: 10_000,
     });
   });

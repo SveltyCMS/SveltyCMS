@@ -107,6 +107,8 @@ describe("skeleton-preset-mapper", () => {
     expect(expanded["--color-primary-950"]).toContain("color-mix");
     expect(expanded["--color-surface-50"]).toBe("#f8fafc");
     expect(expanded["--color-surface-500"]).toContain("color-mix");
+    expect(expanded["--color-surface-800"]).toContain("color-mix");
+    expect(expanded["--color-surface-950"]).toContain("color-mix");
   });
 
   it("maps default.json shorthand properties to customCss", () => {

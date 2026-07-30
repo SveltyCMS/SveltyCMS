@@ -56,9 +56,12 @@ export interface SkeletonPreset {
 /**
  * Maps theme properties to scoped admin CSS.
  * Handles property name remapping and blocks unsafe values.
+ * When surface palette tokens are present, re-binds semantic `--admin-bg-*`
+ * roles so page/card elevation follows the imported palette.
  */
 export function mapThemePropertiesToCss(properties: Record<string, string>): string {
   let css = ".admin-theme-container, [data-admin-theme] {\n";
+  let hasSurface = false;
   for (let [prop, value] of Object.entries(properties)) {
     // Block unsafe values
     if (isUnsafeValue(value)) continue;
@@ -66,9 +69,33 @@ export function mapThemePropertiesToCss(properties: Record<string, string>): str
     if (!prop.startsWith("--")) continue;
     // Apply Skeleton → SveltyCMS property name remapping
     prop = PROPERTY_REMAP[prop] || prop;
+    if (prop.startsWith("--color-surface-")) hasSurface = true;
     css += `  ${prop}: ${value};\n`;
   }
-  css += "}";
+  if (hasSurface) {
+    // Light defaults: page + card share surface-50; dark elevation is in the dark block
+    css += "  --admin-bg-page: var(--color-surface-50);\n";
+    css += "  --admin-bg-card: var(--color-surface-50);\n";
+    css += "  --admin-bg-sidebar: var(--color-surface-100, var(--color-surface-50));\n";
+    css += "  --admin-border-default: var(--color-surface-200, var(--color-surface-500));\n";
+    css += "  --admin-border-subtle: var(--color-surface-100, var(--color-surface-50));\n";
+    css += "  --admin-text-body: var(--color-surface-900, var(--color-surface-500));\n";
+    css += "  --admin-text-muted: var(--color-surface-500);\n";
+  }
+  css += "}\n";
+  if (hasSurface) {
+    css += "html.dark .admin-theme-container,\nhtml.dark [data-admin-theme] {\n";
+    css +=
+      "  --admin-bg-page: var(--color-surface-950, var(--color-surface-900, var(--color-surface-500)));\n";
+    css +=
+      "  --admin-bg-card: var(--color-surface-800, var(--color-surface-900, var(--color-surface-500)));\n";
+    css += "  --admin-bg-sidebar: var(--color-surface-950, var(--color-surface-900));\n";
+    css += "  --admin-border-default: var(--color-surface-600, var(--color-surface-500));\n";
+    css += "  --admin-border-subtle: var(--color-surface-700, var(--color-surface-500));\n";
+    css += "  --admin-text-body: var(--color-surface-100, var(--color-surface-50));\n";
+    css += "  --admin-text-muted: var(--color-surface-400, var(--color-surface-500));\n";
+    css += "}\n";
+  }
   return css;
 }
 
@@ -89,8 +116,18 @@ export function expandShorthandPaletteProperties(
     if (isUnsafeValue(value)) continue;
 
     if (key === "surface") {
+      // Full surface scale so dark-mode --admin-bg-card/page can elevate cards
       expanded[`${prefix}-50`] = value;
-      expanded[`${prefix}-500`] = `color-mix(in srgb, ${value}, black)`;
+      expanded[`${prefix}-100`] = `color-mix(in srgb, ${value} 92%, black)`;
+      expanded[`${prefix}-200`] = `color-mix(in srgb, ${value} 85%, black)`;
+      expanded[`${prefix}-300`] = `color-mix(in srgb, ${value} 70%, black)`;
+      expanded[`${prefix}-400`] = `color-mix(in srgb, ${value} 55%, black)`;
+      expanded[`${prefix}-500`] = `color-mix(in srgb, ${value} 45%, black)`;
+      expanded[`${prefix}-600`] = `color-mix(in srgb, ${value} 35%, black)`;
+      expanded[`${prefix}-700`] = `color-mix(in srgb, ${value} 25%, black)`;
+      expanded[`${prefix}-800`] = `color-mix(in srgb, ${value} 18%, black)`;
+      expanded[`${prefix}-900`] = `color-mix(in srgb, ${value} 12%, black)`;
+      expanded[`${prefix}-950`] = `color-mix(in srgb, ${value} 8%, black)`;
     } else {
       expanded[`${prefix}-500`] = value;
       expanded[`${prefix}-50`] = `color-mix(in srgb, ${value}, white)`;

@@ -42,7 +42,8 @@ async function openEditUserDialog(page: Page) {
   const editBtn = page.getByTestId("edit-user-settings-btn");
   await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await editBtn.click();
-  const dialog = page.getByRole("dialog").first();
+  // Use the dialog's accessible name to avoid matching the cookie consent dialog
+  const dialog = page.getByRole("dialog", { name: /edit user data/i });
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   return dialog;
 }

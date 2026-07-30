@@ -83,7 +83,7 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
         localStorage.setItem('svelty-welcome-picker-dismissed', 'true');
         setTimeout(() => window.location.reload(), 800);
       } else {
-        toast.error('Failed to set workspace. Try Appearance settings instead.');
+        toast.error('Failed to set workspace. Try Design System settings instead.');
       }
     } catch {
       toast.error('Failed to set workspace.');
@@ -104,7 +104,7 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
         <div>
           <h2 class="text-lg font-bold text-surface-900 dark:text-white">Choose Your Workspace</h2>
           <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-            Pick a preset that matches your workflow. You can customize everything later in Appearance settings.
+            Pick a preset that matches your workflow. Customize later in Appearance (themes, overrides, and live preview).
           </p>
         </div>
         <Button variant="ghost" size="sm" onclick={skip} aria-label="Skip workspace setup">Skip</Button>

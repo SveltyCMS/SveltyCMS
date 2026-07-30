@@ -10,6 +10,7 @@ import {
   isSkeletonCssExport,
   mapPresetToAdminTheme,
   mapSkeletonPropertiesToCss,
+  mapThemePropertiesToCss,
   parseSkeletonCssBlock,
   normalizeSkeletonThemePayload,
   expandShorthandPaletteProperties,
@@ -107,6 +108,20 @@ describe("theme-preset-mapper", () => {
     expect(expanded["--color-primary-950"]).toContain("color-mix");
     expect(expanded["--color-surface-50"]).toBe("#f8fafc");
     expect(expanded["--color-surface-500"]).toContain("color-mix");
+    expect(expanded["--color-surface-800"]).toContain("color-mix");
+    expect(expanded["--color-surface-950"]).toContain("color-mix");
+  });
+
+  it("binds --admin-bg-card roles when surface tokens are imported", () => {
+    const css = mapThemePropertiesToCss({
+      "--color-surface-50": "#f8fafc",
+      "--color-surface-800": "#1e293b",
+      "--color-surface-950": "#0f172a",
+    });
+    expect(css).toContain("--admin-bg-page: var(--color-surface-50)");
+    expect(css).toContain("--admin-bg-card: var(--color-surface-50)");
+    expect(css).toContain("html.dark .admin-theme-container");
+    expect(css).toContain("--admin-bg-card: var(--color-surface-800");
   });
 
   it("maps default.json shorthand properties to customCss", () => {
@@ -117,5 +132,6 @@ describe("theme-preset-mapper", () => {
     expect(mapped.customCss).toContain("--color-primary-500: #0f766e");
     expect(mapped.customCss).toContain("--color-tertiary-500: #1d4ed8");
     expect(mapped.customCss).toContain(".admin-theme-container, [data-admin-theme]");
+    expect(mapped.customCss).toContain("--admin-bg-card");
   });
 });
