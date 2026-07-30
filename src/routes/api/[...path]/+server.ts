@@ -16,6 +16,7 @@ import { isPublicRoute } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { getCorsHeaders } from "@utils/security/cors-utils";
 
 // Dynamic handlers map for build-time tree-shaking.
 // Hot handlers (collections, content, auth, system) are eager-preloaded at import
@@ -347,27 +348,17 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🛡️ Global CORS Preflight handler
   if (request.method.toUpperCase() === "OPTIONS") {
-    const origin = request.headers.get("Origin") || "";
-    const allowedOrigins = [
-      process.env.ORIGIN || "",
-      "http://127.0.0.1:4173",
-      "http://localhost:4173",
-      "http://127.0.0.1:5173",
-      "http://localhost:5173",
-    ].filter(Boolean);
-    const corsOrigin =
-      allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production"
-        ? origin || allowedOrigins[0]
-        : "";
+    const origin = request.headers.get("Origin") || null;
+    const corsHeaders = getCorsHeaders(origin, true);
+    const responseHeaders: Record<string, string> = {};
+    if (corsHeaders) {
+      for (const [key, value] of Object.entries(corsHeaders)) {
+        if (value) responseHeaders[key] = value;
+      }
+    }
     return new Response(null, {
       status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": corsOrigin,
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-tenant-id, cookie",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400",
-      },
+      headers: responseHeaders,
     });
   }
 

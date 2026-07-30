@@ -228,6 +228,9 @@ export type InjectionZone =
   | "media_gallery_toolbar" // Media gallery toolbar
   | "user_profile" // User profile/settings page
   | "user_profile_sidebar" // User profile sidebar
+  | "user_security" // User security settings section
+  | "user_preferences" // User preferences section
+  | "user_admin_strip" // User admin actions strip
   | "entry_list_actions" // Entry list action buttons
   | "global-toolbar" // Top-level toolbar (all routes)
   | "global-footer" // Footer (all routes)

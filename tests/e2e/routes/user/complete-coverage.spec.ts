@@ -639,7 +639,9 @@ test.describe("GDPR Privacy Data", () => {
     await gdprBtn.click({ timeout: ACTION_TIMEOUT });
 
     // The modal should open with privacy-related content
-    const dialog = page.getByRole("dialog");
+    // Use .first() to avoid strict mode when cookie consent or other modals
+    // are simultaneously rendered (observed in CI run #30031650185)
+    const dialog = page.getByRole("dialog").first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Verify it contains GDPR-related text

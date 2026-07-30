@@ -15,7 +15,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { getUntypedSetting } from "@src/services/core/settings-service";
 import type { DatabaseId } from "@src/content/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ export function getAllSsoProviders(): SsoProviderConfig[] {
  */
 export function loadSsoProvidersFromSettings(): void {
   try {
-    const raw = getPrivateSettingSync("SSO_PROVIDERS");
+    const raw = getUntypedSetting("SSO_PROVIDERS");
     if (!raw) return;
     const providers: SsoProviderConfig[] = typeof raw === "string" ? JSON.parse(raw) : raw;
     for (const p of providers) {
@@ -212,7 +212,7 @@ export async function performRpInitiatedLogout(
   }
 
   // 5. If provider has end_session_endpoint, build OP logout URL
-  if (endSessionEndpoint) {
+  if (endSessionEndpoint && provider) {
     const params = new URLSearchParams();
     if (effectiveIdToken) params.set("id_token_hint", effectiveIdToken);
     if (redirectUri) params.set("post_logout_redirect_uri", redirectUri);
