@@ -8,7 +8,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { ADMIN_CREDENTIALS, loginAsAdmin } from "../../helpers/auth";
+import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
 

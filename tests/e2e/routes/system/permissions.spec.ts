@@ -33,6 +33,7 @@ test.describe("Permission Management Flow", () => {
     });
 
     // Check if toggleable checkboxes exist (may not hydrate in headless Chromium)
+    const toggleableCheckboxes = page.locator('table input[type="checkbox"]:not([disabled])');
     let bodyCount = 0;
     try {
       await expect(async () => {

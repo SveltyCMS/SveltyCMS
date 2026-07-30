@@ -57,7 +57,7 @@
 	import { getActiveSessions, revokeSession } from './user.remote';
 
 	const { data } = $props();
-	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = data;
+	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
 	type AccountTab = 'identity' | 'security' | 'settings' | 'management';
 	let activeTab = $state<AccountTab>('identity');

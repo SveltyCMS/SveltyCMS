@@ -5,24 +5,13 @@
  * Uses data-testid selectors (not role/CSS) so tests survive layout changes.
  */
 
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { TEST_API_SECRET } from "../../helpers/api";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
-
-/** Copy TEST_IMAGE to a temp file with a unique name to avoid duplicate-detection by the upload handler. */
-function uniqueUploadFile(): string {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sveltycms-e2e-"));
-  const uniquePath = path.join(tmpDir, `e2e-upload-${Date.now()}-${process.pid}.png`);
-  fs.copyFileSync(TEST_IMAGE, uniquePath);
-  return uniquePath;
-}
 
 async function openMediaGallery(page: import("@playwright/test").Page) {
   await loginAsAdmin(page);
