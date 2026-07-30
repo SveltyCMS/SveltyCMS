@@ -312,11 +312,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 					{#if isPinnedOpen}
 						<div class="space-y-0.5" transition:scale={{ duration: 150, start: 0.95 }}>
 							{#each pinnedStore.items as item (item.id)}
-								<div class="group relative flex items-center justify-between rounded hover:bg-surface-100/50 dark:hover:bg-surface-500/20">
+								<div class="group relative flex items-center justify-between rounded hover:bg-surface">
 									<a
 										href={item.path}
 										data-sveltekit-preload-data="hover"
-										class="flex flex-1 items-center gap-2 px-2 py-2 text-sm text-surface-900 dark:text-surface-100 no-underline!"
+										class="flex flex-1 items-center gap-2 px-2 py-2 text-sm text-body no-underline!"
 										onclick={() => {
 											if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 										}}
@@ -331,7 +331,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 											type="button"
 											onclick={() => pinnedStore.unpin(item.id)}
 											title="Unpin"
-										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-200 dark:hover:bg-surface-800">
+										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface">
 											<iconify-icon icon="bi:x" width="16" class="text-surface-500"></iconify-icon>
 										</Button>
 									{/if}
@@ -340,7 +340,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 						</div>
 					{/if}
 				</div>
-				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+				<div class="mx-1 border-0 border-t border-theme"></div>
 			{/if}
 
 			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
@@ -357,7 +357,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 							type="button"
 							onclick={handleBackToCollections}
 							aria-label="Back to Collections"
-							class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-100 {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
+							class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-muted hover:text-body {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
 						>
 							<iconify-icon icon="bi:arrow-left" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							{#if isSidebarFull}
@@ -376,7 +376,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 					<Collections />
 				</div>
 
-				<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+				<div class="mx-1 border-0 border-t border-theme"></div>
 
 				<SystemTooltip
 					title="Go to Media Gallery"
@@ -388,7 +388,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 						type="button"
 						onclick={handleGoToMediaGallery}
 						aria-label="Go to Media Gallery"
-						class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-surface-600 hover:text-surface-900 dark:text-surface-300 dark:hover:text-surface-100 {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
+						class="flex w-full items-center gap-1.5 rounded py-2 text-xs font-bold uppercase tracking-wider text-muted hover:text-body {isSidebarFull ? 'justify-start px-2' : 'justify-center'}"
 					>
 						<iconify-icon icon="bi:image" width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						{#if isSidebarFull}
@@ -404,9 +404,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
 	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">
-		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
+		<div class="mx-1 mb-2 border-0 border-t border-subtle"></div>
 
-		<div class="grid w-full items-center justify-center gap-1 text-surface-700 dark:text-surface-200 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
+		<div class="grid w-full items-center justify-center gap-1 text-body {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
@@ -417,8 +417,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface-500/20'
-							: 'h-8 w-8 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
+							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-surface'
+							: 'h-8 w-8 rounded-full hover:bg-surface'} relative flex items-center justify-center text-center no-underline!"
 						>
 							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
 						{#if isSidebarFull && user?.username}
@@ -438,7 +438,7 @@ Route-driven sidebar content (no dual collapsible section headers):
  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface-300/20" iconSize={28} />
+						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-surface" iconSize={28} />
  					</div>
  				</SystemTooltip>
  			</div>

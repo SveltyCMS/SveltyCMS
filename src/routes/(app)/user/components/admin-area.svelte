@@ -652,32 +652,32 @@
 	}
 </script>
 
-	<AdminCard
-		data-testid="user-admin-area"
-		class="flex flex-col border border-surface-200 bg-white shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50"
-	>
-		<!-- Header: Tabs + Invite button -->
-		<div class="flex items-center justify-between gap-3 px-4 pt-3">
-			<div class="flex border-b border-surface-200 dark:border-surface-700 grow" role="tablist" aria-label="User management views">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={showUserList}
-					data-testid="admin-tab-users"
-					onclick={() => showView('users')}
-					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-				>
-					<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
-					Users
-					<Badge preset="tonal" color="secondary" size="sm" class="ms-1">{systemUserCount}</Badge>
-				</button>
+<AdminCard
+	data-testid="user-admin-area"
+	class="flex flex-col border border-theme bg-card shadow-sm backdrop-blur-md"
+>
+	<!-- Header: Tabs + Invite button -->
+	<div class="flex items-center justify-between gap-3 px-4 pt-3">
+		<div class="flex border-b border-subtle grow" role="tablist" aria-label="User management views">
+			<button
+				type="button"
+				role="tab"
+				aria-selected={showUserList}
+				data-testid="admin-tab-users"
+				onclick={() => showView('users')}
+				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-muted hover:text-body'}"
+			>
+				<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
+				Users
+				<Badge preset="tonal" color="secondary" size="sm" class="ms-1">{systemUserCount}</Badge>
+			</button>
 				<button
 					type="button"
 					role="tab"
 					aria-selected={showUsertoken}
 					data-testid="admin-tab-tokens"
 					onclick={() => showView('tokens')}
-					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+					class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken ? 'border-tertiary-500 dark:border-primary-500 text-tertiary-500 dark:text-primary-500' : 'border-transparent text-muted hover:text-body'}"
 				>
 					<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
 					Invitations

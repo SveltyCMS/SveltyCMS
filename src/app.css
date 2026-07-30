@@ -109,6 +109,28 @@
   --color-surface-800: oklch(25% 0 196deg);
   --color-surface-900: oklch(19% 0 196deg);
   --color-surface-950: oklch(16% 0 none);
+
+  /* Semantic Theme Tokens */
+  --color-card: var(--bg-card);
+  --color-bg-card: var(--bg-card);
+
+  --color-surface: var(--bg-surface);
+  --color-bg-surface: var(--bg-surface);
+
+  --color-sidebar: var(--bg-sidebar);
+  --color-bg-sidebar: var(--bg-sidebar);
+
+  --color-theme: var(--border-theme);
+  --color-border-theme: var(--border-theme);
+
+  --color-subtle: var(--border-subtle);
+  --color-border-subtle: var(--border-subtle);
+
+  --color-body: var(--text-body);
+  --color-text-body: var(--text-body);
+
+  --color-muted: var(--text-muted);
+  --color-text-muted: var(--text-muted);
 }
 
 /* ========================================================================
@@ -226,8 +248,7 @@
    ======================================================================== */
 @layer components {
   .card {
-    @apply rounded border border-surface-200 bg-white text-surface-900 shadow-sm;
-    @apply dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50;
+    @apply rounded border border-theme bg-card text-body shadow-md transition-shadow duration-200 hover:shadow-lg;
   }
 
   .badge {
@@ -270,6 +291,27 @@
    🎯 BASE
    ======================================================================== */
 @layer base {
+  :root {
+    --bg-card: #ffffff;
+    --bg-surface: var(--color-surface-100);
+    --bg-sidebar: var(--color-surface-100);
+    --border-theme: var(--color-surface-200);
+    --border-subtle: var(--color-surface-100);
+    --text-body: var(--color-surface-900);
+    --text-muted: var(--color-surface-500);
+  }
+
+  html.dark,
+  .dark {
+    --bg-card: var(--color-surface-800);
+    --bg-surface: var(--color-surface-900);
+    --bg-sidebar: var(--color-surface-950);
+    --border-theme: var(--color-surface-600);
+    --border-subtle: var(--color-surface-700);
+    --text-body: var(--color-surface-100);
+    --text-muted: var(--color-surface-400);
+  }
+
   html {
     @apply bg-secondary-50 text-surface-900;
   }

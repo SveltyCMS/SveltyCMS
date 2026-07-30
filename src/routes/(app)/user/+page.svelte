@@ -670,8 +670,8 @@
 		});
 	}
 
-	const cardClass = 'border border-surface-200 dark:border-surface-800 p-5 sm:p-6 shadow-sm';
-	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-800 last:border-0';
+	const cardClass = 'border border-theme bg-card text-body p-5 sm:p-6 shadow-sm';
+	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-subtle last:border-0';
 	/** Equal width for Security row actions (Setup / Manage / Refresh) */
 	const securityActionBtn = 'min-w-[5.5rem] justify-center shrink-0';
 	/** Row lead icons: tertiary (light) / primary (dark) */
@@ -711,7 +711,7 @@
 										src={normalizeAvatarUrl(user.avatar)}
 										initials={user.username?.slice(0, 2).toUpperCase() || 'AV'}
 										size="size-28"
-										class="size-full rounded-full border-2 border-surface-200 shadow-md pointer-events-none dark:border-surface-600"
+										class="size-full rounded-full border-2 border-theme shadow-md pointer-events-none"
 									/>
 								</button>
 								<!-- Pencil outside circle hit area — positioned shell + SystemTooltip + real button -->
@@ -787,19 +787,19 @@
 
 						<!-- Right: username · email · password (static mask, no reveal) -->
 						<div class="flex min-w-0 flex-col gap-4">
-							<div class="w-full rounded-xl border border-surface-200/90 px-4 py-3 dark:border-surface-700">
-								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
+							<div class="w-full rounded-xl border border-theme px-4 py-3">
+								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
 									<iconify-icon icon="mdi:account" width={14} class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 									></iconify-icon>
 									{username()}
 								</p>
-								<p class="w-full text-base font-medium text-surface-900 dark:text-surface-100" data-testid="profile-username">
+								<p class="w-full text-base font-medium text-body" data-testid="profile-username">
 									{user.username || '—'}
 								</p>
 							</div>
 
-							<div class="w-full rounded-xl border border-surface-200/90 px-4 py-3 dark:border-surface-700">
-								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
+							<div class="w-full rounded-xl border border-theme px-4 py-3">
+								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
 									<iconify-icon
 										icon="mdi:email-outline"
 										width={14}
@@ -809,7 +809,7 @@
 									{email()}
 								</p>
 								<p
-									class="w-full break-all text-base font-medium text-surface-900 dark:text-surface-100"
+									class="w-full break-all text-base font-medium text-body"
 									data-testid="profile-email"
 								>
 									{user.email || '—'}
@@ -818,18 +818,18 @@
 
 							<!-- Password never shown in plain text — use Change password only -->
 							<div
-								class="w-full rounded-xl border border-surface-200/90 px-4 py-3 dark:border-surface-700"
+								class="w-full rounded-xl border border-theme px-4 py-3"
 								data-testid="profile-password-field"
 							>
-								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
+								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
 									<iconify-icon icon="mdi:key-variant" width={14} class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 									></iconify-icon>
 									Password
 								</p>
-								<p class="font-mono text-base tracking-widest text-surface-500" aria-hidden="true">••••••••••••</p>
-								<p class="mt-1 text-xs text-surface-500">
+								<p class="font-mono text-base tracking-widest text-muted" aria-hidden="true">••••••••••••</p>
+								<p class="mt-1 text-xs text-muted">
 									Passwords are stored hashed and cannot be displayed. Use
-									<strong class="font-medium text-surface-700 dark:text-surface-300">Change password</strong> to set a new one.
+									<strong class="font-medium text-body">Change password</strong> to set a new one.
 								</p>
 							</div>
 
@@ -859,7 +859,7 @@
 							</div>
 
 							{#if isFirstUser}
-								<div class="border-t border-surface-200 pt-4 dark:border-surface-700">
+								<div class="border-t border-subtle pt-4">
 									<Button
 										variant="outline"
 										size="sm"
@@ -879,7 +879,7 @@
 				<!-- ═══ TAB 2: Security — help icons match /setup pattern ═══ -->
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-security-panel">
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">Sessions &amp; 2FA</h3>
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Sessions &amp; 2FA</h3>
 						<div class="space-y-1">
 							{#if is2FAEnabledGlobal}
 								<div class={rowClass} data-testid="security-2fa-section">
@@ -887,20 +887,20 @@
 										<iconify-icon icon="mdi:two-factor-authentication" class={securityRowIcon} width={20} aria-hidden="true"
 										></iconify-icon>
 										<div class="min-w-0">
-											<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+											<p class="flex items-center gap-1 text-sm font-medium text-body">
 												Two-Factor Authentication
 												<SystemTooltip title={helpTitle('2fa')}>
 													<button
 														type="button"
 														tabindex="-1"
 														aria-label="Help: Two-Factor Authentication"
-														class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+														class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
 													>
 														<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 													</button>
 												</SystemTooltip>
 											</p>
-											<p class="text-xs {user.is2FAEnabled ? 'text-primary-600 dark:text-primary-500' : 'text-surface-500'}">
+											<p class="text-xs {user.is2FAEnabled ? 'text-primary-600 dark:text-primary-500' : 'text-muted'}">
 												{user.is2FAEnabled ? 'Enabled' : 'Not configured'}
 											</p>
 										</div>
@@ -921,14 +921,14 @@
 								<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
 									<div class="flex min-w-0 items-center gap-2">
 										<iconify-icon icon="mdi:devices" class={securityRowIcon} width={20} aria-hidden="true"></iconify-icon>
-										<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+										<p class="flex items-center gap-1 text-sm font-medium text-body">
 											Active Sessions
 											<SystemTooltip title={helpTitle('sessions')}>
 												<button
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Active Sessions"
-													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -964,7 +964,7 @@
 								{#if sessionsError}
 									<p class="text-xs text-error-500" role="alert">{sessionsError}</p>
 								{:else if sessions.length === 0 && !sessionsLoading}
-									<p class="text-xs text-surface-500">No sessions listed yet. Refresh to load devices.</p>
+									<p class="text-xs text-muted">No sessions listed yet. Refresh to load devices.</p>
 								{:else}
 									<ul
 										class="max-h-[min(70vh,40rem)] space-y-2 overflow-y-auto sm:max-h-[min(75vh,48rem)]"
@@ -974,7 +974,7 @@
 											<li
 												class="rounded-lg border {group.isCurrent
 													? 'border-primary-500/60 bg-primary-500/5 shadow-sm ring-1 ring-primary-500/30 dark:border-primary-500/50 dark:bg-primary-500/10 dark:ring-primary-500/25'
-													: 'border-surface-100 dark:border-surface-800'}"
+													: 'border-subtle'}"
 												data-testid="session-group"
 												data-current={group.isCurrent ? 'true' : 'false'}
 											>
@@ -991,7 +991,7 @@
 															<iconify-icon icon={group.icon} width={18}></iconify-icon>
 														</span>
 														<div class="min-w-0">
-															<p class="font-medium text-surface-800 dark:text-surface-200">
+															<p class="font-medium text-body">
 																{group.title}
 																{#if group.isCurrent}
 																	<Badge
@@ -1004,12 +1004,12 @@
 																	</Badge>
 																{/if}
 																{#if group.sessionCount > 1}
-																	<span class="ms-1 text-[11px] font-normal text-surface-500">
+																	<span class="ms-1 text-[11px] font-normal text-muted">
 																		({group.sessionCount} sessions)
 																	</span>
 																{/if}
 															</p>
-															<p class="mt-0.5 text-[11px] text-surface-500">
+															<p class="mt-0.5 text-[11px] text-muted">
 																{#if group.isCurrent}
 																	<span class="font-medium text-primary-600 dark:text-primary-500"
 																		>You are here · </span
@@ -1055,7 +1055,7 @@
 												<ul
 													class="space-y-1.5 border-t px-3 py-2 {group.isCurrent
 														? 'border-primary-500/25 dark:border-primary-500/30'
-														: 'border-surface-100 dark:border-surface-800'}"
+														: 'border-subtle'}"
 													aria-label="Sessions on this device"
 													data-testid="session-group-members"
 												>
@@ -1063,10 +1063,10 @@
 														<li
 															class="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[11px] {member.isCurrent
 																? 'border border-primary-500/40 bg-primary-500/10 dark:border-primary-500/50 dark:bg-primary-500/15'
-																: 'border border-transparent bg-surface-50/80 dark:bg-surface-900/40'}"
+																: 'border border-transparent bg-surface/80'}"
 															data-testid={member.isCurrent ? 'session-member-current' : 'session-member'}
 														>
-															<span class="min-w-0 text-surface-600 dark:text-surface-300">
+															<span class="min-w-0 text-body">
 																{#if member.isCurrent}
 																	<span
 																		class="inline-flex items-center gap-1 font-bold text-primary-600 dark:text-primary-500"
@@ -1076,15 +1076,15 @@
 																		Current · this tab
 																	</span>
 																{:else}
-																	<span class="font-medium text-surface-800 dark:text-surface-200"
+																	<span class="font-medium text-body"
 																		>Other sign-in</span
 																	>
 																{/if}
 																{#if sessionWhen(member)}
-																	<span class="text-surface-500"> · {sessionWhen(member)}</span>
+																	<span class="text-muted"> · {sessionWhen(member)}</span>
 																{/if}
 																{#if member.ip || member.ipAddress}
-																	<span class="font-mono text-surface-500">
+																	<span class="font-mono text-muted">
 																		· {member.ip || member.ipAddress}</span
 																	>
 																{/if}
@@ -1101,26 +1101,26 @@
 					</AdminCard>
 
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">Login preferences &amp; access</h3>
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Login preferences &amp; access</h3>
 						<div class="space-y-1">
 							<div class={rowClass} data-testid="pref-passkey">
 								<div class="flex min-w-0 items-center gap-3">
 									<iconify-icon icon="mdi:fingerprint" class={securityRowIcon} width={20} aria-hidden="true"></iconify-icon>
 									<div class="min-w-0">
-										<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+										<p class="flex items-center gap-1 text-sm font-medium text-body">
 											Passkeys
 											<SystemTooltip title={helpTitle('passkeys')}>
 												<button
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Passkeys"
-													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
 											</SystemTooltip>
 										</p>
-										<p class="text-xs text-surface-500">Prefer passwordless biometric login</p>
+										<p class="text-xs text-muted">Prefer passwordless biometric login</p>
 									</div>
 								</div>
 								<Checkbox
@@ -1136,20 +1136,20 @@
 								<div class="flex min-w-0 items-center gap-3">
 									<iconify-icon icon="mdi:magic-staff" class={securityRowIcon} width={20} aria-hidden="true"></iconify-icon>
 									<div class="min-w-0">
-										<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+										<p class="flex items-center gap-1 text-sm font-medium text-body">
 											Magic Link
 											<SystemTooltip title={helpTitle('magic')}>
 												<button
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Magic Link"
-													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
 											</SystemTooltip>
 										</p>
-										<p class="text-xs text-surface-500">Prefer passwordless email login</p>
+										<p class="text-xs text-muted">Prefer passwordless email login</p>
 									</div>
 								</div>
 								<Checkbox
@@ -1166,20 +1166,20 @@
 									<iconify-icon icon="mdi:account-group-outline" class={securityRowIcon} width={20} aria-hidden="true"
 									></iconify-icon>
 									<div class="min-w-0">
-										<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+										<p class="flex items-center gap-1 text-sm font-medium text-body">
 											OAuth Login
 											<SystemTooltip title={helpTitle('oauth')}>
 												<button
 													type="button"
 													tabindex="-1"
 													aria-label="Help: OAuth Login"
-													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
 											</SystemTooltip>
 										</p>
-										<p class="text-xs text-surface-500">Sign in with Google, GitHub when configured</p>
+										<p class="text-xs text-muted">Sign in with Google, GitHub when configured</p>
 									</div>
 								</div>
 								<Checkbox
@@ -1195,14 +1195,14 @@
 								<div class="pt-3" data-testid="user-permissions-list">
 									<div class="mb-2 flex items-center gap-2">
 										<iconify-icon icon="mdi:shield-check" class={securityRowIcon} width={20} aria-hidden="true"></iconify-icon>
-										<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+										<p class="flex items-center gap-1 text-sm font-medium text-body">
 											Permissions
 											<SystemTooltip title={helpTitle('permissions')}>
 												<button
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Permissions"
-													class="ms-0.5 text-surface-400 hover:text-tertiary-500 dark:hover:text-primary-500"
+													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -1242,11 +1242,11 @@
 				<!-- ═══ TAB 3: User Settings — two columns (Appearance/Collab | Privacy) ═══ -->
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-settings-panel">
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
 							Workspace &amp; collaboration
 						</h3>
 						<div class="space-y-1">
-							<div class="border-b border-surface-100 py-3 dark:border-surface-800" data-testid="workspace-appearance-section">
+							<div class="border-b border-subtle py-3" data-testid="workspace-appearance-section">
 								<div class="mb-2 flex items-center gap-2">
 									<iconify-icon
 										icon="mdi:palette-outline"
@@ -1254,7 +1254,7 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+									<p class="flex items-center gap-1 text-sm font-medium text-body">
 										Workspace Appearance
 										<SystemTooltip title={helpTitle('appearance')}>
 											<button type="button" tabindex="-1" aria-label="Help: Workspace Appearance" class={helpBtnClass}>
@@ -1284,7 +1284,7 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+									<p class="flex items-center gap-1 text-sm font-medium text-body">
 										Collaboration
 										<SystemTooltip title={helpTitle('collaboration')}>
 											<button type="button" tabindex="-1" aria-label="Help: Collaboration" class={helpBtnClass}>
@@ -1295,7 +1295,7 @@
 								</div>
 								<div class="space-y-3 ps-1">
 									<div class="flex items-center justify-between gap-3" data-testid="pref-rtc-enabled">
-										<span class="flex min-w-0 items-center gap-1 text-sm text-surface-700 dark:text-surface-300">
+										<span class="flex min-w-0 items-center gap-1 text-sm text-body">
 											Real-time editing
 											<SystemTooltip title={helpTitle('rtc-enabled')}>
 												<button type="button" tabindex="-1" aria-label="Help: Real-time editing" class={helpBtnClass}>
@@ -1312,7 +1312,7 @@
 										/>
 									</div>
 									<div class="flex items-center justify-between gap-3" data-testid="pref-rtc-sound">
-										<span class="flex min-w-0 items-center gap-1 text-sm text-surface-700 dark:text-surface-300">
+										<span class="flex min-w-0 items-center gap-1 text-sm text-body">
 											Sound notifications
 											<SystemTooltip title={helpTitle('rtc-sound')}>
 												<button
@@ -1339,7 +1339,7 @@
 					</AdminCard>
 
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-surface-500">
+						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
 							Privacy &amp; extensions
 						</h3>
 						<div class="space-y-1">
@@ -1351,7 +1351,7 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p class="flex items-center gap-1 text-sm font-medium text-surface-900 dark:text-surface-100">
+									<p class="flex items-center gap-1 text-sm font-medium text-body">
 										Privacy &amp; Data (GDPR)
 										<SystemTooltip title={helpTitle('privacy')}>
 											<button
@@ -1370,19 +1370,19 @@
 									onclick={modalPrivacyData}
 									data-testid="privacy-data-btn"
 									aria-label="Privacy and Data GDPR — open export and erase options"
-									class="flex w-full items-center gap-3 rounded-lg border border-surface-200 p-3 text-start transition-colors hover:bg-surface-100/50 dark:border-surface-700 dark:hover:bg-surface-800/50"
+									class="flex w-full items-center gap-3 rounded-lg border border-theme p-3 text-start transition-colors hover:bg-surface/50"
 								>
 									<div class="min-w-0 flex-1">
-										<p class="text-sm font-medium text-surface-900 dark:text-surface-100">
+										<p class="text-sm font-medium text-body">
 											View, export, or erase your data
 										</p>
-										<p class="text-xs text-surface-500">
+										<p class="text-xs text-muted">
 											Opens a secure dialog for download and anonymize actions
 										</p>
 									</div>
 									<iconify-icon
 										icon="mdi:chevron-right"
-										class="shrink-0 text-surface-400"
+										class="shrink-0 text-muted"
 										width={18}
 										aria-hidden="true"
 									></iconify-icon>

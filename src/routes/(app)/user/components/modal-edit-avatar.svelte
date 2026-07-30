@@ -347,7 +347,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	// Base Classes
 
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
+	const cForm = 'border border-theme p-4 space-y-4 rounded';
 </script>
 
 <div class="modal-avatar space-y-4">
@@ -362,7 +362,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 							alt="User avatar"
 							initials="AB"
 							size="size-32"
-							class="rounded-full border-4 border-surface-200 dark:border-surface-700 shadow-xl aspect-square"
+							class="rounded-full border-4 border-theme shadow-xl aspect-square"
 						/>
 
 						<!-- Hover/Focus overlay cue when not uploading -->
