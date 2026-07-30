@@ -42,10 +42,9 @@ fi
 
 # Step 4 — Unit tests (skip if only docs changed)
 if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
-  warn "Only docs changed — skipping unit tests"
-  TOTAL=$((TOTAL - 1))
-  OK=$((OK + 1))
-elif run "🧪  Unit tests" $RUN_CMD test:unit; then
+	  warn "Only docs changed — skipping unit tests"
+	  TOTAL=$((TOTAL - 1))
+	elif run "🧪  Unit tests" $RUN_CMD test:unit; then
   OK=$((OK + 1))
 fi
 
