@@ -252,12 +252,56 @@ export interface PluginSlot {
   zone: InjectionZone;
 }
 
-// Lifecycle hooks for plugins to intercept CRUD operations
+// Lifecycle hooks for plugins to intercept CRUD operations and auth flows
 export interface PluginLifecycleHooks {
   afterDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
   afterSave?: (context: PluginContext, collection: string, result: any) => Promise<void>;
+  /**
+   * Fired after successful authentication (password, OAuth, passkey, API key, token).
+   * Plugins can use this to enforce additional security policies or enrich the session.
+   *
+   * @param event - Information about the authentication event
+   * @returns May return `{ requires2FA: true }` to gate the session behind 2FA,
+   *          or `{ deny: true, message: "..." }` to block the login.
+   */
+  afterAuthenticate?: (event: AuthHookEvent) => Promise<AuthHookResult | void>;
   beforeDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
   beforeSave?: (context: PluginContext, collection: string, data: any) => Promise<any>;
+}
+
+/**
+ * Event payload passed to the afterAuthenticate plugin hook.
+ * Fires after credential verification but before session cookie issuance.
+ */
+export interface AuthHookEvent {
+  /** The authenticated user. */
+  user: User;
+  /** Authentication method: "password", "oauth", "passkey", "api_key", "token", "magic_link". */
+  method: "password" | "oauth" | "passkey" | "api_key" | "token" | "magic_link";
+  /** Client IP address. */
+  ip: string;
+  /** User-Agent header. */
+  userAgent: string;
+  /** Whether 2FA is already enabled on the user account. */
+  userHas2FA: boolean;
+  /** Tenant ID (or null for single-tenant). */
+  tenantId: string | null;
+}
+
+/**
+ * Return value from the afterAuthenticate hook.
+ *
+ * - `void` → no action, proceed normally
+ * - `{ requires2FA: true }` → gate the user behind 2FA (regardless of user settings)
+ * - `{ deny: true, message: "..." }` → block the login with the given message
+ */
+export interface AuthHookResult {
+  /** Force 2FA gating even if the user hasn't enabled it. */
+  requires2FA?: boolean;
+  /** Deny the authentication with a message. */
+  deny?: boolean;
+  /** Human-readable message for deny. */
+  message?: string;
 }
 
 /**
@@ -360,6 +404,14 @@ export interface IPluginService {
     hookName: K,
     tenantId?: string | null,
   ): Promise<Exclude<PluginLifecycleHooks[K], undefined>[]>;
+
+  /**
+   * Run afterAuthenticate hooks across all enabled plugins.
+   * Returns the first deny result, or the first requires2FA result, or null.
+   */
+  runAuthHooks(
+    event: import("./types").AuthHookEvent,
+  ): Promise<import("./types").AuthHookResult | null>;
 
   /** Get SSR hooks for enabled plugins on a collection */
   getSSRHooks(collectionId: string, tenantId?: string | null): Promise<PluginSSRHook[]>;

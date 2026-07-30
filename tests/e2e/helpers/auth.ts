@@ -451,6 +451,21 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
   const password = ADMIN_CREDENTIALS.password;
 
+  // Intercept cross-origin icon CDN requests to strip Playwright's test headers
+  // that cause CORS failures. Applies to all icon CDNs used by iconify-icon.
+  await page.route("https://api.iconify.design/**", async (route) => {
+    const response = await route.fetch();
+    route.fulfill({ response });
+  });
+  await page.route("https://api.unisvg.com/**", async (route) => {
+    const response = await route.fetch();
+    route.fulfill({ response });
+  });
+  await page.route("https://api.simplesvg.com/**", async (route) => {
+    const response = await route.fetch();
+    route.fulfill({ response });
+  });
+
   // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
   // Verify session by actually checking for admin shell testid, not just URL (SPA auth
   // can render auth page without redirect, leaving URL unchanged).

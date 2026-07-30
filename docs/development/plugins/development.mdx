@@ -144,6 +144,22 @@ hooks: {
 
   afterDelete: async (context, collection, id) => {
     // Cleanup related plugin data
+  },
+
+  afterAuthenticate: async (event) => {
+    // Fires after successful credential verification but before session cookie issuance.
+    // Use to enforce additional security policies or force 2FA gating.
+    //
+    // event.user    — the authenticated user object
+    // event.method  — "password" | "oauth" | "passkey" | "api_key" | "token" | "magic_link"
+    // event.ip      — client IP address
+    // event.userAgent — User-Agent header
+    // event.userHas2FA — whether user already has 2FA enabled
+    // event.tenantId — tenant ID (or null)
+    //
+    // Return { deny: true, message: "..." } to block the login
+    // Return { requires2FA: true } to force 2FA even if user hasn't enabled it
+    // Return void to proceed normally
   }
 }
 ```
