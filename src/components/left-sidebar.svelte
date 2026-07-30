@@ -384,7 +384,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 					triggerClass="w-full"
 				>
 					<Button
-						variant="ghost"
+						variant="outline"
 						type="button"
 						onclick={handleGoToMediaGallery}
 						aria-label="Go to Media Gallery"
