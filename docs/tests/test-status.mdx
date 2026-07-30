@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-20"
+updated: "2026-07-30"
 tags:
   - "testing"
   - "status"
@@ -20,7 +20,7 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > Deep inventories and “what we shipped when” live in **[Test Status Archive](./test-status-archive.mdx)**.
 
-**Dashboard updated:** 2026-07-26 (GraphQL response cache verified; 4-DB matrix clean; CVEs resolved)
+**Dashboard updated:** 2026-07-30 (2FA encryption + trusted devices + plugin auth hooks; 35 new unit tests)
 
 ---
 
@@ -52,7 +52,7 @@ tags:
 
 | Tier               | Command               | Time    | Coverage                               |
 | ------------------ | --------------------- | ------- | -------------------------------------- |
-| **Pre-commit**     | `bun run test:unit`   | ~60s    | 2822 unit tests                        |
+| **Pre-commit**     | `bun run test:unit`   | ~60s    | 2878 unit tests                        |
 | **Pre-push**       | Automatic gate        | ~1.5min | Build + SQLite integration (595 tests) |
 | **Pre-CI** (local) | `bun run test:matrix` | ~8min   | All 4 DBs (2380 tests)                 |
 | **CI**             | GitHub Actions        | ~30min  | Full matrix + E2E (100%)               |
@@ -196,12 +196,21 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 
 ### Ultra-smart auth & client safety (2026-07-18)
 
-|                 |                                                                                                                                |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Status**      | **P0 hardened** — loopback cookies, testing dual-write, **exhaustive** import-boundary, session→**18** admin pages             |
-| **Unit**        | `session-cookies`, `client-import-boundary` (full client-root walk), login-cookie contract, `page-guards`, builder page.server |
-| **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix     |
-| **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                                   |
+|                 |                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**      | **P0 hardened** — loopback cookies, testing dual-write, **exhaustive** import-boundary, session→**18** admin pages                                                       |
+| **Unit**        | `session-cookies`, `client-import-boundary` (full client-root walk), login-cookie contract, `page-guards`, builder page.server, `totp-encryption`, `registry-auth-hooks` |
+| **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix                                               |
+| **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx) · [auth.mdx](../reference/api/auth.mdx)                                                                     |
+
+### 2FA Hardening & Plugin Auth Hooks (2026-07-30)
+
+|             |                                                                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**  | **35 new unit tests** — AES-256-GCM TOTP encryption (round-trip, tamper detection, legacy compat), trusted device tokens (gen/verify/reject), `afterAuthenticate` hook (deny/requires2FA/fail-open/skip disabled), configurable TOTP window |
+| **Unit**    | `tests/unit/auth/totp-encryption.test.ts` (20 tests), `tests/unit/plugins/registry-auth-hooks.test.ts` (15 tests)                                                                                                                           |
+| **Product** | TOTP secrets encrypted at rest; pending setup state (resumable enrollment); `__Host-2fa-trusted-device` cookie; plugin auth hooks in `signInInternal`                                                                                       |
+| **Docs**    | [auth.mdx](../reference/api/auth.mdx) · [authentication-system.mdx](../reference/security/authentication-system.mdx) · [plugin architecture](../development/plugins/architecture.mdx)                                                       |
 
 ### Databases whitebox + enterprise storage (2026-07-20)
 
@@ -267,6 +276,9 @@ bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/cli
 
 # Databases whitebox + Auth lockout (real CacheService / Auth / boot)
 bun test tests/unit/databases/ tests/unit/auth/auth-lockout.test.ts
+
+# 2FA encryption + trusted devices + plugin auth hooks (35 tests)
+bun test tests/unit/auth/totp-encryption.test.ts tests/unit/plugins/registry-auth-hooks.test.ts
 
 # Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
 bun run test:integration

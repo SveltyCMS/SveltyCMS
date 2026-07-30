@@ -295,9 +295,17 @@ async function enforceTestSafety(config: any) {
 }
 
 /** Optional: Decide when file config is still needed (e.g. during setup) */
-function shouldUseFileConfig(svelteEnv: any): boolean {
-  // Heuristic: Use file config if essential DB_TYPE is missing from env or if in dev mode
-  return !svelteEnv.DB_TYPE || env("NODE_ENV") === "development";
+function shouldUseFileConfig(_svelteEnv: any): boolean {
+  // Always load file config for env merging. In production, config/private.ts carries
+  // file-only settings (DEMO, MULTI_TENANT, USE_REDIS, etc.) that are NOT available in
+  // process env vars. Skipping the file when DB_TYPE is in env silently drops these
+  // settings on every server restart (e.g. after a code deploy), causing demo mode and
+  // multi-tenancy to reset.
+  //
+  // The merge order is: env vars - file config - env overrides, so env vars always win.
+  // There is no harm in loading the file when DB_TYPE is set - the env override step
+  // (getEnvOverrides) applies afterward with higher precedence.
+  return true;
 }
 
 // Sync getters (safe after loadPrivateConfig has been called at least once)

@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-07-26"
+updated: "2026-07-30"
 tags:
   - "roadmap"
   - "todo"
@@ -27,6 +27,16 @@ This document is the **living roadmap** — only in-progress and planned work. C
 **Shipped foundation** (July 2026): one stack for admin lists — headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives. Collections stay **server-secure** (URL + SSR + FLAC); design-system / small tables may use **client** mode.
 
 **Non-goals (deliberate):** TanStack Table as the collection engine; client-side filtering of multi-tenant collection pages; forcing Smart Table onto every mini matrix (permissions grid, media detail widgets, migration field maps).
+
+### 2FA & Auth Hardening (July 2026)
+
+**Completed:**
+
+- [x] AES-256-GCM encryption of TOTP secrets at rest (backward compatible)
+- [x] Pending setup state — resumable 2FA enrollment after page close
+- [x] Trusted devices (\_\_Host-2fa-trusted-device cookie, HMAC-signed, 30-day TTL)
+- [x] Configurable TOTP window via TOTP_WINDOW env var
+- [x] Plugin afterAuthenticate hook — plugins can deny logins or force 2FA gating
 
 ### Next (high leverage — foundations ready)
 

@@ -174,7 +174,7 @@ function handleThemeSelect(themeId: string) {
 					<!-- Market Place -->
 					<Button
 						variant="primary"
-						href="/config/appearance"
+						href="/config/design-system?tab=themes"
 						aria-label={marketplace()}
 						class="gap-2"
 					>

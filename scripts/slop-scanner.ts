@@ -417,6 +417,69 @@ function checkDuplicateContent(relPath: string, content: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Security Architecture Checks
+// ---------------------------------------------------------------------------
+
+/** Patterns that indicate insecure architectural choices (not secret leaks). */
+const SECURITY_ARCH_PATTERNS: {
+  pattern: RegExp;
+  category: string;
+  message: string;
+  severity: Violation["severity"];
+}[] = [
+  {
+    pattern: /"Access-Control-Allow-Origin":\s*request\.headers\.get\("Origin"\)/,
+    category: "cors-reflection",
+    message: "CORS reflects Origin header with credentials — use origin allowlist instead",
+    severity: "error",
+  },
+  {
+    pattern: /DEFAULT_ALLOWED_MIME\s*=\s*\/\^\\(image\|video\|audio\|application\\)/,
+    category: "broad-mime",
+    message: "MIME allowlist is too broad — restrict to explicit types (no application/*)",
+    severity: "error",
+  },
+  {
+    pattern: /createHash\("(?:sha256|md5|sha1)"\)\.update\((?:key|secret|token)\)/i,
+    category: "fast-hash-secret",
+    message: "Fast hash used for API key/token storage — use HMAC with server secret",
+    severity: "error",
+  },
+  {
+    pattern: /\(isProduction\s*&&\s*!isBenchmark\)/,
+    category: "introspection-bypass",
+    message: "GraphQL introspection gated on benchmark flags — block unconditionally in prod",
+    severity: "error",
+  },
+  {
+    pattern: /user\._id\s*===\s*["']system["']\s*&&\s*password\s*===/,
+    category: "backdoor",
+    message: "Hardcoded password comparison for system user — potential auth backdoor",
+    severity: "error",
+  },
+  {
+    pattern: /request\.clone\(\)/,
+    category: "body-double-clone",
+    message: "Request body cloned — verify size limits are enforced to prevent OOM",
+    severity: "info",
+  },
+];
+
+function scanSecurityPatterns(relPath: string, content: string) {
+  if (content.includes("slop:suppress")) return;
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+    for (const { pattern, category, message, severity } of SECURITY_ARCH_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        report(relPath, i + 1, category, message, severity);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main Router
 // ---------------------------------------------------------------------------
 async function main() {
@@ -492,6 +555,7 @@ async function main() {
         scanTodos(rel, content);
         checkFileNaming(rel);
         checkDuplicateContent(rel, content);
+        scanSecurityPatterns(rel, content);
 
         const size = (await fs.stat(file)).size;
         if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {

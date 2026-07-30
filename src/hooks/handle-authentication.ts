@@ -12,7 +12,7 @@
  *
  * ### Features
  * - Session rotation every 15 minutes for active users (industry best practice)
- * - LRU session cache (top 100 hot sessions) with TTL eviction
+ - LRU session cache (top 10,000 hot sessions) with TTL eviction
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - Rate-limited refresh attempts (100/min per IP)
  * - Automatic cleanup of expired sessions
@@ -30,7 +30,7 @@ import {
   isSecureCookieContext,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
-import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
+import { isValidApiKeyFormat, hashApiKeyWithLegacy } from "@src/databases/auth/api-keys";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
@@ -134,7 +134,7 @@ interface SessionCacheEntry {
   user: User;
 }
 
-const MAX_SESSION_CACHE = 100;
+const MAX_SESSION_CACHE = 10_000;
 const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();
@@ -671,7 +671,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       if (tokenValue) {
         if (isValidApiKeyFormat(tokenValue)) {
           // --- API Key Authentication (sck_...) ---
-          const hash = hashApiKey(tokenValue);
+          const hashes = hashApiKeyWithLegacy(tokenValue);
+          const hash = hashes.current;
+          const legacyHash = hashes.legacy;
           if (isApiKeyAuthNegativeHit(hash, locals.tenantId as DatabaseId)) {
             return await resolve(event);
           }
@@ -699,9 +701,15 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               .catch(() => {});
           } else {
             metricsService.incrementAuthValidations();
-            const res = await dbAdapter.auth.getApiKey(hash, {
+            let res = await dbAdapter.auth.getApiKey(hash, {
               tenantId: locals.tenantId,
             });
+            // Fallback: try legacy SHA-256 hash for keys created before HMAC migration
+            if (!res.success && legacyHash !== hash) {
+              res = await dbAdapter.auth.getApiKey(legacyHash, {
+                tenantId: locals.tenantId,
+              });
+            }
             if (res.success && res.data) {
               const apiKey = res.data;
 

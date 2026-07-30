@@ -149,6 +149,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
   async disconnect(): Promise<DatabaseResult<void>> {
     try {
       if (this._connection) {
+        (this as any).__intentionalDisconnect__ = true;
         await this._connection.close();
         this._connection = null;
       }

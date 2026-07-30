@@ -54,6 +54,14 @@ export interface ImageProcessingConfig {
   stripMetadata: boolean;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────
+
+/** Maximum output dimension in pixels for any generated variant.
+ * Prevents denial-of-wallet attacks via oversized image requests.
+ * 3000px is the recommended default — exceeding this risks excessive
+ * memory/CPU consumption during variant generation. */
+export const MAX_OUTPUT_DIMENSION = 3000;
+
 // ─── Default presets ───────────────────────────────────────────────────────
 
 export interface ImagePreset {
@@ -237,16 +245,18 @@ async function generateVariant(
   originalWidth: number,
   tenantId?: string | null,
 ): Promise<ImageVariant> {
+  // 🛡️ SECURITY: Cap output dimension to prevent oversized variant generation
+  const safeWidth = Math.min(targetWidth, MAX_OUTPUT_DIMENSION);
   // Calculate height preserving aspect ratio
-  const height = Math.round((targetWidth / originalWidth) * originalHeight);
+  const height = Math.round((safeWidth / originalWidth) * originalHeight);
   // The preset name is determined by resolvePresetName below
 
   // Build the sharp pipeline
   let pipeline = sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" })
     // Auto-fix orientation from EXIF
     .rotate()
-    // Resize preserving aspect ratio
-    .resize(targetWidth, null, { fit: "inside", withoutEnlargement: true });
+    // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
+    .resize(safeWidth, null, { fit: "inside", withoutEnlargement: true });
 
   // Apply format-specific encoding
   // Note: Sharp automatically strips metadata unless .withMetadata() is called.

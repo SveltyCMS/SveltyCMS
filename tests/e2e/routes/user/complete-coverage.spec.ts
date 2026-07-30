@@ -38,7 +38,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
  * reliable than the UI-based loginAsAdmin helper when called many times.
  */
 async function adminLogin(page: Page) {
-  const response = await page.request.post("http://127.0.0.1:4173/api/testing", {
+  const response = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,
     data: {
       action: "login",
@@ -49,12 +49,10 @@ async function adminLogin(page: Page) {
 
   if (!response.ok()) {
     // Fallback: seed then login via API
-    await page.request.post("http://127.0.0.1:4173/api/testing", {
-      headers: TEST_API_HEADERS,
+    await page.request.post("/api/testing", {
       data: { action: "reset" },
     });
-    await page.request.post("http://127.0.0.1:4173/api/testing", {
-      headers: TEST_API_HEADERS,
+    await page.request.post("/api/testing", {
       data: {
         action: "seed",
         email: ADMIN_CREDENTIALS.email,
@@ -62,8 +60,7 @@ async function adminLogin(page: Page) {
       },
     });
     // Retry login
-    const retry = await page.request.post("http://127.0.0.1:4173/api/testing", {
-      headers: TEST_API_HEADERS,
+    const retry = await page.request.post("/api/testing", {
       data: {
         action: "login",
         email: ADMIN_CREDENTIALS.email,
@@ -136,14 +133,16 @@ test.describe("Auth Toggles", () => {
   test.beforeEach(async ({ page }) => {
     await adminLogin(page);
     await goToUserPage(page);
+    // Navigate to the Security tab where auth preference toggles live
+    await page.getByRole("tab", { name: /security/i }).click();
+    await expect(page.getByTestId("user-security-panel")).toBeVisible({ timeout: 10_000 });
   });
 
   test("passkey toggle sends API call to update-user-attributes with preferences.auth", async ({
     page,
   }) => {
-    // Locate the Passkey checkbox within the Security card
-    const securityCard = page.locator("section").filter({ hasText: "Security" }).last();
-    const passkeyCheckbox = securityCard.locator('input[type="checkbox"]').first();
+    // The passkey checkbox lives in the pref-passkey section of the security panel
+    const passkeyCheckbox = page.locator('[data-testid="pref-passkey"] input[type="checkbox"]');
 
     // Wait for the API response when toggling
     const apiCall = page.waitForResponse(
@@ -167,10 +166,8 @@ test.describe("Auth Toggles", () => {
   });
 
   test("magic link toggle sends API call to update-user-attributes", async ({ page }) => {
-    const securityCard = page.locator("section").filter({ hasText: "Security" }).last();
-    const checkboxes = securityCard.locator('input[type="checkbox"]');
-
-    // Magic link is the second checkbox
+    // Magic link is the second checkbox in the security panel
+    const checkboxes = page.getByTestId("user-security-panel").locator('input[type="checkbox"]');
     const magicLinkCheckbox = checkboxes.nth(1);
 
     const apiCall = page.waitForResponse(
@@ -179,7 +176,6 @@ test.describe("Auth Toggles", () => {
       { timeout: ACTION_TIMEOUT },
     );
 
-    // The checkbox input is sr-only (visually hidden) — use evaluate to click
     await magicLinkCheckbox.evaluate((el: HTMLElement) => el.click());
 
     const response = await apiCall;
@@ -190,10 +186,8 @@ test.describe("Auth Toggles", () => {
   });
 
   test("oauth toggle sends API call to update-user-attributes", async ({ page }) => {
-    const securityCard = page.locator("section").filter({ hasText: "Security" }).last();
-    const checkboxes = securityCard.locator('input[type="checkbox"]');
-
-    // OAuth is the third checkbox
+    // OAuth is the third checkbox in the security panel
+    const checkboxes = page.getByTestId("user-security-panel").locator('input[type="checkbox"]');
     const oauthCheckbox = checkboxes.nth(2);
 
     const apiCall = page.waitForResponse(
@@ -202,7 +196,6 @@ test.describe("Auth Toggles", () => {
       { timeout: ACTION_TIMEOUT },
     );
 
-    // The checkbox input is sr-only (visually hidden) — use evaluate to click
     await oauthCheckbox.evaluate((el: HTMLElement) => el.click());
 
     const response = await apiCall;
@@ -349,7 +342,8 @@ test.describe("Admin Table", () => {
   test.beforeEach(async ({ page }) => {
     await adminLogin(page);
     await goToUserPage(page);
-    await openAdminArea(page);
+    // Click the User Management tab to access admin area
+    await page.getByRole("tab", { name: /user management/i }).click();
     await ensureUserListView(page);
   });
 
@@ -639,7 +633,9 @@ test.describe("GDPR Privacy Data", () => {
     await gdprBtn.click({ timeout: ACTION_TIMEOUT });
 
     // The modal should open with privacy-related content
-    const dialog = page.getByRole("dialog");
+    // Use .first() to avoid strict mode when cookie consent or other modals
+    // are simultaneously rendered (observed in CI run #30031650185)
+    const dialog = page.getByRole("dialog").first();
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Verify it contains GDPR-related text
@@ -724,7 +720,7 @@ test.describe("Responsive Viewports", () => {
     expect(tableExists).toBe(true);
 
     // The security card should be visible
-    const securityText = page.getByText("Security");
+    const securityText = page.getByRole("heading", { name: /security/i });
     await expect(securityText).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });

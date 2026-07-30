@@ -311,6 +311,18 @@ select:focus {
   --admin-shadow-elevation: 0 1px 3px 0 rgb(0 0 0 / 0.1);
   --admin-shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.05);
 
+  /* Semantic surface roles (light defaults)
+     Cards sit one step above the page so dark mode keeps readable elevation
+     without hardcoding dual dark: classes in every shell. Shadows still come
+     from --admin-shadow-* / AdminTheme.variant (flat | bordered | elevated). */
+  --admin-bg-page: var(--color-surface-50);
+  --admin-bg-card: var(--color-surface-50);
+  --admin-bg-sidebar: var(--color-surface-100);
+  --admin-border-default: var(--color-surface-200);
+  --admin-border-subtle: var(--color-surface-100);
+  --admin-text-body: var(--color-surface-900);
+  --admin-text-muted: var(--color-surface-500);
+
   /* Layout Sizing */
   --admin-sidebar-width: 240px;
   --admin-header-height: 64px;
@@ -323,6 +335,19 @@ select:focus {
   --admin-color-published: oklch(69.59% 0.15 162.47deg);
   --admin-color-scheduled: oklch(58.74% 0.2 256.12deg);
   --admin-color-review: oklch(76.86% 0.16 70.07deg);
+}
+
+/* Dark mode surface elevation — card elevates above page background */
+html.dark,
+html.dark .admin-theme-container,
+html.dark [data-admin-theme] {
+  --admin-bg-page: var(--color-surface-950);
+  --admin-bg-card: var(--color-surface-800);
+  --admin-bg-sidebar: var(--color-surface-950);
+  --admin-border-default: var(--color-surface-600);
+  --admin-border-subtle: var(--color-surface-700);
+  --admin-text-body: var(--color-surface-100);
+  --admin-text-muted: var(--color-surface-400);
 }
 
 /* ------------------------------------------------------------------ */

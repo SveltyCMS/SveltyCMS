@@ -40,7 +40,7 @@ const AUTHENTICATED_PAGE_PATHS = [
   "/config/collectionbuilder",
   "/config/system-settings",
   "/config/access-management",
-  "/config/appearance",
+  "/config/design-system",
   "/config/automations",
   "/config/webhooks",
   "/config/redirects",
@@ -50,7 +50,6 @@ const AUTHENTICATED_PAGE_PATHS = [
   "/config/sync",
   "/config/trash",
   "/config/workflows",
-  "/config/design-system",
 ] as const;
 
 function parseSetCookieHeader(header: string | null): string {

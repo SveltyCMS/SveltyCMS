@@ -1,0 +1,155 @@
+---
+path: "docs/guides/deployment/vercel-deployment.mdx"
+title: "Deploy to Vercel"
+description: "Deploy SveltyCMS to Vercel with MongoDB Atlas, S3 media storage, and serverless optimization."
+order: 5
+icon: "mdi:cloud-upload"
+author: "SveltyCMS Team"
+created: "2026-07-29"
+updated: "2026-07-29"
+tags:
+  - "vercel"
+  - "deployment"
+  - "serverless"
+  - "cloud"
+  - "mongodb"
+  - "s3"
+---
+
+# Deploy SveltyCMS to Vercel
+
+SveltyCMS runs on Vercel just like any SvelteKit app. This guide covers the serverless-specific configuration: database choice, media storage, environment variables, and build settings.
+
+> [!IMPORTANT]
+> Vercel has an **ephemeral filesystem** — SQLite and local file storage do NOT work. You must use a hosted database (MongoDB Atlas, Neon PostgreSQL, PlanetScale MySQL) and cloud storage (S3, R2, Cloudinary) for media.
+
+## Quick Start
+
+### 1. Prepare your database
+
+Choose one of these hosted options:
+
+| Database          | Provider                                   | Free Tier | Setup Time |
+| ----------------- | ------------------------------------------ | :-------: | ---------- |
+| **MongoDB**       | [MongoDB Atlas](https://mongodb.com/atlas) | ✅ 512MB  | ~5 min     |
+| **PostgreSQL**    | [Neon](https://neon.tech)                  | ✅ 0.5GB  | ~2 min     |
+| **MySQL/MariaDB** | [PlanetScale](https://planetscale.com)     |  ✅ 5GB   | ~3 min     |
+
+Create a database and copy the connection string. You'll use it in step 3.
+
+### 2. Prepare media storage
+
+Create an S3-compatible bucket for uploaded media:
+
+| Provider                                               |   Free Tier   | Notes             |
+| ------------------------------------------------------ | :-----------: | ----------------- |
+| [Cloudflare R2](https://developers.cloudflare.com/r2/) |    ✅ 10GB    | No egress fees    |
+| [AWS S3](https://aws.amazon.com/s3/)                   | 5GB free tier | Standard choice   |
+| [Backblaze B2](https://www.backblaze.com/b2/)          |    ✅ 10GB    | S3-compatible API |
+
+### 3. Deploy to Vercel
+
+```bash
+# Install Vercel CLI
+bun add -g vercel
+
+# Deploy from your project root
+vercel
+```
+
+When prompted, configure these settings:
+
+```
+Build Command:   bun run build
+Output Directory: .svelte-kit/vercel
+Install Command: bun install
+```
+
+## Environment Variables
+
+Set these in your Vercel project dashboard (Settings → Environment Variables):
+
+```bash
+# ── Database ─────────────────────────
+DB_TYPE=mongodb                          # mongodb | postgresql | mysql
+DB_HOST=cluster0.xxxxx.mongodb.net      # Your Atlas cluster host
+DB_NAME=sveltycms
+DB_USER=admin
+DB_PASSWORD=your-db-password
+
+# ── Auth Secrets ─────────────────────
+JWT_SECRET_KEY=your-64-char-random-string
+ENCRYPTION_KEY=your-32-char-random-string
+
+# ── Media Storage ────────────────────
+MEDIA_STORAGE=s3                        # s3 | r2 | cloudinary
+S3_ENDPOINT=https://xxx.r2.cloudflarestorage.com
+S3_BUCKET=sveltycms-media
+S3_REGION=auto
+S3_ACCESS_KEY=your-access-key
+S3_SECRET_KEY=your-secret-key
+
+# ── Optional ─────────────────────────
+MULTI_TENANT=false
+USE_REDIS=false                         # Redis not needed for single-instance
+SITE_NAME=My CMS
+ORIGIN=https://your-app.vercel.app
+```
+
+> [!TIP]
+> Generate secure random strings with:
+>
+> ```bash
+> bun -e "console.log(crypto.randomBytes(32).toString('hex'))"
+> ```
+
+## How it works on Vercel
+
+SveltyCMS uses SvelteKit's [Vercel adapter](https://kit.svelte.dev/docs/adapter-vercel) to split your app into serverless functions:
+
+```
+┌─────────────────────────────────────────────┐
+│                  Vercel                      │
+│                                              │
+│  /            → Edge Function (SSR)         │
+│  /api/*       → Serverless Function          │
+│  /_app/*      → Static Assets (CDN)         │
+│  /files/*     → Redirected to S3            │
+│                                              │
+│  ┌─────────────────┐  ┌──────────────────┐  │
+│  │ MongoDB Atlas    │  │  Cloudflare R2    │  │
+│  │ (content + auth) │  │  (media storage)  │  │
+│  └─────────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+**Per-request boot**: Each Vercel function initializes the database adapter, auth, and content system on cold start. Our progressive initialization keeps this under 1 second (vs. persistent Node.js servers where it's instant).
+
+**Cold starts**: Vercel functions are recycled after inactivity. The first request after a cold period triggers a full boot, then subsequent requests reuse the warm function. Our `<1s` cold start target is maintained.
+
+## Limitations vs self-hosted
+
+| Feature            | Self-hosted |                  Vercel                  |
+| ------------------ | :---------: | :--------------------------------------: |
+| SQLite             |     ✅      |            ❌ (ephemeral FS)             |
+| Local file storage |     ✅      |               ❌ (use S3)                |
+| WebSockets (Yjs)   |     ✅      | ❌ (use Vercel's WS support or external) |
+| Background jobs    |     ✅      |           ⚠️ (use Vercel Cron)           |
+| Redis              |     ✅      |               ✅ (Upstash)               |
+| Multi-tenant       |     ✅      |                    ✅                    |
+| Cold start         |   Instant   |             <1s progressive              |
+
+## Production checklist
+
+- [ ] Generate strong `JWT_SECRET_KEY` and `ENCRYPTION_KEY`
+- [ ] Enable MongoDB Atlas IP allowlist (or use `0.0.0.0/0` + strong password)
+- [ ] Configure S3 bucket CORS for your Vercel domain
+- [ ] Set `ORIGIN` to your Vercel URL
+- [ ] Enable Vercel Analytics for traffic monitoring
+- [ ] Add a custom domain in Vercel dashboard
+
+## Related
+
+- [Production Deployment (Nginx + Node.js)](./production-deployment.mdx)
+- [Cloud Storage Setup](./cloud-storage.mdx)
+- [Enterprise Scaling Layers](./scaling-layers.mdx)

@@ -637,6 +637,9 @@ export interface IAuthAdapter {
       user_id: DatabaseId;
       expires: ISODateString;
       tenantId?: DatabaseId | null;
+      /** Captured at login for device grouping in account Security tab */
+      userAgent?: string;
+      ipAddress?: string;
     },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session>>;

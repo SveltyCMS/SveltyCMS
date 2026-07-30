@@ -160,6 +160,12 @@ hooks: {
   afterSave: async (context, collection, result) => {},
   beforeDelete: async (context, collection, id) => {},
   afterDelete: async (context, collection, id) => {},
+  // Auth hooks — fires after credential verification, before session cookie
+  afterAuthenticate: async (event) => {
+    // event.user, event.method, event.ip, event.userAgent
+    // return { deny: true, message: "Blocked" } to block login
+    // return { requires2FA: true } to force 2FA gating
+  },
 }
 ```
 

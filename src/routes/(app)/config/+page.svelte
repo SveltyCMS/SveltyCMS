@@ -69,21 +69,6 @@ const configItems = [
 		},
 	},
 	{
-		id: "appearance",
-		href: "/config/appearance",
-		label: "Appearance",
-		icon: "mdi:palette-outline",
-		iconColor: "",
-		permission: {
-			contextId: "config:appearance",
-			name: "Appearance",
-			description: "Admin theme, density, and visual customization",
-			requiredRole: "admin",
-			action: "manage",
-			contextType: "configuration",
-		},
-	},
-	{
 		id: "designSystem",
 		href: "/config/design-system",
 		label: "Design System",
@@ -92,9 +77,9 @@ const configItems = [
 		permission: {
 			contextId: "config:appearance",
 			name: "Design System",
-			description: "Interactive native UI component playground",
+			description: "Appearance, themes, personal overrides, density, and live component preview",
 			requiredRole: "admin",
-			action: "view",
+			action: "manage",
 			contextType: "configuration",
 		},
 	},

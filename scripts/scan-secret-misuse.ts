@@ -407,6 +407,32 @@ function scanLine(
       }
     }
   }
+
+  // ── Rule 6: Hardcoded credentials in comparisons (backdoor detection) ─────
+  if (!isAllowlistedForSecrets) {
+    const compareMatch = line.match(
+      /(?:^|[^.\w])(password|secret|token|passphrase|passwd)\s*[!=]==?\s*["'`]([^"'`]{4,})["'`]/i,
+    );
+    if (compareMatch) {
+      const value = compareMatch[2];
+      // Skip typeof guards, Svelte templates, and type annotations
+      const isSafe =
+        value === "string" ||
+        value === "number" ||
+        value === "boolean" ||
+        /^<[a-z]/.test(value) ||
+        line.trim().endsWith(">");
+      isKnownSafe(value);
+      if (!isSafe && value.length >= 4) {
+        findings.push({
+          file: relPath,
+          line: lineNum,
+          message: `Hardcoded credential in comparison: \`${value}\` — possible auth bypass backdoor`,
+          confidence: "high",
+        });
+      }
+    }
+  }
 }
 
 async function scanFile(

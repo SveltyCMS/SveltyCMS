@@ -26,6 +26,7 @@ import {
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import { AppError } from "@src/utils/error-handling";
 import { createSelfHealingProxy } from "./core/proxy-utils";
+import { setSystemState } from "@src/stores/system/state.svelte.ts";
 
 const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
 const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
@@ -335,6 +336,8 @@ export async function ensureFullInitialization(): Promise<any | null> {
       const authInstance = (adapter as any).authService;
       setGlobal(AUTH_KEY, authInstance);
       setGlobal(BOOT_PHASE_KEY, "READY");
+      // Synchronize the reactive state machine so handleSystemState unblocks immediately
+      setSystemState("READY");
       logger.debug(`[Boot] Services Initialized: ${(performance.now() - phase2).toFixed(2)}ms`);
 
       // Start behavioral learning engine (fire-and-forget, zero-latency)

@@ -65,7 +65,9 @@ export interface User extends BaseEntity {
   roleIds?: DatabaseId[]; // Array of role IDs associated with the user
   samlId?: string; // Unique identifier from SAML Identity Provider (IdP)
   samlProvider?: string; // Identifier for the SAML Identity Provider (IdP)
-  totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
+  totpSecret?: string; // TOTP secret for 2FA (base32 encoded, or AES-256-GCM encrypted envelope)
+  twoFactorPending?: boolean; // Indicates a 2FA setup is in progress (secret stored, not yet verified)
+  twoFactorTrustedDevices?: string[]; // Array of trusted device fingerprints (max 5)
   username?: string; // Username of the user
   authenticators?: Authenticator[]; // WebAuthn/Passkey credentials
 }

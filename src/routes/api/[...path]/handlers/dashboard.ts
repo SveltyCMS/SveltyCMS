@@ -175,8 +175,8 @@ export async function handleDashboardRoutes(
       }
 
       case "health":
-        // Delegate to the public /api/health endpoint
-        const healthUrl = new URL("/api/health", event.url.origin);
+        // Delegate to the public /health endpoint (handled by hooks.server.ts fast-return)
+        const healthUrl = new URL("/health", event.url.origin);
         const healthRes = await event.fetch(healthUrl.toString());
         return rawResponse(event, await healthRes.json());
 

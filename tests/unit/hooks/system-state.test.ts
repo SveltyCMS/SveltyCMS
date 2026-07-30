@@ -228,13 +228,13 @@ describe("handleSystemState - State Machine Logic", () => {
       expect(response.status).toBe(200);
     });
 
-    it("should block non-setup routes during IDLE state", async () => {
+    it("should throw 503 for non-setup routes during IDLE state", async () => {
       const event = createMockEvent("/dashboard");
 
-      // Page requests now redirect to warming-up instead of throwing 503
-      const response = await handleSystemState({ event, resolve: mockResolve });
-      expect(response.status).toBe(302);
-      expect(response.headers.get("Location")).toContain("/warming-up");
+      // Restricted states now throw 503 (SvelteKit error page) instead of redirecting
+      await expect(handleSystemState({ event, resolve: mockResolve })).rejects.toMatchObject({
+        status: 503,
+      });
     });
 
     it("should block API routes (non-setup) during IDLE state", async () => {
@@ -244,7 +244,7 @@ describe("handleSystemState - State Machine Logic", () => {
       const response = await handleSystemState({ event, resolve: mockResolve });
       expect(response.status).toBe(503);
       const data = await response.json();
-      expect(data.message).toMatch(/IDLE|restricted/i);
+      expect(data.message).toMatch(/temporarily unavailable/i);
     });
   });
 
@@ -332,14 +332,13 @@ describe("handleSystemState - State Machine Logic", () => {
       }
     });
 
-    it("should block all other routes when FAILED", async () => {
+    it("should throw 503 for all other routes when FAILED", async () => {
       const event = createMockEvent("/dashboard");
 
-      // Page requests now redirect to warming-up instead of throwing 503
-      const response = await handleSystemState({ event, resolve: mockResolve });
-      expect(response.status).toBe(302);
-      expect(response.headers.get("Location")).toContain("/warming-up");
-      expect(response.headers.get("Location")).toContain("redirect=");
+      // Restricted states now throw 503 (SvelteKit error page) instead of redirecting
+      await expect(handleSystemState({ event, resolve: mockResolve })).rejects.toMatchObject({
+        status: 503,
+      });
     });
 
     it("should block setup routes when FAILED", async () => {
@@ -362,7 +361,7 @@ describe("handleSystemState - State Machine Logic", () => {
       const response = await handleSystemState({ event, resolve: mockResolve });
       expect(response.status).toBe(503);
       const data = await response.json();
-      expect(data.message).toMatch(/FAILED|restricted/i);
+      expect(data.message).toMatch(/temporarily unavailable/i);
     });
   });
 

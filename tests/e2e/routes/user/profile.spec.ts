@@ -58,14 +58,21 @@ test.describe.serial("User Profile Management", () => {
     // where Playwright treats clipped nodes as not visible even though they are in the DOM.
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
 
+    // Click the Settings tab to reveal appearance controls
+    await page.getByRole("tab", { name: /settings/i }).click();
+    await expect(page.getByTestId("user-settings-panel")).toBeVisible({ timeout: 10_000 });
+
+    // Compact density/card strip on Settings
+    await expect(page.getByTestId("user-quick-appearance")).toBeVisible({ timeout: 10_000 });
+
     const openLink = page.getByTestId("open-appearance-settings-btn");
     await expect(openLink).toBeAttached({ timeout: 20_000 });
-    await expect(openLink).toHaveAttribute("href", /\/config\/appearance/);
+    await expect(openLink).toHaveAttribute("href", /\/config\/design-system(\?tab=overrides)?/);
 
     // Navigate via the real href (SPA-safe); force-click as fallback if layout intercepts
     await openLink.scrollIntoViewIfNeeded().catch(() => {});
     await Promise.all([
-      page.waitForURL(/\/config\/appearance/, { timeout: 20_000 }),
+      page.waitForURL(/\/config\/design-system/, { timeout: 20_000 }),
       openLink.click({ force: true }),
     ]).catch(async () => {
       // Last resort: follow href attribute directly (still validates the link target)
@@ -74,10 +81,10 @@ test.describe.serial("User Profile Management", () => {
       await page.goto(href, { waitUntil: "domcontentloaded" });
     });
 
-    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
     await expect(
       page
-        .getByRole("heading", { level: 1, name: /admin theme settings|appearance/i })
+        .getByRole("heading", { level: 1, name: /design system/i })
         .or(page.getByRole("heading", { name: /my overrides/i }))
         .first(),
     ).toBeVisible({ timeout: 20_000 });
@@ -261,29 +268,36 @@ test.describe.serial("User Profile Management", () => {
   test("Toggle User Token Visibility", async ({ page }) => {
     await page.goto("/user");
 
-    // Open
-    await page.getByText(/Show User Token/i).click();
-    const tokenList = page.getByRole("heading", { name: "Token List:" });
-    await expect(tokenList).toBeVisible();
+    // Switch to Invitations tab
+    const tokensTab = page.getByTestId("admin-tab-tokens");
+    await expect(tokensTab).toBeVisible({ timeout: 10_000 });
+    await tokensTab.click();
 
-    // Close
-    await page.getByText(/Hide User Token/i).click();
-    await expect(tokenList).not.toBeVisible();
+    // Verify token table is visible
+    const tokenTable = page.locator("table");
+    await expect(tokenTable).toBeVisible({ timeout: 10_000 });
+
+    // Switch back to Users tab
+    const usersTab = page.getByTestId("admin-tab-users");
+    await usersTab.click();
+    await expect(usersTab).toHaveAttribute("aria-selected", "true");
   });
 
   test("Toggle User List Visibility", async ({ page }) => {
     await page.goto("/user");
 
-    // Initially open
-    const userList = page.getByRole("heading", { name: "User List:" });
-    await expect(userList).toBeVisible();
+    // Users tab should be active by default
+    const usersTab = page.getByTestId("admin-tab-users");
+    await expect(usersTab).toBeVisible({ timeout: 10_000 });
+    await expect(usersTab).toHaveAttribute("aria-selected", "true");
 
-    // Close
-    await page.getByText(/Hide User List/i).click();
-    await expect(userList).not.toBeVisible();
+    // Verify user table is visible
+    const userTable = page.locator("table");
+    await expect(userTable).toBeVisible({ timeout: 10_000 });
 
-    // Open
-    await page.getByText(/Show User List/i).click();
-    await expect(userList).toBeVisible();
+    // Switch to Invitations tab
+    const tokensTab = page.getByTestId("admin-tab-tokens");
+    await tokensTab.click();
+    await expect(tokensTab).toHaveAttribute("aria-selected", "true");
   });
 });

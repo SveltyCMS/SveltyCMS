@@ -34,16 +34,16 @@ This guide walks you through migrating a Drupal 9/10 site to SveltyCMS. It cover
 
 ## What Doesn't Migrate (And Alternatives)
 
-| Drupal Feature               | Why                           | SveltyCMS Alternative                                                                   |
-| :--------------------------- | :---------------------------- | :-------------------------------------------------------------------------------------- |
-| **Views**                    | Database queries, not content | [Collection Presets](/docs/guides/content/collections) — saved filters + sorts          |
-| **Rules / Workflows**        | PHP logic                     | [Automations](/docs/guides/configuration/automations) — event-driven tasks              |
-| **Custom Modules**           | PHP code                      | [Plugins](/docs/guides/development/plugin/architecture.mdx) or [Widgets](/docs/widgets) |
-| **Themes**                   | Twig/PHP templates            | [Appearance](/docs/guides/configuration/appearance) — admin theme + Tailwind v4         |
-| **User Roles / Permissions** | Different RBAC model          | Manually recreate in [Access Management](/docs/guides/configuration/access-management)  |
-| **Webforms**                 | Custom form builder           | [BuzzForm Builder](/docs/guides/content/buzzform) — visual form builder                 |
-| **Paragraphs**               | Nested entity references      | Imported as `rawCustomFields` — restructure into Group widgets after import             |
-| **Layout Builder**           | Visual layout system          | [Storyblok-style slices](/docs/widgets) — component-based layouts                       |
+| Drupal Feature               | Why                           | SveltyCMS Alternative                                                                        |
+| :--------------------------- | :---------------------------- | :------------------------------------------------------------------------------------------- |
+| **Views**                    | Database queries, not content | [Collection Presets](/docs/guides/content/collections) — saved filters + sorts               |
+| **Rules / Workflows**        | PHP logic                     | [Automations](/docs/guides/configuration/automations) — event-driven tasks                   |
+| **Custom Modules**           | PHP code                      | [Plugins](/docs/guides/development/plugin/architecture.mdx) or [Widgets](/docs/widgets)      |
+| **Themes**                   | Twig/PHP templates            | [Design System](/docs/guides/configuration/admin-theme-settings) — admin theme + Tailwind v4 |
+| **User Roles / Permissions** | Different RBAC model          | Manually recreate in [Access Management](/docs/guides/configuration/access-management)       |
+| **Webforms**                 | Custom form builder           | [BuzzForm Builder](/docs/guides/content/buzzform) — visual form builder                      |
+| **Paragraphs**               | Nested entity references      | Imported as `rawCustomFields` — restructure into Group widgets after import                  |
+| **Layout Builder**           | Visual layout system          | [Storyblok-style slices](/docs/widgets) — component-based layouts                            |
 
 ---
 

@@ -288,7 +288,7 @@ export class AuthNamespace {
 
   async login(credentials: { email: string; password?: string }, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId } = options;
+      const { tenantId, sessionMeta } = options;
       const { email, password } = credentials;
 
       const auth = await this.getAuth();
@@ -328,10 +328,37 @@ export class AuthNamespace {
         }
       }
 
+      // Device dedup: reuse existing session for the same device instead of creating new
+      if (sessionMeta?.userAgent) {
+        try {
+          const sessionsResult = await auth.getActiveSessions(user._id as DatabaseId, {
+            tenantId: tenantId as DatabaseId,
+            bypassTenantCheck: true,
+          });
+          if (sessionsResult.success) {
+            const sessions = Array.isArray(sessionsResult.data) ? sessionsResult.data : [];
+            const existing = sessions.find(
+              (s: any) => s.userAgent === sessionMeta.userAgent && !s.rotated,
+            );
+            if (existing) {
+              logger.debug("Login: Reusing existing session for device", {
+                userId: user._id,
+                sessionId: existing._id,
+              });
+              return { user, session: existing };
+            }
+          }
+        } catch {
+          // Non-critical — fall through to create new session
+        }
+      }
+
       const sessionResult = await auth.createSession({
         user_id: user._id as DatabaseId,
         tenantId: tenantId as DatabaseId,
         expires: new Date(Date.now() + parseSessionDuration("1d")).toISOString() as ISODateString,
+        userAgent: sessionMeta?.userAgent,
+        ipAddress: sessionMeta?.ipAddress,
       });
 
       if (!sessionResult.success) {

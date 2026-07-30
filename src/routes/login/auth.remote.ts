@@ -31,6 +31,13 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { command, query, getRequestEvent } from "$app/server";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { pluginRegistry } from "@src/plugins";
+import {
+  buildDeviceFingerprint,
+  verifyTrustedDeviceToken,
+  getTrustedDeviceCookieConfig,
+} from "@src/databases/auth/totp";
+import type { AuthHookEvent } from "@src/plugins/types";
 
 function isSecureConnection(event: RequestEvent): boolean {
   return isSecureCookieContext(event.url.protocol, event.url.hostname);
@@ -128,7 +135,15 @@ export const requestMagicLink = command("unchecked", async (data: any) => {
 
 export const verify2FA = command(
   "unchecked",
-  async ({ userId, code }: { userId: string; code: string }) => {
+  async ({
+    userId,
+    code,
+    trustDevice,
+  }: {
+    userId: string;
+    code: string;
+    trustDevice?: boolean;
+  }) => {
     const event = getRequestEvent();
     await dbInitPromise;
     if (!auth) return { success: false, message: "Authentication system is not ready." };
@@ -139,7 +154,20 @@ export const verify2FA = command(
     const twoFactorService = getDefaultTwoFactorAuthService(auth as any);
     if (!twoFactorService) return { success: false, message: "2FA service unavailable." };
 
-    const twoFaResult = await twoFactorService.verify2FA(userId as any as DatabaseId, code);
+    // Build device fingerprint for trusted-device support
+    let deviceFingerprint: string | undefined;
+    if (trustDevice) {
+      const ip = getClientIp(event);
+      const ua = event.request.headers.get("user-agent") || "";
+      deviceFingerprint = await buildDeviceFingerprint(ip, ua);
+    }
+
+    const twoFaResult = await twoFactorService.verify2FA(
+      userId as any as DatabaseId,
+      code,
+      undefined,
+      deviceFingerprint,
+    );
     if (!twoFaResult.success) {
       return {
         success: false,
@@ -157,6 +185,21 @@ export const verify2FA = command(
         path: "/",
       });
     } catch {}
+
+    // Set trusted-device cookie if token was generated
+    if (trustDevice && twoFaResult.trustedDeviceToken) {
+      try {
+        const { name, maxAge, httpOnly, secure, sameSite, path } = getTrustedDeviceCookieConfig();
+        event.cookies.set(name, twoFaResult.trustedDeviceToken, {
+          maxAge,
+          httpOnly,
+          secure,
+          sameSite,
+          path,
+        });
+        logger.debug("Trusted device cookie set", { userId });
+      } catch {}
+    }
 
     auth
       .updateUserAttributes(
@@ -349,13 +392,60 @@ async function signInInternal(event: RequestEvent, input: any) {
     });
     if (ar?.user) {
       user = ar.user;
-      if (user.is2FAEnabled)
+
+      // ── Plugin Auth Hooks ──────────────────────────────────────────────
+      const ip = getClientIp(event);
+      const ua = event.request.headers.get("user-agent") || "";
+      const authHookEvent: AuthHookEvent = {
+        user,
+        method: "password",
+        ip,
+        userAgent: ua,
+        userHas2FA: !!user.is2FAEnabled,
+        tenantId: null,
+      };
+      const authHookResult = await pluginRegistry.runAuthHooks(authHookEvent);
+
+      // Plugin can deny the login
+      if (authHookResult?.deny) {
+        return { success: false, message: authHookResult.message || "Access denied." };
+      }
+
+      // Plugin can force 2FA even if user doesn't have it enabled
+      const requires2FA = user.is2FAEnabled || authHookResult?.requires2FA;
+
+      // ── Trusted Device Check ───────────────────────────────────────────
+      if (requires2FA && !authHookResult?.requires2FA) {
+        const trustedCookie = event.cookies.get("__Host-2fa-trusted-device");
+        if (trustedCookie) {
+          const trustedUserId = await verifyTrustedDeviceToken(trustedCookie);
+          if (trustedUserId === String(user._id)) {
+            logger.debug("Skipping 2FA for trusted device", { userId: user._id });
+            // Fall through to cookie issuance
+          } else {
+            return {
+              success: false,
+              requires2FA: true,
+              userId: user._id,
+              message: "2FA required",
+            };
+          }
+        } else {
+          return {
+            success: false,
+            requires2FA: true,
+            userId: user._id,
+            message: "2FA required",
+          };
+        }
+      } else if (requires2FA) {
         return {
           success: false,
           requires2FA: true,
           userId: user._id,
           message: "2FA required",
         };
+      }
       ok = true;
       const sc = auth.createSessionCookie(ar.sessionId!, isSecureConnection(event));
       try {

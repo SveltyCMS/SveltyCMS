@@ -242,7 +242,15 @@ export async function handleLogin(
   if ((event.locals as any).__testBypass) {
     result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
-    const loginResult = await cms.auth.login({ email, password }, { tenantId });
+    const userAgent = event.request.headers.get("user-agent") || undefined;
+    const ipAddress =
+      event.getClientAddress?.() ||
+      event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      undefined;
+    const loginResult = await cms.auth.login(
+      { email, password },
+      { tenantId, sessionMeta: { userAgent, ipAddress } },
+    );
     if (!loginResult.success) throw new AppError(loginResult.message || "Login failed", 401);
     result = loginResult.data;
   }
@@ -735,12 +743,35 @@ export async function handleSessionsRoutes(
     if (!result.success) {
       throw new AppError(result.message || "Failed to retrieve sessions", 500);
     }
-    // Mark the current session
-    const currentSessionId = event.locals.session_id;
-    const sessions = (result.data || []).map((s: any) => ({
-      ...s,
-      isCurrent: s._id === currentSessionId || s.id === currentSessionId,
-    }));
+    // Cookie is the source of truth for "this request's" session (exactly one current)
+    const cookieName = getSessionCookieName(event.url.protocol === "https:");
+    const currentSessionId = String(event.locals.session_id ?? event.cookies.get(cookieName) ?? "");
+    const sessions = (result.data || [])
+      // Soft-rotated sessions are invalid; hide them from the account UI
+      .filter((s: any) => !s.rotated)
+      .map((s: any) => {
+        const sid = String(s._id ?? s.id ?? "");
+        return {
+          ...s,
+          _id: sid,
+          id: sid,
+          // Normalize field names for the account UI
+          ip: s.ip ?? s.ipAddress ?? undefined,
+          ipAddress: s.ipAddress ?? s.ip ?? undefined,
+          lastAccess: s.lastAccess ?? s.lastActiveAt ?? s.updatedAt ?? s.createdAt,
+          lastActiveAt: s.lastActiveAt ?? s.updatedAt ?? s.createdAt,
+          userAgent: s.userAgent ?? "",
+          isCurrent: currentSessionId.length > 0 && sid === currentSessionId,
+        };
+      });
+    // Hard guarantee: at most one session is marked current
+    let sawCurrent = false;
+    for (const s of sessions) {
+      if (s.isCurrent) {
+        if (sawCurrent) s.isCurrent = false;
+        else sawCurrent = true;
+      }
+    }
     return successResponse(event, { sessions });
   }
 
@@ -819,9 +850,7 @@ export async function handle2FARoutes(
       if (event.request.method !== "POST") throw notAllowed();
       const { password } = await event.request.json().catch(() => ({}));
       if (!password) throw new AppError("Password required", 400);
-      const isValid =
-        (user._id === "system" && password === "Password123!") ||
-        (user.password ? await verifyPassword(user.password, password) : false);
+      const isValid = user.password ? await verifyPassword(user.password, password) : false;
       if (!isValid) throw new AppError("Invalid password", 401);
       const result = await twoFactorService.disable2FA(user._id, tenantId);
       if (!result) throw new AppError("Failed to disable 2FA", 400);

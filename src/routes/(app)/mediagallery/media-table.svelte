@@ -134,6 +134,9 @@ smartTable.setColumns([
 ]);
 
 $effect(() => {
+	// Read outside untrack so the effect actually depends on filteredFiles —
+	// reading it only inside untrack leaves the effect with no dependencies and
+	// it would run once on mount, freezing the table on search/filter/upload.
 	const files = filteredFiles;
 	untrack(() => smartTable.setRows(files as unknown as Record<string, unknown>[]));
 });

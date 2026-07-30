@@ -96,5 +96,5 @@ export function createSiteSveditSession(document: SveditDocument): Session {
     document as Parameters<typeof fill_document_defaults>[0],
     sitePageDocumentSchema,
   );
-  return new Session(sitePageDocumentSchema, doc, sessionConfig);
+  return new Session(sitePageDocumentSchema, doc, sessionConfig) as unknown as Session;
 }

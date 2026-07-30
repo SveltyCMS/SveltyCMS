@@ -249,7 +249,7 @@
 
 <svelte:head><title>SveltyCMS Setup</title></svelte:head>
 
-<div class="h-screen flex flex-col overflow-hidden bg-surface-50 dark:bg-surface-900 transition-colors">
+<div class="h-dvh flex flex-col overflow-hidden bg-surface-50 dark:bg-surface-900 transition-colors">
 	<!-- Top Navigation Bar -->
 	<header class="shrink-0 bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 z-30">
 		<div class="px-4 py-0">
