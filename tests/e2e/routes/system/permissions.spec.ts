@@ -68,6 +68,8 @@ test.describe("Permission Management Flow", () => {
       await saveBtn.first().click();
       await saveDone;
 
+      // Wait for loading overlay to disappear before checking for toast
+      await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
       await expect(page).toHaveURL(/access-management/i);
       await expect(page.getByText(/configuration updated/i)).toBeVisible({ timeout: 15_000 });
     } else {

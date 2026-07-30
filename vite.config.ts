@@ -18,9 +18,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
-import { isSetupComplete } from "./src/utils/setup-check-fast";
-import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
-import { pathAliases } from "./path-aliases";
+import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
+import { pathAliases } from "./path-aliases.ts";
 
 process.env.ESBUILD_WORKER_THREADS = "0";
 
@@ -103,7 +103,7 @@ const log = {
 async function initializeCollectionsStructure() {
   const dir = paths.compiledCollections;
   await fsPromises.mkdir(dir, { recursive: true });
-  const { compile } = await import("./src/utils/compilation/compile");
+  const { compile } = await import("./src/utils/compilation/compile.ts");
   await compile({
     userCollections: paths.userCollections,
     compiledCollections: paths.compiledCollections,
@@ -422,7 +422,7 @@ function sveltyCmsPlugin(): Plugin {
       clearTimeout(compileTimeout);
       compileTimeout = setTimeout(async () => {
         try {
-          const { compile } = await import("./src/utils/compilation/compile");
+          const { compile } = await import("./src/utils/compilation/compile.ts");
           await compile({
             userCollections: paths.userCollections,
             compiledCollections: paths.compiledCollections,
@@ -665,6 +665,14 @@ export default defineConfig(() => ({
     sveltekit({
       preprocess: [vitePreprocess()],
       compilerOptions: { runes: true },
+      vitePlugin: {
+        inspector: {
+          toggleKeyCombo: "alt-x",
+          holdMode: true,
+          showToggleButton: "always",
+          toggleButtonPos: "bottom-right",
+        },
+      },
       adapter: adapter({ out: "build", precompress: true }),
       experimental: { remoteFunctions: true },
       alias: pathAliases,

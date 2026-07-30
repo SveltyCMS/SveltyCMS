@@ -11,7 +11,7 @@
  * - Masking: lazy — only called when args are present
  */
 
-import { pc } from "./native-utils";
+import { pc } from "./native-utils.ts";
 
 // ── Types ──
 export type LogLevel = "none" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";

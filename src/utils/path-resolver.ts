@@ -15,8 +15,8 @@
  */
 
 import path from "node:path";
-import { sveltyContext, requireTenantId } from "./context";
-import { resolvePrivateConfigFileName } from "./private-config-policy";
+import { sveltyContext, requireTenantId } from "./context.ts";
+import { resolvePrivateConfigFileName } from "./private-config-policy.ts";
 
 /** Always resolve from live process.cwd() so tests/chdir and tooling stay correct. */
 function cwd(): string {

@@ -454,16 +454,28 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   // Intercept cross-origin icon CDN requests to strip Playwright's test headers
   // that cause CORS failures. Applies to all icon CDNs used by iconify-icon.
   await page.route("https://api.iconify.design/**", async (route) => {
-    const response = await route.fetch();
-    route.fulfill({ response });
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
   });
   await page.route("https://api.unisvg.com/**", async (route) => {
-    const response = await route.fetch();
-    route.fulfill({ response });
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
   });
   await page.route("https://api.simplesvg.com/**", async (route) => {
-    const response = await route.fetch();
-    route.fulfill({ response });
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
   });
 
   // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.

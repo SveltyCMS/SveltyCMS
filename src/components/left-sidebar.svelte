@@ -332,7 +332,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 											type="button"
 											onclick={() => pinnedStore.unpin(item.id)}
 											title="Unpin"
-										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-[var(--admin-border-subtle)]">
+										aria-label="Unpin" class="-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-(--admin-border-subtle)]">
 											<iconify-icon icon="bi:x" width="16" style="color: var(--admin-text-muted)"></iconify-icon>
 										</Button>
 									{/if}
@@ -346,8 +346,12 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
 			{#if isMediaGalleryRoute}
-				<!-- Media gallery: back to collections + virtual folder tree -->
+				<!-- Media gallery: virtual folder tree first, then back button -->
 				<div class="space-y-2" data-testid="sidebar-media-context">
+					<div class="px-1 space-y-2" role="region" aria-label="Media folders">
+						<MediaFolders />
+					</div>
+
 					<SystemTooltip
 						title="Back to Collections"
 						positioning={{ placement: 'right' }}
@@ -367,10 +371,6 @@ Route-driven sidebar content (no dual collapsible section headers):
 							{/if}
 						</Button>
 					</SystemTooltip>
-
-					<div class="px-1 space-y-2" role="region" aria-label="Media folders">
-						<MediaFolders />
-					</div>
 				</div>
 			{:else if showCollectionsHere}
 				<!-- Default: collection tree only — no redundant section header button -->
@@ -420,8 +420,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 						onclick={handleUserClick}
 						aria-label="User Profile"
 						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-[var(--admin-border-subtle)]'
-							: 'h-8 w-8 rounded-full hover:bg-[var(--admin-border-subtle)]'} relative flex items-center justify-center text-center no-underline!"
+							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-(--admin-border-subtle)]'
+							: 'h-8 w-8 rounded-full hover:bg-(--admin-border-subtle)]'} relative flex items-center justify-center text-center no-underline!"
 						>
 							<Avatar src={avatarUrl} alt="User Avatar" size={isSidebarFull ? 'size-12' : 'size-10'} rounded="rounded-full" class="mx-auto" />
 						{#if isSidebarFull && user?.username}

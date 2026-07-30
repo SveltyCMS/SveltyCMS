@@ -17,7 +17,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { paths } from "./path-resolver";
+import { paths } from "./path-resolver.ts";
 
 // ─── Backward-compatible re-exports from path-resolver ────────────────
 

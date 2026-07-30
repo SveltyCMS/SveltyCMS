@@ -744,7 +744,6 @@
 								<button
 									type="button"
 									onclick={modalEditAvatar}
-									aria-label={userpage_editavatar()}
 									data-testid="edit-avatar-btn"
 									class="size-full rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 								>
@@ -1480,8 +1479,8 @@
 					</AdminCard>
 				</div>
 			{:else if activeTab === 'management' && canManageUsers}
-				<!-- ═══ TAB 4: User Management (full width; sub-tabs Users | Invitations) ═══ -->
-				<div data-testid="user-admin-section" class="min-w-0">
+				<!-- ╭╥╮ TAB 4: User Management (full width; sub-tabs Users | Invitations) ╭╥╮ -->
+				<div data-testid="user-admin-area" class="min-w-0">
 					<p
 						class="mb-3 text-center text-sm font-medium text-tertiary-600 dark:text-primary-500"
 						data-testid="user-management-intro"

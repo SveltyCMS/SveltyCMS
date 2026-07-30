@@ -34,7 +34,7 @@ import { isBenchmarkRelativePath } from "../benchmark-paths.ts";
 import { assertLiveDataWriteAllowed } from "../benchmark-sandbox.ts";
 import { createCompositeTransformer } from "./transformers.ts";
 import { pathAliases } from "../../../path-aliases.ts";
-import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types";
+import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
 
 // ─── Compile-time aliases (matching transformers.ts) ───────────────────
 const compileAliases: Record<string, string> = Object.fromEntries(
@@ -631,7 +631,7 @@ async function saveManifest(
   assertLiveDataWriteAllowed(manifestPath);
 
   // Windows-safe atomic write (EPERM on rename under parallel Playwright workers)
-  const { atomicWriteJson } = await import("../atomic-write");
+  const { atomicWriteJson } = await import("../atomic-write.ts");
   await atomicWriteJson(manifestPath, payload);
 }
 

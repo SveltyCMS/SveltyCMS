@@ -153,9 +153,9 @@ class UIStore {
 
     const showPageHeader = ["edit", "create", "modify"].includes(currentMode);
 
-    // Mobile
+    // Mobile — sidebar is hidden by default, user opens via hamburger overlay
     if (size === ScreenSize.XS || size === ScreenSize.SM) {
-      this.state.leftSidebar = "collapsed";
+      this.state.leftSidebar = "hidden";
       this.state.rightSidebar = "hidden";
       this.state.pageheader = showPageHeader ? "full" : "hidden";
       this.state.pagefooter = "hidden";
