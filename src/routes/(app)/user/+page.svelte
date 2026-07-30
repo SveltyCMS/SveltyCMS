@@ -40,7 +40,7 @@
 		userpage_title
 	} from '@src/paraglide/messages';
 	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -62,13 +62,17 @@
 	type AccountTab = 'identity' | 'security' | 'settings' | 'management';
 	let activeTab = $state<AccountTab>('identity');
 
-	// Compact appearance prefs (full layout editor lives on Design System → My Overrides)
-	const initialThemePrefs = (data.user?.preferences?.theme ?? {}) as {
-		density?: string;
-		variant?: string;
-		reducedMotion?: boolean;
-		highContrast?: boolean;
-	};
+	// Compact appearance prefs (full layout editor lives on Design System → My Overrides).
+	// untrack: one-time seed from page data — avoids state_referenced_locally on $props().
+	const initialThemePrefs = untrack(
+		() =>
+			(data.user?.preferences?.theme ?? {}) as {
+				density?: string;
+				variant?: string;
+				reducedMotion?: boolean;
+				highContrast?: boolean;
+			},
+	);
 	let myDensity = $state(initialThemePrefs.density ?? '');
 	let myVariant = $state(initialThemePrefs.variant ?? '');
 	let myReducedMotion = $state(initialThemePrefs.reducedMotion ?? false);
