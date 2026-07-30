@@ -608,6 +608,16 @@ Provides an organized interface for navigating hierarchical content structures.
 					{:else}
 						<iconify-icon icon="bi:collection" width={28}></iconify-icon>
 						<p class="text-sm">No collections found.</p>
+						<Button
+							variant="outline"
+							type="button"
+							size="sm"
+							onclick={() => goto('/config/collectionbuilder')}
+							class="mt-2"
+						>
+							<iconify-icon icon="bi:plus" width={14}></iconify-icon>
+							<span>Create Collection</span>
+						</Button>
 					{/if}
 				</div>
 			{/if}
