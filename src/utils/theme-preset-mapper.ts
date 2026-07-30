@@ -209,6 +209,78 @@ export function mapPresetToAdminTheme(preset: SkeletonPreset): {
   };
 }
 
+/** Markers so palette studio can replace only its own block inside customCss. */
+export const PALETTE_CSS_START = "/* sveltycms-palette-start */";
+export const PALETTE_CSS_END = "/* sveltycms-palette-end */";
+
+export type PaletteSeedKey =
+  | "primary"
+  | "secondary"
+  | "tertiary"
+  | "success"
+  | "warning"
+  | "error"
+  | "surface";
+
+export type PaletteSeeds = Partial<Record<PaletteSeedKey, string>>;
+
+const HEX_COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** Validate a seed hex color for the palette studio. */
+export function isValidPaletteHex(value: string): boolean {
+  return HEX_COLOR.test(value.trim());
+}
+
+/**
+ * Build scoped admin CSS from shorthand palette seeds (primary, surface, …).
+ * Uses the same expansion path as Skeleton / theme JSON import.
+ */
+export function buildPaletteCssFromSeeds(seeds: PaletteSeeds): string {
+  const properties: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(seeds)) {
+    if (!raw || !SHORTHAND_COLOR_TO_PREFIX[key]) continue;
+    const value = raw.trim();
+    // Studio seeds are hex-only; Skeleton import path still accepts oklch/CSS via propertiesToCss
+    if (!isValidPaletteHex(value)) continue;
+    properties[key] = value;
+  }
+  if (Object.keys(properties).length === 0) return "";
+  return propertiesToCss(properties);
+}
+
+/**
+ * Merge palette-generated CSS into existing customCss without wiping manual rules.
+ */
+export function mergePaletteCssIntoCustomCss(
+  existing: string | undefined,
+  paletteCss: string,
+): string {
+  const block = paletteCss.trim()
+    ? `${PALETTE_CSS_START}\n${paletteCss.trim()}\n${PALETTE_CSS_END}`
+    : "";
+  const re = /\/\* sveltycms-palette-start \*\/[\s\S]*?\/\* sveltycms-palette-end \*\//g;
+  const base = (existing ?? "").replace(re, "").trim();
+  if (!block) return base;
+  if (!base) return block;
+  return `${base}\n\n${block}`;
+}
+
+/** Default Corporate workspace seeds (matches src/themes/default.json). */
+export const DEFAULT_PALETTE_SEEDS: Required<
+  Pick<
+    PaletteSeeds,
+    "primary" | "secondary" | "tertiary" | "success" | "warning" | "error" | "surface"
+  >
+> = {
+  primary: "#0f766e",
+  secondary: "#334155",
+  tertiary: "#1d4ed8",
+  success: "#16a34a",
+  warning: "#d97706",
+  error: "#dc2626",
+  surface: "#f8fafc",
+};
+
 /**
  * Normalize a Skeleton.dev theme payload to a StoredAdminTheme-compatible format.
  */

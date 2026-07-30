@@ -16,22 +16,21 @@ tags: ["testing", "e2e", "appearance"]
 
 | Piece                          | Role                                                        |
 | ------------------------------ | ----------------------------------------------------------- |
-| `/config/design-system`        | **Canonical** workspace (Appearance + Live Preview)         |
+| `/config/design-system`        | **Only** workspace (Appearance + Live Preview)              |
 | `design-system/+page.svelte`   | Tabs: overrides, preview, themes, presets, layout, style, … |
 | `design-system-preview.svelte` | Live Preview component catalog                              |
 | `appearance-api.ts`            | Theme CRUD + prefs via `fetchApi` (CSRF)                    |
-| `/config/appearance`           | Redirect → design-system (preserves `?tab=`)                |
 | `/user` Settings               | Quick density/variant strip + link to `?tab=overrides`      |
 
 ## Control → test matrix
 
-| Control                        | Unit                | E2E                   |
-| ------------------------------ | ------------------- | --------------------- |
-| User prefs save/clear/reload   | appearance-api      | ✅ appearance.spec    |
-| Themes tab shell               | —                   | ✅ appearance-golden  |
-| **Golden create→list→delete**  | appearance-api      | ✅ appearance-golden  |
-| Live Preview + legacy redirect | —                   | ✅ design-system.spec |
-| Surface → `--admin-bg-card`    | theme-preset-mapper | unit                  |
+| Control                       | Unit                | E2E                   |
+| ----------------------------- | ------------------- | --------------------- |
+| User prefs save/clear/reload  | appearance-api      | ✅ appearance.spec    |
+| Themes tab shell              | —                   | ✅ appearance-golden  |
+| **Golden create→list→delete** | appearance-api      | ✅ appearance-golden  |
+| Live Preview tab              | —                   | ✅ design-system.spec |
+| Surface → `--admin-bg-card`   | theme-preset-mapper | unit                  |
 
 ## Run
 

@@ -64,11 +64,12 @@ Skeleton/shorthand palette import maps `surface` into full shade scales and rebi
 | :--------------- | :--------------------------------------------------------------- |
 | `?tab=overrides` | Per-user density, card style, a11y, layout — linked from `/user` |
 | `?tab=preview`   | Live component catalog + token readout                           |
-| `?tab=themes` …  | Admin workspace themes, presets, features, advanced              |
+| `?tab=presets`   | **Palette studio** (seed colors → runtime CSS) + Skeleton import |
+| `?tab=themes` …  | Admin workspace themes, layout density, features, advanced       |
 
-Legacy `/config/appearance` redirects here (preserves `?tab=`).
+Palette studio writes a marked `customCss` block via `buildPaletteCssFromSeeds` / `mergePaletteCssIntoCustomCss` — do not invent a second token system.
 
-See [Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx).
+See [Design System & Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx).
 
 ## Accessibility
 

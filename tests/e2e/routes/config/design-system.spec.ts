@@ -1,8 +1,6 @@
 /**
  * @file tests/e2e/routes/config/design-system.spec.ts
- * @description E2E for /config/design-system (canonical Appearance + Live Preview workspace).
- *
- * Legacy /config/appearance redirects here and preserves ?tab=.
+ * @description E2E for /config/design-system (sole Appearance + Live Preview workspace).
  */
 
 import { test, expect } from "@playwright/test";
@@ -38,14 +36,14 @@ test.describe("Design System workspace", () => {
     await expect(page.getByText(/structural tokens/i)).toBeVisible({ timeout: 10_000 });
   });
 
-  test("legacy /config/appearance redirects and preserves tab", async ({ page }) => {
-    await page.goto("/config/appearance?tab=overrides");
-    await expect(page).toHaveURL(/\/config\/design-system\?tab=overrides/, { timeout: 15_000 });
+  test("overrides tab is deep-linkable", async ({ page }) => {
+    await page.goto("/config/design-system?tab=overrides");
     await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
   });
 
-  test("legacy appearance without tab redirects to design-system", async ({ page }) => {
-    await page.goto("/config/appearance");
-    await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
+  test("palette studio is on Palette & Import tab", async ({ page }) => {
+    await page.goto("/config/design-system?tab=presets");
+    await expect(page.getByTestId("palette-studio")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("palette-studio-apply")).toBeVisible();
   });
 });

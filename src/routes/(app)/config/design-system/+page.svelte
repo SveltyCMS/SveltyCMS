@@ -6,11 +6,12 @@
 Manage multiple named admin themes. Create, switch, clone, and delete themes. Each theme stores its own
 density, variant, features, and custom CSS.
 
-Tabs: My Overrides, Live Preview, Themes, Presets, Layout & Density, Visual Style, Features, Advanced.
-Deep links: /config/design-system?tab=overrides|preview|themes|...
+Tabs: My Overrides, Live Preview, Themes, Palette & Import, Layout & Density, Visual Style, Features, Advanced.
+Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 ### Features:
 - Multi-theme management (create, activate, clone, delete)
+- Palette studio (seed colors → expanded scales → runtime CSS)
 - Live theme preview via Svelte 5 $state (instant re-render)
 - Live Preview playground (native component catalog)
 - Skeleton.dev preset import
@@ -32,6 +33,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|...
   import Textarea from "@components/ui/textarea.svelte";
   import Toggle from "@components/ui/toggle.svelte";
   import DesignSystemPreview from "./design-system-preview.svelte";
+  import PaletteStudio from "./palette-studio.svelte";
   import { fade, fly } from "svelte/transition";
   import { toast } from "@src/stores/toast.svelte.ts";
   import type { StoredAdminTheme, ThemeSummary } from "@src/services/core/admin-theme-service";
@@ -275,7 +277,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|...
     { id: "overrides", label: "My Overrides", icon: "mdi:account-edit" },
     { id: "preview", label: "Live Preview", icon: "mdi:compass-outline" },
     { id: "themes", label: "Themes", icon: "mdi:theme-light-dark", adminOnly: true },
-    { id: "presets", label: "Presets & Import", icon: "mdi:palette-swatch", adminOnly: true },
+    { id: "presets", label: "Palette & Import", icon: "mdi:palette-swatch", adminOnly: true },
     { id: "layout", label: "Layout & Density", icon: "mdi:resize", adminOnly: true },
     { id: "style", label: "Visual Style", icon: "mdi:format-paint", adminOnly: true },
     { id: "features", label: "Features", icon: "mdi:toggle-switch", adminOnly: true },
@@ -752,7 +754,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|...
                 Theme Presets
               </h3>
               <p class="text-sm text-surface-500 dark:text-surface-400 mb-2">
-                Quick-apply curated presets or import from Skeleton.dev theme builder.
+                Edit brand colors in the palette studio, apply layout presets, or import Skeleton.dev JSON.
               </p>
               <p class="text-sm mb-4">
                 <button
@@ -767,6 +769,15 @@ Deep links: /config/design-system?tab=overrides|preview|themes|...
                 — preview all native components and tokens live.
               </p>
 
+              <PaletteStudio
+                bind:customCss
+                onApplied={() => {
+                  hasChanges = true;
+                }}
+                onOpenPreview={() => setActiveTab("preview")}
+              />
+
+              <h4 class="font-bold text-sm mb-2 mt-2">Layout presets</h4>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 				<AdminCard
                 					class="cursor-pointer p-4 border-2 {density === 'cozy' && variant === 'bordered'

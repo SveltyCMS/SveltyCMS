@@ -104,7 +104,7 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
         <div>
           <h2 class="text-lg font-bold text-surface-900 dark:text-white">Choose Your Workspace</h2>
           <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-            Pick a preset that matches your workflow. Customize later in Appearance (themes, overrides, and live preview).
+            Pick a preset that matches your workflow. Customize later in Design System (themes, overrides, and live preview).
           </p>
         </div>
         <Button variant="ghost" size="sm" onclick={skip} aria-label="Skip workspace setup">Skip</Button>

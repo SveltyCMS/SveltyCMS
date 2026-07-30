@@ -1,8 +1,7 @@
 /**
  * @file tests/e2e/routes/config/appearance.spec.ts
- * @description E2E for My Overrides on Design System (canonical route).
+ * @description E2E for My Overrides on /config/design-system.
  *
- * Legacy path /config/appearance redirects to /config/design-system.
  * Locators use stable #layout-pref-* ids.
  */
 

@@ -14,6 +14,11 @@ import {
   parseSkeletonCssBlock,
   normalizeSkeletonThemePayload,
   expandShorthandPaletteProperties,
+  buildPaletteCssFromSeeds,
+  mergePaletteCssIntoCustomCss,
+  isValidPaletteHex,
+  DEFAULT_PALETTE_SEEDS,
+  PALETTE_CSS_START,
 } from "../../src/utils/theme-preset-mapper";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -122,6 +127,34 @@ describe("theme-preset-mapper", () => {
     expect(css).toContain("--admin-bg-card: var(--color-surface-50)");
     expect(css).toContain("html.dark .admin-theme-container");
     expect(css).toContain("--admin-bg-card: var(--color-surface-800");
+  });
+
+  it("builds palette CSS from studio hex seeds", () => {
+    expect(isValidPaletteHex("#0f766e")).toBe(true);
+    expect(isValidPaletteHex("not-a-color")).toBe(false);
+    const css = buildPaletteCssFromSeeds({
+      primary: DEFAULT_PALETTE_SEEDS.primary,
+      surface: DEFAULT_PALETTE_SEEDS.surface,
+    });
+    expect(css).toContain("--color-primary-500");
+    expect(css).toContain("--color-surface-50");
+    expect(css).toContain("--admin-bg-card");
+  });
+
+  it("merges palette CSS without wiping manual customCss", () => {
+    const manual = ".admin-theme-container { --my-flag: 1; }";
+    const palette = buildPaletteCssFromSeeds({ primary: "#0f766e", surface: "#f8fafc" });
+    const merged = mergePaletteCssIntoCustomCss(manual, palette);
+    expect(merged).toContain("--my-flag: 1");
+    expect(merged).toContain(PALETTE_CSS_START);
+    expect(merged).toContain("--color-primary-500");
+    const updated = mergePaletteCssIntoCustomCss(
+      merged,
+      buildPaletteCssFromSeeds({ primary: "#112233", surface: "#f8fafc" }),
+    );
+    expect(updated).toContain("--my-flag: 1");
+    expect(updated).toContain("#112233");
+    expect(updated.match(/sveltycms-palette-start/g)?.length).toBe(1);
   });
 
   it("maps default.json shorthand properties to customCss", () => {
