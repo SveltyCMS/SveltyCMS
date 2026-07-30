@@ -19,11 +19,14 @@
 	import { media_root_title } from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import { mediaFolderTree } from '@src/stores/media-folder-tree.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,
+		MEDIA_DROP_OK,
+		MEDIA_DROP_SAME,
 		moveMediaToFolder,
 		type MediaDragData,
 	} from '@utils/media/media-dnd';
@@ -31,14 +34,6 @@
 	import { goto } from '$app/navigation';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { page } from '$app/state';
-
-	interface RawFolder {
-		_id: string;
-		name: string;
-		order?: number;
-		parentId?: string | null;
-		path: string;
-	}
 
 	interface FolderNode {
 		children?: FolderNode[];
@@ -59,25 +54,24 @@
 		}[];
 	}
 
-	// Mutable state
-	let folders = $state<FolderNode[]>([]);
+	// Mutable UI state (folder data lives in mediaFolderTree)
 	let rootExpanded = $state(true);
 	let folderExpanded = $state(new SvelteSet<string>());
 	let activeFolderId = $state('root');
 	let isEditMode = $state(false);
-	let isLoading = $state(true);
-	let error = $state<string | null>(null);
 	let search = $state('');
 	let isMovingMedia = $state(false);
+
+	const folders = $derived(mediaFolderTree.folders);
+	const isLoading = $derived(mediaFolderTree.isLoading);
+	const error = $derived(mediaFolderTree.error);
+
 	/** True only while a media-gallery card (not a folder-reorder drag) is in flight */
 	const isMediaDragActive = $derived(
 		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
 	);
-
-	/** Accept: files can move into this folder */
-	const MEDIA_DROP_OK = 'bg-primary-500/20 ring-1 ring-inset ring-primary-500/60';
-	/** Reject: files are already in this folder (drop is a no-op — see handleMediaFolderDrop) */
-	const MEDIA_DROP_SAME = 'bg-error-500/20 ring-1 ring-inset ring-error-500/60';
+	/** Mobile uses the drag folder rail — sidebar droppables stay off to avoid double onDrop */
+	const mediaDropEnabled = $derived(isMediaDragActive && !screen.isMobile);
 
 	// Derived UI state
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -102,40 +96,10 @@
 		activeFolderId = page.url.searchParams.get('folderId') || 'root';
 	});
 
-	// Fetch folders from API
 	async function loadFolders(): Promise<void> {
-		isLoading = true;
-		error = null;
-		try {
-			// Cache-bust: the API layer caches GET /api/system-* responses for 300s,
-			// so a freshly created/renamed/deleted folder would otherwise not appear
-			// until the cache expired. A unique query param sidesteps the L1 cache.
-			const res = await fetch(`/api/system-virtual-folder?t=${Date.now()}`);
-			if (!res.ok) {
-				throw new Error('Network error');
-			}
-			const { success, data } = await res.json();
-			if (!(success && data)) {
-				throw new Error('Invalid response');
-			}
-
-			folders = data
-				.filter((f: RawFolder) => f.path?.startsWith('/'))
-				.map((f: RawFolder) => ({
-					id: f._id,
-					name: f.name,
-					path: f.path,
-					parentId: f.parentId,
-					icon: 'mdi:folder-outline',
-					nodeType: 'virtual' as const,
-					order: f.order ?? 0,
-				}));
-		} catch (err) {
-			error = 'Failed to load folders';
-			logger.error('[MediaFolders] Load error:', err);
+		await mediaFolderTree.load();
+		if (mediaFolderTree.error) {
 			toast.error('Failed to load folders');
-		} finally {
-			isLoading = false;
 		}
 	}
 
@@ -168,6 +132,7 @@
 			map.set(f.id, {
 				...f,
 				icon: 'mdi:folder-outline',
+				nodeType: 'virtual' as const,
 				children: [],
 				depth: 0,
 				onClick: () => selectFolder(f.id),
@@ -371,7 +336,7 @@
 			style="padding-inline-start: {indent}px"
 			use:droppable={{
 				container: node.id,
-				disabled: !isMediaDragActive,
+				disabled: !mediaDropEnabled,
 				attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
 				callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, node.id) },
 			}}
@@ -531,7 +496,7 @@
 							class="rounded transition-colors"
 							use:droppable={{
 								container: 'root',
-								disabled: !isMediaDragActive,
+								disabled: !mediaDropEnabled,
 								attributes: { dragOverClass: rootSameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
 								callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, 'root') },
 							}}
@@ -592,7 +557,7 @@
 					class="rounded transition-colors"
 					use:droppable={{
 						container: activeFolderId,
-						disabled: !isMediaDragActive,
+						disabled: !mediaDropEnabled,
 						attributes: { dragOverClass: MEDIA_DROP_SAME },
 						callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, activeFolderId) },
 					}}

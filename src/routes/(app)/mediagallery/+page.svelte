@@ -6,8 +6,8 @@
 ### Features:
 - Global hotkeys via src/utils/hotkeys.ts
 - Desktop: drag media onto sidebar folders or breadcrumb ancestors
-- Mobile: drag/drop onto breadcrumbs (sidebar is too narrow); with a selection,
-  tap a parent breadcrumb to move selected items without HTML5 drag
+- Mobile: Lift & Carry folder rail opens on drag; tap a parent breadcrumb
+  to move a selection without drag
 -->
 
 <script lang="ts">
@@ -19,6 +19,7 @@ import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
 import MediaDragPreview from "./media-drag-preview.svelte";
+import MediaDragFolderRail from "./media-drag-folder-rail.svelte";
 import AdvancedSearchModal from "./advanced-search-modal.svelte";
 import Portal from "@components/ui/portal.svelte";
 import type { SearchCriteria } from "@utils/media/advanced-search";
@@ -30,6 +31,7 @@ import MediaDetailsModal from "@src/components/media/media-details-modal.svelte"
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@components/system/slot.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
+import { screen } from "@src/stores/screen-size-store.svelte.ts";
 import { logger } from "@utils/logger";
 import {
 	type MediaBase,
@@ -80,6 +82,8 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	const isMediaDragActive = $derived(
 		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
 	);
+	/** Breadcrumb drop targets are desktop-only — mobile uses the folder rail */
+	const breadcrumbDropEnabled = $derived(isMediaDragActive && !screen.isMobile);
 	let isMovingMedia = $state(false);
 
 const sortOptions = [
@@ -217,6 +221,9 @@ const assetStats = $derived.by(() => ({
 const currentFolderId = $derived(
 	((data.currentFolder as { _id?: string } | null)?._id as string | undefined) ?? null,
 );
+
+/** Active gallery folder id for the mobile drag rail (`root` when at gallery root). */
+const railActiveFolderId = $derived(currentFolderId ?? "root");
 
 /** Key used for drop highlight / compare (`root` for media gallery root) */
 function crumbDropKey(folderId: string | null): string {
@@ -756,9 +763,8 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 
 		<!--
 			Breadcrumbs — always visible above the toolbar.
-			First-class drop targets (same move API as the sidebar tree).
-			Desktop: drop groups on a sidebar folder OR any ancestor crumb.
-			Mobile: crumbs are the main drop/tap path for parents.
+			Desktop: first-class drop targets (same move API as the sidebar tree).
+			Mobile: navigation + tap-to-move for selections; drag uses the folder rail.
 		-->
 		{#if breadcrumbs.length > 1}
 			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
@@ -769,7 +775,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
 						{@const isLast = i === breadcrumbs.length - 1}
 						{@const dropKey = crumbDropKey(crumb.folderId)}
-						{@const isDropTarget = !isLast && isMediaDragActive && dndState.targetContainer === dropKey}
+						{@const isDropTarget = !isLast && breadcrumbDropEnabled && dndState.targetContainer === dropKey}
 						{@const canReceiveMove = !isLast}
 
 						{#if i > 0}
@@ -808,7 +814,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 										: crumb.name}
 								use:droppable={{
 									container: dropKey,
-									disabled: !isMediaDragActive || isCurrentCrumb(crumb.folderId),
+									disabled: !breadcrumbDropEnabled || isCurrentCrumb(crumb.folderId),
 									callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleBreadcrumbDrop(state, crumb.folderId, crumb.name) },
 								}}
 								onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
@@ -833,8 +839,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						role="status"
 					>
 						<span class="sm:hidden">
-							Tap a parent folder above, or drop onto it, to move {selectedFiles.size}
-							{selectedFiles.size === 1 ? 'item' : 'items'}
+							Tap a parent above, or drag to open the folder panel and drop
 						</span>
 						<span class="hidden sm:inline">
 							Drop {selectedFiles.size}
@@ -847,8 +852,11 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 			<!-- At media root: only sidebar folders are valid destinations for a group move -->
 			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-move-hint">
 				<p class="border-b border-surface-200 py-2 text-[11px] leading-tight text-surface-500 dark:border-surface-800 dark:text-surface-400" role="status">
-					Drop {selectedFiles.size}
-					{selectedFiles.size === 1 ? 'item' : 'items'} on a folder in the sidebar to move
+					<span class="sm:hidden">Drag an item to open the folder panel and drop</span>
+					<span class="hidden sm:inline">
+						Drop {selectedFiles.size}
+						{selectedFiles.size === 1 ? 'item' : 'items'} on a folder in the sidebar to move
+					</span>
 				</p>
 			</div>
 		{/if}
@@ -1112,6 +1120,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	<Slot name="media_gallery" />
 
 	<MediaDragPreview />
+	<MediaDragFolderRail activeFolderId={railActiveFolderId} />
 
 	{#if showAdvancedSearch}
 		<Portal>

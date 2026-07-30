@@ -34,6 +34,7 @@ import {
 	resolveMediaDragIds,
 	suppressNativeDragGhost,
 } from "@utils/media/media-dnd";
+import { liftAndCarry } from "@utils/media/media-lift-drag";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
 import Checkbox from "@components/ui/checkbox.svelte";
@@ -258,7 +259,7 @@ function onUpdateRowsPerPage(rows: number) {
 						role="row"
 						tabindex="0"
 						aria-selected={isSelected}
-						use:draggable={{
+						use:liftAndCarry={{
 							container: MEDIA_DRAG_CONTAINER,
 							dragData: {
 								ids: resolveMediaDragIds(fileId, selectedFiles),

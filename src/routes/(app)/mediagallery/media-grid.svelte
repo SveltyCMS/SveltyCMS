@@ -16,12 +16,12 @@
   import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
   import MediaGridActionTooltip from "./media-grid-action-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
-  import { draggable } from "@thisux/sveltednd";
   import {
     MEDIA_DRAG_CONTAINER,
     resolveMediaDragIds,
     suppressNativeDragGhost,
   } from "@utils/media/media-dnd";
+  import { liftAndCarry } from "@utils/media/media-lift-drag";
   import { formatBytes } from "@utils/utils";
   import { SvelteSet } from "svelte/reactivity";
   import { fade, scale } from "svelte/transition";
@@ -249,7 +249,7 @@
         role="gridcell"
         tabindex="-1"
         aria-selected={isSelected}
-        use:draggable={{
+        use:liftAndCarry={{
           container: MEDIA_DRAG_CONTAINER,
           dragData: {
             ids: resolveMediaDragIds(fileId, selectedFiles),
