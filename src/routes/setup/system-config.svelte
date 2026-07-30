@@ -20,6 +20,7 @@ Features:
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { untrack } from 'svelte';
 	// Paraglide Messages
 	import {
 		button_add,
@@ -253,10 +254,17 @@ Features:
 		}
 	});
 
-	// Enforce dependency: Demo Mode REQUIRES Multi-Tenant
+	// Enforce dependency: Demo Mode REQUIRES Multi-Tenant.
+	// Use an untracked write to avoid a reactive feedback loop that causes
+	// layout thrashing on mobile when the Multi-Tenant checkbox is manually
+	// toggled while Demo Mode is already enabled.
 	$effect(() => {
-		if (systemSettings.demoMode) {
-			systemSettings.multiTenant = true;
+		const shouldForce = systemSettings.demoMode && !systemSettings.multiTenant;
+		if (shouldForce) {
+			// Only set when multiTenant is false - don't fight user toggles
+			untrack(() => {
+				systemSettings.multiTenant = true;
+			});
 		}
 	});
 

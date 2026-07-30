@@ -1,13 +1,15 @@
 /**
- * @file src/databases/auth/twoFactorAuth.ts
+ * @file src/databases/auth/two-factor-auth.ts
  * @description Two-Factor Authentication service layer
  *
  * This module provides high-level 2FA operations that integrate with the auth system.
- * It handles user 2FA setup, verification, backup codes, and recovery.
+ * It handles user 2FA setup, verification, backup codes, trusted devices, and recovery.
  *
  * Features:
- * - Setup and enable 2FA for users
- * - Verify 2FA codes during login
+ * - Setup and enable 2FA for users (with pending state for interrupted setup)
+ * - AES-256-GCM encryption of TOTP secrets at rest (backward compatible)
+ * - Verify 2FA codes during login (TOTP + backup codes)
+ * - Trusted device support ("Remember this device" — 30-day skip)
  * - Generate and manage backup codes
  * - Disable 2FA with proper verification
  * - Multi-tenant aware operations
@@ -17,10 +19,13 @@ import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-in
 // System Logger
 import { logger } from "@utils/logger";
 import {
+  decryptTotpSecret,
+  encryptTotpSecret,
   generateBackupCodes,
   generateManualEntryDetails,
   generateQRCodeURL,
   generateTOTPSecret,
+  generateTrustedDeviceToken,
   hashBackupCode,
   isValidTOTPSecret,
   verifyBackupCode,
@@ -36,7 +41,15 @@ export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-
 // Type for the auth interface extracted from IDBAdapter
 type AuthInterface = IDBAdapter["auth"];
 
-// Two-Factor Authentication Service
+// ─── Helper: Decrypt stored TOTP secret (handles legacy plaintext + encrypted) ─
+
+async function resolveTotpSecret(totpSecret: string | undefined): Promise<string | null> {
+  if (!totpSecret) return null;
+  return decryptTotpSecret(totpSecret);
+}
+
+// ─── Two-Factor Authentication Service ───────────────────────────────────────
+
 export class TwoFactorAuthService {
   private readonly db: AuthInterface;
   private readonly serviceName: string;
@@ -47,8 +60,10 @@ export class TwoFactorAuthService {
   }
 
   /**
-   * Initialize 2FA setup for a user
-   * This generates a new secret and backup codes but doesn't enable 2FA yet
+   * Initialize 2FA setup for a user.
+   * Generates a new secret and backup codes. The encrypted secret is persisted
+   * immediately with `twoFactorPending: true` so setup can be resumed after
+   * a page refresh or browser close.
    */
   async initiate2FASetup(
     userId: DatabaseId,
@@ -58,8 +73,50 @@ export class TwoFactorAuthService {
     try {
       logger.info("Initiating 2FA setup", { userId, tenantId });
 
-      // Generate new TOTP secret (now async)
+      // Check for existing pending setup — if found, resume it
+      const existingUser = await this.db.getUserById(userId, {
+        tenantId: tenantId ?? undefined,
+      });
+      if (
+        existingUser.success &&
+        existingUser.data?.twoFactorPending &&
+        existingUser.data?.totpSecret
+      ) {
+        const existingSecret = await resolveTotpSecret(existingUser.data.totpSecret);
+        if (existingSecret) {
+          logger.info("Resuming pending 2FA setup", { userId, tenantId });
+          const qrCodeURL = generateQRCodeURL(existingSecret, userEmail, this.serviceName);
+          const manualEntryDetails = generateManualEntryDetails(
+            existingSecret,
+            userEmail,
+            this.serviceName,
+          );
+          return {
+            secret: existingSecret,
+            qrCodeURL,
+            manualEntryDetails,
+            backupCodes: [], // Re-vealing backup codes from a pending setup isn't safe
+            pending: true,
+          };
+        }
+      }
+
+      // Generate new TOTP secret
       const secret = await generateTOTPSecret();
+
+      // Encrypt secret for at-rest storage before persisting as pending
+      const encryptedSecret = await encryptTotpSecret(secret);
+
+      // Persist the encrypted secret immediately as pending (enables resume)
+      await this.db.updateUserAttributes(
+        userId,
+        {
+          totpSecret: encryptedSecret,
+          twoFactorPending: true,
+          is2FAEnabled: false,
+        },
+        { tenantId: tenantId ?? undefined },
+      );
 
       // Generate QR code URL for authenticator apps
       const qrCodeURL = generateQRCodeURL(secret, userEmail, this.serviceName);
@@ -67,18 +124,18 @@ export class TwoFactorAuthService {
       // Generate manual entry details for apps that don't support QR codes
       const manualEntryDetails = generateManualEntryDetails(secret, userEmail, this.serviceName);
 
-      // Generate backup codes (now async)
+      // Generate backup codes — NOT persisted yet (only after verification)
       const backupCodes = await generateBackupCodes(10);
 
-      // Return setup information (don't save to DB yet)
       const response: TwoFactorSetupResponse = {
         secret,
         qrCodeURL,
         manualEntryDetails,
         backupCodes: [...backupCodes], // Return plain codes to user
+        pending: true,
       };
 
-      logger.info("2FA setup initiated successfully", { userId, tenantId });
+      logger.info("2FA setup initiated (pending)", { userId, tenantId });
       return response;
     } catch (error: any) {
       const message = `Failed to initiate 2FA setup: ${error.message}`;
@@ -88,8 +145,12 @@ export class TwoFactorAuthService {
   }
 
   /**
-   * Complete 2FA setup by verifying the first TOTP code
-   * This enables 2FA for the user and saves the secret and backup codes
+   * Complete 2FA setup by verifying the first TOTP code.
+   * Promotes the pending secret to active and enables 2FA.
+   *
+   * The `secret` parameter can be either:
+   * - The plaintext secret returned during initiate2FASetup (in-session)
+   * - Omitted to read from the stored pending secret (resumed setup)
    */
   async complete2FASetup(
     userId: DatabaseId,
@@ -101,13 +162,27 @@ export class TwoFactorAuthService {
     try {
       logger.info("Completing 2FA setup", { userId, tenantId });
 
-      // Validate the secret
-      if (!isValidTOTPSecret(secret)) {
+      // Validate the provided secret or fall back to stored pending secret
+      let resolvedSecret: string | null = null;
+
+      if (secret && isValidTOTPSecret(secret)) {
+        resolvedSecret = secret;
+      } else {
+        // Attempt to read the stored pending secret (resumed setup)
+        const userResult = await this.db.getUserById(userId, {
+          tenantId: tenantId ?? undefined,
+        });
+        if (userResult.success && userResult.data?.totpSecret) {
+          resolvedSecret = await resolveTotpSecret(userResult.data.totpSecret);
+        }
+      }
+
+      if (!resolvedSecret || !isValidTOTPSecret(resolvedSecret)) {
         throw new Error("Invalid TOTP secret format");
       }
 
-      // Verify the TOTP code (now async)
-      if (!(await verifyTOTPCode(secret, verificationCode))) {
+      // Verify the TOTP code
+      if (!(await verifyTOTPCode(resolvedSecret, verificationCode))) {
         logger.warn("2FA setup failed - invalid verification code", {
           userId,
           tenantId,
@@ -115,13 +190,17 @@ export class TwoFactorAuthService {
         return false;
       }
 
-      // Hash backup codes for secure storage (now async)
+      // Hash backup codes for secure storage
       const hashedBackupCodes = await Promise.all(backupCodes.map((code) => hashBackupCode(code)));
 
-      // Update user with 2FA settings
+      // Re-encrypt the secret (in case the stored one has a different envelope)
+      const encryptedSecret = await encryptTotpSecret(resolvedSecret);
+
+      // Update user with 2FA settings — promote from pending to active
       const updateData: Partial<User> = {
         is2FAEnabled: true,
-        totpSecret: secret,
+        twoFactorPending: false,
+        totpSecret: encryptedSecret,
         backupCodes: hashedBackupCodes,
         last2FAVerification: new Date().toISOString() as ISODateString,
       };
@@ -151,14 +230,16 @@ export class TwoFactorAuthService {
   }
 
   /**
-   * Verify 2FA code during authentication
-   * Supports both TOTP codes and backup codes
+   * Verify 2FA code during authentication.
+   * Supports both TOTP codes and backup codes.
+   * Also accepts a `deviceFingerprint` for trusted-device token generation.
    */
   async verify2FA(
     userId: DatabaseId,
     code: string,
     tenantId?: DatabaseId | null,
-  ): Promise<TwoFactorVerificationResult> {
+    deviceFingerprint?: string,
+  ): Promise<TwoFactorVerificationResult & { trustedDeviceToken?: string }> {
     try {
       logger.debug("Verifying 2FA code", { userId, tenantId });
 
@@ -183,8 +264,11 @@ export class TwoFactorAuthService {
         };
       }
 
-      // First try TOTP verification (now async)
-      if (user.totpSecret && (await verifyTOTPCode(user.totpSecret, code))) {
+      // Resolve the stored TOTP secret (decrypt if encrypted, handle legacy plaintext)
+      const resolvedSecret = await resolveTotpSecret(user.totpSecret);
+
+      // First try TOTP verification
+      if (resolvedSecret && (await verifyTOTPCode(resolvedSecret, code))) {
         // --- TOTP Replay Protection ---
         // After math validation passes, check the consumed-codes registry.
         // This prevents an attacker from replaying an intercepted code within
@@ -199,6 +283,13 @@ export class TwoFactorAuthService {
           };
         }
 
+        // Generate trusted device token if requested
+        let trustedDeviceToken: string | undefined;
+        if (deviceFingerprint) {
+          trustedDeviceToken =
+            (await generateTrustedDeviceToken(String(userId), deviceFingerprint)) ?? undefined;
+        }
+
         // Update last verification time
         await this.db.updateUserAttributes(
           userId,
@@ -211,15 +302,17 @@ export class TwoFactorAuthService {
         logger.info("2FA verification successful via TOTP", {
           userId,
           tenantId,
+          hasTrustedDevice: !!trustedDeviceToken,
         });
         return {
           success: true,
           method: "totp",
           message: "2FA verification successful",
+          trustedDeviceToken,
         };
       }
 
-      // Try backup code verification (now async)
+      // Try backup code verification
       if (user.backupCodes && user.backupCodes.length > 0) {
         for (let i = 0; i < user.backupCodes.length; i++) {
           const hashedCode = user.backupCodes[i];
@@ -269,6 +362,70 @@ export class TwoFactorAuthService {
     }
   }
 
+  /**
+   * Check if a user has a valid trusted-device token.
+   * Returns true if 2FA can be skipped for this session.
+   */
+  async hasTrustedDevice(
+    userId: DatabaseId,
+    deviceFingerprint: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<boolean> {
+    try {
+      const userResult = await this.db.getUserById(userId, {
+        tenantId: tenantId ?? undefined,
+      });
+      if (!(userResult.success && userResult.data)) return false;
+
+      const user = userResult.data;
+      const trustedDevices = user.twoFactorTrustedDevices || [];
+      if (trustedDevices.length === 0) return false;
+
+      // Check if the device fingerprint matches a stored device
+      return trustedDevices.includes(deviceFingerprint);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Add a trusted device fingerprint to the user's trusted devices list.
+   * Maintains a maximum of 5 trusted devices (FIFO eviction).
+   */
+  async addTrustedDevice(
+    userId: DatabaseId,
+    deviceFingerprint: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<void> {
+    try {
+      const userResult = await this.db.getUserById(userId, {
+        tenantId: tenantId ?? undefined,
+      });
+      if (!(userResult.success && userResult.data)) return;
+
+      const user = userResult.data;
+      const trustedDevices = user.twoFactorTrustedDevices || [];
+
+      // Remove existing duplicate if present
+      const idx = trustedDevices.indexOf(deviceFingerprint);
+      if (idx > -1) trustedDevices.splice(idx, 1);
+
+      // Add new device, evict oldest if > 5
+      trustedDevices.push(deviceFingerprint);
+      if (trustedDevices.length > 5) trustedDevices.shift();
+
+      await this.db.updateUserAttributes(
+        userId,
+        { twoFactorTrustedDevices: trustedDevices },
+        { tenantId: tenantId ?? undefined },
+      );
+
+      logger.debug("Trusted device added", { userId, deviceCount: trustedDevices.length });
+    } catch (err: any) {
+      logger.warn("Failed to add trusted device", { userId, error: err.message });
+    }
+  }
+
   // Disable 2FA for a user (requires current password or admin permission)
   async disable2FA(userId: DatabaseId, tenantId?: DatabaseId | null): Promise<boolean> {
     try {
@@ -277,9 +434,11 @@ export class TwoFactorAuthService {
       // Update user to disable 2FA and clear secrets
       const updateData: Partial<User> = {
         is2FAEnabled: false,
+        twoFactorPending: false,
         totpSecret: undefined,
         backupCodes: undefined,
         last2FAVerification: undefined,
+        twoFactorTrustedDevices: undefined,
       };
 
       const result = await this.db.updateUserAttributes(userId, updateData, {
@@ -316,7 +475,7 @@ export class TwoFactorAuthService {
         throw new Error("2FA is not enabled for this user");
       }
 
-      // Generate new backup codes (now async)
+      // Generate new backup codes
       const newBackupCodes = await generateBackupCodes(10);
       const hashedBackupCodes = await Promise.all(
         newBackupCodes.map((code) => hashBackupCode(code)),
@@ -351,15 +510,17 @@ export class TwoFactorAuthService {
     }
   }
 
-  //Get 2FA status for a user
+  // Get 2FA status for a user
   async get2FAStatus(
     userId: DatabaseId,
     tenantId?: DatabaseId | null,
   ): Promise<{
     enabled: boolean;
+    pending: boolean;
     hasBackupCodes: boolean;
     backupCodesCount: number;
     lastVerification?: ISODateString;
+    trustedDevicesCount: number;
   }> {
     try {
       const userResult = await this.db.getUserById(userId, {
@@ -373,9 +534,11 @@ export class TwoFactorAuthService {
 
       return {
         enabled: Boolean(user.is2FAEnabled),
+        pending: Boolean(user.twoFactorPending),
         hasBackupCodes: Boolean(user.backupCodes && user.backupCodes.length > 0),
         backupCodesCount: user.backupCodes ? user.backupCodes.length : 0,
         lastVerification: user.last2FAVerification,
+        trustedDevicesCount: user.twoFactorTrustedDevices?.length || 0,
       };
     } catch (error: any) {
       const message = `Failed to get 2FA status: ${error.message}`;

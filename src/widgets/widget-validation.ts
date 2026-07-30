@@ -184,7 +184,7 @@ export function validateRequiredFields(
   for (const field of fields) {
     if (!field.required) continue;
 
-    const value = entryData[field.db_fieldName || field.name];
+    const value = entryData[String(field.db_fieldName || field.name)];
     const isMissing =
       value === undefined ||
       value === null ||
@@ -192,7 +192,7 @@ export function validateRequiredFields(
       (Array.isArray(value) && value.length === 0);
 
     if (isMissing) {
-      missingFields.push(field.name || field.db_fieldName || "unknown");
+      missingFields.push(String(field.name || field.db_fieldName || "unknown"));
     }
   }
 

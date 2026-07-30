@@ -86,7 +86,13 @@ Implements complex permission checks against roles and explicit user permissions
 ### Two-Factor Authentication (2FA)
 
 - **TOTP-based**: Compatible with Google Authenticator, Authy, etc.
-- **Backup Codes**: Secure recovery via high-entropy backup codes.
+- **AES-256-GCM Encryption**: TOTP secrets encrypted at rest using the instance's `ENCRYPTION_KEY` — never stored as plaintext in the database.
+- **TOTP Replay Protection**: Consumed-codes registry prevents code reuse within the 90-second validity window.
+- **Backup Codes**: Secure recovery via high-entropy, SHA-256 hashed backup codes.
+- **Trusted Devices**: "Remember this device" — HMAC-signed cookie (30-day TTL) allows skipping 2FA on recognized devices.
+- **Pending Setup**: Interrupted 2FA setup is automatically resumed — the encrypted secret is persisted immediately.
+- **Configurable TOTP Window**: `TOTP_WINDOW` env var (default 1, max 5) for clock-drift tolerance.
+- **Plugin-Enforced 2FA**: Plugins can require 2FA for specific users via the `afterAuthenticate` hook.
 - **Forced Admin 2FA**: Configuration option to require 2FA for all administrative accounts.
 
 ### Enterprise SSO (SAML 2.0)

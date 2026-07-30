@@ -219,6 +219,15 @@ export async function handleWebhookRoutes(
   const { request, locals } = event;
   const { user } = locals;
 
+  // 🛡️ SECURITY: Admin-only for all webhook operations
+  // Defense-in-depth: handler-level check independent of the middleware pipeline.
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+  if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
+    throw new AppError("Admin access required for webhook management", 403, "FORBIDDEN");
+  }
+
   const isDirect = segments[0] === "webhooks" || segments[0] === "system-webhooks";
   const webhookId = isDirect ? segments[1] : segments[2];
   const subAction = isDirect ? segments[2] : segments[3];
@@ -754,10 +763,12 @@ export async function handleAutomationRoutes(
   const { user } = locals;
 
   // 🛡️ SECURITY: Admin verification for automation management
-  if (!["GET", "OPTIONS"].includes(request.method)) {
-    if (!user || (!user.isAdmin && user.role !== "admin")) {
-      throw new AppError("Admin access required for automation management", 403, "FORBIDDEN");
-    }
+  // Defense-in-depth: handler-level check independent of the middleware pipeline.
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+  if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
+    throw new AppError("Admin access required for automation management", 403, "FORBIDDEN");
   }
 
   if (process.env.VERBOSE_TESTS === "true") {

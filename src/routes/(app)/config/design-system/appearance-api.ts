@@ -1,5 +1,5 @@
 /**
- * @file src/routes/(app)/config/appearance/appearance-api.ts
+ * @file src/routes/(app)/config/design-system/appearance-api.ts
  * @description Browser API client for admin themes + user prefs (Testing 2026).
  *
  * Mutations go through fetchApi (CSRF automatic). List endpoints that return

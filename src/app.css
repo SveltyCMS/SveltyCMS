@@ -226,8 +226,15 @@
    ======================================================================== */
 @layer components {
   .card {
-    @apply rounded border border-surface-200 bg-white text-surface-900 shadow-sm;
-    @apply dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50;
+    /* Semantic admin surfaces — elevation via --admin-shadow-* (theme variant),
+       not forced hover shadows that break flat themes. */
+    border-radius: var(--admin-radius-card, 0.75rem);
+    border-width: var(--admin-border-width, 1px);
+    border-style: solid;
+    border-color: var(--admin-border-default, var(--color-surface-200));
+    background-color: var(--admin-bg-card, var(--color-surface-50));
+    color: var(--admin-text-body, var(--color-surface-900));
+    box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));
   }
 
   .badge {

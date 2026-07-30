@@ -34,6 +34,7 @@ import {
 } from "@utils/media/media-dnd";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
+import { untrack } from "svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 
 interface Props {
@@ -121,15 +122,17 @@ const smartTable = (() => {
 })();
 
 $effect(() => {
-	smartTable.setRows(filteredFiles as unknown as Record<string, unknown>[]);
-	smartTable.setColumns([
-		{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
-		{ key: "preview", label: "Preview", sortable: false, align: "start" },
-		{ key: "filename", label: "Name", sortable: true, align: "start" },
-		{ key: "size", label: "Size", sortable: true, align: "end" },
-		{ key: "type", label: "Type", sortable: true, align: "end" },
-		{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
-	]);
+	untrack(() => {
+		smartTable.setRows(filteredFiles as unknown as Record<string, unknown>[]);
+		smartTable.setColumns([
+			{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
+			{ key: "preview", label: "Preview", sortable: false, align: "start" },
+			{ key: "filename", label: "Name", sortable: true, align: "start" },
+			{ key: "size", label: "Size", sortable: true, align: "end" },
+			{ key: "type", label: "Type", sortable: true, align: "end" },
+			{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
+		]);
+	});
 });
 
 const paginatedFiles = $derived(smartTable.rows as unknown as (MediaBase | MediaImage)[]);

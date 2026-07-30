@@ -19,7 +19,7 @@ export function generateCsrfToken(cookies: Cookies, isSecure: boolean): string {
 
   cookies.set(cookieName, token, {
     path: "/",
-    httpOnly: true,
+    httpOnly: false,
     secure: isSecure,
     sameSite: "strict",
     maxAge: 60 * 60 * 24, // 24 hours

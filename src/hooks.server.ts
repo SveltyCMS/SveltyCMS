@@ -522,6 +522,19 @@ export const handle: Handle = async ({ event, resolve }) => {
     try {
       const pipeline = getPipeline();
       return await pipeline({ event, resolve });
+    } catch (err: any) {
+      if (!isRedirect(err)) {
+        logger.error(`[Guard] Unhandled error in middleware chain:`, err);
+        const errorResponse = handleApiError(err, event);
+        applyAllSecurityHeaders(
+          errorResponse.headers,
+          event.url.protocol === "https:",
+          event.request.headers.get("Origin"),
+          event.url.pathname,
+        );
+        return errorResponse;
+      }
+      throw err;
     } finally {
       inFlightRequests--;
     }

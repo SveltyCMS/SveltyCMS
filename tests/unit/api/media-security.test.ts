@@ -20,6 +20,7 @@ const mockMediaService = {
   manipulateMedia: vi.fn(),
   batchProcessImages: vi.fn(),
   getPublishedReferences: vi.fn().mockResolvedValue([]),
+  getMediaReferences: vi.fn().mockResolvedValue([]),
   enrichMediaWithUrl: vi.fn((m) => ({
     ...m,
     url: `http://localhost/files/${m.path}`,
@@ -250,7 +251,7 @@ describe("Media API Security Unit Tests", () => {
   });
 
   describe("DELETE /api/media/[id]", () => {
-    it.skip("should enforce tenant isolation when deleting the media item", async () => {
+    it("should enforce tenant isolation when deleting the media item", async () => {
       const event = {
         params: { id: "media-1" },
         locals: { user, roles, tenantId },

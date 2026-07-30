@@ -6,7 +6,7 @@ order: 45
 icon: "mdi:shield-account-outline"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-06-22"
+updated: "2026-07-30"
 tags:
   - "api"
   - "auth"
@@ -18,6 +18,8 @@ tags:
   - "webauthn"
   - "oidc"
   - "openid-connect"
+  - "trusted-devices"
+  - "totp-encryption"
 ---
 
 # Authentication & Identity API Reference
@@ -50,7 +52,11 @@ The Authentication API handles the complete lifecycle of a user identity within 
 | **2FA Enable** | `/api/auth/2fa/enable` | `POST` | **Authenticated** |
 | **2FA Verify** | `/api/auth/2fa/verify` | `POST` | **Authenticated** |
 | **2FA Disable** | `/api/auth/2fa/disable` | `POST` | **Authenticated** |
-| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET` | **Authenticated** |
+| **Backup Codes** | `/api/auth/2fa/backup-codes` | `GET, POST` | **Authenticated** |
+
+> **Trusted Devices**: The browser-based flow (`auth.remote.ts` `verify2FA`) supports `trustDevice: true` to set a `__Host-2fa-trusted-device` cookie (30-day TTL, HMAC-SHA256 signed). On subsequent logins from the same device, 2FA is silently skipped.
+
+> **TOTP Secret Encryption**: TOTP secrets are encrypted at rest using AES-256-GCM under the instance's `ENCRYPTION_KEY`. Legacy plaintext secrets are handled transparently — no migration needed.
 
 | **SAML Login** | `/api/auth/saml/login` | `GET` | **Public** |
 | **SAML ACS** | `/api/auth/saml/acs` | `POST` | **Public** |
@@ -82,17 +88,35 @@ Users can update their own security attributes and metadata via dedicated endpoi
 
 SveltyCMS supports mandatory or optional Two-Factor Authentication via Time-based One-Time Passwords (TOTP).
 
-### 2FA Setup Flow
+### Security Architecture
 
-1. **Initiate Setup**: `POST /api/auth/2fa/setup` — Returns a TOTP secret and QR code URI.
-2. **Verify & Enable**: `POST /api/auth/2fa/enable` — Verifies the TOTP code and enables 2FA. Payload: `{ "code": "123456", "secret": "...", "backupCodes": [...] }`
+- **AES-256-GCM Encryption**: TOTP secrets are encrypted at rest using the instance's `ENCRYPTION_KEY`. Secrets are never stored in plaintext in the database. Legacy plaintext secrets are handled transparently.
+- **TOTP Replay Protection**: A consumed-codes registry prevents replay attacks within the 90-second validity window (30s TOTP — 30s clock skew). Fail-closed design — registry errors reject the code.
+- **Timing-Safe Comparisons**: All code comparisons use `crypto.timingSafeEqual` to neutralize side-channel attacks.
+- **Configurable Window**: Set `TOTP_WINDOW=2` (env var, default 1) for — 60s tolerance on clock-drifted devices. Max: 5.
+
+### 2FA Setup Flow (with Pending State)
+
+1. **Initiate Setup**: `POST /api/auth/2fa/setup` — Generates a TOTP secret and QR code. **The encrypted secret is persisted immediately** with `twoFactorPending: true`. If setup is interrupted (page close, browser crash), re-initiating **resumes** the existing pending setup.
+2. **Verify & Enable**: `POST /api/auth/2fa/enable` — Verifies the TOTP code with the pending secret and enables 2FA. Payload: `{ "code": "123456", "secret": "...", "backupCodes": [...] }`. The `secret` field is **optional** — if omitted, the stored pending secret is used. On success: `twoFactorPending` cleared, `is2FAEnabled: true`.
 
 ### 2FA Verification Flow
 
-When 2FA is enabled, a standard login will return a `2FA_REQUIRED` status, requiring a second step.
+When 2FA is enabled, a standard login will return a `2FA_REQUIRED` status, requiring a second step. **Plugins can also force 2FA** via the `afterAuthenticate` hook — see [Plugin Architecture](../../development/plugins/architecture.mdx).
 
 **Endpoint**: `POST /api/auth/2fa/verify`  
 **Payload**: `{ "userId": "...", "code": "123456" }`
+
+#### Trusted Devices ("Remember This Device")
+
+After successful 2FA verification, the browser flow can pass `trustDevice: true`:
+
+- Sets a `__Host-2fa-trusted-device` cookie (httpOnly, secure, strict, 30-day TTL)
+- Cookie is **HMAC-SHA256 signed** under the instance's `ENCRYPTION_KEY` — forgery-proof
+- Binds to device fingerprint (IP prefix + user-agent hash)
+- On subsequent logins from the same device, **2FA is silently skipped**
+- Supports up to 5 trusted devices per user (FIFO eviction)
+- Disabling 2FA clears all trusted devices
 
 ### Backup Codes
 
@@ -108,17 +132,27 @@ When 2FA is enabled, a standard login will return a `2FA_REQUIRED` status, requi
 sequenceDiagram
     participant User
     participant Auth as Auth Handler (auth.ts)
+    participant Plugin as Auth Hooks (plugins)
     participant SDK as Auth Service
     participant DB as Database
 
     User->>Auth: POST /api/auth/login
-    Auth->>Auth: Validate Password
-    Auth-->>User: 200 OK (status: 2FA_REQUIRED)
-    User->>Auth: POST /api/auth/2fa/verify (OTP)
-    Auth->>SDK: verifyTOTP(userId, code)
-    SDK->>DB: Check Secret
-    Auth-->>User: 200 OK (Session Started)
-```text
+    Auth->>Auth: Validate Password (Argon2id)
+    Auth->>Plugin: afterAuthenticate(event)
+    Plugin-->>Auth: deny | requires2FA | pass
+    alt 2FA enabled or plugin-required
+        Auth-->>User: 200 OK (status: 2FA_REQUIRED)
+        User->>Auth: POST /api/auth/2fa/verify (OTP + trustDevice)
+        Auth->>SDK: verifyTOTP(userId, code, fingerprint?)
+        SDK->>DB: Decrypt Secret (AES-256-GCM)
+        SDK-->>Auth: success + trustedDeviceToken?
+        Auth->>Auth: Set __Host-2fa-trusted-device cookie
+        Auth-->>User: 200 OK (Session Started)
+    else trusted device valid
+        Auth->>Auth: Verify __Host-2fa-trusted-device cookie
+        Auth-->>User: 200 OK (2FA skipped)
+    end
+```
 
 ---
 

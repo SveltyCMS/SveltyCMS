@@ -18,11 +18,15 @@
 	import Avatar from '@components/ui/avatar.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Select from '@components/ui/select.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
 	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
+	import { userThemePrefs } from '@src/stores/user-prefs-overlay.svelte.ts';
 	import {
 		button_delete,
 		email,
@@ -36,7 +40,7 @@
 		userpage_title
 	} from '@src/paraglide/messages';
 	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
@@ -57,6 +61,43 @@
 
 	type AccountTab = 'identity' | 'security' | 'settings' | 'management';
 	let activeTab = $state<AccountTab>('identity');
+
+	// Compact appearance prefs (full layout editor lives on Design System → My Overrides).
+	// untrack: one-time seed from page data — avoids state_referenced_locally on $props().
+	const initialThemePrefs = untrack(
+		() =>
+			(data.user?.preferences?.theme ?? {}) as {
+				density?: string;
+				variant?: string;
+				reducedMotion?: boolean;
+				highContrast?: boolean;
+			},
+	);
+	let myDensity = $state(initialThemePrefs.density ?? '');
+	let myVariant = $state(initialThemePrefs.variant ?? '');
+	let myReducedMotion = $state(initialThemePrefs.reducedMotion ?? false);
+	let myHighContrast = $state(initialThemePrefs.highContrast ?? false);
+	let savingAppearance = $state(false);
+
+	async function saveQuickAppearance() {
+		savingAppearance = true;
+		try {
+			const prefs: Record<string, unknown> = {
+				reducedMotion: myReducedMotion,
+				highContrast: myHighContrast,
+			};
+			if (myDensity) prefs.density = myDensity;
+			if (myVariant) prefs.variant = myVariant;
+			const res = await updateUserThemePrefs(prefs);
+			if (!res.success) throw new Error(res.message || 'Save failed');
+			userThemePrefs.apply(prefs as any);
+			toast.success('Appearance preferences applied.');
+		} catch (e: unknown) {
+			toast.error(e instanceof Error ? e.message : String(e));
+		} finally {
+			savingAppearance = false;
+		}
+	}
 
 	const rolePermissionFallback = $derived.by(() => {
 		const roles = (data.roles ?? []) as Array<{ _id?: string; name?: string; permissions?: string[] }>;
@@ -503,7 +544,7 @@
 			permissions:
 				'Capabilities granted by your role. Admins can change roles and permissions under Access Management.',
 			appearance:
-				'Open the Appearance workspace to customize admin theme, density, brand colors, and personal overrides for this installation. Changes apply across the admin UI.',
+				'Set personal density, card style, and accessibility toggles here, or open Design System → My Overrides for full layout preferences. Workspace admins manage shared themes on the same Design System page.',
 			collaboration:
 				'Realtime collaboration preferences for concurrent editing and presence. These settings affect your session only — not other users.',
 			'rtc-enabled':
@@ -1263,17 +1304,57 @@
 										</SystemTooltip>
 									</p>
 								</div>
-								<a
-									href="/config/appearance"
-									data-testid="open-appearance-settings-btn"
-									aria-label="Open Appearance Settings"
-									data-sveltekit-preload-data="hover"
-									data-preload="hover"
-									class="btn preset-outlined-surface-500 relative inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem) px-3 text-xs font-bold tracking-tight transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500"
-								>
-									<iconify-icon icon="mdi:open-in-new" width={14} class="me-1" aria-hidden="true"></iconify-icon>
-									Open Appearance Settings
-								</a>
+								<div class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="user-quick-appearance">
+									<Select
+										bind:value={myDensity}
+										label="Density"
+										options={[
+											{ value: '', label: 'Theme default' },
+											{ value: 'compact', label: 'Compact' },
+											{ value: 'cozy', label: 'Cozy' },
+											{ value: 'spacious', label: 'Spacious' }
+										]}
+									/>
+									<Select
+										bind:value={myVariant}
+										label="Card style"
+										options={[
+											{ value: '', label: 'Theme default' },
+											{ value: 'flat', label: 'Flat' },
+											{ value: 'bordered', label: 'Bordered' },
+											{ value: 'elevated', label: 'Elevated' }
+										]}
+									/>
+									<div class="flex flex-col justify-end">
+										<Toggle bind:value={myReducedMotion} label="Reduced motion" />
+									</div>
+									<div class="flex flex-col justify-end">
+										<Toggle bind:value={myHighContrast} label="High contrast" />
+									</div>
+								</div>
+								<div class="flex flex-col gap-2 sm:flex-row">
+									<Button
+										variant="primary"
+										size="sm"
+										onclick={saveQuickAppearance}
+										loading={savingAppearance}
+										data-testid="user-save-appearance-btn"
+										class="flex-1"
+									>
+										Apply appearance
+									</Button>
+									<a
+										href="/config/design-system?tab=overrides"
+										data-testid="open-appearance-settings-btn"
+										aria-label="Open Design System My Overrides"
+										data-sveltekit-preload-data="hover"
+										data-preload="hover"
+										class="btn preset-outlined-surface-500 relative inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem) px-3 text-xs font-bold tracking-tight transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500"
+									>
+										<iconify-icon icon="mdi:compass-outline" width={14} class="me-1" aria-hidden="true"></iconify-icon>
+										Design System
+									</a>
+								</div>
 							</div>
 
 							<div class="py-3" data-testid="collaboration-prefs">

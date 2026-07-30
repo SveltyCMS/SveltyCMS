@@ -69,9 +69,10 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 </script>
 
 <div
-	class="admin-theme-container absolute inset-0 bg-surface-50 {fullHeight
+	class="admin-theme-container absolute inset-0 {fullHeight
 		? 'flex flex-col overflow-hidden'
 		: 'overflow-y-auto'}"
+	style="background-color: var(--admin-bg-page, var(--color-surface-50)); color: var(--admin-text-body, var(--color-surface-900));"
 	in:adminFade={animate ? { duration: 200 } : undefined}
 >
 	<PageTitle

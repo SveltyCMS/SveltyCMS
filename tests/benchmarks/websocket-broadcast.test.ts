@@ -54,7 +54,7 @@ function handleIncomingSync(ws: WebSocket, doc: Y.Doc, raw: ArrayBuffer | Buffer
     encoding.writeVarUint(replyEncoder, messageSync);
     syncProtocol.readSyncMessage(decoder, replyEncoder, doc, "remote");
     // length > 1 means sync payload was appended after outer type
-    if (encoding.length(replyEncoder) > 1) {
+    if ((encoding as any).length(replyEncoder) > 1) {
       ws.send(encoding.toUint8Array(replyEncoder));
     }
   } catch {
