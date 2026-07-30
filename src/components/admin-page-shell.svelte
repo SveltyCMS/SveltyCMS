@@ -69,7 +69,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 </script>
 
 <div
-	class="admin-theme-container absolute inset-0 bg-surface-50 {fullHeight
+	class="admin-theme-container absolute inset-0 bg-gradient-to-br from-surface-50 via-surface-100/60 to-surface-50 dark:from-surface-950 dark:via-surface-900/90 dark:to-surface-950 {fullHeight
 		? 'flex flex-col overflow-hidden'
 		: 'overflow-y-auto'}"
 	in:adminFade={animate ? { duration: 200 } : undefined}
@@ -88,7 +88,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{/if}
 	</PageTitle>
 
-	<div class="px-2 pb-2 pt-4 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
+	<div class="px-4 sm:px-6 pb-4 pt-4 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
 		{@render children?.()}
 	</div>
 </div>

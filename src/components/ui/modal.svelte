@@ -100,13 +100,13 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	};
 
 	const colorClasses: Record<string, string> = {
-		surface: 'bg-surface-100 dark:bg-surface-900 border-surface-200 dark:border-surface-700',
-		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
-		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
-		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
-		success: 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-surface-700',
-		warning: 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-surface-700',
-		error: 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-surface-700',
+		surface: 'bg-card/95 backdrop-blur-xl border border-theme/80 rounded-2xl shadow-2xl shadow-surface-950/20 dark:shadow-black/60 text-body',
+		primary: 'bg-primary-50/95 dark:bg-primary-950/95 border-primary-200/80 dark:border-primary-800/80 rounded-2xl shadow-2xl backdrop-blur-xl',
+		secondary: 'bg-secondary-50/95 dark:bg-secondary-950/95 border-secondary-200/80 dark:border-secondary-800/80 rounded-2xl shadow-2xl backdrop-blur-xl',
+		tertiary: 'bg-tertiary-50/95 dark:bg-tertiary-950/95 border-tertiary-200/80 dark:border-tertiary-800/80 rounded-2xl shadow-2xl backdrop-blur-xl',
+		success: 'bg-success-50/95 dark:bg-success-950/95 border-success-200/80 dark:border-surface-700/80 rounded-2xl shadow-2xl backdrop-blur-xl',
+		warning: 'bg-warning-50/95 dark:bg-warning-950/95 border-warning-200/80 dark:border-surface-700/80 rounded-2xl shadow-2xl backdrop-blur-xl',
+		error: 'bg-error-50/95 dark:bg-error-950/95 border-error-200/80 dark:border-surface-700/80 rounded-2xl shadow-2xl backdrop-blur-xl',
 	};
 </script>
 
@@ -119,7 +119,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		data-fullscreen={isFullscreen ? 'true' : undefined}
 		data-editor={isEditorShell ? 'true' : undefined}
 		class={cn(
-			'fixed inset-0 z-101 bg-transparent border-0 backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
+			'fixed inset-0 z-101 bg-transparent border-0 backdrop:bg-surface-950/70 backdrop:backdrop-blur-md',
 			isFullscreen
 				? 'open:flex m-0 h-dvh max-h-dvh w-full max-w-none overflow-hidden p-0'
 				: isEditorShell
@@ -148,11 +148,11 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		>
 			<!-- Header -->
 			{#if header || title}
-				<header class={cn('flex items-center justify-between border-b border-surface-200 p-4 shrink-0 dark:border-surface-700', headerClass)}>
+				<header class={cn('flex items-center justify-between border-b border-subtle/80 px-6 py-4 shrink-0 bg-surface-50/50 dark:bg-surface-900/40', headerClass)}>
 					{#if header}
 						{@render header()}
 					{:else}
-						<h3 id={title ? 'modal-title' : undefined} class="h4 font-bold tracking-tight text-surface-900 dark:text-white">
+						<h3 id={title ? 'modal-title' : undefined} class="text-base font-bold tracking-tight text-body">
 							{title}
 						</h3>
 					{/if}
@@ -160,7 +160,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 					<button
 						type="button"
 						onclick={() => (open = false)}
-						class="p-2 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors"
+						class="p-2 rounded-full hover:bg-surface-200/80 dark:hover:bg-surface-800/80 text-muted hover:text-body hover:rotate-90 transition-all duration-200"
 						aria-label="Close modal"
 					>
 						<iconify-icon icon="mingcute:close-line" class="text-xl"></iconify-icon>
@@ -171,7 +171,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			<!-- Body -->
 			<div class={cn(
 				'flex-1 min-h-0',
-				isExpandedBody ? 'flex h-full flex-col overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
+				isExpandedBody ? 'flex h-full flex-col overflow-hidden p-0' : 'max-h-[80vh] overflow-y-auto p-5 sm:p-7',
 				contentClass,
 			)}>
 				{#if children}
@@ -181,7 +181,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 
 			<!-- Footer -->
 			{#if footer}
-				<footer class="p-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-700 flex justify-end gap-3 shrink-0">
+				<footer class="px-6 py-4 bg-surface-50/50 dark:bg-surface-900/40 border-t border-subtle/80 flex justify-end gap-3 shrink-0">
 					{@render footer()}
 				</footer>
 			{/if}

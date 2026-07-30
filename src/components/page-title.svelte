@@ -152,8 +152,8 @@
 </script>
 
 <div
-	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between bg-surface-50/95 ps-5 pe-2 pt-2 backdrop-blur-sm dark:bg-surface-950/95
-		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
+	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between bg-card/85 px-4 sm:px-6 py-3 backdrop-blur-md border-b border-theme/80 shadow-xs transition-all duration-200
+		{compact || description ? 'min-h-14 gap-3' : 'min-h-14 gap-4'}"
 >
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
@@ -161,15 +161,15 @@
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="h-9 w-9 shrink-0 p-0! min-w-0 text-surface-700 hover:bg-surface-200/70 dark:text-surface-200 dark:hover:bg-surface-800/70"
+				class="h-9 w-9 shrink-0 p-0! min-w-0 text-surface-700 hover:bg-surface-200/70 dark:text-surface-200 dark:hover:bg-surface-800/70 rounded-xl transition-all"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="22" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/if}
 		<div class="flex min-w-0 flex-col justify-center">
-			<div class="flex min-w-0 items-center gap-1">
+			<div class="flex min-w-0 items-center gap-1.5">
 				<h1
-					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-none font-bold"
+					class="transition-max-width h1 relative flex min-w-0 items-center gap-1.5 leading-none font-bold tracking-tight"
 					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
 					aria-live="polite"
 					data-cms-field="pageTitle"
@@ -187,7 +187,7 @@
 
 					<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
 						{#each titleParts as part, i (i)}
-							<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}>{part}</span>
+							<span class={i % 2 === 1 ? 'font-bold text-tertiary-500 dark:text-primary-500' : ''}>{part}</span>
 						{/each}
 					</span>
 				</h1>
@@ -198,19 +198,19 @@
 						type="button"
 						onclick={toggleFavorite}
 						aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500' : 'text-surface-400 opacity-60 hover:opacity-100 dark:text-surface-500'}"
+						class="ms-1 inline-flex shrink-0 items-center justify-center rounded-lg p-1 transition-all duration-200 hover:scale-110 hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500' : 'text-surface-400 opacity-60 hover:opacity-100 dark:text-surface-500'}"
 					>
 						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
 			{#if description}
-				<span class="mt-0.5 text-xs font-medium text-surface-500 dark:text-surface-400 {compact ? '' : 'opacity-50'}">{description}</span>
+				<span class="mt-0.5 text-xs font-medium text-muted {compact ? '' : 'opacity-70'}">{description}</span>
 			{/if}
 		</div>
 	</div>
 
-	<div class="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
+	<div class="flex shrink-0 flex-wrap items-center gap-2">
 		{#if children}
 			{@render children()}
 		{/if}
@@ -221,13 +221,13 @@
 					<a
 						href={backUrl}
 						aria-label="Go back"
-						class="flex shrink-0 items-center justify-center rounded-full border border-surface-500 transition-colors hover:bg-surface-500/10 dark:border-surface-200
+						class="flex shrink-0 items-center justify-center rounded-full border border-theme/80 bg-surface-50/50 dark:bg-surface-900/40 text-body shadow-2xs transition-all duration-200 hover:scale-105 hover:border-tertiary-500 dark:hover:border-primary-500 hover:text-tertiary-500 dark:hover:text-primary-400
 							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
 						data-cms-action="back"
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}
 					>
-						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '22'} aria-hidden="true"></iconify-icon>
 					</a>
 				</SystemTooltip>
 			{:else}
@@ -236,10 +236,10 @@
 					aria-label="Go back"
 					tabindex="0"
 					rounded={true}
-					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact ? 'h-9 w-9' : 'h-10 w-10'}"
+					class="flex min-w-0 shrink-0 items-center justify-center p-0! border border-theme/80 bg-surface-50/50 dark:bg-surface-900/40 text-body shadow-2xs hover:scale-105 hover:border-tertiary-500 dark:hover:border-primary-500 transition-all duration-200 {compact ? 'h-9 w-9' : 'h-10 w-10'}"
 					data-cms-action="back"
 				>
-					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '24'} aria-hidden="true"></iconify-icon>
+					<iconify-icon icon="ri:arrow-left-line" width={compact ? '20' : '22'} aria-hidden="true"></iconify-icon>
 				</Button>
 			{/if}
 		{/if}

@@ -670,8 +670,10 @@
 		});
 	}
 
-	const cardClass = 'border border-theme bg-card text-body p-5 sm:p-6 shadow-sm';
-	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-subtle last:border-0';
+	const cardClass =
+		'border border-theme/80 bg-card/90 text-body p-5 sm:p-6 rounded-2xl shadow-xl shadow-surface-950/5 dark:shadow-black/20 backdrop-blur-md transition-all duration-300 hover:border-primary-500/30';
+	const rowClass =
+		'flex items-center justify-between gap-4 py-3.5 border-b border-subtle/80 last:border-0 hover:bg-surface-50/40 dark:hover:bg-surface-900/30 px-3 rounded-xl transition-colors duration-200';
 	/** Equal width for Security row actions (Setup / Manage / Refresh) */
 	const securityActionBtn = 'min-w-[5.5rem] justify-center shrink-0';
 	/** Row lead icons: tertiary (light) / primary (dark) */
@@ -696,22 +698,22 @@
 			{#if activeTab === 'identity'}
 				<!-- ═══ TAB 1: Identity — left: avatar + equal badges · right: fields ═══ -->
 				<AdminCard class={cardClass} data-testid="user-identity-panel">
-					<div class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(10rem,12rem)_1fr] md:items-start md:gap-8 lg:gap-10">
-						<!-- Left: centered avatar + badges; edit pen is its own control (hit area outside circle) -->
-						<div class="flex flex-col items-center gap-3">
-							<div class="relative mx-auto size-28 shrink-0">
+					<div class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(11rem,13rem)_1fr] md:items-start md:gap-8 lg:gap-10">
+						<!-- Left: centered avatar + badges with ambient glow shell -->
+						<div class="flex flex-col items-center gap-4">
+							<div class="relative mx-auto size-28 shrink-0 rounded-full p-1 ring-2 ring-primary-500/30 dark:ring-primary-400/40 bg-gradient-to-tr from-tertiary-500/20 via-primary-500/15 to-transparent shadow-xl transition-transform duration-300 hover:scale-[1.03]">
 								<button
 									type="button"
 									onclick={modalEditAvatar}
 									aria-label={userpage_editavatar()}
 									data-testid="edit-avatar-btn"
-									class="size-full rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+									class="size-full rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 overflow-hidden"
 								>
 									<Avatar
 										src={normalizeAvatarUrl(user.avatar)}
 										initials={user.username?.slice(0, 2).toUpperCase() || 'AV'}
 										size="size-28"
-										class="size-full rounded-full border-2 border-theme shadow-md pointer-events-none"
+										class="size-full rounded-full border-2 border-theme shadow-inner pointer-events-none object-cover"
 									/>
 								</button>
 								<!-- Pencil outside circle hit area — positioned shell + SystemTooltip + real button -->
@@ -727,7 +729,7 @@
 											aria-label={userpage_editavatar()}
 											title={userpage_editavatar()}
 											data-testid="edit-avatar-pencil-btn"
-											class="flex size-8 items-center justify-center rounded-full bg-tertiary-500 text-white shadow-md ring-2 ring-surface-50 transition-transform hover:scale-105 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:bg-primary-500 dark:ring-surface-900"
+											class="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-tertiary-500 to-tertiary-600 dark:from-primary-500 dark:to-primary-600 text-white shadow-lg ring-4 ring-card hover:scale-110 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 										>
 											<iconify-icon icon="bi:pencil-fill" width={13} aria-hidden="true"></iconify-icon>
 										</button>
@@ -735,11 +737,11 @@
 								</div>
 							</div>
 
-							<div class="flex w-full max-w-48 flex-col gap-2" data-testid="user-identity-badges">
+							<div class="flex w-full max-w-52 flex-col gap-2.5" data-testid="user-identity-badges">
 								<!-- Shared height/width: white label text on filled chips -->
 								<span data-testid="user-role-badge" class="block w-full">
 									<span
-										class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-primary-500 px-3 text-xs font-bold uppercase tracking-wide text-white"
+										class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-primary-600 to-primary-500 px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-all duration-200 hover:shadow-md"
 									>
 										<iconify-icon icon={roleDisplay.icon} width={16} aria-hidden="true"></iconify-icon>
 										{roleDisplay.name}
@@ -747,7 +749,7 @@
 								</span>
 								<span data-testid="user-id-badge" class="block w-full">
 									<span
-										class="inline-flex h-9 w-full items-center justify-center gap-1 rounded-full bg-tertiary-600 px-3 font-mono text-[11px] font-bold tracking-wide text-white dark:bg-tertiary-500"
+										class="inline-flex h-9 w-full items-center justify-center gap-1 rounded-full bg-surface-100/80 dark:bg-surface-800/80 border border-theme px-3 font-mono text-[11px] font-bold tracking-wide text-body shadow-2xs"
 										title={String(user._id)}
 									>
 										ID: {String(user._id).slice(0, 12)}…
@@ -756,7 +758,7 @@
 								{#if isMultiTenant && user.tenantId}
 									<span data-testid="user-tenant-badge" class="block w-full">
 										<span
-											class="inline-flex h-9 w-full items-center justify-center gap-1 rounded-full bg-secondary-600 px-3 font-mono text-[11px] font-bold tracking-wide text-white"
+											class="inline-flex h-9 w-full items-center justify-center gap-1 rounded-full bg-secondary-500/15 border border-secondary-500/30 px-3 font-mono text-[11px] font-bold tracking-wide text-secondary-700 dark:text-secondary-300 shadow-2xs"
 										>
 											Tenant: {String(user.tenantId).slice(0, 12)}…
 										</span>
@@ -770,9 +772,9 @@
 										aria-label={user.is2FAEnabled
 											? 'Two-factor authentication enabled. Manage 2FA'
 											: 'Two-factor authentication not configured. Setup 2FA'}
-										class="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {user.is2FAEnabled
-											? 'bg-primary-600 dark:bg-primary-500'
-											: 'bg-warning-600 dark:bg-warning-500'}"
+										class="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {user.is2FAEnabled
+											? 'bg-gradient-to-r from-primary-600 to-primary-500'
+											: 'bg-gradient-to-r from-warning-600 to-warning-500'}"
 									>
 										<iconify-icon
 											icon={user.is2FAEnabled ? 'mdi:shield-check' : 'mdi:shield-alert-outline'}
@@ -787,19 +789,19 @@
 
 						<!-- Right: username · email · password (static mask, no reveal) -->
 						<div class="flex min-w-0 flex-col gap-4">
-							<div class="w-full rounded-xl border border-theme px-4 py-3">
-								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+							<div class="w-full rounded-xl border border-theme/80 bg-surface-50/50 dark:bg-surface-900/30 px-4 py-3.5 transition-all duration-200 hover:border-tertiary-500/40 dark:hover:border-primary-500/40 hover:bg-surface-100/50 dark:hover:bg-surface-800/40 shadow-2xs">
+								<p class="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
 									<iconify-icon icon="mdi:account" width={14} class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 									></iconify-icon>
 									{username()}
 								</p>
-								<p class="w-full text-base font-medium text-body" data-testid="profile-username">
+								<p class="w-full text-base font-semibold text-body truncate" data-testid="profile-username">
 									{user.username || '—'}
 								</p>
 							</div>
 
-							<div class="w-full rounded-xl border border-theme px-4 py-3">
-								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+							<div class="w-full rounded-xl border border-theme/80 bg-surface-50/50 dark:bg-surface-900/30 px-4 py-3.5 transition-all duration-200 hover:border-tertiary-500/40 dark:hover:border-primary-500/40 hover:bg-surface-100/50 dark:hover:bg-surface-800/40 shadow-2xs">
+								<p class="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
 									<iconify-icon
 										icon="mdi:email-outline"
 										width={14}
@@ -809,7 +811,7 @@
 									{email()}
 								</p>
 								<p
-									class="w-full break-all text-base font-medium text-body"
+									class="w-full break-all text-base font-semibold text-body"
 									data-testid="profile-email"
 								>
 									{user.email || '—'}
@@ -818,10 +820,10 @@
 
 							<!-- Password never shown in plain text — use Change password only -->
 							<div
-								class="w-full rounded-xl border border-theme px-4 py-3"
+								class="w-full rounded-xl border border-theme/80 bg-surface-50/50 dark:bg-surface-900/30 px-4 py-3.5 transition-all duration-200 hover:border-tertiary-500/40 dark:hover:border-primary-500/40 hover:bg-surface-100/50 dark:hover:bg-surface-800/40 shadow-2xs"
 								data-testid="profile-password-field"
 							>
-								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+								<p class="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
 									<iconify-icon icon="mdi:key-variant" width={14} class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 									></iconify-icon>
 									Password
@@ -877,9 +879,12 @@
 				</AdminCard>
 			{:else if activeTab === 'security'}
 				<!-- ═══ TAB 2: Security — help icons match /setup pattern ═══ -->
-				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-security-panel">
+				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="user-security-panel">
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Sessions &amp; 2FA</h3>
+						<h3 class="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-tertiary-600 dark:text-primary-400 pb-2.5 border-b border-subtle/80">
+							<iconify-icon icon="mdi:shield-check-outline" width={18}></iconify-icon>
+							Sessions &amp; 2FA
+						</h3>
 						<div class="space-y-1">
 							{#if is2FAEnabledGlobal}
 								<div class={rowClass} data-testid="security-2fa-section">
@@ -894,13 +899,13 @@
 														type="button"
 														tabindex="-1"
 														aria-label="Help: Two-Factor Authentication"
-														class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
+														class={helpBtnClass}
 													>
 														<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 													</button>
 												</SystemTooltip>
 											</p>
-											<p class="text-xs {user.is2FAEnabled ? 'text-primary-600 dark:text-primary-500' : 'text-muted'}">
+											<p class="text-xs {user.is2FAEnabled ? 'text-primary-600 dark:text-primary-500 font-semibold' : 'text-muted'}">
 												{user.is2FAEnabled ? 'Enabled' : 'Not configured'}
 											</p>
 										</div>
@@ -918,7 +923,7 @@
 							{/if}
 
 							<div class="py-3" data-testid="active-sessions-section">
-								<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+								<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 									<div class="flex min-w-0 items-center gap-2">
 										<iconify-icon icon="mdi:devices" class={securityRowIcon} width={20} aria-hidden="true"></iconify-icon>
 										<p class="flex items-center gap-1 text-sm font-medium text-body">
@@ -928,7 +933,7 @@
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Active Sessions"
-													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
+													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -967,38 +972,38 @@
 									<p class="text-xs text-muted">No sessions listed yet. Refresh to load devices.</p>
 								{:else}
 									<ul
-										class="max-h-[min(70vh,40rem)] space-y-2 overflow-y-auto sm:max-h-[min(75vh,48rem)]"
+										class="max-h-[min(70vh,40rem)] space-y-2.5 overflow-y-auto sm:max-h-[min(75vh,48rem)]"
 										aria-label="Active sessions by device"
 									>
 										{#each sessionGroups as group (group.key)}
 											<li
-												class="rounded-lg border {group.isCurrent
-													? 'border-primary-500/60 bg-primary-500/5 shadow-sm ring-1 ring-primary-500/30 dark:border-primary-500/50 dark:bg-primary-500/10 dark:ring-primary-500/25'
-													: 'border-subtle'}"
+												class="rounded-xl border transition-all duration-200 {group.isCurrent
+													? 'border-primary-500/60 bg-primary-500/5 shadow-sm ring-1 ring-primary-500/30 dark:border-primary-500/50 dark:bg-primary-500/10'
+													: 'border-subtle bg-surface-50/40 dark:bg-surface-900/30 hover:border-theme'}"
 												data-testid="session-group"
 												data-current={group.isCurrent ? 'true' : 'false'}
 											>
 												<div
-													class="flex flex-col gap-1 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:justify-between"
+													class="flex flex-col gap-1 px-3.5 py-3 text-xs sm:flex-row sm:items-center sm:justify-between"
 												>
 													<div class="flex min-w-0 flex-1 items-start gap-2.5">
 														<span
-															class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg {group.isCurrent
-																? 'bg-primary-500 text-white dark:bg-primary-500 dark:text-surface-950'
-																: 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/15 dark:text-primary-500'}"
+															class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl {group.isCurrent
+																? 'bg-primary-500 text-white dark:bg-primary-500 dark:text-surface-950 shadow-sm'
+																: 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/15 dark:text-primary-400'}"
 															aria-hidden="true"
 														>
 															<iconify-icon icon={group.icon} width={18}></iconify-icon>
 														</span>
 														<div class="min-w-0">
-															<p class="font-medium text-body">
+															<p class="font-semibold text-body">
 																{group.title}
 																{#if group.isCurrent}
 																	<Badge
 																		preset="filled"
 																		color="primary"
 																		size="sm"
-																		class="ms-1 align-middle font-bold uppercase tracking-wide text-white dark:bg-primary-500 dark:text-surface-950"
+																		class="ms-1 align-middle font-bold uppercase tracking-wider text-white dark:bg-primary-500 dark:text-surface-950 shadow-2xs"
 																	>
 																		Current session
 																	</Badge>
@@ -1053,7 +1058,7 @@
 												</div>
 												<!-- Always expanded: list each session under the device -->
 												<ul
-													class="space-y-1.5 border-t px-3 py-2 {group.isCurrent
+													class="space-y-1.5 border-t px-3.5 py-2.5 {group.isCurrent
 														? 'border-primary-500/25 dark:border-primary-500/30'
 														: 'border-subtle'}"
 													aria-label="Sessions on this device"
@@ -1061,9 +1066,9 @@
 												>
 													{#each group.members as member, mi (String(member._id ?? member.id ?? mi))}
 														<li
-															class="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[11px] {member.isCurrent
+															class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[11px] transition-colors {member.isCurrent
 																? 'border border-primary-500/40 bg-primary-500/10 dark:border-primary-500/50 dark:bg-primary-500/15'
-																: 'border border-transparent bg-surface/80'}"
+																: 'border border-transparent bg-surface-50/60 dark:bg-surface-900/40'}"
 															data-testid={member.isCurrent ? 'session-member-current' : 'session-member'}
 														>
 															<span class="min-w-0 text-body">
@@ -1101,7 +1106,10 @@
 					</AdminCard>
 
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">Login preferences &amp; access</h3>
+						<h3 class="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-tertiary-600 dark:text-primary-400 pb-2.5 border-b border-subtle/80">
+							<iconify-icon icon="mdi:lock-outline" width={18}></iconify-icon>
+							Login preferences &amp; access
+						</h3>
 						<div class="space-y-1">
 							<div class={rowClass} data-testid="pref-passkey">
 								<div class="flex min-w-0 items-center gap-3">
@@ -1114,7 +1122,7 @@
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Passkeys"
-													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
+													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -1143,7 +1151,7 @@
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Magic Link"
-													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
+													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -1173,7 +1181,7 @@
 													type="button"
 													tabindex="-1"
 													aria-label="Help: OAuth Login"
-													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
+													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -1192,8 +1200,8 @@
 							</div>
 
 							{#if user.permissions.length > 0}
-								<div class="pt-3" data-testid="user-permissions-list">
-									<div class="mb-2 flex items-center gap-2">
+								<div class="pt-4" data-testid="user-permissions-list">
+									<div class="mb-2.5 flex items-center gap-2">
 										<iconify-icon icon="mdi:shield-check" class={securityRowIcon} width={20} aria-hidden="true"></iconify-icon>
 										<p class="flex items-center gap-1 text-sm font-medium text-body">
 											Permissions
@@ -1202,7 +1210,7 @@
 													type="button"
 													tabindex="-1"
 													aria-label="Help: Permissions"
-													class="ms-0.5 text-muted hover:text-tertiary-500 dark:hover:text-primary-500"
+													class={helpBtnClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={16} aria-hidden="true"></iconify-icon>
 												</button>
@@ -1212,7 +1220,7 @@
 									<div class="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
 										{#each user.permissions as permission (permission)}
 											<span
-												class="inline-flex items-center rounded-full bg-tertiary-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white dark:bg-primary-500 dark:text-surface-950"
+												class="inline-flex items-center rounded-full bg-gradient-to-r from-tertiary-600 to-tertiary-500 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-2xs dark:from-primary-600 dark:to-primary-500 dark:text-surface-950"
 											>
 												{permission}
 											</span>
@@ -1223,9 +1231,9 @@
 											href="/config/access-management"
 											data-sveltekit-preload-data="hover"
 											data-preload="hover"
-											class="mt-2 inline-flex items-center gap-1 text-xs text-tertiary-500 hover:underline dark:text-primary-500"
+											class="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-tertiary-600 hover:underline dark:text-primary-400 transition-colors"
 										>
-											<iconify-icon icon="mdi:open-in-new" width={12} aria-hidden="true"></iconify-icon>
+											<iconify-icon icon="mdi:open-in-new" width={13} aria-hidden="true"></iconify-icon>
 											Manage roles &amp; permissions
 										</a>
 									{/if}
@@ -1240,14 +1248,15 @@
 				</div>
 			{:else if activeTab === 'settings'}
 				<!-- ═══ TAB 3: User Settings — two columns (Appearance/Collab | Privacy) ═══ -->
-				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-settings-panel">
+				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="user-settings-panel">
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
+						<h3 class="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-tertiary-600 dark:text-primary-400 pb-2.5 border-b border-subtle/80">
+							<iconify-icon icon="mdi:tune-variant" width={18}></iconify-icon>
 							Workspace &amp; collaboration
 						</h3>
 						<div class="space-y-1">
-							<div class="border-b border-subtle py-3" data-testid="workspace-appearance-section">
-								<div class="mb-2 flex items-center gap-2">
+							<div class="border-b border-subtle/80 py-3.5" data-testid="workspace-appearance-section">
+								<div class="mb-2.5 flex items-center gap-2">
 									<iconify-icon
 										icon="mdi:palette-outline"
 										class="text-tertiary-500 dark:text-primary-500"
@@ -1269,15 +1278,15 @@
 									aria-label="Open Appearance Settings"
 									data-sveltekit-preload-data="hover"
 									data-preload="hover"
-									class="btn preset-outlined-surface-500 relative inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem) px-3 text-xs font-bold tracking-tight transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500"
+									class="btn preset-outlined-surface-500 relative inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold tracking-tight transition-all duration-200 hover:brightness-110 hover:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 shadow-2xs"
 								>
 									<iconify-icon icon="mdi:open-in-new" width={14} class="me-1" aria-hidden="true"></iconify-icon>
 									Open Appearance Settings
 								</a>
 							</div>
 
-							<div class="py-3" data-testid="collaboration-prefs">
-								<div class="mb-2 flex items-center gap-2">
+							<div class="py-3.5" data-testid="collaboration-prefs">
+								<div class="mb-3 flex items-center gap-2">
 									<iconify-icon
 										icon="mdi:forum"
 										class="text-tertiary-500 dark:text-primary-500"
@@ -1293,7 +1302,7 @@
 										</SystemTooltip>
 									</p>
 								</div>
-								<div class="space-y-3 ps-1">
+								<div class="space-y-3.5 ps-1">
 									<div class="flex items-center justify-between gap-3" data-testid="pref-rtc-enabled">
 										<span class="flex min-w-0 items-center gap-1 text-sm text-body">
 											Real-time editing
@@ -1339,12 +1348,13 @@
 					</AdminCard>
 
 					<AdminCard class={cardClass}>
-						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider text-muted">
+						<h3 class="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-tertiary-600 dark:text-primary-400 pb-2.5 border-b border-subtle/80">
+							<iconify-icon icon="mdi:shield-account-outline" width={18}></iconify-icon>
 							Privacy &amp; extensions
 						</h3>
 						<div class="space-y-1">
 							<div class="py-1" data-testid="privacy-data-section">
-								<div class="mb-2 flex items-center gap-2">
+								<div class="mb-3 flex items-center gap-2">
 									<iconify-icon
 										icon="mdi:shield-account"
 										class="text-tertiary-500 dark:text-primary-500"
@@ -1370,13 +1380,13 @@
 									onclick={modalPrivacyData}
 									data-testid="privacy-data-btn"
 									aria-label="Privacy and Data GDPR — open export and erase options"
-									class="flex w-full items-center gap-3 rounded-lg border border-theme p-3 text-start transition-colors hover:bg-surface/50"
+									class="flex w-full items-center gap-3.5 rounded-xl border border-theme/80 bg-surface-50/40 dark:bg-surface-900/30 p-4 text-start transition-all duration-200 hover:border-primary-500/40 hover:bg-surface-100/50 dark:hover:bg-surface-800/40 shadow-2xs"
 								>
 									<div class="min-w-0 flex-1">
-										<p class="text-sm font-medium text-body">
+										<p class="text-sm font-semibold text-body">
 											View, export, or erase your data
 										</p>
-										<p class="text-xs text-muted">
+										<p class="text-xs text-muted mt-0.5">
 											Opens a secure dialog for download and anonymize actions
 										</p>
 									</div>
@@ -1402,7 +1412,7 @@
 				<!-- ═══ TAB 4: User Management (full width; sub-tabs Users | Invitations) ═══ -->
 				<div data-testid="user-admin-section" class="min-w-0">
 					<p
-						class="mb-3 text-center text-sm font-medium text-tertiary-600 dark:text-primary-500"
+						class="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-tertiary-600 dark:text-primary-400"
 						data-testid="user-management-intro"
 					>
 						Manage organization accounts and invitation tokens. Use search and column tools in the toolbar below.

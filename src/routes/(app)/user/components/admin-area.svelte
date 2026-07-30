@@ -654,7 +654,7 @@
 
 <AdminCard
 	data-testid="user-admin-area"
-	class="flex flex-col border border-theme bg-card shadow-sm backdrop-blur-md"
+	class="flex flex-col border border-theme/80 bg-card/90 rounded-2xl shadow-xl shadow-surface-950/5 dark:shadow-black/20 backdrop-blur-md transition-all duration-300 p-6 sm:p-8"
 >
 	<!-- Header: Tabs + Invite button -->
 	<div class="flex items-center justify-between gap-3 px-4 pt-3">

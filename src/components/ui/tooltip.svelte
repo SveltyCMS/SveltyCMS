@@ -204,8 +204,8 @@ reveal after position calculation prevents layout flash.
 			id={tooltipId}
 			role="tooltip"
 			class={cn(
-				"z-300 pointer-events-none overflow-visible rounded px-2.5 py-1.5 text-xs font-medium shadow-xl fixed",
-				"bg-surface-900 dark:bg-white text-white dark:text-surface-900",
+				"z-300 pointer-events-none overflow-visible rounded px-2.5 py-1.5 text-xs font-medium shadow-xl fixed w-max max-w-[90vw]",
+				"bg-surface-900 dark:bg-surface-800 text-white dark:text-surface-100 border border-surface-700/80 dark:border-surface-600/80",
 				"transition-opacity duration-150",
 				!floating.positionCalculated ? "opacity-0" : "opacity-100",
 				className,
@@ -221,7 +221,7 @@ reveal after position calculation prevents layout flash.
 			<div
 				bind:this={arrowEl}
 				class={cn(
-					'pointer-events-none absolute size-3 bg-surface-900 dark:bg-white rotate-45',
+					'pointer-events-none absolute size-2.5 bg-surface-900 dark:bg-surface-800 border-t border-l border-surface-700/80 dark:border-surface-600/80 rotate-45',
 				)}
 				style={arrowStyle}
 			></div>

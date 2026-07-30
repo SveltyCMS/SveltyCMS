@@ -65,7 +65,8 @@ This component provides a tooltip for any element.
 		tabindex = 0
 	}: Props = $props();
 
-	const TOOLTIP_CLASS = 'rounded bg-surface-900 dark:bg-white px-3 py-1.5 text-[11px] font-medium shadow-2xl text-white dark:text-surface-900 border border-white/10 dark:border-black/5';
+	const TOOLTIP_CLASS =
+		'w-max max-w-[270px] sm:max-w-[300px] rounded-xl bg-surface-900/95 dark:bg-surface-800/95 px-3.5 py-2.5 text-[11px] font-medium leading-snug tracking-normal shadow-2xl text-white dark:text-surface-100 border border-surface-700/80 dark:border-surface-600/80 backdrop-blur-md';
 
 	// Native UI Tooltip
 	import Tooltip from "@components/ui/tooltip.svelte";
