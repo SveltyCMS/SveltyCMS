@@ -30,6 +30,7 @@
 		moveMediaToFolder,
 		type MediaDragData,
 	} from '@utils/media/media-dnd';
+	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
@@ -90,6 +91,69 @@
 	function isFolderExpanded(id: string): boolean {
 		return folderExpanded.has(id);
 	}
+
+	// ── Spring-load: hovering a collapsed folder during a media drag opens it ──
+	// Without this you have to expand a branch by hand *before* starting the drag
+	// to reach a nested folder. Same dwell behaviour as the mobile folder rail.
+
+	/** Dwell before a collapsed folder springs open — matches the mobile rail. */
+	const SPRING_OPEN_MS = 500;
+
+	let springTimer: ReturnType<typeof setTimeout> | null = null;
+	let springHoverId: string | null = null;
+	/** Folders opened by spring-load, so a cancelled drag leaves the tree as it was. */
+	let springExpanded = new Set<string>();
+	/** Folder that actually received a drop, so its branch stays open afterwards. */
+	let springDropTarget: string | null = null;
+
+	function clearSpringTimer(): void {
+		if (springTimer) {
+			clearTimeout(springTimer);
+			springTimer = null;
+		}
+		springHoverId = null;
+	}
+
+	function onFolderDragEnter(node: FolderNode): void {
+		if (!mediaDropEnabled || springHoverId === node.id) return;
+		clearSpringTimer();
+		const hasChildren = (node.children?.length ?? 0) > 0;
+		if (!hasChildren || isFolderExpanded(node.id)) return;
+		springHoverId = node.id;
+		springTimer = setTimeout(() => {
+			springExpanded.add(node.id);
+			setFolderExpanded(node.id, true);
+			springTimer = null;
+		}, SPRING_OPEN_MS);
+	}
+
+	function onFolderDragLeave(node: FolderNode): void {
+		if (springHoverId !== node.id) return;
+		clearSpringTimer();
+	}
+
+	// Drop a pending spring timer if the sidebar unmounts mid-drag
+	$effect(() => () => clearSpringTimer());
+
+	// Drag over: collapse anything spring-load opened, except the branch that
+	// received the drop — landing there and finding it closed again is jarring.
+	$effect(() => {
+		if (isMediaDragActive) return;
+		untrack(() => {
+			clearSpringTimer();
+			if (springExpanded.size === 0) return;
+			const keep = springDropTarget
+				? new Set(mediaFolderTree.pathOf(springDropTarget).map((f) => f.id))
+				: new Set<string>();
+			const next = new SvelteSet(folderExpanded);
+			for (const id of springExpanded) {
+				if (!keep.has(id)) next.delete(id);
+			}
+			folderExpanded = next;
+			springExpanded = new Set();
+			springDropTarget = null;
+		});
+	});
 
 	// Sync selection from URL (browser back/forward)
 	$effect(() => {
@@ -271,6 +335,10 @@
 			return;
 		}
 
+		// Keep this branch open once the drag ends (see the spring-load cleanup effect)
+		springDropTarget = folderId;
+		clearSpringTimer();
+
 		// No-op when dropping into the folder already being viewed
 		const currentId = activeFolderId === 'root' ? null : activeFolderId;
 		const targetId = folderId === 'root' ? null : folderId;
@@ -338,7 +406,11 @@
 				container: node.id,
 				disabled: !mediaDropEnabled,
 				attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
-				callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, node.id) },
+				callbacks: {
+					onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, node.id),
+					onDragEnter: () => onFolderDragEnter(node),
+					onDragLeave: () => onFolderDragLeave(node),
+				},
 			}}
 			data-media-drop-target={node.id}
 		>

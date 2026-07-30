@@ -32,9 +32,23 @@ class MediaFolderTreeStore {
   folders = $state<MediaFolderRecord[]>([]);
   isLoading = $state(false);
   error = $state<string | null>(null);
+  /** A load has been attempted (success or failure) — see ensureLoaded. */
+  hasLoaded = $state(false);
 
   /**
-   * Fetch (or re-fetch) the flat folder list.
+   * Load once per session. Callers that only need the list to *exist* must use
+   * this, never `load()`: an empty result or a failed request both leave
+   * `folders` empty, so a `folders.length === 0` guard would re-fire forever
+   * inside a reactive effect.
+   */
+  async ensureLoaded(): Promise<void> {
+    if (this.hasLoaded || this.isLoading) return;
+    await this.load();
+  }
+
+  /**
+   * Fetch (or re-fetch) the flat folder list. Use for explicit refreshes
+   * (folder created/renamed/deleted); use ensureLoaded() for first paint.
    * Cache-busts the API L1 cache so create/rename/delete appear immediately.
    */
   async load(): Promise<void> {
@@ -60,6 +74,7 @@ class MediaFolderTreeStore {
       logger.error("[MediaFolderTree] Load error:", err);
     } finally {
       this.isLoading = false;
+      this.hasLoaded = true;
     }
   }
 

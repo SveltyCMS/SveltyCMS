@@ -18,6 +18,7 @@ folder (same behaviour as the mobile DnD prototype). Drop uses the shared
 -->
 
 <script lang="ts">
+  import { untrack } from "svelte";
   import Portal from "@components/ui/portal.svelte";
   import { media_root_title } from "@src/paraglide/messages";
   import { mediaFolderTree } from "@src/stores/media-folder-tree.svelte.ts";
@@ -213,11 +214,11 @@ folder (same behaviour as the mobile DnD prototype). Drop uses the shared
 
   // Load folders once they're needed (kept out of the listener effect so a
   // folder fetch doesn't tear down and re-add the drag listeners mid-drag).
+  // untrack + ensureLoaded keep this depending on isActive alone: reading the
+  // store's own state here would re-fire the effect off its own fetch.
   $effect(() => {
     if (!isActive) return;
-    if (mediaFolderTree.folders.length === 0 && !mediaFolderTree.isLoading) {
-      void mediaFolderTree.load();
-    }
+    untrack(() => void mediaFolderTree.ensureLoaded());
   });
 
   // Reset rail when a drag starts or ends; track pointer + edge scroll while active

@@ -46,6 +46,9 @@ export function liftAndCarry<T>(node: HTMLElement, options: DraggableOptions<T>)
   let startX = 0;
   let startY = 0;
   let lifted = false;
+  /** Mouse input bypasses the gate for good; tracked apart from `lifted` so a
+   *  later touch on the same element still gets the hold gate on hybrid devices. */
+  let mousePassthrough = false;
   let pending: PointerEvent | null = null;
 
   function setInnerDisabled(disabled: boolean) {
@@ -96,14 +99,20 @@ export function liftAndCarry<T>(node: HTMLElement, options: DraggableOptions<T>)
   function onPointerDown(event: PointerEvent) {
     if (current.disabled) return;
     if (!needsHoldGate(event.pointerType)) {
-      // Mouse: keep sveltednd permanently enabled from here on.
-      if (!lifted) {
-        lifted = true;
+      // Mouse: hand straight over to sveltednd and leave it enabled.
+      if (!mousePassthrough) {
+        mousePassthrough = true;
         setInnerDisabled(false);
       }
       return;
     }
     if (lifted) return;
+    // A touch after a mouse drag must re-arm the gate, or touch-action stays
+    // 'none' and the list can't be scrolled by finger again.
+    if (mousePassthrough) {
+      mousePassthrough = false;
+      setInnerDisabled(true);
+    }
 
     startX = event.clientX;
     startY = event.clientY;
@@ -141,7 +150,7 @@ export function liftAndCarry<T>(node: HTMLElement, options: DraggableOptions<T>)
   return {
     update(newOptions: DraggableOptions<T>) {
       current = newOptions;
-      setInnerDisabled(!lifted);
+      setInnerDisabled(!lifted && !mousePassthrough);
     },
     destroy() {
       cancelHold();
