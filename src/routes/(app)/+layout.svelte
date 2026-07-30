@@ -433,7 +433,8 @@ afterNavigate(() => {
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
-				{#if ui.state.leftSidebar !== 'hidden'}
+				<!-- Desktop / tablet: inline sidebar (preserves existing layout) -->
+				{#if !screen.isMobile && ui.state.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh border-e bg-surface-50 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-900 overflow-visible {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
@@ -472,6 +473,26 @@ afterNavigate(() => {
 						</footer>
 					{/if}
 				</main>
+
+				<!-- Mobile: overlay sidebar (out of flex flow so desktop layout stays intact) -->
+				{#if screen.isMobile && ui.state.leftSidebar !== 'hidden'}
+					<Portal>
+						<button
+							type="button"
+							class="fixed inset-0 z-40 bg-surface-900/40 backdrop-blur-xs dark:bg-black/50"
+							aria-label="Close left sidebar"
+							onclick={() => ui.toggle('leftSidebar', 'hidden')}
+						></button>
+						<aside
+							class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-e border-surface-200 bg-surface-50 px-2! text-center shadow-lg dark:border-surface-700 dark:bg-surface-900"
+							aria-label="Left sidebar navigation"
+							role="dialog"
+							aria-modal="true"
+						>
+							<LeftSidebar />
+						</aside>
+					</Portal>
+				{/if}
 
 				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
