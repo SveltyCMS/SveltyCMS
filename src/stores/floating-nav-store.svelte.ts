@@ -539,6 +539,15 @@ class FloatingNavStore {
       return;
     }
 
+    // 🛡️ Hardening: a page whose +page.server.ts shadows `data.user` with a partial
+    // shape (no _id/id) resolves to "anonymous". Such a bind must never evict an
+    // already-bound real user — otherwise two bindUser() effects (layout vs a
+    // component reading page.data.user) flip-flop the store into an infinite
+    // effect loop (Svelte effect_update_depth_exceeded).
+    if (this.ready && this.userId !== "anonymous" && nextId === "anonymous") {
+      return;
+    }
+
     this.userId = nextId;
     this.load();
     this._bindTabSync();

@@ -49,7 +49,6 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { floatingNavStore, type NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
-	import type { User } from '@src/databases/auth/types';
 	import { page } from '$app/state';
 
 	type DefaultBehaviorFn = () => void;
@@ -123,12 +122,12 @@
 		// Otherwise, let the <a> tag handle navigation with preloading
 	}
 
-	// Floating nav: system default toggle OR custom favorite (shared store with FloatingNav)
-	const user = $derived(page.data.user as User | undefined);
-
-	$effect(() => {
-		floatingNavStore.bindUser(user ?? null);
-	});
+	// Floating nav: system default toggle OR custom favorite (shared store with FloatingNav).
+	// NOTE: do NOT call floatingNavStore.bindUser() here — the (app) layout already binds
+	// with the authoritative data.user. PageTitle's page.data.user can be shadowed by a
+	// page +page.server.ts (e.g. { user: { email } } without _id/id), which makes bindUser
+	// alternate between the real id and "anonymous" and trips Svelte's
+	// effect_update_depth_exceeded guard (infinite effect loop).
 
 	const pathname = $derived(page.url.pathname);
 	const isFavorited = $derived(floatingNavStore.isActive(pathname));

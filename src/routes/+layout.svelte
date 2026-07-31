@@ -23,6 +23,11 @@ import "../app.css";
 // Register Iconify custom element globally
 import "iconify-icon";
 
+// Plugin UI slot registration MUST run with the app shell — bundlers hoist this
+// side-effect module into lazy route nodes when only route pages import it,
+// leaving plugin workspaces (and other zones) unregistered on first load.
+import "@src/plugins/index";
+
 import { onMount, untrack } from "svelte";
 import { browser } from "$app/environment";
 import { page } from "$app/state";
@@ -254,7 +259,7 @@ onMount(() => {
 	}
 
 	// Register audit history slot for entry edit sidebar
-	import('@src/plugins/slot-registry').then(({ slotRegistry }) => {
+	import('@src/plugins/slot-registry.svelte.ts').then(({ slotRegistry }) => {
 		slotRegistry.register({
 			id: 'audit-history',
 			zone: 'entry_edit_sidebar',

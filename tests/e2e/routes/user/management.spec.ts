@@ -267,9 +267,11 @@ test.describe.serial("User Management Flow", () => {
     await expect(pageTitle).toBeVisible({ timeout: 15_000 });
     await expect(pageTitle).toContainText(/user profile|benutzerprofil/i);
 
-    // Try to find the identity heading (CSR-hydrated — must appear for the UI flow)
-    const identityHeading = page.getByRole("heading", { name: /^identity$/i });
-    const headingVisible = await identityHeading.isVisible({ timeout: 8_000 }).catch(() => false);
+    // Hydration check: the identity panel only renders client-side after the app
+    // mounts (root layout is ssr=false) — its presence IS the CSR signal. The page
+    // has no "Identity" heading element; the panel testid is the contract.
+    const identityPanel = page.getByTestId("user-identity-panel");
+    const headingVisible = await identityPanel.isVisible({ timeout: 8_000 }).catch(() => false);
 
     if (!headingVisible) {
       // Control-map row: the UI mutation must run — a hydration miss is a real

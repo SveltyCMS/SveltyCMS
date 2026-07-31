@@ -98,10 +98,11 @@ test.describe("Media move to folder", () => {
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Click the Checkbox component's visible label (the styled box) to toggle selection.
-    // NOTE: the native input is `sr-only` (1x1, clipped) — `check({ force: true })` cannot
-    // scroll it into view (AGENTS.md pitfall #12); force-click the input instead.
-    const checkboxInput = item.locator('input[type="checkbox"]').first();
-    await checkboxInput.click({ force: true, timeout: ACTION_TIMEOUT });
+    // NOTE: the native input is `sr-only` (1x1, clipped) — force-clicking it fails with
+    // "Element is outside of the viewport" because clip:rect(0,0,0,0) leaves no clickable
+    // point (AGENTS.md pitfall #12). Click the visible <label for={id}> instead.
+    const checkboxLabel = item.locator("label").first();
+    await checkboxLabel.click({ timeout: ACTION_TIMEOUT });
 
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
@@ -148,16 +149,16 @@ test.describe("Media move to folder", () => {
       test.info().annotations.push({
         type: "note",
         description:
-          "No data-media-drop-target in layout; breadcrumb move test is the primary control",
+          "No folder drop target in layout (sidebar tree hidden); breadcrumb move test is the primary control",
       });
       const anyDrop = page.locator("[data-media-drop-target]");
       await expect(
         anyDrop.first(),
         "Expected at least one [data-media-drop-target] for HTML5 media move",
       ).toBeVisible({ timeout: 5_000 });
+    } else {
+      await expect(folderDrop).toBeVisible({ timeout: 5_000 });
     }
-
-    await expect(folderDrop).toBeVisible({ timeout: 5_000 });
 
     const moveApi = page.waitForResponse(
       (res) => res.url().includes("/api/media/move") && res.request().method() === "POST",

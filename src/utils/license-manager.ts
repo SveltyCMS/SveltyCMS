@@ -138,8 +138,12 @@ async function computeTrialStatus(): Promise<LicenseStatus | null> {
       const db = getDb();
       if (!db) return null;
 
-      const users = await db.auth.getAllUsers();
-      if (!Array.isArray(users) || users.length === 0) return null;
+      // getAllUsers returns DatabaseResult<User[]> ({ success, data }) on every
+      // adapter — unwrap before the Array.isArray check, otherwise the trial
+      // NEVER activates and the extension is permanently LICENSE_REQUIRED.
+      const usersResult = await db.auth.getAllUsers();
+      const users = Array.isArray(usersResult) ? usersResult : (usersResult?.data ?? []);
+      if (users.length === 0) return null;
 
       // Single O(n) pass — no sort
       let oldestTime = Date.now();

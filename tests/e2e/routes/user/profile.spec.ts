@@ -112,13 +112,22 @@ test.describe.serial("User Profile Management", () => {
     await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(AVATAR_PATH);
 
-    // Upload triggers automatically on file change — assert success signal or avatar image
-    await expect(
-      page
-        .getByText(/avatar updated successfully/i)
-        .or(page.locator('img[alt*="avatar"i], .avatar-image'))
-        .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    // Selecting a file only enables Save — the upload runs on form submit (no auto-upload).
+    const saveBtn = page.getByRole("button", { name: /^save$/i });
+    await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+    await saveBtn.click();
+
+    // A "Replace Avatar" confirm appears when a custom avatar already exists (retry safety)
+    const confirmBtn = page.getByRole("button", { name: /confirm/i });
+    if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await confirmBtn.click();
+    }
+
+    // Upload outcome: the success toast is the real signal (the sidebar avatar img must
+    // NOT be used as a fallback — it matches even when no upload happened).
+    await expect(page.getByText(/avatar updated successfully/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("Delete Avatar", async ({ page }) => {
@@ -145,13 +154,10 @@ test.describe.serial("User Profile Management", () => {
     await confirmBtn.click();
 
     // Assertion: a custom avatar is gone — the success toast "Avatar Deleted"
-    // appears and the profile avatar image src returns to the default. Scope
-    // to the profile info region so the 11+ imgs on the page (sidebar, table
-    // rows) don't trigger a strict-mode violation.
+    // appears and the profile avatar returns to the default initials state. Scope
+    // via the avatar button (sidebar + table avatars also expose role=img).
     await expect(page.getByText(/Avatar Deleted/i)).toBeVisible({ timeout: 10_000 });
-    const profileAvatar = page
-      .getByRole("img", { name: "AV", exact: true })
-      .or(page.locator('img[alt="User avatar"]').first());
+    const profileAvatar = page.getByTestId("edit-avatar-btn").getByRole("img").first();
     await expect(profileAvatar).toBeVisible();
   });
 

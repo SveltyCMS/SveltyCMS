@@ -20,7 +20,9 @@ import { SqliteConnector } from "./connectors/sqlite";
 import type { BaseConnector } from "./connectors/base";
 
 const CONNECTORS_COLLECTION = "plugin_unified-data-hub_connectors";
+export { CONNECTORS_COLLECTION };
 const SCHEMAS_COLLECTION = "plugin_unified-data-hub_virtual_schemas";
+export { SCHEMAS_COLLECTION };
 
 const CONNECTOR_INSTANCES: Record<string, BaseConnector> = {
   postgres: new PostgresConnector(),

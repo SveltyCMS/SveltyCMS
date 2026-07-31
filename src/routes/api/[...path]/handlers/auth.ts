@@ -134,6 +134,10 @@ export async function handleAuthUserRoutes(
           : notAllowed();
       case "save-avatar":
         return reqMethod === "POST" ? handleSaveAvatarRoute(event, cms, tenantId) : notAllowed();
+      case "delete-avatar":
+        return reqMethod === "DELETE"
+          ? successResponse(event, await cms.auth.deleteAvatar({ userId: user._id, tenantId }))
+          : notAllowed();
       case "me":
         return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":

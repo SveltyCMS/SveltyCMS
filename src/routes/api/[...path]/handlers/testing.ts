@@ -1204,11 +1204,13 @@ export async function handleTestingRoutes(
     if (action === "seed-unified-data-hub") {
       const { seedUnifiedDataHub } = await import("@plugins/unified-data-hub/server/hub-test-seed");
       try {
-        // String(null) === "null" was poisoning connector/schema tenantId rows so
-        // listVirtualCollections({ tenantId: null }) could never find them.
+        // The UDH runtime normalizes null/undefined tenants to "default" everywhere
+        // (query-planner, virtual-query-engine, sdk namespace). String(null) === "null"
+        // used to poison connector/schema tenantId rows so lookups could never find
+        // them; the seed must use the SAME normalization or nothing is readable.
         const hubTenantId =
           tenantId == null || tenantId === ("" as any) || String(tenantId) === "null"
-            ? "global"
+            ? "default"
             : String(tenantId);
         const result = await seedUnifiedDataHub(initializedAdapter, hubTenantId, {
           fixture: params.fixture || "postgres",

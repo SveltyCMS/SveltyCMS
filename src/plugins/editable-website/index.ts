@@ -13,7 +13,7 @@
  * - Handshake protocol via postMessage
  */
 
-import { slotRegistry } from "@src/plugins/slot-registry";
+import { slotRegistry } from "@src/plugins/slot-registry.svelte.ts";
 import { definePlugin } from "../define-plugin";
 import { collectionHasLivePreview } from "./license-gate";
 

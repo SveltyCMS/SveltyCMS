@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:7bfa3da9-6cf3-4137-a769-f9508404a0a7",
+  "serialNumber": "urn:uuid:cf448160-01ca-4561-ab8c-ab013ad861f1",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-07-31T20:43:21.428Z",
+    "timestamp": "2026-07-31T23:34:28.659Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1100.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1100.0",
+      "version": "3.1101.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1101.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-5IvIlW6kWOC9EPq2RM7VQUgfDF2QFHHFgQJ2DichmrYBDg5yiAmqMkDiHqUSkFYosVexXaXD/lV4yYxTyA27zw=="
+          "content": "sha512-16EFb1aTEBgPcfUAWAjjlB57IZCyn7B3rlfT+xqE7M6WoH8AMMU3vFZO0UOitwh/xvvzVx73YED1/n0PU4qBMw=="
         }
       ]
     },
@@ -2713,65 +2713,65 @@
     {
       "type": "library",
       "name": "@redis/bloom",
-      "version": "6.1.0",
-      "purl": "pkg:npm/@redis/bloom@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/@redis/bloom@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Rzascjd9J9bJsM45T/Z9CTg1QY/B63B6YO8QorLVMeXnbBDsKiSCVR/+GQ061hYPk8FpTzWmPY8tAv2sT+JEtQ=="
+          "content": "sha512-ggQvzpeCKnybwUrEiMVVtE1Np4vWnRfpeAaIP2MdZiVw7PHOhJrF4cONVuLRn1TkMi6ehp2OPjTOMK+8XmiQSQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@redis/client",
-      "version": "6.1.0",
-      "purl": "pkg:npm/@redis/client@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/@redis/client@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7u1LefkezJF0HESlhO7ZFLEPfyY+NejP3SGv+Z4pGaT3oM5GVVLa0u3f4rDLUrcw+SRo8IlX9Y8JAONeDdg1Ag=="
+          "content": "sha512-HHszna68MTBRiDZV3Wo2wANH7Z5v/nuh+ZyCAGBce0PS8tDcg1/yzZ1vqbKbUyTdz1wB54kqZxXrnPwpR8Ivdw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@redis/json",
-      "version": "6.1.0",
-      "purl": "pkg:npm/@redis/json@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/@redis/json@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/GFjQA6bu5pG9ClCJAI5Xx4bNXe7UTpxBBlIupBNTrn1+nY860apGnYJuaSCDV2BmEbTidpa7O2qa28oxKx+rg=="
+          "content": "sha512-oweO7PfHWYXkgVT88K+Fm3Wx98lKYKAEXaH162gVbw1kmBOBVQHxw0Yjh1p6BYBUIQMHqLyWwYe99eK7/hD1VQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@redis/search",
-      "version": "6.1.0",
-      "purl": "pkg:npm/@redis/search@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/@redis/search@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-kS5agg+3yZbrdrt8omrew7FLCD8eOm7tarG1CROekPBRe+QGDR9aOpnHIQaYsYi6wPRTH70nQiF06AIjgURefQ=="
+          "content": "sha512-chLEQfalFW3+uCPE99XoIOZhcQ3eF7S3fGxgiiaPf6MMrOZHEiTvgMnXR4xXZX0yDecyoWjGYlQQKTYag/ZExg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@redis/time-series",
-      "version": "6.1.0",
-      "purl": "pkg:npm/@redis/time-series@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/@redis/time-series@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-uIDBtV8MmG/xpJsRqbGSO4iX6ryj37MLMP82lRpFvI7ykAVe5GyqgxigEbU+uZNv9kDPNMKw3dvI/S/J1BNBzA=="
+          "content": "sha512-/H/eE/lnhZLZYpHGpI+ZN7TePb7isEaub8b07oQcTDQptPslVKdUFwNhUm+hQHks781oh+F1Leiip1WHh4HfWw=="
         }
       ]
     },
@@ -4546,13 +4546,13 @@
     {
       "type": "library",
       "name": "@types/google.maps",
-      "version": "3.65.3",
-      "purl": "pkg:npm/@types/google.maps@3.65.3",
+      "version": "3.65.4",
+      "purl": "pkg:npm/@types/google.maps@3.65.4",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-tqbbx7MUtoDk+RwpZMymPDj6Skez0FhqDZNhLhS5UDmCx4D1dgP+BJOHTebiO/rhjJLa1f8te2p6mJJeFKVFOQ=="
+          "content": "sha512-5mvL6keNtWL8jisY5ABjNCpczqGpP9SU9CgYYi7xK+rmy0PSVsDIS+4fM+q6HR1uihDj2k7F1KoHK7kSV5GBpQ=="
         }
       ]
     },
@@ -7640,13 +7640,13 @@
     {
       "type": "library",
       "name": "mongoose",
-      "version": "9.9.0",
-      "purl": "pkg:npm/mongoose@9.9.0",
+      "version": "9.9.1",
+      "purl": "pkg:npm/mongoose@9.9.1",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-xtBH8CU5oRK16F14rC8/KlRHeuPGP+w/URjDdwHV0oyN7otVuqglLje1FePX9+SaSBGj0/QiM65Tg86R7iNbPg=="
+          "content": "sha512-hI00baDVPjV5VfYA3j+oLuPvLfmCQICWot9zJZgkuDMXnWEYhIx9xCPEOt2IC3lDJz6ajsz2bpgO24E+xsP6wg=="
         }
       ]
     },
@@ -8485,13 +8485,13 @@
     {
       "type": "library",
       "name": "redis",
-      "version": "6.1.0",
-      "purl": "pkg:npm/redis@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/redis@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-0kvUPM8RHP/ZMa0xYaDTcG5e8tIGW6kz6MToVT0V8iOnk6bkXp2jncGRGe2bZEk41lZwiDspUqjZCSk5ohjcKw=="
+          "content": "sha512-BShYVyT0Gx67CE80xry5XroSSv6Vxr60yKs0HRiBbUc7kHm+bY7gvSDBBgTjuiV/reWKeZWLyA1ebC5z359wRQ=="
         }
       ]
     },

@@ -63,7 +63,12 @@ test.describe("User Management — Invite Flow", () => {
     await expect(inviteInput).toHaveValue(/invite_token=/, { timeout: 15_000 });
     const inviteUrl = await inviteInput.inputValue();
 
-    const inviteContext = await browser.newContext();
+    // The project's chromium storageState (admin.json) leaks the ADMIN session into
+    // browser.newContext() — the login page redirects authenticated users, so the
+    // invite surface can never render. Force an anonymous context.
+    const inviteContext = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
     await inviteContext.addInitScript(() => {
       localStorage.setItem(
         "sveltycms_consent",
@@ -85,7 +90,9 @@ test.describe("User Management — Invite Flow", () => {
         }
       }
       const signUpBtn = invitePage.getByRole("button", { name: /Go to Sign Up/i });
-      await signUpBtn.waitFor({ state: "visible", timeout: 15_000 });
+      // The login page is fully client-rendered (root layout ssr=false); under
+      // parallel CI load the bundle can take >15s to hydrate — wait generously.
+      await signUpBtn.waitFor({ state: "visible", timeout: 30_000 });
       await signUpBtn.click();
 
       await expect(invitePage.locator("#signup-form")).toBeVisible({ timeout: 10_000 });

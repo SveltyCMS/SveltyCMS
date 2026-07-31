@@ -22,6 +22,22 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
+
+/**
+ * Resolve the shared test API secret exactly like playwright.config.ts and
+ * the benchmark scripts: env → tests/e2e/.auth/test-secret.txt → local default.
+ * Both the preview server and the Playwright process must agree on this value
+ * or every /api/testing call 401s ("Blocked unauthorized test-worker context").
+ */
+function resolveTestSecret(): string {
+  if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
+  const secretPath = join(ROOT, "tests", "e2e", ".auth", "test-secret.txt");
+  if (existsSync(secretPath)) {
+    const fromFile = readFileSync(secretPath, "utf8").trim();
+    if (fromFile) return fromFile;
+  }
+  return "SVELTYCMS_TEST_SECRET_2026";
+}
 const args = process.argv.slice(2);
 const DEV_MODE = args.includes("--dev");
 const SKIP_BUILD = args.includes("--no-build");
@@ -148,7 +164,7 @@ async function startDevServer(): Promise<ChildProcess> {
       env: {
         ...process.env,
         TEST_MODE: process.env.TEST_MODE || "true",
-        TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+        TEST_API_SECRET: resolveTestSecret(),
       },
     },
   );
@@ -166,7 +182,7 @@ async function startPreviewServer(): Promise<ChildProcess> {
   const env = {
     ...process.env,
     TEST_MODE: "true",
-    TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+    TEST_API_SECRET: resolveTestSecret(),
     SKIP_TEST_CLEANUP: "true",
     ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",
@@ -228,19 +244,37 @@ async function main() {
 
     if (!DEV_MODE) {
       console.log("--- Phase 1: Wizard + Auth Setup ---");
-      const setupCode = await runCmd(
-        "bun",
-        ["x", "playwright", "test", "--project=wizard", "--project=auth-setup"],
-        {
-          ...process.env,
-          PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
-          TEST_MODE: "true",
-          ORIGIN: BASE_URL,
-        } as any,
-      );
+      // Run projects as SEPARATE invocations exactly like CI (e2e-prep). A single
+      // invocation with both projects lets Playwright run wizard and firstuser
+      // concurrently — the wizard's resetToSetupMode() leaves the system in SETUP
+      // while firstuser's homepage test expects / or /login (race).
+      const setupCode = await runCmd("bun", ["x", "playwright", "test", "--project=wizard"], {
+        ...process.env,
+        PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
+        TEST_MODE: "true",
+        ORIGIN: BASE_URL,
+      } as any);
       if (setupCode !== 0) {
         console.error("Setup phase failed");
         process.exit(1);
+      }
+      const authCode = await runCmd("bun", ["x", "playwright", "test", "--project=auth-setup"], {
+        ...process.env,
+        PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
+        TEST_MODE: "true",
+        ORIGIN: BASE_URL,
+      } as any);
+      if (authCode !== 0) {
+        console.error("Auth setup phase failed");
+        process.exit(1);
+      }
+      if (!process.env.TEST_API_SECRET) {
+        // Keep the shared secret file in sync so server-side getTestSecret()
+        // and script-based runs agree with the value used for this run.
+        const { mkdirSync, writeFileSync } = await import("node:fs");
+        const authDir = join(ROOT, "tests", "e2e", ".auth");
+        mkdirSync(authDir, { recursive: true });
+        writeFileSync(join(authDir, "test-secret.txt"), resolveTestSecret());
       }
       console.log("");
     }
@@ -253,6 +287,7 @@ async function main() {
       ...process.env,
       PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
       TEST_MODE: "true",
+      TEST_API_SECRET: resolveTestSecret(),
       SKIP_E2E_DEPS: DEV_MODE ? "" : "true",
       ORIGIN: BASE_URL,
     } as any);

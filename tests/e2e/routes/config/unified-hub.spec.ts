@@ -72,7 +72,14 @@ test.describe("Unified Data Hub — always-on", () => {
   });
 
   test("virtual-collections rejects unauthenticated access", async ({ playwright }) => {
-    const unauthContext = await playwright.request.newContext();
+    // The project `use` options leak x-test-secret / x-test-worker-index and the
+    // admin storageState into manually-created contexts — neutralize them so this
+    // is a TRULY anonymous request (with them, the server may treat it as a
+    // test-worker/authenticated request and return 503/200 instead of 401/403).
+    const unauthContext = await playwright.request.newContext({
+      extraHTTPHeaders: { "x-test-mode": "", "x-test-secret": "", "x-test-worker-index": "" },
+      storageState: { cookies: [], origins: [] },
+    });
     const res = await unauthContext.get("http://127.0.0.1:4173/api/virtual-collections");
     expect([401, 403]).toContain(res.status());
     await unauthContext.dispose();
@@ -108,6 +115,10 @@ test.describe("Unified Data Hub — always-on", () => {
 });
 
 test.describe("Unified Data Hub — Postgres fixture", () => {
+  // All fixture tests TRUNCATE + re-seed the same Postgres tables — concurrent
+  // seeds (parallel workers) race on TRUNCATE/INSERT and 500. Serial only.
+  test.describe.configure({ mode: "serial" });
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });

@@ -284,7 +284,9 @@ function checkEndpointPermission(
     }
     // If updating user attributes or saving avatar on self:
     if (
-      (action === "update-user-attributes" || action === "save-avatar") &&
+      (action === "update-user-attributes" ||
+        action === "save-avatar" ||
+        action === "delete-avatar") &&
       segments.length === 2
     ) {
       return true;

@@ -75,7 +75,7 @@ import { tick } from "svelte";
   let isDiffModalOpen = $state(false);
 
   // Plugin Slot System
-  import { slotRegistry } from "@src/plugins/slot-registry";
+  import { slotRegistry } from "@src/plugins/slot-registry.svelte.ts";
   import { activeInputStore } from "@src/stores/active-input-store.svelte";
 
   // Token Picker
