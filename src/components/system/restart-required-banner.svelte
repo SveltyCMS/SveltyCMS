@@ -22,6 +22,7 @@ Displays a prominent banner when server restart is required with countdown and s
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { onDestroy, onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 
@@ -53,9 +54,7 @@ Displays a prominent banner when server restart is required with countdown and s
 		try {
 			const response = await fetch('/api/system/restart', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				}
+				headers: clientJsonHeaders()
 			});
 
 			if (response.ok) {

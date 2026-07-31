@@ -271,7 +271,7 @@ Part of the Three Pillars Architecture for the widget system.
 		try {
 			if (!mapElement) return;
 
-			const maplibregl = (await import('maplibre-gl')).default;
+			const maplibregl = await import('maplibre-gl');
 
 			// Add MapLibre styles dynamically to head if not present
 			if (!document.getElementById('maplibre-style')) {

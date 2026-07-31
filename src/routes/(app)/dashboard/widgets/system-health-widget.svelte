@@ -17,6 +17,7 @@ export const widgetMeta = {
 	import Badge from '@components/ui/badge.svelte';
 	import type { WidgetSize } from '@src/content/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import BaseWidget from '../base-widget.svelte';
 
 	const {
@@ -104,7 +105,7 @@ export const widgetMeta = {
 
 			const res = await fetch('/api/system/reinitialize', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ force: true })
 			});
 

@@ -3,6 +3,7 @@ import { collections } from "@src/stores/collection-store.svelte";
 import type { AIEnrichmentProps } from "./types";
 import Icon from "@iconify/svelte";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { getFieldName } from "@utils/utils";
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
@@ -52,7 +53,7 @@ async function runEnrichment() {
 	try {
 		const response = await fetch("/api/ai/enrich", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: clientJsonHeaders(),
 			body: JSON.stringify({
 				text: sourceText,
 				action: field.action,

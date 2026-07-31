@@ -85,7 +85,9 @@
 
 	const titleParts = $derived.by(() => {
 		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
-			const regex = new RegExp(`(${highlight})`, 'gi');
+			// Escape regex metacharacters — highlight is user-supplied search input
+			const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const regex = new RegExp(`(${escaped})`, 'gi');
 			return name.split(regex);
 		}
 		return [name];
@@ -162,7 +164,7 @@
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="h-9 w-9 shrink-0 p-0! min-w-0 hover:bg-[var(--admin-border-subtle)]"
+				class="h-9 w-9 shrink-0 p-0! min-w-0 hover:bg-(--admin-border-subtle)"
 				style="color: var(--admin-text-body)"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="22" aria-hidden="true"></iconify-icon>
@@ -224,7 +226,7 @@
 					<a
 						href={backUrl}
 						aria-label="Go back"
-						class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-[var(--admin-border-subtle)]
+						class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle)
 							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
 						style="border-color: var(--admin-border-default); color: var(--admin-text-body)"
 						data-cms-action="back"

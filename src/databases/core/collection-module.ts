@@ -206,7 +206,8 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
           (this.adapter as any).config?.name ||
           "sveltycms";
         const res = await (this.adapter as any).raw.execute(
-          `SELECT TABLE_NAME as name FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${dbName}' AND TABLE_NAME LIKE 'collection_%'`,
+          `SELECT TABLE_NAME as name FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE 'collection_%'`,
+          [dbName],
         );
         tables = res || [];
       } else if (this.adapter.type === "postgresql") {
@@ -260,8 +261,10 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
               const client = (this.adapter as any).sqlite;
               if (client) {
                 const row = client.query
-                  ? client.query(`SELECT data FROM "${t.name}" LIMIT 1`).get()
-                  : client.prepare?.(`SELECT data FROM "${t.name}" LIMIT 1`).get();
+                  ? client.query(`SELECT data FROM "${t.name.replace(/"/g, '""')}" LIMIT 1`).get()
+                  : client
+                      .prepare?.(`SELECT data FROM "${t.name.replace(/"/g, '""')}" LIMIT 1`)
+                      .get();
                 if (row?.data) {
                   const parsed = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
                   fields = Object.keys(parsed)
@@ -276,7 +279,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
               }
             } else if (this.adapter.type === "postgresql") {
               const res = await (this.adapter as any).db.execute(
-                `SELECT data FROM "${t.name}" LIMIT 1`,
+                `SELECT data FROM "${t.name.replace(/"/g, '""')}" LIMIT 1`,
               );
               const row = res?.rows?.[0];
               if (row?.data) {
@@ -292,7 +295,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
               }
             } else if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
               const [rows] = await (this.adapter as any).db.execute(
-                `SELECT data FROM \`${t.name}\` LIMIT 1`,
+                `SELECT data FROM \`${t.name.replace(/`/g, "``")}\` LIMIT 1`,
               );
               const row = rows?.[0];
               if (row?.data) {

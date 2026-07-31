@@ -14,7 +14,8 @@
  *   bun run security --auth --ci  # Full CI authenticated audit
  *   bun run security --secret-scan  # Also run secret misuse scanner
  *   bun run security --slop        # Also run code quality slop scanner
- *   bun run security --full        # Run ALL scanners (auth + secret + slop)
+ *   bun run security --cve          # Also run dependency CVE audit (SBOM + bun audit)
+ *   bun run security --full        # Run ALL scanners (auth + secret + slop + cve)
  */
 
 // Mark as ES module so top-level await is valid under tsc (TS1375).
@@ -25,6 +26,7 @@ const RUN_AUTH = args.includes("--auth");
 const IS_CI = args.includes("--ci");
 const RUN_SECRET_SCAN = args.includes("--secret-scan") || args.includes("--full");
 const RUN_SLOP_SCAN = args.includes("--slop") || args.includes("--full");
+const RUN_CVE_SCAN = args.includes("--cve") || args.includes("--full");
 const ONLY_FILTER = args.find((a) => a.startsWith("--only="));
 
 let exitCode = 0;
@@ -93,6 +95,35 @@ if (RUN_SECRET_SCAN) {
     }
   } catch {
     console.error("\n❌ Secret scan failed to run\n");
+    exitCode = 1;
+  }
+}
+
+// ── Dependency CVE Audit (SBOM refresh + bun audit) ───────────────
+if (RUN_CVE_SCAN) {
+  console.log("\n━━━ Dependency CVE Audit ━━━\n");
+  try {
+    const { spawnSync } = await import("node:child_process");
+    // Refresh SBOM from the lockfile first so the audit covers current dependencies
+    const sbom = spawnSync("bun", ["run", "scripts/generate-sbom.ts"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    if (sbom.status !== 0) {
+      console.warn("⚠️  SBOM regeneration failed — continuing with existing sbom.json\n");
+    }
+    const audit = spawnSync("bun", ["audit", "--no-color"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    if (audit.status !== 0) {
+      console.error("\n❌ Dependency audit found vulnerabilities\n");
+      exitCode = 1;
+    } else {
+      console.log("✅ Dependency audit passed\n");
+    }
+  } catch {
+    console.error("\n❌ Dependency audit failed to run\n");
     exitCode = 1;
   }
 }

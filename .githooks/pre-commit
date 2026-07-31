@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Format → Lint → Unit (~40s)
+# SveltyCMS Pre-Commit — Format → Lint → Unit → SBOM Sync (~40s)
 #
 # Pre-push runs build + SQLite integration.
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
-TOTAL=4; OK=0
+TOTAL=5; OK=0
 
 # Step 1 — Database safety
 if run "🛡️  Database safety" $RUN_CMD scripts/check-test-db-safety.ts; then
@@ -42,11 +42,22 @@ fi
 
 # Step 4 — Unit tests (skip if only docs changed)
 if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
-  warn "Only docs changed — skipping unit tests"
+	  warn "Only docs changed — skipping unit tests"
+	  TOTAL=$((TOTAL - 1))
+	elif run "🧪  Unit tests" $RUN_CMD test:unit; then
+  OK=$((OK + 1))
+fi
+
+# Step 5 — SBOM sync (keeps sbom.json in lockstep with bun.lock)
+if has_changes 'bun\.lock|package\.json'; then
+  if run "📦  SBOM sync" $RUN_CMD audit:sbom; then
+    git add sbom.json 2>/dev/null || true
+    info "sbom.json regenerated from updated lockfile and staged."
+    OK=$((OK + 1))
+  fi
+else
+  warn "No dependency changes — SBOM already up to date"
   TOTAL=$((TOTAL - 1))
-  OK=$((OK + 1))
-elif run "🧪  Unit tests" $RUN_CMD test:unit; then
-  OK=$((OK + 1))
 fi
 
 summary "$OK" "$TOTAL"

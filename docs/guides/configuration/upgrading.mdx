@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:arrow-up-bold-circle-outline"
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-06-27"
+updated: "2026-07-31"
 tags:
   - "upgrade"
   - "maintenance"
@@ -33,7 +33,8 @@ graph TD
     G --> H{Conflicts?}
     H -- Yes --> I[Pause: Manual Resolution]
     H -- No --> J[Run bun/npm install]
-    J --> K[Run Codemods]
+    J --> J2[Regenerate SBOM]
+    J2 --> K[Run Codemods]
     K --> L[Run db:push]
     L --> M[Run test:unit]
     M --> N[Restore Stash if any]
@@ -47,8 +48,9 @@ graph TD
 5. **Pre-commit Merge**: Merges changes into your local branch without committing, allowing you to review.
 
 6. **Dependency Refresh**: Runs `bun install` to ensure all new packages are installed. On Windows, `npm install` is used instead to avoid known `bun install` corruption issues.
-7. **Codemods**: Automatically executes scripts in `scripts/codemods/`. Scripts starting with an underscore (e.g., `_utils.ts`) are ignored by the runner.
-8. **Database & Tests**: Runs `db:push` and `test:unit` to ensure everything is working correctly.
+7. **SBOM Sync**: Runs `bun run audit:sbom` to regenerate the CycloneDX SBOM (`sbom.json`) so it matches the updated dependency tree (see _Dependency Updates & SBOM_ below).
+8. **Codemods**: Automatically executes scripts in `scripts/codemods/`. Scripts starting with an underscore (e.g., `_utils.ts`) are ignored by the runner.
+9. **Database & Tests**: Runs `db:push` and `test:unit` to ensure everything is working correctly.
 
 ## How to Run the Upgrade
 
@@ -65,9 +67,22 @@ bun run scripts/upgrade.ts
 | `--dry-run`     | See what would happen without making any changes.                       |
 | `--skip-tests`  | Do not run the unit test suite after upgrade.                           |
 | `--skip-db`     | Do not run `db:push` after upgrade.                                     |
+| `--skip-sbom`   | Do not regenerate the SBOM after install.                               |
 | `--skip-merge`  | Skip fetch+merge (useful if resuming after manual conflict resolution). |
 | `--force`       | Auto-stash uncommitted changes before upgrade.                          |
 | `--branch=NAME` | Upgrade from a specific branch (defaults to `next`).                    |
+
+## Dependency Updates & SBOM
+
+SveltyCMS ships a dedicated dependency-update flow that keeps the CycloneDX SBOM (`sbom.json`) in lockstep with the resolved dependency tree:
+
+1. **Check for outdated packages**: `bun outdated`
+2. **Update + regenerate SBOM in one command**: `bun run update` — runs `bun update` and then `bun run audit:sbom`, so `sbom.json` (name + version + SHA-512 hashes per package) always reflects what was actually installed.
+3. **Safety net**: If you change dependencies any other way (native `bun update`, `bun install`, `bun add`, `bun remove`), the pre-commit hook detects `bun.lock`/`package.json` changes and regenerates + stages `sbom.json` automatically before every commit.
+
+The SBOM feeds vulnerability scanners (e.g., Dependency-Track, Grype) and supports SOC 2 / GDPR Art. 32 supply-chain compliance. See [Security Overview](../../reference/security/index.mdx).
+
+> **Note on `bun outdated`**: packages pinned to an exact version (e.g., `graphql` is pinned to `16.14.2`) or released as a new major outside your declared range will appear as "outdated" but are intentionally left untouched by `bun update`. Review the output and bump `package.json` deliberately for those.
 
 ## Codemods
 

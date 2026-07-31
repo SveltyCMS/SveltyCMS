@@ -34,7 +34,7 @@ import { isBenchmarkRelativePath } from "../benchmark-paths.ts";
 import { assertLiveDataWriteAllowed } from "../benchmark-sandbox.ts";
 import { createCompositeTransformer } from "./transformers.ts";
 import { pathAliases } from "../../../path-aliases.ts";
-import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types";
+import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
 
 // ─── Compile-time aliases (matching transformers.ts) ───────────────────
 const compileAliases: Record<string, string> = Object.fromEntries(
@@ -132,7 +132,9 @@ function normalizeCompiledJsPath(compiledDir: string, jsPath: string): string {
 
   const normalized = jsPath.replace(/\\/g, "/");
   const compiledDirName = path.basename(resolvedDir);
-  const prefixPattern = new RegExp(`^\\.?/?${compiledDirName}/`);
+  // Escape — the build dir name is filesystem-derived and could contain regex metacharacters
+  const escapedDirName = compiledDirName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefixPattern = new RegExp(`^\\.?/?${escapedDirName}/`);
   const relativeInsideCompiled = normalized.replace(prefixPattern, "");
 
   if (relativeInsideCompiled !== normalized) {
@@ -631,7 +633,7 @@ async function saveManifest(
   assertLiveDataWriteAllowed(manifestPath);
 
   // Windows-safe atomic write (EPERM on rename under parallel Playwright workers)
-  const { atomicWriteJson } = await import("../atomic-write");
+  const { atomicWriteJson } = await import("../atomic-write.ts");
   await atomicWriteJson(manifestPath, payload);
 }
 

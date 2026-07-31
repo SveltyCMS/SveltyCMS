@@ -41,6 +41,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			import Select from '@components/ui/select.svelte';
 	import { mediagallery_nomedia } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import type { MediaImage } from '@utils/media/media-models';
 	// Removed axios import
 	import { onDestroy, onMount } from 'svelte';
@@ -228,7 +229,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 				chunk.map(async (file) => {
 					const res = await fetch('/api/media/delete', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
+						headers: clientJsonHeaders(),
 						body: JSON.stringify({ id: file._id || file.filename }),
 					});
 					if (!res.ok) throw new Error(`HTTP ${res.status}`);

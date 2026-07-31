@@ -40,6 +40,23 @@ export interface IngestionMetrics {
 }
 
 // ============================================================================
+// Identifier Guards
+// ============================================================================
+
+/** Guard: only safe identifiers may be interpolated into raw SQL strings. */
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** True when every entry key is a safe SQL identifier. */
+function hasSafeIdentifiers(entries: Record<string, any>[]): boolean {
+  for (const entry of entries) {
+    for (const key of Object.keys(entry)) {
+      if (!SAFE_IDENTIFIER.test(key)) return false;
+    }
+  }
+  return true;
+}
+
+// ============================================================================
 // Database-Native Bulk Operations
 // ============================================================================
 
@@ -215,6 +232,17 @@ export async function bulkInsert(
   const dbType = (dbAdapter as any)?.type || "unknown";
   let count = 0;
   let strategy = "individual";
+
+  // Defense-in-depth: the dialect-specific bulk paths interpolate identifiers
+  // into raw SQL. Reject anything unsafe up front and fall back to the
+  // parameterized ORM insert path instead of building the statement.
+  if (!SAFE_IDENTIFIER.test(collection) || !hasSafeIdentifiers(entries)) {
+    logger.warn("[Perf] Unsafe collection/column identifier — falling back to individual inserts");
+    return {
+      count: await individualInserts(dbAdapter, collection, entries),
+      strategy: "individual_fallback",
+    };
+  }
 
   const start = Date.now();
 

@@ -118,9 +118,9 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
           const isMock = name.includes("mock") || name.includes("test_");
 
           if ((isCollection || isBenchmark || isMock) && !systemTables.has(name)) {
-            this.sqlite.exec(`DROP TABLE IF EXISTS "${table.name}"`);
+            this.sqlite.exec(`DROP TABLE IF EXISTS "${table.name.replace(/"/g, '""')}"`);
           } else if (systemTables.has(name)) {
-            this.sqlite.exec(`DELETE FROM "${table.name}"`);
+            this.sqlite.exec(`DELETE FROM "${table.name.replace(/"/g, '""')}"`);
           }
         }
         this.sqlite.exec("PRAGMA foreign_keys = ON;");

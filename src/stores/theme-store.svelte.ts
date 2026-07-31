@@ -8,6 +8,7 @@
 import type { ISODateString } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
 import { nowISODateString } from "@src/utils/date";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 
@@ -313,7 +314,7 @@ export async function updateTheme(newThemeName: string) {
   try {
     const response = await fetch("/api/theme/update-theme", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: clientJsonHeaders(),
       body: JSON.stringify({ themeName: newThemeName }),
     });
     if (!response.ok) {

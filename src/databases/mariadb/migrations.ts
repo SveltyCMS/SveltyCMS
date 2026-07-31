@@ -617,7 +617,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
         const tableName = Object.values(row as any)[0] as string;
         // MariaDB supports ADD COLUMN IF NOT EXISTS
         await connection.query(
-          `ALTER TABLE \`${tableName}\` ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
+          `ALTER TABLE \`${tableName.replace(/`/g, "``")}\` ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
         );
       }
     }

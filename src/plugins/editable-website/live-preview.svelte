@@ -17,6 +17,7 @@
   import { publicEnv } from "@src/stores/global-settings.svelte";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { logger } from "@src/utils/logger";
+  import { clientJsonHeaders } from "@utils/security/client-csrf";
   import { fade } from "svelte/transition";
 
   import {
@@ -110,7 +111,7 @@
     try {
       const res = await fetch("/api/preview/authorize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: clientJsonHeaders(),
         body: JSON.stringify({
           schema: collection.value,
           entry: currentCollectionValue,

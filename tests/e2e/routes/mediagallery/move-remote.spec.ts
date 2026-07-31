@@ -48,9 +48,14 @@ async function uploadImage(page: Page) {
     .catch(() => null);
   await page.getByTestId("media-upload-input").setInputFiles(TEST_IMAGE);
   await uploadResponse;
-  await expect(page.getByText(/testthumb\.png/i).first()).toBeVisible({
-    timeout: ACTION_TIMEOUT,
-  });
+  // Wait for the actual grid item to appear, not just any text on the page
+  // (toast notifications can match text before the grid renders)
+  await expect(
+    page
+      .getByTestId("media-item")
+      .filter({ hasText: /testthumb/i })
+      .first(),
+  ).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
 test.describe.configure({ mode: "serial" });

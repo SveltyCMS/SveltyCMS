@@ -35,13 +35,6 @@ export const focalPointPlugin = definePlugin({
   ui: {
     slots: [
       {
-        id: "focal-point-media-gallery",
-        zone: "media_gallery",
-        position: 10,
-        component: () => import("./components/focal-point-toolbar.svelte"),
-        permissions: ["media:write"],
-      },
-      {
         id: "focal-point-editor-tool",
         zone: "image_editor_tool",
         position: 5,

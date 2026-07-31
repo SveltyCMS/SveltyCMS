@@ -4,38 +4,12 @@
  */
 
 import type { DashboardWidgetConfig, Layout } from "@src/content/types";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
 
 const LAYOUT_KEY = "dashboard.layout.default";
 
 // --- API Helpers ---
-
-function csrfHeaders(json = true): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (json) headers["Content-Type"] = "application/json";
-  try {
-    // Prefer page-provided token when available (SSR hydration / layout data)
-    const fromPage =
-      typeof document !== "undefined"
-        ? (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content
-        : null;
-    // Fallback: double-submit cookie name used by csrf-utils (non-httpOnly in some envs
-    // is rare; layout usually exposes csrfToken on window via page.data — callers may
-    // also pass token through body if cookie is httpOnly).
-    const fromCookie =
-      typeof document !== "undefined"
-        ? document.cookie
-            .split("; ")
-            .find((r) => r.startsWith("csrf_token=") || r.startsWith("__Host-csrf_token="))
-            ?.split("=")[1]
-        : undefined;
-    const token = fromPage || fromCookie || (globalThis as any).__csrfToken;
-    if (token) headers["X-CSRF-Token"] = decodeURIComponent(token);
-  } catch {
-    /* non-critical */
-  }
-  return headers;
-}
 
 async function fetchLayout(): Promise<Layout | null> {
   try {
@@ -67,7 +41,7 @@ async function saveLayout(layout: Layout): Promise<void> {
   try {
     const res = await fetch("/api/system-preferences", {
       method: "POST",
-      headers: csrfHeaders(true),
+      headers: clientJsonHeaders(),
       body: JSON.stringify({ key: LAYOUT_KEY, value: layout }),
     });
     if (!res.ok) {

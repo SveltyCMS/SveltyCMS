@@ -87,6 +87,7 @@ bulk actions, and predictive preloading.
 	import { cloneEntries, setEntriesStatus } from '@utils/entry-actions';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	// Native UI Components
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
@@ -457,7 +458,7 @@ bulk actions, and predictive preloading.
 			try {
 				await fetch('/api/collections/warm-cache', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: clientJsonHeaders(),
 					body: JSON.stringify({
 						collectionId: currentCollection._id,
 						entryIds

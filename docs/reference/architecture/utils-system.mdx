@@ -82,21 +82,20 @@ All 14 files are **wired to API handlers** or planned for wiring:
 | `media-service.server.ts` | `MediaService` class                                           | Core CRUD           |
 | `media-storage.server.ts` | `saveFile`, `deleteFile`, `getImageSizes`, `saveResizedImages` | Storage abstraction |
 
-| File                   | Key exports                                                  | API endpoint  |
-| ---------------------- | ------------------------------------------------------------ | ------------- |
-| `cloud-storage.ts`     | `upload`, `download`, `getUrl`, `isCloud`, `getConfig`       | S3/R2/local   |
-| `sharing.ts`           | `createLink`, `validateLink`, `revoke`, `extend`, `newToken` | Share API     |
-| `bulk-download.ts`     | `createBulkArchive`, `streamArchive`, `cleanupArchive`       | Bulk download |
-| `storage-analytics.ts` | `analyze`, `insights`, `trends`, `quota`, `formatBytes`      | Analytics     |
+| File                   | Key exports                                                                 | API endpoint |
+| ---------------------- | --------------------------------------------------------------------------- | ------------ |
+| `storage-adapters.ts`  | `getUrl`, `isCloud`, `getPath`, `upload`, `download`, `remove`, `exists`    | S3/R2/local  |
+| `sharing.ts`           | `createLink`, `validateLink`, `revoke`, `extend`, `newToken`, bulk-download | Share + Bulk |
+| `storage-analytics.ts` | `analyze`, `insights`, `trends`, `quota`, `formatBytes`                     | Analytics    |
 
-| File                         | Key exports                                           | API endpoint                 |
-| ---------------------------- | ----------------------------------------------------- | ---------------------------- |
-| `version-history.ts`         | `compareVersions`, `getVersionStats`, `createVersion` | Version API                  |
-| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`  | Search API                   |
-| `streaming-upload.ts`        | `parseMultipartStream`                                | Stream upload                |
-| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`           | Processing                   |
-| `slim-sniffer.server.ts`     | `sniffMimeType`                                       | Binary MIME detection        |
-| `webgpu-processor.ts`        | `optimizeImage`                                       | Client-side GPU optimization |
+| File                         | Key exports                                                                  | API endpoint                 |
+| ---------------------------- | ---------------------------------------------------------------------------- | ---------------------------- |
+| `media-storage.server.ts`    | `createVersion`, `compareVersions`, `getVersionStats`, `saveFile`, `getFile` | Storage + Version            |
+| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`                         | Search API                   |
+| `streaming-upload.ts`        | `parseMultipartStream`                                                       | Stream upload                |
+| `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                                  | Processing                   |
+| `slim-sniffer.server.ts`     | `sniffMimeType`                                                              | Binary MIME detection        |
+| `webgpu-processor.ts`        | `optimizeImage`                                                              | Client-side GPU optimization |
 
 ### Infrastructure
 
@@ -216,7 +215,7 @@ Utilities connected to REST API handlers:
 | ------------------------------- | ------ | ------------------------------------------------- | -------------------------- |
 | `/api/media/share/{id}/{token}` | DELETE | `revoke()` in `sharing.ts`                        | `handleMediaShareRevoke`   |
 | `/api/media/share/{id}/{token}` | PATCH  | `extend()` in `sharing.ts`                        | `handleMediaShareExtend`   |
-| `/api/media/{id}/version`       | POST   | `createVersion()` in `version-history.ts`         | `handleMediaVersionCreate` |
+| `/api/media/{id}/version`       | POST   | `createVersion()` in `media-storage.server.ts`    | `handleMediaVersionCreate` |
 | `/api/media/stream`             | POST   | `parseMultipartStream()` in `streaming-upload.ts` | `handleMediaStreamUpload`  |
 | `/api/media/search`             | GET    | `advancedSearch()` in `advanced-search.ts`        | `handleMediaSearch`        |
 

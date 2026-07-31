@@ -9,6 +9,7 @@ This layout provides the administrative shell, including sidebars and header con
 - Managing admin-specific UI state (Sidebar expansion, Mode switching).
 - Initializing Widgets and Theme in the authenticated context.
 - Providing navigation guards and auto-save draft functionality.
+- Responsive sidebar: inline on desktop, overlay drawer on mobile.
 
 ### Next Steps & Options:
 - Expand/Collapse sidebars for more horizontal space.
@@ -26,6 +27,7 @@ import RightSidebar from "@src/components/right-sidebar.svelte";
 import SearchComponent from "@src/components/search-component.svelte";
 // Type Imports
 import type { User } from "@src/databases/auth/types";
+import type { ContentNode } from "@src/content/types";
 // Stores
 import {
 	setMode,
@@ -53,6 +55,7 @@ import {
 	diffLayoutPrefsFromTenant,
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 	import { onMount, untrack } from "svelte";
 	import { initBounceDetector } from "@utils/bounce-detector";
@@ -62,7 +65,7 @@ import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
 import { page } from "$app/state";
-import type { Schema, ContentNode } from "../../content/types";
+
 import { setContentContext } from "@src/content";
 
 // =============================================
@@ -71,7 +74,6 @@ import { setContentContext } from "@src/content";
 
 interface LayoutData {
 	contentStructure: Promise<ContentNode[]>;
-	firstCollection: Promise<Schema | null>;
 	settings: Record<string, any>;
 	user: User | null;
 	tenantId?: string | null;
@@ -210,7 +212,7 @@ $effect(() => {
 		try {
 			await fetch("/api/user/update-user-attributes", {
 				method: "PUT",
-				headers: { "Content-Type": "application/json" },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					user_id: "self",
 					newUserData: { preferences: { theme: { layoutState: diff } } },
@@ -281,20 +283,15 @@ $effect(() => {
 });
 
 // =============================================
-// EVENT HANDLERS
-// =============================================
-
-// =============================================
 // LIFECYCLE HOOKS
 // =============================================
 
 onMount(() => {
 	console.log("[AppLayout] Mounted. User:", data.user?.username || "None");
 
-
-		// Initialize predictive preloading (physics cone + behavioral smart)
-		initPredictivePreload();
-		initBounceDetector();
+	// Initialize predictive preloading (physics cone + behavioral smart)
+	initPredictivePreload();
+	initBounceDetector();
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 
@@ -353,7 +350,8 @@ beforeNavigate(({ from, to }) => {
 });
 
 afterNavigate(() => {
-	if (window.innerWidth < 768) ui.state.leftSidebar = 'hidden';
+	// Mobile sidebar should start hidden by default (user opens via hamburger)
+	if (screen.isMobile) ui.state.leftSidebar = 'hidden';
 	globalLoadingStore.stopLoading(loadingOperations.navigation);
 	setTimeout(() => {
 		if (
@@ -433,7 +431,8 @@ afterNavigate(() => {
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
-				{#if ui.state.leftSidebar !== 'hidden'}
+				<!-- Desktop / tablet: inline sidebar (inside flex flow) -->
+				{#if !screen.isMobile && ui.state.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh border-e bg-surface-50 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-900 overflow-visible {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
@@ -448,23 +447,21 @@ afterNavigate(() => {
 						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}
 
-
 					{@render children?.()}
 
-
 					<!-- Sticky action bar (only rendered when content exists) -->
-										{#if theme.features.stickyActionBar && ui.stickyActionContent}
-											<div class="sticky bottom-0 z-20 w-full border-t border-surface-200 dark:border-surface-700 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
-												style="min-height: var(--admin-sticky-bar-height, 56px);"
-												role="toolbar"
-												aria-label="Page actions"
-												aria-live="polite"
-											>
-												<div class="flex items-center justify-end gap-2 px-4 py-2">
-													{@render ui.stickyActionContent()}
-												</div>
-											</div>
-										{/if}
+					{#if theme.features.stickyActionBar && ui.stickyActionContent}
+						<div class="sticky bottom-0 z-20 w-full border-t border-surface-200 dark:border-surface-700 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
+							style="min-height: var(--admin-sticky-bar-height, 56px);"
+							role="toolbar"
+							aria-label="Page actions"
+							aria-live="polite"
+						>
+							<div class="flex items-center justify-end gap-2 px-4 py-2">
+								{@render ui.stickyActionContent()}
+							</div>
+						</div>
+					{/if}
 
 					{#if ui.state.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
@@ -473,7 +470,8 @@ afterNavigate(() => {
 					{/if}
 				</main>
 
-				{#if ui.state.rightSidebar !== 'hidden'}
+				<!-- Desktop: inline right sidebar -->
+				{#if !screen.isMobile && ui.state.rightSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh w-60 border-s bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						aria-label="Right sidebar"
@@ -482,6 +480,50 @@ afterNavigate(() => {
 					</aside>
 				{/if}
 			</div>
+
+			<!-- Mobile: overlay sidebar drawer (outside flex flow via Portal) -->
+			{#if screen.isMobile && ui.state.leftSidebar !== 'hidden'}
+				<Portal>
+					<!-- Backdrop -->
+					<button
+						type="button"
+						class="fixed inset-0 z-40 bg-surface-900/40 backdrop-blur-xs dark:bg-black/50"
+						aria-label="Close left sidebar"
+						onclick={() => ui.toggle('leftSidebar', 'hidden')}
+					></button>
+					<!-- Drawer -->
+					<div
+						class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-e border-surface-200 bg-surface-50 px-2! text-center shadow-lg dark:border-surface-700 dark:bg-surface-900"
+						role="dialog"
+						aria-modal="true"
+						aria-label="Left sidebar navigation"
+					>
+						<LeftSidebar />
+					</div>
+				</Portal>
+			{/if}
+
+			<!-- Mobile: overlay right sidebar drawer (slides in from right) -->
+			{#if screen.isMobile && ui.state.rightSidebar !== 'hidden'}
+				<Portal>
+					<!-- Backdrop -->
+					<button
+						type="button"
+						class="fixed inset-0 z-40 bg-surface-900/40 backdrop-blur-xs dark:bg-black/50"
+						aria-label="Close right sidebar"
+						onclick={() => ui.toggle('rightSidebar', 'hidden')}
+					></button>
+					<!-- Drawer -->
+					<div
+						class="fixed inset-e-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-s border-surface-200 bg-surface-50 px-2! shadow-lg dark:border-surface-700 dark:bg-surface-900"
+						role="dialog"
+						aria-modal="true"
+						aria-label="Right sidebar"
+					>
+						<RightSidebar />
+					</div>
+				</Portal>
+			{/if}
 
 			{#if ui.state.footer !== 'hidden'}
 				<footer style="min-height: var(--admin-header-height, 24px);">

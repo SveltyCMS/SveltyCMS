@@ -33,6 +33,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { debounce } from '@utils/utils';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { validateSchemaWidgets } from '@widgets/widget-validation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -426,7 +427,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			try {
 				await fetch('/api/collections/reorder', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: clientJsonHeaders(),
 					body: JSON.stringify({ order }),
 				});
 			} catch { /* non-critical */ }
@@ -462,7 +463,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		// Persist empty order to clear manifest
 		fetch('/api/collections/reorder', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: clientJsonHeaders(),
 			body: JSON.stringify({ order: {} }),
 		}).catch(() => {});
 	}

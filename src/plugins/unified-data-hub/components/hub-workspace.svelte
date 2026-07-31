@@ -16,6 +16,7 @@
   import Checkbox from '@components/ui/checkbox.svelte';
   import UpgradePrompt from '@components/ui/upgrade-prompt.svelte';
   import { pluginWorkspace } from '@stores/plugin-workspace.svelte';
+  import { clientJsonHeaders } from '@utils/security/client-csrf';
 
   let connectors = $state<any[]>([]);
   let collections = $state<any[]>([]);
@@ -54,7 +55,7 @@
     const res = await fetch(`/api/plugins/unified-data-hub?action=${action}`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'x-plugin-action': action },
+      headers: { ...clientJsonHeaders(), 'x-plugin-action': action },
       body: JSON.stringify(body),
     });
     const data = await res.json();

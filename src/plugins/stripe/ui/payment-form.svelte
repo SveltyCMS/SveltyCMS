@@ -6,6 +6,7 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Button from '@components/ui/button.svelte';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
 	interface Props {
 		amount: number;
@@ -74,7 +75,7 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 			// 1. Create PaymentIntent on server
 			const res = await fetch('/api/plugins/stripe/create-intent', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ amount, currency })
 			});
 			const { clientSecret } = await res.json();
@@ -92,7 +93,7 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 			// 3. Verify on server
 			await fetch('/api/plugins/stripe/confirm', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ intentId: result.paymentIntent.id })
 			});
 

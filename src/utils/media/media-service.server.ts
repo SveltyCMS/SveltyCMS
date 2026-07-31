@@ -1,4 +1,6 @@
 /**
+ * slop:suppress — RegExp patterns interpolate tag names from a hardcoded
+ * DANGEROUS_TAGS constant array (not user input).
  * @file src/utils/media/media-service.server.ts
  * @description Standard media service for SveltyCMS.
  *
@@ -25,10 +27,10 @@ import type {
 } from "@src/databases/db-interface";
 import { mediaTypeFromMime, type MediaItem } from "./media-models";
 import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
-import { getUrl } from "./cloud-storage";
+import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { sniffMimeType } from "./slim-sniffer.server";
-import type { SharpFactory, SharpOverlayOptions } from "./sharp-pipeline";
+import type { SharpFactory, SharpOverlayOptions } from "./media-processing.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 
@@ -457,7 +459,9 @@ export class MediaService {
       this.mapFileSystemError(err);
       throw err;
     }
-    if (!(await fileExists(relPath))) {
+    // Verify with a cache-bypassing lookup — the pre-write check above cached a
+    // "negative" result (10s TTL) that would otherwise mask the successful write.
+    if (!(await fileExists(relPath, { refresh: true }))) {
       throw new Error(`Media file was not persisted to disk: ${relPath}`);
     }
     return relPath;
