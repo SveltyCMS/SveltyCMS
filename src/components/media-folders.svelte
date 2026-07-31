@@ -71,8 +71,9 @@
 	const isMediaDragActive = $derived(
 		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
 	);
-	/** Mobile uses the drag folder rail — sidebar droppables stay off to avoid double onDrop */
-	const mediaDropEnabled = $derived(isMediaDragActive && !screen.isMobile);
+	/** The sidebar tree is the only media drop surface on every viewport. On mobile
+	 *  it is the overlay drawer, opened for the drag by useMediaDragSidebar. */
+	const mediaDropEnabled = $derived(isMediaDragActive);
 
 	// Derived UI state
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -262,7 +263,9 @@
 			setFolderExpanded(resolved, true);
 		}
 		if (isMobile) {
-			ui.toggle('leftSidebar', 'collapsed');
+			// 'hidden' is mobile's closed state — the overlay drawer in +layout.svelte
+			// renders for any value other than 'hidden', so 'collapsed' would leave it up.
+			ui.toggle('leftSidebar', 'hidden');
 		}
 		const path = resolved === 'root' ? '/mediagallery' : `/mediagallery?folderId=${resolved}`;
 		goto(path);
@@ -536,7 +539,10 @@
 
 	<!-- Folder tree (Media Root + folders) -->
 	<div class="media-folders-list" role="tree" aria-label="Folder tree">
-		{#if isLoading}
+		<!-- Spinner only when there is nothing to show. A refresh (folderCreated, or
+			 the mobile drawer mounting mid-drag) keeps the cached tree on screen
+			 instead of blanking it, so a drag never loses its drop targets. -->
+		{#if isLoading && folders.length === 0}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
 				<div class="flex gap-2">
 					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500"></div>

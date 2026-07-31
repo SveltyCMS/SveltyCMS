@@ -5,9 +5,9 @@
 
 ### Features:
 - Global hotkeys via src/utils/hotkeys.ts
-- Desktop: drag media onto sidebar folders or breadcrumb ancestors
-- Mobile: Lift & Carry folder rail opens on drag; tap a parent breadcrumb
-  to move a selection without drag
+- Drag media onto sidebar folders or breadcrumbs (same targets everywhere)
+- Mobile: the sidebar drawer opens itself on drag and closes when the drag
+  ends; tapping a breadcrumb also moves a selection without dragging
 -->
 
 <script lang="ts">
@@ -19,7 +19,6 @@ import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
 import MediaTable from "./media-table.svelte";
 import MediaDragPreview from "./media-drag-preview.svelte";
-import MediaDragFolderRail from "./media-drag-folder-rail.svelte";
 import AdvancedSearchModal from "./advanced-search-modal.svelte";
 import Portal from "@components/ui/portal.svelte";
 import type { SearchCriteria } from "@utils/media/advanced-search";
@@ -31,7 +30,6 @@ import MediaDetailsModal from "@src/components/media/media-details-modal.svelte"
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@components/system/slot.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { screen } from "@src/stores/screen-size-store.svelte.ts";
 import { logger } from "@utils/logger";
 import {
 	type MediaBase,
@@ -42,9 +40,12 @@ import {
 import { droppable, dndState, type DragDropState } from "@thisux/sveltednd";
 import {
 	MEDIA_DRAG_CONTAINER,
+	MEDIA_DROP_OK,
+	MEDIA_DROP_SAME,
 	moveMediaToFolder,
 	type MediaDragData,
 } from "@utils/media/media-dnd";
+import { useMediaDragSidebar } from "@utils/media/media-drag-sidebar.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
@@ -82,9 +83,12 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	const isMediaDragActive = $derived(
 		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
 	);
-	/** Breadcrumb drop targets are desktop-only — mobile uses the folder rail */
-	const breadcrumbDropEnabled = $derived(isMediaDragActive && !screen.isMobile);
+	/** Breadcrumbs accept drops on every viewport — mobile drags the same way */
+	const breadcrumbDropEnabled = $derived(isMediaDragActive);
 	let isMovingMedia = $state(false);
+
+	// Mobile: surface the sidebar folder tree for the duration of the drag.
+	useMediaDragSidebar(() => isMediaDragActive);
 
 const sortOptions = [
 	{ value: "newest", label: "Newest first" },
@@ -221,9 +225,6 @@ const assetStats = $derived.by(() => ({
 const currentFolderId = $derived(
 	((data.currentFolder as { _id?: string } | null)?._id as string | undefined) ?? null,
 );
-
-/** Active gallery folder id for the mobile drag rail (`root` when at gallery root). */
-const railActiveFolderId = $derived(currentFolderId ?? "root");
 
 /** Key used for drop highlight / compare (`root` for media gallery root) */
 function crumbDropKey(folderId: string | null): string {
@@ -762,104 +763,108 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 		{/if}
 
 		<!--
-			Breadcrumbs — always visible above the toolbar.
-			Desktop: first-class drop targets (same move API as the sidebar tree).
-			Mobile: navigation + tap-to-move for selections; drag uses the folder rail.
+			Breadcrumbs — always rendered, including at Media Root where the trail is a
+			single crumb, so the path strip never collapses to empty space.
+
+			Every crumb is a drop target on every viewport, mirroring the sidebar tree:
+			an ancestor takes the media (primary ring), the current folder rejects it
+			(error ring) rather than being inert, so the gesture always gets feedback.
 		-->
-		{#if breadcrumbs.length > 1}
-			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
-				<nav
-					class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-200 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-800 dark:text-surface-400"
-					aria-label="Folder path — drop media on a parent to move (same as sidebar folders)"
+		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
+			<nav
+				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-200 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-800 dark:text-surface-400"
+				aria-label="Folder path — drop media on a parent to move (same as sidebar folders)"
+			>
+				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
+					{@const isLast = i === breadcrumbs.length - 1}
+					{@const dropKey = crumbDropKey(crumb.folderId)}
+					{@const sameFolder = isCurrentCrumb(crumb.folderId)}
+					{@const isDropTarget = breadcrumbDropEnabled && dndState.targetContainer === dropKey}
+					{@const dropOptions = {
+						container: dropKey,
+						disabled: !breadcrumbDropEnabled,
+						attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
+						callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleBreadcrumbDrop(state, crumb.folderId, crumb.name) },
+					}}
+
+					{#if i > 0}
+						<iconify-icon
+							icon="mdi:chevron-right"
+							width="16"
+							class="shrink-0 text-surface-400 dark:text-surface-500"
+							aria-hidden="true"
+						></iconify-icon>
+					{/if}
+
+					{#if isLast}
+						<!-- Current folder: not a link, but still a droppable so the drag is
+							 told "already here" with the same error ring the sidebar uses. -->
+						<span
+							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-surface-800 sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
+							aria-current="page"
+							data-media-drop-target={dropKey}
+							data-testid={`media-breadcrumb-${dropKey}`}
+							title={sameFolder && breadcrumbDropEnabled ? 'Already in this folder' : crumb.name}
+							use:droppable={dropOptions}
+						>
+							{#if isDropTarget}
+								<iconify-icon
+									icon="mdi:folder-remove-outline"
+									width="16"
+									class="shrink-0 text-error-500"
+									aria-hidden="true"
+								></iconify-icon>
+							{/if}
+							<span class="truncate">{crumb.name}</span>
+						</span>
+					{:else}
+						<a
+							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
+								{selectedFiles.size > 0
+									? 'bg-surface-100 text-surface-800 hover:bg-primary-500/15 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
+									: 'hover:text-primary-500'}"
+							data-preload="hover"
+							data-media-drop-target={dropKey}
+							data-testid={`media-breadcrumb-${dropKey}`}
+							aria-label={selectedFiles.size > 0
+								? `Move ${selectedFiles.size} selected to ${crumb.name}`
+								: `Open folder ${crumb.name}`}
+							title={selectedFiles.size > 0
+								? `Move selection to ${crumb.name}`
+								: `Drop media here (or open) — same as sidebar`}
+							use:droppable={dropOptions}
+							onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
+						>
+							{#if isDropTarget || selectedFiles.size > 0}
+								<iconify-icon
+									icon={isDropTarget ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
+									width="16"
+									class="shrink-0 {isDropTarget ? 'text-primary-500' : 'opacity-70'}"
+									aria-hidden="true"
+								></iconify-icon>
+							{/if}
+							<span class="truncate">{crumb.name}</span>
+						</a>
+					{/if}
+				{/each}
+			</nav>
+
+			{#if selectedFiles.size > 0}
+				<p
+					class="pb-2 text-[11px] leading-tight text-surface-500 dark:text-surface-400"
+					role="status"
 				>
-					{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-						{@const isLast = i === breadcrumbs.length - 1}
-						{@const dropKey = crumbDropKey(crumb.folderId)}
-						{@const isDropTarget = !isLast && breadcrumbDropEnabled && dndState.targetContainer === dropKey}
-						{@const canReceiveMove = !isLast}
-
-						{#if i > 0}
-							<iconify-icon
-								icon="mdi:chevron-right"
-								width="16"
-								class="shrink-0 text-surface-400 dark:text-surface-500"
-								aria-hidden="true"
-							></iconify-icon>
-						{/if}
-
-						{#if isLast}
-							<span
-								class="max-w-48 shrink-0 truncate rounded-md px-2 py-2 font-medium text-surface-800 sm:max-w-[16rem] sm:px-1 sm:py-0 dark:text-surface-100"
-								aria-current="page"
-							>{crumb.name}</span>
-						{:else}
-							<a
-								href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
-								class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
-									{isDropTarget
-										? 'bg-primary-500/20 text-primary-600 ring-1 ring-inset ring-primary-500/70 dark:text-primary-500'
-										: selectedFiles.size > 0
-											? 'bg-surface-100 text-surface-800 hover:bg-primary-500/15 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
-											: 'hover:text-primary-500'}"
-								data-preload="hover"
-								data-media-drop-target={dropKey}
-								data-testid={`media-breadcrumb-${dropKey}`}
-								aria-label={selectedFiles.size > 0
-									? `Move ${selectedFiles.size} selected to ${crumb.name}`
-									: `Open folder ${crumb.name}`}
-								title={selectedFiles.size > 0
-									? `Move selection to ${crumb.name}`
-									: canReceiveMove
-										? `Drop media here (or open) — same as sidebar`
-										: crumb.name}
-								use:droppable={{
-									container: dropKey,
-									disabled: !breadcrumbDropEnabled || isCurrentCrumb(crumb.folderId),
-									callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleBreadcrumbDrop(state, crumb.folderId, crumb.name) },
-								}}
-								onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
-							>
-								{#if isDropTarget || selectedFiles.size > 0}
-									<iconify-icon
-										icon={isDropTarget ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
-										width="16"
-										class="shrink-0 {isDropTarget ? 'text-primary-500' : 'opacity-70'}"
-										aria-hidden="true"
-									></iconify-icon>
-								{/if}
-								<span class="truncate">{crumb.name}</span>
-							</a>
-						{/if}
-					{/each}
-				</nav>
-
-				{#if selectedFiles.size > 0}
-					<p
-						class="pb-2 text-[11px] leading-tight text-surface-500 dark:text-surface-400"
-						role="status"
-					>
-						<span class="sm:hidden">
-							Tap a parent above, or drag to open the folder panel and drop
-						</span>
-						<span class="hidden sm:inline">
-							Drop {selectedFiles.size}
-							{selectedFiles.size === 1 ? 'item' : 'items'} on a sidebar folder or breadcrumb parent to move
-						</span>
-					</p>
-				{/if}
-			</div>
-		{:else if selectedFiles.size > 0}
-			<!-- At media root: only sidebar folders are valid destinations for a group move -->
-			<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-move-hint">
-				<p class="border-b border-surface-200 py-2 text-[11px] leading-tight text-surface-500 dark:border-surface-800 dark:text-surface-400" role="status">
-					<span class="sm:hidden">Drag an item to open the folder panel and drop</span>
+					<span class="sm:hidden">
+						Tap a parent above, or drag an item onto a folder
+					</span>
 					<span class="hidden sm:inline">
 						Drop {selectedFiles.size}
-						{selectedFiles.size === 1 ? 'item' : 'items'} on a folder in the sidebar to move
+						{selectedFiles.size === 1 ? 'item' : 'items'} on a sidebar folder or breadcrumb parent to move
 					</span>
 				</p>
-			</div>
-		{/if}
+			{/if}
+		</div>
 
 		<!-- Toolbar -->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
@@ -1120,7 +1125,6 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	<Slot name="media_gallery" />
 
 	<MediaDragPreview />
-	<MediaDragFolderRail activeFolderId={railActiveFolderId} />
 
 	{#if showAdvancedSearch}
 		<Portal>

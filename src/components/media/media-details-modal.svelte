@@ -185,94 +185,23 @@
   });
 
   // ── Inline editable asset field helpers ─────────────────────────────────────
+  // Only the "start editing" setters remain: saving is handled by the debounced
+  // auto-save above (debouncedSaveName/Alt/Caption + *SaveStatus). The old manual
+  // saveName/saveAlt/saveCaption were left behind by a merge — unreferenced, and
+  // still assigning isSavingName/Alt/Caption flags that no longer exist.
   function startEditName() {
     editName = file.metadata?.name || file.filename || '';
     isEditingName = true;
-  }
-  async function saveName() {
-    if (!file?._id) return;
-    isSavingName = true;
-    try {
-      await invalidateAll();
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: 'PATCH',
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
-      });
-      const body = await response.json();
-      if (response.ok && body.success) {
-        file = { ...file, metadata: { ...file.metadata, name: editName } };
-        onUpdate(file);
-        toast.success('Name saved');
-      } else {
-        toast.error(body?.error || 'Failed to save name');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to save name');
-    } finally {
-      isSavingName = false;
-      isEditingName = false;
-    }
   }
 
   function startEditAlt() {
     editAlt = file.metadata?.alt || '';
     isEditingAlt = true;
   }
-  async function saveAlt() {
-    if (!file?._id) return;
-    isSavingAlt = true;
-    try {
-      await invalidateAll();
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: 'PATCH',
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
-      });
-      const body = await response.json();
-      if (response.ok && body.success) {
-        file = { ...file, metadata: { ...file.metadata, alt: editAlt } };
-        onUpdate(file);
-        toast.success('Alt text saved');
-      } else {
-        toast.error(body?.error || 'Failed to save alt text');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to save alt text');
-    } finally {
-      isSavingAlt = false;
-      isEditingAlt = false;
-    }
-  }
 
   function startEditCaption() {
     editCaption = file.metadata?.caption || '';
     isEditingCaption = true;
-  }
-  async function saveCaption() {
-    if (!file?._id) return;
-    isSavingCaption = true;
-    try {
-      await invalidateAll();
-      const response = await fetch(`/api/media/${file._id}`, {
-        method: 'PATCH',
-        headers: clientJsonHeaders(),
-        body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
-      });
-      const body = await response.json();
-      if (response.ok && body.success) {
-        file = { ...file, metadata: { ...file.metadata, caption: editCaption } };
-        onUpdate(file);
-        toast.success('Caption saved');
-      } else {
-        toast.error(body?.error || 'Failed to save caption');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to save caption');
-    } finally {
-      isSavingCaption = false;
-      isEditingCaption = false;
-    }
   }
 
   // ── Info Tab logic ──────────────────────────────────────────────────────────

@@ -3,11 +3,10 @@
  * @description
  * Shared drag-and-drop helpers for moving media into virtual folders.
  *
- * Drop targets (equivalent on desktop and mobile):
- * - Desktop: left-sidebar virtual folder tree + gallery breadcrumb ancestors
- * - Mobile: Lift & Carry folder rail (media-drag-folder-rail.svelte)
- *
- * Both call the same move API with the same multi-id payload.
+ * Drop targets are identical on desktop and mobile: the left-sidebar virtual
+ * folder tree plus the gallery breadcrumbs. On mobile the sidebar is the
+ * overlay drawer, which opens itself while a media drag is in flight
+ * (see media-drag-sidebar.svelte.ts) — there is no separate mobile DnD UI.
  *
  * Transport is @thisux/sveltednd (use:draggable / use:droppable) — dragData
  * travels in-memory via dndState, not a custom DataTransfer MIME type.
@@ -20,7 +19,7 @@
 /** Shared container id for all media drag sources (grid + table items). */
 export const MEDIA_DRAG_CONTAINER = "media-gallery-items";
 
-/** Drop highlight: valid target folder (sidebar + mobile rail). */
+/** Drop highlight: valid target folder (sidebar tree + breadcrumbs). */
 export const MEDIA_DROP_OK = "bg-primary-500/20 ring-1 ring-inset ring-primary-500/60";
 /** Drop highlight: files already live in this folder (drop is a no-op). */
 export const MEDIA_DROP_SAME = "bg-error-500/20 ring-1 ring-inset ring-error-500/60";

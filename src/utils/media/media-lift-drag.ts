@@ -1,7 +1,11 @@
 /**
  * @file src/utils/media/media-lift-drag.ts
  * @description
- * "Lift & Carry" wrapper around sveltednd's `draggable` action for touch input.
+ * Press-and-hold gate around sveltednd's `draggable` action for touch input.
+ *
+ * This is the *gesture* only — the drop targets are the ordinary sidebar folder
+ * tree and breadcrumbs, the same ones desktop uses. (An earlier mobile-only
+ * folder rail was removed; nothing here depends on it.)
  *
  * `draggable` starts a pointer drag on `pointerdown` and sets `touch-action: none`
  * on the node, which makes a touch device unable to scroll a list of draggables.

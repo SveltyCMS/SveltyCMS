@@ -21,7 +21,7 @@
         "@tailwindcss/node": "^4.3.3",
         "@tailwindcss/typography": "^0.5.20",
         "@tailwindcss/vite": "^4.3.3",
-        "@thisux/sveltednd": "github:thisuxhq/sveltednd#sveltednd-v0.7.0",
+        "@thisux/sveltednd": "^0.7.0",
         "@tiptap/core": "^3.29.2",
         "@tiptap/extension-character-count": "^3.29.2",
         "@tiptap/extension-collaboration": "^3.29.2",
@@ -746,7 +746,7 @@
 
     "@testing-library/svelte-core": ["@testing-library/svelte-core@1.1.3", "", { "peerDependencies": { "svelte": "^3 || ^4 || ^5 || ^5.0.0-next.0" } }, "sha512-KkMAvXeWorxN2Yn0kdC1lfoAItxpoj4uOWzxK5leDrNxonLvS5nwBFvztrroyTszQ0Wf/EU6iLT8JhY5qcn22g=="],
 
-    "@thisux/sveltednd": ["@thisux/sveltednd@github:thisuxhq/sveltednd#b66d8dd", { "peerDependencies": { "svelte": "^5.0.0" } }, "thisuxhq-sveltednd-b66d8dd", "sha512-SLLUSJQU6X6c0BWg4JMvPOaQBJPelwRf/bc1ihL4oQqFE517zQzjUFUjeeMiTzLAEi/QpLr72rwuQa+H8Drb4w=="],
+    "@thisux/sveltednd": ["@thisux/sveltednd@0.7.0", "", { "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-3SfZ9DwxyYrwzvMhlHPJoYD8Cvu9K3iSJbJ9+ViUCtjy9M5aYDtodaP/gp/30g0EToiKcGUn5SjvvtRn8WfEnw=="],
 
     "@tiptap/core": ["@tiptap/core@3.29.2", "", { "peerDependencies": { "@tiptap/pm": "3.29.2" } }, "sha512-oKUkiPUB7noilVYxI9lNzUD4rX17sHub+PYjMfHMWHG9A3nvIy+FdePIVIIhThKWF7ijhr3eIqHY51Bn+GAFtw=="],
 

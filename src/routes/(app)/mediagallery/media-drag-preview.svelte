@@ -1,7 +1,12 @@
 <!--
 @file src/routes/(app)/mediagallery/media-drag-preview.svelte
 @component
-**Custom cursor-anchored drag preview for the media gallery (desktop)**
+**Custom cursor-anchored drag preview for the media gallery**
+
+Tracks `pointermove` as well as `dragover`, so it follows a finger on touch
+just as it follows the cursor on desktop. Rendered `pointer-events-none` at
+`z-[9999]` so it paints above the mobile sidebar drawer without ever
+intercepting `elementFromPoint` hit-testing.
 
 `@thisux/sveltednd` has no cursor-following ghost of its own on the native
 HTML5 path — the browser draws its default drag image (a screenshot of the
