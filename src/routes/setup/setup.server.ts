@@ -682,15 +682,21 @@ async function dropDatabase(db: any) {
       password: db.password,
       database: "postgres",
     });
+    // SQL-escape value + identifiers — db.name comes from operator config but is
+    // interpolated into a raw statement (postgres.js unsafe has no identifier binding)
+    const escSql = (v: string) => v.replace(/'/g, "''");
+    const escId = (v: string) => v.replace(/"/g, '""');
     await s
-      .unsafe(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${db.name}'`)
+      .unsafe(
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${escSql(db.name)}'`,
+      )
       .catch(() => {
         logger.debug("PG terminate backend failed silently during database drop");
       });
     try {
-      await s.unsafe(`DROP DATABASE IF EXISTS "${db.name}" WITH (FORCE)`);
+      await s.unsafe(`DROP DATABASE IF EXISTS "${escId(db.name)}" WITH (FORCE)`);
     } catch {
-      await s.unsafe(`DROP DATABASE IF EXISTS "${db.name}"`);
+      await s.unsafe(`DROP DATABASE IF EXISTS "${escId(db.name)}"`);
     }
     await s.end();
   } else if (db.type === "sqlite") {

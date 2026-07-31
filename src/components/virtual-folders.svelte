@@ -36,6 +36,7 @@
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onMount } from 'svelte';
 
@@ -94,7 +95,7 @@
 		try {
 			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					name: newFolderName,
 					parent: currentFolder?._id
@@ -127,7 +128,7 @@
 		try {
 			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ folderId, name: newName })
 			});
 			const result = await response.json();
@@ -149,7 +150,7 @@
 		try {
 			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ folderId })
 			});
 			const result = await response.json();

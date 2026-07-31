@@ -5,6 +5,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { slide } from "svelte/transition";
 import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-types";
 	import Button from '@components/ui/button.svelte';
@@ -50,7 +51,7 @@ async function triggerTransition(targetStateId: string) {
     try {
         const res = await fetch('/api/workflows', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: clientJsonHeaders(),
             body: JSON.stringify({
                 entryId,
                 targetStateId,

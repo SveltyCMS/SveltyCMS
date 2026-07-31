@@ -13,6 +13,7 @@
 
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 
 // ─── Inline helpers (avoid circular import from barrel) ───────────────────
 
@@ -280,11 +281,8 @@ interface Watermark {
 /**
  * Update media metadata via PATCH request.
  *
- * NOTE: This function sends a raw `fetch()` without a CSRF token header.
- * In SveltyCMS the CSRF cookie (`__Host-xsrf` / `__Secure-xsrf`) is set
- * by the server and automatically attached by the browser on same-origin
- * requests. Callers relying on cross-origin fetch or environments that
- * require an explicit `X-CSRF-Token` header should provide it before calling.
+ * CSRF: `clientJsonHeaders()` attaches the X-CSRF-Token header from the
+ * `__Host-csrf_token` / `csrf_token` cookie on every mutation.
  */
 export async function updateMediaMetadata(
   id: string,
@@ -293,7 +291,7 @@ export async function updateMediaMetadata(
   try {
     const res = await fetch(`/api/media/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: clientJsonHeaders(),
       body: JSON.stringify({ metadata: patch }),
     });
 

@@ -1,4 +1,6 @@
 /**
+ * slop:suppress — RegExp patterns interpolate tag names from a hardcoded
+ * DANGEROUS_TAGS constant array (not user input).
  * @file src/utils/media/media-service.server.ts
  * @description Standard media service for SveltyCMS.
  *

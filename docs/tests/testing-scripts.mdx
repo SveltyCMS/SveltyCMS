@@ -110,23 +110,28 @@ bun run test:security
 
 ### `scripts/security-audit.ts` — Unified Security Audit
 
-Master runner that dispatches to engines in `scripts/security/`. Three sub-commands:
+Master runner that dispatches to engines in `scripts/security/` plus the static scanners:
 
 ```bash
 bun run security                        # Scanner against localhost:4173
 bun run security --auth                 # Build + start server + seed + authenticated scan
 bun run security --ci                   # CI mode (exit 1 on findings)
 bun run security --base=http://localhost:3000
+bun run security --secret-scan          # Also run secret misuse scanner
+bun run security --slop                 # Also run code quality slop scanner
+bun run security --cve                  # Also run dependency CVE audit (SBOM refresh + bun audit)
+bun run security --full                 # Run ALL scanners (auth + secret + slop + cve)
 ```
 
 **Engines**:
 
 - `scripts/security/auth.ts` — Authenticated audit (builds, starts production server, seeds admin, runs scanner with `--auth`)
 - `scripts/security/scanner.ts` — OWASP A01-A07 probes (auth bypass, injection, headers, rate limiting, info leakage)
+- `bun audit` (via `--cve`/`--full`) — dependency CVE check across the full lockfile tree, after refreshing `sbom.json`
 
 ### `scripts/scan-secret-misuse.ts` — Secret Misuse Scanner
 
-Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss).
+Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss). Known key formats cover AWS, GitHub, Stripe, Google, OpenAI/Anthropic (`sk-`), Slack (`xox*-`), Hugging Face (`hf_`), JWTs, and private key blocks.
 
 ```bash
 bun run scripts/scan-secret-misuse.ts          # scan all files
@@ -173,7 +178,7 @@ Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxli
 
 **Code quality checks:** XSS (`{@html}`), RTL compatibility, button variant validation, file naming, duplicate content, TODO tracking.
 
-**Security architecture checks (5 rules):**
+**Security architecture checks (6 rules):**
 
 | Rule                  | Detects                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------- |
@@ -182,6 +187,15 @@ Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxli
 | Fast hash for secrets | `createHash("sha256")` used on API keys/tokens — should use HMAC                    |
 | Introspection bypass  | GraphQL introspection gated on `BENCHMARK_MODE` flag in production                  |
 | System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns                        |
+| Request body clone    | `request.clone()` without size limits — OOM risk                                    |
+
+**Client/security consistency checks:**
+
+| Check                 | Detects                                                                                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Raw SQL identifiers   | SQL DML/DDL template literals interpolating identifiers without validation (skips Drizzle `sql.raw`/`sql.identifier` and files that already guard identifiers) |
+| Mutating fetch + CSRF | `fetch("/api/...", { method: POST/PATCH/PUT/DELETE })` without `X-CSRF-Token` — prefer `fetchApi`/`clientJsonHeaders`                                          |
+| RegExp interpolation  | `new RegExp(\`...${input}...\`)` without escaping — regex injection / ReDoS footgun                                                                            |
 
 Use `slop:suppress` in a comment to skip a file.
 

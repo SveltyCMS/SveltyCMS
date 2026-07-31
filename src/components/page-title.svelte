@@ -85,7 +85,9 @@
 
 	const titleParts = $derived.by(() => {
 		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
-			const regex = new RegExp(`(${highlight})`, 'gi');
+			// Escape regex metacharacters — highlight is user-supplied search input
+			const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const regex = new RegExp(`(${escaped})`, 'gi');
 			return name.split(regex);
 		}
 		return [name];

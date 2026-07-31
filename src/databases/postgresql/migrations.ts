@@ -629,7 +629,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
       for (const row of tables) {
         const tableName = row.table_name;
         await sql.unsafe(
-          `ALTER TABLE "${tableName}" ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
+          `ALTER TABLE "${tableName.replace(/"/g, '""')}" ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
         );
       }
     } catch {

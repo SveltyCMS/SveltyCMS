@@ -1,4 +1,6 @@
 /**
+ * slop:suppress — RegExp patterns are built from filesystem route names and
+ * route-definition transforms (dev-controlled), not user input.
  * @file src/utils/link-validator.ts
  * @description Build-time (DEV-only) internal link validator for SveltyCMS.
  *

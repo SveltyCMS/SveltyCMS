@@ -85,7 +85,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline** via git hooks:
-  - **Pre-commit** (`git commit`): check-test-db-safety → format+lint → lint-staged → **unit tests** (~40s). Docs-only commits skip unit tests.
+  - **Pre-commit** (`git commit`): check-test-db-safety → format+lint → lint-staged → **unit tests** (~40s) → **SBOM sync** (auto-regenerates `sbom.json` when `bun.lock`/`package.json` changed). Docs-only commits skip unit tests.
   - **Pre-push** (`git push` / `bun run gate` / `bun run prepush`): production build (4 adapters) → **SQLite integration** (`bun test tests/integration/`) ~5 min. Multi-DB matrix, E2E, and benchmarks are CI-only.
   - **CI** (GitHub PR/push to `next`/`main`): whitebox → build → DB matrix (4 adapters) → core benchmarks → E2E prep + 6 named groups → all-green.
   - Manual: `bun run check`, `bun run test:unit`, `bun run test:security`, `bun run test:doctor` (unit + SQLite integration + gate map), `bun run gate` (pre-push), `bun run test:e2e`.

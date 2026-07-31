@@ -127,6 +127,20 @@ const KNOWN_KEY_PATTERNS: KeyPattern[] = [
   },
   // Google API key
   { name: "Google API Key", regex: /AIza[0-9A-Za-z_-]{35}/g, requireEntropy: false },
+  // OpenAI / Anthropic API keys (sk-... / sk-ant-... / sk-proj-...)
+  {
+    name: "OpenAI/Anthropic API Key",
+    regex: /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{20,}/g,
+    requireEntropy: false,
+  },
+  // Slack tokens (xoxb- / xoxp- / xoxa- / xoxr- / xoxs-)
+  {
+    name: "Slack Token",
+    regex: /\bxox[baprs]-[A-Za-z0-9-]{10,}/g,
+    requireEntropy: false,
+  },
+  // Hugging Face tokens
+  { name: "Hugging Face Token", regex: /\bhf_[A-Za-z0-9]{20,}/g, requireEntropy: false },
 ];
 
 // ─── Exposure patterns (console.log, hardcoded) ─────────────────────────────
@@ -415,14 +429,14 @@ function scanLine(
     );
     if (compareMatch) {
       const value = compareMatch[2];
-      // Skip typeof guards, Svelte templates, and type annotations
+      // Skip typeof guards, Svelte templates, type annotations, and known safe strings
       const isSafe =
         value === "string" ||
         value === "number" ||
         value === "boolean" ||
         /^<[a-z]/.test(value) ||
-        line.trim().endsWith(">");
-      isKnownSafe(value);
+        line.trim().endsWith(">") ||
+        isKnownSafe(value);
       if (!isSafe && value.length >= 4) {
         findings.push({
           file: relPath,

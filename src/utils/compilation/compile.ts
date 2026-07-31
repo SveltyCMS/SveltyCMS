@@ -132,7 +132,9 @@ function normalizeCompiledJsPath(compiledDir: string, jsPath: string): string {
 
   const normalized = jsPath.replace(/\\/g, "/");
   const compiledDirName = path.basename(resolvedDir);
-  const prefixPattern = new RegExp(`^\\.?/?${compiledDirName}/`);
+  // Escape — the build dir name is filesystem-derived and could contain regex metacharacters
+  const escapedDirName = compiledDirName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefixPattern = new RegExp(`^\\.?/?${escapedDirName}/`);
   const relativeInsideCompiled = normalized.replace(prefixPattern, "");
 
   if (relativeInsideCompiled !== normalized) {

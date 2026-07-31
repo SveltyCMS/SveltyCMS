@@ -23,6 +23,7 @@
 	// Utils
 	import { getCollections } from '@utils/api';
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	// Native UI Components
 	import { toast } from '@src/stores/toast.svelte.ts';
 
@@ -248,9 +249,7 @@
 			// Import data
 			const response = await fetch('/api/importData', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					collections: importData,
 					options: importOptions

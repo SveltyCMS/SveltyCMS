@@ -1,5 +1,4 @@
 <!--
-<!--
 @file src/routes/(app)/+layout.svelte
 @component
 **Authenticated Admin Layout**: Wraps all core CMS views (Collections, Media, User Settings).
@@ -56,6 +55,7 @@ import {
 	diffLayoutPrefsFromTenant,
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 	import { onMount, untrack } from "svelte";
 	import { initBounceDetector } from "@utils/bounce-detector";
@@ -212,7 +212,7 @@ $effect(() => {
 		try {
 			await fetch("/api/user/update-user-attributes", {
 				method: "PUT",
-				headers: { "Content-Type": "application/json" },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					user_id: "self",
 					newUserData: { preferences: { theme: { layoutState: diff } } },

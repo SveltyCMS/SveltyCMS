@@ -479,6 +479,160 @@ function scanSecurityPatterns(relPath: string, content: string) {
   }
 }
 
+/**
+ * Detects raw SQL built from interpolated identifiers without validation.
+ * Matches template literals that construct DML/DDL statements where an
+ * identifier is interpolated directly (e.g. `INSERT INTO "${name}"`).
+ *
+ * Drizzle's explicit sql.raw()/sql.identifier()/sql.join() helpers and nested
+ * parameterized sql`` templates are treated as sanctioned and skipped.
+ * The check is keyword-aware so plain template literals (CSS classes, log
+ * messages, toast strings) are NOT flagged — unlike naive "raw SQL" heuristics
+ * that produce false positives on every backtick string.
+ */
+function scanRawSqlRisk(relPath: string, content: string) {
+  if (content.includes("slop:suppress")) return;
+  const hasIdentifierGuard =
+    /\b(?:SAFE_IDENTIFIER|SAFE_IDENT|isSafeIdentifier|validateIdentifier|assertSafeIdentifier|assertSafeSqlIdentifier|assertSqlIdentifier|assertIdentifier|quoteIdentifier|quoteMariaIdentifier|escapeSqlIdentifier|getTableName)\b/.test(
+      content,
+    ) || /\[\^?A-Za-z_\]\[\^?A-Za-z0-9_\]/.test(content);
+  if (hasIdentifierGuard) return;
+  // Strip markdown code blocks and HTML comments — SQL examples in docs are not code
+  const contentNoCodeBlocks = content
+    .replace(/```[\s\S]*?```/g, (m) => "\n".repeat((m.match(/\n/g) || []).length))
+    .replace(/<!--([\s\S]*?)-->/g, (m) => "\n".repeat((m.match(/\n/g) || []).length));
+  const lines = contentNoCodeBlocks.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+    const line = lines[i];
+    if (!line.includes("`") || !line.includes("${")) continue;
+    // SQL statement position: backtick followed by an uppercase SQL DML/DDL verb.
+    // Case-sensitive so English verbs ("Select", "Update") in UI strings don't match.
+    if (
+      !/`\s*(?:INSERT(?:\s+(?:OR\s+IGNORE|INTO))?|UPDATE|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|SELECT)\b/.test(
+        line,
+      )
+    ) {
+      continue;
+    }
+    // Tagged-template literals (pg client tags like raw`...`, pool`...`, sql`...`)
+    // bind interpolations as parameters — they are NOT string interpolation.
+    if (/(?:^|[^\w.])(?:raw|sql|pool|client|query|db|conn|connection)\s*`/.test(line)) {
+      continue;
+    }
+    let flagged = false;
+    for (const m of line.matchAll(/\$\{([^}]*)\}/g)) {
+      const expr = m[1].trim();
+      if (!expr) continue;
+      // Sanctioned Drizzle helpers + nested parameterized templates
+      if (/\bsql\.(?:raw|identifier|join)\s*\(/.test(expr)) continue;
+      if (/\bsql\s*`/.test(expr)) continue;
+      // Identifier escaping (e.g. `name.replace(/"/g, '""')` or an esc*/escape helper)
+      // is a valid guard
+      if (/\.replace\s*\(/.test(expr)) continue;
+      if (/\b(?:esc|escape|escId|escSql|quote)\w*\s*\(/.test(expr)) continue;
+      flagged = true;
+      break;
+    }
+    if (flagged) {
+      report(
+        relPath,
+        i + 1,
+        "security",
+        "Raw SQL with interpolated identifier without validation — use sql.identifier() or validate against /^[A-Za-z_][A-Za-z0-9_]*$/",
+        "warning",
+      );
+    }
+  }
+}
+
+/**
+ * Client-side security consistency checks for Svelte/TS files:
+ * 1. Mutating fetch() to /api without an X-CSRF-Token header.
+ * 2. new RegExp() built from interpolated input without escaping.
+ *
+ * Server-only files (hooks/api/databases/services, *.server.ts) are skipped
+ * for the CSRF check — server-to-server calls don't require CSRF tokens.
+ */
+function scanClientSecurityPatterns(relPath: string, content: string) {
+  if (content.includes("slop:suppress")) return;
+  const isServerSide =
+    /(^|\/)(?:api|hooks|databases|services)\//.test(relPath) ||
+    /\.(?:server|remote|ws)\.(?:ts|js)$/.test(relPath);
+
+  const contentNoCodeBlocks = content.replace(/```[\s\S]*?```/g, (m) =>
+    "\n".repeat((m.match(/\n/g) || []).length),
+  );
+
+  // ── Mutating fetch() without X-CSRF-Token header ──
+  if (!isServerSide) {
+    for (const m of contentNoCodeBlocks.matchAll(/fetch\s*\(\s*([`'"])\/api\/[^`'"]*\1/g)) {
+      // Window covers method + headers of the call (multi-line fetch bodies),
+      // plus a backward lookahead so headers built just before the fetch count
+      const start = Math.max(0, m.index! - 200);
+      const window = contentNoCodeBlocks.slice(start, m.index! + 400);
+      const methodMatch = window.match(/method\s*:\s*["'](GET|POST|PUT|PATCH|DELETE)["']/i);
+      if (!methodMatch) continue; // GET or no explicit method — not a mutation
+      if (methodMatch[1].toUpperCase() === "GET") continue;
+      // Sanctioned helpers (fetchApi / clientJsonHeaders) attach the token themselves
+      if (/X-CSRF-Token|clientJsonHeaders|fetchApi\s*\(/i.test(window)) continue;
+      const lineNo = contentNoCodeBlocks.substring(0, m.index!).split("\n").length;
+      report(
+        relPath,
+        lineNo,
+        "security",
+        `Mutating fetch(${methodMatch[1]}) without X-CSRF-Token header — use fetchApi() or include the token`,
+        "warning",
+      );
+    }
+  }
+
+  // ── new RegExp() from interpolated input (regex injection / ReDoS footgun) ──
+  for (const m of contentNoCodeBlocks.matchAll(/new\s+RegExp\s*\(\s*`([^`]*\$\{[^}]*\}[^`]*)`/g)) {
+    const statement = m[0];
+    const lineNo = contentNoCodeBlocks.substring(0, m.index!).split("\n").length;
+    // Include the surrounding lines — the escape call often lives nearby
+    const splitLines = contentNoCodeBlocks.split("\n");
+    const window =
+      (splitLines[lineNo - 6] ?? "") +
+      "\n" +
+      (splitLines[lineNo - 5] ?? "") +
+      "\n" +
+      (splitLines[lineNo - 4] ?? "") +
+      "\n" +
+      (splitLines[lineNo - 3] ?? "") +
+      "\n" +
+      (splitLines[lineNo - 2] ?? "") +
+      "\n" +
+      (splitLines[lineNo - 1] ?? "") +
+      "\n" +
+      statement;
+    // Escaped input (escape helper, $& replace, inline backslash-escaped
+    // interpolation, or inline esc()/escape() helper call) is fine. The helper
+    // may also be used earlier in the file.
+    const escapeSignal =
+      /escapeRegExp|escapeRegex|\breplace\s*\([^;]*\$&|\\\$\{/.test(window) ||
+      /(?:^|[^\w.])(?:esc|escape)\s*\(/.test(window) ||
+      /\b(?:escapeRegex|escapeRegExp)\b/.test(contentNoCodeBlocks);
+    if (escapeSignal) {
+      continue;
+    }
+    // Interpolated all-caps constants (TAG_PATTERN, MAX_LEN, ...) are
+    // compile-time values, not user input
+    if (/\$\{\s*[A-Z_][A-Z0-9_]*\s*\}/.test(statement)) {
+      continue;
+    }
+    report(
+      relPath,
+      lineNo,
+      "security",
+      "new RegExp() built from interpolated input — escape regex metacharacters to avoid injection/ReDoS",
+      "warning",
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main Router
 // ---------------------------------------------------------------------------
@@ -535,6 +689,9 @@ async function main() {
         scanTodos(rel, content);
         checkFileNaming(rel);
         checkDuplicateContent(rel, content);
+        scanSecurityPatterns(rel, content);
+        scanRawSqlRisk(rel, content);
+        scanClientSecurityPatterns(rel, content);
 
         const size = (await fs.stat(file)).size;
         if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
@@ -556,6 +713,8 @@ async function main() {
         checkFileNaming(rel);
         checkDuplicateContent(rel, content);
         scanSecurityPatterns(rel, content);
+        scanRawSqlRisk(rel, content);
+        scanClientSecurityPatterns(rel, content);
 
         const size = (await fs.stat(file)).size;
         if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
@@ -585,7 +744,7 @@ async function main() {
   if (warnings.length) {
     console.log("\n⚠️  WARNINGS:");
     warnings
-      .slice(0, 25)
+      .slice(0, 1000)
       .forEach((v) => console.log(`  ${v.file}:${v.line} [${v.category}] ${v.message}`));
     if (warnings.length > 25) console.log(`  ... +${warnings.length - 25} more`);
   }

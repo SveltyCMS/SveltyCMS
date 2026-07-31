@@ -17,6 +17,7 @@ import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import type { Snippet } from "svelte";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 
@@ -43,22 +44,7 @@ async function handleRegenerate() {
 	try {
 		const response = await fetch("/api/ai/generate-layout", {
 			method: "POST",
-			headers: (() => {
-				const h: Record<string, string> = { "Content-Type": "application/json" };
-				try {
-					const token =
-						(document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)
-							?.content ||
-						document.cookie
-							.split("; ")
-							.find((r) => r.startsWith("csrf_token=") || r.startsWith("__Host-csrf_token="))
-							?.split("=")[1];
-					if (token) h["X-CSRF-Token"] = decodeURIComponent(token);
-				} catch {
-					/* ignore */
-				}
-				return h;
-			})(),
+			headers: clientJsonHeaders(),
 			body: JSON.stringify({
 				prompt: prompt,
 				contextRules:

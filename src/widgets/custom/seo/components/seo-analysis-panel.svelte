@@ -12,6 +12,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SeoAnalysisResult } from '../seo-types';
 	import { getReadingEaseDescription } from '@src/utils/readability';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	interface Props {
 		analysisResult: SeoAnalysisResult | null;
 		content?: string;
@@ -42,7 +43,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		try {
 			const response = await fetch('/api/seo/link-suggestions', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ content, currentId, collectionId }),
 				signal: abortController.signal
 			});

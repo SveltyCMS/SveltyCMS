@@ -28,6 +28,7 @@ import { tick } from "svelte";
 		import Loader from '@components/ui/loader.svelte';
 		import Select from '@components/ui/select.svelte';
   import { logger } from "@utils/logger";
+  import { clientJsonHeaders } from "@utils/security/client-csrf";
   import { getFieldName } from "@utils/utils";
 
   // Auth & Page data
@@ -174,7 +175,7 @@ import { tick } from "svelte";
     try {
       const res = await fetch("/api/ai/translate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: clientJsonHeaders(),
         body: JSON.stringify({
           text: sourceText,
           sourceLang: sourceLocale,

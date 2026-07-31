@@ -18,6 +18,7 @@ import type { Schema, FieldDefinition } from "@src/content/types";
 import type { WidgetPlaceholder } from "@widgets/placeholder";
 export type { WidgetDefinition, WidgetFactory };
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 
 export type WidgetStatus = "active" | "inactive";
 
@@ -381,7 +382,7 @@ class WidgetState {
       const res = await fetch("/api/widgets/status", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          ...clientJsonHeaders(),
           "X-Tenant-ID": tenantId,
         },
         body: JSON.stringify({ widgetName: name, isActive: active }),

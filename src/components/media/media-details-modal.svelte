@@ -22,6 +22,7 @@
 	  import { toast } from "@src/stores/toast.svelte.ts";
 	  import { mediaUrl } from "@utils/media/media-utils";
 	  import { debounce } from "@utils/debounce";
+  import { clientJsonHeaders } from "@utils/security/client-csrf";
 
   // Props
   let {
@@ -66,7 +67,7 @@
   		try {
   			const response = await fetch(`/api/media/${file._id}`, {
   				method: 'PATCH',
-  				headers: { 'Content-Type': 'application/json' },
+  				headers: clientJsonHeaders(),
   				body: JSON.stringify({ metadata: { ...file.metadata, alt: editAlt } }),
   			});
   			const body = await response.json();
@@ -90,7 +91,7 @@
   		try {
   			const response = await fetch(`/api/media/${file._id}`, {
   				method: 'PATCH',
-  				headers: { 'Content-Type': 'application/json' },
+  				headers: clientJsonHeaders(),
   				body: JSON.stringify({ metadata: { ...file.metadata, name: editName } }),
   			});
   			const body = await response.json();
@@ -114,7 +115,7 @@
   		try {
   			const response = await fetch(`/api/media/${file._id}`, {
   				method: 'PATCH',
-  				headers: { 'Content-Type': 'application/json' },
+  				headers: clientJsonHeaders(),
   				body: JSON.stringify({ metadata: { ...file.metadata, caption: editCaption } }),
   			});
   			const body = await response.json();
@@ -224,7 +225,7 @@
 
       const response = await fetch(`/api/media/${file._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: clientJsonHeaders(),
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
@@ -258,7 +259,7 @@
 
       const response = await fetch(`/api/media/${file._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: clientJsonHeaders(),
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
@@ -293,6 +294,8 @@
     try {
       const response = await fetch(`/api/media/version/${file._id}`, {
         method: "POST",
+        // Token-only header: setting Content-Type here would break the multipart boundary
+        headers: { "X-CSRF-Token": clientJsonHeaders()["X-CSRF-Token"] || "" },
         body: formData,
       });
 
@@ -354,7 +357,7 @@
     try {
       const response = await fetch(`/api/media/version/${file._id}/restore`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: clientJsonHeaders(),
         body: JSON.stringify({ versionNumber }),
       });
 
@@ -406,7 +409,7 @@
     try {
       const response = await fetch(`/api/media/share/${file._id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: clientJsonHeaders(),
         body: JSON.stringify({
           expiryHours: expiryHours,
           password: sharePassword.trim() || undefined,
@@ -442,6 +445,7 @@
     try {
       const response = await fetch(`/api/media/share/${file._id}/${token}`, {
         method: "DELETE",
+        headers: clientJsonHeaders(),
       });
 
       if (response.ok) {

@@ -11,6 +11,7 @@
  */
 
 import type { IDBAdapter } from "@src/databases/db-interface";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
 
 // ── Internal model context (browser-only fallback) ───────────────
@@ -146,7 +147,7 @@ export function registerContentTools(db?: IDBAdapter): void {
         const safeData = { ...params.data, status: "draft" };
         const res = await fetch(`/api/collections/${params.collectionId}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: clientJsonHeaders(),
           body: JSON.stringify(safeData),
           credentials: "include",
         });
@@ -212,7 +213,7 @@ export function registerContentTools(db?: IDBAdapter): void {
         const safeData = { ...params.data, status: "draft" };
         const res = await fetch(`/api/collections/${params.collectionId}/${params.entryId}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: clientJsonHeaders(),
           body: JSON.stringify(safeData),
           credentials: "include",
         });
@@ -248,6 +249,7 @@ export function registerContentTools(db?: IDBAdapter): void {
       try {
         const res = await fetch(`/api/collections/${params.collectionId}/${params.entryId}`, {
           method: "DELETE",
+          headers: clientJsonHeaders(),
           credentials: "include",
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -289,7 +291,7 @@ export function registerContentTools(db?: IDBAdapter): void {
 
         const scoreRes = await fetch("/api/ai/score", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: clientJsonHeaders(),
           body: JSON.stringify({
             content,
             collectionName: params.collectionId,
