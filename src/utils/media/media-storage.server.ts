@@ -119,9 +119,9 @@ export const saveResizedImages = saveResized;
 const _fileExistsCache = new Map<string, { exists: boolean; expires: number }>();
 const FILE_EXISTS_CACHE_TTL = 10_000; // 10 seconds — stale negatives clear quickly
 
-export async function fileExists(rel: string): Promise<boolean> {
+export async function fileExists(rel: string, opts?: { refresh?: boolean }): Promise<boolean> {
   const cached = _fileExistsCache.get(rel);
-  if (cached && Date.now() < cached.expires) {
+  if (!opts?.refresh && cached && Date.now() < cached.expires) {
     return cached.exists;
   }
   const exists = await getStorageAdapter().exists(rel);

@@ -459,7 +459,9 @@ export class MediaService {
       this.mapFileSystemError(err);
       throw err;
     }
-    if (!(await fileExists(relPath))) {
+    // Verify with a cache-bypassing lookup — the pre-write check above cached a
+    // "negative" result (10s TTL) that would otherwise mask the successful write.
+    if (!(await fileExists(relPath, { refresh: true }))) {
       throw new Error(`Media file was not persisted to disk: ${relPath}`);
     }
     return relPath;
