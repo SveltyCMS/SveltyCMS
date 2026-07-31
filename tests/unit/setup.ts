@@ -6,6 +6,7 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
+import { widgetNameToFolder } from "@src/widgets/widget-naming";
 
 const isBun = typeof Bun !== "undefined";
 
@@ -486,7 +487,20 @@ moduleMock("@src/databases/cache/types", () => ({
   default: CacheCategory,
 }));
 
+const mockOnceKeys = new Set<string>();
 const mockLogger = {
+  level: "info" as const,
+  isEnabled: mock((level: string) => {
+    const order = ["none", "fatal", "error", "warn", "info", "debug", "trace"];
+    return order.indexOf(level) <= order.indexOf("info") && order.indexOf(level) > 0;
+  }),
+  isLevel: mock((level: string) => mockLogger.isEnabled(level)),
+  once: mock((key: string, level: string, msg: string, ...args: any[]) => {
+    if (mockOnceKeys.has(key)) return;
+    mockOnceKeys.add(key);
+    const fn = (mockLogger as any)[level];
+    if (typeof fn === "function") fn(msg, ...args);
+  }),
   fatal: mock((msg: any) => {
     if (process.env.VERBOSE_TESTS) console.error(`[FATAL] ${msg}`);
   }),
@@ -499,7 +513,12 @@ const mockLogger = {
   info: mock(() => {}),
   debug: mock(() => {}),
   trace: mock(() => {}),
-  channel: mock(() => mockLogger),
+  channel: mock((name: string) => ({
+    ...mockLogger,
+    once: mock((key: string, level: string, msg: string, ...args: any[]) =>
+      mockLogger.once(`${name}:${key}`, level, msg, ...args),
+    ),
+  })),
   dump: mock(() => {}),
 };
 
@@ -1008,8 +1027,12 @@ if (isBun && !isBenchmark && ENABLE_MOCKS) {
     return {
       coreModules,
       customModules,
+      marketplaceModules: {},
+      widgetComponents: {},
       allWidgetModules,
+      getComponentLoader: () => null,
       getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
+      widgetNameToFolder,
     };
   };
 
@@ -1601,8 +1624,12 @@ setGlobal("mockSetupCheck", mockSetupCheck);
 moduleMock("@src/widgets/scanner", () => ({
   coreModules: {},
   customModules: {},
+  marketplaceModules: {},
+  widgetComponents: {},
   allWidgetModules: {},
+  getComponentLoader: () => null,
   getWidgetNameFromPath: (path: string) => path.split("/").at(-2) || null,
+  widgetNameToFolder,
 }));
 
 moduleMock("@node-saml/node-saml", () => ({

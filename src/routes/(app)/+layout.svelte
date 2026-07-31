@@ -13,7 +13,7 @@ This layout provides the administrative shell, including sidebars and header con
 
 ### Next Steps & Options:
 - Expand/Collapse sidebars for more horizontal space.
-- Use Command Bar (Mod+K) for quick navigation.
+- Use Global Search (Alt+G or Mod+K) for quick navigation.
 - Switch between Content (Collections) and Media Gallery modes.
 -->
 
@@ -24,7 +24,7 @@ import HeaderEdit from "@src/components/header-edit.svelte";
 import LeftSidebar from "@src/components/left-sidebar.svelte";
 import PageFooter from "@src/components/page-footer.svelte";
 import RightSidebar from "@src/components/right-sidebar.svelte";
-import SearchComponent from "@src/components/search-component.svelte";
+import CommandPalette from "@src/components/command-palette.svelte";
 // Type Imports
 import type { User } from "@src/databases/auth/types";
 import type { ContentNode } from "@src/content/types";
@@ -47,7 +47,6 @@ import Slot from "@components/system/slot.svelte";
 import PluginWorkspaceOverlay from "@components/system/plugin-workspace-overlay.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
-import { isSearchVisible } from "@utils/global-search-index";
 import { getTextDirection } from "@utils/utils";
 import { mergeAdminThemeWithUserPrefs } from "@utils/theme-merge";
 import {
@@ -57,11 +56,11 @@ import {
 } from "@utils/layout-state-prefs";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
+import { floatingNavStore } from "@src/stores/floating-nav-store.svelte";
 	import { onMount, untrack } from "svelte";
 	import { initBounceDetector } from "@utils/bounce-detector";
 	import { initPredictivePreload } from "@utils/predictive-preload";
 	import { registerHotkey } from "@src/utils/hotkeys";
-import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
 import { page } from "$app/state";
@@ -134,6 +133,11 @@ const theme = setThemeContext(untrack(() => ({
 $effect(() => {
 	void data.user?.preferences?.theme;
 	userThemePrefs.release();
+});
+
+// Per-user floating nav (system defaults + PageTitle favorites) — bind early so mobile FAB + stars stay in sync
+$effect(() => {
+	floatingNavStore.bindUser(data.user ?? null);
 });
 
 $effect(() => {
@@ -287,21 +291,15 @@ $effect(() => {
 // =============================================
 
 onMount(() => {
-	console.log("[AppLayout] Mounted. User:", data.user?.username || "None");
-
 	// Initialize predictive preloading (physics cone + behavioral smart)
 	initPredictivePreload();
 	initBounceDetector();
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);
 
-	registerHotkey(
-		"mod+k",
-		() => {
-			ui.isCommandBarVisible = !ui.isCommandBarVisible;
-		},
-		"Open command palette (AI-powered)",
-	);
+	// Primary Mod+K + Gin/Coffee-style Alt+G (same on Windows, Linux, macOS)
+	registerHotkey("mod+k", () => ui.toggleGlobalSearch(), "Open global search / command palette");
+	registerHotkey("alt+g", () => ui.toggleGlobalSearch(), "Open global search");
 
 	registerHotkey(
 		"mod+s",
@@ -313,32 +311,30 @@ onMount(() => {
 
 	registerHotkey(
 		"escape",
-		() => {
-			ui.isCommandBarVisible = false;
-			isSearchVisible.set(false);
-		},
+		() => ui.closeGlobalSearch(),
 		"Close Overlays/Command Palette",
 		false,
 	);
-
-	registerHotkey(
-		"alt+s",
-		() => {
-			isSearchVisible.update((v) => !v);
-		},
-		"Toggle Global Search",
-	);
 });
 
-// 🔥 HMR: Listen for collection changes without breaking active sessions.
-// Replaces full-reload — just refreshes content data.
+// 🔥 HMR: Prefer surgical contentStore patch; fall back to soft invalidate.
+// Keeps session, consent, and form context. Avoids full layout data refetch when possible.
 if (import.meta.hot) {
-	import.meta.hot.on("svelty:content-update", () => {
+	import.meta.hot.on("svelty:content-update", async (data?: import("@src/content/content-hmr").ContentHmrPayload) => {
+		if (data?.noOp) return;
+		try {
+			const { applyContentHmrPatch } = await import("@src/content/content-hmr");
+			if (applyContentHmrPatch(data)) {
+				// Surgical upsert applied — no layout load round-trip
+				return;
+			}
+		} catch {
+			// Surgical patch optional — fall back to full content invalidate
+		}
 		invalidate("app:content");
 	});
 	// Theme file sync: refresh theme list when /themes/*.json changes
-	import.meta.hot.on("svelty:theme-update", (data: any) => {
-		console.log(`[AppLayout] Theme file updated: ${data?.name}`);
+	import.meta.hot.on("svelty:theme-update", () => {
 		invalidate("app:content");
 	});
 }
@@ -414,12 +410,8 @@ afterNavigate(() => {
 			--admin-sticky-bar-height: {theme.stickyBarHeight};
 		"
 	>
-		{#if $isSearchVisible}
-			<SearchComponent />
-		{/if}
-
-		{#if ui.isCommandBarVisible}
-			<CommandBar />
+		{#if ui.isCommandBarVisible || ui.isSearchVisible}
+			<CommandPalette />
 		{/if}
 
 		<div class="relative z-0">

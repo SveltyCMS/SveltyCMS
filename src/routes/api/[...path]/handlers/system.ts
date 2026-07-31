@@ -3,6 +3,7 @@
  * @description System, Settings, Widgets, and Utility handlers for the dispatcher.
  */
 
+import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -772,7 +773,7 @@ export async function handleAutomationRoutes(
   }
 
   if (process.env.VERBOSE_TESTS === "true") {
-    console.log(
+    logger.debug(
       `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
     );
   }
@@ -896,18 +897,11 @@ export async function handlePreferenceRoutes(
   };
 
   if (request.method === "GET") {
-    console.log(
-      `[Preference API] GET key: ${key}, scope: ${scope}, userId: ${options.userId}, tenantId: ${options.tenantId}`,
-    );
     const result = await cms.db.system.preferences.get(key, options);
     if (!result.success) {
       throw new AppError(result.message || "Failed to get preference", 500);
     }
-    console.log(
-      `[Preference API] GET Result: success=${result.success}, data=${JSON.stringify(result.data)}`,
-    );
     if (result.data === null) {
-      console.warn(`[Preference API] NOT FOUND: ${key}`);
       throw new AppError("Preference not found", 404);
     }
     return rawResponse(event, result.data);
@@ -915,14 +909,10 @@ export async function handlePreferenceRoutes(
 
   if (request.method === "POST" || request.method === "PUT") {
     const value = body.value !== undefined ? body.value : body;
-    console.log(
-      `[Preference API] SET key: ${key}, value: ${JSON.stringify(value)}, options: ${JSON.stringify(options)}`,
-    );
     const result = await cms.db.system.preferences.set(key, value, {
       ...options,
       category: body.category,
     });
-    console.log(`[Preference API] SET Result: success=${result.success}`);
     if (!result.success) {
       throw new AppError(result.message || "Failed to set preference", 500);
     }

@@ -1,43 +1,50 @@
 ---
 path: "docs/reference/architecture/content-system.mdx"
 title: "Content System Architecture"
-description: "The consolidated content architecture: reactive store, unified engine, loader sandboxing, and real-time SSE sync."
+description: "Reactive store, ContentSync coordinator, loader sandboxing, schema contract, and soft HMR without session loss."
 order: 1
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-07-12"
+updated: "2026-07-31"
 tags:
   - "architecture"
   - "performance"
   - "reactivity"
   - "sse"
+  - "hmr"
 ---
 
 # Content System Architecture (2026 Edition)
 
-The SveltyCMS Content System is a high-performance, reactive engine. The server tier is consolidated into **two modules** — `engine.server.ts` (scan, reconcile, cache, watcher, CRUD) and `loader.server.ts` (path security, native/pooled import, worker pool) — down from 16 files.
+The SveltyCMS Content System is a high-performance, reactive engine. The server tier centers on **`engine.server.ts`** (scan, reconcile, cache, watcher, CRUD), **`loader.server.ts`** (path security + worker pool), and **`sync-content-state.server.ts`** (unified ContentSync for boot, IDE watch, and Collection Builder).
 
 ## 📁 Module Layout (`src/content/`)
 
-| File                              | Role                                                                    |
-| :-------------------------------- | :---------------------------------------------------------------------- |
-| `index.ts`                        | Browser-safe public facade (`contentSystem`, SSE init)                  |
-| `index.server.ts`                 | Server facade + `ensureContentInitialized()` coordinator                |
-| `engine.server.ts`                | Scanner, reconciliation, cache invalidation, dev watcher, CRUD          |
-| `loader.server.ts`                | `loadSchema()`, worker pool, `isSafeCollectionPath()`, `contentRuntime` |
-| `module-worker.server.ts`         | Worker-thread entry (spawned by loader pool; must stay separate)        |
-| `content-utils.ts`                | Navigation tree, metrics, shared pure helpers                           |
-| `content-sse.svelte.ts`           | Client SSE → debounced `contentSystem.refresh()`                        |
-| `types.ts` / `types.generated.ts` | Domain types + build-time collection unions                             |
-| `vite.ts`                         | Vite plugin for `types.generated.ts`                                    |
+| File                              | Role                                                                                        |
+| :-------------------------------- | :------------------------------------------------------------------------------------------ |
+| `index.ts`                        | Browser-safe public facade (`contentSystem`, SSE init)                                      |
+| `index.server.ts`                 | Server facade + `ensureContentInitialized()` + re-exports ContentSync                       |
+| `sync-content-state.server.ts`    | **ContentSync** — `boot` / `compile` / `gui-save` / `watcher` / `collection-save` / reorder |
+| `schema-contract.ts`              | Post-load schema assert (shape, duplicate fields) + optional structure fingerprint helpers  |
+| `engine.server.ts`                | Scanner, reconciliation, cache invalidation, dev watcher, CRUD                              |
+| `loader.server.ts`                | `loadSchema()`, worker pool, `isSafeCollectionPath()`, `contentRuntime`                     |
+| `module-worker.server.ts`         | Worker-thread entry (spawned by loader pool; must stay separate)                            |
+| `content-utils.ts`                | Navigation tree, metrics, shared pure helpers                                               |
+| `content-sse.svelte.ts`           | Client SSE → debounced `contentSystem.refresh()`                                            |
+| `types.ts` / `types.generated.ts` | Domain types + build-time collection unions (`generate-content-types.ts`)                   |
 
 ## 🏗️ The 5 Pillars
 
-### 1. Reactive Store (Client)
+### 1. Reactive Stores (Client)
 
-**File**: `src/stores/content-registry.svelte.ts`  
-Uses **Svelte 5 Runes** (`$state`, `$derived`) as the single source of truth for the content tree. Provides instant, granular UI updates when nodes change.
+| Store                | File                                    | Role                                                                                          |
+| :------------------- | :-------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| **Content registry** | `src/stores/content-registry.svelte.ts` | Global tree + schema catalog; `contentVersion`; `waitForReload()`                             |
+| **Collection store** | `src/stores/collection-store.svelte.ts` | Active collection, mode, form `activeValue`; FNV structure fingerprint; `patchActiveSchema()` |
+| **Consent store**    | `src/stores/consent-store.svelte.ts`    | GDPR prefs (localStorage) — **never cleared by content HMR**                                  |
+
+Content registry uses **Svelte 5 runes** as the single source of truth for the content tree. Soft HMR only runs `invalidate("app:content")` so consent, session cookies, and editor mode survive schema recompiles.
 
 ### 2. Public API Facade (Universal)
 
@@ -51,17 +58,44 @@ Exposes `contentSystem`. Handles initialization, context (`useContent`), and del
 **File**: `src/content/engine.server.ts`  
 The intelligent core. Uses **mtime-based scanning** + schema hashing to skip unchanged files and minimize database writes.
 
-#### Unified refresh API
+#### Unified ContentSync + refresh API
 
-All reload paths go through one function:
+Prefer **`syncContentState`** for boot, filesystem, and GUI entry points. It compiles when needed, refreshes the engine, and returns metrics:
 
 ```typescript
+import { syncContentState } from "@src/content/sync-content-state.server";
 import { refreshContent } from "@src/content/engine.server";
 
-await refreshContent(tenantId, { mode: "full", adapter: db }); // FS ↔ DB reconcile (production)
-await refreshContent(tenantId, { mode: "schemas", adapter: db }); // Schema merge only (benchmarks/setup)
-await refreshContent(tenantId, { mode: "incremental" }); // Dev watcher / hot-reload
+// Boot / drift heal
+await syncContentState({ reason: "boot", tenantId: null, adapter: db });
+
+// IDE edit (Vite) — single-file or fullBuild
+await syncContentState({
+  reason: "watcher",
+  targetFile: "posts.ts",
+  fullBuild: false,
+});
+
+// Collection Builder schema save (holds GUI lock → watcher dedupe)
+await syncContentState({
+  reason: "collection-save",
+  targetFile: "posts.ts",
+  tenantId,
+});
+
+// Engine-only modes (internal / benchmarks)
+await refreshContent(tenantId, { mode: "full", adapter: db });
+await refreshContent(tenantId, { mode: "schemas", adapter: db });
+await refreshContent(tenantId, { mode: "incremental", changedFile: absJsPath });
 ```
+
+| Reason            | Compile                        | Refresh                      | GUI lock         |
+| :---------------- | :----------------------------- | :--------------------------- | :--------------- |
+| `boot`            | On drift                       | Full                         | No               |
+| `watcher`         | Yes (`targetFile` / fullBuild) | Incremental / batched        | Skip if GUI lock |
+| `collection-save` | Yes                            | Incremental / full on rename | Yes              |
+| `gui-save`        | After structure ops            | Structure upsert + SSE       | Yes              |
+| `sidebar-reorder` | No                             | Schemas mode                 | No               |
 
 `contentService.fullReload()` and `refreshCollectionsCache()` remain exported for benchmarks and internal callers.
 
@@ -134,10 +168,11 @@ flowchart TD
         TS["config/collections/**/*.ts<br/>(code-first or GUI-written)"]
     end
 
-    subgraph DevWatch["Vite dev watch"]
+    subgraph DevWatch["Vite + ContentSync"]
         VITE["vite.config.ts · sveltyCmsPlugin<br/>watch + debounce 150ms"]
-        COMPILE["compile()<br/>src/utils/compilation/"]
-        HMR["svelty:content-update HMR<br/>invalidate app:content"]
+        SYNC["syncContentState(watcher)<br/>GUI lock · targetFile · metrics"]
+        COMPILE["compile()<br/>atomic .js · xxhash64 · noOp"]
+        HMR["svelty:content-update<br/>structured payload → invalidate"]
     end
 
     subgraph Compiled["Compiled output"]
@@ -164,8 +199,9 @@ flowchart TD
     end
 
     TS --> VITE
-    VITE --> COMPILE
-    VITE --> HMR
+    VITE --> SYNC
+    SYNC --> COMPILE
+    SYNC --> HMR
     COMPILE --> JS
     COMPILE --> MANIFEST
 
@@ -189,10 +225,10 @@ flowchart TD
 ### Path A — Code / filesystem (e.g. `config/collections/test/posts.ts`)
 
 1. Developer creates folder `config/collections/test/` and moves `posts.ts` into it.
-2. Vite detects the change → `compile()` writes `.compiledCollections/test/posts.js` and updates compile hashes in the manifest.
-3. `enrichSchemaWithMetadata()` sets schema path `/collection/test/posts`.
-4. `generateCategoryNodesFromPaths()` auto-creates a **path-derived** category node for `test` during reconciliation.
-5. `fullReload()` syncs DB + `contentStore`; dev watcher or HMR refreshes sidebar and Collection Builder.
+2. Vite detects the change → `syncContentState({ reason: "watcher", fullBuild })` → `compile()` writes atomic `.compiledCollections/test/posts.js` and updates compile hashes.
+3. Incremental refresh loads the schema via **schema contract**, provisions models for **changed** schemas only, upserts `contentStore`.
+4. `enrichSchemaWithMetadata()` sets schema path `/collection/test/posts`; path-derived categories reconcile as needed.
+5. Structured `svelty:content-update` → client `invalidate("app:content")` when `noOp` is false (no full page reload).
 
 **Filesystem limits:** folder nesting defines category structure; explicit sort order is **not** encoded by the OS. Order comes from DB + optional `collectionOrder` in the manifest (set via GUI Save or sidebar drag → `POST /api/collections/reorder`).
 
@@ -215,7 +251,7 @@ flowchart TD
 | Manifest compile hashes    | Updated on every compile                       | Preserved across compiles                                                                   |
 | Manifest `collectionOrder` | Applied on reconcile; optional via sidebar API | Written explicitly on Save                                                                  |
 | Manifest `structureNodes`  | GUI categories only                            | Written on Save                                                                             |
-| Sidebar + builder refresh  | Vite HMR + watcher + reconcile                 | Save + `invalidate("app:content")`                                                          |
+| Sidebar + builder refresh  | ContentSync watcher + structured HMR           | `collection-save` / `gui-save` + `invalidate` (no full reload)                              |
 
 **Summary:** Both paths are **live and reactive** for UI updates. They are **not identical**:
 
@@ -254,11 +290,16 @@ Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Re
 
 ## 🛡️ Schema Validation & Path Hardening
 
-**Schema Validation** (`validateSchemaFields` in `engine.server.ts`):
+**Schema contract** (`schema-contract.ts` → used by `loader.server.ts`):
 
-- Rejects schemas with missing `name` or empty `fields` array
-- Detects duplicate `db_fieldName` values (prevents silent data corruption)
-- Invalid schemas are logged and skipped — never reach cache or database
+- Normalizes module export → schema object; fills `name` / `_id` from path when missing
+- Hard-fail: non-object, missing `fields` array, duplicate `db_fieldName`
+- Soft: empty `fields` (draft) loads with a debug note; engine may still refuse provision
+
+**Engine hard validation** (`validateSchemaFields` in `engine.server.ts`):
+
+- Rejects missing `name` or empty `fields` before cache/DB
+- Invalid schemas are skipped — last-good runtime state retained
 
 **Path Security** (`isSafeCollectionPath` in `loader.server.ts`):
 
@@ -266,22 +307,43 @@ Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Re
 2. Blocks path traversal outside allowed directories
 3. Enforced in both main process and worker threads
 
+**Compile lock** (`beginGuiCompileSession` / `shouldSkipWatcherSync`):
+
+- Builder writes trigger Vite; lock + cooldown suppress redundant watcher compile
+- Prevents double work and racey dual refresh
+
 ---
 
 ## 🛠️ Developer Experience
 
-- **Zero Restart**: New collection files compile to `.compiledCollections/`, trigger the watcher, incrementally reconcile the DB, and push a live UI update via SSE.
-- **Strong Typing**: The `LocalCMS` SDK provides full TypeScript types for all collection operations.
+- **Zero full reload**: Soft HMR (`invalidate("app:content")`) keeps session, consent, and form mode.
+- **Structured HMR payload**: `{ reason, contentVersion, changedIds, processed, durationMs, noOp }`.
+- **Strong Typing**: `types.generated.ts` via `scripts/generate-content-types.ts` after non-no-op compiles.
 - **Tenant Isolation**: All content operations respect the `tenantId` context from middleware.
-- **Single scanner**: Vite model registration and runtime reconciliation both use `scanCompiledCollections()` from `engine.server.ts` — no divergent scan paths.
+- **Single coordinator**: Vite, builder, and boot all call `syncContentState` — no ad-hoc model loops.
 
 ---
 
 ## Related Documentation
 
-- [Performance Benchmarks](../../project/benchmarks/index.mdx) — measured scan, reload, and reconciliation metrics (single source of truth)
+- [Compilation Pipeline](./compilation-pipeline.mdx) — compile, transformers, ContentSync HMR
+- [Collection Builder Architecture](./collection-builder-architecture.mdx)
+- [Collection Store Data Flow](./collection-store-dataflow.mdx)
+- [Performance Benchmarks](../../project/benchmarks/index.mdx)
 - [Local SDK vs HTTP API](../../development/local-vs-http-api.mdx)
 - [Server Hooks](./server-hooks.mdx)
+
+### Tests
+
+| Layer       | Path                                                  |
+| :---------- | :---------------------------------------------------- |
+| Unit        | `tests/unit/content/sync-content-state.test.ts`       |
+| Unit        | `tests/unit/content/collection-save-sync.test.ts`     |
+| Unit        | `tests/unit/content/schema-contract.test.ts`          |
+| Unit        | `tests/unit/content/content-reconcile.test.ts`        |
+| Integration | `tests/integration/collectionbuilder/*`               |
+| E2E         | `tests/e2e/routes/collection-builder/builder.spec.ts` |
+
 - [State Management & Readiness](./state-management.mdx)
 - [Cache System](./cache-system.mdx)
 - [Content Type System](./content-type-system.mdx)

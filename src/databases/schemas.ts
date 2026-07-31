@@ -3,6 +3,7 @@
  * @description Defines validation schemas for application configuration and base database structures.
  */
 
+import { logger } from "@utils/logger";
 import {
   array,
   boolean,
@@ -114,7 +115,7 @@ export function validateConfig(
   const result = safeParse(schema, config, { abortEarly: false });
   if (result.success) return result.output;
 
-  console.error(`❌ ${configName} validation failed:`, JSON.stringify(result.issues, null, 2));
+  logger.error(`❌ ${configName} validation failed:`, JSON.stringify(result.issues, null, 2));
   process.exit(1);
 }
 

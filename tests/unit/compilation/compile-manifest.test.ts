@@ -56,6 +56,30 @@ describe("compile() manifest integrity", () => {
     await cleanupTempRoots();
   });
 
+  it("writes atomic .js output and reports changedJsPaths / noOp", async () => {
+    const { userCollections, compiledCollections } = await createTempCompileFixture();
+    const result = await compile({
+      userCollections,
+      compiledCollections,
+      logger: quietLogger,
+    });
+    expect(result.processed).toBeGreaterThanOrEqual(1);
+    expect(result.changedJsPaths.length).toBe(result.processed);
+    expect(result.noOp).toBe(false);
+    const out = path.join(compiledCollections, "demo.js");
+    const content = await fs.readFile(out, "utf-8");
+    expect(content.length).toBeGreaterThan(0);
+
+    const second = await compile({
+      userCollections,
+      compiledCollections,
+      logger: quietLogger,
+    });
+    expect(second.skipped).toBeGreaterThanOrEqual(1);
+    expect(second.noOp).toBe(true);
+    expect(second.changedJsPaths).toHaveLength(0);
+  });
+
   it("does not delete freshly compiled output when manifest keys use a different path shape", async () => {
     const { userCollections, compiledCollections } = await createTempCompileFixture();
 

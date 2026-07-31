@@ -445,6 +445,20 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_404_logs_path_tenant" ON "404_logs" ("path", "tenantId");
 
+      -- auth_users email uniqueness: SQLite treats NULL tenantId as distinct in a
+      -- plain unique index, so we need two partial indexes (single-tenant vs
+      -- multi-tenant). Legacy DBs may already carry duplicate emails from the era
+      -- before this constraint existed — dedupe first (keep the oldest account),
+      -- then enforce. The relational createUser() additionally fails closed on
+      -- duplicates so the error is deterministic across adapters.
+      DELETE FROM "auth_users" WHERE "_id" NOT IN (
+        SELECT MIN("_id") FROM "auth_users" GROUP BY "email", COALESCE("tenantId", '')
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_auth_users_email"
+        ON "auth_users" ("email") WHERE "tenantId" IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_auth_users_email_tenant"
+        ON "auth_users" ("email", "tenantId") WHERE "tenantId" IS NOT NULL;
+
       -- Full-text search virtual table (not auto-created by Drizzle ORM)
       -- Keep an internal mirror keyed by _id so we don't depend on nonexistent title/content columns
       -- or SQLite rowid semantics for the text primary key.

@@ -10,6 +10,7 @@
  * - Current version reporting
  */
 
+import { logger } from "@utils/logger";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -47,7 +48,7 @@ export async function handleVersionRoutes(
       404,
     );
   } catch (err: any) {
-    console.error(`[VersionRoute Error] ${segments.join("/")}:`, err);
+    logger.error(`[VersionRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "Version operation failed", 500);
   }

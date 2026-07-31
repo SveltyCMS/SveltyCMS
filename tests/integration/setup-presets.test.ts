@@ -32,7 +32,9 @@ describe("Setup Presets Integration", () => {
       expect(fs.existsSync(targetFile)).toBe(true);
       const content = fs.readFileSync(targetFile, "utf-8");
       expect(content).toContain(`_id: "${collection.name}"`);
-      expect(content).toContain('import { widgets } from "@src/widgets"');
+      // The `@src/widgets` barrel no longer exists — generated files must not
+      // reference it (dead import stripped by the compile transformer).
+      expect(content).not.toContain('import { widgets } from "@src/widgets"');
 
       const compiledFile = path.join(compiledDir, `${collection.name}.js`);
       expect(fs.existsSync(compiledFile)).toBe(true);

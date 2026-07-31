@@ -10,6 +10,7 @@
  * - Graceful fallback: try/catch around context lookup for event handler usage
  */
 
+import { logger } from "@utils/logger";
 import { getContext, setContext, hasContext } from "svelte";
 
 const isServer = typeof window === "undefined";
@@ -61,7 +62,7 @@ export function generateId(prefix = "id"): string {
     if (hasContext(ID_CONTEXT_KEY)) {
       mapToUse = getContext<Map<string, number>>(ID_CONTEXT_KEY);
     } else if (isServer && !isIdGeneratorQuiet()) {
-      console.warn(
+      logger.warn(
         `[id-generator] generateId('${prefix}') called during SSR without initIdGenerator(). ` +
           `Concurrent requests may experience hydration mismatches. Add initIdGenerator() to root +layout.svelte.`,
       );

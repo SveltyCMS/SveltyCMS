@@ -39,7 +39,7 @@ export class PluginRegistry implements IPluginService {
   async register(plugin: Plugin): Promise<DatabaseResult<void>> {
     try {
       if (this.plugins.has(plugin.metadata.id)) {
-        logger.info(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
+        logger.debug(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
       }
 
       this.plugins.set(plugin.metadata.id, {
@@ -136,7 +136,7 @@ export class PluginRegistry implements IPluginService {
         .sort((a, b) => a.version - b.version);
 
       for (const migration of pending) {
-        logger.info(
+        logger.debug(
           `📝 Running plugin migration: ${pluginId} -> ${migration.id} (v${migration.version})`,
         );
         await migration.up(dbAdapter);
@@ -498,7 +498,9 @@ export class PluginRegistry implements IPluginService {
                 `[PluginRegistry] Schema "${schema.name}" from plugin "${pluginId}" should use "${expectedPrefix}" prefix to avoid collisions with core collections`,
               );
             }
-            logger.info(`[PluginRegistry] Plugin "${pluginId}" contributes schema: ${schema.name}`);
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" contributes schema: ${schema.name}`,
+            );
           }
           break;
         }
@@ -612,13 +614,18 @@ export class PluginRegistry implements IPluginService {
     const table = "pluginMigrations";
     try {
       // Use createModel to ensure physical table exists in SQL adapters
-      await dbAdapter.collection.createModel({
-        _id: table,
-        name: table,
-        slug: table,
-        fields: [],
-        status: "publish",
-      } as any);
+      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+      await dbAdapter.collection.createModel(
+        {
+          _id: table,
+          name: table,
+          slug: table,
+          fields: [],
+          status: "publish",
+        } as any,
+        false,
+        withSystemScope("bootstrap"),
+      );
     } catch (error) {
       logger.error(`[PluginRegistry] Failed to ensure migration table:`, error);
     }

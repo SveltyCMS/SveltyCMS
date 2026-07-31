@@ -17,6 +17,7 @@ avoiding third-party API exposure for sensitive URLs (like 2FA secrets).
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
   import { encode } from 'uqr';
   import { cn } from '@utils/cn';
 
@@ -47,7 +48,7 @@ avoiding third-party API exposure for sensitive URLs (like 2FA secrets).
     try {
       return encode(value, { ecc, border: margin });
     } catch (e) {
-      console.error('QR Code generation failed:', e);
+      logger.error('QR Code generation failed:', e);
       return null;
     }
   });

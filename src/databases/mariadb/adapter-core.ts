@@ -541,7 +541,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
         if (debugMode && !isBenchSuite) {
-          console.log(
+          logger.debug(
             `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
           );
         }
@@ -550,7 +550,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
         if (ddl) {
           if (debugMode && !isBenchSuite) {
-            console.log(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
+            logger.debug(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
           }
           await this.raw.execute(ddl);
         }

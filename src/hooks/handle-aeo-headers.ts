@@ -1,13 +1,14 @@
 /**
  * @file src/hooks/handle-aeo-headers.ts
- * @description AEO (Answer Engine Optimization) middleware.
+ * @description
+ * AEO (Answer Engine Optimization) middleware.
  * Adds headers and metadata that help AI crawlers and answer engines
  * understand and cite content correctly.
  *
  * ### Features:
- * - Adds X-Robots-Tag for AI crawlers
- * - Ensures publishedAt/updatedAt are accessible
- * - Adds Vary: Accept for content negotiation
+ * - Marks HTML responses with X-AEO-Enabled for answer engines
+ * - Ensures Vary: Accept for content negotiation / CDN correctness
+ * - Clones response headers (immutable Response safety)
  */
 
 import type { Handle } from "@sveltejs/kit";

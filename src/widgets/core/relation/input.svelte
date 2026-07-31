@@ -27,6 +27,7 @@ Interactive selector with "Select" button and clear functionality
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import { app } from '@src/stores/store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -63,7 +64,7 @@ Interactive selector with "Select" button and clear functionality
 			);
 			return results.filter(Boolean) as Record<string, any>[];
 		} catch (e) {
-			console.error('[RelationInput] Failed to fetch entries:', e);
+			logger.error('[RelationInput] Failed to fetch entries:', e);
 			return [];
 		}
 	}

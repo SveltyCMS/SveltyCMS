@@ -1,24 +1,24 @@
 /**
  * @file src/hooks/handle-authentication.ts
- * @description Enterprise-grade authentication middleware with session validation, rotation, and multi-tenancy.
+ * @description
+ * Enterprise-grade authentication middleware with session validation, rotation, and multi-tenancy.
  *
- * @summary This hook runs after handleSystemState and handleSetup confirm the system is ready. It provides:
+ * Runs after handleSystemState confirms the system is ready. Provides:
  * - **Session Management**: Validates session cookies with 3-layer caching (in-memory → Redis → database)
  * - **Security Token Rotation**: Automatic token rotation for active sessions (prevents session hijacking)
  * - **Multi-tenancy**: Hostname-based tenant identification with strict isolation
  * - **Memory Optimization**: LRU cache with TTL-based eviction (no WeakRef GC flakiness)
  * - **Rate Limiting**: Session rotation rate limits to prevent abuse
- * - **Metrics Integration**: Comprehensive tracking via metrics-service *
+ * - **Metrics Integration**: Comprehensive tracking via metrics-service
  *
- * ### Features
- * - Session rotation every 15 minutes for active users (industry best practice)
- - LRU session cache (top 10,000 hot sessions) with TTL eviction
+ * ### Features:
+ * - Session rotation every 15 minutes for active users
+ * - LRU session cache (top 10,000 hot sessions) with TTL eviction
  * - Tenant isolation enforcement (prevents cross-tenant access)
- * - Rate-limited refresh attempts (100/min per IP)
- * - Automatic cleanup of expired sessions
- * - Zero-downtime session validation
+ * - API key auth with usage tracking via `getClientIp()` (no XFF spoofing)
+ * - Turbo GET hand-off when `__turboAuth` is already resolved
  *
- * @prerequisite handleSystemState and handleSetup have already confirmed readiness
+ * @prerequisite handleSystemState has already confirmed readiness
  */
 
 import type { ISODateString } from "@databases/db-interface";
@@ -76,7 +76,7 @@ function getCookiePath(): string {
   return "/";
 }
 
-import { getRequestFlags } from "@utils/hook-utils";
+import { getClientIp, getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { dev } from "$app/environment";
@@ -257,14 +257,16 @@ async function getUserFromSession(
     const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
 
     if (!sessionResult?.success) {
-      logger.info(
-        `[AuthDebug] getSessionTokenData returned false success for sessionId=${sessionId}. Result=${JSON.stringify(sessionResult)}`,
+      logger.debug(
+        `[Auth] getSessionTokenData unsuccessful for sessionId=${sessionId.slice(0, 12)}...`,
       );
       return null;
     }
 
     if (!sessionResult.data) {
-      logger.info(`[AuthDebug] getSessionTokenData returned null data for sessionId=${sessionId}`);
+      logger.debug(
+        `[Auth] getSessionTokenData returned null data for sessionId=${sessionId.slice(0, 12)}...`,
+      );
       negativeCache.add(sessionId);
       return null;
     }
@@ -568,7 +570,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       // 🛡️ Guard: wrap session validation in try-catch so malformed/invalid session
       // cookies don't crash the server (integration tests inject poisoned values).
       try {
-        logger.info(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
+        logger.debug(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
         metricsService.incrementAuthValidations();
         if (!auth) {
           logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
@@ -576,11 +578,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         }
 
         const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
-        logger.info(
-          `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) : "NULL"} path=${event.url.pathname}`,
-        );
-        logger.info(
-          `[Auth] getUserFromSession result: ${user ? maskEmail(user.email) + " (" + user.role + ")" : "null"}, tenantId=${locals.tenantId}`,
+        logger.debug(
+          `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) + " (" + user.role + ")" : "NULL"} path=${event.url.pathname} tenantId=${locals.tenantId}`,
         );
 
         if (isDemoMode && !locals.tenantId && !user) {
@@ -662,7 +661,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         }
       }
     } else {
-      logger.info(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
+      logger.debug(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
     }
 
     // 3. API Token Authentication (Bearer) - Hardened for 2026 Retro-compatibility
@@ -687,9 +686,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             logger.debug(`[Auth] Authenticated via API Key (Cache Hit)`);
 
             // Fire-and-forget: update usage statistics in the background
-            const clientIp = event.getClientAddress
-              ? event.getClientAddress()
-              : event.request.headers.get("x-forwarded-for") || undefined;
+            // getClientIp uses platform address only — never trust raw X-Forwarded-For
+            const clientIp = getClientIp(event);
             dbAdapter.auth
               .updateApiKeyUsage(
                 (cachedKeyData.user._id as string).replace("apikey:", "") as DatabaseId,
@@ -754,9 +752,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                 ).catch((err: any) => logger.warn(`Failed to cache API Key: ${err.message}`));
 
                 // Fire-and-forget: update usage count and last used IP
-                const clientIp = event.getClientAddress
-                  ? event.getClientAddress()
-                  : event.request.headers.get("x-forwarded-for") || undefined;
+                // getClientIp uses platform address only — never trust raw X-Forwarded-For
+                const clientIp = getClientIp(event);
                 dbAdapter.auth
                   .updateApiKeyUsage(apiKey._id, clientIp, {
                     tenantId: locals.tenantId,

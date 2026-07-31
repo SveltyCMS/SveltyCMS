@@ -362,7 +362,7 @@ export function invalidateCollectionCache(collectionId: string): void {
       dataCache.delete(key);
     }
   }
-  logger.info(`[Cache] Invalidated for collection ${collectionId}`);
+  logger.debug(`[Cache] Invalidated for collection ${collectionId}`);
 }
 
 /**
@@ -384,10 +384,10 @@ export async function getData(query: {
   const cached = dataCache.get(cacheKey);
 
   if (cached && isCacheValid(cached)) {
-    logger.info(`[Cache] HIT for ${cacheKey}`);
+    logger.debug(`[Cache] HIT for ${cacheKey}`);
     return { success: true, data: cached.data };
   }
-  logger.info(`[Cache] MISS for ${cacheKey}`);
+  logger.debug(`[Cache] MISS for ${cacheKey}`);
 
   const { collectionId, ...params } = query;
   const searchParams = new URLSearchParams(params as Record<string, string>).toString();
@@ -412,7 +412,7 @@ export async function getData(query: {
       timestamp: Date.now(),
       ttl: CACHE_TTL_MS,
     });
-    logger.info(`[getData] Cached successfully. Items: ${result.data.items.length}`);
+    logger.debug(`[getData] Cached successfully. Items: ${result.data.items.length}`);
   }
 
   return result;

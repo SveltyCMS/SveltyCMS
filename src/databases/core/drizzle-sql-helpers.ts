@@ -585,6 +585,7 @@ function addSingleCondition(
   value: any,
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
+  operators?: Record<string, unknown>,
 ) {
   let col = getColumn(table, field);
   if (!col) {
@@ -627,6 +628,29 @@ function addSingleCondition(
       break;
     case "$in":
       conditions.push(inArray(col, Array.isArray(val) ? val : [val]));
+      break;
+    case "$regex": {
+      // Mongo-style substring regex → SQL LIKE. Escape LIKE wildcards so user
+      // input (e.g. "a.b" or "%" in search boxes) is matched literally.
+      // An explicit `ESCAPE '\'` clause is required on SQLite (no default escape
+      // char) and harmless on MySQL/Postgres (which default to backslash).
+      const raw = String(val ?? "");
+      const escaped = raw.replace(/[\\%_]/g, (m) => `\\${m}`);
+      const pattern = `%${escaped}%`;
+      const caseInsensitive = String(operators?.["$options"] ?? "")
+        .toLowerCase()
+        .includes("i");
+      // Postgres LIKE is case-sensitive — use lower() on both sides for $options:"i"
+      // (SQLite/MySQL LIKE are already case-insensitive by default).
+      conditions.push(
+        caseInsensitive
+          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE '\\'`
+          : sql`${col} LIKE ${pattern} ESCAPE '\\'`,
+      );
+      break;
+    }
+    case "$options":
+      // Paired with $regex above (Mongo syntax); no standalone SQL meaning.
       break;
     default:
       conditions.push(eq(col, val));
@@ -674,7 +698,7 @@ function addFilterConds(
         if (!Object.prototype.hasOwnProperty.call(value, subKey)) continue;
         const subValue = value[subKey];
         if (subKey.startsWith("$")) {
-          addSingleCondition(out, table, key, subKey, subValue, getColumn, getJsonField);
+          addSingleCondition(out, table, key, subKey, subValue, getColumn, getJsonField, value);
           handled = true;
         } else {
           addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);

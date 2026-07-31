@@ -116,7 +116,7 @@ async function prefetchFirstCollection() {
 	try {
 		await preloadData(firstCollectionPath);
 	} catch (error) {
-		console.error("Prefetch failed:", error);
+		logger.error("Prefetch failed:", error);
 	}
 }
 

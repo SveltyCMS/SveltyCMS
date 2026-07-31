@@ -4,6 +4,7 @@
  * Uses svelte-realtime for high-performance WebSocket communication.
  */
 
+import { logger } from "@utils/logger";
 import type { AutomationEventPayload } from "@src/services/background/automation/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -117,7 +118,7 @@ class CollaborationStore {
               return unsubscribeChat;
             } catch (err) {
               this.isConnected = false;
-              console.debug(
+              logger.debug(
                 "[CollaborationStore] chat stream unavailable:",
                 err instanceof Error ? err.message : String(err),
               );
@@ -152,7 +153,7 @@ class CollaborationStore {
       // Silently handle initialization failures — the collaboration panel
       // will show as "offline" without crashing the app.
       this.isConnected = false;
-      console.debug(
+      logger.debug(
         "[CollaborationStore] Initialization skipped:",
         err instanceof Error ? err.message : String(err),
       );
@@ -205,7 +206,7 @@ class CollaborationStore {
         history,
       });
     } catch (err) {
-      console.error("RTC: Send message error", err);
+      logger.error("RTC: Send message error", err);
       toast.error({ title: "Error", description: "Failed to send message" });
     }
   }

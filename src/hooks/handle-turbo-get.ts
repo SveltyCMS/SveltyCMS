@@ -1,6 +1,22 @@
 /**
  * @file src/hooks/handle-turbo-get.ts
- * @description Turbo GET fast-path serving pre-compressed cached responses, including zstd.
+ * @description
+ * Turbo GET fast-path serving pre-compressed cached responses, including zstd.
+ *
+ * Short-circuits authenticated GET/HEAD/OPTIONS on cacheable API prefixes when:
+ * 1. A valid session cookie maps to a warm turbo auth context, and
+ * 2. `cacheService.getSync` has a body (plain string/bytes or rich entry with
+ *    optional pre-compressed buffers per algorithm).
+ *
+ * ### Features:
+ * - Session-scoped turbo auth cache (TTL + LRU, max 1000 entries)
+ * - Cookie precedence: `__Host-` → `__Secure-` → bare session name
+ * - Pre-compressed cache hits (br/gzip/deflate/zstd) via `entry.compressed[algo]`
+ * - Sync on-the-fly compression fallback (including zstd) via handle-compression
+ * - Security headers applied on the turbo response (same as full pipeline)
+ * - `__turboAuth` flag so auth/audit layers skip redundant session resolution
+ *
+ * Placed early in `hooks.server.ts` so hot GETs avoid full auth + handler work.
  */
 
 import type { Handle } from "@sveltejs/kit";
@@ -10,12 +26,12 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
-import { dev } from "$app/environment";
 import {
   negotiateEncoding,
   compressSync,
   hasNativeCompression,
   setCompressionHeaders,
+  type CompressionAlgorithm,
 } from "./handle-compression";
 
 interface TurboAuthContext {
@@ -24,6 +40,12 @@ interface TurboAuthContext {
   bitset: Uint32Array;
   tenantId: DatabaseId | null;
   expiresAt: number;
+}
+
+/** Rich cache entry shape: raw body + optional pre-compressed variants. */
+interface TurboCacheRichEntry {
+  body?: string | Uint8Array | null;
+  compressed?: Partial<Record<CompressionAlgorithm, Uint8Array>>;
 }
 
 const turboAuthCache = new Map<string, TurboAuthContext>();
@@ -48,6 +70,10 @@ const CACHEABLE_API_PREFIXES = [
   "/api/website-tokens",
 ];
 
+/**
+ * Store (or refresh) turbo auth context for a session.
+ * Re-inserts existing keys for LRU order; evicts oldest when at capacity.
+ */
 export function setTurboAuthContext(
   sessionId: string,
   user: User,
@@ -55,10 +81,14 @@ export function setTurboAuthContext(
   bitset: Uint32Array,
   tenantId: DatabaseId | null,
 ): void {
-  if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX) {
+  if (turboAuthCache.has(sessionId)) {
+    // Re-insert to refresh LRU position
+    turboAuthCache.delete(sessionId);
+  } else if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX) {
     const firstKey = turboAuthCache.keys().next().value;
     if (firstKey) turboAuthCache.delete(firstKey);
   }
+
   turboAuthCache.set(sessionId, {
     user,
     roles,
@@ -68,9 +98,28 @@ export function setTurboAuthContext(
   });
 }
 
+/**
+ * Gets cached auth context with absolute-expiry check and LRU refresh.
+ */
+function getTurboAuthContext(sessionId: string): TurboAuthContext | null {
+  const ctx = turboAuthCache.get(sessionId);
+  if (!ctx) return null;
+
+  if (Date.now() > ctx.expiresAt) {
+    turboAuthCache.delete(sessionId);
+    return null;
+  }
+
+  // LRU refresh: re-insert key to mark it most-recently used
+  turboAuthCache.delete(sessionId);
+  turboAuthCache.set(sessionId, ctx);
+  return ctx;
+}
+
 export function invalidateTurboAuthContext(sessionId: string): void {
   turboAuthCache.delete(sessionId);
 }
+
 export function clearTurboAuthCache(): void {
   turboAuthCache.clear();
 }
@@ -88,11 +137,10 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   const flags = getRequestFlags(locals);
 
   if (flags.isStatic || flags.isBootstrap) return resolve(event);
-
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
 
-  // Prioritize most restrictive cookie prefixes first to prevent token spoofing
+  // Most restrictive cookie prefixes first — prevent token spoofing via bare name
   const sessionId =
     cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
     cookies.get(`__Secure-${SESSION_COOKIE_NAME}`) ||
@@ -100,32 +148,31 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   if (!sessionId) return resolve(event);
 
-  const turboCtx = turboAuthCache.get(sessionId);
-  if (!turboCtx || Date.now() > turboCtx.expiresAt) {
-    if (turboCtx) turboAuthCache.delete(sessionId);
-    return resolve(event);
-  }
+  const turboCtx = getTurboAuthContext(sessionId);
+  if (!turboCtx) return resolve(event);
 
   locals.user = turboCtx.user;
   locals.roles = turboCtx.roles;
   locals.tenantId = turboCtx.tenantId;
-  (locals as any).__turboAuth = true;
+  (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
   const cacheKey = url.pathname + url.search;
-  const cachedResponse: any = cacheService.getSync<string>(cacheKey, turboCtx.tenantId);
+  const cachedResponse = cacheService.getSync<string | Uint8Array | TurboCacheRichEntry>(
+    cacheKey,
+    turboCtx.tenantId,
+  );
   if (!cachedResponse) return resolve(event);
 
-  if (dev) {
-    const duration = performance.now() - ((locals as any).requestStart || performance.now());
-    console.log(`[TurboGET] ${method} ${cacheKey} → HIT (${duration.toFixed(2)}ms)`);
-  }
+  // Cache HIT is intentionally silent at default info — use turbo pipeline debug logs when diagnosing
 
   const responseHeaders = new Headers({
     "Content-Type": "application/json",
     "X-Cache": "TURBO-HIT",
     "Cache-Control": "private, must-revalidate",
-    Vary: "Accept-Encoding",
+    // Cookie in Vary: tenant/session-scoped payloads must not be shared across users
+    Vary: "Accept-Encoding, Cookie",
   });
+
   applyAllSecurityHeaders(
     responseHeaders,
     url.protocol === "https:",
@@ -138,33 +185,40 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     cachedResponse !== null &&
     !(cachedResponse instanceof Uint8Array) &&
     !Buffer.isBuffer(cachedResponse);
-  const entry = isRichEntry ? cachedResponse : null;
-  const rawBody: string | Uint8Array | null = isRichEntry
-    ? (cachedResponse.body ?? null)
-    : cachedResponse;
-  let bodyToSend: BodyInit | Uint8Array = rawBody as any;
 
-  if (rawBody && typeof rawBody === "string") {
+  const entry = isRichEntry ? (cachedResponse as TurboCacheRichEntry) : null;
+  const rawBody: string | Uint8Array | null = isRichEntry
+    ? ((cachedResponse as TurboCacheRichEntry).body ?? null)
+    : (cachedResponse as string | Uint8Array);
+
+  let bodyToSend: BodyInit | Uint8Array | null = rawBody;
+
+  if (rawBody) {
     const acceptEncoding = request.headers.get("Accept-Encoding") || "";
     const algo = negotiateEncoding(acceptEncoding, hasNativeCompression());
-    const payloadSize = Buffer.byteLength(rawBody, "utf-8");
+
+    const payloadSize =
+      typeof rawBody === "string" ? Buffer.byteLength(rawBody, "utf-8") : rawBody.byteLength;
 
     if (algo && payloadSize > 1024) {
       try {
-        // Support all pre-compressed formats including zstd
+        // Fast-path 1: Use pre-compressed buffer from cache entry
         const preallocatedBytes = entry?.compressed?.[algo];
+
         if (preallocatedBytes) {
           bodyToSend = preallocatedBytes;
           setCompressionHeaders(responseHeaders, algo, payloadSize, preallocatedBytes.length);
-        } else if (["br", "gzip", "deflate"].includes(algo)) {
-          const compressed = compressSync(rawBody, algo as any);
+        } else {
+          // Fast-path 2: Sync dynamic compression fallback (including zstd)
+          const compressed = compressSync(rawBody, algo as CompressionAlgorithm, payloadSize);
+
           if (compressed && compressed.length < payloadSize) {
             bodyToSend = compressed;
             setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
           }
         }
       } catch {
-        /* fall through to raw */
+        /* fall back to raw uncompressed body */
       }
     }
   }

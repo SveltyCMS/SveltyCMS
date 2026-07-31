@@ -13,6 +13,7 @@
  */
 // realtime-allow-public
 
+import { logger } from "@utils/logger";
 import { live } from "svelte-realtime/server";
 import { browser } from "$app/environment";
 
@@ -132,7 +133,7 @@ function installEventBusBridge(): void {
     })
     .catch((err) => {
       // Non-fatal during tests / partial boot
-      console.error("[live/system] Failed to install EventBus bridge:", err);
+      logger.error("[live/system] Failed to install EventBus bridge:", err);
     });
 }
 

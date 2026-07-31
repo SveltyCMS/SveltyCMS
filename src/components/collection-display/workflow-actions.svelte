@@ -3,6 +3,7 @@
 @component Workflow Transition Controls for Content Entries
  -->
 <script lang="ts">
+import { logger } from "@utils/logger";
 import { onMount } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
@@ -40,7 +41,7 @@ onMount(async () => {
         if (wfData.success) workflow = wfData.data;
         if (instData.success) instance = instData.data;
     } catch (err) {
-        console.error("Failed to load workflow data:", err);
+        logger.error("Failed to load workflow data:", err);
     } finally {
         loading = false;
     }

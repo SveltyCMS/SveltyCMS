@@ -97,7 +97,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 <!-- Active filter badges (above column inputs) -->
 {#if hasActive}
 	<tr class="border-b border-surface-200/80 dark:border-surface-700">
-		<th colspan={headers.length + 1} class="!p-2">
+		<th colspan={headers.length + 1} class="p-2!">
 			<div
 				class="flex flex-wrap items-center gap-2"
 				role="status"

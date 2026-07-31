@@ -467,7 +467,7 @@ export async function seedPresetCollections(
   const schemas = await getWizardPresetSchemas(preset);
   if (schemas.length === 0) return [];
 
-  logger.info(`📦 Seeding ${schemas.length} preset collections (preset: ${preset})...`);
+  logger.debug(`📦 Seeding ${schemas.length} preset collections (preset: ${preset})...`);
 
   for (const schema of schemas) {
     try {
@@ -482,7 +482,7 @@ export async function seedPresetCollections(
     }
   }
 
-  logger.info(`✅ ${schemas.length} preset collections seeded`);
+  logger.debug(`✅ ${schemas.length} preset collections seeded`);
 
   const presetDef = PRESETS.find((p) => p.id === preset);
   if (presetDef?.collections?.length) {
@@ -512,13 +512,15 @@ export async function seedDefaultTheme(
     if (Array.isArray(existingThemes) && existingThemes.length > 0) return;
 
     // Seed the default theme
-    logger.info(`🎨 Seeding default theme${tenantId ? ` for tenant ${tenantId}` : ""}...`);
+    logger.debug(`🎨 Seeding default theme${tenantId ? ` for tenant ${tenantId}` : ""}...`);
     const themeToStore = {
       ...defaultTheme,
       ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
     await dbAdapter.system.themes.storeThemes([themeToStore], options);
-    logger.info(`✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`);
+    logger.debug(
+      `✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`,
+    );
   } catch (error) {
     logger.error(
       `Failed to seed default theme${tenantId ? ` for tenant ${tenantId}` : ""}:`,
@@ -538,7 +540,7 @@ export async function seedRoles(
   tenantId?: string | null,
   options?: BaseQueryOptions,
 ): Promise<void> {
-  logger.info(`🔐 Seeding default roles${tenantId ? ` for tenant ${tenantId}` : ""}...`);
+  logger.debug(`🔐 Seeding default roles${tenantId ? ` for tenant ${tenantId}` : ""}...`);
 
   if (!dbAdapter?.auth) {
     throw new Error("Database adapter or auth interface not available");
@@ -561,9 +563,16 @@ export async function seedRoles(
             : (await import("node:crypto")).randomUUID();
         const roleId = (tenantId ? uuid : role._id) as DatabaseId;
 
-        // Check if role already exists
+        // Check if role already exists — by stable id OR by name (case-insensitive).
+        // Name matching is required because older seeds/adapters stored roles under
+        // generated ids (createRole historically ignored the passed _id), so an
+        // id-only check silently duplicated the default set on every seed call.
         const existingRoles = await dbAdapter.auth.getAllRoles(options);
-        const exists = existingRoles.some((r: any) => r._id === roleId);
+        const exists = existingRoles.some(
+          (r: any) =>
+            r._id === roleId ||
+            String(r.name ?? "").toLowerCase() === String(role.name ?? "").toLowerCase(),
+        );
         if (exists) {
           logger.debug(`⏩ Role "${role.name}" (${roleId}) already exists, skipping.`);
           return;
@@ -609,7 +618,9 @@ export async function seedRoles(
 
     await Promise.all(rolePromises);
 
-    logger.info(`✅ Default roles seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`);
+    logger.debug(
+      `✅ Default roles seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`,
+    );
   } catch (error) {
     logger.error(`Failed to seed roles${tenantId ? ` for tenant ${tenantId}` : ""}:`, error);
     throw error;
@@ -628,7 +639,7 @@ export async function seedCollectionsForSetup(
   options?: BaseQueryOptions,
 ): Promise<{ firstCollection: { name: string; path: string } | null }> {
   const overallStart = performance.now();
-  logger.info(
+  logger.debug(
     `📦 Seeding collections from filesystem${tenantId ? ` for tenant ${tenantId}` : ""}...`,
   );
 
@@ -656,11 +667,11 @@ export async function seedCollectionsForSetup(
     );
 
     if (collections.length === 0) {
-      logger.info("ℹ️  No collections found in filesystem, skipping collection seeding");
+      logger.debug("ℹ️  No collections found in filesystem, skipping collection seeding");
       return { firstCollection: null };
     }
 
-    logger.info(`Found ${collections.length} collections to seed`);
+    logger.debug(`Found ${collections.length} collections to seed`);
 
     let successCount = 0;
     let skipCount = 0;
@@ -679,7 +690,7 @@ export async function seedCollectionsForSetup(
           await dbAdapter.collection.createModel(schema, false, options);
 
           const createTime = performance.now() - createStart;
-          logger.info(
+          logger.debug(
             `✅ Created collection model: ${schema.name || "unknown"} (${createTime.toFixed(0)}ms)`,
           );
           successCount++;
@@ -732,7 +743,7 @@ export async function seedCollectionsForSetup(
     // Step 5: PERSISTENCE - Populate contentNodes table so content-manager sees them immediately
     // This ensures skipReconciliation: true in content-manager works correctly after setup.
     try {
-      logger.info("🌳 Generating category nodes and mapping structure...");
+      logger.debug("🌳 Generating category nodes and mapping structure...");
       const utilsMod = await import("@src/content/content-utils");
       const genFn =
         utilsMod.generateCategoryNodesFromPaths ||
@@ -787,7 +798,7 @@ export async function seedCollectionsForSetup(
       }
 
       if (updates.length > 0) {
-        logger.info(`💾 Persisting ${updates.length} content nodes to database...`);
+        logger.debug(`💾 Persisting ${updates.length} content nodes to database...`);
         const structResult = await dbAdapter.content.nodes.bulkUpdate(updates, {
           tenantId: tenantId as DatabaseId,
           bypassTenantCheck: true,
@@ -795,7 +806,7 @@ export async function seedCollectionsForSetup(
           transaction: options?.transaction,
         });
         if (structResult.success) {
-          logger.info(`✅ Successfully persisted ${structResult.data.length} content nodes.`);
+          logger.debug(`✅ Successfully persisted ${structResult.data.length} content nodes.`);
         } else {
           logger.warn(
             "⚠️ Failed to persist content nodes:",
@@ -814,34 +825,18 @@ export async function seedCollectionsForSetup(
 
     const overallTime = performance.now() - overallStart;
 
-    logger.info(`✅ Collections seeding completed: ${successCount} created, ${skipCount} skipped`);
-    logger.info(`⏱️  Model creation time: ${modelCreationTime.toFixed(2)}ms`);
-    logger.info(`⏱️  Total seed time: ${overallTime.toFixed(2)}ms`);
+    logger.debug(`✅ Collections seeding completed: ${successCount} created, ${skipCount} skipped`);
+    logger.debug(`⏱️  Model creation time: ${modelCreationTime.toFixed(2)}ms`);
+    logger.debug(`⏱️  Total seed time: ${overallTime.toFixed(2)}ms`);
 
     return { firstCollection };
   } catch (error) {
     const overallTime = performance.now() - overallStart;
-    if (error instanceof Error) {
-      logger.error(
-        `Failed to seed collections after ${overallTime.toFixed(2)}ms: ${error.message}`,
-      );
-      if (error.stack) {
-        logger.debug("Stack trace:", error.stack);
-      }
-    } else {
-      // Enhanced error logging for non-Error objects
-      logger.error(
-        `Failed to seed collections after ${overallTime.toFixed(2)}ms. Error type: ${typeof error}`,
-      );
-      if (typeof error === "object") {
-        try {
-          logger.error(`Error object: ${JSON.stringify(error)}`);
-        } catch {
-          logger.error("Could not stringify error object");
-        }
-      } else {
-        logger.error(`Error value: ${String(error)}`);
-      }
+    const message = error instanceof Error ? error.message : String(error);
+    // Single investigation entry — stack only at debug
+    logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms: ${message}`, error);
+    if (error instanceof Error && error.stack) {
+      logger.debug("Stack trace:", error.stack);
     }
     // Don't throw - collections can be created later through the UI
     logger.warn("Continuing setup without collection seeding...");
@@ -874,7 +869,7 @@ export async function seedWebsiteStarterPages(
     );
 
     if (Array.isArray(existing) && existing.length > 0) {
-      logger.info("[Website Starter] Homepage already exists — skipping seed");
+      logger.debug("[Website Starter] Homepage already exists — skipping seed");
       return;
     }
 
@@ -902,7 +897,7 @@ export async function seedWebsiteStarterPages(
       bypassTenantCheck: true,
     });
 
-    logger.info("✅ Seeded Website Starter homepage (slug: home)");
+    logger.debug("✅ Seeded Website Starter homepage (slug: home)");
   } catch (error) {
     logger.error("[Website Starter] Failed to seed homepage:", error);
   }
@@ -918,7 +913,7 @@ export async function seedDemoRecords(
   tenantId?: string | null,
   options?: BaseQueryOptions,
 ): Promise<void> {
-  logger.info(`📝 Seeding demo records${tenantId ? ` for tenant ${tenantId}` : ""}...`);
+  logger.debug(`📝 Seeding demo records${tenantId ? ` for tenant ${tenantId}` : ""}...`);
 
   if (!dbAdapter?.crud) {
     logger.warn("CRUD interface not available, skipping demo record seeding");
@@ -957,7 +952,7 @@ export async function seedDemoRecords(
           bypassTenantCheck: true,
           ...options,
         });
-        logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
+        logger.debug(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
       }
 
       // Seed "Menu" as a demo
@@ -987,7 +982,7 @@ export async function seedDemoRecords(
           bypassTenantCheck: true,
           ...options,
         });
-        logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
+        logger.debug(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
       }
     }
   } catch (error) {
@@ -1002,7 +997,7 @@ export async function initSystemFromSetup(
   tenantId?: string | null,
   isDemoSeed = false,
 ): Promise<{ firstCollection: { name: string; path: string } | null }> {
-  logger.info(
+  logger.debug(
     `🚀 Starting system initialization from setup${tenantId ? ` for tenant ${tenantId}` : ""}...`,
   );
 
@@ -1052,7 +1047,7 @@ export async function initSystemFromSetup(
       await loadFn(adapter, true);
     }
 
-    logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`);
+    logger.debug(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`);
 
     return { success: true, data: seedResults };
   });
@@ -1082,7 +1077,7 @@ export async function initSystemFast(
   const criticalPromise = (async () => {
     if (!adapter) throw new Error("Database adapter not available.");
 
-    logger.info("🚀 Initializing system...");
+    logger.debug("🚀 Initializing system...");
 
     await Promise.all([
       seedSettings(adapter, tenantId, isDemoSeed),
@@ -1098,7 +1093,7 @@ export async function initSystemFast(
     // Clear existing content nodes if it's a blank setup to prevent ghost data
     if (!isDemoSeed) {
       try {
-        logger.info("🧹 Choice: Blank setup. Clearing existing content structure...");
+        logger.debug("🧹 Choice: Blank setup. Clearing existing content structure...");
         // Use the internal content_nodes collection name or adapter method if available
         // For MongoDB, it's typically 'content_nodes'
         if (adapter.crud) {
@@ -1113,7 +1108,7 @@ export async function initSystemFast(
               bypassTenantCheck: true,
             },
           );
-          logger.info("✅ Content structure cleared successfully");
+          logger.debug("✅ Content structure cleared successfully");
         }
       } catch (clearError) {
         logger.warn("⚠️ Failed to clear ghost content nodes (might be first install):", clearError);
@@ -1130,7 +1125,7 @@ export async function initSystemFast(
     // NEW: Pre-register collection models via contentSystem
     // This creates the database tables/collections pre-emptively
     try {
-      logger.info("📦 Pre-registering collection models...");
+      logger.debug("📦 Pre-registering collection models...");
       const mod = await import("@src/content/index.server");
       const cs = mod.contentSystem || mod.default || mod;
 
@@ -1148,7 +1143,7 @@ export async function initSystemFast(
       logger.warn("⚠️ contentSystem pre-registration failed:", cmError);
     }
 
-    logger.info(
+    logger.debug(
       `✅ Critical system initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`,
     );
   })();
@@ -1693,7 +1688,7 @@ export async function seedSettings(
 
   if (settingsToSeed.length === 0) return;
 
-  logger.info(`🌱 Seeding ${settingsToSeed.length} settings...`);
+  logger.debug(`🌱 Seeding ${settingsToSeed.length} settings...`);
 
   for (const setting of settingsToSeed) {
     // Determine category based on whether the setting is in the private list
@@ -1722,12 +1717,12 @@ export async function seedSettings(
     });
   }
 
-  logger.info(`✅ Seeded ${settingsToSeed.length} missing settings`);
+  logger.debug(`✅ Seeded ${settingsToSeed.length} missing settings`);
 
   // Populate public settings cache immediately after seeding
   // Private settings will be loaded later when the app starts and reads the private config file
   try {
-    logger.info("🔄 Populating public settings cache...");
+    logger.debug("🔄 Populating public settings cache...");
 
     // Only organize public settings for immediate cache population
     const publicSettings: Record<string, unknown> = {};
@@ -1754,7 +1749,7 @@ export async function seedSettings(
 
     if (parsedPublic.success) {
       // Private settings will be loaded when the app starts normally
-      logger.info("✅ Public settings validated successfully");
+      logger.debug("✅ Public settings validated successfully");
     } else {
       logger.warn("Public settings validation failed");
       logger.debug("Validation Issues:", JSON.stringify(parsedPublic.issues, null, 2));
@@ -1881,7 +1876,7 @@ export async function importSettingsSnapshot(
     throw new Error("Invalid settings snapshot format");
   }
 
-  logger.info("📥 Importing settings snapshot...");
+  logger.debug("📥 Importing settings snapshot...");
 
   const settingsToSet: Array<{
     key: string;
@@ -1912,7 +1907,7 @@ export async function importSettingsSnapshot(
     throw new Error(`Failed to import settings: ${result.error?.message}`);
   }
 
-  logger.info("✅ Settings snapshot imported successfully");
+  logger.debug("✅ Settings snapshot imported successfully");
 }
 
 /**
@@ -1923,7 +1918,7 @@ export async function seedDemoTenant(
   tenantId: string,
   options?: BaseQueryOptions,
 ): Promise<void> {
-  logger.info(`🚀 Seeding demo tenant ${tenantId}...`);
+  logger.debug(`🚀 Seeding demo tenant ${tenantId}...`);
 
   // 1. Seed Settings (Force Demo Mode)
   await seedSettings(dbAdapter, tenantId, true, options);
@@ -1957,7 +1952,7 @@ export async function seedDemoTenant(
           },
           options,
         );
-        logger.info(`✅ Demo admin user created: ${email}`);
+        logger.debug(`✅ Demo admin user created: ${email}`);
       } catch (e) {
         logger.warn(
           `Demo user creation failed (might exist): ${e instanceof Error ? e.message : String(e)}`,
@@ -1966,5 +1961,5 @@ export async function seedDemoTenant(
     }
   }
 
-  logger.info(`✅ Demo tenant ${tenantId} seeded successfully.`);
+  logger.debug(`✅ Demo tenant ${tenantId} seeded successfully.`);
 }

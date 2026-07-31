@@ -97,9 +97,11 @@ test.describe("Media move to folder", () => {
       .first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Click the Checkbox component's visible label (the styled box) to toggle selection
+    // Click the Checkbox component's visible label (the styled box) to toggle selection.
+    // NOTE: the native input is `sr-only` (1x1, clipped) — `check({ force: true })` cannot
+    // scroll it into view (AGENTS.md pitfall #12); force-click the input instead.
     const checkboxInput = item.locator('input[type="checkbox"]').first();
-    await checkboxInput.check({ force: true, timeout: ACTION_TIMEOUT });
+    await checkboxInput.click({ force: true, timeout: ACTION_TIMEOUT });
 
     await expect(page.getByTestId("media-bulk-bar")).toBeVisible({ timeout: ACTION_TIMEOUT });
 

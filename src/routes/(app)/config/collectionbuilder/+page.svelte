@@ -165,7 +165,7 @@ $effect(() => {
 });
 
 async function handleNodeUpdate(updatedNodes: ContentNode[]) {
-    console.debug("[CollectionBuilder] Hierarchy updated via DnD");
+    logger.debug("[CollectionBuilder] Hierarchy updated via DnD");
     currentConfig = updatedNodes;
 
     // Stage all nodes: keep existing 'create' so duplicated collections get their files created on save
@@ -604,10 +604,8 @@ function modalLoadPreset(): void {
 
                 if ("success" in result && result.success) {
                     toast.success(`Preset ${response.presetId} loaded successfully`);
-
-                    // Force a full page reload to reflect the new collections
-                    // which are now compiled into the system
-                    window.location.reload();
+                    // Soft refresh — preserves session, consent, and builder context
+                    await invalidate("app:content");
                 } else {
                     const message = (result as any).message || "Failed to load preset";
                     toast.error(message);
@@ -635,7 +633,8 @@ function modalLoadPreset(): void {
             },
             async (response: { installed: boolean; collections?: string[] } | null) => {
                 if (!response || !response.installed) return;
-                window.location.reload();
+                // Soft refresh — no full reload (keeps consent + session state)
+                await invalidate("app:content");
             },
         );
     }

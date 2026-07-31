@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 import {
 	createSmartTable,
 	pinCellClass,
@@ -76,7 +77,7 @@ const smartTable = (() => {
       },
     });
   } catch (err) {
-    console.error("[MediaTable] createSmartTable failed:", err);
+    logger.error("[MediaTable] createSmartTable failed:", err);
     // Return a minimal stub so the component doesn't crash entirely
     return {
       rows: [],

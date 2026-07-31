@@ -48,7 +48,8 @@
 		adminUser = $bindable(),
 		validationErrors,
 		passwordRequirements,
-		checkPasswordRequirements // This is still called by oninput
+		checkPasswordRequirements, // This is still called by oninput
+		onnext
 	} = $props(); // Now uses imported type
 
 	// Local states for password show/hide visibility toggles
@@ -100,6 +101,13 @@
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
 	}
+
+	function handleSubmit(e: SubmitEvent) {
+		e.preventDefault();
+		if (onnext && typeof onnext === 'function') {
+			onnext();
+		}
+	}
 </script>
 
 <div class="fade-in">
@@ -109,7 +117,7 @@
 		</p>
 	</div>
 
-	<form onsubmit={(e) => e.preventDefault()} class="space-y-4">
+	<form onsubmit={handleSubmit} class="space-y-4">
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
 			<!-- Username -->
 			<div>

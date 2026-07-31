@@ -19,11 +19,22 @@ Building widgets for SveltyCMS is a straightforward process using our 3-Pillar s
 
 ## 🚀 Creating a Custom Widget
 
-Create a folder in `src/widgets/custom/`.
+Create a **kebab-case** folder in `src/widgets/custom/` (same rules as marketplace packages).
+
+### Naming (required)
+
+| Folder (kebab-case) | Factory `Name` (PascalCase) |
+| ------------------- | --------------------------- |
+| `phone-number/`     | `Name: "PhoneNumber"`       |
+| `seo/`              | `Name: "SEO"`               |
+
+Invariant: `widgetNameToFolder(Name) === folder`. Invalid custom widgets are **not registered**. See [Marketplace](./marketplace.mdx#naming-convention-required).
+
+> **Derived names are title-cased, not acronym-preserving.** If a factory omits `Name`, it is derived from the folder (`seo/` → `Seo`), so schemas referencing `{ Name: "SEO" }` would miss the registry entry. Always declare `Name` explicitly — especially for acronyms.
 
 ### Folder Structure
 
-- `index.ts`: Definition
+- `index.ts`: Definition (`createWidget({ Name: "…" })`)
 - `input.svelte`: Input component
 - `display.svelte`: Display component
 - `tests/`: Portable unit tests (Drupal-style)

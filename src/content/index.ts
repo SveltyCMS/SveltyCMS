@@ -5,6 +5,7 @@
  */
 
 const isBrowser = typeof window !== "undefined";
+import { logger } from "@utils/logger";
 import { setContext, getContext } from "svelte";
 import { contentStore } from "@stores/content-registry.svelte";
 import { contentNavigation, contentMetrics } from "./content-utils";
@@ -128,7 +129,7 @@ export const contentSystem = {
       const { contentLiveSync } = await import("./content-sse.svelte");
       contentLiveSync.start();
     } else {
-      console.warn(
+      logger.warn(
         "[contentSystem] initialize() called on server from client facade. Import from './index.server' instead.",
       );
     }
@@ -140,7 +141,7 @@ export const contentSystem = {
     _incremental = false,
   ): Promise<void> {
     if (!isBrowser) {
-      console.warn("[contentSystem] refresh() called on server from wrong entry point");
+      logger.warn("[contentSystem] refresh() called on server from wrong entry point");
       return;
     }
     try {
@@ -159,7 +160,7 @@ export const contentSystem = {
         });
       }
     } catch (err) {
-      console.warn("[contentSystem] Client refresh failed:", err);
+      logger.warn("[contentSystem] Client refresh failed:", err);
     }
   },
 

@@ -5,6 +5,7 @@
 
 import type { Schema } from "@src/content/types";
 import type {
+  BaseQueryOptions,
   CollectionModel,
   DatabaseResult,
   ICollectionAdapter,
@@ -100,7 +101,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
             if (typeof client.exec === "function") client.exec(sql);
             else if (typeof client.run === "function") client.run(sql);
           } catch (e) {
-            console.warn(`[SQLite] Failed to create index ${indexName}:`, e);
+            logger.warn(`[SQLite] Failed to create index ${indexName}:`, e);
           }
         }
       }
@@ -115,7 +116,10 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
     return { success: true, data: null };
   }
 
-  async listSchemas(tenantId?: string | null): Promise<DatabaseResult<Schema[]>> {
+  async listSchemas(
+    tenantId?: string | null,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Schema[]>> {
     const tid = tenantId || "global";
     if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
       logger.info(`[CollectionModule] listSchemas called for tenant: ${tid}`);
@@ -137,7 +141,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
           filter.tenantId = tenantId;
         }
 
-        const res = await this.crud.findMany("content_nodes", filter as any);
+        const res = await this.crud.findMany("content_nodes", filter as any, options);
         if (res.success && Array.isArray(res.data)) {
           const schemas: Schema[] = [];
           for (const node of res.data) {

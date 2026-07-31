@@ -17,6 +17,7 @@
  * - **Error Handling**: Deterministic IDs, proper error handling
  */
 
+import { logger } from "@utils/logger";
 import { createWidget } from "@src/widgets/widget-factory";
 import { widget_date_description } from "@src/paraglide/messages";
 import { isoTimestamp, pipe, string, nullable, type InferInput as ValibotInput } from "valibot";
@@ -156,7 +157,7 @@ export default DateTimeWidget;
       const { toISOString } = await import("@src/utils/date");
       const normalized = toISOString(val);
       if (process.env.BENCHMARK_DEBUG === "true") {
-        console.info(`[DEBUG] DateTimeWidget Static Normalized: from ${val} to ${normalized}`);
+        logger.debug(`[DEBUG] DateTimeWidget Static Normalized: from ${val} to ${normalized}`);
       }
       data.update(normalized);
     }

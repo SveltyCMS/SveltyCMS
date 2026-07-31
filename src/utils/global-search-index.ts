@@ -2,35 +2,28 @@
  * @file src/utils/global-search-index.ts
  * @description Global search index for admin navigation and content discovery.
  *
- * Now delegates to the semantic search index for intelligent
- * ranking (NPU-accelerated embeddings when Ollama is available, TF-IDF fallback).
- * The writable store remains as the reactive binding layer for the search UI component.
- *
- * ### Architecture:
- * - Client-side: writable store for reactive search UI binding
- * - Server-side: semantic-index.ts for embedding-based similarity search
- * - Fallback: substring matching on title/description/keywords when server unavailable
+ * Delegates ranking to command-palette scoring. Semantic search via server when available.
+ * The writable store remains as the reactive binding layer for plugins and legacy consumers.
  *
  * ### Features:
- * - Admin page navigation (15 built-in pages)
+ * - Admin page navigation (static catalog + Paraglide keys)
+ * - Plugin-extensible entries via addToGlobalSearchIndex
  * - Semantic content search (collections, entries, media) via embedding vectors
  * - Keyword fallback for instant offline search
- * - Plugin-extensible: plugins can register their own search entries
- * - NPU-accelerated: embedding generation uses Intel NPU via Ollama when available
  */
 
 import { writable } from "svelte/store";
 import { logger } from "@utils/logger";
+import {
+  STATIC_CATALOG,
+  type CommandPaletteEntry,
+  type SearchTrigger,
+  legacySearchDataToEntry,
+} from "@utils/command-palette";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export interface SearchTrigger {
-  path: string;
-  /** Lazy action import path — resolved only when the action is triggered. */
-  actionImport?: string;
-  /** Legacy inline action array — kept for backward compatibility. */
-  action?: (() => void | Promise<void>)[];
-}
+export type { SearchTrigger };
 
 export interface SearchData {
   title: string;
@@ -45,132 +38,55 @@ export interface SemanticSearchMatch {
   description: string;
   path: string;
   type: "admin-page" | "collection" | "entry" | "media" | "user";
-  score: number; // 0–1 relevance
+  score: number;
   matchType: "semantic" | "keyword" | "both";
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────────
 
+/** @deprecated Prefer ui.isCommandBarVisible — kept for trigger-action consumers. */
 export const isSearchVisible = writable(false);
 export const triggerActionStore = writable<(() => void | Promise<void>)[]>([]);
 
-export const globalSearchIndex = writable<SearchData[]>([
-  {
-    title: "Dashboard",
-    description: "System overview, activity, and real-time health metrics.",
-    keywords: ["home", "dashboard", "activity", "health", "metrics"],
-    triggers: { "Go to Dashboard": { path: "/dashboard" } },
-  },
-  {
-    title: "Media Gallery",
-    description: "DAM Engine with AI tagging, batch editing, and transcoding.",
-    keywords: ["media", "gallery", "images", "batch", "transcode", "video", "audio"],
-    triggers: {
-      "Go to Media Gallery": { path: "/mediagallery" },
-      "Batch Image Processor": { path: "/mediagallery?mode=batch" },
-      "Video Transcoding Hub": { path: "/mediagallery?mode=transcode" },
-    },
-  },
-  {
-    title: "Collection Builder",
-    description: "Build schemas with visual logic, BuzzForms, and field validation.",
-    keywords: ["builder", "collection", "schema", "logic", "field", "validation"],
-    triggers: {
-      "Go to Collection Builder": { path: "/config/collectionbuilder" },
-      "Create New Collection": { path: "/config/collectionbuilder/new" },
-      "Manage Field Logic": { path: "/config/collectionbuilder?tab=logic" },
-    },
-  },
-  {
-    title: "System Settings",
-    description: "Database, email, cache, and security configuration.",
-    keywords: ["settings", "config", "smtp", "email", "cache", "security", "database"],
-    triggers: { "Go to System Settings": { path: "/config/system-settings" } },
-  },
-  {
-    title: "System Monitor",
-    description: "Health dashboard, audit log, CPU/memory telemetry, and plugin status.",
-    keywords: ["monitor", "health", "audit", "status", "logs", "cpu", "memory"],
-    triggers: { "Go to System Monitor": { path: "/config/monitor" } },
-  },
-  {
-    title: "Access Management",
-    description: "Users, roles, permissions, website tokens, and SAML/SCIM.",
-    keywords: ["access", "users", "roles", "permissions", "tokens", "rbac", "saml", "scim"],
-    triggers: {
-      "Go to Access Management": { path: "/config/access-management" },
-    },
-  },
-  {
-    title: "Extensions",
-    description: "Plugins, widgets, themes, and marketplace discovery.",
-    keywords: ["extensions", "plugins", "widgets", "themes", "marketplace", "install"],
-    triggers: { "Go to Extensions": { path: "/config/extensions" } },
-  },
-  {
-    title: "Automations",
-    description: "Event-driven workflow automations with conditional logic.",
-    keywords: ["automation", "workflow", "trigger", "action", "event", "rule"],
-    triggers: { "Go to Automations": { path: "/config/automations" } },
-  },
-  {
-    title: "Background Queue",
-    description: "Monitor background jobs, scheduled tasks, and retry failed operations.",
-    keywords: ["queue", "jobs", "tasks", "background", "retry", "scheduled"],
-    triggers: { "Go to Background Queue": { path: "/config/queue" } },
-  },
-  {
-    title: "Data Sync & Import",
-    description: "Import content from WordPress, Strapi, Directus, Drupal, or SveltyCMS exports.",
-    keywords: ["sync", "import", "export", "migrate", "wordpress", "strapi", "directus"],
-    triggers: {
-      "Go to Data Sync": { path: "/config/sync" },
-      "Smart Importer": { path: "/config?plugin=smart-importer" },
-    },
-  },
-  {
-    title: "Webhooks",
-    description: "Outgoing HTTP callbacks on content events with DLQ monitoring.",
-    keywords: ["webhook", "callback", "http", "event", "integration", "dlq"],
-    triggers: { "Go to Webhooks": { path: "/config/webhooks" } },
-  },
-  {
-    title: "Redirects",
-    description: "301/302 redirect rules with regex pattern support and CSV import.",
-    keywords: ["redirect", "seo", "301", "302", "regex", "url", "rewrite"],
-    triggers: { "Go to Redirects": { path: "/config/redirects" } },
-  },
-  {
-    title: "Trash",
-    description: "Recover or permanently delete soft-deleted content with audit trail.",
-    keywords: ["trash", "delete", "recover", "restore", "soft-delete", "undo"],
-    triggers: { "Go to Trash": { path: "/config/trash" } },
-  },
-  {
-    title: "User Profile",
-    description: "Account settings, avatar, password, 2FA, and session management.",
-    keywords: ["user", "profile", "avatar", "password", "2fa", "session", "account"],
-    triggers: {
-      "Go to Profile": { path: "/user" },
-    },
-  },
-  {
-    title: "Configuration",
-    description: "System configuration overview and navigation hub.",
-    keywords: ["config", "settings", "setup", "administration", "system"],
-    triggers: { "Go to Configuration": { path: "/config" } },
-  },
-]);
+/** Legacy writable index — plugins still push here; palette merges at open time. */
+export const globalSearchIndex = writable<SearchData[]>(
+  STATIC_CATALOG.map((def) => ({
+    title: def.titleFallback,
+    description: def.descriptionFallback,
+    keywords: def.keywords,
+    triggers: def.triggers ?? { [`Go to ${def.titleFallback}`]: { path: def.path } },
+  })),
+);
 
 // ─── Plugin Integration ────────────────────────────────────────────────────
 
 /**
  * Register a plugin-provided search entry.
  * Plugins call this at init time to add themselves to the global search.
+ * Dedupes by lowercased title so HMR/plugin re-registration cannot grow the
+ * index unboundedly.
  */
 export function addToGlobalSearchIndex(newItem: SearchData): void {
-  globalSearchIndex.update((currentIndex) => [...currentIndex, newItem]);
+  globalSearchIndex.update((currentIndex) => {
+    const title = newItem.title?.trim().toLowerCase();
+    if (!title) return currentIndex;
+    if (currentIndex.some((existing) => existing.title?.trim().toLowerCase() === title)) {
+      return currentIndex;
+    }
+    return [...currentIndex, newItem];
+  });
   logger.debug(`[SearchIndex] Plugin registered: ${newItem.title}`);
+}
+
+/**
+ * Convert current writable index (including plugins) to palette entries.
+ * Static catalog titles should be re-resolved via Paraglide in the UI.
+ */
+export function pluginIndexToEntries(index: SearchData[]): CommandPaletteEntry[] {
+  const staticTitles = new Set(STATIC_CATALOG.map((d) => d.titleFallback.toLowerCase()));
+  return index
+    .filter((item) => !staticTitles.has(item.title.toLowerCase()))
+    .map(legacySearchDataToEntry);
 }
 
 // ─── Search API ────────────────────────────────────────────────────────────
@@ -179,9 +95,8 @@ export function addToGlobalSearchIndex(newItem: SearchData): void {
  * Search the global index for matching items.
  *
  * Strategy:
- * 1. Try semantic search via the server-side index (NPU-accelerated embeddings)
+ * 1. Try semantic search via the server-side index
  * 2. Fall back to substring matching on title/description/keywords
- * 3. Merge and deduplicate results
  */
 export async function searchGlobalIndex(
   query: string,
@@ -190,7 +105,6 @@ export async function searchGlobalIndex(
   const q = query.toLowerCase().trim();
   if (!q) return [];
 
-  // Try semantic search first (server-side, NPU-accelerated)
   try {
     const semanticResults = await searchSemanticFromServer(q);
     if (semanticResults.length > 0) {
@@ -200,13 +114,9 @@ export async function searchGlobalIndex(
     // Server-side search unavailable — fall through to local
   }
 
-  // Local substring fallback (instant, no network)
   return searchLocalFallback(q, options.limit || 8);
 }
 
-/**
- * Local substring search — instant, works offline, no server needed.
- */
 function searchLocalFallback(query: string, limit: number): SearchData[] {
   const results: SearchData[] = [];
   globalSearchIndex.subscribe((index) => {
@@ -221,7 +131,6 @@ function searchLocalFallback(query: string, limit: number): SearchData[] {
     }
   })();
 
-  // Sort: exact title match first, then keyword match, then description
   results.sort((a, b) => {
     const aExact =
       a.title.toLowerCase() === query ? 3 : a.keywords.some((k) => k === query) ? 2 : 1;
@@ -233,9 +142,6 @@ function searchLocalFallback(query: string, limit: number): SearchData[] {
   return results.slice(0, limit);
 }
 
-/**
- * Sync version for reactive UI binding (substring-only, instant).
- */
 export function searchGlobalIndexSync(query: string): SearchData[] {
   const q = query.toLowerCase().trim();
   if (!q) return [];
@@ -256,8 +162,6 @@ export function searchGlobalIndexSync(query: string): SearchData[] {
   return results;
 }
 
-// ─── Server-Side Semantic Search Bridge ────────────────────────────────────
-
 async function searchSemanticFromServer(query: string): Promise<SemanticSearchMatch[]> {
   try {
     const url = `/api/search?mode=semantic&q=${encodeURIComponent(query)}`;
@@ -265,14 +169,14 @@ async function searchSemanticFromServer(query: string): Promise<SemanticSearchMa
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        return json.data.map((r: any) => ({
-          id: r.id,
-          title: r.title,
-          description: r.description,
-          path: r.path,
-          type: r.type,
-          score: r.score,
-          matchType: r.matchType,
+        return json.data.map((r: Record<string, unknown>) => ({
+          id: String(r.id ?? ""),
+          title: String(r.title ?? ""),
+          description: String(r.description ?? ""),
+          path: String(r.path ?? ""),
+          type: (r.type as SemanticSearchMatch["type"]) ?? "entry",
+          score: Number(r.score ?? 0),
+          matchType: (r.matchType as SemanticSearchMatch["matchType"]) ?? "keyword",
         }));
       }
     }
@@ -293,8 +197,44 @@ function convertSemanticResults(matches: SemanticSearchMatch[], limit: number): 
   }));
 }
 
-// ─── Initialization ────────────────────────────────────────────────────────
+/** Map semantic hits into palette entries for the unified UI. */
+export function semanticToPaletteEntries(matches: SemanticSearchMatch[]): CommandPaletteEntry[] {
+  const iconFor = (type: SemanticSearchMatch["type"]) => {
+    switch (type) {
+      case "media":
+        return "mdi:image";
+      case "user":
+        return "mdi:account";
+      case "collection":
+        return "mdi:database";
+      case "admin-page":
+        return "mdi:file-document-outline";
+      default:
+        return "mdi:file-document-outline";
+    }
+  };
+
+  return matches.map((match) => ({
+    id: `semantic:${match.id || match.path}`,
+    category:
+      match.type === "admin-page"
+        ? ("page" as const)
+        : match.type === "collection"
+          ? ("collection" as const)
+          : match.type === "media"
+            ? ("media" as const)
+            : match.type === "user"
+              ? ("user" as const)
+              : ("entry" as const),
+    title: match.title,
+    description: match.description || `${match.type} · ${match.path}`,
+    keywords: [match.type, match.matchType],
+    icon: iconFor(match.type),
+    path: match.path,
+    weight: Math.round(match.score * 50),
+  }));
+}
 
 export function initializeGlobalSearch(): void {
-  logger.info("[SearchIndex] Global search initialized with semantic + keyword search");
+  logger.info("[SearchIndex] Global search initialized with command palette catalog");
 }

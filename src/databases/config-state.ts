@@ -112,7 +112,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       // 🚀 DEBUG: Trace benchmark configuration leakage
       if (isTest && (validated.DB_TYPE !== "sqlite" || env("BENCHMARK_DEBUG") === "true")) {
-        console.log(
+        logger.debug(
           `[Config] Loaded type: ${validated.DB_TYPE}, host: ${validated.DB_HOST}, name: ${validated.DB_NAME}`,
         );
       }

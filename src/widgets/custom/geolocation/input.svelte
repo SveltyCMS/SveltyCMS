@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
@@ -53,7 +54,7 @@
 				isLocating = false;
 			},
 			(error) => {
-				console.error("Error getting location:", error);
+				logger.error("Error getting location:", error);
 				alert(`Error: ${error.message}`);
 				isLocating = false;
 			}

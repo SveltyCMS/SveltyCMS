@@ -14,6 +14,7 @@
  * Kept so existing imports of `TableController` continue to work.
  */
 
+import { logger } from "@utils/logger";
 import { TableController as LegacyTableController } from "./table-controller-legacy.svelte";
 import { dev } from "$app/environment";
 
@@ -26,7 +27,7 @@ export class TableController<T> extends LegacyTableController<T> {
     super(initialData);
 
     if (dev) {
-      console.warn(
+      logger.warn(
         "[Migration Notice] TableController is deprecated. " +
           "Please migrate this component to `createSmartTable` from `@components/ui/smart-table`.",
       );

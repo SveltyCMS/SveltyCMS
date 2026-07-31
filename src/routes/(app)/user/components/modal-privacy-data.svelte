@@ -14,9 +14,12 @@
 
 	// Props
 	interface Props {
-		user: any;
+		user?: any;
 	}
-	const { user }: Props = $props();
+	const { user: userProp }: Props = $props();
+	// Fall back to the page-level user when the prop is absent — the modal can be
+	// opened before the route data hydrates (CSR), leaving the prop undefined.
+	const user = $derived(userProp ?? (page.data.user as any) ?? {});
 
 	// Get data from page store for additional context
 	const { totalUsers, isAdmin } = page.data;

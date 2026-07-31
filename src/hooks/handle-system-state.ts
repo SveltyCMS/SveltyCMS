@@ -1,11 +1,18 @@
 /**
  * @file src/hooks/handle-system-state.ts
- * @description Hardened gatekeeper middleware with atomic boot locks and active timer cleanup.
+ * @description
+ * Hardened gatekeeper middleware with atomic boot locks and active timer cleanup.
  *
  * Design principle: the middleware waits synchronously for DB initialization
  * instead of redirecting to an intermediate warming-up page. The page-level
  * logic (e.g., [language]/+page.server.ts) handles redirects for empty
  * collections directly, saving system resources and eliminating polling.
+ *
+ * ### Features:
+ * - Setup-complete gating (`/setup` → login; `/api/setup` → 403)
+ * - Trusted-host enforcement after setup
+ * - API gets typed 503 JSON; pages get SvelteKit error pages
+ * - Static `getSetupState` import (no per-request dynamic import)
  */
 
 import { dbInitPromise } from "@src/databases/db";
@@ -16,7 +23,7 @@ import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isSetupComplete, SetupState } from "@utils/server/setup-check";
+import { getSetupState, isSetupComplete, SetupState } from "@utils/server/setup-check";
 import { isBootstrapRoute, getRequestFlags } from "@utils/hook-utils";
 
 const dev = (() => {
@@ -124,7 +131,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       setupState = SetupState.COMPLETE;
     } else {
       setupConfirmedComplete = false;
-      const { getSetupState } = await import("@utils/server/setup-check");
+      // Static import — avoid per-request dynamic import microtask on cold setup path
       setupState = await getSetupState();
       if (setupState === SetupState.COMPLETE) setupConfirmedComplete = true;
     }

@@ -181,6 +181,10 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
 
     const chunksize = end - start + 1;
     const fileStream = createReadStream(resolvedPath, { start, end });
+    // Destroy the fs stream when the client disconnects — otherwise every aborted
+    // thumbnail/video range request leaks an open handle + async frames (FSReqPromise
+    // pile-up under parallel workers).
+    request.signal.addEventListener("abort", () => fileStream.destroy(), { once: true });
     const webStream = Readable.toWeb(fileStream);
 
     return new Response(webStream as any, {
@@ -198,6 +202,9 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
 
   // Full file stream
   const fileStream = createReadStream(resolvedPath);
+  // Destroy the fs stream when the client disconnects (aborted thumbnails/assets
+  // would otherwise keep the file descriptor + async frames alive).
+  request.signal.addEventListener("abort", () => fileStream.destroy(), { once: true });
   const webStream = Readable.toWeb(fileStream);
 
   return new Response(webStream as any, {

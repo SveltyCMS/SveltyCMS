@@ -1,6 +1,11 @@
 /**
  * @file src/hooks/handle-local-sdk.ts
- * @description Hardened SDK injection with error boundaries and static-asset short-circuiting.
+ * @description
+ * Hardened SDK injection with error boundaries and static-asset short-circuiting.
+ *
+ * Injects `locals.cms` (LocalCMS) for zero-latency server-side SDK calls.
+ * API routes get JSON 503 when the DB adapter is unavailable; page routes
+ * surface a soft error flag for UI recovery.
  */
 
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";

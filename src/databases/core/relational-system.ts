@@ -512,6 +512,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     update: async (
       jobId: DatabaseId,
       data: Partial<EntityCreate<Job>>,
+      options?: BaseQueryOptions & { filter?: Record<string, unknown> },
     ): Promise<DatabaseResult<Job>> => {
       return this.adapter.wrap(async () => {
         const now = new Date();
@@ -535,15 +536,23 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (Object.keys(updateValues).length === 0) {
           updateValues.updatedAt = now;
         }
+        // Atomic claim: an optional `filter` (e.g. { status: "pending" }) makes the
+        // update conditional so two consumers/instances cannot double-claim a job.
+        const conditions = [eq(this.schema.sveltyJobs._id, jobId as string)];
+        if (options?.filter?.status) {
+          conditions.push(eq(this.schema.sveltyJobs.status, String(options.filter.status) as any));
+        }
         await this.db
           .update(this.schema.sveltyJobs)
           .set(updateValues as any)
-          .where(eq(this.schema.sveltyJobs._id, jobId as string));
+          .where(and(...conditions));
 
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
           .from(this.schema.sveltyJobs)
-          .where(eq(this.schema.sveltyJobs._id, jobId as string));
+          .where(and(...conditions));
+        // No row matched the filter (already claimed by another consumer) → data
+        // is undefined; callers treat that as "not claimed".
         return utils.convertDatesToISO(result) as unknown as Job;
       }, "JOB_UPDATE_FAILED");
     },
@@ -657,12 +666,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       logger.debug("Theme models setup (no-op for SQL)");
     },
 
-    getActive: async (): Promise<DatabaseResult<Theme | null>> => {
+    getActive: async (options?: BaseQueryOptions): Promise<DatabaseResult<Theme | null>> => {
       return this.adapter.wrap(async () => {
+        const conditions = [eq(this.schema.themes.isActive, true)];
+        utils.applyTenantFilter(conditions, this.schema.themes.tenantId, options);
         const [theme] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
-          .where(eq(this.schema.themes.isActive, true))
+          .where(and(...conditions))
           .limit(1);
         return theme ? (utils.convertDatesToISO(theme) as unknown as Theme) : null;
       }, "GET_ACTIVE_THEME_FAILED");

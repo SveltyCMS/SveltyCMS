@@ -11,6 +11,7 @@
  * - GraphQL endpoint proxy
  */
 
+import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -88,7 +89,7 @@ export async function handleContentRoutes(
 
     throw new AppError(`Content endpoint /api/${segments.join("/")} not implemented`, 404);
   } catch (err: any) {
-    console.error(`[ContentRoute Error] ${segments.join("/")}:`, err);
+    logger.error(`[ContentRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "Content operation failed", 500);
   }

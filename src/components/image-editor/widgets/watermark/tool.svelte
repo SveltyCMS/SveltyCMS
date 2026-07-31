@@ -4,6 +4,7 @@
 Watermark tool with full text and image watermark support.
 -->
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
@@ -146,7 +147,7 @@ Watermark tool with full text and image watermark support.
 				imageEditorStore.takeSnapshot();
 				updateToolbar();
 			} catch (err) {
-				console.error('Failed to add image watermark:', err);
+				logger.error('Failed to add image watermark:', err);
 			}
 		};
 

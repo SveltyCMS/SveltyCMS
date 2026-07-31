@@ -186,10 +186,14 @@ export async function updatePrivateConfigMode(modes: {
           logger.debug("DEBUG: [updatePrivateConfigMode] Updated MULTI_TENANT");
         }
       } else {
-        // If not found, try to insert after the marker
-        const insertMarker = "// --- Architectural Mode";
-        if (content.includes(insertMarker)) {
-          content = content.replace(insertMarker, `${insertMarker}\n\t${newValue}`);
+        // If not found, try to insert after the full marker comment line.
+        // Anchored to end-of-line: the generated file's marker is
+        // `// --- Architectural Mode (bootstrap — affects middleware before DB) ---`,
+        // so matching only the bare prefix would split the comment and break the TS.
+        const insertMarker = /\/\/ --- Architectural Mode[^\n]*/;
+        const markerMatch = content.match(insertMarker);
+        if (markerMatch) {
+          content = content.replace(insertMarker, `${markerMatch[0]}\n\t${newValue}`);
           modified = true;
           logger.debug("DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT after marker");
         } else {

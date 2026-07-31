@@ -19,6 +19,8 @@
  * - O(1) queue via index cursor, not O(n) shift()
  * - Adaptive concurrency: 75% of cores, min 4
  * - Orphan file + empty directory cleanup on full builds only
+ * - 3a: Atomic `.js` writes (crash-safe)
+ * - 3b: `changedJsPaths` / `noOp` for surgical HMR + model provisioning
  */
 
 import { xxhash64 } from "hash-wasm";
@@ -32,6 +34,7 @@ import { getCollectionsPath, getCompiledCollectionsPath } from "../tenant.server
 import { isBenchmarkArtifact, isBenchmarkRuntime } from "../benchmark-runtime.ts";
 import { isBenchmarkRelativePath } from "../benchmark-paths.ts";
 import { assertLiveDataWriteAllowed } from "../benchmark-sandbox.ts";
+import { atomicWriteFile } from "../atomic-write.ts";
 import { createCompositeTransformer } from "./transformers.ts";
 import { pathAliases } from "../../../path-aliases.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
@@ -257,6 +260,9 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     orphanedFiles: [],
     schemaWarnings: [],
     resolvedFrom,
+    changedJsPaths: [],
+    changedSourceFiles: [],
+    noOp: true,
   };
 
   // Compute fingerprint for cache invalidation
@@ -320,6 +326,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
         fingerprint,
       );
       result.duration = Date.now() - startTime;
+      result.noOp = true;
       logger.info("Compilation completed: 0 files found");
       return result;
     }
@@ -450,7 +457,10 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
             .replace(/^\s+|\s+$/gm, "") // leading/trailing whitespace per line
             .replace(/\n{2,}/g, "\n") // blank lines
             .replace(/[ \t]+/g, " "); // multiple spaces to one
-          await fs.writeFile(targetPath, minified);
+
+          assertLiveDataWriteAllowed(targetPath);
+          // Crash-safe: temp + rename (same helper as manifest)
+          await atomicWriteFile(targetPath, minified);
 
           manifest.set(targetPath, {
             sourcePath: relativePath,
@@ -461,6 +471,8 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
           });
 
           result.processed++;
+          result.changedJsPaths.push(targetPath);
+          result.changedSourceFiles.push(relativePath);
           processedJsPaths.add(targetPath);
           logger.info(`Compiled ${relativePath}`);
         } catch (err: any) {
@@ -492,8 +504,10 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     await saveManifest(compiledCollections, manifest, collectionOrder, structureNodes, fingerprint);
 
     result.duration = Date.now() - startTime;
+    result.noOp =
+      result.processed === 0 && result.errors.length === 0 && result.orphanedFiles.length === 0;
     logger.success?.(
-      `Compilation completed: ${result.processed} processed, ${result.skipped} skipped, ${result.orphanedFiles.length} orphaned`,
+      `Compilation completed: ${result.processed} processed, ${result.skipped} skipped, ${result.orphanedFiles.length} orphaned (${result.duration}ms)`,
     );
 
     return result;

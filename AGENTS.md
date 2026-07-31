@@ -752,26 +752,32 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 > [!TIP]
 > Every test suite has corresponding documentation. When modifying tests, update the linked docs.
 
-| Test File                                          | Documentation                                                                                       |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `tests/unit/hooks/defense-in-depth.test.ts`        | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                              |
-| `tests/unit/hooks/authentication.test.ts`          | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                   |
-| `tests/unit/hooks/authorization.test.ts`           | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                  |
-| `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
-| `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
-| `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/auth/role-permission-access.test.ts`   | `docs/tests/rbac-testing.mdx`                                                                       |
-| `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
-| `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
-| `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |
-| `tests/benchmarks/security-audit.test.ts`          | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
-| `tests/benchmarks/**/*.test.ts`                    | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
-| `tests/e2e/accessibility.spec.ts`                  | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/e2e/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`                                                     |
-| `tests/e2e/visual-regression.spec.ts`              | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/unit/security/token-secret-leakage.test.ts` | `docs/reference/security/secrets-inventory.mdx`                                                     |
-| `tests/unit/scripts/scan-secret-misuse.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                     |
-| `tests/unit/widgets/core/*.test.ts`                | `docs/tests/widget-test-coverage.mdx`                                                               |
+| Test File                                             | Documentation                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tests/unit/hooks/defense-in-depth.test.ts`           | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                                                    |
+| `tests/unit/hooks/authentication.test.ts`             | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                                         |
+| `tests/unit/hooks/authorization.test.ts`              | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                                        |
+| `tests/unit/hooks/system-state.test.ts`               | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`                                   |
+| `tests/unit/hooks/setup.test.ts`                      | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                                         |
+| `tests/unit/hooks/security-headers.test.ts`           | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                                                  |
+| `tests/unit/auth/role-permission-access.test.ts`      | `docs/tests/rbac-testing.mdx`                                                                                             |
+| `tests/unit/api/media-security.test.ts`               | `docs/reference/security/widget-security.mdx`                                                                             |
+| `tests/unit/services/media-manipulation.test.ts`      | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx`                       |
+| `tests/unit/services/media-service.test.ts`           | `docs/tests/utility-test-coverage.mdx`                                                                                    |
+| `tests/benchmarks/security-audit.test.ts`             | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                                       |
+| `tests/benchmarks/**/*.test.ts`                       | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                                                    |
+| `tests/e2e/accessibility.spec.ts`                     | `docs/tests/accessibility-audit.mdx`                                                                                      |
+| `tests/e2e/branding.spec.ts`                          | `docs/reference/architecture/multi-tenancy.mdx`                                                                           |
+| `tests/e2e/visual-regression.spec.ts`                 | `docs/tests/accessibility-audit.mdx`                                                                                      |
+| `tests/unit/security/token-secret-leakage.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                                           |
+| `tests/unit/scripts/scan-secret-misuse.test.ts`       | `docs/reference/security/secrets-inventory.mdx`                                                                           |
+| `tests/unit/widgets/core/*.test.ts`                   | `docs/tests/widget-test-coverage.mdx`                                                                                     |
+| `tests/unit/content/sync-content-state.test.ts`       | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                  |
+| `tests/unit/content/collection-save-sync.test.ts`     | `docs/reference/architecture/compilation-pipeline.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx` |
+| `tests/unit/content/schema-contract.test.ts`          | `docs/reference/architecture/content-system.mdx`                                                                          |
+| `tests/unit/compilation/compile-manifest.test.ts`     | `docs/reference/architecture/compilation-pipeline.mdx`                                                                    |
+| `tests/integration/collectionbuilder/*`               | `docs/reference/architecture/collection-builder-architecture.mdx`                                                         |
+| `tests/e2e/routes/collection-builder/builder.spec.ts` | `docs/guides/content/collection-builder.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx`           |
 
 ## Key Files Reference
 
@@ -779,7 +785,8 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                                                                                           |
 | **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                                                                                          |
-| **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                                                                                        |
+| **Content**     | `sync-content-state.server.ts`, `engine.server.ts`, `loader.server.ts`, `schema-contract.ts`, `config/collections/` → `.compiledCollections/`                                                                    |
+| **Compile/HMR** | `src/utils/compilation/*`, `vite.config.ts` (`sveltyCmsPlugin`), `scripts/generate-content-types.ts`                                                                                                             |
 | **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                                                                                                    |
 | **API**         | `routes/api/`, `hooks.server.ts`                                                                                                                                                                                 |
 | **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`                                                                                                                      |

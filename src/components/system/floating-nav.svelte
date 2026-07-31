@@ -3,24 +3,28 @@
 @component
 **Floating navigation component for quick access to different pages**
 
-### Props
-- `modalState`
+Radial FAB menu driven by `floatingNavStore` (shared with PageTitle favorites).
+System defaults load on first start; each user can enable/disable them and add
+custom page favorites. Fixed anchors (Home + Settings) always remain so an
+empty custom set never breaks the CMS — the radial still opens with a centered
+Home button and Settings available.
 
 ### Features
-- Handles opening and closing modals
-- Closes modals on backdrop click or Escape key press
+- Per-user localStorage prefs via floatingNavStore
+- System defaults + custom favorites (synced with PageTitle star)
+- Empty-safe: fixed Home center (+ Settings) always present
+- Draggable FAB, keyboard nav, reduced motion, ARIA
 -->
 
 <script lang="ts">
-		import Button from '@components/ui/button.svelte';
-		import { fade } from 'svelte/transition';
+	import Button from '@components/ui/button.svelte';
+	import { fade } from 'svelte/transition';
 
-		type Any = any;
-
-		import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Auth
 	import type { User } from '@src/databases/auth/types';
 	// Stores
+	import { floatingNavStore, type FloatingNavItem } from '@src/stores/floating-nav-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { motion } from '@src/utils/admin-transitions';
@@ -41,70 +45,21 @@
 	const VIBRATE_OPEN_MS = 10;
 	const VIBRATE_CLOSE_MS = 5;
 
-	// Endpoint type
-	interface Endpoint {
-		color?: string;
-		icon: string;
-		id: string;
-		tooltip: string;
-		url: {
-			external: boolean;
-			path: string;
-		};
-	}
-
 	// Get user from page data
 	const user = $derived(page.data.user as User | undefined);
 
-	// Endpoint definitions — all available routes the user can pin
-	const ALL_ENDPOINTS: Endpoint[] = [
-		{ id: 'home', tooltip: 'Home', url: { external: false, path: '/' }, icon: 'solar:home-bold' },
-		{ id: 'dashboard', tooltip: 'Dashboard', url: { external: false, path: '/dashboard' }, icon: 'mdi:view-dashboard', color: 'bg-blue-500' },
-		{ id: 'user', tooltip: 'User Profile', url: { external: false, path: '/user' }, icon: 'radix-icons:avatar', color: 'bg-orange-500' },
-		{ id: 'collectionbuilder', tooltip: 'Collection Builder', url: { external: false, path: '/config/collectionbuilder' }, icon: 'fluent-mdl2:build-definition', color: 'bg-green-500' },
-		{ id: 'graphql', tooltip: 'GraphQL Explorer', url: { external: true, path: '/api/graphql' }, icon: 'teenyicons:graphql-outline', color: 'bg-pink-500' },
-		{ id: 'config', tooltip: 'System Configuration', url: { external: false, path: '/config' }, icon: 'mynaui:config', color: 'bg-surface-400' },
-		{ id: 'access', tooltip: 'Access Management', url: { external: false, path: '/config/access-management' }, icon: 'mdi:shield-account', color: 'bg-purple-500' },
-		{ id: 'marketplace', tooltip: 'Marketplace', url: { external: true, path: 'https://www.sveltycms.com' }, icon: 'icon-park-outline:shopping-bag', color: 'bg-primary-700' },
-		{ id: 'media', tooltip: 'Media Gallery', url: { external: false, path: '/mediagallery' }, icon: 'mdi:image-multiple', color: 'bg-teal-500' },
-		{ id: 'settings', tooltip: 'System Settings', url: { external: false, path: '/config/system-settings' }, icon: 'mdi:cog', color: 'bg-slate-500' },
-	];
-
-	// User-pinned endpoint IDs stored in localStorage
-	const PINNED_KEY = 'floatingNav_pins';
-	let pinnedIds = $state<string[]>(['home']);
-	let favoritesVersion = $state(0);
-
+	// Keep store scoped to the signed-in user (per-user prefs)
 	$effect(() => {
-		try {
-			const saved = localStorage.getItem(PINNED_KEY);
-			if (saved) pinnedIds = JSON.parse(saved);
-		} catch { /* ignore corrupt localStorage */ }
+		floatingNavStore.bindUser(user ?? null);
 	});
 
-	// Filter endpoints: role-based rules + pin filter + user favorites
-	const FAVORITES_KEY = 'floatingNav_favorites';
-
-	const endpoints = $derived.by(() => {
-		// Read favorites from localStorage (trigger reactive re-eval)
-		void favoritesVersion;
-		let favorites: Endpoint[] = [];
-		try {
-			const saved = localStorage.getItem(FAVORITES_KEY);
-			if (saved) favorites = JSON.parse(saved);
-		} catch { /* ignore */ }
-
-		const pinned = ALL_ENDPOINTS.filter((endpoint) => {
-			if (user?.role !== 'admin' && endpoint.id === 'collectionbuilder') return false;
-			return endpoint.id === 'home' || pinnedIds.includes(endpoint.id);
-		});
-
-		// Merge favorites after pinned defaults (dedup by path)
-		const pinnedPaths = new Set(pinned.map((e) => e.url.path));
-		const uniqueFavorites = favorites.filter((f) => !pinnedPaths.has(f.url.path));
-
-		return [...pinned, ...uniqueFavorites];
+	/** Resolved radial endpoints — never empty (Home always first / center). */
+	const endpoints = $derived.by((): FloatingNavItem[] => {
+		return floatingNavStore.resolveEndpoints(user ?? null);
 	});
+
+	/** Spokes only (index 0 = fixed center Home). */
+	const spokeEndpoints = $derived(endpoints.slice(1));
 
 	// State
 	let showRoutes = $state(false);
@@ -128,15 +83,19 @@
 	let svg: SVGSVGElement | undefined = $state(undefined);
 	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
 
-	// Calculate endpoint positions
-	const endpointsWithPos = $derived(
-		endpoints.map((endpoint, index) => {
-			const ANGLE = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
+	// Calculate endpoint positions for spokes only (center Home is fixed at menu center)
+	const spokesWithPos = $derived.by(() => {
+		const n = spokeEndpoints.length;
+		if (n === 0) return [];
+
+		return spokeEndpoints.map((endpoint, index) => {
+			// Even spacing around the ring; avoid divide-by-zero (n >= 1 here)
+			const ANGLE = ((Math.PI * 2) / n) * index - Math.PI / 2;
 			const X = center.x + MENU_RADIUS * Math.cos(ANGLE);
 			const Y = center.y + MENU_RADIUS * Math.sin(ANGLE);
 			return { ...endpoint, x: X, y: Y, angle: ANGLE };
-		})
-	);
+		});
+	});
 
 	// Helper functions
 	function getBasePath(pathname: string): string {
@@ -319,7 +278,7 @@
 				if (node.hasPointerCapture(e.pointerId)) {
 					node.releasePointerCapture(e.pointerId);
 				}
-			} catch (err) {
+			} catch {
 				// Ignore if already released
 			}
 
@@ -379,8 +338,9 @@
 
 	function setDash(node: SVGSVGElement): void {
 		let first = true;
-		for (const LINE_ELEMENT of node.children as Any) {
+		for (const LINE_ELEMENT of Array.from(node.children)) {
 			const EL = LINE_ELEMENT as SVGLineElement;
+			if (typeof EL.getTotalLength !== 'function') continue;
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
 			EL.style.strokeDasharray = TOTAL_LENGTH;
 			EL.style.strokeDashoffset = TOTAL_LENGTH;
@@ -398,8 +358,9 @@
 		}
 
 		let first = true;
-		for (const LINE_ELEMENT of svg.children as Any) {
+		for (const LINE_ELEMENT of Array.from(svg.children)) {
 			const EL = LINE_ELEMENT as SVGLineElement;
+			if (typeof EL.getTotalLength !== 'function') continue;
 			EL.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
 			EL.style.strokeDasharray = TOTAL_LENGTH;
@@ -407,7 +368,7 @@
 			first = false;
 		}
 
-		for (const CIRCLE of circles as HTMLAnchorElement[]) {
+		for (const CIRCLE of circles) {
 			if (CIRCLE) {
 				CIRCLE.style.display = 'none';
 			}
@@ -416,10 +377,6 @@
 
 	function keepAlive(_node: HTMLElement, { delay = 0, duration = 200, easing: easingFn = linear } = {}) {
 		return { delay, duration, easing: easingFn, css: (_: number) => '' };
-	}
-
-	function handleFavoritesChanged() {
-		favoritesVersion += 1;
 	}
 
 	// Effects
@@ -443,7 +400,6 @@
 
 		window.addEventListener('resize', handleResize, { passive: true });
 		window.addEventListener('keydown', onKeyDown);
-		window.addEventListener('favorites_changed', handleFavoritesChanged);
 	});
 
 	onDestroy(() => {
@@ -453,8 +409,11 @@
 
 		window.removeEventListener('resize', handleResize);
 		window.removeEventListener('keydown', onKeyDown);
-		window.removeEventListener('favorites_changed', handleFavoritesChanged);
 	});
+
+	const centerEndpoint = $derived(endpoints[0]);
+	/** Only Home (+ optional fixed Settings spoke) — show a quieter “empty” ring. */
+	const isMinimalMenu = $derived(spokeEndpoints.length <= 1 && spokeEndpoints.every((s) => s.id === 'settings' || s.id === 'config'));
 </script>
 
 <!-- FloatingNav: Draggable button with radial menu, keyboard nav, reduced motion, ARIA -->
@@ -509,24 +468,28 @@
 			aria-hidden="true"
 			class="pointer-events-none fixed inset-s-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
 		>
+			<!-- FAB → center Home line always present -->
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
-			{#each endpointsWithPos.slice(1) as endpoint (endpoint.tooltip)}
+			{#each spokesWithPos as endpoint (endpoint.id)}
 				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
 			{/each}
 		</svg>
 
+		<!-- Empty / minimal ring: still draw the circle so the menu feels intentional -->
 		<div
 			transition:fade
 			aria-hidden="true"
 			class="absolute inset-s-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+			class:opacity-60={isMinimalMenu && spokeEndpoints.length === 0}
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
 			       height:{MENU_RADIUS * 2}px"
 		></div>
 
+		<!-- Fixed center: Home (always) -->
 		<SystemTooltip
-			title={endpoints[0]?.tooltip || 'Home'}
+			title={centerEndpoint?.tooltip || 'Home'}
 			contentClass="z-[99999999]"
 			positioning={{ placement: 'top' }}
 			triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
@@ -535,19 +498,19 @@
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a
 				bind:this={circles[0]}
-				href={endpoints[0]?.url?.path || '/'}
-				target={endpoints[0]?.url?.external ? '_blank' : undefined}
-				rel={endpoints[0]?.url?.external ? 'noopener noreferrer' : undefined}
-				data-sveltekit-preload-data={endpoints[0]?.url?.external ? undefined : 'hover'}
+				href={centerEndpoint?.path || '/'}
+				target={centerEndpoint?.external ? '_blank' : undefined}
+				rel={centerEndpoint?.external ? 'noopener noreferrer' : undefined}
+				data-preload={centerEndpoint?.external ? undefined : 'hover'}
 				onclick={handleNavigateHome}
-				aria-label={endpoints[0]?.tooltip || 'Home'}
+				aria-label={centerEndpoint?.tooltip || 'Home'}
 				class="h-full w-full flex items-center justify-center"
 			>
-				<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon || 'solar:home-bold'}></iconify-icon>
+				<iconify-icon width="32" style="color:white" icon={centerEndpoint?.icon || 'solar:home-bold'}></iconify-icon>
 			</a>
 		</SystemTooltip>
 
-		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
+		{#each spokesWithPos as endpoint, index (endpoint.id)}
 			<SystemTooltip
 				title={endpoint.tooltip}
 				contentClass="z-[99999999]"
@@ -559,10 +522,10 @@
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 				<a
 					bind:this={circles[index + 1]}
-					href={endpoint.url.path}
-					target={endpoint.url.external ? '_blank' : undefined}
-					rel={endpoint.url.external ? 'noopener noreferrer' : undefined}
-					data-sveltekit-preload-data={endpoint.url.external ? undefined : 'hover'}
+					href={endpoint.path}
+					target={endpoint.external ? '_blank' : undefined}
+					rel={endpoint.external ? 'noopener noreferrer' : undefined}
+					data-preload={endpoint.external ? undefined : 'hover'}
 					onclick={handleNavigateToEndpoint}
 					aria-label={endpoint.tooltip}
 					class="h-full w-full flex items-center justify-center"

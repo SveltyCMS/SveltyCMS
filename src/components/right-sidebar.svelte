@@ -216,7 +216,7 @@
 				const err = await res.json().catch(() => ({}));
 				logger.error('[RightSidebar] Failed to create schedule job:', err);
 			} else {
-				logger.info('[RightSidebar] Schedule job created successfully');
+				logger.debug('[RightSidebar] Schedule job created successfully');
 			}
 		} catch (err) {
 			logger.error('[RightSidebar] Error creating schedule job:', err);

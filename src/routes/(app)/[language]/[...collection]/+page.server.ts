@@ -56,8 +56,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
   const typedUser = user as User;
   const { tenantId } = locals;
   const { language, collection } = params;
-  console.log(
-    `[PRE-FLIGHT-CHECK] url=${url.pathname}, language=${language}, collection=${collection}, userLocale=${typedUser?.locale}`,
+  logger.debug(
+    `[collection load] path=${url.pathname} language=${language} collection=${collection}`,
   );
 
   // =================================================================
@@ -130,11 +130,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     }
 
     if (!currentCollection) {
-      const allCols = await contentSystem.getCollections(tenantId);
       const colPath = collection || "";
-      console.log(
-        `[DEBUG-COL] Request collection=${collection}, collectionPath=/${colPath}, allCols=${JSON.stringify(allCols.map((c) => ({ id: c._id, name: c.name, path: c.path })))}`,
-      );
+      logger.debug(`[collection load] not found collection=${collection} path=/${colPath}`);
       if (collectionNameOnly?.toLowerCase() === "collections") {
         const allCollections = await contentSystem.getCollections(tenantId);
         if (allCollections.length > 0) {

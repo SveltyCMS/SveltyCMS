@@ -47,7 +47,8 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
         getById: (id: DatabaseId) => tenantRepo.findOne({ _id: id } as any),
         update: (id: DatabaseId, d: any) => tenantRepo.update(id, d),
         delete: (id: DatabaseId) => tenantRepo.delete(id),
-        list: (o: any) => tenantRepo.findMany(o?.filter || {}, o),
+        list: (o: any) =>
+          tenantRepo.findMany(o?.filter || {}, { ...o, systemScope: o?.systemScope }),
       },
       jobs: {
         create: (j: any) => jobRepo.insert(j),
@@ -62,11 +63,12 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
               limit,
               tenantId: options?.tenantId,
               bypassTenantCheck: options?.bypassTenantCheck,
+              systemScope: options?.systemScope,
             } as any,
           ),
         list: (o: any) => jobRepo.findMany(o?.filter || {}, o),
         count: (f: any) => jobRepo.count(f),
-        update: (id: DatabaseId, d: any) => jobRepo.update(id, d),
+        update: (id: DatabaseId, d: any, o?: any) => jobRepo.update(id, d, o),
         delete: (id: DatabaseId) => jobRepo.delete(id),
         cleanup: async (olderThan: Date) => {
           const res = await jobRepo.deleteMany(
@@ -224,7 +226,8 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
       (await this._getMethods()).jobs.getNextReady(limit, options),
     list: async (options?: any) => (await this._getMethods()).jobs.list(options),
     count: async (filter?: any) => (await this._getMethods()).jobs.count(filter),
-    update: async (id: DatabaseId, data: any) => (await this._getMethods()).jobs.update(id, data),
+    update: async (id: DatabaseId, data: any, options?: any) =>
+      (await this._getMethods()).jobs.update(id, data, options),
     delete: async (id: DatabaseId) => (await this._getMethods()).jobs.delete(id),
     cleanup: async (olderThan: Date) => (await this._getMethods()).jobs.cleanup(olderThan),
   };

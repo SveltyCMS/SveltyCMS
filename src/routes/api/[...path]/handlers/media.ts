@@ -3,11 +3,13 @@
  * @description High-performance, stream-isolated Enterprise Media Management API endpoint routing.
  */
 
+import { logger } from "@utils/logger";
 import crypto from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
+import { Readable } from "node:stream";
 import mime from "mime-types";
 import { AppError, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -140,7 +142,7 @@ export async function handleMediaRoutes(
     rethrow(err);
     // Expected client/auth errors should not spam stderr as "MediaRoute Error"
     if (err instanceof AppError) throw err;
-    console.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
+    logger.error(`[MediaRoute Error] ${segments.join("/")}:`, err);
     throw new AppError(err.message || "Media route handler transaction failed", 500);
   }
 }
@@ -883,7 +885,13 @@ export async function handleMediaShareDownload(
     const stats = await fsp.stat(fullPath);
     const mimeType = mime.lookup(fullPath) || "application/octet-stream";
 
-    return new Response(fs.createReadStream(fullPath) as any, {
+    // Explicit web-stream conversion + abort teardown: a raw Node stream passed to
+    // Response can leak the fd / surface uncaught fs errors when the client aborts.
+    const fileStream = fs.createReadStream(fullPath);
+    event.request.signal.addEventListener("abort", () => fileStream.destroy(), { once: true });
+    const webStream = Readable.toWeb(fileStream);
+
+    return new Response(webStream as any, {
       status: 200,
       headers: {
         "Content-Type": mimeType,

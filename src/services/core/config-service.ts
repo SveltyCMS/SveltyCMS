@@ -139,7 +139,7 @@ export class ConfigService {
     uuids?: string[];
     tenantId?: string;
   } = {}): Promise<{ dirPath: string }> {
-    logger.info(`Exporting configuration for tenant: ${tenantId || "global"}...`);
+    logger.debug(`Exporting configuration for tenant: ${tenantId || "global"}...`);
     const exportDir = path.resolve(
       process.cwd(),
       "config/sync",
@@ -194,7 +194,7 @@ export class ConfigService {
 
     await Promise.all(exportPromises);
 
-    logger.info(`Configuration exported to ${exportDir}`);
+    logger.debug(`Configuration exported to ${exportDir}`);
 
     // Emit webhook event (best-effort, non-blocking)
     try {
@@ -348,7 +348,7 @@ export class ConfigService {
     } = {},
   ) {
     const { tenantId } = options;
-    logger.info(`Performing configuration import for tenant: ${tenantId || "global"}...`);
+    logger.debug(`Performing configuration import for tenant: ${tenantId || "global"}...`);
     let changes = options.changes;
 
     if (!changes) {
@@ -371,7 +371,7 @@ export class ConfigService {
       await this.deleteEntity(item, tenantId);
     }
 
-    logger.info("Configuration import completed.");
+    logger.debug("Configuration import completed.");
 
     // Emit webhook event (best-effort, non-blocking)
     try {
@@ -422,7 +422,7 @@ export class ConfigService {
             } as any,
             tenantId as any,
           );
-          logger.info(`Imported collection: ${item.name}`);
+          logger.debug(`Imported collection: ${item.name}`);
           break;
         }
 
@@ -438,10 +438,10 @@ export class ConfigService {
               await adapter.auth.updateRole(existing._id, role as any, {
                 tenantId: tenantId as any,
               });
-              logger.info(`Updated role: ${item.name}`);
+              logger.debug(`Updated role: ${item.name}`);
             } else {
               await adapter.auth.createRole(role, { tenantId: tenantId as any });
-              logger.info(`Imported role: ${item.name}`);
+              logger.debug(`Imported role: ${item.name}`);
             }
           }
           break;
@@ -459,7 +459,7 @@ export class ConfigService {
               scope: "system",
               tenantId: (tenantId as string | null) ?? (null as any),
             });
-            logger.info(`Imported setting: ${item.name}`);
+            logger.debug(`Imported setting: ${item.name}`);
           }
           break;
         }
@@ -472,7 +472,7 @@ export class ConfigService {
             } else {
               await adapter.system.widgets.deactivate(item.uuid as any);
             }
-            logger.info(`Imported widget state: ${item.name}`);
+            logger.debug(`Imported widget state: ${item.name}`);
           }
           break;
         }
@@ -492,7 +492,7 @@ export class ConfigService {
             if (themeData.isActive) {
               await adapter.system.themes.setDefault(themeData._id);
             }
-            logger.info(`Imported theme: ${item.name}`);
+            logger.debug(`Imported theme: ${item.name}`);
           }
           break;
         }
@@ -505,7 +505,7 @@ export class ConfigService {
               { ...item.entity, ...(tenantId && { tenantId }) } as any,
               tenantId as any,
             );
-            logger.info(`Imported webhook: ${item.name}`);
+            logger.debug(`Imported webhook: ${item.name}`);
           } catch (err) {
             logger.error(`Failed to import webhook ${item.name}:`, err);
           }
@@ -521,7 +521,7 @@ export class ConfigService {
               { ...item.entity, ...(tenantId && { tenantId }) } as any,
               tenantId as any,
             );
-            logger.info(`Imported automation: ${item.name}`);
+            logger.debug(`Imported automation: ${item.name}`);
           } catch (err) {
             logger.error(`Failed to import automation ${item.name}:`, err);
           }
@@ -543,14 +543,14 @@ export class ConfigService {
       switch (item.type) {
         case "collection": {
           await adapter.crud.delete("collections", item.uuid as any, tenantId as any);
-          logger.info(`Deleted collection: ${item.name}`);
+          logger.debug(`Deleted collection: ${item.name}`);
           break;
         }
 
         case "role": {
           if (adapter.auth) {
             await adapter.auth.deleteRole(item.uuid as any, { tenantId: tenantId as any });
-            logger.info(`Deleted role: ${item.name}`);
+            logger.debug(`Deleted role: ${item.name}`);
           }
           break;
         }
@@ -566,7 +566,7 @@ export class ConfigService {
               scope: "system",
               tenantId: (tenantId as string | null) ?? (null as any),
             });
-            logger.info(`Deleted setting: ${item.name}`);
+            logger.debug(`Deleted setting: ${item.name}`);
           }
           break;
         }
@@ -575,11 +575,11 @@ export class ConfigService {
           if (adapter.system?.widgets) {
             try {
               await adapter.system.widgets.delete(item.uuid as any);
-              logger.info(`Deleted widget: ${item.name}`);
+              logger.debug(`Deleted widget: ${item.name}`);
             } catch {
               // Deactivation fallback
               await adapter.system.widgets.deactivate(item.uuid as any);
-              logger.info(`Deactivated widget: ${item.name}`);
+              logger.debug(`Deactivated widget: ${item.name}`);
             }
           }
           break;
@@ -588,21 +588,21 @@ export class ConfigService {
         case "theme": {
           if (adapter.system?.themes) {
             await adapter.system.themes.uninstall(item.uuid as any);
-            logger.info(`Deleted theme: ${item.name}`);
+            logger.debug(`Deleted theme: ${item.name}`);
           }
           break;
         }
 
         case "webhook": {
           await adapter.crud.delete("webhooks", item.uuid as any, tenantId as any);
-          logger.info(`Deleted webhook: ${item.name}`);
+          logger.debug(`Deleted webhook: ${item.name}`);
           break;
         }
 
         case "automation":
         case "workflow": {
           await adapter.crud.delete("automations", item.uuid as any, tenantId as any);
-          logger.info(`Deleted automation: ${item.name}`);
+          logger.debug(`Deleted automation: ${item.name}`);
           break;
         }
 

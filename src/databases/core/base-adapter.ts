@@ -155,7 +155,7 @@ export abstract class BaseAdapter {
     this._poolIndex = (this._poolIndex + 1) % this._poolSize;
     // DEBUG: Detect slot reuse before the previous consumer's microtask releases it.
     if ((slot as any)._inUse) {
-      console.warn(
+      logger.warn(
         "[BaseAdapter] Ring buffer slot reused before previous consumer released it. Pool may be undersized.",
       );
     }
@@ -292,7 +292,13 @@ export abstract class BaseAdapter {
 
       if (latency > 500) {
         this.metrics.slowQueryCount++;
-        logger.warn(`Slow database operation detected: ${code} took ${latency.toFixed(2)}ms`);
+        const stack =
+          process.env.SVELTY_SQL_DEBUG === "1"
+            ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
+            : "";
+        logger.warn(
+          `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
+        );
       }
 
       // 🚀 PERFORMANCE: Always use ring-buffer pool for the result wrapper.

@@ -16,15 +16,10 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
-import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
-import {
-  prepareTestUser,
-  seedBulkUsers,
-  setTestSetting,
-  TEST_API_SECRET,
-  TEST_USERS,
-} from "../../helpers/api";
+import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor, TEST_PASSWORD } from "../../helpers/auth";
+import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_API_SECRET } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import { openUserManagement, openUserSettings, openUserTab } from "../../helpers/user-page";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -78,7 +73,7 @@ test.describe("RTC preferences", () => {
       headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
     });
     const body = await userRes.json().catch(() => ({}));
-    const allUsers = body.data || (body.data && body.data.data) || [];
+    const allUsers = body.data?.data || body.data || [];
     const adminUser = Array.isArray(allUsers)
       ? allUsers.find((u: any) => u.email === ADMIN_CREDENTIALS.email)
       : undefined;
@@ -106,7 +101,7 @@ test.describe("RTC preferences", () => {
       headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
     });
     const body = await userRes.json().catch(() => ({}));
-    const allUsers = body.data || (body.data && body.data.data) || [];
+    const allUsers = body.data?.data || body.data || [];
     const adminUser = Array.isArray(allUsers)
       ? allUsers.find((u: any) => u.email === ADMIN_CREDENTIALS.email)
       : undefined;
@@ -137,6 +132,9 @@ test.describe("GDPR privacy flows", () => {
   test("export downloads JSON payload", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
+
+    // Privacy & Data (GDPR) lives in the Settings tab.
+    await openUserSettings(page);
 
     await page.getByTestId("privacy-data-btn").click();
     const dialog = page.getByRole("dialog");
@@ -170,9 +168,15 @@ test.describe("GDPR privacy flows", () => {
   });
 
   test("anonymize secondary user logs them out", async ({ page }) => {
-    await prepareTestUser(page, "editor");
-    await loginAsEditor(page, "/user");
+    // Dedicated user — the shared editor row is mutated concurrently by the p0
+    // password journey, so a shared-account anonymize would race it.
+    const anonEmail = `anon_${Date.now()}@example.com`;
+    await prepareTestUser(page, anonEmail);
+    await loginAsEditor(page, "/user", { email: anonEmail, password: TEST_PASSWORD });
     await goToUser(page);
+
+    // Privacy & Data (GDPR) lives in the Settings tab.
+    await openUserSettings(page);
 
     await page.getByTestId("privacy-data-btn").click();
     const dialog = page.getByRole("dialog");
@@ -192,18 +196,18 @@ test.describe("GDPR privacy flows", () => {
     // Should land on login after anonymize + logout
     await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 25_000 });
 
-    // Old credentials must not work
+    // Old credentials must not work (the anonymized dedicated user)
     const login = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
       data: {
         action: "login",
-        email: TEST_USERS.editor.email,
-        password: TEST_USERS.editor.password,
+        email: anonEmail,
+        password: TEST_PASSWORD,
       },
     });
     expect(login.ok()).toBe(false);
 
-    // Restore editor for other suites
+    // Restore the shared editor for other suites (never mutated by this flow)
     await prepareTestUser(page, "editor").catch(() => {});
   });
 });
@@ -223,6 +227,8 @@ test.describe("2FA enroll with fixture", () => {
     // Force reload so is2FAEnabledGlobal picks up setting
     await page.goto("/user", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // 2FA lives in the Security tab.
+    await openUserTab(page, /^security$/i);
 
     const twoFaBtn = page.getByRole("button", { name: /Setup|Manage|Enabled/i }).filter({
       hasText: /Setup|Manage|Enabled/i,
@@ -236,7 +242,7 @@ test.describe("2FA enroll with fixture", () => {
     } else if (await manageBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
       // Already enabled — open manage and assert modal content
       await manageBtn.click();
-      await expect(page.locator(".modal-2fa").or(page.getByRole("dialog"))).toBeVisible({
+      await expect(page.locator(".modal-2fa").or(page.getByRole("dialog")).first()).toBeVisible({
         timeout: ACTION_TIMEOUT,
       });
       return;
@@ -246,7 +252,7 @@ test.describe("2FA enroll with fixture", () => {
       await twoFaBtn.first().click();
     }
 
-    const modal = page.locator(".modal-2fa").or(page.getByRole("dialog"));
+    const modal = page.locator(".modal-2fa").or(page.getByRole("dialog")).first();
     await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Wait for setup secret (manual entry)
@@ -275,6 +281,8 @@ test.describe("Permissions list", () => {
   test("admin profile shows permissions badges when granted", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
+    // Permissions badges live in the Security tab.
+    await openUserTab(page, /^security$/i);
 
     const list = page.getByTestId("user-permissions-list");
     await expect(list).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -291,7 +299,7 @@ test.describe("Admin table scale", () => {
   test("pagination works with 11+ users", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
-    await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await openUserManagement(page);
 
     await seedBulkUsers(page, 12);
 
@@ -317,6 +325,8 @@ test.describe("Admin table scale", () => {
 
     await expect(async () => {
       await page.reload({ waitUntil: "domcontentloaded" });
+      // Reload resets the account tabs to Identity — re-open User Management.
+      await openUserManagement(page);
       await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: 10_000 });
     }).toPass({ timeout: 25_000 });
 
@@ -342,24 +352,30 @@ test.describe("Admin table scale", () => {
     }
   });
 
-  test("density toggle changes table class", async ({ page }) => {
+  test("density select applies and persists an appearance preference", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
-    await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await openUserSettings(page);
 
-    const densityBtn = page
-      .getByRole("button", { name: /density/i })
-      .or(page.locator('button[aria-label*="density" i]'))
-      .first();
-    await expect(densityBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const densitySelect = page.locator('select[aria-label="Density"]');
+    await expect(densitySelect).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const table = page.locator("table").first();
-    await expect(table).toBeVisible({ timeout: ACTION_TIMEOUT });
-    const before = await table.getAttribute("class");
-    await densityBtn.click();
-    const after = await table.getAttribute("class");
-    // Class or data-density may change; at minimum click does not crash
-    expect(after !== null || before !== null).toBe(true);
+    const before = await densitySelect.inputValue();
+    const target = before === "cozy" ? "compact" : "cozy";
+    await densitySelect.selectOption(target);
+
+    // Outcome: the apply action persists the preference (toast).
+    await page.getByTestId("user-save-appearance-btn").click();
+    await expect(page.getByText(/appearance preferences applied/i)).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+
+    // Restore the original preference so other serial specs are unaffected.
+    await densitySelect.selectOption(before);
+    await page.getByTestId("user-save-appearance-btn").click();
+    await expect(page.getByText(/appearance preferences applied/i)).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
   });
 });
 
@@ -370,21 +386,25 @@ test.describe("Sessions and multi-tenant column", () => {
   test("active sessions shows this device", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
+    // Active sessions live in the Security tab.
+    await openUserTab(page, /^security$/i);
     const section = page.getByTestId("active-sessions-section");
     await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
     await page.getByRole("button", { name: /refresh active sessions/i }).click();
-    // Current session or empty state — not error
+    // Current session or empty state — not error (`.first()` — the combined locator
+    // matches every list + device line in the section)
     await expect(
       section
         .getByText(/this device|no other sessions|unknown device|ip /i)
-        .or(section.getByRole("list")),
+        .or(section.getByRole("list"))
+        .first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
   test("tenant column hidden when multi-tenant is off", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
-    await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await openUserManagement(page);
     // Column header "Tenant ID" should not appear in default single-tenant
     const tenantHeader = page.locator("thead th").filter({ hasText: /tenant id/i });
     await expect(tenantHeader).toHaveCount(0);

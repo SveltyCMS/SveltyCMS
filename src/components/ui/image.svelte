@@ -28,6 +28,7 @@ an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
   /**
    * @file src/components/ui/image.svelte
    * @description Responsive image component with automatic srcset generation from uploaded variants.
@@ -156,7 +157,7 @@ an optimal `<img>` for every device. WebP as primary format via srcset, JPEG/PNG
     const altText = alt;
     const srcUrl = src;
     if (dev && browser && !isDecorative && !altText) {
-      console.warn(
+      logger.warn(
         `[Image] Non-decorative image is missing alt text. ` +
           `Provide an \`alt\` prop or ensure the asset has \`alt\` / \`metadata.altText\` set.`,
         srcUrl ? `src: ${srcUrl}` : '',

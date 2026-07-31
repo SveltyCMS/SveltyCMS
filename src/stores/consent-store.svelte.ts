@@ -3,6 +3,7 @@
  * @description Global store for managing user consent preferences (GDPR).
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
+import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 
 export type ConsentCategory = "necessary" | "analytics" | "marketing";
@@ -33,7 +34,7 @@ function createConsentStore() {
         const parsed = JSON.parse(stored);
         Object.assign(state, parsed, { necessary: true }); // Ensure necessary is always true
       } catch (e) {
-        console.error("Failed to parse consent cookie", e);
+        logger.error("Failed to parse consent cookie", e);
       }
     }
   }

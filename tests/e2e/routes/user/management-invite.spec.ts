@@ -22,7 +22,7 @@ test.describe("User Management — Invite Flow", () => {
     await page.getByRole("tab", { name: /user management/i }).click();
 
     // Admin area is below the profile cards — wait for it before interacting
-    const adminArea = page.getByTestId("user-admin-section");
+    const adminArea = page.getByTestId("user-admin-area");
     await expect(adminArea).toBeVisible({ timeout: 20_000 });
     await adminArea.scrollIntoViewIfNeeded();
 

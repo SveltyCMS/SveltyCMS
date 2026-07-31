@@ -34,6 +34,7 @@
 
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { browser } from "$app/environment";
+import { logger } from "@utils/logger";
 
 // Test-friendly browser check
 const isTest =
@@ -143,9 +144,7 @@ export class LoadingStore {
     if (!isBrowser) return;
 
     if (this._loadingStack.has(reason)) {
-      if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
-        console.warn(`[LoadingStore] Operation "${reason}" already in progress`);
-      }
+      logger.debug(`[LoadingStore] Operation "${reason}" already in progress`);
       return;
     }
 
@@ -158,9 +157,7 @@ export class LoadingStore {
 
     if (!isTest) {
       entry.timeoutId = setTimeout(() => {
-        if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
-          console.warn(`[LoadingStore] Auto-cleanup: "${reason}" exceeded ${timeout}ms`);
-        }
+        logger.warn(`[LoadingStore] Auto-cleanup: "${reason}" exceeded ${timeout}ms`);
         this.stopLoading(reason);
       }, timeout);
     }
@@ -170,8 +167,8 @@ export class LoadingStore {
     this._isLoading = true;
     this._loadingReason = reason;
 
-    if (context && (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS)) {
-      console.debug(`[LoadingStore] Started: ${reason} (${context})`);
+    if (context) {
+      logger.debug(`[LoadingStore] Started: ${reason} (${context})`);
     }
   }
 
@@ -180,9 +177,7 @@ export class LoadingStore {
     if (!isBrowser) return;
 
     if (this._loadingStack.has(reason)) {
-      if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
-        console.warn(`[LoadingStore] Operation "${reason}" already in progress`);
-      }
+      logger.debug(`[LoadingStore] Operation "${reason}" already in progress`);
       return;
     }
 
@@ -210,9 +205,7 @@ export class LoadingStore {
     const timeout = options.timeout ?? this._maxTimeout;
     if (!isTest) {
       entry.timeoutId = setTimeout(() => {
-        if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
-          console.warn(`[LoadingStore] Auto-cleanup: "${reason}" exceeded ${timeout}ms`);
-        }
+        logger.warn(`[LoadingStore] Auto-cleanup: "${reason}" exceeded ${timeout}ms`);
         this.stopLoading(reason);
       }, timeout);
     }
@@ -224,8 +217,8 @@ export class LoadingStore {
     this._canCancel = entry.canCancel ?? false;
     this._onCancel = entry.onCancel;
 
-    if (options.context && (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS)) {
-      console.debug(`[LoadingStore] Started: ${reason} (${options.context})`);
+    if (options.context) {
+      logger.debug(`[LoadingStore] Started: ${reason} (${options.context})`);
     }
   }
 
@@ -288,9 +281,9 @@ export class LoadingStore {
       }
     }
 
-    if (entry && (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS)) {
+    if (entry) {
       const duration = Date.now() - entry.startTime;
-      console.debug(`[LoadingStore] Stopped: ${reason} (${duration}ms)`);
+      logger.debug(`[LoadingStore] Stopped: ${reason} (${duration}ms)`);
     }
   }
 
@@ -351,9 +344,7 @@ export class LoadingStore {
     this._canCancel = false;
     this._onCancel = undefined;
 
-    if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
-      console.warn("[LoadingStore] Force cleared all loading states");
-    }
+    logger.debug("[LoadingStore] Force cleared all loading states");
   }
 
   isLoadingReason(reason: string): boolean {
@@ -388,7 +379,7 @@ export class LoadingStore {
         Date.now() - (this._loadingEntries.get(reason)?.startTime ?? Date.now()),
         false,
       );
-      console.error(`[LoadingStore] Operation "${reason}" failed:`, error);
+      logger.error(`[LoadingStore] Operation "${reason}" failed:`, error);
       throw error;
     } finally {
       this.stopLoading(reason);
@@ -444,7 +435,7 @@ export class LoadingStore {
         Date.now() - (this._loadingEntries.get(reason)?.startTime ?? Date.now()),
         false,
       );
-      console.error(`[LoadingStore] Operation "${reason}" failed:`, error);
+      logger.error(`[LoadingStore] Operation "${reason}" failed:`, error);
       throw error;
     } finally {
       this.stopLoading(reason);
@@ -462,7 +453,7 @@ export class LoadingStore {
         Date.now() - (this._loadingEntries.get(reason)?.startTime ?? Date.now()),
         false,
       );
-      console.error(`[LoadingStore] Operation "${reason}" failed:`, error);
+      logger.error(`[LoadingStore] Operation "${reason}" failed:`, error);
       throw error;
     } finally {
       this.stopLoading(reason);

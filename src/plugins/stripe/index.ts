@@ -21,6 +21,7 @@
  * - Allowed checkout origins for headless frontends
  */
 
+import { logger } from "@utils/logger";
 import { definePlugin } from "../define-plugin";
 
 export const stripePlugin = definePlugin({
@@ -129,9 +130,7 @@ export const stripePlugin = definePlugin({
           delete data._stripeMultiCurrency;
           delete data._stripeCustomTheme;
           delete data._stripeAnalytics;
-          console.warn(
-            "[stripe] Premium fields stripped due to missing license. Free tier active.",
-          );
+          logger.warn("[stripe] Premium fields stripped due to missing license. Free tier active.");
         }
 
         // If a payment intent is attached, verify it succeeded (free + premium)

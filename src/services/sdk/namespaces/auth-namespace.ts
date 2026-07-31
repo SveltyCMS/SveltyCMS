@@ -172,7 +172,16 @@ export class AuthNamespace {
       }
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      return auth.createUser({ ...userData, tenantId });
+      const result = await auth.createUser({ ...userData, tenantId });
+      // Unwrap the adapter DatabaseResult: safeCall must surface adapter failures
+      // (e.g. duplicate email) as { success: false }, not nest them under data.
+      if (!result || (typeof result === "object" && "success" in result && !result.success)) {
+        throw new AppError(
+          (result as { message?: string })?.message || "Failed to create user",
+          400,
+        );
+      }
+      return (result as { data?: unknown }).data;
     });
   }
 
@@ -419,7 +428,7 @@ export class AuthNamespace {
 
       const auth = await this.getAuth();
       const existingRoles = await withTenant(
-        (tenantId ?? "") as string,
+        tenantId as DatabaseId | null,
         async () => {
           return await auth.getAllRoles({ tenantId: tenantId as DatabaseId });
         },
@@ -429,7 +438,7 @@ export class AuthNamespace {
       const incomingRoleIds = new Set(roles.map((r: Role) => r._id));
 
       await withTenant(
-        (tenantId ?? "") as string,
+        tenantId as DatabaseId | null,
         async () => {
           for (const existingRole of existingRoles) {
             if (!incomingRoleIds.has(existingRole._id)) {

@@ -94,10 +94,22 @@ import { tick } from "svelte";
       el.focus();
       activeInputStore.set({ element: el, field }); // Explicitly open picker on button click
     } else {
-      console.warn("Could not find input for field", field);
+      logger.warn("Could not find input for field", field);
     }
   }
   let widgetFunctions = $derived(widgets.widgetFunctions);
+
+  /** Field icon, or fall back to the registered widget factory Icon. */
+  function resolveFieldIcon(field: {
+    icon?: string;
+    widget?: { Name?: string; Icon?: string };
+  }): string | undefined {
+    if (field.icon) return field.icon;
+    if (field.widget?.Icon) return field.widget.Icon;
+    const name = field.widget?.Name;
+    if (!name) return undefined;
+    return (widgetFunctions[name] as { Icon?: string } | undefined)?.Icon;
+  }
 
   // --- 1. RECEIVE DATA AS PROPS ---
   let {
@@ -587,6 +599,7 @@ import { tick } from "svelte";
           {#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
             {#if rawField.widget}
               {const field = ensureFieldProperties(rawField)}
+              {@const fieldIcon = resolveFieldIcon(field)}
               <div
                 class="mx-auto text-center {!field?.width
                   ? 'w-full '
@@ -682,19 +695,20 @@ import { tick } from "svelte";
                         {/if}
                       </div>
                     {/if}
-                    <!-- Icon for field type -->
-                    {#if field.icon}
+                    <!-- Icon: field override → widget definition Icon → registry Icon -->
+                    {#if fieldIcon}
                       <iconify-icon
-                        icon={field.icon}
+                        icon={fieldIcon}
                         width="20"
                         class="text-tertiary-500 dark:text-primary-500"
+                        aria-hidden="true"
                       ></iconify-icon>
                     {/if}
                   </div>
                 </div>
 
                 {#if field.widget}
-                  {const widgetName = field.widget.Name}
+                  {const widgetName = field.widget.Name || "Input"}
 
                   {const loadedWidget = getCachedWidgetInputLoader(widgetName, widgetFunctions)}
 

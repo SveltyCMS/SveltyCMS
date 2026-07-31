@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import { quintOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 
@@ -129,7 +130,7 @@
 			const text = await navigator.clipboard.readText();
 			editor?.chain().focus().insertContent(text).run();
 		} catch (err) {
-			console.error('Failed to read clipboard:', err);
+			logger.error('Failed to read clipboard:', err);
 			alert('Could not access clipboard. Please check permissions.');
 		}
 	}

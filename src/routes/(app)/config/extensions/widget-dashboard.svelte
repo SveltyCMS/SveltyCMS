@@ -153,7 +153,7 @@ async function loadWidgets() {
 			pillar: w.pillar,
 		}));
 
-		console.info("Loaded widgets:", {
+		logger.debug("Loaded widgets:", {
 			total: widgets.length,
 			core: widgets.filter((w) => w.isCore).length,
 			custom: widgets.filter((w) => !w.isCore).length,
@@ -190,7 +190,7 @@ async function toggleWidget(widgetName: string) {
 		await widgetStoreActions.initializeWidgets(tenantId);
 		await loadWidgets();
 
-		console.info(
+		logger.debug(
 			`Widget ${widgetName} ${newStatus ? "activated" : "deactivated"} - Store and UI refreshed`,
 		);
 	} catch (err) {
@@ -222,7 +222,7 @@ async function uninstallWidget(widgetName: string) {
 		}
 
 		await loadWidgets();
-		console.info(`Widget ${widgetName} uninstalled`);
+		logger.debug(`Widget ${widgetName} uninstalled`);
 	} catch (err) {
 		const message =
 			err instanceof Error ? err.message : "Failed to uninstall widget";

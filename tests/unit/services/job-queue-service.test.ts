@@ -165,4 +165,65 @@ describe("JobQueueService", () => {
       expect(getNextReadyMock).not.toHaveBeenCalled();
     });
   });
+
+  describe("processNextBatch (atomic claim)", () => {
+    const readyJob = (id: string, taskType = "custom-task") => ({
+      _id: id,
+      taskType,
+      attempts: 0,
+      maxAttempts: 3,
+      payload: { x: 1 },
+      tenantId: "t1",
+    });
+
+    it("executes the handler only when the claim succeeds (filter passed, completed update follows)", async () => {
+      getNextReadyMock.mockResolvedValue({ success: true, data: [readyJob("job-ok")] });
+      updateJobMock.mockResolvedValue({
+        success: true,
+        data: { _id: "job-ok", status: "running" },
+      });
+      const handler = vi.fn().mockResolvedValue(undefined);
+      jobQueue.registerHandler("custom-task", handler);
+
+      await jobQueue.processNextBatch(5);
+
+      // Claim must be conditional on the job still being pending
+      await vi.waitFor(() =>
+        expect(updateJobMock).toHaveBeenCalledWith(
+          "job-ok",
+          expect.objectContaining({ status: "running" }),
+          expect.objectContaining({ filter: { _id: "job-ok", status: "pending" } }),
+        ),
+      );
+      expect(handler).toHaveBeenCalled();
+      // Completed after the handler resolves
+      await vi.waitFor(() =>
+        expect(updateJobMock).toHaveBeenLastCalledWith(
+          "job-ok",
+          expect.objectContaining({ status: "completed" }),
+        ),
+      );
+    });
+
+    it("does not run the handler when the claim loses the race (data undefined)", async () => {
+      getNextReadyMock.mockResolvedValue({ success: true, data: [readyJob("job-race")] });
+      // Row already claimed by another consumer: filter matched nothing → success but no data
+      updateJobMock.mockResolvedValue({ success: true, data: undefined });
+      const handler = vi.fn();
+      jobQueue.registerHandler("custom-task", handler);
+
+      await jobQueue.processNextBatch(5);
+      await vi.waitFor(() => expect(updateJobMock).toHaveBeenCalled());
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("never claims status-transition jobs (scheduler owns them)", async () => {
+      getNextReadyMock.mockResolvedValue({
+        success: true,
+        data: [readyJob("job-st", "status-transition")],
+      });
+      await jobQueue.processNextBatch(5);
+      expect(updateJobMock).not.toHaveBeenCalled();
+    });
+  });
 });

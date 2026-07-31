@@ -106,7 +106,7 @@ export async function handleCollectionsRoutes(
     );
   } catch (err: any) {
     if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
-      console.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
+      logger.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
     }
     if (err instanceof AppError) throw err;
     throw new AppError(

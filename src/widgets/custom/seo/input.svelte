@@ -5,6 +5,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
 	// Stores & Props
 	import { app } from '@src/stores/store.svelte';
@@ -107,7 +108,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 				licenseStatus = data;
 			})
 			.catch((err) => {
-				console.error('Failed to check SEO license status:', err);
+				logger.error('Failed to check SEO license status:', err);
 			})
 			.finally(() => {
 				isCheckingLicense = false;
@@ -148,7 +149,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		try {
 			analysisResults = await analyzeSeo(langData, contentBody);
 		} catch (e) {
-			console.error('SEO Analysis failed', e);
+			logger.error('SEO Analysis failed', e);
 		} finally {
 			isAnalyzing = false;
 		}

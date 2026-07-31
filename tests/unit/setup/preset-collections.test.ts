@@ -16,13 +16,16 @@ describe("preset-collections.server", () => {
     expect(schemas.map((s) => s._id).sort()).toEqual(["authors", "categories", "posts"]);
   });
 
-  it("generates valid collection files with widgets import and _id", () => {
+  it("generates valid collection files with _id and no dead widgets import", () => {
     const blog = PRESETS.find((p) => p.id === "blog");
     const posts = blog?.collections?.[0];
     expect(posts).toBeDefined();
 
     const content = generateCollectionFileContent(posts!);
-    expect(content).toContain('import { widgets } from "@src/widgets"');
+    // The `@src/widgets` barrel was removed in df0ba4393 — generated files must not
+    // reference it (it breaks svelte-check on config/collections and is stripped
+    // by the compilation transformer anyway).
+    expect(content).not.toContain('import { widgets } from "@src/widgets"');
     expect(content).toContain('_id: "posts"');
     expect(content).toContain("config/collections/posts.ts");
   });
@@ -63,26 +66,32 @@ describe("preset-collections.server", () => {
     const path = await import("node:path");
     const sourceDir = path.resolve("config/test-collections/purge-test");
     const compiledDir = path.resolve(".compiledCollections/test-collections/purge-test");
-    await fs.mkdir(sourceDir, { recursive: true });
-    await fs.mkdir(compiledDir, { recursive: true });
-    const sourceArtifact = path.join(sourceDir, "BenchmarkStable.ts");
-    const compiledArtifact = path.join(compiledDir, "BenchmarkStable.js");
-    await fs.writeFile(sourceArtifact, "export default {};", "utf-8");
-    await fs.writeFile(compiledArtifact, "export default {};", "utf-8");
+    try {
+      await fs.mkdir(sourceDir, { recursive: true });
+      await fs.mkdir(compiledDir, { recursive: true });
+      const sourceArtifact = path.join(sourceDir, "BenchmarkStable.ts");
+      const compiledArtifact = path.join(compiledDir, "BenchmarkStable.js");
+      await fs.writeFile(sourceArtifact, "export default {};", "utf-8");
+      await fs.writeFile(compiledArtifact, "export default {};", "utf-8");
 
-    const removed = await purgeBenchmarkCollectionArtifacts();
-    expect(removed).toBeGreaterThanOrEqual(2);
-    expect(
-      await fs
-        .access(sourceArtifact)
-        .then(() => true)
-        .catch(() => false),
-    ).toBe(false);
-    expect(
-      await fs
-        .access(compiledArtifact)
-        .then(() => true)
-        .catch(() => false),
-    ).toBe(false);
+      const removed = await purgeBenchmarkCollectionArtifacts();
+      expect(removed).toBeGreaterThanOrEqual(2);
+      expect(
+        await fs
+          .access(sourceArtifact)
+          .then(() => true)
+          .catch(() => false),
+      ).toBe(false);
+      expect(
+        await fs
+          .access(compiledArtifact)
+          .then(() => true)
+          .catch(() => false),
+      ).toBe(false);
+    } finally {
+      // Hermetic: never leave benchmark artifacts in the repo, even on failure.
+      await fs.rm(sourceDir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(compiledDir, { recursive: true, force: true }).catch(() => {});
+    }
   });
 });

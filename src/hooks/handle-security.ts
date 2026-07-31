@@ -1,6 +1,14 @@
 /**
  * @file src/hooks/handle-security.ts
- * @description ESM-safe unified security middleware with v8 heap-aware load shedding and real payload analysis.
+ * @description
+ * ESM-safe unified security middleware with v8 heap-aware load shedding and real payload analysis.
+ *
+ * ### Features:
+ * - V8 heap load-shedding (503 under critical pressure)
+ * - Honeypot routes for scanner bait
+ * - GraphQL depth/complexity analysis (dynamic graphql import, cold path only)
+ * - AI/scanner bot UA scoring via securityResponseService
+ * - Client IP via `getClientIp()` only (no X-Forwarded-For spoofing)
  */
 
 import v8 from "node:v8";
@@ -11,53 +19,16 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import { getClientIp } from "@utils/hook-utils";
+import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
 
-const IS_TEST_MODE =
-  typeof globalThis !== "undefined" &&
-  ((globalThis as any).process?.env?.TEST_MODE === "true" ||
-    (globalThis as any).process?.env?.VITE_TEST_MODE === "true" ||
-    (globalThis as any).process?.env?.PLAYWRIGHT_TEST === "true" ||
-    (globalThis as any).process?.env?.BENCHMARK === "true");
-
-const TEST_API_SECRET =
-  typeof globalThis !== "undefined"
-    ? (globalThis as any).process?.env?.TEST_API_SECRET ||
-      (globalThis as any).process?.env?.VITE_TEST_API_SECRET
-    : undefined;
-let cachedMasterSecret: string | null = null;
-
-function getMasterSecret(): string | undefined {
-  if (TEST_API_SECRET) return TEST_API_SECRET;
-  if (cachedMasterSecret !== null) return cachedMasterSecret || undefined;
-  try {
-    cachedMasterSecret = getPrivateSettingSync("TEST_API_SECRET") || "";
-  } catch {
-    cachedMasterSecret = "";
-  }
-  return cachedMasterSecret || undefined;
-}
+// IS_TEST_MODE imported from @utils/hook-utils (single source of truth).
+// Test-secret resolution moved to @utils/test-bypass.server (shared with
+// handle-rate-limit) so hooks don't depend on each other's module graphs.
+import { getMasterSecret, timingSafeEqual } from "@utils/test-bypass.server";
+export { getMasterSecret, timingSafeEqual };
 
 const AI_BOT_RE =
   /gptbot|chatgpt-user|anthropic-ai|claude-web|claudebot|cohere-ai|perplexitybot|google-extended|omgili|omgilibot|ccbot|commoncrawl|bytespider|petalbot|facebookbot|zgrab|masscan|nmap|sqlmap|nikto|acunetix|burpsuite|gobuster|dirbuster|wfuzz|feroxbuster|rustscan|nessus|scrapy|python-requests\/2|curl\/|wget\/|axios\/|node-fetch|l9explore|l9tcpid|libwww-perl|go-http-client/i;
-
-async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-  if (a.length !== b.length) return false;
-  const encoder = new TextEncoder();
-  const aBuf = encoder.encode(a);
-  const bBuf = encoder.encode(b);
-  const key = await globalThis.crypto.subtle.importKey(
-    "raw",
-    aBuf,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sigA = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, bBuf));
-  const sigB = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, aBuf));
-  if (sigA.length !== sigB.length) return false;
-  return sigA.every((v, i) => v === sigB[i]);
-}
 
 const HONEYPOT_ROUTES: readonly string[] = [
   "/wp-admin",

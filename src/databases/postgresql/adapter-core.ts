@@ -674,7 +674,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
         if (debugMode && !isBenchSuite) {
-          console.log(
+          logger.debug(
             `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
           );
         }
@@ -682,7 +682,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
 
         if (debugMode && !isBenchSuite) {
-          console.log(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
+          logger.debug(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
         }
         await this.raw.execute(ddl);
 

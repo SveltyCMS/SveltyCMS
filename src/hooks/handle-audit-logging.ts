@@ -1,11 +1,13 @@
 /**
  * @file src/hooks/handle-audit-logging.ts
- * @description Hardened mutation audit logging with macrotask scheduling and failure coverage.
+ * @description
+ * Hardened mutation audit logging with macrotask scheduling and failure coverage.
  *
  * Optimized for:
  * - Security: Captures ALL mutation outcomes (success + failure) for compliance/forensics.
  * - Performance: Microtask scheduling (Promise.resolve) for non-blocking audit writes.
  * - Correctness: Removed __turboAuth mutation bypass that skipped audit on some sessions.
+ * - IP via `getClientIp()` only (no X-Forwarded-For spoofing).
  */
 
 import { logger } from "@utils/logger";
@@ -79,13 +81,14 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
         };
 
         if (success) {
-          logger.info("[AUDIT] Mutation completed", logEntry);
+          // Per-mutation success is debug — avoid default-info spam on every write
+          logger.debug("[AUDIT] Mutation completed", logEntry);
         } else {
           logger.warn("[AUDIT] Mutation logged with failure flags", logEntry);
         }
       })
       .catch((err) => {
-        console.error("[AUDIT Fallback] Secondary log pipeline failed:", err);
+        logger.error("[AUDIT Fallback] Secondary log pipeline failed:", err);
       });
   }
 };

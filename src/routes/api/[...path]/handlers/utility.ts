@@ -11,6 +11,7 @@
  * - Debug/diagnostics endpoint (admin-only)
  */
 
+import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -177,7 +178,7 @@ export async function handleUtilityRoutes(
       404,
     );
   } catch (err: any) {
-    console.error(`[UtilityRoute Error] ${segments.join("/")}:`, err);
+    logger.error(`[UtilityRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "Utility operation failed", 500);
   }

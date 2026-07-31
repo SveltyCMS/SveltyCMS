@@ -127,6 +127,29 @@ export class UserAdapter {
 
       const userId = generateId();
       const Model = this.UserModel;
+
+      // Fail closed on duplicate email (parity with relational createUser). Email is
+      // the primary login identifier; the unique index is the backstop, this check
+      // keeps the error deterministic for callers (e.g. test seeding).
+      if (normalizedData.email) {
+        const dup = await Model.findOne({
+          email: normalizedData.email,
+          ...(options.tenantId !== undefined ? { tenantId: options.tenantId } : {}),
+        })
+          .select("_id")
+          .lean();
+        if (dup) {
+          return {
+            success: false,
+            message: `User with email ${normalizedData.email} already exists`,
+            error: {
+              code: "USER_ALREADY_EXISTS",
+              message: "User already exists",
+            },
+          };
+        }
+      }
+
       const user = new Model({ ...normalizedData, _id: userId });
       await user.save();
 
