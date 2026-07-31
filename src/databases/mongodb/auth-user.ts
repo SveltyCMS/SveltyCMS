@@ -31,7 +31,9 @@ export const UserSchema = new Schema(
     email: { type: String, required: true, unique: true }, // User's email, required field
     tenantId: { type: String }, // Tenant identifier for multi-tenancy
     password: { type: String }, // User's password
-    role: { type: String, required: true }, // User's role
+    // Default "user" mirrors Auth.createUser's `role || "user"` and the relational
+    // schema — callers (SCIM, oauth) that bypass the Auth class must not hard-fail.
+    role: { type: String, default: "user" }, // User's role
     permissions: [{ type: String }], // User-specific permissions
     username: String,
     firstName: String,

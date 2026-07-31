@@ -163,6 +163,7 @@ async function handleScimUsers(
       email: body.userName,
       username: body.displayName || body.name?.givenName || body.userName.split("@")[0],
       lastName: body.name?.familyName || "",
+      role: "user", // SCIM provisions regular users; RBAC grants roles separately
       tenantId,
     });
     return json(buildScimUser(newUser, baseUrl), { status: 201 });

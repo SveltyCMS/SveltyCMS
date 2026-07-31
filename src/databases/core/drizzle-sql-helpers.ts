@@ -630,22 +630,29 @@ function addSingleCondition(
       conditions.push(inArray(col, Array.isArray(val) ? val : [val]));
       break;
     case "$regex": {
-      // Mongo-style substring regex → SQL LIKE. Escape LIKE wildcards so user
-      // input (e.g. "a.b" or "%" in search boxes) is matched literally.
-      // An explicit `ESCAPE '\'` clause is required on SQLite (no default escape
-      // char) and harmless on MySQL/Postgres (which default to backslash).
+      // Mongo-style regex → SQL LIKE. Escape LIKE wildcards so user input
+      // (e.g. "a.b" or "%" in search boxes) is matched literally.
+      // The ESCAPE char is BOUND as a parameter, never inlined: on MySQL/MariaDB
+      // a backslash inside a string literal is itself an escape, so `ESCAPE '\\'`
+      // written as SQL text is a syntax error there (fine on SQLite/Postgres).
       const raw = String(val ?? "");
-      const escaped = raw.replace(/[\\%_]/g, (m) => `\\${m}`);
-      const pattern = `%${escaped}%`;
+      // Translate Mongo anchors: "^foo" → starts-with, "foo$" → ends-with.
+      const anchorStart = raw.startsWith("^");
+      const anchorEnd = raw.endsWith("$");
+      const core = anchorStart ? raw.slice(1) : raw;
+      const noTrailing = anchorEnd ? core.slice(0, -1) : core;
+      const escaped = noTrailing.replace(/[\\%_]/g, (m) => `\\${m}`);
+      const pattern = `${anchorStart ? "" : "%"}${escaped}${anchorEnd ? "" : "%"}`;
       const caseInsensitive = String(operators?.["$options"] ?? "")
         .toLowerCase()
         .includes("i");
       // Postgres LIKE is case-sensitive — use lower() on both sides for $options:"i"
       // (SQLite/MySQL LIKE are already case-insensitive by default).
+      const ESCAPE_CHAR = "\\";
       conditions.push(
         caseInsensitive
-          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE '\\'`
-          : sql`${col} LIKE ${pattern} ESCAPE '\\'`,
+          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${ESCAPE_CHAR}`
+          : sql`${col} LIKE ${pattern} ESCAPE ${ESCAPE_CHAR}`,
       );
       break;
     }
