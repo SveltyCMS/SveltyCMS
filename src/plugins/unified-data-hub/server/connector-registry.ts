@@ -113,9 +113,21 @@ export async function saveConnector(
       ...record,
       credentials: record.credentials ?? existing.credentials,
     };
-    await db.crud.update(CONNECTORS_COLLECTION, record._id as DatabaseId, merged as any, {
-      tenantId: record.tenantId,
-    });
+    const res = await db.crud.update(
+      CONNECTORS_COLLECTION,
+      record._id as DatabaseId,
+      merged as any,
+      {
+        tenantId: record.tenantId,
+      },
+    );
+    if (!res.success) {
+      throw new FederationError(
+        "CONNECTOR_WRITE_FAILED",
+        `Failed to update connector ${record._id}: ${res.message}`,
+        500,
+      );
+    }
     return merged;
   }
   const instance = getConnectorInstance(record.type);
@@ -125,11 +137,18 @@ export async function saveConnector(
     health: record.health ?? "unknown",
   };
   const now = nowISODateString();
-  await db.crud.insert(
+  const res = await db.crud.insert(
     CONNECTORS_COLLECTION,
     { ...withCaps, createdAt: now, updatedAt: now } as any,
     { tenantId: record.tenantId },
   );
+  if (!res.success) {
+    throw new FederationError(
+      "CONNECTOR_WRITE_FAILED",
+      `Failed to save connector ${record._id}: ${res.message}`,
+      500,
+    );
+  }
   return withCaps;
 }
 
@@ -139,14 +158,37 @@ export async function saveVirtualCollection(
 ): Promise<VirtualCollectionRecord> {
   const existing = await getVirtualCollection(db, record._id || record.slug, record.tenantId);
   if (existing) {
-    await db.crud.update(SCHEMAS_COLLECTION, existing._id as DatabaseId, record as any, {
-      tenantId: record.tenantId,
-    });
+    const res = await db.crud.update(
+      SCHEMAS_COLLECTION,
+      existing._id as DatabaseId,
+      record as any,
+      {
+        tenantId: record.tenantId,
+      },
+    );
+    if (!res.success) {
+      throw new FederationError(
+        "COLLECTION_WRITE_FAILED",
+        `Failed to update virtual collection ${record.slug}: ${res.message}`,
+        500,
+      );
+    }
     return record;
   }
   const now = nowISODateString();
-  await db.crud.insert(SCHEMAS_COLLECTION, { ...record, createdAt: now, updatedAt: now } as any, {
-    tenantId: record.tenantId,
-  });
+  const res = await db.crud.insert(
+    SCHEMAS_COLLECTION,
+    { ...record, createdAt: now, updatedAt: now } as any,
+    {
+      tenantId: record.tenantId,
+    },
+  );
+  if (!res.success) {
+    throw new FederationError(
+      "COLLECTION_WRITE_FAILED",
+      `Failed to save virtual collection ${record.slug}: ${res.message}`,
+      500,
+    );
+  }
   return record;
 }

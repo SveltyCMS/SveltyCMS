@@ -586,17 +586,26 @@ function addSingleCondition(
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
   operators?: Record<string, unknown>,
+  coerceJsonValue?: (val: unknown) => unknown,
 ) {
   let col = getColumn(table, field);
+  let isJsonField = false;
   if (!col) {
     const dataCol = getColumn(table, "data");
     if (dataCol) {
       col = getJsonField(field) as any;
+      isJsonField = true;
     }
   }
   if (!col) return;
 
   let val = value;
+  // JSON-extract columns render scalars dialect-specifically (MariaDB text
+  // "true" vs SQLite typed 1/0 vs Postgres text `->>`). Adapters coerce the
+  // bound value so e.g. `enabled: true` actually matches JSON-stored booleans.
+  if (isJsonField && coerceJsonValue) {
+    val = Array.isArray(val) ? val.map(coerceJsonValue) : coerceJsonValue(val);
+  }
   if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
     val = utils.safeDate(val);
   } else if (Array.isArray(val)) {
@@ -671,6 +680,7 @@ function addFilterConds(
   q: any,
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
+  coerceJsonValue?: (val: unknown) => unknown,
 ) {
   if (!q || typeof q !== "object") return;
   for (const key in q) {
@@ -680,7 +690,7 @@ function addFilterConds(
       const subs: SQL[] = [];
       for (const sub of value) {
         const sc: SQL[] = [];
-        addFilterConds(sc, table, sub, getColumn, getJsonField);
+        addFilterConds(sc, table, sub, getColumn, getJsonField, coerceJsonValue);
         if (sc.length > 0) {
           const s = sc.length === 1 ? sc[0] : and(...sc);
           if (s) subs.push(s);
@@ -693,7 +703,7 @@ function addFilterConds(
     } else if (key === "$and" && Array.isArray(value)) {
       const subs: SQL[] = [];
       for (const sub of value) {
-        addFilterConds(subs, table, sub, getColumn, getJsonField);
+        addFilterConds(subs, table, sub, getColumn, getJsonField, coerceJsonValue);
       }
       if (subs.length > 0) {
         const s = subs.length === 1 ? subs[0] : and(...subs);
@@ -705,19 +715,59 @@ function addFilterConds(
         if (!Object.prototype.hasOwnProperty.call(value, subKey)) continue;
         const subValue = value[subKey];
         if (subKey.startsWith("$")) {
-          addSingleCondition(out, table, key, subKey, subValue, getColumn, getJsonField, value);
+          addSingleCondition(
+            out,
+            table,
+            key,
+            subKey,
+            subValue,
+            getColumn,
+            getJsonField,
+            value,
+            coerceJsonValue,
+          );
           handled = true;
         } else {
-          addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+          addSingleCondition(
+            out,
+            table,
+            key,
+            "$eq",
+            value,
+            getColumn,
+            getJsonField,
+            undefined,
+            coerceJsonValue,
+          );
           handled = true;
           break;
         }
       }
       if (!handled) {
-        addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+        addSingleCondition(
+          out,
+          table,
+          key,
+          "$eq",
+          value,
+          getColumn,
+          getJsonField,
+          undefined,
+          coerceJsonValue,
+        );
       }
     } else {
-      addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+      addSingleCondition(
+        out,
+        table,
+        key,
+        "$eq",
+        value,
+        getColumn,
+        getJsonField,
+        undefined,
+        coerceJsonValue,
+      );
     }
   }
 }
@@ -728,6 +778,7 @@ export function mapQuery(
   options: any = {},
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
+  coerceJsonValue?: (val: unknown) => unknown,
 ): SQL | undefined {
   if (query && query._id && (typeof query._id === "string" || typeof query._id === "number")) {
     // Zero-allocation fast-path guard: count keys without allocating Object.keys array.
@@ -754,7 +805,7 @@ export function mapQuery(
 
   const conditions = utils.acquireConditionsArray();
   if (query && typeof query === "object") {
-    addFilterConds(conditions, table, query, getColumn, getJsonField);
+    addFilterConds(conditions, table, query, getColumn, getJsonField, coerceJsonValue);
   }
 
   const tenantCol = getColumn(table, "tenantId");

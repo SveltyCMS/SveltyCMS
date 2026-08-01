@@ -77,7 +77,14 @@ export function buildNextCursor(args: {
   limit: number;
 }): string | undefined {
   const nextOffset = args.currentOffset + args.rowCount;
-  const hasMore = args.total !== undefined ? nextOffset < args.total : args.rowCount >= args.limit;
+  // A "total" that cannot exceed the returned batch is not a real total
+  // (connectors may report the page size instead of a count). Treat it as
+  // unknown and fall back to the rowCount >= limit heuristic, otherwise
+  // nextCursor would never be emitted for multi-page reads.
+  const hasMore =
+    args.total !== undefined && args.total > args.rowCount
+      ? nextOffset < args.total
+      : args.rowCount >= args.limit;
   if (!hasMore || args.rowCount === 0) return undefined;
   return encodeSourceCursor({
     slug: args.slug,

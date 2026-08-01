@@ -104,6 +104,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return drizzleSql`data->>${field}`;
   }
 
+  protected coerceJsonValue(val: unknown): unknown {
+    // data->> returns text; bind scalars as text so `text = boolean/numeric`
+    // never throws and JSON-stored booleans/numbers actually match.
+    return typeof val === "boolean" || typeof val === "number" ? String(val) : val;
+  }
+
   public getTable(collection: string): any {
     if (typeof collection !== "string") return null;
 
