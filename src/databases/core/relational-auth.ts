@@ -1019,6 +1019,18 @@ export class RelationalAuthModule implements IAuthAdapter {
         };
         const preparedValues = utils.convertISOToDates(values);
 
+        // drizzle json-mode columns must receive the raw array: convertISOToDates
+        // pre-stringifies JSON_FIELDS (permissions), and json mode would then
+        // stringify the string AGAIN → double-encoded rows that read back as
+        // strings and render as empty permission matrices.
+        if (typeof preparedValues.permissions === "string") {
+          try {
+            preparedValues.permissions = JSON.parse(preparedValues.permissions);
+          } catch {
+            /* keep as-is */
+          }
+        }
+
         const db = this.getDb(options);
 
         if (process.env.BENCHMARK_DEBUG === "true") {
@@ -1057,6 +1069,14 @@ export class RelationalAuthModule implements IAuthAdapter {
           updatedAt: new Date(),
         };
         const preparedUpdate = utils.convertISOToDates(updateData);
+        // Same un-stringify as createRole — keep drizzle json-mode arrays raw.
+        if (typeof preparedUpdate.permissions === "string") {
+          try {
+            preparedUpdate.permissions = JSON.parse(preparedUpdate.permissions);
+          } catch {
+            /* keep as-is */
+          }
+        }
         await db
           .update(this.schema.roles)
           .set(preparedUpdate)

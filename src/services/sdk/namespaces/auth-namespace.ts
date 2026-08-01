@@ -454,6 +454,20 @@ export class AuthNamespace {
               tenantId: (tenantId || undefined) as DatabaseId | undefined,
             };
             if (existingRoleIds.has(role._id)) {
+              // 🛡️ NEVER WIPE PERMISSIONS ON A BROKEN MATRIX: an incoming empty
+              // permissions array usually means the client failed to parse the
+              // role's grants (encoding/caching bug), not that the admin removed
+              // every permission. Preserve the stored grants in that case.
+              if (Array.isArray(roleData.permissions) && roleData.permissions.length === 0) {
+                const existing = existingRoles.find((r) => r._id === role._id);
+                if (
+                  existing &&
+                  Array.isArray(existing.permissions) &&
+                  existing.permissions.length > 0
+                ) {
+                  roleData.permissions = existing.permissions;
+                }
+              }
               await auth.updateRole(role._id as DatabaseId, roleData, {
                 tenantId: tenantId as DatabaseId,
               });

@@ -386,7 +386,8 @@ export async function handleTestingRoutes(
       const seedOpts = { tenantId } as any;
       // Role defaults to admin for backward compatibility; tests that need a
       // non-admin reset pass an explicit role (e.g. the p0 password afterEach).
-      const seedRole = String(params.role || "admin");
+      const explicitRole = params.role ? String(params.role) : undefined;
+      const seedRole = explicitRole || "admin";
       let result: any = await cms.auth.createUser(
         {
           email,
@@ -403,13 +404,19 @@ export async function handleTestingRoutes(
         // User likely already exists — update password/role instead.
         const existing = await cms.auth.getUserByEmail(email, seedOpts);
         if (existing?.success && existing?.data) {
+          // 🛡️ PRESERVE ROLE on re-seed unless explicitly requested: the login
+          // retry seeds without a role, and forcing role=admin there silently
+          // turned test users into superusers — every permission-denial E2E
+          // assertion (media:write, config:accessManagement) then broke.
+          const currentRole = (existing.data as { role?: string }).role;
+          const resolvedRole = explicitRole || currentRole || "admin";
           await cms.auth.updateUserAttributes(
             (existing.data as { _id: string })._id,
             {
               password,
               username: username || email.split("@")[0],
-              role: seedRole,
-              isAdmin: seedRole === "admin",
+              role: resolvedRole,
+              isAdmin: explicitRole ? resolvedRole === "admin" : !!(existing.data as any).isAdmin,
               isRegistered: true,
               emailVerified: true,
               failedAttempts: 0,
@@ -827,6 +834,13 @@ export async function handleTestingRoutes(
         bypassTenantCheck: true,
       });
 
+      // Role writes via the testing API must invalidate the permission cache —
+      // see the update action below for the full rationale.
+      if (collectionId === "roles") {
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache();
+      }
+
       const responseBody = result.success
         ? {
             success: true,
@@ -854,6 +868,15 @@ export async function handleTestingRoutes(
         tenantId,
         bypassTenantCheck: true,
       });
+
+      // Role mutations via the testing API bypass AuthNamespace.updateRoles (which
+      // invalidates the permission cache globally). Without this, hasPermissionWithRoles
+      // keeps serving the pre-removal grant for up to 5 minutes (PermissionCache TTL)
+      // and permission-removal E2E assertions flake.
+      if (collectionId === "roles") {
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache();
+      }
 
       const responseBody = result.success
         ? {

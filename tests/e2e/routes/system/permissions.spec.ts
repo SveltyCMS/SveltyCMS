@@ -33,7 +33,10 @@ test.describe("Permission Management Flow", () => {
     });
 
     // Control-map row: the permission grid MUST hydrate — no soft-skip allowed.
-    const toggleableCheckboxes = page.locator('table input[type="checkbox"]:not([disabled])');
+    // Scope to tbody: the thead holds per-role "select all filtered permissions"
+    // header checkboxes — toggling those grants/wipes EVERY permission for a
+    // role and would poison the shared DB for downstream serial specs.
+    const toggleableCheckboxes = page.locator('table tbody input[type="checkbox"]:not([disabled])');
     await expect
       .poll(async () => await toggleableCheckboxes.count(), { timeout: 15_000 })
       .toBeGreaterThan(0);
