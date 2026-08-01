@@ -230,8 +230,11 @@ test.describe("Setup Wizard: Error Handling", () => {
     const testEmailButton = page.getByRole("button", { name: /test .* connection/i }).first();
     await testEmailButton.click();
 
+    // nodemailer's connectionTimeout is 10s and DNS resolution on the invalid
+    // host can add latency on slow networks — give the failure toast room to
+    // appear (test budget is 90s, so this does not weaken the assertion).
     await expect(page.getByText(/connection failed/i).first()).toBeVisible({
-      timeout: 20_000,
+      timeout: 30_000,
     });
   });
 });
@@ -267,10 +270,12 @@ test.describe("Setup Wizard: Navigation & State", () => {
 
     const resetBtn = page.locator('button[aria-label="Reset data"]').first();
     await resetBtn.click({ force: true });
+    // Portal-rendered confirm dialog has a render gap (see AGENTS.md pitfall #13) —
+    // wait for the button instead of probing with a short timeout, otherwise the
+    // reset never runs and the dirty field persists.
     const confirmResetBtn = page.getByRole("button", { name: /confirm|yes/i }).first();
-    if (await confirmResetBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmResetBtn.click({ force: true });
-    }
+    await confirmResetBtn.waitFor({ state: "visible", timeout: 10_000 });
+    await confirmResetBtn.click({ force: true });
 
     await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", {
       timeout: 10000,

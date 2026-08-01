@@ -16,7 +16,13 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
-import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor, TEST_PASSWORD } from "../../helpers/auth";
+import {
+  ADMIN_CREDENTIALS,
+  dismissCookieBanner,
+  loginAsAdmin,
+  loginAsEditor,
+  TEST_PASSWORD,
+} from "../../helpers/auth";
 import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_API_SECRET } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { openUserManagement, openUserSettings, openUserTab } from "../../helpers/user-page";
@@ -137,7 +143,10 @@ test.describe("GDPR privacy flows", () => {
     await openUserSettings(page);
 
     await page.getByTestId("privacy-data-btn").click();
-    const dialog = page.getByRole("dialog");
+    // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
+    // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
+    await dismissCookieBanner(page);
+    const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const downloadPromise = page
@@ -179,7 +188,10 @@ test.describe("GDPR privacy flows", () => {
     await openUserSettings(page);
 
     await page.getByTestId("privacy-data-btn").click();
-    const dialog = page.getByRole("dialog");
+    // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
+    // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
+    await dismissCookieBanner(page);
+    const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const wipeBtn = dialog.getByRole("button", {
