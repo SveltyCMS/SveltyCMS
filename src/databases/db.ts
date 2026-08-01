@@ -429,8 +429,29 @@ export async function initializeWithConfig(config: any): Promise<any> {
   setGlobal("__CACHED_CONFIG__", nextConfig);
   setGlobal("__SETTINGS_LOADED__", false);
 
+  // The settings cache may hold a pre-setup snapshot (e.g. merged from the
+  // config file before env overrides were applied). Drop it so the next read
+  // rebuilds from the freshly reloaded config — otherwise sync getters such as
+  // getPrivateSettingSync("PREVIEW_SECRET") keep serving stale empties.
+  await import("@src/services/core/settings-service")
+    .then(({ invalidateSettingsCache }) => invalidateSettingsCache())
+    .catch(() => {});
+
   await shutdownSystem();
-  return ensureFullInitialization();
+  const result = await ensureFullInitialization();
+
+  // Eagerly rebuild the in-memory settings cache from the fresh config + DB
+  // rows so synchronous getters (getPrivateSettingSync) see env-merged values
+  // (e.g. PREVIEW_SECRET) immediately — without waiting for the next page load
+  // to detect the config-stamp mismatch. Setup completion is the last moment
+  // where the private config is replaced, so warm it before returning.
+  await import("@src/services/core/settings-service")
+    .then(({ loadSettingsCache }) => loadSettingsCache())
+    .catch((err) => {
+      logger.debug("Settings cache warm failed after reinit", { error: (err as Error).message });
+    });
+
+  return result;
 }
 
 export function clearPrivateConfigCache(keepPrivateEnv = false): void {

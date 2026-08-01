@@ -186,6 +186,7 @@ async function startPreviewServer(): Promise<ChildProcess> {
     SKIP_TEST_CLEANUP: "true",
     ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",
+    PREVIEW_SECRET: "E2E-Preview-Secret-2026",
     HOST: "127.0.0.1",
     PORT: String(PORT),
     ORIGIN: BASE_URL,

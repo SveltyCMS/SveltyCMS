@@ -195,9 +195,21 @@ export function invalidateSetupCache(
   }
 
   if (clearPrivateEnv) {
-    import("../../databases/db").then((db) => {
+    import("../../databases/db").then(async (db) => {
       if (typeof db.clearPrivateConfigCache === "function") {
         db.clearPrivateConfigCache(false);
+        // 🚀 CRITICAL: The cleared config must be reloaded immediately.
+        // Leaving privateEnv null makes concurrent settings-cache merges fall
+        // back to the raw config file (no env overrides) and stamp that stale
+        // entry as current — poisoning the cache for the whole TTL (e.g.
+        // PREVIEW_SECRET missing → preview bridge 503).
+        if (typeof db.loadPrivateConfig === "function") {
+          try {
+            await db.loadPrivateConfig();
+          } catch {
+            // Non-fatal: next request will reload via loadSettingsCache.
+          }
+        }
       }
     });
   }

@@ -1683,8 +1683,16 @@ export async function seedSettings(
     } catch {}
   }
 
-  // Filter out settings that already exist
-  const settingsToSeed = allSettings.filter((setting) => !(setting.key in existingSettings));
+  // Filter out settings that already exist. Empty-string private settings are
+  // placeholders (PREVIEW_SECRET, RATE_LIMIT_SECRET, SAML keys) — seeding an
+  // empty row makes the DB value shadow env/file config in the settings merge
+  // (privateDynamic wins over privateConfig), so an operator could never set
+  // PREVIEW_SECRET via env: the fail-closed preview bridge would 503 forever.
+  const settingsToSeed = allSettings.filter(
+    (setting) =>
+      !(setting.key in existingSettings) &&
+      !(privateSettingKeys.has(setting.key) && setting.value === ""),
+  );
 
   if (settingsToSeed.length === 0) return;
 

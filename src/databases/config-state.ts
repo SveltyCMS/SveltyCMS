@@ -35,9 +35,21 @@ type RawEnv = Partial<Record<string, string | number | boolean>>;
 let privateEnv: AppPrivateConfig | null = null;
 let loadPromise: Promise<AppPrivateConfig | null> | null = null;
 
+// Monotonic generation counter for the in-memory config. Consumers that cache
+// derived state (e.g. the settings cache) stamp their entries with this value
+// so a config reload (setPrivateEnv / clearPrivateConfigCache) invalidates
+// stale caches — including Redis-backed ones — without a 5-minute TTL wait.
+let configStamp = 0;
+
+/** Current config generation. Bumps on every replacement of `privateEnv`. */
+export function getConfigStamp(): number {
+  return configStamp;
+}
+
 export function setPrivateEnv(env: AppPrivateConfig | null) {
   privateEnv = env ? (Object.freeze(env) as AppPrivateConfig) : null;
   loadPromise = null;
+  configStamp++;
 }
 
 /**
@@ -122,6 +134,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       // 🚀 Architectural Refine: config is now immutable
       privateEnv = Object.freeze(validated) as AppPrivateConfig;
+      configStamp++;
 
       logger.debug(`Private config loaded and frozen successfully (DB_TYPE: ${validated.DB_TYPE})`);
 
@@ -237,6 +250,7 @@ function getEnvOverrides() {
   if (e.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = e.JWT_SECRET_KEY;
   if (e.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = e.ENCRYPTION_KEY;
   if (e.TEST_API_SECRET) overrides.TEST_API_SECRET = e.TEST_API_SECRET;
+  if (e.PREVIEW_SECRET) overrides.PREVIEW_SECRET = e.PREVIEW_SECRET;
   // Auth
   if (e.PASSWORD_MIN_LENGTH) overrides.PASSWORD_MIN_LENGTH = Number(e.PASSWORD_MIN_LENGTH);
 
@@ -558,6 +572,7 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
   if (!keepPrivateEnv) {
     privateEnv = null;
     loadPromise = null;
+    configStamp++;
   }
   dbConfigCache = null;
   redisConfigCache = null;

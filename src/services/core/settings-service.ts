@@ -11,6 +11,7 @@
 
 import { privateConfigSchema } from "../../databases/private-config-schema";
 import { publicConfigSchema } from "../../databases/public-config-schema";
+import { getConfigStamp } from "@src/databases/config-state";
 import { logger } from "@utils/logger";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { InferOutput } from "valibot";
@@ -56,6 +57,8 @@ interface SettingsCache {
   loadedAt: number;
   private: PrivateEnv;
   public: PublicEnv;
+  /** Config generation this cache was built from — stale when it mismatches getConfigStamp(). */
+  configStamp?: number;
 }
 
 const GLOBAL_TENANT = "global";
@@ -99,16 +102,33 @@ export class SettingsService {
     overrides?: { dbAdapter: IDBAdapter; getPrivateEnv: () => PrivateEnv },
   ): Promise<SettingsCache> {
     const cacheKey = `settings:cache:${tenantId}`;
+    // Config reloads (setup completion, reinitializeSystem, HMR) replace the
+    // in-memory private config. Any cached settings built from an older config
+    // generation are stale — including Redis/LRU entries — so compare stamps
+    // BEFORE trusting cached copies, otherwise a pre-setup cache with a
+    // file-fallback config (no env overrides) can shadow the real config for
+    // the full TTL (5 min).
+    const currentConfigStamp = getConfigStamp();
     if (!overrides && typeof window === "undefined" && import.meta.env.SSR) {
       try {
         const { cacheService } = await import("@src/databases/cache/cache-service");
         const cached = cacheService.getSync<SettingsCache>(cacheKey, tenantId);
-        if (cached && cached.loaded && Date.now() - cached.loadedAt < CACHE_TTL) {
+        if (
+          cached &&
+          cached.loaded &&
+          cached.configStamp === currentConfigStamp &&
+          Date.now() - cached.loadedAt < CACHE_TTL
+        ) {
           this.caches.set(tenantId, cached);
           return cached;
         }
         const asyncCached = await cacheService.get<SettingsCache>(cacheKey, tenantId);
-        if (asyncCached && asyncCached.loaded && Date.now() - asyncCached.loadedAt < CACHE_TTL) {
+        if (
+          asyncCached &&
+          asyncCached.loaded &&
+          asyncCached.configStamp === currentConfigStamp &&
+          Date.now() - asyncCached.loadedAt < CACHE_TTL
+        ) {
           this.caches.set(tenantId, asyncCached);
           return asyncCached;
         }
@@ -120,9 +140,14 @@ export class SettingsService {
     const cache = this.getOrCreateCache(tenantId);
     const now = Date.now();
 
-    if (cache.loaded && now - cache.loadedAt > CACHE_TTL) {
+    if (
+      cache.loaded &&
+      (now - cache.loadedAt > CACHE_TTL || cache.configStamp !== currentConfigStamp)
+    ) {
       cache.loaded = false;
-      logger.debug(`Settings cache invalidated for tenant ${tenantId} (TTL expired)`);
+      logger.debug(
+        `Settings cache invalidated for tenant ${tenantId} (TTL expired or config reloaded)`,
+      );
     }
 
     if (cache.loaded && !overrides) {
@@ -170,6 +195,7 @@ export class SettingsService {
         );
         cache.loaded = true;
         cache.loadedAt = Date.now();
+        cache.configStamp = currentConfigStamp;
         cache.public.PKG_VERSION = await this.loadPkgVersion();
         return cache;
       }
@@ -200,10 +226,21 @@ export class SettingsService {
         privateConfig = inMemoryConfig as any;
       } else {
         try {
-          const isTest = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
-          const configPath = "../../config/" + (isTest ? "private.test" : "private");
-          const module = await import(/* @vite-ignore */ configPath).catch(() => ({}));
-          privateConfig = (module.privateEnv || module) as PrivateEnv;
+          // 🚀 HARDENING: privateEnv not loaded yet — reload it (env-merged)
+          // before falling back to the raw config file, which lacks env
+          // overrides (PREVIEW_SECRET, TEST_API_SECRET, ...) and would poison
+          // the merged cache for the whole TTL.
+          const { loadPrivateConfig } = await import("@src/databases/config-state");
+          await loadPrivateConfig();
+          const reloaded = getPrivateEnv();
+          if (reloaded) {
+            privateConfig = reloaded as any;
+          } else {
+            const isTest = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
+            const configPath = "../../config/" + (isTest ? "private.test" : "private");
+            const module = await import(/* @vite-ignore */ configPath).catch(() => ({}));
+            privateConfig = (module.privateEnv || module) as PrivateEnv;
+          }
         } catch (error: any) {
           logger.trace("Private config not found during setup", {
             tenantId,
@@ -232,6 +269,7 @@ export class SettingsService {
 
       cache.private = mergedPrivate as PrivateEnv;
       cache.public = mergedPublic as PublicEnv;
+      cache.configStamp = currentConfigStamp;
       cache.public.PKG_VERSION = await this.loadPkgVersion();
       cache.loaded = true;
       cache.loadedAt = Date.now();

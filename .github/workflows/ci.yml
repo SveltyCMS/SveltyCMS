@@ -436,6 +436,7 @@ jobs:
       JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
       ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
       TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
+      PREVIEW_SECRET: Integration-Preview-Secret-2026
       HOST: 127.0.0.1
       PORT: 4173
       ORIGIN: http://127.0.0.1:4173
@@ -480,6 +481,7 @@ jobs:
             JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",
             ENCRYPTION_KEY: "Integration-Encryption-Key-2026-32ch",
             TEST_API_SECRET: "${TEST_API_SECRET}",
+            PREVIEW_SECRET: "Integration-Preview-Secret-2026",
             PASSWORD_MIN_LENGTH: 8,
             USE_REDIS: false,
             MULTI_TENANT: false,
@@ -677,6 +679,7 @@ jobs:
           JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
           ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
           TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
+          PREVIEW_SECRET: Integration-Preview-Secret-2026
           HOST: 127.0.0.1
           PORT: 4173
           ORIGIN: http://127.0.0.1:4173
