@@ -64,10 +64,22 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 			onCropShapeChange: (s: CropShape) => {
 				cropShape = s;
 				if (s === 'rectangle') {
-					clampViewport();
-					syncImageCropFromViewport();
+					// Free-form rectangle: release the aspect lock so handles resize freely,
+					// and reshape the frame to the image's proportions so the switch is visible
+					// (otherwise a square frame stays square until the user drags a handle)
+					storeState.currentAspectRatio = null;
+					const img = storeState.imageElement;
+					if (img && img.height > 0 && img.width !== img.height) {
+						resizeViewportToRatio(img.width / img.height, s);
+					} else {
+						clampViewport();
+						syncImageCropFromViewport();
+						refreshToolbar();
+					}
 					return;
 				}
+				// Square/circle must stay 1:1 while dragging handles, not just on selection
+				storeState.currentAspectRatio = 1;
 				resizeViewportToRatio(1, s);
 			},
 			onAspectRatio: (r: number | null) => {
@@ -101,10 +113,6 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 							width: storeState.imageElement?.width ?? 0,
 							height: storeState.imageElement?.height ?? 0
 						},
-						onRotateLeft: () => (storeState.rotation -= 90),
-						onRotateRight: () => (storeState.rotation += 90),
-						onFlipHorizontal: () => (storeState.flipH = !storeState.flipH),
-						onFlipVertical: () => (storeState.flipV = !storeState.flipV),
 						onCropChange: (nextCrop: { x: number; y: number; width: number; height: number }) => {
 							storeState.crop = {
 								x: Math.max(0, Math.round(nextCrop.x)),
@@ -442,15 +450,14 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 
 		const cx = cropViewport.x + cropViewport.width / 2;
 		const cy = cropViewport.y + cropViewport.height / 2;
-		let width = cropViewport.width;
-		let height = cropViewport.height;
 		const targetRatio = ratio > 0 ? ratio : 1;
 
-		if (width / height > targetRatio) {
-			width = height * targetRatio;
-		} else {
-			height = width / targetRatio;
-		}
+		// Preserve the frame's area when reshaping — shrinking one side only would
+		// ratchet the frame smaller on every rectangle/square/circle switch.
+		// clampViewport() below scales it back down if it exceeds the image bounds.
+		const area = cropViewport.width * cropViewport.height;
+		let width = Math.sqrt(area * targetRatio);
+		let height = width / targetRatio;
 
 		width = Math.max(MIN_VIEWPORT, width);
 		height = Math.max(MIN_VIEWPORT, height);

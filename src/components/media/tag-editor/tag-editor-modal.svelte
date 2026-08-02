@@ -13,7 +13,9 @@ Features:
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import ToastContainer from '@src/components/toast-container.svelte';
 	import { page } from "$app/state";
+	import { invalidateAll } from '$app/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
@@ -89,6 +91,7 @@ Features:
 			return;
 		}
 		try {
+			await invalidateAll();
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
 				headers: {
@@ -104,13 +107,11 @@ Features:
 			});
 			const result = await response.json();
 			if (!(response.ok && result.success)) {
-				throw new Error(result.error);
+				throw new Error(result.message || result.error);
 			}
 
-			if (file) {
-				file = result.data;
-				onUpdate(result.data);
-			}
+			file = { ...file, metadata: { ...file.metadata, aiTags: [...(file.metadata?.aiTags || []), newTagInput.trim()] } };
+			onUpdate(file);
 			newTagInput = '';
 			toast.success('Tag added!');
 		} catch (e: unknown) {
@@ -124,6 +125,7 @@ Features:
 			return;
 		}
 		try {
+			await invalidateAll();
 			const metadata = { ...file.metadata };
 			if (type === 'ai') {
 				metadata.aiTags = metadata.aiTags?.filter((t) => t !== tag) || [];
@@ -141,13 +143,11 @@ Features:
 			});
 			const result = await response.json();
 			if (!(response.ok && result.success)) {
-				throw new Error(result.error);
+				throw new Error(result.message || result.error);
 			}
 
-			if (file) {
-				file = result.data;
-				onUpdate(result.data);
-			}
+			file = { ...file, metadata };
+			onUpdate(file);
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to remove tag';
 			toast.error({ description: message });
@@ -161,6 +161,7 @@ Features:
 		}
 
 		try {
+			await invalidateAll();
 			const metadata = { ...file.metadata };
 			if (type === 'ai') {
 				metadata.aiTags = metadata.aiTags?.map((t) => (t === oldTag ? newTag.trim() : t)) || [];
@@ -178,13 +179,11 @@ Features:
 			});
 			const result = await response.json();
 			if (!(response.ok && result.success)) {
-				throw new Error(result.error);
+				throw new Error(result.message || result.error);
 			}
 
-			if (file) {
-				file = result.data;
-				onUpdate(result.data);
-			}
+			file = { ...file, metadata };
+			onUpdate(file);
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to update tag';
 			toast.error({ description: message });
@@ -199,6 +198,7 @@ Features:
 		}
 		isSaving = true;
 		try {
+			await invalidateAll();
 			const currentTags = new SvelteSet(file.metadata?.tags || []);
 			file.metadata?.aiTags?.forEach((t) => {
 				currentTags.add(t);
@@ -220,13 +220,12 @@ Features:
 			});
 			const result = await response.json();
 			if (!(response.ok && result.success)) {
-				throw new Error(result.error);
+				throw new Error(result.message || result.error);
 			}
 
-			if (file) {
-				file = result.data;
-				onUpdate(result.data);
-			}
+			const mergedTags = Array.from(currentTags);
+			file = { ...file, metadata: { ...file.metadata, tags: mergedTags, aiTags: [] } };
+			onUpdate(file);
 			toast.success('Tags saved!');
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to save tags';
@@ -453,6 +452,7 @@ Features:
 			</div>
 		{/snippet}
 	</Modal>
+	<ToastContainer position="responsive" />
 {/if}
 
 <style>

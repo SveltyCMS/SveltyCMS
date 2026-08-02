@@ -17,11 +17,12 @@
 			import Select from '@components/ui/select.svelte';
 			import Badge from '@components/ui/badge.svelte';
 			import Tabs from '@components/ui/tabs.svelte';
-	  import { fade } from "svelte/transition";
-	  import { formatBytes } from "@utils/utils";
-	  import { toast } from "@src/stores/toast.svelte.ts";
-	  import { mediaUrl } from "@utils/media/media-utils";
-	  import { debounce } from "@utils/debounce";
+  import { fade } from "svelte/transition";
+  import { formatBytes } from "@utils/utils";
+  import { toast } from "@src/stores/toast.svelte.ts";
+  import { mediaUrl } from "@utils/media/media-utils";
+  import { debounce } from "@utils/debounce";
+  import { invalidateAll } from '$app/navigation';
   import { clientJsonHeaders } from "@utils/security/client-csrf";
 
   // Props
@@ -183,27 +184,25 @@
     }
   });
 
-  	// ── Inline editable asset field helpers ─────────────────────────────────────
-  	function startEditName() {
-  		editName = file.metadata?.name || file.filename || '';
-  		isEditingName = true;
-  		nameSaveStatus = 'idle';
-  	}
-  	// saveName replaced by debouncedSaveName — fires automatically on input
+  // ── Inline editable asset field helpers ─────────────────────────────────────
+  // Only the "start editing" setters remain: saving is handled by the debounced
+  // auto-save above (debouncedSaveName/Alt/Caption + *SaveStatus). The old manual
+  // saveName/saveAlt/saveCaption were left behind by a merge — unreferenced, and
+  // still assigning isSavingName/Alt/Caption flags that no longer exist.
+  function startEditName() {
+    editName = file.metadata?.name || file.filename || '';
+    isEditingName = true;
+  }
 
-  	function startEditAlt() {
-  		editAlt = file.metadata?.alt || '';
-  		isEditingAlt = true;
-  		altSaveStatus = 'idle';
-  	}
-  	// saveAlt replaced by debouncedSaveAlt — fires automatically on input
+  function startEditAlt() {
+    editAlt = file.metadata?.alt || '';
+    isEditingAlt = true;
+  }
 
-  	function startEditCaption() {
-  		editCaption = file.metadata?.caption || '';
-  		isEditingCaption = true;
-  		captionSaveStatus = 'idle';
-  	}
-  	// saveCaption replaced by debouncedSaveCaption — fires automatically on input
+  function startEditCaption() {
+    editCaption = file.metadata?.caption || '';
+    isEditingCaption = true;
+  }
 
   // ── Info Tab logic ──────────────────────────────────────────────────────────
   async function handleAddTag(e: KeyboardEvent | MouseEvent) {
@@ -212,6 +211,7 @@
 
     isSavingTags = true;
     try {
+      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       if (currentTags.includes(newTagInput.trim())) {
         toast.error("Tag already exists");
@@ -229,16 +229,14 @@
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          newTagInput = "";
-          toast.success("Tag added successfully");
-        }
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: updatedMetadata };
+        onUpdate(file);
+        newTagInput = "";
+        toast.success("Tag added successfully");
       } else {
-        toast.error("Failed to add tag");
+        toast.error(body?.message || "Failed to add tag");
       }
     } catch (err) {
       toast.error("An error occurred while adding tag");
@@ -251,6 +249,7 @@
     if (!file?._id) return;
 
     try {
+      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       const updatedMetadata = {
         ...file.metadata,
@@ -263,15 +262,13 @@
         body: JSON.stringify({ metadata: updatedMetadata }),
       });
 
-      if (response.ok) {
-        const body = await response.json();
-        if (body.success) {
-          file = body.data;
-          onUpdate(file);
-          toast.success("Tag removed");
-        }
+      const body = await response.json();
+      if (response.ok && body.success) {
+        file = { ...file, metadata: updatedMetadata };
+        onUpdate(file);
+        toast.success("Tag removed");
       } else {
-        toast.error("Failed to remove tag");
+        toast.error(body?.message || "Failed to remove tag");
       }
     } catch (err) {
       toast.error("An error occurred while removing tag");

@@ -284,3 +284,23 @@
     @apply bg-surface-950 text-surface-100;
   }
 }
+
+/* ========================================================================
+   Media gallery → folder drops (@thisux/sveltednd)
+   ========================================================================
+   sveltednd always paints before/after (blue) drop-position lines via
+   .drop-before / .drop-after — useful for sortable lists, but wrong for
+   "drop into this folder" targets (no insert index). The library has no
+   option to turn those indicators off, so we hide them only on nodes
+   marked data-media-drop-target (sidebar folders, breadcrumbs, and the
+   mobile drag folder rail). Every media drop target must carry that
+   attribute or the blue line comes back. Other sveltednd UIs (entry
+   list, collection builder, etc.) keep the lines.
+   ======================================================================== */
+[data-media-drop-target].drop-before::before,
+[data-media-drop-target].drop-after::after,
+[data-media-drop-target].drop-left::before,
+[data-media-drop-target].drop-right::after {
+  content: none;
+  display: none;
+}

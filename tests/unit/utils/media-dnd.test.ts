@@ -1,21 +1,14 @@
 /**
  * @file tests/unit/utils/media-dnd.test.ts
- * @description Unit tests for media drag-and-drop payload helpers.
+ * @description Unit tests for media drag-and-drop helpers.
  *
  * Compatible with both Vitest and bun:test (via vitest shim) — avoid vi.stubGlobal.
+ * Drag transport itself (dragData in-memory via @thisux/sveltednd's dndState) is
+ * exercised by the mediagallery e2e suite, not here.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  MEDIA_DND_MIME,
-  beginMediaDrag,
-  getMediaDragPayload,
-  hasMediaDrag,
-  moveMediaToFolder,
-  parseMediaDragPayload,
-  resolveMediaDragIds,
-  serializeMediaDragPayload,
-} from "@utils/media/media-dnd";
+import { moveMediaToFolder, resolveMediaDragIds } from "@utils/media/media-dnd";
 
 describe("media-dnd", () => {
   const originalFetch = globalThis.fetch;
@@ -23,37 +16,6 @@ describe("media-dnd", () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
-  });
-
-  it("serializes unique non-empty ids", () => {
-    const raw = serializeMediaDragPayload(["a", "b", "a", "", "c"]);
-    expect(JSON.parse(raw)).toEqual({ ids: ["a", "b", "c"] });
-  });
-
-  it("parses valid payload", () => {
-    expect(parseMediaDragPayload(serializeMediaDragPayload(["x", "y"]))).toEqual({
-      ids: ["x", "y"],
-    });
-  });
-
-  it("returns null for invalid payloads", () => {
-    expect(parseMediaDragPayload(null)).toBeNull();
-    expect(parseMediaDragPayload("")).toBeNull();
-    expect(parseMediaDragPayload("{not-json")).toBeNull();
-    expect(parseMediaDragPayload(JSON.stringify({ ids: [] }))).toBeNull();
-    expect(parseMediaDragPayload(JSON.stringify({ ids: [1, 2] }))).toBeNull();
-  });
-
-  it("detects mime type on DataTransfer.types", () => {
-    const dt = {
-      types: [MEDIA_DND_MIME, "text/plain"],
-      getData: (type: string) =>
-        type === MEDIA_DND_MIME ? serializeMediaDragPayload(["id-1"]) : "",
-    } as unknown as DataTransfer;
-
-    expect(hasMediaDrag(dt)).toBe(true);
-    expect(hasMediaDrag(null)).toBe(false);
-    expect(getMediaDragPayload(dt)).toEqual({ ids: ["id-1"] });
   });
 
   it("moveMediaToFolder posts and returns moved count", async () => {
@@ -92,21 +54,5 @@ describe("media-dnd", () => {
     expect(resolveMediaDragIds("b", ["a", "b", "c"])).toEqual(["a", "b", "c"]);
     expect(resolveMediaDragIds("z", ["a", "b"])).toEqual(["z"]);
     expect(resolveMediaDragIds("solo", [])).toEqual(["solo"]);
-  });
-
-  it("beginMediaDrag writes the multi-id payload", () => {
-    const store = new Map<string, string>();
-    const dt = {
-      effectAllowed: "none",
-      setData: (type: string, value: string) => {
-        store.set(type, value);
-      },
-      setDragImage: () => {},
-    } as unknown as DataTransfer;
-
-    const ids = beginMediaDrag(dt, ["x", "y", "x"]);
-    expect(ids).toEqual(["x", "y"]);
-    expect(store.get(MEDIA_DND_MIME)).toBe(serializeMediaDragPayload(["x", "y"]));
-    expect(dt.effectAllowed).toBe("move");
   });
 });
