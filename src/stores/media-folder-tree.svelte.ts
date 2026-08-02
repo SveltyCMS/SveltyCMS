@@ -86,9 +86,7 @@ class MediaFolderTreeStore {
   childrenOf(levelId: string): MediaFolderRecord[] {
     const list =
       levelId === "root"
-        ? this.folders.filter(
-            (f) => !f.parentId || !this.folders.some((p) => p.id === f.parentId),
-          )
+        ? this.folders.filter((f) => !f.parentId || !this.folders.some((p) => p.id === f.parentId))
         : this.folders.filter((f) => f.parentId === levelId);
     return [...list].sort((a, b) => a.order - b.order);
   }
