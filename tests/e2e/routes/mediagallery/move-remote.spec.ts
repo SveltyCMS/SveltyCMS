@@ -8,7 +8,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
@@ -20,6 +20,10 @@ async function openGallery(page: Page) {
   await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
+  // This spec runs with a blank storageState (see test.use below), so the GDPR
+  // banner can still be present/overlapping the sidebar drop targets even after
+  // loginAsAdmin — dismiss it so later drags/clicks aren't intercepted by it.
+  await dismissCookieBanner(page);
 }
 
 async function createFolder(page: Page, name: string) {
