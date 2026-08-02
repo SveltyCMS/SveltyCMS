@@ -28,7 +28,7 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 <header class="shrink-0 p-0 bg-transparent border-b-0" role="toolbar" aria-label="Image editor mobile">
 	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-[--editor-control-h]">
 		<div class="flex gap-1.5 items-center justify-self-start min-h-[--editor-control-h]">
-			<div class="inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/9 box-border">
+			<div class="inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/[0.09] box-border">
 				<button
 					type="button"
 					class="inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-[0.22] disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"
@@ -52,7 +52,7 @@ Compact mobile top chrome — three-zone grid layout, pill groups, circular Done
 		</div>
 
 		<div class="flex gap-1.5 items-center justify-self-center min-h-[--editor-control-h]">
-			<div class="inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/9 box-border">
+			<div class="inline-flex gap-0 items-center h-[--editor-control-h] p-[--editor-pill-pad] rounded-full border border-[--editor-chrome-border] bg-white/[0.09] box-border">
 				<button
 					type="button"
 					class="inline-flex items-center justify-center shrink-0 p-0 rounded-full bg-transparent cursor-pointer transition-[background,color,opacity] duration-150 border-none text-[rgba(255,255,255,0.94)] disabled:opacity-[0.22] disabled:cursor-not-allowed hover:text-white hover:bg-white/10 [&_iconify-icon]:block [&_iconify-icon]:leading-[0]"

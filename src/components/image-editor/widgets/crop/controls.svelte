@@ -7,25 +7,19 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	import type { CropShape } from './types';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 
+	// `crop` and `onCropChange` props are still passed by tool.svelte but only consumed by
+	// the temporarily hidden numeric inputs — uncomment them together with that block.
 	let {
-			crop,
-			onRotateLeft,
-			onRotateRight,
-			onFlipHorizontal,
-			onFlipVertical,
+			// crop,
 			onCropShapeChange,
 			onAspectRatio,
-			onCropChange,
+			// onCropChange,
 			cropShape
 		}: {
-			crop: { x: number; y: number; width: number; height: number };
-			onRotateLeft: () => void;
-			onRotateRight: () => void;
-			onFlipHorizontal: () => void;
-			onFlipVertical?: () => void;
+			crop?: { x: number; y: number; width: number; height: number };
 			onCropShapeChange: (shape: CropShape) => void;
 			onAspectRatio: (ratio: number | null) => void;
-			onCropChange: (nextCrop: { x: number; y: number; width: number; height: number }) => void;
+			onCropChange?: (nextCrop: { x: number; y: number; width: number; height: number }) => void;
 			cropShape: CropShape;
 		} = $props();
 
@@ -85,38 +79,18 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		onAspectRatio(preset.ratio || null);
 	}
 
-	function updateCropField(field: 'x' | 'y' | 'width' | 'height', value: string) {
-		const numeric = Number.parseInt(value, 10);
-		if (!Number.isFinite(numeric)) return;
-		onCropChange({ ...crop, [field]: numeric });
-	}
+	// Numeric crop inputs temporarily hidden — restore alongside the commented markup below
+	// function updateCropField(field: 'x' | 'y' | 'width' | 'height', value: string) {
+	// 	const numeric = Number.parseInt(value, 10);
+	// 	if (!Number.isFinite(numeric)) return;
+	// 	onCropChange({ ...crop, [field]: numeric });
+	// }
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if ((e.target as HTMLElement).tagName === 'INPUT') return;
 		const cmdOrCtrl = e.metaKey || e.ctrlKey;
 
 		switch (e.key) {
-			case 'r':
-			case 'R':
-				if (!cmdOrCtrl) {
-					e.preventDefault();
-					onRotateRight();
-				}
-				break;
-			case 'l':
-			case 'L':
-				if (!cmdOrCtrl) {
-					e.preventDefault();
-					onRotateLeft();
-				}
-				break;
-			case 'f':
-			case 'F':
-				if (!cmdOrCtrl) {
-					e.preventDefault();
-					onFlipHorizontal();
-				}
-				break;
 			case '1':
 				e.preventDefault();
 				handleRatio(1);
@@ -138,7 +112,7 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 <svelte:window onkeydown={handleKeyDown} />
 
 <div class="flex flex-col flex-[0_0_auto] gap-1 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Crop controls">
-	<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+	<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
 		{#each aspectPresets as preset, i (preset.label)}
 			<button
 				type="button"
@@ -153,9 +127,9 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 				<span>{preset.label}</span>
 			</button>
 		{/each}
-	</div>
 
-	<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+		<div class="shrink-0 w-px h-5 mx-1 bg-[--editor-chrome-border]" aria-hidden="true"></div>
+
 		{#each shapes as shape (shape.id)}
 			<button
 				type="button"
@@ -170,27 +144,9 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 				<span>{shape.label}</span>
 			</button>
 		{/each}
-
-		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onRotateLeft} title="Rotate left (L)" aria-label="Rotate left">
-			<iconify-icon icon="mdi:rotate-left" width="15" aria-hidden="true"></iconify-icon>
-			<span>Left</span>
-		</button>
-		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onRotateRight} title="Rotate right (R)" aria-label="Rotate right">
-			<iconify-icon icon="mdi:rotate-right" width="15" aria-hidden="true"></iconify-icon>
-			<span>Right</span>
-		</button>
-		<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onFlipHorizontal} title="Flip horizontal (F)" aria-label="Flip horizontal">
-			<iconify-icon icon="mdi:flip-horizontal" width="15" aria-hidden="true"></iconify-icon>
-			<span>Flip H</span>
-		</button>
-		{#if onFlipVertical}
-			<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onFlipVertical} title="Flip vertical" aria-label="Flip vertical">
-				<iconify-icon icon="mdi:flip-vertical" width="15" aria-hidden="true"></iconify-icon>
-				<span>Flip V</span>
-			</button>
-		{/if}
 	</div>
 
+	<!-- Numeric crop inputs temporarily hidden — restore by uncommenting this block
 	<div class="flex flex-wrap gap-2 items-center justify-center w-full">
 		<label class="flex flex-col gap-1 items-center min-w-12" for="crop-x">
 			<span class="text-[10px] font-normal text-[rgba(255,255,255,0.4)] lowercase">x</span>
@@ -209,4 +165,5 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 			<input id="crop-h" type="number" value={crop.height} min="1" oninput={(e) => updateCropField('height', (e.currentTarget as HTMLInputElement).value)} class="w-13 h-[1.625rem] px-[0.35rem] text-[11px] text-white text-center bg-white/6 border-none rounded-md outline-none focus:bg-white/[0.1] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [-moz-appearance:textfield] [appearance:textfield]" />
 		</label>
 	</div>
+	-->
 </div>

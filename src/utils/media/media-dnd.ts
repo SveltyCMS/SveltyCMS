@@ -3,62 +3,76 @@
  * @description
  * Shared drag-and-drop helpers for moving media into virtual folders.
  *
- * Drop targets (equivalent on desktop and mobile):
- * - Left-sidebar virtual folder tree
- * - Gallery breadcrumb ancestors
+ * Drop targets are identical on desktop and mobile: the left-sidebar virtual
+ * folder tree plus the gallery breadcrumbs. On mobile the sidebar is the
+ * overlay drawer, which opens itself while a media drag is in flight
+ * (see media-drag-sidebar.svelte.ts) — there is no separate mobile DnD UI.
  *
- * Both call the same move API with the same multi-id payload.
+ * Transport is @thisux/sveltednd (use:draggable / use:droppable) — dragData
+ * travels in-memory via dndState, not a custom DataTransfer MIME type.
  *
  * ### Features:
- * - Custom MIME type isolated from folder reorder and OS file drops
  * - Windows-style multi-select drag payload
  * - Shared POST /api/media/move client for all drop targets
  */
 
-/** Custom MIME used by media grid/table → folder tree / breadcrumb drag operations */
-export const MEDIA_DND_MIME = "application/x-sveltycms-media-ids";
+/** Shared container id for all media drag sources (grid + table items). */
+export const MEDIA_DRAG_CONTAINER = "media-gallery-items";
 
-/** Document-level class while a media drag is active (optional CSS hooks) */
-export const MEDIA_DND_ACTIVE_CLASS = "media-dnd-active";
+/** Drop highlight: valid target folder (sidebar tree + breadcrumbs). */
+export const MEDIA_DROP_OK = "bg-primary-500/20 ring-1 ring-inset ring-primary-500/60";
+/** Drop highlight: files already live in this folder (drop is a no-op). */
+export const MEDIA_DROP_SAME = "bg-error-500/20 ring-1 ring-inset ring-error-500/60";
 
-export interface MediaDragPayload {
+export interface MediaDragPreview {
+  filename: string;
+  url?: string;
+  type?: string;
+}
+
+export interface MediaDragData {
   ids: string[];
+  preview?: MediaDragPreview;
+}
+
+// A 1×1 transparent canvas is a valid HTML5 drag image and, unlike an <img>,
+// needs no network fetch/decode — it's ready the instant it's created. A 0×0
+// canvas is NOT valid: browsers reject it and fall back to their own ghost
+// (on macOS often a small globe/document icon under the cursor).
+// Must live in the document — Chromium silently ignores setDragImage for
+// detached nodes and shows that same fallback icon.
+const emptyDragImage: HTMLCanvasElement | null = (() => {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  canvas.setAttribute("aria-hidden", "true");
+  canvas.style.cssText =
+    "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1";
+  return canvas;
+})();
+
+/**
+ * Hides the browser's default HTML5 drag ghost (a screenshot of the dragged
+ * element, offset wherever the pointer happened to grab it). Wire to
+ * `ondragstart` alongside `use:draggable` so `MediaDragPreview` (a custom,
+ * cursor-anchored overlay) is the only visible drag image.
+ *
+ * Safe to call from a capture-phase `dragstart` listener (preferred) so it
+ * runs before any other handler can replace the drag image.
+ */
+export function suppressNativeDragGhost(event: DragEvent): void {
+  if (!event.dataTransfer || !emptyDragImage) return;
+  if (!emptyDragImage.isConnected) {
+    document.body.appendChild(emptyDragImage);
+  }
+  event.dataTransfer.setDragImage(emptyDragImage, 0, 0);
 }
 
 export interface MoveMediaResult {
   movedCount: number;
   fileIds: string[];
   targetFolderId: string | null;
-}
-
-export function serializeMediaDragPayload(ids: string[]): string {
-  const unique = [...new Set(ids.filter(Boolean))];
-  return JSON.stringify({ ids: unique } satisfies MediaDragPayload);
-}
-
-export function parseMediaDragPayload(raw: string | null | undefined): MediaDragPayload | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as MediaDragPayload;
-    if (!parsed || !Array.isArray(parsed.ids)) return null;
-    const ids = parsed.ids.filter((id): id is string => typeof id === "string" && id.length > 0);
-    return ids.length ? { ids } : null;
-  } catch {
-    return null;
-  }
-}
-
-/** True when the drag event carries our media payload (types list is available on dragover). */
-export function hasMediaDrag(dataTransfer: DataTransfer | null | undefined): boolean {
-  if (!dataTransfer) return false;
-  return Array.from(dataTransfer.types).includes(MEDIA_DND_MIME);
-}
-
-export function getMediaDragPayload(
-  dataTransfer: DataTransfer | null | undefined,
-): MediaDragPayload | null {
-  if (!dataTransfer) return null;
-  return parseMediaDragPayload(dataTransfer.getData(MEDIA_DND_MIME));
 }
 
 /**
@@ -75,59 +89,6 @@ export function resolveMediaDragIds(
     return [...new Set(selected)];
   }
   return [draggedId];
-}
-
-/**
- * Write the media move payload onto a DataTransfer and optional multi-item ghost.
- * Returns the ids written (empty if drag should be cancelled).
- */
-export function beginMediaDrag(
-  dataTransfer: DataTransfer | null | undefined,
-  ids: string[],
-): string[] {
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (!dataTransfer || unique.length === 0) return [];
-
-  dataTransfer.effectAllowed = "move";
-  dataTransfer.setData(MEDIA_DND_MIME, serializeMediaDragPayload(unique));
-  // Fallback for environments that only expose text/plain during dragover
-  dataTransfer.setData("text/plain", unique.join(","));
-
-  // Optional multi-item drag ghost (best-effort; never fail the drag in tests/SSR)
-  if (
-    unique.length > 1 &&
-    typeof document !== "undefined" &&
-    typeof document.createElement === "function" &&
-    document.body &&
-    typeof dataTransfer.setDragImage === "function"
-  ) {
-    try {
-      const ghost = document.createElement("div");
-      ghost.textContent = `${unique.length} items`;
-      ghost.style.cssText =
-        "position:absolute;top:-9999px;padding:6px 10px;border-radius:8px;background:rgba(0,0,0,0.8);color:#fff;font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;";
-      document.body.appendChild(ghost);
-      dataTransfer.setDragImage(ghost, 24, 16);
-      // setDragImage snapshots the node; remove synchronously (avoids rAF leaks in test runners)
-      if (typeof ghost.remove === "function") {
-        ghost.remove();
-      } else {
-        ghost.parentNode?.removeChild(ghost);
-      }
-    } catch {
-      // ignore — visual only
-    }
-  }
-
-  const root = typeof document !== "undefined" ? document.documentElement : null;
-  root?.classList?.add(MEDIA_DND_ACTIVE_CLASS);
-
-  return unique;
-}
-
-export function endMediaDrag(): void {
-  const root = typeof document !== "undefined" ? document.documentElement : null;
-  root?.classList?.remove(MEDIA_DND_ACTIVE_CLASS);
 }
 
 /**

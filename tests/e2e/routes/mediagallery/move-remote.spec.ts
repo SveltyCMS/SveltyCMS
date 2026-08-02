@@ -8,12 +8,11 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 const ACTION_TIMEOUT = 25_000;
-const MEDIA_DND_MIME = "application/x-sveltycms-media-ids";
 
 async function openGallery(page: Page) {
   await loginAsAdmin(page);
@@ -21,6 +20,10 @@ async function openGallery(page: Page) {
   await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
+  // This spec runs with a blank storageState (see test.use below), so the GDPR
+  // banner can still be present/overlapping the sidebar drop targets even after
+  // loginAsAdmin — dismiss it so later drags/clicks aren't intercepted by it.
+  await dismissCookieBanner(page);
 }
 
 async function createFolder(page: Page, name: string) {
@@ -126,7 +129,7 @@ test.describe("Media move to folder", () => {
     await expect(page.getByText(/moved/i).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
-  test("HTML5 drop onto sidebar/root media drop target", async ({ page }) => {
+  test("drag-and-drop onto sidebar/root media drop target (sveltednd)", async ({ page }) => {
     await openGallery(page);
     const folderName = `e2e_dnd_${Date.now().toString(36).slice(-6)}`;
     await createFolder(page, folderName);
@@ -138,26 +141,26 @@ test.describe("Media move to folder", () => {
       .first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const folderDrop = page
+    const specificFolderDrop = page
       .locator(`[data-media-drop-target]`)
       .filter({ hasText: folderName })
-      .first()
-      .or(page.locator("[data-media-drop-target]").first());
+      .first();
+    const hasSpecificDrop = await specificFolderDrop
+      .isVisible({ timeout: 8_000 })
+      .catch(() => false);
 
-    const dropVisible = await folderDrop.isVisible({ timeout: 8_000 }).catch(() => false);
-    if (!dropVisible) {
+    let folderDrop = specificFolderDrop;
+    if (!hasSpecificDrop) {
       test.info().annotations.push({
         type: "note",
         description:
-          "No folder drop target in layout (sidebar tree hidden); breadcrumb move test is the primary control",
+          "No folder-specific drop target in layout (sidebar tree hidden); breadcrumb move test is the primary control",
       });
-      const anyDrop = page.locator("[data-media-drop-target]");
+      folderDrop = page.locator("[data-media-drop-target]").first();
       await expect(
-        anyDrop.first(),
-        "Expected at least one [data-media-drop-target] for HTML5 media move",
+        folderDrop,
+        "Expected at least one [data-media-drop-target] for media move",
       ).toBeVisible({ timeout: 5_000 });
-    } else {
-      await expect(folderDrop).toBeVisible({ timeout: 5_000 });
     }
 
     const moveApi = page.waitForResponse(
@@ -165,35 +168,10 @@ test.describe("Media move to folder", () => {
       { timeout: ACTION_TIMEOUT },
     );
 
-    // Synthetic HTML5 DnD
-    await page.evaluate(
-      ({ mime, folderSelector }) => {
-        const itemEl = document.querySelector('[data-testid="media-item"]') as HTMLElement | null;
-        const target = document.querySelector(folderSelector) as HTMLElement | null;
-        if (!itemEl || !target) throw new Error("missing drag source or target");
-
-        const idAttr = itemEl.dataset?.mediaId || itemEl.getAttribute("data-media-id") || "";
-        const ids = [idAttr || "unknown"];
-        const dt = new DataTransfer();
-        dt.setData(mime, JSON.stringify({ ids }));
-        dt.setData("text/plain", ids.join(","));
-        dt.effectAllowed = "move";
-
-        itemEl.dispatchEvent(
-          new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }),
-        );
-        target.dispatchEvent(
-          new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }),
-        );
-        target.dispatchEvent(
-          new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }),
-        );
-        itemEl.dispatchEvent(
-          new DragEvent("dragend", { bubbles: true, cancelable: true, dataTransfer: dt }),
-        );
-      },
-      { mime: MEDIA_DND_MIME, folderSelector: `[data-media-drop-target]` },
-    );
+    // Real mouse-driven drag: @thisux/sveltednd listens to native dragstart/dragover/drop
+    // (dispatched by the browser off real pointer input), so a synthetic DataTransfer/
+    // DragEvent dispatch — as used pre-migration — no longer reflects how a drag begins.
+    await item.dragTo(folderDrop);
 
     const res = await moveApi.catch(() => null);
     if (res) {
@@ -201,7 +179,7 @@ test.describe("Media move to folder", () => {
     } else {
       test.info().annotations.push({
         type: "note",
-        description: "Synthetic HTML5 drop did not hit move API; selection+breadcrumb covers move",
+        description: "Drag gesture did not hit move API; selection+breadcrumb covers move",
       });
     }
   });

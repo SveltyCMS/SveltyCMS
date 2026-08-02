@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+import { untrack } from "svelte";
 import { logger } from "@utils/logger";
 import {
 	createSmartTable,
@@ -28,14 +29,15 @@ import SmartTableShell from "@components/ui/smart-table/smart-table-shell.svelte
 import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
 import MediaTableRowMenu from "./media-table-row-menu.svelte";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
+import { draggable } from "@thisux/sveltednd";
 import {
-	beginMediaDrag,
-	endMediaDrag,
+	MEDIA_DRAG_CONTAINER,
 	resolveMediaDragIds,
+	suppressNativeDragGhost,
 } from "@utils/media/media-dnd";
+import { liftAndCarry } from "@utils/media/media-lift-drag";
 import { formatBytes } from "@utils/utils";
 import { SvelteSet } from "svelte/reactivity";
-import { untrack } from "svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 
 interface Props {
@@ -122,18 +124,22 @@ const smartTable = (() => {
   }
 })();
 
+// Columns are static — set once on mount, not reactive to filteredFiles
+smartTable.setColumns([
+	{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
+	{ key: "preview", label: "Preview", sortable: false, align: "start" },
+	{ key: "filename", label: "Name", sortable: true, align: "start" },
+	{ key: "size", label: "Size", sortable: true, align: "end" },
+	{ key: "type", label: "Type", sortable: true, align: "end" },
+	{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
+]);
+
 $effect(() => {
-	untrack(() => {
-		smartTable.setRows(filteredFiles as unknown as Record<string, unknown>[]);
-		smartTable.setColumns([
-			{ key: "_select", label: "", sortable: false, pin: "start", align: "center" },
-			{ key: "preview", label: "Preview", sortable: false, align: "start" },
-			{ key: "filename", label: "Name", sortable: true, align: "start" },
-			{ key: "size", label: "Size", sortable: true, align: "end" },
-			{ key: "type", label: "Type", sortable: true, align: "end" },
-			{ key: "_actions", label: "Actions", sortable: false, pin: "end", align: "end" },
-		]);
-	});
+	// Read outside untrack so the effect actually depends on filteredFiles —
+	// reading it only inside untrack leaves the effect with no dependencies and
+	// it would run once on mount, freezing the table on search/filter/upload.
+	const files = filteredFiles;
+	untrack(() => smartTable.setRows(files as unknown as Record<string, unknown>[]));
 });
 
 const paginatedFiles = $derived(smartTable.rows as unknown as (MediaBase | MediaImage)[]);
@@ -182,27 +188,6 @@ function toggleSelection(file: MediaBase | MediaImage) {
 	} else {
 		selectedFiles.add(fileId);
 	}
-}
-
-function resolveFileId(file: MediaBase | MediaImage): string {
-	return file._id?.toString() || file.filename;
-}
-
-function handleDragStart(e: DragEvent, file: MediaBase | MediaImage) {
-	const target = e.target as HTMLElement | null;
-	if (target?.closest("[data-no-drag]")) {
-		e.preventDefault();
-		return;
-	}
-	const ids = resolveMediaDragIds(resolveFileId(file), selectedFiles);
-	const written = beginMediaDrag(e.dataTransfer, ids);
-	if (!written.length) {
-		e.preventDefault();
-	}
-}
-
-function handleDragEnd() {
-	endMediaDrag();
 }
 
 function handleRowClick(file: MediaBase | MediaImage) {
@@ -263,7 +248,7 @@ function onUpdateRowsPerPage(rows: number) {
 					<div class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						Name
 					</div>
-					<div class="w-9 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
+					<div class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500" role="columnheader">
 						<span class="sr-only">Actions</span>
 					</div>
 				</div>
@@ -278,10 +263,17 @@ function onUpdateRowsPerPage(rows: number) {
 						role="row"
 						tabindex="0"
 						aria-selected={isSelected}
-						draggable="true"
+						use:liftAndCarry={{
+							container: MEDIA_DRAG_CONTAINER,
+							dragData: {
+								ids: resolveMediaDragIds(fileId, selectedFiles),
+								preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+							},
+							interactive: ['[data-no-drag]'],
+							attributes: { draggingClass: 'opacity-50' },
+						}}
+						ondragstart={suppressNativeDragGhost}
 						title="Drag to a folder or breadcrumb to move"
-						ondragstart={(e) => handleDragStart(e, file)}
-						ondragend={handleDragEnd}
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 					>
@@ -393,10 +385,17 @@ function onUpdateRowsPerPage(rows: number) {
 							onkeydown={(e) => handleKeyDown(e, file)}
 							tabindex="0"
 							aria-selected={isSelected}
-							draggable="true"
+							use:draggable={{
+								container: MEDIA_DRAG_CONTAINER,
+								dragData: {
+									ids: resolveMediaDragIds(fileId, selectedFiles),
+									preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+								},
+								interactive: ['[data-no-drag]'],
+								attributes: { draggingClass: 'opacity-50' },
+							}}
+							ondragstart={suppressNativeDragGhost}
 							title="Drag to a folder or breadcrumb to move"
-							ondragstart={(e) => handleDragStart(e, file)}
-							ondragend={handleDragEnd}
 						>
 							<td
 								class="media-table-select {SMART_TABLE_TD} {pinCellClass('start')} w-9 shrink-0 border-s-2! {isSelected ? 'border-s-primary-500!' : 'border-s-transparent!'}"
