@@ -32,16 +32,13 @@ runs:
       with:
         bun-version: ${{ inputs.bun-version }}
 
-    - name: Cache Bun dependencies & build tooling
+    - name: Cache Bun package tarballs
       id: cache-bun
       uses: actions/cache@v6
       with:
         path: |
-          node_modules
-          node_modules/.cache
           .bun-cache
-          ~/.bun
-          .svelte-kit
+          ~/.bun/install/cache
         key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'vite.config.ts', 'svelte.config.js') }}
         restore-keys: |
           bun-${{ runner.os }}-
@@ -53,7 +50,7 @@ runs:
     - name: Install dependencies
       if: inputs.pnpm-run-install != 'true'
       shell: bash
-      run: bun install --prefer-offline --cache-dir .bun-cache
+      run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
 
     - name: Install dependencies (pnpm fallback)
       if: inputs.pnpm-run-install == 'true'
