@@ -137,26 +137,26 @@ test.describe("Media move to folder", () => {
       .first();
     await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const folderDrop = page
+    const specificFolderDrop = page
       .locator(`[data-media-drop-target]`)
       .filter({ hasText: folderName })
-      .first()
-      .or(page.locator("[data-media-drop-target]").first());
+      .first();
+    const hasSpecificDrop = await specificFolderDrop
+      .isVisible({ timeout: 8_000 })
+      .catch(() => false);
 
-    const dropVisible = await folderDrop.isVisible({ timeout: 8_000 }).catch(() => false);
-    if (!dropVisible) {
+    let folderDrop = specificFolderDrop;
+    if (!hasSpecificDrop) {
       test.info().annotations.push({
         type: "note",
         description:
-          "No folder drop target in layout (sidebar tree hidden); breadcrumb move test is the primary control",
+          "No folder-specific drop target in layout (sidebar tree hidden); breadcrumb move test is the primary control",
       });
-      const anyDrop = page.locator("[data-media-drop-target]");
+      folderDrop = page.locator("[data-media-drop-target]").first();
       await expect(
-        anyDrop.first(),
+        folderDrop,
         "Expected at least one [data-media-drop-target] for media move",
       ).toBeVisible({ timeout: 5_000 });
-    } else {
-      await expect(folderDrop).toBeVisible({ timeout: 5_000 });
     }
 
     const moveApi = page.waitForResponse(

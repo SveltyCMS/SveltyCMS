@@ -250,14 +250,16 @@ test.describe("Media Gallery", () => {
   });
 
   test("grid size zoom changes thumbnail size", async ({ page }) => {
-    const sizeSelect = page.locator("#media-grid-size");
-    await expect(sizeSelect).toBeVisible({ timeout: 5_000 });
+    const gridSizeGroup = page.getByRole("group", { name: "Grid size" });
+    await expect(gridSizeGroup).toBeVisible({ timeout: 5_000 });
 
-    await sizeSelect.selectOption({ label: "Large" });
-    await expect(sizeSelect).toHaveValue("large");
+    const largeBtn = gridSizeGroup.getByRole("button", { name: "large grid" });
+    await largeBtn.click();
+    await expect(largeBtn).toHaveAttribute("aria-pressed", "true");
 
-    await sizeSelect.selectOption({ label: "Tiny" });
-    await expect(sizeSelect).toHaveValue("tiny");
+    const tinyBtn = gridSizeGroup.getByRole("button", { name: "tiny grid" });
+    await tinyBtn.click();
+    await expect(tinyBtn).toHaveAttribute("aria-pressed", "true");
 
     // Grid should still be visible
     await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
