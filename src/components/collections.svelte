@@ -564,7 +564,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	{:else}
 		<div class="flex justify-center">
 			<Button
-				variant="ghost"
+				variant="outline"
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', 'full')}
 				aria-label="Search collections"
