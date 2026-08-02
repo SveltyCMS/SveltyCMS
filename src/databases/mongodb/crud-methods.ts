@@ -77,6 +77,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -121,6 +122,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -165,6 +167,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -214,6 +217,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -248,6 +252,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const secureData = safeQuery(data as Record<string, unknown>, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
         bypassSafeQuery: options.bypassSafeQuery,
+        systemScope: options.systemScope,
       });
 
       const now = nowISODateString();
@@ -297,6 +302,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         });
 
         const doc = {
@@ -339,7 +345,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async update(
     id: DatabaseId,
     data: EntityUpdate<T>,
-    options: BaseQueryOptions = {},
+    options: BaseQueryOptions & { filter?: QueryFilter<T> } = {},
   ): Promise<DatabaseResult<T>> {
     // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
     if (id === undefined || id === null) {
@@ -356,12 +362,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
     const startTime = performance.now();
     try {
       // 🚀 Fast-Path: Direct ID update
+      // `options.filter` (e.g. `{ status: "pending" }`) makes the update conditional —
+      // atomic claim semantics: no row matched ⇒ no-op, callers treat it as "not claimed".
       if (!options.tenantId && !options.bypassTenantCheck) {
         const now = nowISODateString();
         const { _id: _, ...updateData } = { ...data, updatedAt: now } as any;
         const result = await this.model
           .findOneAndUpdate(
-            { _id: id },
+            { _id: id, ...options.filter },
             { $set: updateData },
             {
               returnDocument: "after",
@@ -385,9 +393,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
 
       const query = this.adapter.mapQuery(
-        safeQuery({ _id: id } as QueryFilter<T>, options.tenantId as string, {
+        safeQuery({ _id: id, ...options.filter } as QueryFilter<T>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -442,6 +451,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
       const updateOptions: any = { cloneUpdate: false };
@@ -481,6 +491,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
       const now = nowISODateString();
@@ -568,6 +579,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck,
           includeDeleted: permanent,
           bypassSafeQuery: (options as any).bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -655,6 +667,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck,
           includeDeleted: permanent,
           bypassSafeQuery: (options as any).bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -724,6 +737,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck,
           includeDeleted: true,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -818,6 +832,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
       const count = await this.model.countDocuments(secureQuery);
@@ -841,6 +856,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
       const doc = await this.model.findOne(secureQuery, { _id: 1 }).lean().exec();
@@ -860,6 +876,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         safeQuery({}, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           bypassSafeQuery: options.bypassSafeQuery,
+          systemScope: options.systemScope,
         }),
       );
 
@@ -917,6 +934,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
             safeQuery(item.query, options.tenantId as string, {
               bypassTenantCheck: options.bypassTenantCheck,
               bypassSafeQuery: options.bypassSafeQuery,
+              systemScope: options.systemScope,
             }),
           ),
 
@@ -974,6 +992,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
             safeQuery(update.query, options.tenantId as string, {
               bypassTenantCheck: options.bypassTenantCheck,
               bypassSafeQuery: options.bypassSafeQuery,
+              systemScope: options.systemScope,
             }),
           ),
           update: {

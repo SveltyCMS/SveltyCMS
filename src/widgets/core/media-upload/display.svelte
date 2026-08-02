@@ -17,6 +17,7 @@ Renders selected media files as thumbnails for display purposes.
 - **Semantic Colors**: Uses theme-defined semantic colors for borders and backgrounds.
 -->
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import type { MediaFile } from './types';
 	import Badge from '@components/ui/badge.svelte';
 
@@ -47,7 +48,7 @@ Renders selected media files as thumbnails for display purposes.
 							} as any);
 						}
 					} catch (e) {
-						console.error(`Failed to fetch media ${id}`, e);
+						logger.error(`Failed to fetch media ${id}`, e);
 					}
 				}
 				files = results;
@@ -71,7 +72,7 @@ Renders selected media files as thumbnails for display purposes.
 				/>
 				{#if (file as any).aiTags?.length}
 					<div
-						class="absolute bottom-full start-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"
+						class="absolute bottom-full inset-s-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"
 					>
 						{#each (file as any).aiTags.slice(0, 5) as tag, i (tag + i)}
 							<Badge variant="primary" size="sm" class="py-0! px-1!">{tag}</Badge>

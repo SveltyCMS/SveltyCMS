@@ -67,7 +67,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   protected isMissingTableError(err: any): boolean {
-    return err?.errno === 1146;
+    // drizzle-orm/mysql2 wraps the mysql2 error — the real errno/code live on
+    // `.cause`. Checking only the top level made auto-provision (insert) and
+    // empty-result (findMany/count) fallbacks silently not fire on MariaDB.
+    const e = err?.cause ?? err;
+    return e?.errno === 1146 || e?.code === "ER_NO_SUCH_TABLE";
   }
 
   public readonly schema = schema;
@@ -75,6 +79,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
   public getJsonField(field: string): SQL {
     const path = `$.${field}`;
     return sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${path}))`;
+  }
+
+  protected coerceJsonValue(val: unknown): unknown {
+    // JSON_UNQUOTE(JSON_EXTRACT(...)) renders JSON booleans as the text
+    // "true"/"false"; binding a JS boolean (1/0) never matches those rows.
+    return typeof val === "boolean" ? String(val) : val;
   }
 
   public getTable(collection: string): any {
@@ -541,7 +551,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
         if (debugMode && !isBenchSuite) {
-          console.log(
+          logger.debug(
             `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
           );
         }
@@ -550,7 +560,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
         if (ddl) {
           if (debugMode && !isBenchSuite) {
-            console.log(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
+            logger.debug(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
           }
           await this.raw.execute(ddl);
         }

@@ -23,6 +23,7 @@
  * ```
  */
 
+import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 import { preloadData } from "$app/navigation";
 
@@ -55,7 +56,7 @@ async function preload(href: string): Promise<void> {
   try {
     await preloadData(href);
   } catch (err) {
-    console.debug(`[Preload] Skipping ${href}:`, err);
+    logger.debug(`[Preload] Skipping ${href}:`, err);
   }
 }
 

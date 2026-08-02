@@ -52,6 +52,19 @@ export class TokenAdapter {
   }
 
   /**
+   * Auth tokens (invite/reset/magic links) must never be stored in plaintext.
+   * Mirrors the relational adapter: SHA-256 (lowercase hex) — cross-adapter parity.
+   */
+  private async _hashToken(token: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    const hash = await globalThis.crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  /**
    * Explicitly set the model using a specific connection to support isolated adapters.
    */
   public setModel(conn: any) {
@@ -70,11 +83,12 @@ export class TokenAdapter {
   }): Promise<DatabaseResult<string>> {
     try {
       const tokenValue = generateRandomToken(32);
+      const hashedToken = await this._hashToken(tokenValue);
       const Model = this.TokenModel;
       const token = new Model({
         ...data,
         email: normalizeEmail(data.email),
-        token: tokenValue,
+        token: hashedToken,
         _id: generateId(),
       });
       await token.save();
@@ -105,13 +119,30 @@ export class TokenAdapter {
   > {
     try {
       const tenantId = options?.tenantId;
-      const filter = safeQuery({ token } as any, tenantId as string, {
+      const hashedToken = await this._hashToken(token);
+      let filter = safeQuery({ token: hashedToken } as any, tenantId as string, {
         includeDeleted: true,
       });
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
 
-      const found = await this.TokenModel.findOne(filter).lean();
+      let found = await this.TokenModel.findOne(filter).lean();
+
+      // Legacy plaintext rows (pre-hash) — accept and migrate on use so the row
+      // is no longer at rest in plaintext.
+      if (!found && hashedToken !== token) {
+        const legacyFilter = safeQuery({ token } as any, tenantId as string, {
+          includeDeleted: true,
+        });
+        if (userId) legacyFilter.user_id = userId;
+        if (type) legacyFilter.type = type;
+        const legacy = await this.TokenModel.findOne(legacyFilter).lean();
+        if (legacy) {
+          await this.TokenModel.updateOne({ _id: legacy._id }, { $set: { token: hashedToken } });
+          found = { ...legacy, token: hashedToken };
+        }
+      }
+
       if (!found || found.blocked || new Date(found.expires) < new Date()) {
         return {
           success: false,
@@ -150,8 +181,9 @@ export class TokenAdapter {
   ): Promise<DatabaseResult<void>> {
     try {
       const tenantId = options?.tenantId;
+      const hashedToken = await this._hashToken(token);
       // Atomic findOneAndDelete fixes TOCTOU race condition
-      const filter = safeQuery({ token } as any, tenantId as string, {
+      let filter = safeQuery({ token: hashedToken } as any, tenantId as string, {
         includeDeleted: true,
       });
       if (userId) filter.user_id = userId;
@@ -163,14 +195,37 @@ export class TokenAdapter {
         expires: { $gt: new Date() },
         blocked: { $ne: true },
       };
-      const found = await this.TokenModel.findOneAndDelete(claimFilter).lean();
+      let found = await this.TokenModel.findOneAndDelete(claimFilter).lean();
+
+      // Legacy plaintext rows (pre-hash) — claim the same way; deletion removes the
+      // plaintext-at-rest row entirely, so no migrate-on-use is needed here.
+      if (!found && hashedToken !== token) {
+        const legacyFilter = safeQuery({ token } as any, tenantId as string, {
+          includeDeleted: true,
+        });
+        if (userId) legacyFilter.user_id = userId;
+        if (type) legacyFilter.type = type;
+        found = await this.TokenModel.findOneAndDelete({
+          ...legacyFilter,
+          expires: { $gt: new Date() },
+          blocked: { $ne: true },
+        }).lean();
+      }
 
       if (found) {
         return { success: true, data: undefined };
       }
 
-      // Diagnose: missing vs expired vs blocked
-      const existing = await this.TokenModel.findOne(filter).lean();
+      // Diagnose: missing vs expired vs blocked (hashed first, then legacy)
+      let existing = await this.TokenModel.findOne(filter).lean();
+      if (!existing && hashedToken !== token) {
+        const legacyFilter = safeQuery({ token } as any, tenantId as string, {
+          includeDeleted: true,
+        });
+        if (userId) legacyFilter.user_id = userId;
+        if (type) legacyFilter.type = type;
+        existing = await this.TokenModel.findOne(legacyFilter).lean();
+      }
       if (!existing) {
         return {
           success: false,
@@ -214,9 +269,21 @@ export class TokenAdapter {
   ): Promise<DatabaseResult<Token | null>> {
     try {
       const tenantId = options?.tenantId;
-      const filter: any = { token };
+      const hashedToken = await this._hashToken(token);
+      let filter: any = { token: hashedToken };
       if (tenantId) filter.tenantId = tenantId;
-      const found = await this.TokenModel.findOne(filter).lean();
+      let found = await this.TokenModel.findOne(filter).lean();
+
+      // Legacy plaintext rows (pre-hash) — accept and migrate on use.
+      if (!found && hashedToken !== token) {
+        const legacyFilter: any = { token };
+        if (tenantId) legacyFilter.tenantId = tenantId;
+        const legacy = await this.TokenModel.findOne(legacyFilter).lean();
+        if (legacy) {
+          await this.TokenModel.updateOne({ _id: legacy._id }, { $set: { token: hashedToken } });
+          found = { ...legacy, token: hashedToken };
+        }
+      }
       return { success: true, data: found as Token | null };
     } catch (err) {
       return {

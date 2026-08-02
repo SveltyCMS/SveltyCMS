@@ -21,6 +21,12 @@ import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, loginAsAdmin } from "../../helpers/auth";
 import { seedInviteToken } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import {
+  openTokenView,
+  openUserManagement,
+  openUserSettings,
+  openUserTab,
+} from "../../helpers/user-page";
 
 const ACTION_TIMEOUT = 15_000;
 
@@ -111,11 +117,9 @@ async function goToUserPage(page: import("@playwright/test").Page) {
   });
 }
 
-/** Ensure the admin area (user list view) is visible. */
+/** Ensure the admin area (user list view) is visible — inside the User Management tab. */
 async function openAdminArea(page: import("@playwright/test").Page) {
-  await expect(page.getByTestId("user-admin-area")).toBeVisible({
-    timeout: ACTION_TIMEOUT,
-  });
+  await openUserManagement(page);
 }
 
 /** Ensure user list view is shown (not token view). */
@@ -143,6 +147,7 @@ test.describe("Auth Toggles", () => {
   }) => {
     // The passkey checkbox lives in the pref-passkey section of the security panel
     const passkeyCheckbox = page.locator('[data-testid="pref-passkey"] input[type="checkbox"]');
+    const wasChecked = await passkeyCheckbox.isChecked();
 
     // Wait for the API response when toggling
     const apiCall = page.waitForResponse(
@@ -163,12 +168,18 @@ test.describe("Auth Toggles", () => {
     expect(reqBody.newUserData).toHaveProperty("preferences");
     expect(reqBody.newUserData.preferences).toHaveProperty("auth");
     expect(reqBody.newUserData.preferences.auth).toHaveProperty("passkeyEnabled");
+
+    // Restore the shared admin's preference — other serial specs depend on it.
+    if ((await passkeyCheckbox.isChecked()) !== wasChecked) {
+      await passkeyCheckbox.evaluate((el: HTMLElement) => el.click());
+    }
   });
 
   test("magic link toggle sends API call to update-user-attributes", async ({ page }) => {
     // Magic link is the second checkbox in the security panel
     const checkboxes = page.getByTestId("user-security-panel").locator('input[type="checkbox"]');
     const magicLinkCheckbox = checkboxes.nth(1);
+    const wasChecked = await magicLinkCheckbox.isChecked();
 
     const apiCall = page.waitForResponse(
       (res) =>
@@ -183,12 +194,18 @@ test.describe("Auth Toggles", () => {
 
     const reqBody = response.request().postDataJSON();
     expect(reqBody.newUserData.preferences.auth).toHaveProperty("magicLinkEnabled");
+
+    // Restore the shared admin's preference — other serial specs depend on it.
+    if ((await magicLinkCheckbox.isChecked()) !== wasChecked) {
+      await magicLinkCheckbox.evaluate((el: HTMLElement) => el.click());
+    }
   });
 
   test("oauth toggle sends API call to update-user-attributes", async ({ page }) => {
     // OAuth is the third checkbox in the security panel
     const checkboxes = page.getByTestId("user-security-panel").locator('input[type="checkbox"]');
     const oauthCheckbox = checkboxes.nth(2);
+    const wasChecked = await oauthCheckbox.isChecked();
 
     const apiCall = page.waitForResponse(
       (res) =>
@@ -203,6 +220,11 @@ test.describe("Auth Toggles", () => {
 
     const reqBody = response.request().postDataJSON();
     expect(reqBody.newUserData.preferences.auth).toHaveProperty("oauthEnabled");
+
+    // Restore the shared admin's preference — other serial specs depend on it.
+    if ((await oauthCheckbox.isChecked()) !== wasChecked) {
+      await oauthCheckbox.evaluate((el: HTMLElement) => el.click());
+    }
   });
 });
 
@@ -514,23 +536,16 @@ test.describe("Token Management", () => {
     await adminLogin(page);
     await goToUserPage(page);
     await openAdminArea(page);
-    // Seed guarantees at least one token row (no soft-skip on empty tables)
-    try {
-      await seedInviteToken(page, {
-        email: `cc_token_${Date.now()}@example.com`,
-        role: "editor",
-      });
-    } catch (e) {
-      // Seed may fail if admin user not yet in DB (first run) — skip gracefully
-      test.skip(true, `seed-invite-token unavailable: ${(e as Error).message}`);
-    }
+    // Seed guarantees at least one token row. A seed failure is a HARD failure —
+    // token CRUD is a control-map row, soft-skips are banned.
+    await seedInviteToken(page, {
+      email: `cc_token_${Date.now()}@example.com`,
+      role: "editor",
+    });
   });
 
   test("edit existing token by clicking a token row", async ({ page }) => {
-    const showTokenBtn = page.getByRole("button", {
-      name: /show.*token|token list/i,
-    });
-    await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
+    await openTokenView(page);
     await page.waitForTimeout(500);
 
     const tokenRows = page.locator("tbody tr");
@@ -551,10 +566,7 @@ test.describe("Token Management", () => {
   });
 
   test("delete single token via dialog delete button", async ({ page }) => {
-    const showTokenBtn = page.getByRole("button", {
-      name: /show.*token|token list/i,
-    });
-    await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
+    await openTokenView(page);
     await page.waitForTimeout(500);
 
     const tokenRows = page.locator("tbody tr");
@@ -569,26 +581,20 @@ test.describe("Token Management", () => {
 
     const deleteBtn = tokenDialog.getByRole("button", { name: /delete/i });
     await expect(deleteBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // NOTE: the token dialog deletes immediately (no confirm step) — clicking the
+    // dialog's Delete already performed the DELETE API call.
     await deleteBtn.click({ timeout: ACTION_TIMEOUT });
-
-    const confirmBtn = page.getByRole("button", { name: /confirm|yes|delete/i }).last();
-    if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await confirmBtn.click({ timeout: ACTION_TIMEOUT });
-    }
 
     await expect(page.getByText(/deleted/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
   test("bulk token delete via Multibutton", async ({ page }) => {
-    const showTokenBtn = page.getByRole("button", {
-      name: /show.*token|token list/i,
-    });
-    await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
+    await openTokenView(page);
     await page.waitForTimeout(500);
 
-    const checkboxes = page.locator("tbody tr td:first-child input[type='checkbox']");
+    const checkboxes = page.getByRole("checkbox", { name: "Toggle selection" });
     await expect(checkboxes.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await checkboxes.first().check({ timeout: ACTION_TIMEOUT });
+    await checkboxes.first().click({ timeout: ACTION_TIMEOUT });
 
     const bulkMenu = page.getByTestId("user-bulk-actions-menu");
     await expect(bulkMenu).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -627,6 +633,8 @@ test.describe("GDPR Privacy Data", () => {
   });
 
   test("open and close privacy data modal", async ({ page }) => {
+    // Privacy & Data (GDPR) lives in the Settings tab.
+    await openUserSettings(page);
     // Stable testid on Privacy & Data (GDPR) control
     const gdprBtn = page.getByTestId("privacy-data-btn");
     await expect(gdprBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -652,6 +660,8 @@ test.describe("GDPR Privacy Data", () => {
   });
 
   test("active sessions section is present and refreshable", async ({ page }) => {
+    // Active sessions live in the Security tab.
+    await openUserTab(page, /^security$/i);
     const section = page.getByTestId("active-sessions-section");
     await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
     const refresh = page.getByRole("button", { name: /refresh active sessions/i });
@@ -710,6 +720,9 @@ test.describe("Responsive Viewports", () => {
       timeout: ACTION_TIMEOUT,
     });
 
+    // AdminArea lives inside the User Management tab.
+    await openUserManagement(page);
+
     // Admin area should be visible at tablet width
     const adminArea = page.getByTestId("user-admin-area");
     await expect(adminArea).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -718,10 +731,6 @@ test.describe("Responsive Viewports", () => {
     const table = page.locator("table");
     const tableExists = (await table.count()) > 0;
     expect(tableExists).toBe(true);
-
-    // The security card should be visible
-    const securityText = page.getByRole("heading", { name: /security/i });
-    await expect(securityText).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
 
@@ -903,14 +912,18 @@ test.describe("Page Completeness", () => {
   });
 
   test("all auth toggle checkboxes are present", async ({ page }) => {
-    const securityCard = page.locator("section").filter({ hasText: "Security" }).last();
-    const checkboxes = securityCard.locator('input[type="checkbox"]');
+    // Auth toggles live in the Security tab (AdminCard renders div, not <section>).
+    await openUserTab(page, /^security$/i);
+    const securityPanel = page.getByTestId("user-security-panel");
+    const checkboxes = securityPanel.locator('input[type="checkbox"]');
     const count = await checkboxes.count();
     // Should have at least 3: passkey, magic link, oauth
     expect(count).toBeGreaterThanOrEqual(3);
   });
 
   test("password field is disabled and masked on main page", async ({ page }) => {
+    // The password change field lives in the Security tab.
+    await openUserTab(page, /^security$/i);
     const passwordInput = page.locator('input[name="password"][type="password"]');
     const pwdVisible = await passwordInput.isVisible({ timeout: 3_000 }).catch(() => false);
 

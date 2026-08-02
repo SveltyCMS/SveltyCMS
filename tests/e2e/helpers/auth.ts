@@ -722,10 +722,16 @@ export async function dismissCookieBanner(page: Page): Promise<void> {
     })
     .catch(() => {});
 
-  // Defense-in-depth: click the accept button if the banner already rendered
+  // Defense-in-depth: click the accept button if the banner already rendered or
+  // hydrates shortly after the stamp (Svelte hydration race). Bounded to a single
+  // waitFor so tab switches don't burn ~6s polling when the banner is absent.
   const acceptBtn = page.getByTestId("cookie-accept-all");
-  if (await acceptBtn.isVisible({ timeout: 1_500 }).catch(() => false)) {
-    await acceptBtn.click();
-    await page.waitForTimeout(200);
+  const shown = await acceptBtn
+    .waitFor({ state: "visible", timeout: 1_500 })
+    .then(() => true)
+    .catch(() => false);
+  if (shown) {
+    await acceptBtn.click({ timeout: 1_000 }).catch(() => {});
+    await page.waitForTimeout(150);
   }
 }

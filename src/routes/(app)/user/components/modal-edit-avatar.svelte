@@ -275,7 +275,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			toast.success('Avatar updated successfully!');
 			modalState.close();
 		} catch (error: unknown) {
-			console.error('Avatar upload failed:', error);
+			logger.error('Avatar upload failed:', error);
 			imageLoadError = true;
 			toast.error(
 				error instanceof Error ? error.message : String(error) ||

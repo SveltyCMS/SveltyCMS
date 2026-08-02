@@ -26,6 +26,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: string | string[] | null | undefined } = $props();
@@ -47,7 +48,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 			const entry = (result.data || result) as Record<string, any>;
 			return entry[field.displayField as string] || null;
 		} catch (e) {
-			console.error('[RelationDisplay] Failed to fetch entry display:', e);
+			logger.error('[RelationDisplay] Failed to fetch entry display:', e);
 			return null;
 		}
 	}

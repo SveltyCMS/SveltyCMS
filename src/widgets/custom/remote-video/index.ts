@@ -20,6 +20,7 @@
 // import Input from '@components/ui/input.svelte';
 // import Toggle from '@components/ui/toggle.svelte';
 
+import { logger } from "@utils/logger";
 import { widget_remoteVideo_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 import {
@@ -161,7 +162,7 @@ const RemoteVideoWidget = createWidget({
           // Free tier: only YouTube and Vimeo allowed
           // Premium: Twitch and TikTok require a license
           if (value && (value.platform === "twitch" || value.platform === "tiktok")) {
-            console.warn(
+            logger.warn(
               "[remote-video] Premium platform blocked — license required for Twitch/TikTok. Free tier (YouTube, Vimeo) remains available.",
             );
             throw new Error(

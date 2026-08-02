@@ -249,9 +249,9 @@
 
 <svelte:head><title>SveltyCMS Setup</title></svelte:head>
 
-<div class="h-dvh flex flex-col overflow-hidden bg-surface-50 dark:bg-surface-900 transition-colors">
+<div class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-50 transition-colors dark:bg-surface-900">
 	<!-- Top Navigation Bar -->
-	<header class="shrink-0 bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 z-30">
+	<header class="z-30 shrink-0 border-b border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-800">
 		<div class="px-4 py-0">
 			<SetupHeader
 				siteName={wizard.systemSettings.siteName}
@@ -262,29 +262,27 @@
 		</div>
 	</header>
 
-	<div class="flex flex-1 overflow-hidden">
-		<!-- Left Sidebar: Stepper -->
-		<aside class="hidden lg:flex w-64 xl:w-72 flex-col border-e border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 overflow-hidden h-full">
-			<div class="flex-1">
-				<SetupStepper
-					{steps}
-					currentStep={wizard.currentStep}
-					stepCompleted={setupStore.stepCompleted}
-					stepClickable={setupStore.stepClickable}
-					{legendItems}
-					onselectStep={async (e: number) => {
-						wizard.currentStep = e;
-						await focusStepContent();
-					}}
-				/>
-			</div>
+	<div class="flex min-h-0 flex-1 overflow-hidden">
+		<!-- Left Sidebar: Stepper — no overflow-y; steps + legend fit without scroll on desktop -->
+		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-800 lg:flex xl:w-72">
+			<SetupStepper
+				{steps}
+				currentStep={wizard.currentStep}
+				stepCompleted={setupStore.stepCompleted}
+				stepClickable={setupStore.stepClickable}
+				{legendItems}
+				onselectStep={async (e: number) => {
+					wizard.currentStep = e;
+					await focusStepContent();
+				}}
+			/>
 		</aside>
 
-		<!-- Main Content Area -->
-		<main class="flex-1 flex flex-col min-w-0 bg-surface-100 dark:bg-surface-800 overflow-hidden relative">
+		<!-- Main: absolute footer so Redis / multi-tenant expand cannot reflow navigation -->
+		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-100 dark:bg-surface-800">
 			<DialogManager />
 			<!-- Mobile Stepper (only visible on small screens) -->
-			<div class="lg:hidden shrink-0 border-b border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-2">
+			<div class="z-10 shrink-0 border-b border-surface-200 bg-white p-2 dark:border-surface-700 dark:bg-surface-800 lg:hidden">
 				<SetupStepper
 					{steps}
 					currentStep={wizard.currentStep}
@@ -298,8 +296,8 @@
 				/>
 			</div>
 
-			<!-- Scrollable Step Content -->
-			<div class="flex-1 overflow-y-auto p-2 scroll-smooth" id="step-content" tabindex="-1">
+			<!-- Scrollable step content; pb reserves space for absolute footer (nav row + optional seeding bar) -->
+			<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-24" id="step-content" tabindex="-1">
 				<div class="mx-auto max-w-8xl">
 					<div class="mb-4">
 						<SetupCardHeader
@@ -339,6 +337,7 @@
 								checkPasswordRequirements={() => {
 									/* now handled by derived rune */
 								}}
+								onnext={nextStep}
 							/>
 						{:else if wizard.currentStep === 2}
 							<SystemConfig
@@ -460,8 +459,10 @@
 				</div>
 			</div>
 
-			<!-- Fixed Navigation Footer -->
-			<footer class="shrink-0 border-t border-surface-200/50 dark:border-surface-700/50 bg-white dark:bg-surface-800 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+			<!-- Fixed Navigation Footer — absolute so expand/collapse (Redis, multi-tenant) cannot shift it -->
+			<footer
+				class="absolute inset-x-0 bottom-0 z-20 border-t border-surface-200/50 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] dark:border-surface-700/50 dark:bg-surface-800"
+			>
 				<div class="mx-auto max-w-6xl">
 					<SetupNavigation
 						currentStep={wizard.currentStep}

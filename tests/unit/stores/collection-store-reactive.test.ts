@@ -11,10 +11,18 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     vi.clearAllMocks();
     const mod = await import("@src/stores/collection-store.svelte.ts");
     collections = mod.collections;
-    // Reset state
+    // Reset ALL mutable singleton state — mode/active/all/contentStructure are
+    // order-dependent between tests in this file (and other suites importing the
+    // same module graph).
     collections.loading = false;
     collections.error = null;
     collections.currentId = null;
+    collections.mode = "view";
+    collections.active = null;
+    collections.activeValue = {};
+    collections.all = {};
+    collections.contentStructure = [];
+    collections.selectedEntries = [];
   });
 
   describe("reactive getter wrappers", () => {
@@ -76,11 +84,10 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
         },
       ] as any[];
       collections.setContentStructure(nodes);
-      const hashAfterFirst = (collections as any).structureHash;
-      // Setting the same structure again should not change the hash
+      const structureAfterFirst = collections.contentStructure;
+      // Setting the same structure again should be a no-op (fingerprint circuit-breaker)
       collections.setContentStructure([...nodes]);
-      const hashAfterSecond = (collections as any).structureHash;
-      expect(hashAfterFirst).toBe(hashAfterSecond);
+      expect(collections.contentStructure).toBe(structureAfterFirst);
     });
 
     it("should track total as a number", () => {
@@ -102,6 +109,26 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
 
       collections.clearSelected();
       expect(collections.hasSelected).toBe(false);
+    });
+
+    it("patchActiveSchema updates active collection without resetting mode", () => {
+      collections.setMode("edit");
+      collections.setCollection({
+        _id: "posts",
+        name: "Posts",
+        fields: [{ db_fieldName: "title" } as never],
+      } as never);
+      collections.setCollectionValue({ title: "Hello" });
+
+      collections.patchActiveSchema({
+        _id: "posts",
+        name: "Posts",
+        fields: [{ db_fieldName: "title" } as never, { db_fieldName: "slug" } as never],
+      } as never);
+
+      expect(collections.mode).toBe("edit");
+      expect(collections.activeValue).toMatchObject({ title: "Hello" });
+      expect(collections.active?.fields).toHaveLength(2);
     });
   });
 });

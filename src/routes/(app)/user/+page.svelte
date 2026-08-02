@@ -1480,7 +1480,7 @@
 				</div>
 			{:else if activeTab === 'management' && canManageUsers}
 				<!-- ╭╥╮ TAB 4: User Management (full width; sub-tabs Users | Invitations) ╭╥╮ -->
-				<div data-testid="user-admin-area" class="min-w-0">
+				<div class="min-w-0">
 					<p
 						class="mb-3 text-center text-sm font-medium text-tertiary-600 dark:text-primary-500"
 						data-testid="user-management-intro"

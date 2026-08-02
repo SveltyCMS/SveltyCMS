@@ -256,7 +256,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			const body =
 				type === 'user'
 					? { userIds: safeSelectedRows.map((r) => (r as User)._id), action }
-					: { tokenIds: safeSelectedRows.map((r) => (r as Token).token), action };
+					// Use _id (the list exposes the hashed token value, not the raw credential).
+					: { tokenIds: safeSelectedRows.map((r) => (r as Token)._id), action };
 
 			const res = await fetch(config.endpoint(), {
 				method: config.method(),
@@ -334,7 +335,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		await tick();
 
 		// 3. Trigger action
-		console.log('Multibutton - triggering handleAction for:', action);
+
 		handleAction(action);
 	}
 

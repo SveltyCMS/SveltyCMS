@@ -29,7 +29,7 @@
 - `backUrl` {string} - Navigation URL for back button
 - `truncate` {boolean} - Enable title truncation (default: `true`)
 - `onBackClick` {function} - Custom back navigation callback
-- `color` {string} - Background/text color (default: `blue`)
+- `navColor` {string} - Tailwind bg class for FloatingNav spoke when favorited (default: `bg-amber-500`)
 
 #### Accessibility Features:
 - ARIA live region for title changes
@@ -42,10 +42,12 @@
 - Data attributes for CMS field mapping
 - Content editor hints
 - Fluid typography scaling
+- Floating-nav pin (star): toggles system defaults or custom favorites via `floatingNavStore` (synced with FloatingNav)
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { floatingNavStore, type NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { page } from '$app/state';
 
@@ -66,6 +68,12 @@
 		truncate?: boolean;
 		/** Tighter title row with bottom border — for data-dense pages (e.g. media gallery). */
 		compact?: boolean;
+		/**
+		 * Tailwind bg class for FloatingNav favorite spoke — must be a
+		 * NAV_FAVORITE_COLORS literal (Tailwind JIT only emits source-scanned classes).
+		 * (e.g. `bg-teal-500`). System catalog routes ignore this (use fixed catalog colors).
+		 */
+		navColor?: NavFavoriteColor;
 	}
 
 	const {
@@ -80,6 +88,7 @@
 		description = '',
 		onBackClick,
 		compact = false,
+		navColor = 'bg-amber-500',
 		children
 	}: Props = $props();
 
@@ -113,44 +122,29 @@
 		// Otherwise, let the <a> tag handle navigation with preloading
 	}
 
-	// Bookmark this page as a floating-nav favorite
-	const FAVORITES_KEY = 'floatingNav_favorites';
-	let isFavorited = $state(false);
+	// Floating nav: system default toggle OR custom favorite (shared store with FloatingNav).
+	// NOTE: do NOT call floatingNavStore.bindUser() here — the (app) layout already binds
+	// with the authoritative data.user. PageTitle's page.data.user can be shadowed by a
+	// page +page.server.ts (e.g. { user: { email } } without _id/id), which makes bindUser
+	// alternate between the real id and "anonymous" and trips Svelte's
+	// effect_update_depth_exceeded guard (infinite effect loop).
 
-	$effect(() => {
-		try {
-			const saved = localStorage.getItem(FAVORITES_KEY);
-			const existing = saved ? JSON.parse(saved) : [];
-			const pathname = page.url.pathname;
-			isFavorited = existing.some((f: { url?: { path?: string }; path?: string }) =>
-				(f.url?.path ?? f.path) === pathname
-			);
-		} catch { /* ignore */ }
-	});
+	const pathname = $derived(page.url.pathname);
+	const isFavorited = $derived(floatingNavStore.isActive(pathname));
+	const isFixedNavItem = $derived(floatingNavStore.isFixed(pathname));
 
 	function toggleFavorite() {
-		try {
-			const saved = localStorage.getItem(FAVORITES_KEY);
-			let favorites = saved ? JSON.parse(saved) : [];
-			const pathname = page.url.pathname;
-			if (isFavorited) {
-				favorites = favorites.filter((f: any) => f.path !== pathname);
-			} else {
-				favorites.push({
-					id: 'fav_' + Date.now(),
-					tooltip: name,
-					url: { external: false, path: pathname },
-					icon: icon || 'mdi:bookmark',
-					color: 'bg-amber-500',
-				});
-			}
-			localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
-			isFavorited = !isFavorited;
-			if (typeof window !== 'undefined') {
-				window.dispatchEvent(new CustomEvent('favorites_changed'));
-			}
-		} catch { /* ignore */ }
+		if (isFixedNavItem) return; // Home / Settings always stay on the radial
+		floatingNavStore.togglePage(pathname, { name, icon, color: navColor });
 	}
+
+	const favoriteTooltip = $derived(
+		isFixedNavItem
+			? 'Always available in floating navigation'
+			: isFavorited
+				? 'Remove from floating navigation'
+				: 'Add to floating navigation'
+	);
 </script>
 
 <div
@@ -196,13 +190,17 @@
 					</span>
 				</h1>
 
-				<!-- Favorites control lives outside h1 so heading accessible name stays clean for E2E/a11y -->
-				<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
+				<!-- Floating-nav pin lives outside h1 so heading accessible name stays clean for E2E/a11y -->
+				<SystemTooltip title={favoriteTooltip}>
 					<button
 						type="button"
 						onclick={toggleFavorite}
-						aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500 opacity-100' : 'opacity-60 hover:opacity-100'}"
+						aria-label={favoriteTooltip}
+						aria-pressed={isFavorited}
+						disabled={isFixedNavItem}
+						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited
+							? 'text-amber-500 opacity-100'
+							: 'opacity-60 hover:opacity-100 hover:text-amber-500'} {isFixedNavItem ? 'cursor-default' : ''}"
 						style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
 					>
 						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>

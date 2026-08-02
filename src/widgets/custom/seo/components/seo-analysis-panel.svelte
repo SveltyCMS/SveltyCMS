@@ -7,6 +7,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -54,9 +55,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			linkSuggestions = data.suggestions || [];
 		} catch (err: unknown) {
 			if ((err as any).name === 'AbortError') {
-				console.log('Fetch aborted');
+				logger.debug('Fetch aborted');
 			} else {
-				console.error('Failed to fetch link suggestions', err);
+				logger.error('Failed to fetch link suggestions', err);
 			}
 		} finally {
 			isFetchingLinks = false;

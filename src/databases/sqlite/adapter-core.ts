@@ -923,7 +923,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
         if (debugMode && !isBenchSuite)
-          console.log(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
+          logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
         await this.raw.execute(ddl);
 
         const columns = [

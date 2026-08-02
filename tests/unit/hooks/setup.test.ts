@@ -96,7 +96,11 @@ describe("handleSetup Middleware", () => {
 
       const event = createMockEvent("/dashboard");
       const response = await handleSetup({ event, resolve: mockResolve });
-      expect(response).toBe(mockResponse);
+      // The turbo pipeline rebuilds pass-through responses (withMutableHeaders)
+      // to inject security/cache headers — assert the preserved payload, not
+      // the original Response identity.
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("test body");
     });
   });
 
@@ -146,7 +150,11 @@ describe("handleSetup Middleware", () => {
     it("allows /.well-known/security.txt as a fast-bypass route", async () => {
       const event = createMockEvent("/.well-known/security.txt");
       const response = await handleSetup({ event, resolve: mockResolve });
-      expect(response).toBe(mockResponse);
+      // Static fast-bypass: the pipeline rebuilds it with the immutable
+      // long-cache contract — assert that contract + the preserved body.
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+      expect(await response.text()).toBe("test body");
     });
   });
 

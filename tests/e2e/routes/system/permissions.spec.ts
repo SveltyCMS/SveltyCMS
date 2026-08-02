@@ -32,50 +32,70 @@ test.describe("Permission Management Flow", () => {
       timeout: 15_000,
     });
 
-    // Check if toggleable checkboxes exist (may not hydrate in headless Chromium)
-    const toggleableCheckboxes = page.locator('table input[type="checkbox"]:not([disabled])');
-    let bodyCount = 0;
-    try {
-      await expect(async () => {
-        bodyCount = await toggleableCheckboxes.count();
-        expect(bodyCount).toBeGreaterThan(0);
-      }).toPass({ timeout: 10_000 });
-    } catch {
-      bodyCount = 0;
+    // Control-map row: the permission grid MUST hydrate — no soft-skip allowed.
+    // Scope to tbody: the thead holds per-role "select all filtered permissions"
+    // header checkboxes — toggling those grants/wipes EVERY permission for a
+    // role and would poison the shared DB for downstream serial specs.
+    const toggleableCheckboxes = page.locator('table tbody input[type="checkbox"]:not([disabled])');
+    await expect
+      .poll(async () => await toggleableCheckboxes.count(), { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    // Remember the pre-toggle state so we can restore the grants afterwards —
+    // other serial specs share this DB and must not inherit altered permissions.
+    const before = new Map<number, boolean>();
+    const toToggle = Math.min(await toggleableCheckboxes.count(), 3);
+    for (let i = 0; i < toToggle; i++) {
+      const cb = toggleableCheckboxes.nth(i);
+      before.set(i, await cb.isChecked());
+      // Toggle explicitly (AGENTS.md pitfall #16): check() is a no-op when the
+      // box is already checked, leaving the save button disabled. Click flips
+      // the state and always fires change.
+      await cb.click({ force: true, timeout: 5_000 });
     }
 
-    if (bodyCount > 0) {
-      const toToggle = Math.min(bodyCount, 3);
-      for (let i = 0; i < toToggle; i++) {
-        const cb = toggleableCheckboxes.nth(i);
-        await cb.check({ force: true, timeout: 5_000 });
+    const saveBtn = page
+      .getByTestId("access-mgmt-save")
+      .or(page.getByRole("button", { name: /save all changes/i }));
+    await expect(saveBtn.first()).toBeEnabled({ timeout: 15_000 });
+
+    const saveDone = page
+      .waitForResponse(
+        (res) =>
+          res.request().method() === "POST" &&
+          res.url().includes("/api/user/update-roles") &&
+          res.status() < 400,
+        { timeout: 15_000 },
+      )
+      .catch(() => null);
+    await saveBtn.first().click();
+    await saveDone;
+
+    // Wait for loading overlay to disappear before checking for toast
+    await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
+    await expect(page).toHaveURL(/access-management/i);
+    await expect(page.getByText(/configuration updated/i)).toBeVisible({ timeout: 15_000 });
+
+    // Restore the original grants so downstream serial specs are unaffected.
+    for (let i = 0; i < toToggle; i++) {
+      const cb = toggleableCheckboxes.nth(i);
+      const wantChecked = before.get(i) ?? false;
+      if ((await cb.isChecked()) !== wantChecked) {
+        await cb.click({ force: true, timeout: 5_000 });
       }
-
-      const saveBtn = page
-        .getByTestId("access-mgmt-save")
-        .or(page.getByRole("button", { name: /save all changes/i }));
-      await expect(saveBtn.first()).toBeEnabled({ timeout: 15_000 });
-
-      const saveDone = page
-        .waitForResponse(
-          (res) =>
-            res.request().method() === "POST" &&
-            res.url().includes("/api/user/update-roles") &&
-            res.status() < 400,
-          { timeout: 15_000 },
-        )
-        .catch(() => null);
-      await saveBtn.first().click();
-      await saveDone;
-
-      // Wait for loading overlay to disappear before checking for toast
-      await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
-      await expect(page).toHaveURL(/access-management/i);
-      await expect(page.getByText(/configuration updated/i)).toBeVisible({ timeout: 15_000 });
-    } else {
-      // No toggleable checkboxes — page didn't hydrate. Just verify the page loaded.
-      console.log("[Permissions] No toggleable checkboxes — page content not hydrated");
-      await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 5_000 });
     }
+    const restoreDone = page
+      .waitForResponse(
+        (res) =>
+          res.request().method() === "POST" &&
+          res.url().includes("/api/user/update-roles") &&
+          res.status() < 400,
+        { timeout: 15_000 },
+      )
+      .catch(() => null);
+    await expect(saveBtn.first()).toBeEnabled({ timeout: 15_000 });
+    await saveBtn.first().click();
+    await restoreDone;
+    await expect(page.getByText(/configuration updated/i)).toBeVisible({ timeout: 15_000 });
   });
 });

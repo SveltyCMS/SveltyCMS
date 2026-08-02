@@ -732,6 +732,11 @@ Features:
 					label={setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
 					description={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}
 					variant="card"
+					onchange={(checked) => {
+						if (!checked && systemSettings.demoMode) {
+							systemSettings.demoMode = false;
+						}
+					}}
 				/>
 
 				<!-- Demo Mode Toggle -->
@@ -741,6 +746,11 @@ Features:
 						label={setup_system_demo_mode?.() || 'Demo Mode'}
 						description={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
 						variant="card"
+						onchange={(checked) => {
+							if (checked && !systemSettings.multiTenant) {
+								systemSettings.multiTenant = true;
+							}
+						}}
 					/>
 					<span
 						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant ? 'text-amber-600 dark:text-amber-400' : 'invisible'}"
@@ -753,69 +763,88 @@ Features:
 		</section>
 
 
-		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
-		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
-			<div class="space-y-4 py-3">
-				<Checkbox
-					bind:checked={systemSettings.useRedis}
-					label="Enable Redis Caching"
-					description="Significantly improves performance by caching database queries and session data in-memory. Recommended if Redis is available."
-					variant="card"
-				/>
-				{#if systemSettings.useRedis}
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
-						<Input
-							id="redis-host"
-							bind:value={systemSettings.redisHost}
-							type="text"
-							data-1p-ignore
-							label="Redis Host"
-							placeholder="localhost"
-						/>
-						<Input
-							id="redis-port"
-							bind:value={systemSettings.redisPort}
-							type="text"
-							data-1p-ignore
-							label="Redis Port"
-							placeholder="6379"
-						/>
-						<Input
-							id="redis-password"
-							bind:value={systemSettings.redisPassword}
-							type="password"
-							data-1p-ignore
-							label="Redis Password (Optional)"
-							placeholder="••••••••"
-						/>
-					</div>
-
-					<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-surface-100 dark:border-white/5">
-						<Button variant="tertiary"
-							type="button"
-							onclick={setupStore.testRedisConnection}
-						aria-label="test-redis-connection"
-							disabled={setupStore.wizard.isLoading}
-						 class="dark: rounded flex items-center gap-2">
-							{#if setupStore.wizard.isLoading}
-								<iconify-icon icon="line-md:loading-twotone-loop" width="20"></iconify-icon>
-							{:else}
-								<iconify-icon icon="mdi:connection" width="20"></iconify-icon>
-							{/if}
-							{setup_db_test_redis_button?.() || 'Test Redis Connection'}
-						</Button>
-
+		<!-- Redis Caching — expand/collapse stays inside step-content scroll; footer is absolute in +page -->
+		<section id="redis-section" class="mt-4 border-t border-surface-200 pt-4 dark:border-white/10">
+			<div class="rounded-lg border border-surface-200 bg-surface-50/50 p-4 dark:border-surface-700 dark:bg-surface-900/40">
+				<div class="flex items-center justify-between gap-4">
+					<Checkbox
+						bind:checked={systemSettings.useRedis}
+						label="Enable Redis Caching"
+						description="Significantly improves performance by caching database queries and session data in-memory."
+						variant="default"
+					/>
+					{#if systemSettings.useRedis}
 						{#if setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
-								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
-								<span>{setup_db_test_redis_success?.() || 'Connected successfully!'}</span>
-							</div>
-						{:else if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-error-600 dark:text-error-500 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">
-								<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
-								<span>{setupStore.wizard.errorMessage}</span>
-							</div>
+							<span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-500">
+								<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
+								Connected
+							</span>
+						{:else}
+							<span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+								<iconify-icon icon="mdi:clock-outline" width="14"></iconify-icon>
+								Pending Test
+							</span>
 						{/if}
+					{/if}
+				</div>
+
+				{#if systemSettings.useRedis}
+					<div class="mt-4 space-y-4 border-t border-surface-200/60 pt-4 dark:border-surface-700/60">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+							<Input
+								id="redis-host"
+								bind:value={systemSettings.redisHost}
+								type="text"
+								data-1p-ignore
+								label="Redis Host"
+								placeholder="localhost"
+							/>
+							<Input
+								id="redis-port"
+								bind:value={systemSettings.redisPort}
+								type="text"
+								data-1p-ignore
+								label="Redis Port"
+								placeholder="6379"
+							/>
+							<Input
+								id="redis-password"
+								bind:value={systemSettings.redisPassword}
+								type="password"
+								data-1p-ignore
+								label="Redis Password (Optional)"
+								placeholder="••••••••"
+							/>
+						</div>
+
+						<div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+							<Button
+								variant={setupStore.wizard.redisTestPassed ? 'outline' : 'tertiary'}
+								type="button"
+								onclick={setupStore.testRedisConnection}
+								aria-label="test-redis-connection"
+								disabled={setupStore.wizard.isLoading}
+								class="flex items-center gap-2 rounded"
+							>
+								{#if setupStore.wizard.isLoading}
+									<iconify-icon icon="line-md:loading-twotone-loop" width="16"></iconify-icon>
+									<span>Testing Connection...</span>
+								{:else if setupStore.wizard.redisTestPassed}
+									<iconify-icon icon="mdi:check-bold" width="16" class="text-primary-500"></iconify-icon>
+									<span>{setup_db_test_redis_success?.() || 'Connected - Re-test'}</span>
+								{:else}
+									<iconify-icon icon="mdi:flash-outline" width="16"></iconify-icon>
+									<span>{setup_db_test_redis_button?.() || 'Test Redis Connection'}</span>
+								{/if}
+							</Button>
+
+							{#if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
+								<p class="flex items-center gap-1.5 text-xs font-medium text-error-500">
+									<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+									{setupStore.wizard.errorMessage}
+								</p>
+							{/if}
+						</div>
 					</div>
 				{/if}
 			</div>
@@ -825,12 +854,18 @@ Features:
 		<div class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
 			<button
 				type="button"
-				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors"
+				class="flex w-full items-center justify-between rounded-lg border border-surface-200 dark:border-surface-700/60 bg-surface-50/50 dark:bg-surface-900/30 p-3 text-sm font-semibold text-slate-700 dark:text-primary-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-all"
 				onclick={() => (showScaling = !showScaling)}
 				aria-label={showScaling ? 'Collapse enterprise scaling' : 'Expand enterprise scaling'}
 			>
-				<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18"></iconify-icon>
-				Advanced: Enterprise Scaling (Cloudflare CDN)
+				<div class="flex items-center gap-2">
+					<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<span>Advanced: Enterprise Scaling (Cloudflare CDN)</span>
+				</div>
+				<div class="flex items-center gap-2 text-xs font-normal">
+					<span>{showScaling ? 'Collapse' : 'Expand'}</span>
+					<iconify-icon icon={showScaling ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18" class="transition-transform duration-200"></iconify-icon>
+				</div>
 			</button>
 
 			{#if showScaling}

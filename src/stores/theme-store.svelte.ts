@@ -133,7 +133,7 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
   } else if (cookieValue === "dark" || cookieValue === "light" || cookieValue === "system") {
     preference = cookieValue;
   } else if (cookieValue) {
-    console.warn("[Theme Init] Unknown cookie value, defaulting to system:", cookieValue);
+    logger.warn("[Theme Init] Unknown cookie value, defaulting to system:", cookieValue);
     preference = "system";
   } else {
     // No cookie: use system preference as default
@@ -234,7 +234,7 @@ export function setThemePreference(preference: ThemePreference) {
     return;
   }
   if (preference === "unknown") {
-    console.warn('[Theme] Cannot set preference to "unknown", defaulting to "system"');
+    logger.warn('[Theme] Cannot set preference to "unknown", defaulting to "system"');
     preference = "system";
   }
 

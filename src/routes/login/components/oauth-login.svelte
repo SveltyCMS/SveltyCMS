@@ -14,6 +14,7 @@
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 import { preloadData } from "$app/navigation";
 	import Button from '@components/ui/button.svelte';
 
@@ -40,7 +41,7 @@ async function prefetchFirstCollection() {
 	try {
 		await preloadData(firstCollectionPath);
 	} catch (error) {
-		console.error("OAuth prefetch failed:", error);
+		logger.error("OAuth prefetch failed:", error);
 	}
 }
 </script>

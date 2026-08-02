@@ -227,7 +227,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		try {
 			imageEditorStore.takeSnapshot();
 		} catch (snapshotErr) {
-			console.warn('[ImageEditor] takeSnapshot failed:', snapshotErr);
+			logger.warn('[ImageEditor] takeSnapshot failed:', snapshotErr);
 		}
 
 		// Default to crop — primary entry workflow when opening the editor
@@ -257,7 +257,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		const safetyTimer = setTimeout(() => {
 			if (generation !== loadGeneration) return;
 			if (isProcessing) {
-				console.warn('[ImageEditor] loadImage safety timeout triggered — forcing isProcessing=false');
+				logger.warn('[ImageEditor] loadImage safety timeout triggered — forcing isProcessing=false');
 				isProcessing = false;
 			}
 		}, 15_000);

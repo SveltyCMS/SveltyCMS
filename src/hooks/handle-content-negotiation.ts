@@ -1,16 +1,18 @@
 /**
  * @file src/hooks/handle-content-negotiation.ts
- * @description Content negotiation middleware for AI agents.
+ * @description
+ * Content negotiation middleware for AI agents.
  * Serves markdown when agents request it via Accept: text/markdown.
  *
  * Markdown responses are ~94% smaller than HTML — reducing token costs
  * for AI crawlers (GPTBot, ClaudeBot, PerplexityBot).
  *
  * ### Features:
- * - Accept: text/markdown → stripped markdown body
+ * - Accept: text/markdown → signals markdown-available (full strip pipeline TBD)
  * - Falls through to normal HTML for browser requests
  * - llms.txt path is always served as text/markdown
  * - Adds Vary: Accept header for CDN cache differentiation
+ * - Clones response headers (immutable Response safety)
  */
 
 import type { Handle } from "@sveltejs/kit";

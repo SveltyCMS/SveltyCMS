@@ -12,6 +12,7 @@
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -116,7 +117,7 @@
 				};
 				resolvedPreview = await replaceTokens(text, context);
 			} catch (e) {
-				console.error('Token preview resolution failed', e);
+				logger.error('Token preview resolution failed', e);
 				resolvedPreview = 'Error';
 			} finally {
 				isLoadingPreview = false;

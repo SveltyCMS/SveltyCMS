@@ -104,6 +104,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return drizzleSql`data->>${field}`;
   }
 
+  protected coerceJsonValue(val: unknown): unknown {
+    // data->> returns text; bind scalars as text so `text = boolean/numeric`
+    // never throws and JSON-stored booleans/numbers actually match.
+    return typeof val === "boolean" || typeof val === "number" ? String(val) : val;
+  }
+
   public getTable(collection: string): any {
     if (typeof collection !== "string") return null;
 
@@ -674,7 +680,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
         if (debugMode && !isBenchSuite) {
-          console.log(
+          logger.debug(
             `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
           );
         }
@@ -682,7 +688,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
 
         if (debugMode && !isBenchSuite) {
-          console.log(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
+          logger.debug(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
         }
         await this.raw.execute(ddl);
 

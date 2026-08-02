@@ -45,7 +45,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 	function handleActivate() {
 		onActivateWidgets();
-		logger.info('[WidgetValidationWarning] Activate widgets requested', {
+		logger.debug('[WidgetValidationWarning] Activate widgets requested', {
 			collectionName,
 			widgetsToActivate: missingWidgets,
 		});

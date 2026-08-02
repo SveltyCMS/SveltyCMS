@@ -336,7 +336,18 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       options,
       (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
       (f) => this.getJsonField(f),
+      (v) => this.coerceJsonValue(v),
     );
+  }
+
+  /**
+   * Dialect hook: normalize bound values for JSON-extract column comparisons.
+   * JSON columns render scalars dialect-specifically (MariaDB `JSON_UNQUOTE`
+   * yields the text "true", Postgres `data->>` is text, SQLite json_extract is
+   * typed). Default: identity.
+   */
+  protected coerceJsonValue(val: unknown): unknown {
+    return val;
   }
 
   public applyOrderBy(builder: any, table: any, options: any): any {

@@ -23,6 +23,11 @@ class SystemWatchdog {
   private lastMaintenance = 0;
   private readonly MAX_RECOVERY_ATTEMPTS = 3;
   private readonly RECOVERY_BACKOFF_BASE = 5_000; // 5 seconds base backoff
+  // A DB that stays "initializing" this long while the system claims READY is a
+  // genuine hang (boot deadlock, unresponsive driver). Shorter "initializing"
+  // windows are legitimate lazy re-initialization (content re-sync, phase re-boot)
+  // and must NOT escalate to RECOVERY — that blocks all requests mid-operation.
+  private readonly STUCK_INIT_THRESHOLD_MS = 30_000;
 
   /**
    * Starts the autonomous watchdog.
@@ -57,10 +62,19 @@ class SystemWatchdog {
       }
     }
 
-    // 2. Drift Detection: If system says READY but critical services are initializing/unhealthy
+    // 2. Drift Detection: System says READY/WARMED but the DB is not healthy.
     if (overallState === "READY" || overallState === "WARMED") {
       const dbStatus = services.database.status;
-      if (dbStatus !== "healthy") {
+      const dbSince = services.database.lastChecked ?? Date.now();
+      // Immediate drift: genuinely degraded. "initializing" only counts as drift
+      // once it exceeds the stuck threshold — lazy re-initialization flips the DB
+      // to "initializing" for a few seconds during normal operation (e.g. content
+      // re-sync after a test reset or a phase re-boot), and escalating that to
+      // RECOVERY blocks every request until the re-init finishes.
+      const isDegraded = dbStatus === "unhealthy";
+      const isStuckInitializing =
+        dbStatus === "initializing" && Date.now() - dbSince > this.STUCK_INIT_THRESHOLD_MS;
+      if (isDegraded || isStuckInitializing) {
         logger.warn(
           `🚨 Drift detected: System is ${overallState} but database is ${dbStatus}. Triggering re-sync.`,
         );

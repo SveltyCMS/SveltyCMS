@@ -185,7 +185,7 @@ export async function registerCollections(tenantId?: string | null) {
 
   for (const collection of iterable) {
     if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(
+      logger.debug(
         `[GraphQL Debug] Processing collection: id=${collection._id}, name=${collection.name}`,
       );
     }
@@ -217,7 +217,7 @@ export async function registerCollections(tenantId?: string | null) {
 
   for (const collection of iterable) {
     if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(
+      logger.debug(
         `[GraphQL Debug] Processing collection: id=${collection._id}, name=${collection.name}`,
       );
     }
@@ -422,7 +422,7 @@ export async function registerCollections(tenantId?: string | null) {
   };
 
   if (process.env.BENCHMARK_DEBUG === "true") {
-    console.log(
+    logger.debug(
       `[GraphQL Debug] Registered query fields: ${queryFields.map((f) => f.split("(")[0]).join(", ")}`,
     );
   }

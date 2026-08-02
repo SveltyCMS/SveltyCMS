@@ -515,7 +515,7 @@ search filtering, and RTL support.
                             )
                             : cn(
                                 'items-center gap-2 py-1.5 text-sm leading-none',
-                                'min-h-[30px]',
+                                'min-h-7.5',
                                 isSelected ? cn('font-medium', mediaSelectedText) : 'font-normal',
                             ),
                         isFocused && 'ring-1 ring-primary-500/40 ring-offset-1 ring-offset-transparent',
@@ -672,7 +672,7 @@ search filtering, and RTL support.
                 <!-- Vertical Guide Line — media root only, aligned to home icon column -->
                 {#if isMedia && isRoot && expanded}
                     <div
-                        class={cn('pointer-events-none absolute bottom-0 start-[23px] top-0 w-px', mediaGuideLine)}
+                        class={cn('pointer-events-none absolute bottom-0 inset-s-5.75 top-0 w-px', mediaGuideLine)}
                         aria-hidden="true"
                     ></div>
                 {:else if !isMedia}

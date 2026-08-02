@@ -1,6 +1,13 @@
 /**
  * @file src/hooks/handle-static-asset-caching.ts
- * @description Hardened static asset caching — protects HMR in dev, safe header mutation.
+ * @description
+ * Hardened static asset caching — protects HMR in dev, safe header mutation.
+ *
+ * ### Features:
+ * - Immutable long-cache headers for fingerprinted `_app/` and static assets
+ * - Media CORP headers for `/files/`
+ * - Skips Vite dev internals so HMR is not broken
+ * - Clones response headers (immutable Response safety)
  */
 
 import type { Handle } from "@sveltejs/kit";

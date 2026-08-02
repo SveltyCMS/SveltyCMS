@@ -99,15 +99,15 @@ All 14 files are **wired to API handlers** or planned for wiring:
 
 ### Infrastructure
 
-| File                | Key exports                                                                    |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `logger.ts`         | Structured logging with browser/server awareness, pre-compiled highlight regex |
-| `event-bus.ts`      | Server-only wildcard event emitter with `IS_SERVER` guard                      |
-| `id-generator.ts`   | Hydration-safe SSR deterministic IDs                                           |
-| `hook-utils.ts`     | Pre-compiled regexes, request classification, `isPublicRoute`                  |
-| `error-handling.ts` | `AppError`, `handleApiError`, `getErrorMessage`                                |
-| `lazy-rune.ts`      | Shim for Bun test environments                                                 |
-| `auto-tag.ts`       | AI-powered auto-tagging on publish                                             |
+| File                | Key exports                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `logger.ts`         | Universal level-gated logger (masking, channels); see [Logger Levels](./logger-levels.mdx) |
+| `event-bus.ts`      | Server-only wildcard event emitter with `IS_SERVER` guard                                  |
+| `id-generator.ts`   | Hydration-safe SSR deterministic IDs                                                       |
+| `hook-utils.ts`     | Pre-compiled regexes, request classification, `isPublicRoute`                              |
+| `error-handling.ts` | `AppError`, `handleApiError`, `getErrorMessage`                                            |
+| `lazy-rune.ts`      | Shim for Bun test environments                                                             |
+| `auto-tag.ts`       | AI-powered auto-tagging on publish                                                         |
 
 ### Data Structures
 

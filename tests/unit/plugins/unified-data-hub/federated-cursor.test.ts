@@ -53,6 +53,33 @@ describe("federated cursor v3 stable", () => {
     expect(decodeSourceCursor(next!, "bench-articles", "c1")).toBe(25);
   });
 
+  it("falls back to rowCount >= limit when total equals the batch size", () => {
+    // Connectors may report the page size instead of a real total; the cursor
+    // must still be emitted so multi-page reads can continue.
+    const next = buildNextCursor({
+      slug: "bench-articles",
+      connectorId: "c1",
+      currentOffset: 0,
+      rowCount: 10,
+      total: 10,
+      limit: 10,
+    });
+    expect(next).toBeTruthy();
+    expect(decodeSourceCursor(next!, "bench-articles", "c1")).toBe(10);
+  });
+
+  it("omits nextCursor when the last batch is short", () => {
+    expect(
+      buildNextCursor({
+        slug: "bench-articles",
+        connectorId: "c1",
+        currentOffset: 95,
+        rowCount: 5,
+        limit: 10,
+      }),
+    ).toBeUndefined();
+  });
+
   it("omits nextCursor on final page", () => {
     expect(
       buildNextCursor({

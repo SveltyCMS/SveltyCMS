@@ -11,6 +11,7 @@
  * - **Translatable**: Fully supports multilingual SEO content.
  */
 
+import { logger } from "@utils/logger";
 import { widget_seo_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 import {
@@ -184,7 +185,7 @@ const SeoWidget = createWidget({
           // ... (data remains intact) ...
         } catch (err: any) {
           // Cloud API rejected the license or trial expired. Strip all premium fields.
-          console.warn("[widget:seo] Premium Data stripped. Reason:", err.message);
+          logger.warn("[widget:seo] Premium Data stripped. Reason:", err.message);
           for (const langKey in value) {
             if (typeof value[langKey as keyof SeoWidgetData] === "object") {
               const langData = value[langKey as keyof SeoWidgetData] as any;

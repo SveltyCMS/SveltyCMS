@@ -100,18 +100,25 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
   return removed;
 }
 
-/** Maps preset field types to core widget Names (DB + compiled output). */
+/**
+ * Maps preset FieldTemplate.type → factory widget Name.
+ * Must match createWidget({ Name }) in src/widgets/core|custom.
+ */
 const WIDGET_NAME_BY_TYPE: Record<string, string> = {
   input: "Input",
-  textarea: "Textarea",
+  textarea: "Input",
   richtext: "RichText",
   slug: "Slug",
-  image: "Media",
+  image: "MediaUpload",
+  file: "MediaUpload",
   reference: "Relation",
   number: "Number",
   select: "Select",
-  seo: "Seo",
+  seo: "SEO",
   repeater: "Repeater",
+  date: "DateTime",
+  boolean: "Checkbox",
+  tags: "Tags",
 };
 
 const TYPE_BY_FIELD: Record<string, string> = {
@@ -120,21 +127,41 @@ const TYPE_BY_FIELD: Record<string, string> = {
   richtext: "string",
   slug: "string",
   image: "string",
+  file: "string",
   reference: "string",
   number: "number",
   select: "string",
   seo: "object",
   repeater: "object",
+  date: "string",
+  boolean: "boolean",
+  tags: "array",
 };
 
+/** Resolve preset field → factory widget Name (e.g. RichText, MediaUpload, SEO). */
 function resolveWidgetName(field: FieldTemplate): string {
-  return (
-    WIDGET_NAME_BY_TYPE[field.type] ||
-    field.widget
+  if (field.type && WIDGET_NAME_BY_TYPE[field.type]) {
+    return WIDGET_NAME_BY_TYPE[field.type];
+  }
+  // field.widget in presets is often a loose string; map known folder-style values
+  const w = (field.widget || "").toLowerCase();
+  if (w === "media-upload" || w === "mediaupload") return "MediaUpload";
+  if (w === "rich-text" || w === "richtext") return "RichText";
+  if (w === "date-time" || w === "datetime") return "DateTime";
+  if (w === "seo") return "SEO";
+  if (w === "text" || w === "textarea") return "Input";
+  if (w === "relation" || w === "reference") return "Relation";
+  // PascalCase-from-kebab last resort for custom widgets already using folder names
+  if (field.widget?.includes("-")) {
+    return field.widget
       .split("-")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join("")
-  );
+      .join("");
+  }
+  if (field.widget) {
+    return field.widget.charAt(0).toUpperCase() + field.widget.slice(1);
+  }
+  return "Input";
 }
 
 /**
@@ -204,8 +231,6 @@ export function generateCollectionFileContent(collection: CollectionPreset): str
  * @description ${collection.label} — ${collection.description}
  * Auto-generated from setup preset.
  */
-
-import { widgets } from "@src/widgets";
 
 export default {
   _id: "${collection.name}",

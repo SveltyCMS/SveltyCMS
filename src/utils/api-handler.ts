@@ -52,7 +52,7 @@ export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {
       // 🛡️ Conditional logging: only compute duration in debug mode
       if (process.env.BENCHMARK_DEBUG === "true") {
         const duration = (performance.now() - start).toFixed(2);
-        logger.info(
+        logger.debug(
           `[API] ${event.request.method} ${event.url.pathname} -> ${response.status} (${duration}ms)`,
         );
       }

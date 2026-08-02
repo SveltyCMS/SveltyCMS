@@ -165,6 +165,7 @@ export type FederationErrorCode =
   | "CONNECTOR_CIRCUIT_OPEN"
   | "CONNECTOR_WRITE_NOT_SUPPORTED"
   | "CONNECTOR_WRITE_FAILED"
+  | "COLLECTION_WRITE_FAILED"
   | "VIRTUAL_ENTRY_NOT_FOUND";
 
 export class FederationError extends Error {

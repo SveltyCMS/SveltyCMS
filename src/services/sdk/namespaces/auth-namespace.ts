@@ -172,7 +172,16 @@ export class AuthNamespace {
       }
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      return auth.createUser({ ...userData, tenantId });
+      const result = await auth.createUser({ ...userData, tenantId });
+      // Unwrap the adapter DatabaseResult: safeCall must surface adapter failures
+      // (e.g. duplicate email) as { success: false }, not nest them under data.
+      if (!result || (typeof result === "object" && "success" in result && !result.success)) {
+        throw new AppError(
+          (result as { message?: string })?.message || "Failed to create user",
+          400,
+        );
+      }
+      return (result as { data?: unknown }).data;
     });
   }
 
@@ -419,7 +428,7 @@ export class AuthNamespace {
 
       const auth = await this.getAuth();
       const existingRoles = await withTenant(
-        (tenantId ?? "") as string,
+        tenantId as DatabaseId | null,
         async () => {
           return await auth.getAllRoles({ tenantId: tenantId as DatabaseId });
         },
@@ -429,7 +438,7 @@ export class AuthNamespace {
       const incomingRoleIds = new Set(roles.map((r: Role) => r._id));
 
       await withTenant(
-        (tenantId ?? "") as string,
+        tenantId as DatabaseId | null,
         async () => {
           for (const existingRole of existingRoles) {
             if (!incomingRoleIds.has(existingRole._id)) {
@@ -445,6 +454,20 @@ export class AuthNamespace {
               tenantId: (tenantId || undefined) as DatabaseId | undefined,
             };
             if (existingRoleIds.has(role._id)) {
+              // 🛡️ NEVER WIPE PERMISSIONS ON A BROKEN MATRIX: an incoming empty
+              // permissions array usually means the client failed to parse the
+              // role's grants (encoding/caching bug), not that the admin removed
+              // every permission. Preserve the stored grants in that case.
+              if (Array.isArray(roleData.permissions) && roleData.permissions.length === 0) {
+                const existing = existingRoles.find((r) => r._id === role._id);
+                if (
+                  existing &&
+                  Array.isArray(existing.permissions) &&
+                  existing.permissions.length > 0
+                ) {
+                  roleData.permissions = existing.permissions;
+                }
+              }
               await auth.updateRole(role._id as DatabaseId, roleData, {
                 tenantId: tenantId as DatabaseId,
               });

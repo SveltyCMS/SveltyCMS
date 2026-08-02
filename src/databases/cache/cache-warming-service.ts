@@ -27,10 +27,12 @@ export class CacheWarmingService {
     const start = performance.now();
 
     try {
+      const { withSystemScope } = await import("../system-tenant-scope");
+      const systemScope = withSystemScope("bootstrap");
       let hasRedirectsCollection = false;
       // 1. Warm Core Schemas (Required for all collection loads)
       if (db?.collection?.listSchemas) {
-        const schemas = await db.collection.listSchemas();
+        const schemas = await db.collection.listSchemas(null, systemScope);
         if (schemas.success && schemas.data) {
           for (const schema of schemas.data) {
             if (schema.name === "redirects") {
@@ -52,7 +54,7 @@ export class CacheWarmingService {
 
       // 2. Warm Default Theme
       if (db?.system?.themes?.getActive) {
-        const theme = await db.system.themes.getActive();
+        const theme = await db.system.themes.getActive(systemScope);
         if (theme.success && theme.data) {
           // 🚀 Pre-encode: cache serialized theme so reads never touch DB
           const preEncodedTheme = JSON.stringify(theme.data);
@@ -63,7 +65,9 @@ export class CacheWarmingService {
       // 3. JIT Predictive Redirect Caching (Top 100)
       if (hasRedirectsCollection && db?.crud?.find) {
         try {
-          const redirects = await db.crud.find("redirects", {}, { limit: 100 });
+          // NOTE: crud.find takes an options bag (3rd arg) — scope must be merged in,
+          // not passed positionally, or the tenant scope is silently dropped.
+          const redirects = await db.crud.find("redirects", {}, { limit: 100, ...systemScope });
           if (redirects.success && redirects.data) {
             for (const r of redirects.data) {
               const preEncodedRedirect = JSON.stringify(r);
@@ -115,6 +119,10 @@ export class CacheWarmingService {
     }
 
     try {
+      const { withSystemScope } = await import("../system-tenant-scope");
+      // System warming reads across tenants (behavioral data is global); the cache
+      // keys below are tenant-scoped via the tenantId arg, so no cross-tenant bleed.
+      const systemScope = withSystemScope("cache-warming");
       const { getHotCollections, getHotEntries } =
         await import("@src/services/intelligence/behavioral-learner");
 
@@ -136,7 +144,7 @@ export class CacheWarmingService {
             try {
               await cacheService.getOrSetSWR(
                 `collection:${id}:list`,
-                () => db.crud.find(id, {}, { limit: 20, skipMeta: true }),
+                () => db.crud.find(id, {}, { limit: 20, skipMeta: true, ...systemScope }),
                 300_000, // 5 min TTL
                 1_800_000, // 30 min stale SWR window
                 tenantId,
@@ -157,7 +165,7 @@ export class CacheWarmingService {
             try {
               await cacheService.getOrSetSWR(
                 `entry:${collectionId}:${entryId}`,
-                () => db.crud.findOne({ _id: entryId }, { tenantId }),
+                () => db.crud.findOne({ _id: entryId }, { tenantId, ...systemScope }),
                 300_000,
                 1_800_000,
                 tenantId,
@@ -178,56 +186,26 @@ export class CacheWarmingService {
 
   /**
    * 🧠 ENTERPRISE: Predictive Telemetry Warming
-   * Analyzes behavioral data to warm the cache, falling back to aggregate audit logs if empty.
+   * Warms the cache from in-memory behavioral learning data.
+   *
+   * Note: the audit-log aggregation fallback was removed (2026-07). Collection reads
+   * are NOT audited (sub-10ms persistence target — see AGENTS.md), so `eventType:
+   * "collection_find"` never existed in audit_logs and the old `$group` on
+   * `$targetId` could not produce collection names anyway. The behavioral learner
+   * (getHotCollections/getHotEntries) is the single source of truth for hot paths.
    */
   async warmFromTelemetry(db: any) {
     const tenantId = "global"; // Default tenant context for system warming
 
-    // First, try warming using the in-memory behavioral learning data
     const warmed = await this.warmFromBehavioralLearning(tenantId, db);
     if (warmed) {
       logger.debug("🧠 [PredictiveCache] Pre-warming complete using Behavioral Learner data.");
       return;
     }
 
-    if (!db?.crud?.aggregate) return;
-
-    try {
-      logger.debug(
-        "🧠 [PredictiveCache] Behavioral maps empty. Analyzing telemetry (audit logs) for pre-warming...",
-      );
-
-      // Query audit logs for top accessed collections in the last 24h
-      // Note: This uses the agnostic aggregation layer
-      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const topAccess = await db.crud.aggregate("audit_logs", [
-        {
-          $match: {
-            eventType: "collection_find",
-            timestamp: { $gte: last24h },
-          },
-        },
-        { $group: { _id: "$targetId", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-      ]);
-
-      if (topAccess.success && topAccess.data) {
-        for (const entry of topAccess.data) {
-          const collection = entry._id;
-          if (!collection) continue;
-
-          logger.debug(
-            `🧠 [PredictiveCache] Priming hot cache for "${collection}" (${entry.count} hits)`,
-          );
-
-          // Prime first page of data
-          await db.crud.find(collection, {}, { limit: 20, skipMeta: true });
-        }
-      }
-    } catch (err) {
-      logger.trace("Predictive telemetry warming skipped (not supported or no data)", err);
-    }
+    logger.trace(
+      "[PredictiveCache] Behavioral maps empty — telemetry warming skipped (records accumulate after first page loads).",
+    );
   }
 
   /**

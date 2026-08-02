@@ -4,39 +4,54 @@
  * Centralized widget scanner module for SveltyCMS.
  *
  * Responsibilities include:
- * - Dynamically scanning core and custom widget modules via Vite's `import.meta.glob`.
- * - Providing a highly resilient synchronous fallback scanner for Bun/Node runtime environments (e.g. CLI/tests).
- * - Exposing resolved core modules, custom modules, and raw Svelte component loaders.
+ * - Dynamically scanning core, custom, and marketplace widget modules via Vite's `import.meta.glob`.
+ * - Providing a resilient synchronous fallback scanner for Bun/Node (CLI/tests).
+ * - Resolving input/display loaders using the single naming convention
+ *   (factory Name → kebab-case folder under core|custom|marketplace).
  *
  * ### Features:
  * - Vite-native eager glob parsing
  * - Resilient Bun filesystem fallback
- * - Path-to-widget component matching logic
+ * - Path-to-widget component matching (Name ↔ folder invariant)
  */
+
+import { logger } from "@utils/logger";
+import { WIDGET_COMPONENT_ROOTS, folderFromWidgetPath, widgetNameToFolder } from "./widget-naming";
+
+// Re-export for call sites that already import from scanner
+export { widgetNameToFolder } from "./widget-naming";
 
 // 1. Vite/SvelteKit Native Scanning
 let coreModulesRaw: Record<string, any> = {};
 let customModulesRaw: Record<string, any> = {};
+let marketplaceModulesRaw: Record<string, any> = {};
 let widgetComponentsRaw: Record<string, any> = {};
 
 try {
   coreModulesRaw = import.meta.glob("./core/*/index.ts", { eager: true });
   customModulesRaw = import.meta.glob("./custom/*/index.ts", { eager: true });
-  widgetComponentsRaw = import.meta.glob(["./core/*/*.svelte", "./custom/*/*.svelte"]);
+  // Marketplace is optional — empty glob is fine when the dir has no packages yet
+  marketplaceModulesRaw = import.meta.glob("./marketplace/*/index.ts", { eager: true });
+  widgetComponentsRaw = import.meta.glob([
+    "./core/*/*.svelte",
+    "./custom/*/*.svelte",
+    "./marketplace/*/*.svelte",
+  ]);
 
   if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
-    console.log(
-      `[Scanner Debug] Vite Glob detected ${Object.keys(coreModulesRaw).length} core modules and ${Object.keys(customModulesRaw).length} custom modules.`,
+    logger.debug(
+      `[Scanner Debug] Vite Glob: ${Object.keys(coreModulesRaw).length} core, ${Object.keys(customModulesRaw).length} custom, ${Object.keys(marketplaceModulesRaw).length} marketplace.`,
     );
   }
 } catch (err: any) {
   if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
-    console.error(`[Scanner Debug] Vite Glob failed: ${err.message}`);
+    logger.error(`[Scanner Debug] Vite Glob failed: ${err.message}`);
   }
 }
 
 export const coreModules = coreModulesRaw;
 export const customModules = customModulesRaw;
+export const marketplaceModules = marketplaceModulesRaw;
 export const widgetComponents = widgetComponentsRaw;
 
 /**
@@ -73,7 +88,7 @@ function initBunFallback() {
               const module = nodeRequire(indexPath);
               modules[`./${subDir}/${entry.name}/index.ts`] = module;
             } catch (err: any) {
-              console.warn(`[Scanner] Failed to require widget ${entry.name}:`, err.message);
+              logger.warn(`[Scanner] Failed to require widget ${entry.name}:`, err.message);
             }
           }
         }
@@ -82,36 +97,41 @@ function initBunFallback() {
     };
 
     const projectRoot = typeof process !== "undefined" && process.cwd ? process.cwd() : ".";
-    const corePath = path.join(projectRoot, "src/widgets/core");
-    const customPath = path.join(projectRoot, "src/widgets/custom");
-
-    Object.assign(coreModules, scan(corePath, "core"));
-    Object.assign(customModules, scan(customPath, "custom"));
+    Object.assign(coreModules, scan(path.join(projectRoot, "src/widgets/core"), "core"));
+    Object.assign(customModules, scan(path.join(projectRoot, "src/widgets/custom"), "custom"));
+    Object.assign(
+      marketplaceModules,
+      scan(path.join(projectRoot, "src/widgets/marketplace"), "marketplace"),
+    );
   } catch (err: unknown) {
-    console.error("[Scanner] Fallback error:", err);
+    logger.error("[Scanner] Fallback error:", err);
   }
 }
 
 // Initialize fallback
 initBunFallback();
 
-export const allWidgetModules = { ...coreModules, ...customModules };
+export const allWidgetModules = {
+  ...coreModules,
+  ...customModules,
+  ...marketplaceModules,
+};
 
 /**
- * Resolves a component loader for a widget.
+ * Resolves a component loader for a widget by factory Name.
+ * Paths: `./{core|custom|marketplace}/{kebab(Name)}/{input|display}.svelte`
  */
 export function getComponentLoader(
   widgetName: string,
   type: "input" | "display" = "input",
 ): (() => Promise<{ default: any }>) | null {
-  const normalized = widgetName.toLowerCase();
+  if (!widgetName) return null;
 
-  const searchPatterns = [
-    `./core/${normalized}/${type}.svelte`,
-    `./custom/${normalized}/${type}.svelte`,
-    `./core/${normalized}/index.svelte`,
-    `./custom/${normalized}/index.svelte`,
-  ];
+  const folder = widgetNameToFolder(widgetName);
+  const searchPatterns: string[] = [];
+  for (const root of WIDGET_COMPONENT_ROOTS) {
+    searchPatterns.push(`./${root}/${folder}/${type}.svelte`);
+  }
 
   for (const pattern of searchPatterns) {
     if (widgetComponents[pattern]) {
@@ -120,7 +140,7 @@ export function getComponentLoader(
   }
 
   for (const path in widgetComponents) {
-    if (path.toLowerCase().includes(`/${normalized}/${type}.svelte`)) {
+    if (path.toLowerCase().includes(`/${folder}/${type}.svelte`)) {
       return widgetComponents[path] as () => Promise<{ default: any }>;
     }
   }
@@ -133,9 +153,8 @@ export function getComponentLoader(
 }
 
 /**
- * Extracts widget name from file path
+ * Extracts widget folder from file path (`…/phone-number/index.ts` → `phone-number`)
  */
 export function getWidgetNameFromPath(path: string): string | null {
-  const parts = path.split("/");
-  return parts.at(-2) || null;
+  return folderFromWidgetPath(path);
 }

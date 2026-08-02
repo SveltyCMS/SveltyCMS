@@ -264,7 +264,12 @@ export async function loadSettingsFromDB(adapter: IDBAdapter, force = false): Pr
     if (!force && getGlobal("__SETTINGS_LOADED__", false)) return true;
 
     // Load from system_preferences table
-    const result = await adapter.crud.findMany<any>("system_preferences", {});
+    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+    const result = await adapter.crud.findMany<any>(
+      "system_preferences",
+      {},
+      withSystemScope("bootstrap"),
+    );
     if (result.success && result.data) {
       const settings: Record<string, any> = {};
       for (const pref of result.data) {

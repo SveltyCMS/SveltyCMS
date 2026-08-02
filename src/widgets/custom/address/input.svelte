@@ -23,6 +23,7 @@ Part of the Three Pillars Architecture for the widget system.
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import { browser } from '$app/environment';
 		import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 		import Badge from '@components/ui/badge.svelte';
@@ -208,7 +209,7 @@ Part of the Three Pillars Architecture for the widget system.
 							fillInGoogleAddress(response.results[0]);
 						}
 					} catch (err) {
-						console.error('Google reverse geocoding failed', err);
+						logger.error('Google reverse geocoding failed', err);
 					}
 				}
 			});
@@ -233,7 +234,7 @@ Part of the Three Pillars Architecture for the widget system.
 				}
 			}
 		} catch (e) {
-			console.error('Google Map init failed', e);
+			logger.error('Google Map init failed', e);
 		}
 	}
 
@@ -307,7 +308,7 @@ Part of the Three Pillars Architecture for the widget system.
 				await reverseGeocodePhoton(lngLat.lat, lngLat.lng);
 			});
 		} catch (e) {
-			console.error('MapLibre init failed', e);
+			logger.error('MapLibre init failed', e);
 		}
 	}
 
@@ -350,7 +351,7 @@ Part of the Three Pillars Architecture for the widget system.
 					showSuggestions = true;
 				}
 			} catch (err) {
-				console.error('Photon autocomplete failed', err);
+				logger.error('Photon autocomplete failed', err);
 			} finally {
 				isLoadingSearch = false;
 			}
@@ -424,7 +425,7 @@ Part of the Three Pillars Architecture for the widget system.
 				searchQuery = parts.join(', ');
 			}
 		} catch (err) {
-			console.error('Photon reverse geocoding failed', err);
+			logger.error('Photon reverse geocoding failed', err);
 		}
 	}
 

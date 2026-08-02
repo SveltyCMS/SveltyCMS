@@ -86,7 +86,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const jsonPath = (url.searchParams.get("jsonPath") || url.searchParams.get("jsonpath") || "")
       .trim()
       .slice(0, 500);
-    logger.info(
+    logger.debug(
       `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive}${jsonPath ? `, jsonPath` : ""})`,
     );
 
@@ -155,10 +155,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       allMediaResults = [];
     }
 
-    logger.info(`Fetched ${allMediaResults.length} media items for folder ${folderId || "root"}`);
+    logger.debug(`Fetched ${allMediaResults.length} media items for folder ${folderId || "root"}`);
 
     if (allMediaResults.length === 0) {
-      logger.info("No media items found");
+      logger.debug("No media items found");
     }
 
     // Process and flatten media results - Filter and validate media items before processing
@@ -227,13 +227,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     let filteredMedia = processedMedia;
     if (jsonPath) {
       filteredMedia = processedMedia.filter((item) => matchesJsonPathFilter(item, jsonPath));
-      logger.info(
+      logger.debug(
         `JSON path filter "${jsonPath}" reduced media ${processedMedia.length} → ${filteredMedia.length}`,
       );
     }
 
-    logger.info(`Fetched ${filteredMedia.length} media items for folder ${folderId || "root"}`);
-    logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
+    logger.debug(`Fetched ${filteredMedia.length} media items for folder ${folderId || "root"}`);
+    logger.debug(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
 
     // 🚀 Check which media items are referenced by published content
     // Soft-fail: never 500 the gallery if reference scanning crashes
@@ -251,7 +251,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
           publishedMediaIds.push(filteredMedia[i]!._id as string);
         }
       }
-      logger.info(`Found ${publishedMediaIds.length} media items referenced by published content`);
+      logger.debug(`Found ${publishedMediaIds.length} media items referenced by published content`);
     } catch (refErr) {
       logger.warn(
         `Published-content reference scan failed (non-fatal): ${refErr instanceof Error ? refErr.message : String(refErr)}`,
@@ -319,12 +319,12 @@ export const actions: Actions = {
               user._id as any,
               access,
               (locals.tenantId as DatabaseId | null) ?? null,
-              folder,
+              folder, // _basePath — target virtual folder; "global" keeps root
             );
             if (!result.success) {
               throw new Error(result.message || "Failed to save media file");
             }
-            logger.info(`File uploaded successfully to ${folder}: ${file.name}`);
+            logger.debug(`File uploaded successfully to ${folder}: ${file.name}`);
           }),
       );
 
@@ -362,7 +362,7 @@ export const actions: Actions = {
       const formData = await request.formData();
       const imageDataStr = formData.get("imageData");
 
-      logger.info("Delete request received, imageDataStr:", imageDataStr);
+      logger.debug("Delete request received, imageDataStr:", imageDataStr);
 
       if (!imageDataStr || typeof imageDataStr !== "string") {
         logger.error("Invalid image data received - not a string");
@@ -370,8 +370,7 @@ export const actions: Actions = {
       }
 
       const image = JSON.parse(imageDataStr);
-      logger.warn("Parsed image data:", image);
-      logger.trace("Received delete request for image:", image);
+      logger.debug("Delete request parsed for image:", image?._id);
 
       if (!image?._id) {
         logger.error("Invalid image data received - no _id");
@@ -418,7 +417,7 @@ export const actions: Actions = {
             const dynamicFolders = Object.keys(configuredSizes);
             const allSizes = [...new Set([...standardFolders, ...dynamicFolders])];
 
-            logger.info(
+            logger.debug(
               `Deleting all variants for file: ${fileName} in ${basePath} - Sizes: ${allSizes.join(", ")}`,
             );
 
@@ -426,7 +425,7 @@ export const actions: Actions = {
               const sizePath = `${basePath}/${size}/${fileName}`;
               try {
                 await moveMediaToTrash(sizePath);
-                logger.info(`Deleted ${size} variant:`, sizePath);
+                logger.debug(`Deleted ${size} variant:`, sizePath);
               } catch {
                 // File might not exist in this size folder - that's OK
                 logger.debug(`No ${size} variant found (or already deleted):`, sizePath);
@@ -435,7 +434,7 @@ export const actions: Actions = {
           } else {
             // Fallback: just try to delete the exact path
             await moveMediaToTrash(cleanPath);
-            logger.info("File moved to trash (fallback):", cleanPath);
+            logger.debug("File moved to trash (fallback):", cleanPath);
           }
         } else {
           logger.warn("No path or url found for file deletion:", image._id);
@@ -464,12 +463,12 @@ export const actions: Actions = {
       }
 
       // Use db-agnostic media adapter for deletion
-      logger.info(`Deleting media item: ${image._id}`);
+      logger.debug(`Deleting media item: ${image._id}`);
 
       const result = await dbAdapter.media.files.delete(image._id.toString());
 
       if (result.success) {
-        logger.info("Media item deleted successfully");
+        logger.debug("Media item deleted successfully");
         // Invalidate media gallery cache after deletion
         try {
           const { cacheService } = await import("@src/databases/cache/cache-service");
@@ -525,9 +524,9 @@ export const actions: Actions = {
               user._id as any,
               access,
               (locals.tenantId as DatabaseId | null) ?? null,
-              folder,
+              folder, // _basePath — target virtual folder; "global" keeps root
             );
-            logger.info(`Remote file uploaded successfully to ${folder}: ${file.name}`);
+            logger.debug(`Remote file uploaded successfully to ${folder}: ${file.name}`);
           } catch (fileError) {
             const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
             if (errorMessage.includes("duplicate")) {

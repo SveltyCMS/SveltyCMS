@@ -274,6 +274,15 @@ export class MediaService {
   private static hookRegistered = false;
   private registeredHookId: string | null = null;
 
+  /**
+   * Re-entrancy guard for the before:delete hook. `deleteMedia()` performs its own
+   * crud.delete, which re-fires the hook → deleteMedia → crud.delete → … without a
+   * base case. Each level allocates async frames + re-runs variant cleanup, so the
+   * recursion grows until the process OOMs. Skipping ids already in flight cuts the
+   * loop at the outermost call.
+   */
+  private static inFlightDeletes = new Set<string>();
+
   /** In-memory reverse-index for O(1) media-reference lookups. */
   private referenceIndex = new MediaReferenceIndex();
 
@@ -304,15 +313,18 @@ export class MediaService {
             collection === "media"
           ) {
             const id = query?._id;
-            if (id) {
-              try {
-                await this.deleteMedia(
-                  id.toString(),
-                  query?.tenantId as DatabaseId | null | undefined,
-                );
-              } catch (e) {
-                logger.error(`[Hooks] Media cleanup failed:`, e);
-              }
+            if (!id) return;
+            const idStr = id.toString();
+            // Re-entrancy guard — see inFlightDeletes doc. The hook must not re-enter
+            // deleteMedia for the same row while deleteMedia is already deleting it.
+            if (MediaService.inFlightDeletes.has(idStr)) return;
+            MediaService.inFlightDeletes.add(idStr);
+            try {
+              await this.deleteMedia(idStr, query?.tenantId as DatabaseId | null | undefined);
+            } catch (e) {
+              logger.error(`[Hooks] Media cleanup failed:`, e);
+            } finally {
+              MediaService.inFlightDeletes.delete(idStr);
             }
           }
         },
@@ -425,7 +437,7 @@ export class MediaService {
                 },
               } as unknown as EntityUpdate<DbMediaItem>,
             );
-            logger.info("[Media] Variants generated for streamed upload", {
+            logger.debug("[Media] Variants generated for streamed upload", {
               hash: hash.slice(0, 12),
               count: variants.length,
             });
@@ -543,7 +555,7 @@ export class MediaService {
                 tenantId,
               );
               if (imageVariants.length > 0) {
-                logger.info("[Media] Responsive variants generated", {
+                logger.debug("[Media] Responsive variants generated", {
                   hash: hash.slice(0, 12),
                   count: imageVariants.length,
                 });
@@ -1497,7 +1509,7 @@ export class MediaService {
             tenantId,
           );
           if (versionVariants.length > 0) {
-            logger.info("[Media] Variants generated for version upload", {
+            logger.debug("[Media] Variants generated for version upload", {
               hash: hash.slice(0, 12),
               count: versionVariants.length,
             });

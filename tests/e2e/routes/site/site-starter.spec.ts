@@ -27,7 +27,9 @@ test.describe("Site Starter", () => {
   });
 
   test("guest sees seeded homepage at /", async ({ browser }) => {
-    const context = await browser.newContext();
+    // A real guest must not inherit the admin storageState — otherwise / renders
+    // the admin dashboard and the seeded public homepage is never exercised.
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -38,7 +40,7 @@ test.describe("Site Starter", () => {
     const isAdminDashboard = await page
       .locator("nav, .admin-theme-container, [data-testid='page-title']")
       .first()
-      .isVisible({ timeout: 5_000 })
+      .isVisible({ timeout: 10_000 })
       .catch(() => false);
     const isLogin = page.url().includes("/login") || page.url().includes("/setup");
 

@@ -117,7 +117,9 @@ describe("handleAuthentication Middleware - API Keys", () => {
     expect(user?._id).toBe("apikey:key-123");
     expect(user?.tenantId).toBe("t1");
     expect(user?.scopes).toContain("content:read");
-    expect(dbAdapter.auth.updateApiKeyUsage).toHaveBeenCalledWith("key-123", undefined, {
+    // updateApiKeyUsage(keyId, clientIp, opts) — getClientIp returns the test
+    // loopback in TEST_MODE (hook-utils shortcut; no XFF trust).
+    expect(dbAdapter.auth.updateApiKeyUsage).toHaveBeenCalledWith("key-123", "127.0.0.1", {
       tenantId: "t1",
     });
     expect(mockResolve).toHaveBeenCalled();

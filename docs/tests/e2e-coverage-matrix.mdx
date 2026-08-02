@@ -16,8 +16,8 @@ tags:
 
 # E2E Coverage Matrix — Route-Based Analysis
 
-> Generated: 2026-06-19
-> Total routes: 9 | Total E2E specs: 29 | CI projects: 17 (+ wizard + auth-setup)
+> Generated: 2026-06-19 (spec count refreshed 2026-07-31)
+> Total routes: 9 (matrix scope below) | Total E2E specs: **43 on disk** | CI projects: 17 (+ wizard + auth-setup)
 
 ## 1. `/setup` — Setup Wizard (24 components, 6 tested)
 
@@ -77,31 +77,31 @@ tags:
 > Full 1:1 control map: [routes/user.mdx](./routes/user.mdx) (updated 2026-07-18).
 > Product fixes: batch self-delete, CSRF on remotes/GDPR, permissions display, sessions UI.
 
-| Feature                        | Test File                        | Status                        |
-| ------------------------------ | -------------------------------- | ----------------------------- |
-| View profile                   | `user/account-smoke.spec.ts`     | ✅                            |
-| Edit avatar                    | `user/profile.spec.ts`           | ⚠️ Needs test image           |
-| Delete avatar                  | `user/profile.spec.ts`           | ⚠️ serial                     |
-| Edit user details              | `user/profile.spec.ts`           | ✅                            |
-| Appearance settings link       | `user/profile.spec.ts`           | ✅                            |
-| Registration token workflow    | `user/profile.spec.ts`           | ⚠️                            |
-| Toggle token/list visibility   | `user/profile.spec.ts`           | ✅                            |
-| Read/edit user (admin)         | `user/management.spec.ts`        | ✅                            |
-| Delete/block/unblock (admin)   | `user/management.spec.ts`        | ✅                            |
-| Invite user via email          | `user/management-invite.spec.ts` | ✅                            |
-| Auth preference toggles        | `user/complete-coverage.spec.ts` | ✅                            |
-| Admin table search/sort        | `user/complete-coverage.spec.ts` | ✅                            |
-| Privacy modal open/close       | `user/complete-coverage.spec.ts` | ✅ (`privacy-data-btn`)       |
-| Active sessions refresh        | `user/complete-coverage.spec.ts` | ✅                            |
-| **Password change (full)**     | `user/p0-journeys.spec.ts`       | ✅ editor verify→set→re-login |
-| **Non-admin profile**          | `user/p0-journeys.spec.ts`       | ✅ AdminArea hidden           |
-| **Token edit/delete (seeded)** | `user/p0-journeys.spec.ts`       | ✅ no soft-skip               |
-| **2FA setup / enroll**         | `user/coverage-100.spec.ts`      | ✅ USE_2FA + TOTP             |
-| **GDPR export / anonymize**    | `user/coverage-100.spec.ts`      | ✅ download + secondary wipe  |
-| **RTC prefs persistence**      | `user/coverage-100.spec.ts`      | ✅ toggle + reload            |
-| **Permissions badges**         | `user/coverage-100.spec.ts`      | ✅ admin list                 |
-| **Pagination (11+ users)**     | `user/coverage-100.spec.ts`      | ✅ bulk-create-users          |
-| **Identity email/role/id**     | `user/coverage-100.spec.ts`      | ✅                            |
+| Feature                        | Test File                        | Status                                                 |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------ |
+| View profile                   | `user/account-smoke.spec.ts`     | ✅                                                     |
+| Edit avatar                    | `user/profile.spec.ts`           | ✅ (fixture `testthumb.png` committed + hard-required) |
+| Delete avatar                  | `user/profile.spec.ts`           | ✅ serial (button hard-asserted; no soft-skip)         |
+| Edit user details              | `user/profile.spec.ts`           | ✅                                                     |
+| Appearance settings link       | `user/profile.spec.ts`           | ✅                                                     |
+| Registration token workflow    | `user/profile.spec.ts`           | ⚠️                                                     |
+| Toggle token/list visibility   | `user/profile.spec.ts`           | ✅                                                     |
+| Read/edit user (admin)         | `user/management.spec.ts`        | ✅                                                     |
+| Delete/block/unblock (admin)   | `user/management.spec.ts`        | ✅                                                     |
+| Invite user via email          | `user/management-invite.spec.ts` | ✅                                                     |
+| Auth preference toggles        | `user/complete-coverage.spec.ts` | ✅                                                     |
+| Admin table search/sort        | `user/complete-coverage.spec.ts` | ✅                                                     |
+| Privacy modal open/close       | `user/complete-coverage.spec.ts` | ✅ (`privacy-data-btn`)                                |
+| Active sessions refresh        | `user/complete-coverage.spec.ts` | ✅                                                     |
+| **Password change (full)**     | `user/p0-journeys.spec.ts`       | ✅ editor verify→set→re-login                          |
+| **Non-admin profile**          | `user/p0-journeys.spec.ts`       | ✅ AdminArea hidden                                    |
+| **Token edit/delete (seeded)** | `user/p0-journeys.spec.ts`       | ✅ no soft-skip                                        |
+| **2FA setup / enroll**         | `user/coverage-100.spec.ts`      | ✅ USE_2FA + TOTP                                      |
+| **GDPR export / anonymize**    | `user/coverage-100.spec.ts`      | ✅ download + secondary wipe                           |
+| **RTC prefs persistence**      | `user/coverage-100.spec.ts`      | ✅ toggle + reload                                     |
+| **Permissions badges**         | `user/coverage-100.spec.ts`      | ✅ admin list                                          |
+| **Pagination (11+ users)**     | `user/coverage-100.spec.ts`      | ✅ bulk-create-users                                   |
+| **Identity email/role/id**     | `user/coverage-100.spec.ts`      | ✅                                                     |
 
 **Coverage: 100% of `/user` control map** — see [routes/user.mdx](./routes/user.mdx)
 

@@ -1250,7 +1250,7 @@ export interface ISystemAdapter {
     update(
       jobId: DatabaseId,
       data: Partial<EntityCreate<Job>>,
-      options?: BaseQueryOptions,
+      options?: BaseQueryOptions & { filter?: Record<string, unknown> },
     ): Promise<DatabaseResult<Job>>;
     delete(jobId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
     cleanup(olderThan: Date, options?: BaseQueryOptions): Promise<DatabaseResult<number>>;
@@ -1337,7 +1337,10 @@ export interface ICollectionAdapter {
     collectionId: string,
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<Schema | null>>;
-  listSchemas(tenantId?: DatabaseId | null): Promise<DatabaseResult<Schema[]>>;
+  listSchemas(
+    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Schema[]>>;
   getNativeDriverModel?<TNative = any>(collectionId: string): Promise<TNative>;
 }
 

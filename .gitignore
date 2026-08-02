@@ -9,8 +9,9 @@ terminals/
 
 # bun-generated type stubs (local artifacts, not tracked)
 src/types/*/
-/src/live
-!/src/live/svelte-realtime-mock.ts
+# svelte-realtime auto-generated client types only — the rest of src/live is
+# tracked source (system.ts, chat.ts, ws-platform.ts, svelte-realtime-mock.ts)
+/src/live/$types.d.ts
 /.svelte-kit
 /package
 # Lock files — bun is the recommended package manager; commit its lock file.

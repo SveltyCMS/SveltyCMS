@@ -1,6 +1,14 @@
 /**
  * @file src/hooks/handle-api-requests.ts
- * @description Hardened API request authorization middleware with tenant-scoped caching and atomic compression.
+ * @description
+ * Hardened API request authorization middleware with tenant-scoped caching and atomic compression.
+ *
+ * ### Features:
+ * - RBAC gate via `hasApiPermission` before resolve
+ * - Tenant-scoped L1/L2 response cache with ETag / 304 support
+ * - Background pre-compression (br/gzip/zstd) stored on cache entries
+ * - Cache invalidation + opportunistic prewarm on mutating methods
+ * - Safe header mutation via `withMutableHeaders` (immutable Response safety)
  */
 
 import { hasApiPermission } from "@src/databases/auth/api-permissions";
@@ -9,7 +17,7 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isAdmin, isPublicRoute } from "@utils/hook-utils";
+import { isAdmin, isPublicRoute, withMutableHeaders } from "@utils/hook-utils";
 import { xxhash64 } from "hash-wasm";
 import {
   compressSync,
@@ -138,8 +146,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
       const response = await resolve(event);
       if (apiEndpoint === "graphql") {
-        response.headers.set("X-Cache", "BYPASS");
-        return response;
+        return withMutableHeaders(response, (headers) => {
+          headers.set("X-Cache", "BYPASS");
+        });
       }
 
       if (response.ok) {
@@ -152,16 +161,17 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
 
           if ((nocache && !ifNoneMatch) || (isBenchmark && !ifNoneMatch)) {
-            response.headers.set("X-Cache", nocache ? "NOCACHE" : "BYPASS-BENCH");
-            response.headers.set("Vary", "Accept-Encoding");
-            return response;
+            return withMutableHeaders(response, (headers) => {
+              headers.set("X-Cache", nocache ? "NOCACHE" : "BYPASS-BENCH");
+              headers.set("Vary", "Accept-Encoding");
+            });
           }
 
-          const apiData = (locals as any).apiData;
+          const apiData = (locals as { apiData?: unknown }).apiData;
           let responseBody: string | null = null;
-          let responseData: any = null;
+          let responseData: unknown = null;
 
-          if (apiData) {
+          if (apiData !== undefined) {
             responseData = apiData;
             responseBody = JSON.stringify(apiData);
           } else {
@@ -169,16 +179,16 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             responseBody = await clone.text();
             try {
               responseData = JSON.parse(responseBody);
-            } catch {}
+            } catch {
+              /* non-JSON body — still cache raw if needed */
+            }
           }
 
           if (responseBody) {
             let etag = response.headers.get("etag");
             if (!etag) {
               etag = `"${await xxhash64(responseBody)}"`;
-              response.headers.set("etag", etag);
             }
-            response.headers.set("Vary", "Accept-Encoding");
 
             if (request.headers.get("if-none-match") === etag) {
               return new Response(null, {
@@ -187,13 +197,20 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
               });
             }
 
-            response.headers.set("X-Cache", nocache ? "NOCACHE" : refresh ? "REFRESH" : "MISS");
+            const cacheStatus = nocache ? "NOCACHE" : refresh ? "REFRESH" : "MISS";
+            // Build final headers on a clone — never mutate resolve() Headers
+            const finalResponse = withMutableHeaders(response, (headers) => {
+              headers.set("etag", etag!);
+              headers.set("Vary", "Accept-Encoding");
+              headers.set("X-Cache", cacheStatus);
+            });
 
             if (!nocache && responseData && locals.user?._id) {
               const currentTenantId = locals.tenantId;
+              const headersSnapshot = Object.fromEntries(finalResponse.headers);
               (async () => {
                 try {
-                  const compressedPayloads: Record<string, any> = {};
+                  const compressedPayloads: Record<string, Uint8Array> = {};
                   const compressionTasks: Promise<void>[] = [];
                   if (hasNativeCompression()) {
                     compressionTasks.push(
@@ -223,7 +240,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                       compressed: Object.keys(compressedPayloads).length
                         ? compressedPayloads
                         : undefined,
-                      headers: Object.fromEntries(response.headers),
+                      headers: headersSnapshot,
                     },
                     API_CACHE_TTL_S,
                     currentTenantId,
@@ -233,8 +250,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                 }
               })();
             }
+            return finalResponse;
           }
-          return response;
         }
       }
       return response;

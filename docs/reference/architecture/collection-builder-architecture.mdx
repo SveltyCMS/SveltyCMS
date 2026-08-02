@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2026-01-31"
-updated: "2026-07-12"
+updated: "2026-07-31"
 tags:
   - "architecture"
   - "collection-builder"
@@ -83,18 +83,20 @@ Located at `src/content/index.ts`, this singleton is responsible for bridging th
 - **Startup Sync**: On boot, it scans `compiledCollections` and compares them against the `system_content_structure` table/collection in the active database adapter.
 - **Defensive Import**: It actively filters out "garbage" nodes from the database (e.g., nodes where `path` is a UUID instead of a valid file path) to prevent database corruption from looping back into the application state.
 - **ID Persistence**: While collection _definitions_ come from disk, `_id`, `parentId`, and `order` are preserved from the database and manifest (`collectionOrder`, `structureNodes`).
-- **Save without destructive refresh**: `executeGuiStructureSave()` (via `saveContentStructure` remote or legacy `?/saveConfig` action) upserts `move` / `rename` / `create` / `delete` operations, syncs `contentStore`, writes the manifest, and broadcasts SSE — it does **not** call `fullReload()`.
+- **Save without destructive refresh**: `executeGuiStructureSave()` (via `saveContentStructure` remote or legacy `?/saveConfig` action) upserts `move` / `rename` / `create` / `delete` operations through `syncContentState({ reason: "gui-save" })`, syncs `contentStore`, writes the manifest, and broadcasts SSE — it does **not** call `fullReload()`.
+- **Schema save**: Editor `saveCollection` writes `.ts` then `syncContentState({ reason: "collection-save", targetFile })` — compile + incremental refresh + model provision under a **GUI compile lock** so the Vite watcher does not double-compile.
+- **Soft UI refresh**: Presets, quick-start, and structure saves use `invalidate("app:content")` only — **no** `window.location.reload()` (session, consent, and builder context stay intact).
 - **Boot manifest watchdog**: On `syncContentState({ reason: "boot" })`, `reconcileOrganizationalManifest()` compares `.compilation-manifest.json` (`collectionOrder`, `structureNodes`) against the DB flat structure and re-aligns the manifest when drift is detected (e.g. after manual DB edits).
 - **Cross-tab sync**: Server-side saves call `notifyContentUpdate()`; the browser `contentSystem.refresh()` handler syncs both `contentStore` and `collectionStore.contentStructure` so the sidebar updates without navigation.
 
 ### 3. Organizational vs Filesystem Boundaries
 
-| Operation                     | DB + manifest                              | Filesystem (`config/collections/`) |
-| :---------------------------- | :----------------------------------------- | :--------------------------------- |
-| Drag collection into category | `parentId`, `order` updated                | **Unchanged** — org-only           |
-| Create virtual category       | New `content_nodes` row + `structureNodes` | No folder created                  |
-| Delete builder category       | Removed from DB + manifest                 | N/A                                |
-| Save new collection schema    | Reconcile creates/updates DB node          | `.ts` file written by editor       |
+| Operation                     | DB + manifest                              | Filesystem (`config/collections/`)    |
+| :---------------------------- | :----------------------------------------- | :------------------------------------ |
+| Drag collection into category | `parentId`, `order` updated                | **Unchanged** — org-only              |
+| Create virtual category       | New `content_nodes` row + `structureNodes` | No folder created                     |
+| Delete builder category       | Removed from DB + manifest                 | N/A                                   |
+| Save new collection schema    | `collection-save` reconcile + models       | `.ts` written; compile under GUI lock |
 
 > [!NOTE]
 > GUI drag-and-drop is **organizational only**. To change where a collection lives on disk, edit or move the `.ts` file under `config/collections/` (or use the collection editor save path). The compile pipeline and boot drift detection (`detectCompilationDrift`) handle filesystem ↔ compiled output separately from organizational manifest drift (`detectOrganizationalDrift`).
@@ -154,4 +156,14 @@ The Collection Builder is designed for rapid iteration using a unified hotkey sy
 
 ## Related Architecture
 
-- [Collection Store Data Flow](./collection-store-dataflow.mdx) - Explains how the _content_ within these collections is loaded, cached, and managed via SSR.
+- [Compilation Pipeline](./compilation-pipeline.mdx) — ContentSync, atomic compile, HMR payload
+- [Content System Architecture](./content-system.mdx) — coordinator, stores, SSE
+- [Collection Store Data Flow](./collection-store-dataflow.mdx) — active collection SSR flow
+
+### Tests
+
+| Layer       | Path                                                                  |
+| :---------- | :-------------------------------------------------------------------- |
+| Unit        | `tests/unit/collectionbuilder/*`, `tests/unit/content/sync-content-*` |
+| Integration | `tests/integration/collectionbuilder/*`                               |
+| E2E         | `tests/e2e/routes/collection-builder/builder.spec.ts`                 |

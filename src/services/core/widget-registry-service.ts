@@ -3,8 +3,14 @@
  * @description High-performance, benchmark-friendly widget registry.
  */
 
-import { coreModules, customModules } from "@src/widgets/scanner";
+import { coreModules, customModules, marketplaceModules } from "@src/widgets/scanner";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@src/widgets/types";
+import {
+  folderFromWidgetPath,
+  isValidWidgetFolder,
+  validateWidgetNaming,
+  type WidgetTier,
+} from "@src/widgets/widget-naming";
 import { logger } from "@utils/logger";
 
 class WidgetRegistryService {
@@ -77,12 +83,18 @@ class WidgetRegistryService {
     for (const [path, module] of Object.entries(customModules)) {
       this._registerWidget(path, module as WidgetModule, "custom");
     }
+
+    // Vite-eager marketplace packages (if any were present at build time)
+    for (const [path, module] of Object.entries(marketplaceModules)) {
+      this._registerWidget(path, module as WidgetModule, "marketplace");
+    }
   }
 
   private _registerWidget(path: string, module: WidgetModule, type: WidgetType) {
     try {
       const processed = this._processWidgetModule(path, module, type);
       if (processed) {
+        // Register under factory Name only (single convention)
         this.widgets.set(processed.name, processed.widgetFn);
         logger.trace(`[Widget] Registered ${type}: ${processed.name}`);
       }
@@ -102,7 +114,22 @@ class WidgetRegistryService {
 
     if (!originalFn) return null;
 
-    const name = originalFn.Name || path.split("/").at(-2) || "unknown";
+    const folder = folderFromWidgetPath(path) || path.split(/[/\\]/).at(-2) || "";
+    const naming = validateWidgetNaming(folder, originalFn.Name, type as WidgetTier);
+
+    for (const w of naming.warnings) {
+      logger.warn(`[Widget Naming] ${type} "${folder}": ${w}`);
+    }
+    if (!naming.ok) {
+      logger.error(
+        `[Widget Naming] Refusing to register ${type} widget at ${path}: ${naming.errors.join("; ")}`,
+      );
+      // Fail closed for custom + marketplace; still refuse invalid core to avoid broken loaders
+      return null;
+    }
+
+    const name = naming.name;
+    originalFn.Name = name;
 
     const widgetFn: WidgetFactory = Object.assign((config: any) => originalFn(config), {
       Name: name,
@@ -117,6 +144,7 @@ class WidgetRegistryService {
       __dependencies: originalFn.__dependencies || [],
       __inputComponentPath: originalFn.__inputComponentPath || "",
       __displayComponentPath: originalFn.__displayComponentPath || "",
+      __folder: naming.folder,
     }) as WidgetFactory;
 
     return { name, widgetFn };
@@ -135,8 +163,22 @@ class WidgetRegistryService {
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
 
+        // Folder must be kebab-case before we even import
+        if (!isValidWidgetFolder(entry.name)) {
+          logger.error(
+            `[Widget Naming] Marketplace folder "${entry.name}" is not kebab-case — skipped. Use e.g. phone-number, not PhoneNumber.`,
+          );
+          continue;
+        }
+
         const indexPath = path.join(marketplaceDir, entry.name, "index.ts");
         try {
+          // Skip if already registered via Vite glob (same package)
+          const already = [...this.widgets.values()].some(
+            (w) => (w as { __folder?: string }).__folder === entry.name,
+          );
+          if (already) continue;
+
           const mod = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
           if (mod.default && typeof mod.default === "function") {
             this._registerWidget(indexPath, mod, "marketplace");

@@ -8,7 +8,8 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { prepareTestUser, seedTestUsers, TEST_USERS, TEST_API_SECRET } from "../../helpers/api";
+import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/api";
+import { openUserManagement } from "../../helpers/user-page";
 
 const DEVELOPER_EMAIL = TEST_USERS.developer.email;
 const ACTION_TIMEOUT = 15_000;
@@ -16,7 +17,8 @@ const ACTION_TIMEOUT = 15_000;
 /** Open /user and wait until the admin user table is interactive. */
 async function openUserAdminArea(page: Page) {
   await page.goto("/user", { waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  // AdminArea renders inside the "User Management" tab (Identity is the default).
+  await openUserManagement(page);
   await ensureUserListVisible(page);
   await expect(page.getByTestId("user-bulk-actions-menu")).toBeVisible({
     timeout: ACTION_TIMEOUT,
@@ -121,13 +123,20 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
   await rowButton.scrollIntoViewIfNeeded();
   await rowButton.click({ timeout: ACTION_TIMEOUT });
 
-  const dialog = page.getByRole("dialog").first();
+  // Target the block/unblock confirm dialog by content — getByRole("dialog").first()
+  // can match the cookie-consent banner that portals ahead of the confirm dialog.
+  const dialog = page
+    .getByRole("dialog")
+    .filter({ hasText: /Please Confirm User/i })
+    .first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  // ConfirmDialog renders <Button> with text "Confirm" — use page-level
-  // locator to avoid Portal async-render races inside the dialog subtree.
-  const confirmBtn = page
+  // Scope the confirm to the dialog — a page-first /confirm|block/i locator also
+  // matches the admin-area toolbar buttons (which precede the portal in the DOM)
+  // and would click the wrong control. The dialog may have a render gap, so wait
+  // for the button inside it.
+  const confirmBtn = dialog
     .getByRole("button", { name: /confirm|yes|ok|block|unblock/i })
-    .or(page.locator("button").filter({ hasText: /confirm/i }))
+    .or(dialog.locator("button").filter({ hasText: /confirm/i }))
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
@@ -159,8 +168,10 @@ async function clearTableSearch(page: Page) {
 
 /** Bulk-delete the selected developer row via Multibutton. */
 async function bulkDeleteDeveloper(page: Page) {
-  // Select without search — filtered totalItems=1 disables bulk delete in Multibutton.
-  await selectDeveloperRow(page, { useSearch: false });
+  // Select WITH search: the user Multibutton gates delete on systemUserCount (all
+  // users), not the filtered totalItems, so a filtered selection stays enabled —
+  // and the developer row is only visible on page 1 when searched.
+  await selectDeveloperRow(page, { useSearch: true });
 
   const bulkMenu = page.getByTestId("user-bulk-actions-menu");
   await expect(bulkMenu).toBeEnabled({ timeout: ACTION_TIMEOUT });
@@ -169,17 +180,33 @@ async function bulkDeleteDeveloper(page: Page) {
   if (await executeDelete.isEnabled({ timeout: 2_000 }).catch(() => false)) {
     await executeDelete.click({ timeout: ACTION_TIMEOUT });
   } else {
+    // The Multibutton defaults to the "Edit" action, so the dropdown is the only
+    // path to Delete. The SmartTable body overlays the open dropdown visually
+    // (z-index), so a plain click is blocked by pointer-interception — force-click
+    // the item. Re-open the menu if it closed mid-interaction.
     await bulkMenu.click({ timeout: ACTION_TIMEOUT });
+    await page.waitForTimeout(400);
     const deleteItem = page.getByRole("menuitem", { name: /select delete action/i });
-    await expect(deleteItem).toBeEnabled({ timeout: ACTION_TIMEOUT });
-    await deleteItem.click({ timeout: ACTION_TIMEOUT });
+    await expect(deleteItem).toBeVisible({ timeout: ACTION_TIMEOUT });
+    if (!(await deleteItem.isVisible({ timeout: 1_000 }).catch(() => false))) {
+      await bulkMenu.click({ timeout: ACTION_TIMEOUT });
+      await page.waitForTimeout(400);
+    }
+    // Playwright coordinate clicks miss here (the SmartTable body overlays the
+    // dropdown and it can close mid-action) — fire the handler directly.
+    await deleteItem.evaluate((el) => (el as HTMLButtonElement).click());
   }
 
-  const dialog = page.getByRole("dialog").first();
+  // Target the delete-confirm dialog by content (avoids the cookie banner portal).
+  const dialog = page
+    .getByRole("dialog")
+    .filter({ hasText: /delete/i })
+    .first();
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
-  const confirmBtn = page
+  // Scope to the dialog — page-first /confirm|delete/i also matches toolbar buttons.
+  const confirmBtn = dialog
     .getByRole("button", { name: /confirm|yes|ok|delete/i })
-    .or(page.locator("button").filter({ hasText: /confirm/i }))
+    .or(dialog.locator("button").filter({ hasText: /confirm/i }))
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
@@ -240,43 +267,35 @@ test.describe.serial("User Management Flow", () => {
     await expect(pageTitle).toBeVisible({ timeout: 15_000 });
     await expect(pageTitle).toContainText(/user profile|benutzerprofil/i);
 
-    // Try to find the identity heading (CSR-hydrated, may not be visible in headless)
-    const identityHeading = page.getByRole("heading", { name: /^identity$/i });
-    const headingVisible = await identityHeading.isVisible({ timeout: 8_000 }).catch(() => false);
+    // Hydration check: the identity panel only renders client-side after the app
+    // mounts (root layout is ssr=false) — its presence IS the CSR signal. The page
+    // has no "Identity" heading element; the panel testid is the contract.
+    const identityPanel = page.getByTestId("user-identity-panel");
+    const headingVisible = await identityPanel.isVisible({ timeout: 8_000 }).catch(() => false);
 
-    if (headingVisible) {
-      // ✅ UPDATE via UI when identity tab is hydrated
-      const editBtn = page.getByTestId("edit-user-settings-btn");
-      await expect(editBtn).toBeVisible({ timeout: 10_000 });
-      await editBtn.click();
-
-      const editDialog = page
-        .getByRole("dialog")
-        .filter({ hasText: /edit user data|username/i })
-        .first();
-      await expect(editDialog).toBeVisible({ timeout: 15_000 });
-
-      const newUsername = `updatedUser_${Date.now().toString(36).slice(-6)}`;
-      const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
-      await expect(usernameInput).toBeVisible({ timeout: 10_000 });
-      await usernameInput.fill(newUsername);
-      await editDialog.getByRole("button", { name: /^save$/i }).click();
-      await expect(page.getByText(/user data updated/i)).toBeVisible({ timeout: 15_000 });
-    } else {
-      // Identity tab not hydrated — verify read via API instead
-      console.log("[Management] Identity tab not hydrated, verifying via API");
-      const apiRes = await page.request.get("/api/auth", {
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-      });
-      const body = await apiRes.json().catch(() => ({}));
-      // /api/auth returns the current user directly in the response
-      const user = body.data || body || {};
-      // Handle both wraps ({ data: { email: ... }, success: true }) and bare responses
-      const userEmail = user.email || (user.data && user.data.email);
-      expect(userEmail).toBeTruthy();
-      expect(user.role).toBeTruthy();
-      expect(user._id).toBeTruthy();
+    if (!headingVisible) {
+      // Control-map row: the UI mutation must run — a hydration miss is a real
+      // regression, not a reason to fall back to shell-only assertions.
+      throw new Error("Identity tab failed to hydrate — control-map row must run the UI update");
     }
+
+    // ✅ UPDATE via UI when identity tab is hydrated
+    const editBtn = page.getByTestId("edit-user-settings-btn");
+    await expect(editBtn).toBeVisible({ timeout: 10_000 });
+    await editBtn.click();
+
+    const editDialog = page
+      .getByRole("dialog")
+      .filter({ hasText: /edit user data|username/i })
+      .first();
+    await expect(editDialog).toBeVisible({ timeout: 15_000 });
+
+    const newUsername = `updatedUser_${Date.now().toString(36).slice(-6)}`;
+    const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
+    await expect(usernameInput).toBeVisible({ timeout: 10_000 });
+    await usernameInput.fill(newUsername);
+    await editDialog.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText(/user data updated/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test("Delete, Block, and Unblock Users", async ({ page }) => {

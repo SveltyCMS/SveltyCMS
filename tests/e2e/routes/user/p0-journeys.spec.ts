@@ -11,6 +11,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import { openTokenView, openUserManagement } from "../../helpers/user-page";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -51,7 +52,8 @@ test.describe("P0 — Password change journey", () => {
   const NEW_PASSWORD = "ChangedPass456!";
 
   test.afterEach(async ({ page }) => {
-    // Restore editor password after test changes it — seed resets password + lockout
+    // Restore editor role/password after the test changes them. `seed` with an
+    // explicit role is the full reset (it forces role=admin only when unset).
     await page.request
       .post("/api/testing", {
         headers: TEST_API_HEADERS,
@@ -59,6 +61,8 @@ test.describe("P0 — Password change journey", () => {
           action: "seed",
           email: TEST_USERS.editor.email,
           password: TEST_USERS.editor.password,
+          username: "editor",
+          role: "editor",
         },
       })
       .catch(() => {});
@@ -100,8 +104,9 @@ test.describe("P0 — Non-admin /user profile", () => {
     await loginAsEditor(page, "/user");
     await goToUserPage(page);
 
-    // Identity always available
-    await expect(page.getByRole("heading", { name: /^identity$/i })).toBeVisible({
+    // Identity always available (the panel renders as the default tab; the tab
+    // itself is role=tab, not a heading — assert on the panel testid).
+    await expect(page.getByTestId("user-identity-panel")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
 
@@ -118,14 +123,16 @@ test.describe("P0 — Non-admin /user profile", () => {
     await dialog.getByRole("button", { name: /^save$/i }).click();
     await expect(page.getByText(/user data updated/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Reload and confirm username displayed
+    // Reload and confirm username displayed (`.first()` — the username also appears
+    // in the edit form field)
     await goToUserPage(page);
-    await expect(page.getByText(newUsername)).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByText(newUsername).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
   test("admin still sees AdminArea", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUserPage(page);
+    await openUserManagement(page);
     await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
@@ -140,6 +147,7 @@ test.describe("P0 — Token management with seed", () => {
     await loginAsAdmin(page, "/user");
     await goToUserPage(page);
 
+    await openUserManagement(page);
     await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const { token, email } = await seedInviteToken(page, {
@@ -148,10 +156,8 @@ test.describe("P0 — Token management with seed", () => {
     });
     expect(token.length).toBeGreaterThan(8);
 
-    // Switch to token list view
-    const showTokenBtn = page.getByRole("button", { name: /show.*token|token list/i });
-    await expect(showTokenBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
+    // Switch to the Invitations (token) view
+    await openTokenView(page);
 
     // Wait for table fetch
     await page
@@ -185,16 +191,10 @@ test.describe("P0 — Token management with seed", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    // Delete path
+    // Delete path — the token dialog deletes immediately (no confirm step).
     const deleteBtn = tokenDialog.getByRole("button", { name: /delete/i });
     await expect(deleteBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
     await deleteBtn.click({ timeout: ACTION_TIMEOUT });
-
-    // Confirm if a second dialog appears
-    const confirmBtn = page.getByRole("button", { name: /confirm|yes|delete/i }).last();
-    if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await confirmBtn.click({ timeout: ACTION_TIMEOUT });
-    }
 
     await expect(page.getByText(/deleted/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
@@ -203,13 +203,14 @@ test.describe("P0 — Token management with seed", () => {
     await loginAsAdmin(page, "/user");
     await goToUserPage(page);
 
+    await openUserManagement(page);
+
     const { email } = await seedInviteToken(page, {
       email: `token_edit_${Date.now()}@example.com`,
       role: "editor",
     });
 
-    const showTokenBtn = page.getByRole("button", { name: /show.*token|token list/i });
-    await showTokenBtn.click({ timeout: ACTION_TIMEOUT });
+    await openTokenView(page);
     await page.waitForTimeout(500);
 
     const searchToggle = page.getByRole("button", { name: /^search$/i });
@@ -236,11 +237,13 @@ test.describe("P0 — Token management with seed", () => {
     }
 
     await tokenDialog.getByRole("button", { name: /save/i }).click();
-    // Success toast or dialog stays with success state
+    // Success toast or dialog stays with success state (`.first()` — the toast title
+    // "Success" and description "Token updated" both match the combined locator).
     await expect(
       page
         .getByText(/token (updated|saved|created)|success/i)
-        .or(tokenDialog.getByText(/updated|saved/i)),
+        .or(tokenDialog.getByText(/updated|saved/i))
+        .first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });

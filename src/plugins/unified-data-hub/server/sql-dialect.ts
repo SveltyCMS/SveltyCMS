@@ -101,6 +101,45 @@ export function buildSelectQuery(
   return { query: query.replace(/\s+/g, " ").trim(), values };
 }
 
+export function buildCountQuery(
+  dialect: SqlDialect,
+  schema: string | undefined,
+  table: string,
+  options: {
+    filter?: Record<string, unknown>;
+    filterPushdown?: boolean;
+  },
+): SqlReadParts {
+  const tableRef = qualifiedTable(dialect, schema, table);
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (options.filter && options.filterPushdown !== false) {
+    for (const [key, value] of Object.entries(options.filter)) {
+      const col = quoteIdentifier(dialect, assertIdentifier(key, "filter field"));
+      if (Array.isArray(value)) {
+        if (value.length === 0) continue;
+        if (dialect === "postgres") {
+          conditions.push(`${col} = ANY(${nextPlaceholder(dialect, paramIndex++)})`);
+          values.push(value);
+        } else {
+          const placeholders = value.map(() => nextPlaceholder(dialect, paramIndex++));
+          conditions.push(`${col} IN (${placeholders.join(", ")})`);
+          values.push(...value);
+        }
+      } else {
+        conditions.push(`${col} = ${nextPlaceholder(dialect, paramIndex++)}`);
+        values.push(value);
+      }
+    }
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const query = `SELECT COUNT(*) AS count FROM ${tableRef} ${whereClause}`;
+  return { query: query.replace(/\s+/g, " ").trim(), values };
+}
+
 export function buildInsertQuery(
   dialect: SqlDialect,
   schema: string | undefined,

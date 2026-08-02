@@ -58,6 +58,37 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
   });
 
   /**
+   * Soft-refresh contract — save must not hard-reload the document (session/consent stay).
+   * Complements ContentSync `collection-save` + `invalidate("app:content")` path.
+   */
+  test("soft-refresh: schema save keeps session shell (no hard navigation to login)", async ({
+    page,
+  }) => {
+    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+
+    const fixture = uniqueCollectionFixture("SoftHmr");
+    await openNewCollectionEditor(page);
+    await page.getByTestId("collection-name-input").fill(fixture.name);
+    await addInputField(page, { label: "Title", fieldName: "title" });
+
+    // Marker survives soft invalidate; would be wiped by full document reload
+    await page.evaluate(() => {
+      (window as unknown as { __SVELTY_SOFT_HMR_MARK?: number }).__SVELTY_SOFT_HMR_MARK = 42;
+    });
+
+    await saveCollectionSchema(page);
+
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+    const mark = await page.evaluate(
+      () => (window as unknown as { __SVELTY_SOFT_HMR_MARK?: number }).__SVELTY_SOFT_HMR_MARK,
+    );
+    expect(mark, "Expected in-page mark after schema save (soft invalidate, not hard reload)").toBe(
+      42,
+    );
+  });
+
+  /**
    * Golden journey — sole mutation/outcome proof for this domain.
    * Builder → schema (Input field) → save → entry → list → API body.
    */
@@ -70,6 +101,9 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await page.getByTestId("collection-name-input").fill(fixture.name);
     await addInputField(page, { label: "Title", fieldName: "title" });
     await saveCollectionSchema(page);
+
+    // Soft HMR: still authenticated after schema compile
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
 
     // openCollectionEntries now polls the API until the collection is registered
     // (replaces brittle waitForTimeout for async compilation + route registration)

@@ -17,6 +17,7 @@
 import { dbInitPromise } from "@src/databases/db";
 import { getDb } from "@src/databases/db";
 import { forTenant } from "@src/databases/tenant-adapter";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { StatusTypes } from "@src/content/types";
 import { auditChainService } from "@src/services/audit-chain";
 import { system } from "@src/stores/system/state.svelte.ts";
@@ -120,7 +121,6 @@ async function pollAndProcess(): Promise<void> {
   }
 
   try {
-    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
     const result = await db.system.jobs.getNextReady(10, withSystemScope("scheduler"));
     if (!result.success || !result.data || result.data.length === 0) {
       // No jobs — transition to idle interval
@@ -138,10 +138,18 @@ async function pollAndProcess(): Promise<void> {
     const jobs = result.data;
     logger.debug(`[Scheduler] Processing ${jobs.length} ready job(s)`);
 
-    for (const job of jobs) {
+    // The scheduler owns ONLY status-transition jobs. Everything else is handled
+    // by the JobQueue handlers (process-media, webhook-delivery, …). Filtering here
+    // (instead of letting executeScheduledJob fail them) stops the two consumers
+    // from killing each other's jobs with "Unknown task type" / "No handler".
+    const ownedJobs = jobs.filter((j) => j.taskType === "status-transition");
+    for (const job of ownedJobs) {
       await executeScheduledJob(job, db);
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.message?.includes("Vite module runner has been closed")) {
+      return;
+    }
     logger.error("[Scheduler] Poll error:", err);
   }
 }
@@ -153,13 +161,20 @@ async function pollAndProcess(): Promise<void> {
 async function executeScheduledJob(job: Job, db: any): Promise<void> {
   if (!job._id) return;
 
-  // Claim the job atomically
-  const claimResult = await db.system.jobs.update(job._id, {
-    status: "running",
-    attempts: (job.attempts || 0) + 1,
-  });
+  // Claim the job atomically — only when still pending, so two consumers
+  // (scheduler + job queue) can never execute the same job twice.
+  const claimResult = await db.system.jobs.update(
+    job._id,
+    {
+      status: "running",
+      attempts: (job.attempts || 0) + 1,
+    },
+    {
+      filter: { _id: job._id, status: "pending" },
+    },
+  );
 
-  if (!claimResult.success) return;
+  if (!claimResult.success || !claimResult.data) return; // Not claimed — another consumer owns it
 
   const { taskType, payload } = job;
   logger.info(`[Scheduler] Executing job ${job._id} (${taskType})`);
@@ -433,4 +448,10 @@ export async function scheduleJob(
     logger.error(`[Scheduler] Failed to schedule job (${taskType}):`, err);
     return null;
   }
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    stopScheduler();
+  });
 }

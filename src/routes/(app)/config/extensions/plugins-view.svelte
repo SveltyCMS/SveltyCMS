@@ -8,6 +8,7 @@
 - Stable data-testids
 -->
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { togglePlugin } from './plugins-api';
@@ -37,7 +38,7 @@
 		} catch (error) {
 			plugin.enabled = !newEnabledState;
 			toast.error('An error occurred while communicating with the server');
-			console.error(error);
+			logger.error(error instanceof Error ? error.message : String(error));
 		}
 	}
 

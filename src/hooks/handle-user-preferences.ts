@@ -1,9 +1,10 @@
 /**
  * @file src/hooks/handle-user-preferences.ts
- * @description Synchronizes user preferences (language and theme) from cookies to stores and handles SSR theme rendering.
+ * @description
+ * Synchronizes user preferences (language and theme) from cookies to stores and handles SSR theme rendering.
  * Combining these reduces middleware Promise chain overhead for better performance.
  *
- * Performance:
+ * ### Performance:
  * - Uses pre-computed request flags from Turbo Pipeline to skip API/static routes
  * - Only runs transformPageChunk for dark-mode to prevent FOUC (Flash of Unstyled Content)
  * - Skips theme retrieval when ThemeManager is not initialized

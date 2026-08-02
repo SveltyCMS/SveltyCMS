@@ -1,6 +1,13 @@
 /**
  * @file src/hooks/handle-content-initialization.ts
- * @description Hardened multi-tenant content initialization with flight deduplication and request-scoped state.
+ * @description
+ * Hardened multi-tenant content initialization with flight deduplication and request-scoped state.
+ *
+ * ### Features:
+ * - Coalesced per-tenant `ensureContentInitialized` (stampede protection)
+ * - Fresh-install redirects (admin → collectionbuilder, others → profile)
+ * - Whitelist for zero-collection routes (setup, admin, config, …)
+ * - Static imports only — no per-request dynamic import microtasks
  */
 
 import { redirect, type Handle } from "@sveltejs/kit";

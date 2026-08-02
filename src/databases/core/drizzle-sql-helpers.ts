@@ -585,17 +585,27 @@ function addSingleCondition(
   value: any,
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
+  operators?: Record<string, unknown>,
+  coerceJsonValue?: (val: unknown) => unknown,
 ) {
   let col = getColumn(table, field);
+  let isJsonField = false;
   if (!col) {
     const dataCol = getColumn(table, "data");
     if (dataCol) {
       col = getJsonField(field) as any;
+      isJsonField = true;
     }
   }
   if (!col) return;
 
   let val = value;
+  // JSON-extract columns render scalars dialect-specifically (MariaDB text
+  // "true" vs SQLite typed 1/0 vs Postgres text `->>`). Adapters coerce the
+  // bound value so e.g. `enabled: true` actually matches JSON-stored booleans.
+  if (isJsonField && coerceJsonValue) {
+    val = Array.isArray(val) ? val.map(coerceJsonValue) : coerceJsonValue(val);
+  }
   if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
     val = utils.safeDate(val);
   } else if (Array.isArray(val)) {
@@ -628,6 +638,36 @@ function addSingleCondition(
     case "$in":
       conditions.push(inArray(col, Array.isArray(val) ? val : [val]));
       break;
+    case "$regex": {
+      // Mongo-style regex → SQL LIKE. Escape LIKE wildcards so user input
+      // (e.g. "a.b" or "%" in search boxes) is matched literally.
+      // The ESCAPE char is BOUND as a parameter, never inlined: on MySQL/MariaDB
+      // a backslash inside a string literal is itself an escape, so `ESCAPE '\\'`
+      // written as SQL text is a syntax error there (fine on SQLite/Postgres).
+      const raw = String(val ?? "");
+      // Translate Mongo anchors: "^foo" → starts-with, "foo$" → ends-with.
+      const anchorStart = raw.startsWith("^");
+      const anchorEnd = raw.endsWith("$");
+      const core = anchorStart ? raw.slice(1) : raw;
+      const noTrailing = anchorEnd ? core.slice(0, -1) : core;
+      const escaped = noTrailing.replace(/[\\%_]/g, (m) => `\\${m}`);
+      const pattern = `${anchorStart ? "" : "%"}${escaped}${anchorEnd ? "" : "%"}`;
+      const caseInsensitive = String(operators?.["$options"] ?? "")
+        .toLowerCase()
+        .includes("i");
+      // Postgres LIKE is case-sensitive — use lower() on both sides for $options:"i"
+      // (SQLite/MySQL LIKE are already case-insensitive by default).
+      const ESCAPE_CHAR = "\\";
+      conditions.push(
+        caseInsensitive
+          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${ESCAPE_CHAR}`
+          : sql`${col} LIKE ${pattern} ESCAPE ${ESCAPE_CHAR}`,
+      );
+      break;
+    }
+    case "$options":
+      // Paired with $regex above (Mongo syntax); no standalone SQL meaning.
+      break;
     default:
       conditions.push(eq(col, val));
       break;
@@ -640,6 +680,7 @@ function addFilterConds(
   q: any,
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
+  coerceJsonValue?: (val: unknown) => unknown,
 ) {
   if (!q || typeof q !== "object") return;
   for (const key in q) {
@@ -649,7 +690,7 @@ function addFilterConds(
       const subs: SQL[] = [];
       for (const sub of value) {
         const sc: SQL[] = [];
-        addFilterConds(sc, table, sub, getColumn, getJsonField);
+        addFilterConds(sc, table, sub, getColumn, getJsonField, coerceJsonValue);
         if (sc.length > 0) {
           const s = sc.length === 1 ? sc[0] : and(...sc);
           if (s) subs.push(s);
@@ -662,7 +703,7 @@ function addFilterConds(
     } else if (key === "$and" && Array.isArray(value)) {
       const subs: SQL[] = [];
       for (const sub of value) {
-        addFilterConds(subs, table, sub, getColumn, getJsonField);
+        addFilterConds(subs, table, sub, getColumn, getJsonField, coerceJsonValue);
       }
       if (subs.length > 0) {
         const s = subs.length === 1 ? subs[0] : and(...subs);
@@ -674,19 +715,59 @@ function addFilterConds(
         if (!Object.prototype.hasOwnProperty.call(value, subKey)) continue;
         const subValue = value[subKey];
         if (subKey.startsWith("$")) {
-          addSingleCondition(out, table, key, subKey, subValue, getColumn, getJsonField);
+          addSingleCondition(
+            out,
+            table,
+            key,
+            subKey,
+            subValue,
+            getColumn,
+            getJsonField,
+            value,
+            coerceJsonValue,
+          );
           handled = true;
         } else {
-          addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+          addSingleCondition(
+            out,
+            table,
+            key,
+            "$eq",
+            value,
+            getColumn,
+            getJsonField,
+            undefined,
+            coerceJsonValue,
+          );
           handled = true;
           break;
         }
       }
       if (!handled) {
-        addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+        addSingleCondition(
+          out,
+          table,
+          key,
+          "$eq",
+          value,
+          getColumn,
+          getJsonField,
+          undefined,
+          coerceJsonValue,
+        );
       }
     } else {
-      addSingleCondition(out, table, key, "$eq", value, getColumn, getJsonField);
+      addSingleCondition(
+        out,
+        table,
+        key,
+        "$eq",
+        value,
+        getColumn,
+        getJsonField,
+        undefined,
+        coerceJsonValue,
+      );
     }
   }
 }
@@ -697,6 +778,7 @@ export function mapQuery(
   options: any = {},
   getColumn: (table: any, name: string) => Column | undefined,
   getJsonField: (field: string) => SQL,
+  coerceJsonValue?: (val: unknown) => unknown,
 ): SQL | undefined {
   if (query && query._id && (typeof query._id === "string" || typeof query._id === "number")) {
     // Zero-allocation fast-path guard: count keys without allocating Object.keys array.
@@ -723,7 +805,7 @@ export function mapQuery(
 
   const conditions = utils.acquireConditionsArray();
   if (query && typeof query === "object") {
-    addFilterConds(conditions, table, query, getColumn, getJsonField);
+    addFilterConds(conditions, table, query, getColumn, getJsonField, coerceJsonValue);
   }
 
   const tenantCol = getColumn(table, "tenantId");

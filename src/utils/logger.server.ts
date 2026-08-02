@@ -3,6 +3,8 @@
  * @description Server-only logger — wraps the core logger with file logging,
  * log rotation, deduplication, and crypto-chained audit trail.
  *
+ * Wired once at server boot (`hooks.server.ts`) — side-effect import.
+ *
  * ### Hardening (audit 2026-07):
  * - OOM prevention: ensuresStream reads only last 4KB (not entire file) for chain hash recovery
  * - Circular JSON crash prevention: safeStringify with WeakSet cycle detection
@@ -12,6 +14,11 @@
  * - Batch buffer: single OS write per flush cycle instead of per-line writes
  * - Archive cleanup: Promise.all with fsp.stat (non-blocking) replaces fs.statSync
  * - Queue rescue: failed flush puts batch back at front (no log loss)
+ * - Masking: file lines apply the same key/email mask as console output
+ * - Level discipline: the file sink obeys the same level gates as the console
+ *   (incl. QUIET/BENCHMARK) — debug/trace/once() are captured when enabled
+ * - Chain secret: production REQUIRES LOG_CHAIN_SECRET; missing it degrades to an
+ *   ephemeral per-process secret + one loud boot warning (fail loud, never crash)
  *
  * Imports the shared core from ./logger (relative path, no alias issues).
  * Protected by SvelteKit's .server.ts guard — cannot be imported in browser code.
@@ -28,7 +35,7 @@ import * as path from "node:path";
 import * as sp from "node:stream/promises";
 import * as zlib from "node:zlib";
 
-import { logger as coreLogger } from "./logger";
+import { logger as coreLogger, mask } from "./logger";
 import type { LogLevel } from "./logger";
 
 // ── Re-export the core logger ──
@@ -39,7 +46,20 @@ export type { LogLevel, LoggableValue } from "./logger";
 const LOG_DIR = "logs";
 const LOG_FILE = path.join(LOG_DIR, "app.log");
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || "svelty-cms-default-log-secret";
+
+// Chain secret: production REQUIRES a real LOG_CHAIN_SECRET. Falling back to the
+// public default in prod would make the chain forgeable by anyone; instead we use
+// an ephemeral per-process secret and warn loudly on first write (integrity holds
+// within the process only, and is lost on restart). Dev keeps the documented default
+// — local logs are not an audit boundary.
+const HAS_CHAIN_SECRET = Boolean(process.env.LOG_CHAIN_SECRET);
+const HMAC_SECRET =
+  process.env.LOG_CHAIN_SECRET ||
+  (process.env.NODE_ENV === "production"
+    ? crypto.randomBytes(32).toString("hex")
+    : "svelty-cms-default-log-secret");
+
+let chainSecretWarned = false;
 
 let stream: fs.WriteStream | null = null;
 let lastHash = "";
@@ -57,13 +77,14 @@ function chainHash(prev: string, content: string): string {
 /**
  * Cycle-safe JSON stringifier to prevent V8 crashes on recursive objects
  * or un-stringifiable native objects (like HTTP Requests/Errors).
+ * File lines get the same key/email masking as console output.
  */
 function safeStringify(args: unknown[]): string {
   if (args.length === 0) return "";
   const seen = new WeakSet();
   return (
     " " +
-    JSON.stringify(args, (_, v) => {
+    JSON.stringify(mask(args), (_, v) => {
       if (v instanceof Error) return { message: v.message, name: v.name, stack: v.stack };
       if (typeof v === "object" && v !== null) {
         if (seen.has(v)) return "[Circular]";
@@ -78,6 +99,15 @@ function safeStringify(args: unknown[]): string {
 
 async function ensureStream(): Promise<fs.WriteStream> {
   if (stream && !stream.destroyed) return stream;
+
+  // Warn once at first actual write, not at module load — keeps `svelte-kit build`
+  // and import-only contexts silent while still surfacing the misconfig in prod.
+  if (!chainSecretWarned && !HAS_CHAIN_SECRET && process.env.NODE_ENV === "production") {
+    chainSecretWarned = true;
+    console.error(
+      "[Logger] LOG_CHAIN_SECRET is not set in production — the audit chain will NOT survive restarts. Set a long random value (e.g. `openssl rand -hex 32`).",
+    );
+  }
 
   await fsp.mkdir(LOG_DIR, { recursive: true });
 
@@ -233,25 +263,22 @@ process.on("beforeExit", () => {
 });
 
 // ── Patch core logger to also write to file ──
+// Every level (incl. debug/trace) reaches the file sink, but only when the level
+// gate passes — QUIET/BENCHMARK and LOG_LEVEL=error keep the file quiet too, and
+// `once()` boot banners are captured when they actually emit.
+const FILE_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace"] as const;
 
-const _fatal = coreLogger.fatal;
-const _error = coreLogger.error;
-const _warn = coreLogger.warn;
-const _info = coreLogger.info;
+for (const level of FILE_LEVELS) {
+  const original = coreLogger[level];
+  coreLogger[level] = (m: string, ...a: unknown[]) => {
+    original(m, ...a);
+    if (coreLogger.isEnabled(level)) enqueue(level, m, a);
+  };
+}
 
-coreLogger.fatal = (m: string, ...a: unknown[]) => {
-  _fatal(m, ...a);
-  enqueue("fatal", m, a);
-};
-coreLogger.error = (m: string, ...a: unknown[]) => {
-  _error(m, ...a);
-  enqueue("error", m, a);
-};
-coreLogger.warn = (m: string, ...a: unknown[]) => {
-  _warn(m, ...a);
-  enqueue("warn", m, a);
-};
-coreLogger.info = (m: string, ...a: unknown[]) => {
-  _info(m, ...a);
-  enqueue("info", m, a);
+const _once = coreLogger.once;
+coreLogger.once = (key, level, m, ...a) => {
+  const emitted = _once(key, level, m, ...a);
+  if (emitted) enqueue(level, m, a);
+  return emitted;
 };

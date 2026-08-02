@@ -19,6 +19,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - `spaceY` ('4' | '6' | '8'): Vertical rhythm between sections.
 - `titleCompact` (boolean): Tighter PageTitle row with bottom border.
 - `animate` (boolean): Apply standard page entry fade (respects reduced motion).
+- `navColor` (string): Tailwind bg class for FloatingNav favorite spoke (default `bg-amber-500`).
 - `children` (Snippet): Page body content.
 - `actions` (Snippet): Trailing header actions for PageTitle.
 
@@ -30,8 +31,9 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - full Svelte 5 runes
 -->
 
-<script lang="ts">
+	<script lang="ts">
 	import PageTitle from '@components/page-title.svelte';
+	import type { NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
 	import { adminFade } from '@utils/admin-transitions';
 
 	interface Props {
@@ -45,6 +47,8 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		spaceY?: '4' | '6' | '8';
 		titleCompact?: boolean;
 		animate?: boolean;
+		/** Tailwind bg class for FloatingNav favorite spoke — NAV_FAVORITE_COLORS literal (default `bg-amber-500`). */
+		navColor?: NavFavoriteColor;
 		children?: import('svelte').Snippet;
 		actions?: import('svelte').Snippet;
 	}
@@ -60,6 +64,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		spaceY = '6',
 		titleCompact = false,
 		animate = true,
+		navColor,
 		children,
 		actions
 	}: Props = $props();
@@ -83,6 +88,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{backUrl}
 		{highlight}
 		compact={titleCompact}
+		{navColor}
 	>
 		{#if actions}
 			{@render actions()}

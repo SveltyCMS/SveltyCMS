@@ -12,6 +12,7 @@ import { FederationError } from "../../types";
 import type { ConnectorRecord, FederatedRow } from "../../types";
 import { getPooledPostgres } from "../postgres-pool-cache";
 import {
+  buildCountQuery,
   buildDeleteQuery,
   buildInsertQuery,
   buildSelectQuery,
@@ -79,7 +80,28 @@ export class PostgresConnector extends BaseConnector {
       return this.buildRow(connector._id, sourceKey, mapRowFields(row, collection.fields));
     });
 
-    return { rows, total: rows.length };
+    // Truthful total for cursor emission: COUNT(*) with the same filter. If the
+    // count fails (e.g. privilege gap), leave total undefined — the engine then
+    // falls back to the rowCount >= limit heuristic for nextCursor.
+    let total: number | undefined;
+    try {
+      const countParts = buildCountQuery(DIALECT, schema, table, {
+        filter: request.filter,
+        filterPushdown: connector.capabilities.filterPushdown,
+      });
+      const countRows = (await sql.unsafe(
+        countParts.query,
+        countParts.values as never[],
+      )) as Array<{
+        count: unknown;
+      }>;
+      const parsed = Number(countRows?.[0]?.count);
+      total = Number.isFinite(parsed) ? parsed : undefined;
+    } catch {
+      total = undefined;
+    }
+
+    return { rows, total };
   }
 
   protected async executeCreate(ctx: ConnectorWriteContext): Promise<FederatedRow> {

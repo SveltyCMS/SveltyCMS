@@ -3,6 +3,7 @@
  * @description Manages the image editor state and history
  */
 
+import { logger } from "@utils/logger";
 import type { Component } from "svelte";
 
 // Types
@@ -226,7 +227,7 @@ function createImageEditorStore() {
       state.watermarks = snapshot.watermarks ?? [];
       // activeState is UI-only — never restore from history snapshots
     } catch (e) {
-      console.error("Failed to restore snapshot:", e);
+      logger.error("Failed to restore snapshot:", e);
     }
   }
 

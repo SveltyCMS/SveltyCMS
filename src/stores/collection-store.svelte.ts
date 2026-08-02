@@ -14,6 +14,20 @@
 import type { ContentNode, Schema, WidgetFieldPermissions } from "@src/content/types";
 import { logger } from "@utils/logger";
 
+/** Cheap FNV-1a fingerprint — avoids JSON.stringify of large ContentNode trees (client-safe). */
+function structureFingerprint(nodes: ContentNode[]): string {
+  let h = 2166136261;
+  for (const n of nodes) {
+    const fieldCount = n.collectionDef?.fields?.length ?? 0;
+    const s = `${n._id ?? ""}|${n.path ?? ""}|${n.parentId ?? ""}|${n.order ?? 0}|${n.nodeType ?? ""}|${n.name ?? ""}|${fieldCount}`;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+  }
+  return (h >>> 0).toString(36);
+}
+
 // Types
 export type ModeType = "view" | "edit" | "create" | "delete" | "modify" | "media";
 
@@ -98,11 +112,29 @@ class CollectionState {
 
   setContentStructure(newContentStructure: ContentNode[]) {
     // Prevent redundant syncs that trigger reactivity loops
-    const currentHash = JSON.stringify(newContentStructure);
+    const currentHash = structureFingerprint(newContentStructure);
     if (currentHash === this.lastStructureHash) return;
     this.lastStructureHash = currentHash;
 
     this.contentStructure = newContentStructure;
+  }
+
+  /**
+   * Surgical patch when the active collection schema was recompiled.
+   * Preserves mode / activeValue / selection (no session break).
+   */
+  patchActiveSchema(schema: Schema) {
+    if (!schema?._id && !schema?.name) return;
+    const id = String(schema._id || schema.name);
+    if (this.active) {
+      const activeId = String(this.active._id || this.active.name || "");
+      if (activeId.toLowerCase() === id.toLowerCase() || this.active.name === schema.name) {
+        this.active = { ...this.active, ...schema, fields: schema.fields ?? this.active.fields };
+      }
+    }
+    if (schema._id) {
+      this.all[String(schema._id)] = schema;
+    }
   }
 
   setTargetWidget(newWidget: Widget) {

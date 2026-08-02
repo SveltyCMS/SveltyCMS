@@ -14,6 +14,7 @@
  * - Collection and Folder node type support
  */
 
+import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 
 export interface PinnedItem {
@@ -40,7 +41,7 @@ class PinnedStore {
         this.items = JSON.parse(stored);
       }
     } catch (e) {
-      console.error("Failed to load pinned items from localStorage:", e);
+      logger.error("Failed to load pinned items from localStorage:", e);
     }
   }
 
@@ -48,7 +49,7 @@ class PinnedStore {
     try {
       localStorage.setItem("sveltycms_pinned_items", JSON.stringify(this.items));
     } catch (e) {
-      console.error("Failed to save pinned items to localStorage:", e);
+      logger.error("Failed to save pinned items to localStorage:", e);
     }
   }
 

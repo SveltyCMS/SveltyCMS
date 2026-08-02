@@ -27,7 +27,6 @@ import {
 import { MigrationEngine } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { compile } from "@src/utils/compilation/compile";
 import { type Actions, error } from "@sveltejs/kit";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 // System Logger
@@ -284,28 +283,26 @@ export const actions: Actions = {
       fs.mkdirSync(path.dirname(collectionPath), { recursive: true });
       fs.writeFileSync(collectionPath, content);
 
-      // Compile with tenant ID
-      await compile({ logger, tenantId });
-      // Invalidate the scan cache so refresh picks up the newly compiled file
-      const { invalidateScanCache } = await import("@src/content/engine.server");
-      invalidateScanCache();
-      await contentSystem.refresh(tenantId);
+      // Unified coordinator: compile (target file) + refresh + models + GUI lock
+      // so the Vite watcher does not double-compile the same write.
+      const { syncContentState } = await import("@src/content/sync-content-state.server");
+      const relativeSource = path.basename(collectionPath);
+      const syncResult = await syncContentState({
+        reason: "collection-save",
+        tenantId,
+        targetFile: relativeSource,
+        changedFile: collectionPath,
+        fullBuild: Boolean(originalName && originalName !== contentName),
+      });
 
-      // 🛡️ Ensure database table is provisioned immediately upon schema save
-      try {
-        const { getDb } = await import("@src/databases/db");
-        const dbAdapter = getDb();
-        if (dbAdapter && typeof (dbAdapter as any).createModel === "function") {
-          await (dbAdapter as any).createModel({
-            _id: contentName,
-            name: contentName,
-            fields: Object.values(fields) as any[],
-          });
-        }
-      } catch (tableErr) {
-        logger.warn(`[SaveCollection] Could not auto-create model for ${contentName}:`, tableErr);
-      }
-      return { status: 200 };
+      logger.info(
+        `[SaveCollection] synced ${contentName} in ${syncResult.metrics.totalMs}ms (processed=${syncResult.metrics.processed})`,
+      );
+      return {
+        status: 200,
+        contentVersion: syncResult.contentVersion,
+        changedIds: syncResult.changedIds,
+      };
     } catch (err) {
       const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
       logger.error(message);
@@ -381,8 +378,12 @@ export const actions: Actions = {
       }
 
       fs.unlinkSync(targetFile);
-      await compile({ logger });
-      await contentSystem.refresh();
+      const { syncContentState } = await import("@src/content/sync-content-state.server");
+      await syncContentState({
+        reason: "collection-save",
+        fullBuild: true,
+        changedFile: targetFile,
+      });
       return { status: 200 };
     } catch (err) {
       const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;

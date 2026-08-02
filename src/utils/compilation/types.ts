@@ -57,6 +57,15 @@ export interface CompilationResult {
     }>;
   }>;
   skipped: number;
+  /**
+   * Absolute paths of `.js` outputs written this run (empty when all skipped).
+   * Used by HMR/sync for surgical reload + model provisioning.
+   */
+  changedJsPaths: string[];
+  /** Relative source paths compiled this run */
+  changedSourceFiles: string[];
+  /** True when nothing was written and there were no errors/orphans */
+  noOp: boolean;
 }
 
 export class CompilationError extends Error {

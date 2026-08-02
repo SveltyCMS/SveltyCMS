@@ -15,6 +15,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// Paraglide Messages
@@ -191,7 +192,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				editForm.errors.currentPassword = ['Incorrect password'];
 			}
 		} catch (e) {
-			console.error(e);
+			logger.error(e instanceof Error ? e.message : String(e));
 			editForm.errors.currentPassword = ['Error verifying password'];
 		}
 	}

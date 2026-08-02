@@ -59,6 +59,7 @@ import { globalLoadingStore, loadingOperations } from "@src/stores/loading-store
 import { screen } from "@src/stores/screen-size-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { Form } from "@utils/form.svelte.ts";
+import { logger } from "@utils/logger";
 import { forgotFormSchema, loginFormSchema, resetFormSchema } from "@utils/schemas";
 import { browser } from "$app/environment";
 import { goto, preloadData } from "$app/navigation";
@@ -135,7 +136,7 @@ async function prefetchFirstCollection() {
 	try {
 		await preloadData(firstCollectionPath);
 	} catch (error) {
-		console.error("Prefetch failed:", error);
+		logger.warn("Prefetch failed:", error);
 	}
 }
 
@@ -175,7 +176,7 @@ function onEmailInput() {
 				allowedMethods = { ...allowedMethods, ...res };
 			}
 		} catch (e) {
-			console.error("Failed to check auth methods", e);
+			logger.warn("Failed to check auth methods", e);
 		}
 	}, 400);
 }
@@ -226,7 +227,6 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 		}
 		
 		if (result.success && result.redirectPath) {
-			console.log('[SignIn Client] redirectPath:', result.redirectPath);
 			sessionStorage.setItem(
 				"flashMessage",
 				JSON.stringify({

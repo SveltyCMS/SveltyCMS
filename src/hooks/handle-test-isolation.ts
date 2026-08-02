@@ -1,6 +1,12 @@
 /**
  * @file src/hooks/handle-test-isolation.ts
- * @description Hardened multi-tenant test worker isolation with strict loopback boundaries and thread-safe context.
+ * @description
+ * Hardened multi-tenant test worker isolation with strict loopback boundaries and thread-safe context.
+ *
+ * ### Security:
+ * - Only accepts `x-test-worker-index` from loopback addresses via getClientAddress
+ * - Requires matching `x-test-secret` / TEST_API_SECRET
+ * - Never trusts Host header for isolation decisions
  */
 
 import { testWorkerContext } from "@utils/test-worker-context";

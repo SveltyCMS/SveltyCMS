@@ -1,6 +1,13 @@
 /**
  * @file src/hooks/handle-redirects.ts
- * @description Hardened redirect middleware with atomic 404 log flushes and cache stampede protection.
+ * @description
+ * Hardened redirect middleware with atomic 404 log flushes and cache stampede protection.
+ *
+ * ### Features:
+ * - Tenant-scoped redirect MV lookups with negative caching
+ * - In-flight coalescing to prevent stampede under cold cache
+ * - Buffered 404 hit logging with atomic upsert flush
+ * - Content-system existence checks for language-prefixed collection paths
  */
 
 import { getDb, isDbConnected } from "@src/databases/db";

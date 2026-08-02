@@ -44,6 +44,7 @@
  * - Rate-limited media downloads
  */
 
+import { logger } from "@utils/logger";
 import { definePlugin } from "../define-plugin";
 import { migrations } from "./migrations/001_ledger_and_dlq";
 
@@ -158,7 +159,7 @@ export const smartImporterPlugin = definePlugin({
             // Strip pro fields but allow free import to continue
             delete data._importerUseProPlatform;
             delete data._importerUseProFeatures;
-            console.warn(
+            logger.warn(
               "[smart-importer] Pro features stripped — license required. Free tier active.",
             );
           }

@@ -6,7 +6,7 @@ order: 35
 icon: "mdi:monitor-screenshot"
 author: "SveltyCMS Team"
 created: "2025-12-26"
-updated: "2026-06-04"
+updated: "2026-07-31"
 tags:
   - "architecture"
   - "state-management"
@@ -185,72 +185,93 @@ The `FloatingNav` component (`src/components/system/floating-nav.svelte`) provid
 
 ### Features
 
-| Feature                     | Description                                                                                                      |
-| :-------------------------- | :--------------------------------------------------------------------------------------------------------------- |
-| **Draggable FAB**           | Users can drag the button anywhere; it snaps to the nearest edge on release                                      |
-| **Radial Menu**             | Tap to open a circular menu of navigation endpoints with SVG connector lines                                     |
-| **User Pinning** _(v0.0.8)_ | Users can customize which endpoints appear via `localStorage` key `floatingNav_pins`. Unpinned items are hidden. |
-| **Position Persistence**    | Button position is saved per-route in `localStorage` under the `navigation` key                                  |
-| **Role-Based Filtering**    | Menu items are filtered based on user role (admin vs editor)                                                     |
-| **Reduced Motion**          | Respects `prefers-reduced-motion` — disables animations when enabled                                             |
-| **Accessibility**           | Full keyboard support (Enter/Space to toggle, Escape to close, Tab for focus)                                    |
-| **Haptic Feedback**         | Uses `navigator.vibrate()` for tactile open/close feedback on supported devices                                  |
+| Feature                      | Description                                                                                                                                                            |
+| :--------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Draggable FAB**            | Users can drag the button anywhere; it snaps to the nearest edge on release                                                                                            |
+| **Radial Menu**              | Tap to open a circular menu of navigation endpoints with SVG connector lines                                                                                           |
+| **System defaults**          | First-run shortcuts: Home, Dashboard, User, Config, Media, Settings (`floatingNavStore`)                                                                               |
+| **PageTitle star sync**      | Star on any `PageTitle` enables/disables a system route or adds a custom favorite — same per-user store as the radial                                                  |
+| **Per-user prefs**           | Stored under `floatingNav_prefs:v1:<userId>` in `localStorage` (legacy `floatingNav_pins` / `floatingNav_favorites` migrated once)                                     |
+| **Custom favorite color**    | Starred pages pass `navColor` (a `NAV_FAVORITE_COLORS` literal) so the spoke keeps the page's accent; unknown classes fall back to `bg-amber-500` (Tailwind JIT guard) |
+| **Cross-tab sync**           | `storage` events apply the same user's prefs in every other open tab (equality-guarded against feedback loops)                                                         |
+| **Empty-safe fixed anchors** | Home (center) + Settings always remain — clearing all custom items never empties the menu or divides by zero                                                           |
+| **Position Persistence**     | Button position is saved per-route in `localStorage` under the `navigation` key                                                                                        |
+| **Role-Based Filtering**     | Menu items are filtered based on user role (admin vs editor)                                                                                                           |
+| **Reduced Motion**           | Respects `prefers-reduced-motion` — disables animations when enabled                                                                                                   |
+| **Accessibility**            | Full keyboard support (Enter/Space to toggle, Escape to close, Tab for focus)                                                                                          |
+| **Haptic Feedback**          | Uses `navigator.vibrate()` for tactile open/close feedback on supported devices                                                                                        |
 
 ### Available Endpoints
 
-Users can pin/unpin any of these 10 endpoints. Home is always visible.
+System catalog lives in `src/stores/floating-nav-store.svelte.ts`. Users toggle most of these via the PageTitle star. **Home** and **Settings** are fixed (always on).
 
-| Label                | ID              | Path                        | Icon                             | Admin Only |
-| :------------------- | :-------------- | :-------------------------- | :------------------------------- | :--------- |
-| Home                 | `home`          | `/`                         | `solar:home-bold`                | No         |
-| Dashboard            | `dashboard`     | `/dashboard`                | `mdi:view-dashboard`             | No         |
-| User Profile         | `user`          | `/user`                     | `radix-icons:avatar`             | No         |
-| Collection Builder   | `col...builder` | `/config/collectionbuilder` | `fluent-mdl2:build-definition`   | Yes        |
-| GraphQL Explorer     | `graphql`       | `/api/graphql` (external)   | `teenyicons:graphql-outline`     | No         |
-| System Configuration | `config`        | `/config`                   | `mynaui:config`                  | No         |
-| Access Management    | `access`        | `/config/access-management` | `mdi:shield-account`             | No         |
-| Marketplace          | `marketplace`   | `sveltycms.com` (external)  | `icon-park-outline:shopping-bag` | No         |
-| Media Gallery        | `media`         | `/mediagallery`             | `mdi:image-multiple`             | No         |
-| System Settings      | `settings`      | `/config/system-settings`   | `mdi:cog`                        | No         |
+| Label                | ID                  | Path                        | Icon                             | Admin Only | Fixed |
+| :------------------- | :------------------ | :-------------------------- | :------------------------------- | :--------- | :---- |
+| Home                 | `home`              | `/`                         | `solar:home-bold`                | No         | Yes   |
+| Dashboard            | `dashboard`         | `/dashboard`                | `mdi:view-dashboard`             | No         | No    |
+| User Profile         | `user`              | `/user`                     | `radix-icons:avatar`             | No         | No    |
+| Collection Builder   | `collectionbuilder` | `/config/collectionbuilder` | `fluent-mdl2:build-definition`   | Yes        | No    |
+| GraphQL Explorer     | `graphql`           | `/api/graphql` (external)   | `teenyicons:graphql-outline`     | No         | No    |
+| System Configuration | `config`            | `/config`                   | `mynaui:config`                  | No         | No    |
+| Access Management    | `access`            | `/config/access-management` | `mdi:shield-account`             | No         | No    |
+| Marketplace          | `marketplace`       | `sveltycms.com` (external)  | `icon-park-outline:shopping-bag` | No         | No    |
+| Media Gallery        | `media`             | `/mediagallery`             | `mdi:image-multiple`             | No         | No    |
+| System Settings      | `settings`          | `/config/system-settings`   | `mdi:cog`                        | No         | Yes   |
+
+Custom routes (collections, plugins, etc.) can be starred as favorites; they appear as additional spokes on the radial.
 
 ---
 
-## 🔍 Global Search
+## 🔍 Global Search (Command Palette)
 
-The Global Search system provides a unified search overlay accessible from any page in the admin interface.
+Gin/Coffee-style unified search overlay for admin pages, collections, actions, and plugins.
 
 ### Architecture
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  isSearchVisible (writable store)                    │
-│  └─ toggled by: Alt+S hotkey, Escape to close        │
+│  ui.isCommandBarVisible (+ isSearchVisible alias)    │
+│  └─ toggled by: Alt+G, Mod+K; Escape to close        │
 ├──────────────────────────────────────────────────────┤
-│  SearchComponent (search-component.svelte)           │
-│  ├─ Fuzzy search via edit-distance algorithm          │
-│  ├─ Keyboard nav: ↑↓ arrows, Enter, Escape           │
-│  ├─ Debounced input (150ms)                           │
-│  └─ Max 8 results, sorted by relevance                │
+│  CommandPalette (command-palette.svelte)             │
+│  ├─ Single elevated card (light/dark, WCAG focus)    │
+│  ├─ Prefix filters: c / m / e / u / p / > /path      │
+│  ├─ Recents (localStorage, tenant+user scoped)       │
+│  ├─ Context boost from current route                 │
+│  ├─ Keyboard: ↑↓ Enter Esc Tab trap; 1–9 jump        │
+│  └─ Paraglide titles/descriptions for static pages   │
 ├──────────────────────────────────────────────────────┤
-│  globalSearchIndex (writable store)                  │
-│  ├─ 15 built-in admin page entries                    │
-│  ├─ Plugin-extensible via addToGlobalSearchIndex()    │
-│  └─ Semantic search fallback via semantic-index.ts    │
+│  command-palette.ts + global-search-index.ts         │
+│  ├─ Static admin catalog + live collections          │
+│  ├─ Plugin-extensible via addToGlobalSearchIndex()   │
+│  └─ Semantic/API enrichment when query length ≥ 2    │
 └──────────────────────────────────────────────────────┘
 ```
 
 ### Opening Global Search
 
-| Method     | Shortcut | Description                                    |
-| :--------- | :------- | :--------------------------------------------- |
-| **Hotkey** | `Alt+S`  | Toggle search overlay (Alt+S on all platforms) |
-| **Escape** | `Escape` | Close search overlay                           |
+| Method         | Shortcut | Description                              |
+| :------------- | :------- | :--------------------------------------- |
+| **Primary**    | `Mod+K`  | Toggle palette (Ctrl+K / ⌘K)             |
+| **Gin/Coffee** | `Alt+G`  | Same toggle on Windows, Linux, and macOS |
+| **Escape**     | `Escape` | Close palette and restore focus          |
 
 ### Search Strategy
 
-1. **Semantic search** (server-side, NPU-accelerated via Ollama when available)
-2. **Fuzzy substring fallback** (client-side, instant, works offline)
-3. Results are merged, deduplicated, and ranked by relevance score
+1. **Local catalog** (static pages, collections, plugins, recents, context)
+2. **Weighted fuzzy score** (current-locale title > EN keywords > path > multi-locale `matchTerms` + context boost)
+3. **Multi-locale matchTerms** — Paraglide strings for **all** configured locales (`en`, `de`, `hi`, …) are harvested into a match bag. Display title/description stay **current UI language**; typing **EN** (e.g. `user`) still finds **Benutzerprofil** / Hindi labels because EN keywords, EN fallbacks, and `/user` path tokens always stay in the bag.
+4. **Server enrichment** via `searchGlobalIndex` when the query is ≥ 2 characters
+5. Results are sectioned (Recent · Suggested · Pages · Collections · Actions)
+
+### i18n contract (Paraglide + search)
+
+| Layer            | Behavior                                                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Display**      | `titleKey` / `descriptionKey` resolved for **current** admin locale                                                     |
+| **Match**        | `matchTerms` = all locale titles/descriptions + stable EN `keywords` + path segments                                    |
+| **Navigate**     | Always stable admin path (`/user`, `/dashboard`) — never localized URLs                                                 |
+| **New language** | Add locale in `project.inlang` → `bun run translate` → `bun run paraglide` → harvest picks up new strings automatically |
 
 ### Plugin Integration
 
@@ -282,12 +303,14 @@ All admin hotkeys are registered via `src/utils/hotkeys.ts` using `registerHotke
 
 ### Admin Hotkeys (App Layout)
 
-| Shortcut | Action                               | Registered In          |
-| :------- | :----------------------------------- | :--------------------- |
-| `Mod+K`  | Toggle Command Bar (AI-powered)      | `(app)/+layout.svelte` |
-| `Mod+S`  | Global Save                          | `(app)/+layout.svelte` |
-| `Alt+S`  | Toggle Global Search                 | `(app)/+layout.svelte` |
-| `Escape` | Close Overlays (Command Bar, Search) | `(app)/+layout.svelte` |
+| Shortcut | Action                                 | Registered In          |
+| :------- | :------------------------------------- | :--------------------- |
+| `Mod+K`  | Toggle Global Search (Command Palette) | `(app)/+layout.svelte` |
+| `Alt+G`  | Same toggle (Gin/Coffee-style, all OS) | `(app)/+layout.svelte` |
+| `Mod+S`  | Global Save                            | `(app)/+layout.svelte` |
+| `Escape` | Close Global Search + restore focus    | `(app)/+layout.svelte` |
+
+> **Note:** `Alt+S` was removed (2026-07). `Mod+K` and `Alt+G` open the same unified palette — see [Global Search](#global-search-command-palette).
 
 ### Context-Specific Hotkeys
 

@@ -9,6 +9,7 @@
  * - Development mode warnings
  */
 
+import { logger } from "@utils/logger";
 import type { Component } from "svelte";
 
 export interface EditorWidget {
@@ -54,14 +55,14 @@ export const editorWidgets: EditorWidget[] = Object.entries(modules)
 
     if (!widget) {
       if (import.meta.env.DEV) {
-        console.warn(`[Widget Registry] No widget export found in ${path}`);
+        logger.warn(`[Widget Registry] No widget export found in ${path}`);
       }
       return null;
     }
 
     if (!isValidWidget(widget)) {
       if (import.meta.env.DEV) {
-        console.error(`[Widget Registry] Invalid widget structure in ${path}:`, widget);
+        logger.error(`[Widget Registry] Invalid widget structure in ${path}:`, widget);
       }
       return null;
     }
@@ -125,7 +126,7 @@ export function isWidgetAvailable(widget: EditorWidget): boolean {
 if (import.meta.env.DEV) {
   // Only log widgets in development/benchmark mode if needed
   if (typeof process !== "undefined" && process.env && process.env.BENCHMARK_DEBUG === "true") {
-    console.log("[Widget Registry] Loaded widgets:", editorWidgets.length);
+    logger.debug("[Widget Registry] Loaded widgets:", editorWidgets.length);
     console.table(
       editorWidgets.map((w) => ({
         key: w.key,

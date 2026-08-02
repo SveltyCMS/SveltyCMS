@@ -11,6 +11,7 @@ import type { Job, DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 import { cleanupTempStore } from "@utils/temp-store";
 import { pubSub } from "@src/services/background/pub-sub";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 // Static imports — background jobs run outside Vite's request-scoped module runner
 import { processMediaHandler } from "./media-jobs";
@@ -132,7 +133,6 @@ class JobQueueService {
         return;
       }
 
-      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
       const readyJobsResult = await db.system.jobs.getNextReady(
         Math.min(batchSize, capacity),
         withSystemScope("scheduler"),
@@ -146,6 +146,9 @@ class JobQueueService {
 
       // 2. Process jobs (don't await them all here to allow concurrency)
       for (const job of jobs) {
+        // status-transition jobs belong to the scheduler (see scheduler.ts) —
+        // never claim or fail them here, or the scheduler's work gets destroyed.
+        if (job.taskType === "status-transition") continue;
         this.currentRunning++;
         this.executeJob(job, db)
           .catch((err) => {
@@ -162,8 +165,12 @@ class JobQueueService {
             this.currentRunning--;
           });
       }
-    } catch (error) {
-      logger.error("[JobQueue] Error during batch processing:", error);
+    } catch (error: any) {
+      if (error?.message?.includes("Vite module runner has been closed")) {
+        logger.debug("[JobQueue] Vite module runner closed during batch processing, skipping.");
+      } else {
+        logger.error("[JobQueue] Error during batch processing:", error);
+      }
     } finally {
       this.isProcessing = false;
     }
@@ -175,8 +182,15 @@ class JobQueueService {
   private async executeJob(job: Job, db: any) {
     let handler = this.handlers.get(job.taskType);
     if (!handler && this.handlerLoaders.has(job.taskType)) {
-      handler = await this.handlerLoaders.get(job.taskType)!();
-      if (handler) this.handlers.set(job.taskType, handler);
+      try {
+        handler = await this.handlerLoaders.get(job.taskType)!();
+        if (handler) this.handlers.set(job.taskType, handler);
+      } catch (err: any) {
+        if (err?.message?.includes("Vite module runner has been closed")) {
+          return;
+        }
+        throw err;
+      }
     }
 
     // Mark as running
@@ -197,7 +211,7 @@ class JobQueueService {
       },
     );
 
-    if (!claimResult.success) return;
+    if (!claimResult.success || !claimResult.data) return; // Not claimed (already picked up / failed by another consumer)
 
     if (!handler) {
       logger.warn(`[JobQueue] No handler found for task type: ${job.taskType}`);
@@ -305,3 +319,9 @@ class JobQueueService {
 }
 
 export const jobQueue = new JobQueueService();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    jobQueue.stopPolling();
+  });
+}

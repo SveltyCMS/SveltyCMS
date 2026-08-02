@@ -33,8 +33,15 @@ vi.mock("@src/utils/media/media-processing.server", () => ({
 }));
 
 vi.mock("@src/utils/media/media-storage.server", () => ({
+  saveFile: vi.fn().mockResolvedValue("/files/mock_path.png"),
+  saveResized: vi.fn().mockResolvedValue({}),
+  fileExists: vi.fn().mockResolvedValue(true),
+  deleteFile: vi.fn().mockResolvedValue(undefined),
+  getFile: vi.fn().mockResolvedValue(Buffer.from("mock")),
+  // Aliases exported by the real module — kept for parity
   saveFileToDisk: vi.fn().mockResolvedValue("/files/mock_path.png"),
   saveResizedImages: vi.fn().mockResolvedValue({}),
+  moveMediaToTrash: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@src/utils/media/slim-sniffer.server", () => ({
@@ -44,6 +51,15 @@ vi.mock("@src/utils/media/slim-sniffer.server", () => ({
 vi.mock("@src/utils/media/media-utils", () => ({
   validateMediaFileServer: vi.fn().mockReturnValue({ valid: true }),
   resolveMediaRelPath: vi.fn().mockImplementation((item: any) => item.path || item.url),
+  buildOriginalRelPath: vi
+    .fn()
+    .mockImplementation((hash: string, filename: string, tenantId?: string | null) => {
+      const dot = filename.lastIndexOf(".");
+      const ext = dot >= 0 ? filename.slice(dot + 1) : "bin";
+      const baseName = dot >= 0 ? filename.slice(0, dot) : filename || "file";
+      const tenant = tenantId ? `${tenantId}/` : "";
+      return `${tenant}${hash}/original/${baseName}-${hash}.${ext}`;
+    }),
 }));
 
 vi.mock("@src/services/core/settings-service", () => ({
@@ -96,9 +112,7 @@ describe("SDK & Media Hardening", () => {
   });
 
   describe("Media Deduplication", () => {
-    // Skip: media-security.test.ts mocks MediaService class globally, polluting imports.
-    // Dedup behavior is covered by integration tests in tests/integration/api/.
-    it.skip("should deduplicate existing file by hash", async () => {
+    it("should deduplicate existing file by hash", async () => {
       const mockFile = Buffer.from("test file content");
       const hash = crypto.createHash("sha256").update(mockFile).digest("hex");
 
