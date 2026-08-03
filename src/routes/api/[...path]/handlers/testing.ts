@@ -839,6 +839,10 @@ export async function handleTestingRoutes(
       if (collectionId === "roles") {
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
+        // Also drop the roles LIST cache (1h TTL) so getCachedRoles re-fetches —
+        // otherwise hasPermissionWithRoles resolves an empty role set and denies.
+        const { invalidateRolesCache } = await import("@src/hooks/handle-authorization");
+        await invalidateRolesCache(tenantId);
       }
 
       const responseBody = result.success
@@ -876,6 +880,10 @@ export async function handleTestingRoutes(
       if (collectionId === "roles") {
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
+        // Also drop the roles LIST cache (1h TTL) so getCachedRoles re-fetches —
+        // otherwise hasPermissionWithRoles resolves an empty role set and denies.
+        const { invalidateRolesCache } = await import("@src/hooks/handle-authorization");
+        await invalidateRolesCache(tenantId);
       }
 
       const responseBody = result.success
@@ -904,6 +912,14 @@ export async function handleTestingRoutes(
         bypassTenantCheck: true,
         permanent: true,
       });
+
+      // Role deletions must also drop both caches (see insert/update rationale).
+      if (collectionId === "roles") {
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache();
+        const { invalidateRolesCache } = await import("@src/hooks/handle-authorization");
+        await invalidateRolesCache(tenantId);
+      }
 
       return rawResponse(
         {

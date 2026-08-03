@@ -157,9 +157,14 @@ function handlePaste(e: ClipboardEvent) {
 	value = newValue;
 
 	// Restore cursor position after the inserted text
+	// setSelectionRange is not supported on input types that do not allow
+	// text selection (email, number, date, ...) and throws InvalidStateError.
 	requestAnimationFrame(() => {
 		const newPos = start + sanitized.length;
-		input.setSelectionRange(newPos, newPos);
+		const selectionTypes = new Set(['text', 'search', 'url', 'tel', 'password', 'textarea']);
+		if (selectionTypes.has(input.type)) {
+			input.setSelectionRange(newPos, newPos);
+		}
 	});
 
 	e.stopPropagation();
